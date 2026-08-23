@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use deckmaste_english_v2::ast::CatalogProvider;
-use deckmaste_english_v2::ast::NounLexeme;
+use deckmaste_english_v2::ast::CommonNoun;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
@@ -203,7 +203,7 @@ impl Visitor for IdentityVisitor {
             .push(format!("declaration:{:?}/{}", id.kind(), id.name()));
     }
 
-    fn visit_noun_lexeme(&mut self, noun: NounLexeme) {
+    fn visit_common_noun(&mut self, noun: CommonNoun) {
         self.events.push(format!("noun:{noun:?}"));
     }
 }
@@ -605,7 +605,7 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
     let noun_lexeme = expansion
         .terminal_contributions()
         .iter()
-        .find(|terminal| terminal.name() == "NounLexeme")
+        .find(|terminal| terminal.name() == "CommonNoun")
         .expect("closed noun lexeme provider exists");
     assert_eq!(
         noun_lexeme
@@ -616,8 +616,24 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
         [
             ("Card", SurfaceFeature::Singular, "card"),
             ("Card", SurfaceFeature::Plural, "cards"),
+            ("Controller", SurfaceFeature::Singular, "controller"),
+            ("Controller", SurfaceFeature::Plural, "controllers"),
+            ("Opponent", SurfaceFeature::Singular, "opponent"),
+            ("Opponent", SurfaceFeature::Plural, "opponents"),
+            ("Owner", SurfaceFeature::Singular, "owner"),
+            ("Owner", SurfaceFeature::Plural, "owners"),
+            ("Permanent", SurfaceFeature::Singular, "permanent"),
+            ("Permanent", SurfaceFeature::Plural, "permanents"),
             ("Player", SurfaceFeature::Singular, "player"),
             ("Player", SurfaceFeature::Plural, "players"),
+            ("Source", SurfaceFeature::Singular, "source"),
+            ("Source", SurfaceFeature::Plural, "sources"),
+            ("Spell", SurfaceFeature::Singular, "spell"),
+            ("Spell", SurfaceFeature::Plural, "spells"),
+            ("Target", SurfaceFeature::Singular, "target"),
+            ("Target", SurfaceFeature::Plural, "targets"),
+            ("Token", SurfaceFeature::Singular, "token"),
+            ("Token", SurfaceFeature::Plural, "tokens"),
         ]
     );
     let generated = expansion.tokens().to_string();
@@ -626,10 +642,26 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
         "lexeme:VerbLexeme/Deal/third_person_singular",
         "lexeme:VerbLexeme/Be/bare",
         "lexeme:VerbLexeme/Be/third_person_singular",
-        "lexeme:NounLexeme/Player/singular",
-        "lexeme:NounLexeme/Player/plural",
-        "lexeme:NounLexeme/Card/singular",
-        "lexeme:NounLexeme/Card/plural",
+        "lexeme:CommonNoun/Card/singular",
+        "lexeme:CommonNoun/Card/plural",
+        "lexeme:CommonNoun/Controller/singular",
+        "lexeme:CommonNoun/Controller/plural",
+        "lexeme:CommonNoun/Opponent/singular",
+        "lexeme:CommonNoun/Opponent/plural",
+        "lexeme:CommonNoun/Owner/singular",
+        "lexeme:CommonNoun/Owner/plural",
+        "lexeme:CommonNoun/Permanent/singular",
+        "lexeme:CommonNoun/Permanent/plural",
+        "lexeme:CommonNoun/Player/singular",
+        "lexeme:CommonNoun/Player/plural",
+        "lexeme:CommonNoun/Source/singular",
+        "lexeme:CommonNoun/Source/plural",
+        "lexeme:CommonNoun/Spell/singular",
+        "lexeme:CommonNoun/Spell/plural",
+        "lexeme:CommonNoun/Target/singular",
+        "lexeme:CommonNoun/Target/plural",
+        "lexeme:CommonNoun/Token/singular",
+        "lexeme:CommonNoun/Token/plural",
     ] {
         assert!(
             generated.contains(owner),

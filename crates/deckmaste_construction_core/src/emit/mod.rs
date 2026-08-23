@@ -392,6 +392,7 @@ fn emit_predicate_atom(
         | PredicateSubjectPlan::ConstructionFeature(feature) => {
             let feature_type = match feature {
                 crate::feature::Feature::Agreement => local_ident("Agreement"),
+                crate::feature::Feature::Cardinality => local_ident("Cardinality"),
                 crate::feature::Feature::Number => local_ident("Number"),
                 crate::feature::Feature::Onset => local_ident("Onset"),
                 crate::feature::Feature::PossessiveEnding => local_ident("PossessiveEnding"),

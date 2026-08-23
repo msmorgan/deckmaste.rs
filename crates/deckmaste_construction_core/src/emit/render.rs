@@ -373,6 +373,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                     origin.clone(),
                 ));
                 let number = ident(&feature_helper("number", codec.codec_name()));
+                let cardinality = ident(&feature_helper("cardinality", codec.codec_name()));
                 let ty = codec.codec_ident();
                 items.push(GeneratedItem::new(
                     ItemKey::Named {
@@ -385,6 +386,22 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                                 Number::Singular
                             } else {
                                 Number::Plural
+                            }
+                        }
+                    },
+                    origin.clone(),
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name: cardinality.to_string(),
+                    },
+                    quote! {
+                        fn #cardinality(value: &#ty) -> Cardinality {
+                            match value.magnitude {
+                                0 => Cardinality::Zero,
+                                1 => Cardinality::One,
+                                _ => Cardinality::TwoPlus,
                             }
                         }
                     },
@@ -436,6 +453,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
 
     for feature in [
         Feature::Agreement,
+        Feature::Cardinality,
         Feature::Number,
         Feature::Onset,
         Feature::PossessiveEnding,
@@ -1344,6 +1362,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
     let ty = emitted_ident(helper.vocab.name(), helper.vocab.name_ident().span());
     let return_ty = match helper.feature {
         Feature::Agreement => quote! { Agreement },
+        Feature::Cardinality => quote! { Cardinality },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
         Feature::PossessiveEnding => quote! { PossessiveEnding },
@@ -1516,12 +1535,19 @@ fn render_allocator(
                         .runtime_declaration_noun_for(field.terminal())
                         .is_none()
                     {
-                        let binding = find_binding(validated, field.terminal())?;
-                        let Some(BindingRenderPlan::Runtime(path)) = binding.render() else {
-                            return Err(internal("noun terminal lacks runtime render binding"));
-                        };
-                        reserve_bare_path(&mut allocator, path);
-                    } else {
+                        if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
+                            allocator.reserve(lexeme_surface_helper(lexeme.name()));
+                        } else {
+                            let binding = find_binding(validated, field.terminal())?;
+                            let Some(BindingRenderPlan::Runtime(path)) = binding.render() else {
+                                return Err(internal("noun terminal lacks runtime render binding"));
+                            };
+                            reserve_bare_path(&mut allocator, path);
+                        }
+                    } else if let Some((_, codec)) =
+                        validated.runtime_declaration_noun_for(field.terminal())
+                        && codec.closed_lexeme().is_some()
+                    {
                         let lexeme = validated.runtime_noun_lexeme().ok_or_else(|| {
                             internal("declaration noun lacks its sealed lexeme plan")
                         })?;
@@ -1605,12 +1631,15 @@ fn reserve_feature_callees(
     {
         return Ok(());
     }
-    if *source_feature == Feature::Number
+    if matches!(*source_feature, Feature::Cardinality | Feature::Number)
         && field.kind() == ConstructionFieldKind::Lex
         && let Some(codec) = find_unsigned_number(validated, field.terminal())
         && codec.kind() == UnsignedNumberKind::EnglishCardinal
     {
-        allocator.reserve(feature_helper("number", codec.codec_name()));
+        allocator.reserve(feature_helper(
+            feature_name(*source_feature),
+            codec.codec_name(),
+        ));
         return Ok(());
     }
     let source = match field.kind() {
@@ -2350,6 +2379,34 @@ fn render_owner(
         AtomPlan::Noun { role, .. } => {
             let field = construction.field(role)?;
             let value = field_value(construction, role, locals)?;
+            let number = noun_role_number(validated, construction, role, locals)?;
+            if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
+                let noun = lexeme.name_ident();
+                let arms = lexeme.surfaces().iter().map(|row| {
+                    let member = emitted_ident(row.member(), Span::call_site());
+                    let feature = match row.feature() {
+                        macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                        macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                        macro_ron::v2::SurfaceFeature::Bare
+                        | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                        | macro_ron::v2::SurfaceFeature::Fixed => {
+                            unreachable!("validated noun lexeme has the Number feature axis")
+                        }
+                    };
+                    let stable_id = crate::emit::closed_lexeme_owner_id(
+                        lexeme.name(),
+                        row.member(),
+                        row.feature(),
+                    );
+                    quote! {
+                        (#noun::#member, #feature) => LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Lexeme,
+                            #stable_id,
+                        )
+                    }
+                });
+                return Ok(quote! { match (#value, #number) { #(#arms,)* } });
+            }
             let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
                 let stable_id =
                     syn::LitStr::new(&format!("codec:{}", field.terminal()), Span::call_site());
@@ -2358,14 +2415,13 @@ fn render_owner(
                 });
             };
             let noun = codec.codec_ident();
-            let closed = codec.closed_lexeme();
-            let number = noun_role_number(validated, construction, role, locals)?;
-            let closed_arms = validated
-                .runtime_noun_lexeme()
-                .expect("validated declaration noun has a closed lexeme")
-                .surfaces()
-                .iter()
-                .map(|row| {
+            let closed_arms = if let Some(closed) = codec.closed_lexeme() {
+                validated
+                    .runtime_noun_lexeme()
+                    .expect("validated declaration noun has a closed lexeme")
+                    .surfaces()
+                    .iter()
+                    .map(|row| {
                     let member = emitted_ident(row.member(), Span::call_site());
                     let feature = match row.feature() {
                         macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
@@ -2387,7 +2443,11 @@ fn render_owner(
                             #stable_id,
                         )
                     }
-                });
+                    })
+                    .collect::<Vec<_>>()
+            } else {
+                Vec::new()
+            };
             Ok(quote! {
                 match (#value, #number) {
                     #(#closed_arms,)*
@@ -2416,6 +2476,10 @@ fn render_noun_atom(
 ) -> syn::Result<TokenStream> {
     let number = noun_role_number(validated, construction, role, locals)?;
     let value = field_value(construction, role, locals)?;
+    if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
+        let surface = ident(&lexeme_surface_helper(lexeme.name()));
+        return Ok(quote! { #method_writer.word(#surface(*#value, #number)); });
+    }
     let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
         let binding = find_binding(validated, field.terminal())?;
         let Some(BindingRenderPlan::Runtime(function)) = binding.render() else {
@@ -2425,21 +2489,27 @@ fn render_noun_atom(
     };
 
     let noun = codec.codec_ident();
-    let closed = codec.closed_lexeme();
-    let lexeme = validated
-        .runtime_noun_lexeme()
-        .ok_or_else(|| internal("validated declaration noun lacks a closed lexeme plan"))?;
-    if closed != lexeme.name() {
-        return Err(internal(
-            "declaration noun closed lexeme plan is inconsistent",
-        ));
-    }
-    let surface = ident(&lexeme_surface_helper(lexeme.name()));
-    Ok(quote! {
-        match #value {
+    let closed_arm = if let Some(closed) = codec.closed_lexeme() {
+        let lexeme = validated
+            .runtime_noun_lexeme()
+            .ok_or_else(|| internal("validated declaration noun lacks a closed lexeme plan"))?;
+        if closed != lexeme.name() {
+            return Err(internal(
+                "declaration noun closed lexeme plan is inconsistent",
+            ));
+        }
+        let surface = ident(&lexeme_surface_helper(lexeme.name()));
+        Some(quote! {
             #noun::Lexeme(lexeme) => {
                 #method_writer.word(#surface(*lexeme, #number));
             }
+        })
+    } else {
+        None
+    };
+    Ok(quote! {
+        match #value {
+            #closed_arm
             #noun::Declaration(declaration) => {
                 let surface = environment
                     .surface(
@@ -2601,6 +2671,7 @@ fn feature_expr(
                 }
                 return match source_feature {
                     Feature::Agreement => Ok(quote! { agreement }),
+                    Feature::Cardinality => Err(internal("verb slot does not provide cardinality")),
                     Feature::Onset => implicit_verb_onset(validated, construction, locals),
                     Feature::Number => Err(internal("verb slot does not provide number")),
                     Feature::PossessiveEnding => {
@@ -2632,12 +2703,15 @@ fn feature_expr(
                 );
             }
             let role_value = field_value(construction, &role_key, locals)?;
-            if *source_feature == Feature::Number
+            if matches!(*source_feature, Feature::Cardinality | Feature::Number)
                 && field.kind() == ConstructionFieldKind::Lex
                 && let Some(codec) = find_unsigned_number(validated, field.terminal())
                 && codec.kind() == UnsignedNumberKind::EnglishCardinal
             {
-                let function = ident(&feature_helper("number", codec.codec_name()));
+                let function = ident(&feature_helper(
+                    feature_name(*source_feature),
+                    codec.codec_name(),
+                ));
                 return Ok(quote! { #function(#role_value) });
             }
             if *source_feature == Feature::Onset
@@ -2861,22 +2935,12 @@ fn lexical_onset_expr(
                 .expect("validated catalog identity remains in its frozen provider")
         });
     }
-    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
-        return Err(internal(
-            "lexical onset source has no sealed terminal onset plan",
-        ));
-    };
-    let noun = codec.codec_ident();
-    let closed = codec.closed_lexeme();
-    let number = noun_role_number(validated, construction, role, locals)?;
-    let closed_arms = validated
-        .runtime_noun_lexeme()
-        .expect("validated declaration noun has a closed lexeme")
-        .surfaces()
-        .iter()
-        .map(|row| {
+    if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
+        let noun = lexeme.name_ident();
+        let number = noun_role_number(validated, construction, role, locals)?;
+        let arms = lexeme.surfaces().iter().map(|row| {
             let member = ident(row.member());
-            let number = match row.feature() {
+            let feature = match row.feature() {
                 macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
                 macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                 macro_ron::v2::SurfaceFeature::Bare
@@ -2886,8 +2950,41 @@ fn lexical_onset_expr(
                 }
             };
             let onset = super::onset(row.onset());
-            quote! { (#noun::Lexeme(#closed::#member), #number) => #onset }
+            quote! { (#noun::#member, #feature) => #onset }
         });
+        return Ok(quote! { match (#role_value, #number) { #(#arms,)* } });
+    }
+    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
+        return Err(internal(
+            "lexical onset source has no sealed terminal onset plan",
+        ));
+    };
+    let noun = codec.codec_ident();
+    let number = noun_role_number(validated, construction, role, locals)?;
+    let closed_arms = if let Some(closed) = codec.closed_lexeme() {
+        validated
+            .runtime_noun_lexeme()
+            .expect("validated declaration noun has a closed lexeme")
+            .surfaces()
+            .iter()
+            .map(|row| {
+                let member = ident(row.member());
+                let number = match row.feature() {
+                    macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                    macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                    macro_ron::v2::SurfaceFeature::Bare
+                    | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    | macro_ron::v2::SurfaceFeature::Fixed => {
+                        unreachable!("validated noun lexeme has the Number feature axis")
+                    }
+                };
+                let onset = super::onset(row.onset());
+                quote! { (#noun::Lexeme(#closed::#member), #number) => #onset }
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     Ok(quote! {
         match (#role_value, #number) {
             #(#closed_arms,)*
@@ -2940,22 +3037,12 @@ fn lexical_possessive_ending_expr(
                 .expect("validated catalog identity remains in its frozen provider")
         }));
     }
-    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
-        return Err(internal(
-            "possessive-ending source has no sealed lexical surface plan",
-        ));
-    };
-    let noun = codec.codec_ident();
-    let closed = codec.closed_lexeme();
-    let number = noun_role_number(validated, construction, role, locals)?;
-    let closed_arms = validated
-        .runtime_noun_lexeme()
-        .expect("validated declaration noun has a closed lexeme")
-        .surfaces()
-        .iter()
-        .map(|row| {
+    if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
+        let noun = lexeme.name_ident();
+        let number = noun_role_number(validated, construction, role, locals)?;
+        let arms = lexeme.surfaces().iter().map(|row| {
             let member = ident(row.member());
-            let number = match row.feature() {
+            let feature = match row.feature() {
                 macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
                 macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                 macro_ron::v2::SurfaceFeature::Bare
@@ -2965,8 +3052,41 @@ fn lexical_possessive_ending_expr(
                 }
             };
             let ending = possessive_ending_for_surface(row.surface());
-            quote! { (#noun::Lexeme(#closed::#member), #number) => #ending }
+            quote! { (#noun::#member, #feature) => #ending }
         });
+        return Ok(quote! { match (#role_value, #number) { #(#arms,)* } });
+    }
+    let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
+        return Err(internal(
+            "possessive-ending source has no sealed lexical surface plan",
+        ));
+    };
+    let noun = codec.codec_ident();
+    let number = noun_role_number(validated, construction, role, locals)?;
+    let closed_arms = if let Some(closed) = codec.closed_lexeme() {
+        validated
+            .runtime_noun_lexeme()
+            .expect("validated declaration noun has a closed lexeme")
+            .surfaces()
+            .iter()
+            .map(|row| {
+                let member = ident(row.member());
+                let number = match row.feature() {
+                    macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                    macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                    macro_ron::v2::SurfaceFeature::Bare
+                    | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    | macro_ron::v2::SurfaceFeature::Fixed => {
+                        unreachable!("validated noun lexeme has the Number feature axis")
+                    }
+                };
+                let ending = possessive_ending_for_surface(row.surface());
+                quote! { (#noun::Lexeme(#closed::#member), #number) => #ending }
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     let dynamic = runtime_possessive_ending(&quote! {
         environment
             .surface(
@@ -3083,6 +3203,7 @@ fn emit_feature_helper(
     let argument = allocator.allocate(&category_argument(category));
     let return_ty = match feature {
         Feature::Agreement => quote! { Agreement },
+        Feature::Cardinality => quote! { Cardinality },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
         Feature::PossessiveEnding => quote! { PossessiveEnding },
@@ -3337,6 +3458,9 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Vowel => quote! { Onset::Vowel },
         FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
         FeatureValue::Other => quote! { PossessiveEnding::Other },
+        FeatureValue::Zero => quote! { Cardinality::Zero },
+        FeatureValue::One => quote! { Cardinality::One },
+        FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
     }
 }
 
@@ -3538,6 +3662,7 @@ fn render_vocab_argument(name: &str) -> String {
 fn feature_name(feature: Feature) -> &'static str {
     match feature {
         Feature::Agreement => "agreement",
+        Feature::Cardinality => "cardinality",
         Feature::Number => "number",
         Feature::Onset => "onset",
         Feature::PossessiveEnding => "possessive_ending",

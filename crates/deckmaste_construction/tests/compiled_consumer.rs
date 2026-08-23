@@ -321,7 +321,6 @@ mod declaration_noun_fixture {
         }
         codec TypeNoun {
             generate declaration_noun {
-                closed = NounLexeme;
                 position = Noun;
                 kinds = [Type];
                 feature = Number;
@@ -332,6 +331,48 @@ mod declaration_noun_fixture {
                 closed = NounLexeme;
                 position = Noun;
                 kinds = [Subtype(Creature)];
+                feature = Number;
+            }
+        }
+        codec ArtifactSubtypeNoun {
+            generate declaration_noun {
+                position = Noun;
+                kinds = [Subtype(Artifact)];
+                feature = Number;
+            }
+        }
+        codec BattleSubtypeNoun {
+            generate declaration_noun {
+                position = Noun;
+                kinds = [Subtype(Battle)];
+                feature = Number;
+            }
+        }
+        codec EnchantmentSubtypeNoun {
+            generate declaration_noun {
+                position = Noun;
+                kinds = [Subtype(Enchantment)];
+                feature = Number;
+            }
+        }
+        codec LandSubtypeNoun {
+            generate declaration_noun {
+                position = Noun;
+                kinds = [Subtype(Land)];
+                feature = Number;
+            }
+        }
+        codec PlaneswalkerSubtypeNoun {
+            generate declaration_noun {
+                position = Noun;
+                kinds = [Subtype(Planeswalker)];
+                feature = Number;
+            }
+        }
+        codec SpellSubtypeNoun {
+            generate declaration_noun {
+                position = Noun;
+                kinds = [Subtype(Spell)];
                 feature = Number;
             }
         }
@@ -383,7 +424,7 @@ mod declaration_noun_fixture {
         construction article_noun: InflectedArticle {
             element ArticleNoun {
                 source: NumberSource,
-                head: lex TypeNoun,
+                head: lex CreatureNoun,
             }
             derive head.number = source.number;
             derive number = source.number;
@@ -414,6 +455,26 @@ mod declaration_noun_fixture {
             declaration(
                 "/synthetic/subtypes/artifact/Clue.ron",
                 r#"Subtype(category:Artifact,name:"Clue",spelling:"Clue",grammar:Noun(singular:"Clue"))"#,
+            ),
+            declaration(
+                "/synthetic/subtypes/battle/Siege.ron",
+                r#"Subtype(category:Battle,name:"Siege",spelling:"Siege",grammar:Noun(singular:"Siege"))"#,
+            ),
+            declaration(
+                "/synthetic/subtypes/enchantment/Aura.ron",
+                r#"Subtype(category:Enchantment,name:"Aura",spelling:"Aura",grammar:Noun(singular:"Aura"))"#,
+            ),
+            declaration(
+                "/synthetic/subtypes/land/Forest.ron",
+                r#"Subtype(category:Land,name:"Forest",spelling:"Forest",grammar:Noun(singular:"Forest"))"#,
+            ),
+            declaration(
+                "/synthetic/subtypes/planeswalker/Jace.ron",
+                r#"Subtype(category:Planeswalker,name:"Jace",spelling:"Jace",grammar:Noun(singular:"Jace"))"#,
+            ),
+            declaration(
+                "/synthetic/subtypes/spell/Arcane.ron",
+                r#"Subtype(category:Spell,name:"Arcane",spelling:"Arcane",grammar:Noun(singular:"Arcane"))"#,
             ),
             declaration(
                 "/synthetic/abilities/Fraud.ron",
@@ -529,26 +590,84 @@ mod declaration_noun_fixture {
         (*modifier, *head)
     }
 
+    fn assert_exact_subtype_domains(
+        environment: &crate::environment::ParserEnvironment,
+    ) -> macro_ron::v2::DeclarationIdentity {
+        let subtype = |category, name| {
+            macro_ron::v2::DeclarationIdentity::new(
+                macro_ron::v2::DeclarationKind::Subtype(category),
+                name,
+            )
+        };
+        let clue = subtype(macro_ron::v2::SubtypeCategory::Artifact, "Clue");
+        let siege = subtype(macro_ron::v2::SubtypeCategory::Battle, "Siege");
+        let elf = subtype(macro_ron::v2::SubtypeCategory::Creature, "Elf");
+        let aura = subtype(macro_ron::v2::SubtypeCategory::Enchantment, "Aura");
+        let forest = subtype(macro_ron::v2::SubtypeCategory::Land, "Forest");
+        let jace = subtype(macro_ron::v2::SubtypeCategory::Planeswalker, "Jace");
+        let arcane = subtype(macro_ron::v2::SubtypeCategory::Spell, "Arcane");
+
+        macro_rules! assert_exact_subtype_domain {
+            ($noun:ty, $accepted:expr; $($rejected:expr),+ $(,)?) => {{
+                assert!(<$noun>::new(environment, $accepted.clone()).is_some());
+                $(
+                    assert!(
+                        <$noun>::new(environment, $rejected.clone()).is_none(),
+                        "a compiled exact subtype terminal admitted a cross-family identity",
+                    );
+                )+
+            }};
+        }
+        assert_exact_subtype_domain!(
+            DeclarationArtifactSubtypeNoun,
+            clue;
+            siege, elf, aura, forest, jace, arcane,
+        );
+        assert_exact_subtype_domain!(
+            DeclarationBattleSubtypeNoun,
+            siege;
+            clue, elf, aura, forest, jace, arcane,
+        );
+        assert_exact_subtype_domain!(
+            DeclarationCreatureNoun,
+            elf;
+            clue, siege, aura, forest, jace, arcane,
+        );
+        assert_exact_subtype_domain!(
+            DeclarationEnchantmentSubtypeNoun,
+            aura;
+            clue, siege, elf, forest, jace, arcane,
+        );
+        assert_exact_subtype_domain!(
+            DeclarationLandSubtypeNoun,
+            forest;
+            clue, siege, elf, aura, jace, arcane,
+        );
+        assert_exact_subtype_domain!(
+            DeclarationPlaneswalkerSubtypeNoun,
+            jace;
+            clue, siege, elf, aura, forest, arcane,
+        );
+        assert_exact_subtype_domain!(
+            DeclarationSpellSubtypeNoun,
+            arcane;
+            clue, siege, elf, aura, forest, jace,
+        );
+        elf
+    }
+
     pub(crate) fn run() {
         let environment = environment();
         let context = ParseContext::default();
         let relic =
             macro_ron::v2::DeclarationIdentity::new(macro_ron::v2::DeclarationKind::Type, "Relic");
-        let elf = macro_ron::v2::DeclarationIdentity::new(
-            macro_ron::v2::DeclarationKind::Subtype(macro_ron::v2::SubtypeCategory::Creature),
-            "Elf",
-        );
-        let clue = macro_ron::v2::DeclarationIdentity::new(
-            macro_ron::v2::DeclarationKind::Subtype(macro_ron::v2::SubtypeCategory::Artifact),
-            "Clue",
-        );
+        let elf = assert_exact_subtype_domains(&environment);
 
         let public_type = DeclarationTypeNoun::new(&environment, relic.clone())
             .expect("the public declaration noun stores a valid identity");
         assert_eq!(public_type.id(), &relic);
         assert!(DeclarationTypeNoun::new(&environment, elf.clone()).is_none());
         assert!(DeclarationCreatureNoun::new(&environment, elf.clone()).is_some());
-        assert!(DeclarationCreatureNoun::new(&environment, clue).is_none());
 
         let (modifier_terminal, head_terminal) = phrase_rule_terminals();
         let modifier = scan_terminal(&environment, &context, "Relic Elf.", 0, modifier_terminal);
@@ -792,8 +911,8 @@ mod declaration_noun_fixture {
             assert!(matches!(
                 scanned.as_slice(),
                 [LexicalMatch {
-                    value: Leaf::TypeNoun {
-                        noun: TypeNoun::Lexeme(NounLexeme::Artifact),
+                    value: Leaf::CreatureNoun {
+                        noun: CreatureNoun::Lexeme(NounLexeme::Artifact),
                         number: actual_number,
                         onset,
                         ..
@@ -1332,6 +1451,7 @@ pub mod fixture {
         }
         construction cardinal: CardinalQuantity {
             element CardinalQuantityValue { number: lex CardinalNumber, }
+            derive cardinality = number.cardinality;
             derive number = number.number;
             form cardinal = lex(number);
         }
@@ -4092,11 +4212,11 @@ pub mod fixture {
         );
 
         let context = ParseContext::default();
-        for (magnitude, expected) in [
-            (0, Number::Plural),
-            (1, Number::Singular),
-            (2, Number::Plural),
-            (u32::MAX, Number::Plural),
+        for (magnitude, expected_cardinality, expected_number) in [
+            (0, Cardinality::Zero, Number::Plural),
+            (1, Cardinality::One, Number::Singular),
+            (2, Cardinality::TwoPlus, Number::Plural),
+            (u32::MAX, Cardinality::TwoPlus, Number::Plural),
         ] {
             let number = CardinalNumber { magnitude };
             let built = build(
@@ -4109,7 +4229,8 @@ pub mod fixture {
                 built,
                 BuildValue::CardinalQuantity(
                     CardinalQuantity::Cardinal(CardinalQuantityValue { number }),
-                    expected,
+                    expected_cardinality,
+                    expected_number,
                 ),
             );
         }

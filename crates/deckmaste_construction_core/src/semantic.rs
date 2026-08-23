@@ -700,13 +700,16 @@ impl TerminalPlan {
     }
 
     fn provides_possessive_ending(&self) -> bool {
-        matches!(
-            self,
+        match self {
+            Self::Lexeme(lexeme) => {
+                lexeme.morphology.recipe() == crate::morphology::MorphologyRecipe::EnglishNoun
+            }
             Self::Vocab(_)
-                | Self::ContextIdentity(_)
-                | Self::CatalogIdentity(_)
-                | Self::DeclarationNoun(_)
-        )
+            | Self::ContextIdentity(_)
+            | Self::CatalogIdentity(_)
+            | Self::DeclarationNoun(_) => true,
+            Self::Binding(_) | Self::SignedDecimal(_) | Self::UnsignedNumber(_) => false,
+        }
     }
 }
 
@@ -723,7 +726,7 @@ pub(crate) struct DeclarationNounPlan {
     origin: DeclarationKey,
     codec_ident: syn::Ident,
     declaration_value_ident: syn::Ident,
-    closed_lexeme: syn::Ident,
+    closed_lexeme: Option<syn::Ident>,
     position: macro_ron::v2::GrammarPosition,
     kinds: Vec<DeclarationKindFamily>,
     feature_axis: Feature,
@@ -953,6 +956,7 @@ fn is_punctuation_literal(literal: &str) -> bool {
 
 pub(crate) enum AtomTerminal<'a> {
     Vocab(&'a VocabPlan),
+    Lexeme,
     Binding(&'a BindingPlan),
     ContextIdentity(&'a ContextIdentityPlan),
     CatalogIdentity {
@@ -1172,6 +1176,7 @@ pub(crate) struct FeaturePlan {
     equations: HashMap<String, Vec<feature::FeatureEquation>>,
     resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
     category_render: HashMap<String, CategoryRenderCapability>,
+    cardinality_carry_categories: HashSet<String>,
     number_carry_categories: HashSet<String>,
     onset_carry_categories: HashSet<String>,
     possessive_ending_carry_categories: HashSet<String>,
@@ -1403,6 +1408,7 @@ impl SemanticPlan {
         seal_invariant_category_feature_reads(&constructions, &mut category_reads);
         seal_form_guard_category_feature_reads(&constructions, &equations, &mut category_reads)?;
         let number_carry_categories = number_carry_categories(&constructions, &equations);
+        let cardinality_carry_categories = cardinality_carry_categories(&constructions, &equations);
         let onset_carry_categories = onset_carry_categories(&constructions, &equations);
         let possessive_ending_carry_categories =
             possessive_ending_carry_categories(&constructions, &equations);
@@ -1454,6 +1460,7 @@ impl SemanticPlan {
                 equations,
                 resolutions,
                 category_render,
+                cardinality_carry_categories,
                 number_carry_categories,
                 onset_carry_categories,
                 possessive_ending_carry_categories,
@@ -1736,6 +1743,12 @@ impl SemanticPlan {
 
     pub(crate) fn category_carries_number(&self, category: &str) -> bool {
         self.features.number_carry_categories.contains(category)
+    }
+
+    pub(crate) fn category_carries_cardinality(&self, category: &str) -> bool {
+        self.features
+            .cardinality_carry_categories
+            .contains(category)
     }
 
     pub(crate) fn category_carries_onset(&self, category: &str) -> bool {
@@ -2195,6 +2208,9 @@ impl SemanticPlan {
             match terminal {
                 TerminalPlan::Vocab(row) if row.name() == name => {
                     return Ok(AtomTerminal::Vocab(row));
+                }
+                TerminalPlan::Lexeme(row) if row.name() == name => {
+                    return Ok(AtomTerminal::Lexeme);
                 }
                 TerminalPlan::Binding(row) if row.name() == name => {
                     return Ok(AtomTerminal::Binding(row));
@@ -4150,6 +4166,36 @@ fn onset_carry_categories(
         .collect()
 }
 
+fn cardinality_carry_categories(
+    constructions: &[ConstructionPlan],
+    equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+) -> HashSet<String> {
+    let mut members = HashMap::<String, Vec<&ConstructionPlan>>::new();
+    for construction in constructions {
+        members
+            .entry(construction.category.clone())
+            .or_default()
+            .push(construction);
+    }
+    members
+        .into_iter()
+        .filter_map(|(category, constructions)| {
+            constructions
+                .iter()
+                .all(|construction| {
+                    equations
+                        .get(&construction.construction_id)
+                        .into_iter()
+                        .flatten()
+                        .any(|equation| {
+                            equation.target() == &FeaturePlace::Construction(Feature::Cardinality)
+                        })
+                })
+                .then_some(category)
+        })
+        .collect()
+}
+
 fn possessive_ending_carry_categories(
     constructions: &[ConstructionPlan],
     equations: &HashMap<String, Vec<feature::FeatureEquation>>,
@@ -5100,12 +5146,7 @@ impl DeclarationNounPlan {
         else {
             unreachable!("validated generated codec has the declaration_noun recipe")
         };
-        let closed_lexeme = recipe
-            .closed_slots
-            .first()
-            .expect("validated declaration_noun has one closed branch")
-            .value
-            .clone();
+        let closed_lexeme = recipe.closed_slots.first().map(|slot| slot.value.clone());
         let kinds = recipe
             .kind_slots
             .first()
@@ -5170,8 +5211,8 @@ impl DeclarationNounPlan {
         &self.declaration_value_ident
     }
 
-    pub(crate) fn closed_lexeme(&self) -> &syn::Ident {
-        &self.closed_lexeme
+    pub(crate) fn closed_lexeme(&self) -> Option<&syn::Ident> {
+        self.closed_lexeme.as_ref()
     }
 
     pub(crate) fn position(&self) -> macro_ron::v2::GrammarPosition {

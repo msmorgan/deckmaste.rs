@@ -271,7 +271,9 @@ pub(crate) fn emit(
                 let origin = row.origin().clone();
                 let noun = row.codec_ident();
                 let declaration = row.declaration_value_ident();
-                let closed = row.closed_lexeme();
+                let closed_variant = row
+                    .closed_lexeme()
+                    .map(|closed| quote! { Lexeme(#closed), });
                 let allowed = row.kinds().iter().map(|kind| match kind {
                     crate::semantic::DeclarationKindFamily::Type => {
                         quote! { ::macro_ron::v2::DeclarationKind::Type }
@@ -334,7 +336,7 @@ pub(crate) fn emit(
                     quote! {
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub enum #noun {
-                            Lexeme(#closed),
+                            #closed_variant
                             Declaration(#declaration),
                         }
                     },
@@ -408,7 +410,7 @@ fn emit_lexeme_surface_helper(
     let (feature_ty, feature_argument) = match lexeme.morphology().feature() {
         crate::Feature::Agreement => (quote! { Agreement }, quote! { agreement }),
         crate::Feature::Number => (quote! { Number }, quote! { number }),
-        crate::Feature::Onset | crate::Feature::PossessiveEnding => {
+        crate::Feature::Cardinality | crate::Feature::Onset | crate::Feature::PossessiveEnding => {
             unreachable!("derived surface features are not morphology axes")
         }
     };

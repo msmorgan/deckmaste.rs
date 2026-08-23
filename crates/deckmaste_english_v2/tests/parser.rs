@@ -81,14 +81,34 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
             Sentence::Imperative(Imperative {
                 predicate:
                     VerbPhrase::Destroy(Destroy {
-                        object: NounPhrase::Common(Common { head }),
+                        object:
+                            Object::ObjectNominal(NominalObject {
+                                value:
+                                    NounPhrase::IndefiniteReference(IndefiniteReference {
+                                        nominal:
+                                            SingularNominal::BareSingularNominal(BareSingularNominal {
+                                                head,
+                                            }),
+                                    }),
+                            }),
                     }),
             }),
         ] = paragraph.sentences()
         else {
-            panic!("the public Common AST stores only its noun head: {parsed:?}")
+            panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        assert!(matches!(head, Noun::Lexeme(_) | Noun::Declaration(_)));
+        assert!(matches!(
+            head,
+            SingularHead::CommonSingularHead(_)
+                | SingularHead::TypeSingularHead(_)
+                | SingularHead::ArtifactSubtypeSingularHead(_)
+                | SingularHead::BattleSubtypeSingularHead(_)
+                | SingularHead::CreatureSubtypeSingularHead(_)
+                | SingularHead::EnchantmentSubtypeSingularHead(_)
+                | SingularHead::LandSubtypeSingularHead(_)
+                | SingularHead::PlaneswalkerSubtypeSingularHead(_)
+                | SingularHead::SpellSubtypeSingularHead(_)
+        ));
         assert_eq!(parsed.render(&context, &environment), text);
         let ownership = parser
             .analyze(text, &context)
@@ -364,20 +384,100 @@ fn oracle_text_trace_retains_its_exact_value_type_and_root_name() {
     assert!(trace.into_parse_result().is_ok());
 }
 
-fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SelfReferenceNp {
+fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SourceSelfReference {
     let context = context(card_name);
-    SelfReferenceNp::new(spelling, &context).expect("test spelling is valid for its context")
+    SourceSelfReference::new(spelling, &context).expect("test spelling is valid for its context")
+}
+
+enum Noun {
+    Lexeme(CommonNoun),
+    Type(TypeNoun),
+}
+
+fn singular_nominal(noun: Noun) -> SingularNominal {
+    SingularNominal::BareSingularNominal(BareSingularNominal {
+        head: match noun {
+            Noun::Lexeme(noun) => SingularHead::CommonSingularHead(CommonSingularHead { noun }),
+            Noun::Type(noun) => SingularHead::TypeSingularHead(TypeSingularHead { noun }),
+        },
+    })
+}
+
+fn plural_nominal(noun: Noun) -> PluralNominal {
+    PluralNominal::BarePluralNominal(BarePluralNominal {
+        head: plural_head(noun),
+    })
+}
+
+fn plural_head(noun: Noun) -> PluralHead {
+    match noun {
+        Noun::Lexeme(noun) => PluralHead::CommonPluralHead(CommonPluralHead { noun }),
+        Noun::Type(noun) => PluralHead::TypePluralHead(TypePluralHead { noun }),
+    }
+}
+
+fn indefinite(noun: Noun) -> NounPhrase {
+    NounPhrase::IndefiniteReference(IndefiniteReference {
+        nominal: singular_nominal(noun),
+    })
+}
+
+fn target_noun(noun: Noun) -> NounPhrase {
+    NounPhrase::OrdinarySingularReference(
+        OrdinarySingularReference::new(SingularSelector::TargetSingularSelector(
+            TargetSingularSelector {
+                nominal: singular_nominal(noun),
+            },
+        ))
+        .expect("a target selector is an ordinary singular reference"),
+    )
+}
+
+fn that_noun(noun: Noun) -> NounPhrase {
+    NounPhrase::ThatReference(ThatReference {
+        nominal: singular_nominal(noun),
+    })
+}
+
+fn those_noun(noun: Noun) -> NounPhrase {
+    NounPhrase::ThoseReference(ThoseReference {
+        nominal: plural_nominal(noun),
+    })
+}
+
+fn nominal_subject(value: NounPhrase) -> Subject {
+    Subject::SubjectNominal(NominalSubject { value })
+}
+
+fn nominal_object(value: NounPhrase) -> Object {
+    Object::ObjectNominal(NominalObject { value })
+}
+
+fn subject_you() -> Subject {
+    Subject::SubjectPronoun(PersonalSubject {
+        word: SubjectPronoun::You,
+    })
+}
+
+fn object_you() -> Object {
+    Object::ObjectPronoun(PersonalObject {
+        word: ObjectPronoun::You,
+    })
+}
+
+fn object_it() -> Object {
+    Object::ObjectPronoun(PersonalObject {
+        word: ObjectPronoun::It,
+    })
 }
 
 #[test]
 fn ast_re_exports_keep_the_retired_spell_audit_line_local() {
     let public_prefix = concat!("pub ", "use ");
     let retired_name = concat!("Sp", "ell");
+    let retired_export = format!("{public_prefix}crate::constructions::{retired_name};");
     for line in include_str!("../src/ast.rs").lines() {
-        assert!(
-            !(line.contains(public_prefix) && line.contains(retired_name)),
-            "retired audit match: {line}"
-        );
+        assert_ne!(line, retired_export, "retired audit match: {line}");
     }
 }
 
@@ -399,9 +499,9 @@ fn parse_context_rejects_empty_self_names_and_abbreviations() {
 #[test]
 fn self_reference_spelling_is_checked_against_its_context() {
     let no_comma = ParseContext::new("Context Card").expect("nonempty context is valid");
-    assert!(SelfReferenceNp::new(SelfReferenceSpelling::Abbreviated, &no_comma).is_none());
+    assert!(SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &no_comma).is_none());
     assert_eq!(
-        SelfReferenceNp::new(SelfReferenceSpelling::Full, &no_comma)
+        SourceSelfReference::new(SelfReferenceSpelling::Full, &no_comma)
             .expect("full spelling is always distinct from no value")
             .spelling(),
         SelfReferenceSpelling::Full
@@ -410,7 +510,7 @@ fn self_reference_spelling_is_checked_against_its_context() {
     let comma =
         ParseContext::new("Zacama, Primal Calamity").expect("nonempty abbreviation is valid");
     assert_eq!(
-        SelfReferenceNp::new(SelfReferenceSpelling::Abbreviated, &comma)
+        SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &comma)
             .expect("comma-bearing context has a distinct abbreviation")
             .spelling(),
         SelfReferenceSpelling::Abbreviated
@@ -426,13 +526,13 @@ fn context_identity_stores_only_the_reusable_arm() {
     );
     let spelling = SelfReferenceSpelling::Abbreviated;
     assert_eq!(
-        SelfReferenceNp::new(spelling, &context("Zacama, Primal Calamity"))
+        SourceSelfReference::new(spelling, &context("Zacama, Primal Calamity"))
             .expect("the stored arm is valid for one comma abbreviation")
             .spelling(),
         spelling
     );
     assert_eq!(
-        SelfReferenceNp::new(spelling, &context("Zoraline, Cosmos Caller"))
+        SourceSelfReference::new(spelling, &context("Zoraline, Cosmos Caller"))
             .expect("the same stored arm is valid for another comma abbreviation")
             .spelling(),
         spelling
@@ -459,7 +559,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
             TriggerWord::Whenever,
             Clause::Where(WhereClause {
                 variable: Variable::X,
-                value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+                value: object_you(),
             }),
             vec![effect],
         )
@@ -480,7 +580,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     let body = gain_life_sentence();
     let clause = Clause::Where(WhereClause {
         variable: Variable::X,
-        value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+        value: object_you(),
     });
     let with_where = WithWhere::new(Box::new(body.clone()), clause.clone())
         .expect("a Where clause is valid for WithWhere");
@@ -506,18 +606,22 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     );
 
     let threshold = ScalarNumber { magnitude: 2 };
-    let count = CountNp::new(creatures(), Pronoun::You, threshold.clone())
-        .expect("You is the valid CountNp controller");
-    let _: &Noun = &count.head;
+    let count = CountNp::new(
+        plural_head(creatures()),
+        SubjectPronoun::You,
+        threshold.clone(),
+    )
+    .expect("You is the valid CountNp controller");
+    let _: &PluralHead = &count.head;
     let _: &ScalarNumber = &count.threshold;
-    let _: Pronoun = count.controller();
-    assert_eq!(count.controller(), Pronoun::You);
+    let _: SubjectPronoun = count.controller();
+    assert_eq!(count.controller(), SubjectPronoun::You);
     assert!(
-        CountNp::new(creatures(), Pronoun::It, threshold).is_none(),
+        CountNp::new(plural_head(creatures()), SubjectPronoun::It, threshold).is_none(),
         "It is not a valid CountNp controller",
     );
     let count = paragraph(Sentence::Declarative(Declarative {
-        subject: NounPhrase::Count(count),
+        subject: nominal_subject(NounPhrase::Count(count)),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: variable_x(),
         }),
@@ -533,12 +637,12 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     );
 
     assert!(
-        SelfReferenceNp::new(SelfReferenceSpelling::Abbreviated, &plain_context).is_none(),
+        SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &plain_context).is_none(),
         "an unavailable abbreviation is rejected",
     );
     let abbreviated_context = context("Zacama, Primal Calamity");
     let self_reference =
-        SelfReferenceNp::new(SelfReferenceSpelling::Abbreviated, &abbreviated_context)
+        SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &abbreviated_context)
             .expect("a distinct abbreviated spelling is valid");
     let _: SelfReferenceSpelling = self_reference.spelling();
     assert_eq!(
@@ -546,7 +650,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         SelfReferenceSpelling::Abbreviated
     );
     let self_reference = paragraph(Sentence::Declarative(Declarative {
-        subject: NounPhrase::SelfReference(self_reference),
+        subject: nominal_subject(NounPhrase::SelfReference(self_reference)),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: variable_x(),
         }),
@@ -559,7 +663,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     assert_eq!(
         parser
             .parse(&self_reference_text, &abbreviated_context)
-            .expect("rendered SelfReferenceNp sentence parses")
+            .expect("rendered source-self-reference sentence parses")
             .render(&abbreviated_context, &environment),
         self_reference_text,
     );
@@ -631,34 +735,30 @@ fn authored_invariant_rejection_is_typed_parse_failure_not_chart_or_internal_fai
 }
 
 #[test]
-fn demonstrative_forms_select_distinct_rules_and_reject_the_same_rhs_wrong_guard() {
+fn demonstrative_references_select_distinct_typed_constructions() {
     let parser = parser();
     let environment = environment();
     let context = context("Context Card");
 
-    for (text, word, head, selected_rule, rejected_rule) in [
+    for (text, reference, selected_rule) in [
         (
             "That creature deals 3 damage to it.",
-            Demonstrative::That,
-            creature(),
-            "NounPhraseDemonstrative [form that]",
-            "NounPhraseDemonstrative [form those]",
+            that_noun(creature()),
+            "NounPhraseThatReference",
         ),
         (
             "Those creatures deal 3 damage to it.",
-            Demonstrative::Those,
-            creatures(),
-            "NounPhraseDemonstrative [form those]",
-            "NounPhraseDemonstrative [form that]",
+            those_noun(creatures()),
+            "NounPhraseThoseReference",
         ),
     ] {
         let expected = Sentence::Declarative(Declarative {
-            subject: NounPhrase::Demonstrative(DemonstrativeNp { word, head }),
+            subject: nominal_subject(reference),
             predicate: VerbPhrase::DealDamage(DealDamage {
                 amount: Amount::Number(NumberAmount {
                     number: ScalarNumber { magnitude: 3 },
                 }),
-                to: NounPhrase::Pronoun(PronounNp { word: Pronoun::It }),
+                to: object_it(),
             }),
         });
 
@@ -677,21 +777,13 @@ fn demonstrative_forms_select_distinct_rules_and_reject_the_same_rhs_wrong_guard
             forest_rules.contains(selected_rule),
             "{text}: {forest_rules:?}"
         );
-        assert!(
-            !forest_rules.contains(rejected_rule),
-            "{text}: wrong guarded form reached the forest: {forest_rules:?}",
-        );
-        assert!(
-            trace
-                .checked_completion_rejections()
-                .items()
-                .iter()
-                .any(|rejection| rejection.rule_name_v1() == rejected_rule),
-            "{text}: the identical RHS must be rejected by its nonmatching guard",
-        );
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the complete source-ordered public type oracle is deliberately literal"
+)]
 fn assert_complete_public_generated_type_inventory(file: &syn::File) {
     let public_types = file
         .items
@@ -712,6 +804,15 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Ability",
             "Sentence",
             "Clause",
+            "Subject",
+            "Object",
+            "SingularHead",
+            "PluralHead",
+            "NominalModifier",
+            "SingularNominal",
+            "PluralNominal",
+            "SingularSelector",
+            "PluralSelector",
             "NounPhrase",
             "PossessiveOwner",
             "Possessive",
@@ -727,12 +828,91 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "WithWhere",
             "EventClause",
             "WhereClause",
-            "PronounNp",
-            "Common",
-            "NamedNp",
-            "DemonstrativeNp",
-            "TargetNp",
-            "SelfReferenceNp",
+            "NominalSubject",
+            "PersonalSubject",
+            "NominalObject",
+            "PersonalObject",
+            "ReflexiveObject",
+            "CommonSingularHead",
+            "TypeSingularHead",
+            "ArtifactSubtypeSingularHead",
+            "BattleSubtypeSingularHead",
+            "CreatureSubtypeSingularHead",
+            "EnchantmentSubtypeSingularHead",
+            "LandSubtypeSingularHead",
+            "PlaneswalkerSubtypeSingularHead",
+            "SpellSubtypeSingularHead",
+            "CommonPluralHead",
+            "TypePluralHead",
+            "ArtifactSubtypePluralHead",
+            "BattleSubtypePluralHead",
+            "CreatureSubtypePluralHead",
+            "EnchantmentSubtypePluralHead",
+            "LandSubtypePluralHead",
+            "PlaneswalkerSubtypePluralHead",
+            "SpellSubtypePluralHead",
+            "ColorModifier",
+            "StatusModifier",
+            "SupertypeModifier",
+            "CommonNounModifier",
+            "TypeModifier",
+            "ArtifactSubtypeModifier",
+            "BattleSubtypeModifier",
+            "CreatureSubtypeModifier",
+            "EnchantmentSubtypeModifier",
+            "LandSubtypeModifier",
+            "PlaneswalkerSubtypeModifier",
+            "SpellSubtypeModifier",
+            "NonColorModifier",
+            "NonCommonNounModifier",
+            "NonStatusModifier",
+            "NonSupertypeModifier",
+            "NonTypeModifier",
+            "NonArtifactSubtypeModifier",
+            "NonBattleSubtypeModifier",
+            "NonCreatureSubtypeModifier",
+            "NonEnchantmentSubtypeModifier",
+            "NonLandSubtypeModifier",
+            "NonPlaneswalkerSubtypeModifier",
+            "NonSpellSubtypeModifier",
+            "BareSingularNominal",
+            "ModifiedSingularNominal",
+            "BarePluralNominal",
+            "ModifiedPluralNominal",
+            "UnmarkedSingularSelector",
+            "TargetSingularSelector",
+            "OtherSingularSelector",
+            "OtherTargetSingularSelector",
+            "UnmarkedPluralSelector",
+            "TargetPluralSelector",
+            "OtherPluralSelector",
+            "OtherTargetPluralSelector",
+            "IndefiniteReference",
+            "NamedCardReference",
+            "OrdinarySingularReference",
+            "OrdinaryPluralReference",
+            "DefiniteSingularReference",
+            "DefinitePluralReference",
+            "AnyTargetReference",
+            "AnotherReference",
+            "EachReference",
+            "AllReference",
+            "FixedReference",
+            "VariableReference",
+            "UpToOneReference",
+            "UpToManyReference",
+            "AnyNumberReference",
+            "OneOrMoreReference",
+            "ThisReference",
+            "ThatReference",
+            "ThoseReference",
+            "DesignatedSingularReference",
+            "DesignatedPluralReference",
+            "ChosenQualityReference",
+            "PossessedSingularReference",
+            "PossessedPluralReference",
+            "PossessiveAbsoluteReference",
+            "SourceSelfReference",
             "CountNp",
             "PossessiveSelfReference",
             "PossessiveNoun",
@@ -745,14 +925,36 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "VariableAmount",
             "CardinalQuantityValue",
             "TriggerWord",
-            "Demonstrative",
-            "Pronoun",
+            "SubjectPronoun",
+            "ObjectPronoun",
+            "PossessiveDeterminerPronoun",
+            "PossessiveAbsolutePronoun",
+            "ReflexivePronoun",
             "Variable",
+            "Color",
+            "Status",
+            "Designation",
+            "ChosenQuality",
+            "NonCommonNoun",
             "Supertype",
-            "NounLexeme",
+            "CommonNoun",
             "VerbLexeme",
-            "DeclarationNoun",
-            "Noun",
+            "DeclarationTypeNoun",
+            "TypeNoun",
+            "DeclarationArtifactSubtypeNoun",
+            "ArtifactSubtypeNoun",
+            "DeclarationBattleSubtypeNoun",
+            "BattleSubtypeNoun",
+            "DeclarationCreatureSubtypeNoun",
+            "CreatureSubtypeNoun",
+            "DeclarationEnchantmentSubtypeNoun",
+            "EnchantmentSubtypeNoun",
+            "DeclarationLandSubtypeNoun",
+            "LandSubtypeNoun",
+            "DeclarationPlaneswalkerSubtypeNoun",
+            "PlaneswalkerSubtypeNoun",
+            "DeclarationSpellSubtypeNoun",
+            "SpellSubtypeNoun",
             "SelfReferenceSpelling",
             "CardName",
             "CardinalNumber",
@@ -810,7 +1012,7 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             &["new", "try_new", "controller"][..],
         ),
         (
-            "SelfReferenceNp",
+            "SourceSelfReference",
             &[("spelling", false)][..],
             &["new", "try_new", "spelling"][..],
         ),
@@ -916,28 +1118,28 @@ fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
 
 fn creature() -> Noun {
     let environment = environment();
-    Noun::Declaration(
-        DeclarationNoun::new(
+    Noun::Type(TypeNoun::Declaration(
+        DeclarationTypeNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Creature"),
         )
         .expect("Creature is a normalized noun declaration"),
-    )
+    ))
 }
 
 fn creatures() -> Noun {
     let environment = environment();
-    Noun::Declaration(
-        DeclarationNoun::new(
+    Noun::Type(TypeNoun::Declaration(
+        DeclarationTypeNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Creature"),
         )
         .expect("Creature has a normalized plural noun reading"),
-    )
+    ))
 }
 
-fn target_creature() -> NounPhrase {
-    NounPhrase::Target(TargetNp { head: creature() })
+fn target_creature() -> Object {
+    nominal_object(target_noun(creature()))
 }
 
 fn variable_x() -> Amount {
@@ -960,9 +1162,7 @@ fn destroy_target_creature() -> Ability {
 
 fn connive_event() -> Clause {
     Clause::Event(EventClause {
-        subject: NounPhrase::Common(Common {
-            head: Noun::Lexeme(NounLexeme::Player),
-        }),
+        subject: nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
         predicate: VerbPhrase::Connive(Connive),
     })
 }
@@ -973,13 +1173,10 @@ fn triggered_damage() -> Ability {
             TriggerWord::Whenever,
             connive_event(),
             vec![Sentence::Declarative(Declarative {
-                subject: NounPhrase::Demonstrative(DemonstrativeNp {
-                    word: Demonstrative::That,
-                    head: creature(),
-                }),
+                subject: nominal_subject(that_noun(creature())),
                 predicate: VerbPhrase::DealDamage(DealDamage {
                     amount: variable_x(),
-                    to: NounPhrase::Pronoun(PronounNp { word: Pronoun::It }),
+                    to: object_it(),
                 }),
             })],
         )
@@ -989,7 +1186,7 @@ fn triggered_damage() -> Ability {
 
 fn gain_life_sentence() -> Sentence {
     Sentence::Declarative(Declarative {
-        subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+        subject: subject_you(),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: variable_x(),
         }),
@@ -1002,10 +1199,14 @@ fn gain_life_with_where() -> Ability {
             Box::new(gain_life_sentence()),
             Clause::Where(WhereClause {
                 variable: Variable::X,
-                value: NounPhrase::Count(
-                    CountNp::new(creatures(), Pronoun::You, ScalarNumber { magnitude: 2 })
-                        .expect("You is a valid count controller"),
-                ),
+                value: nominal_object(NounPhrase::Count(
+                    CountNp::new(
+                        plural_head(creatures()),
+                        SubjectPronoun::You,
+                        ScalarNumber { magnitude: 2 },
+                    )
+                    .expect("You is a valid count controller"),
+                )),
             }),
         )
         .expect("Where is a valid trailing clause"),
@@ -1014,10 +1215,10 @@ fn gain_life_with_where() -> Ability {
 
 fn zacama_deals_damage() -> Ability {
     paragraph(Sentence::Declarative(Declarative {
-        subject: NounPhrase::SelfReference(self_reference(
+        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
             SelfReferenceSpelling::Abbreviated,
             "Zacama, Primal Calamity",
-        )),
+        ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
@@ -1185,7 +1386,11 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "AbilityParagraph".to_owned(),
             "SentenceImperative".to_owned(),
             "VerbPhraseDestroy".to_owned(),
-            "NounPhraseTarget".to_owned(),
+            "ObjectObjectNominal".to_owned(),
+            "NounPhraseOrdinarySingularReference".to_owned(),
+            "SingularSelectorTargetSingularSelector".to_owned(),
+            "SingularNominalBareSingularNominal".to_owned(),
+            "SingularHeadTypeSingularHead".to_owned(),
         ]
     );
     assert_eq!(parser.parse(text, &context), first.into_parse_result(),);
@@ -1233,11 +1438,11 @@ fn generated_morphology_closed_owner_ids_match_scan_and_render_claims() {
         ),
         (
             "Whenever a player connives, you gain X life.",
-            "lexeme:NounLexeme/Player/singular",
+            "lexeme:CommonNoun/Player/singular",
         ),
         (
             "Those players deal X damage to it.",
-            "lexeme:NounLexeme/Player/plural",
+            "lexeme:CommonNoun/Player/plural",
         ),
         (
             "You gain X life, where X is the number of creatures you control with power 2 or less.",
@@ -1283,14 +1488,16 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
         Sentence::Imperative(Imperative {
             predicate:
                 VerbPhrase::Destroy(Destroy {
-                    object: NounPhrase::Named(NamedNp { head, name }),
+                    object:
+                        Object::ObjectNominal(NominalObject {
+                            value: NounPhrase::NamedCardReference(NamedCardReference { name }),
+                        }),
                 }),
         }),
     ] = paragraph.sentences()
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
-    assert_eq!(head, &Noun::Lexeme(NounLexeme::Card));
     assert_eq!(name.provider(), CatalogProvider::CardNames);
     assert_eq!(name.canonical_identity(), "alpha-beta");
     assert_eq!(parsed.render(&context, &environment), text);
@@ -1337,7 +1544,10 @@ fn bare_own_card_name_remains_unique_source_self_reference() {
     };
     let [
         Sentence::Declarative(Declarative {
-            subject: NounPhrase::SelfReference(_),
+            subject:
+                Subject::SubjectNominal(NominalSubject {
+                    value: NounPhrase::SelfReference(_),
+                }),
             ..
         }),
     ] = paragraph.sentences()
@@ -1480,10 +1690,10 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
 
         if limit > 0 {
             let candidate = &trace.materialized_candidates().items()[0];
-            assert_eq!(candidate.construction_path().total(), 4);
-            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 4));
-            assert_eq!(candidate.specificity().total(), 6);
-            assert_eq!(candidate.specificity().shown(), usize::min(limit, 6));
+            assert_eq!(candidate.construction_path().total(), 8);
+            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 8));
+            assert_eq!(candidate.specificity().total(), 10);
+            assert_eq!(candidate.specificity().shown(), usize::min(limit, 10));
         }
 
         if limit == usize::MAX {
@@ -1500,10 +1710,14 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "AbilityParagraph",
                     "SentenceImperative",
                     "VerbPhraseDestroy",
-                    "NounPhraseTarget",
+                    "ObjectObjectNominal",
+                    "NounPhraseOrdinarySingularReference",
+                    "SingularSelectorTargetSingularSelector",
+                    "SingularNominalBareSingularNominal",
+                    "SingularHeadTypeSingularHead",
                 ]
             );
-            assert_eq!(candidate.specificity().total(), 6);
+            assert_eq!(candidate.specificity().total(), 10);
             assert!(selection.unselected_candidates().items().is_empty());
             assert_eq!(selection.resolution(), complete.resolution());
             assert_eq!(selection.survivors().items(), complete.survivors());
@@ -1538,7 +1752,7 @@ fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_err
     let text = "Destroy target creature";
     let complete = parser.parse(text, &context);
 
-    for (limit, expected_shown) in [(0, 0), (1, 1), (8, 2)] {
+    for (limit, expected_shown) in [(0, 0), (1, 1), (8, 8)] {
         let trace = parser.trace(text, &context, TraceLimits::new(limit));
         let BoundedParseOutcome::ParseFailure(failure) = trace.outcome() else {
             panic!("missing period is an ordinary parse failure");
@@ -1550,13 +1764,15 @@ fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_err
                 end: text.len()
             }
         );
-        assert_eq!(failure.expectations().total(), 2);
+        assert_eq!(failure.expectations().total(), 13);
         assert_eq!(failure.expectations().shown(), expected_shown);
-        assert_eq!(failure.expectations().omitted(), 2 - expected_shown);
+        assert_eq!(failure.expectations().omitted(), 13 - expected_shown);
         if limit > 0 {
             assert_eq!(
                 failure.expectations().items()[0],
-                deckmaste_english_v2::parser::ExpectationInfo::Literal(",")
+                deckmaste_english_v2::parser::ExpectationInfo::Nonterminal(
+                    NonterminalCategory::SingularHead,
+                )
             );
         }
         assert_eq!(complete, trace.into_parse_result());
@@ -1581,10 +1797,10 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
     let text = "Context Card deals 3 damage to target creature.";
     let context = context("Context Card");
     let expected = paragraph(Sentence::Declarative(Declarative {
-        subject: NounPhrase::SelfReference(self_reference(
+        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
             SelfReferenceSpelling::Full,
             "Context Card",
-        )),
+        ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
@@ -1602,7 +1818,10 @@ fn self_reference_identity_preserves_its_inherent_case() {
     let text = "eBay deals 3 damage to target creature.";
     let context = context("eBay");
     let expected = paragraph(Sentence::Declarative(Declarative {
-        subject: NounPhrase::SelfReference(self_reference(SelfReferenceSpelling::Full, "eBay")),
+        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
+            SelfReferenceSpelling::Full,
+            "eBay",
+        ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
@@ -1622,9 +1841,29 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
         parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
             span: TextSpan { start: 15, end: 21 },
-            expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::DeclarationNoun(
-                7
-            ),)]),
+            expectations: BTreeSet::from([
+                Expectation::Nonterminal(NonterminalCategory::SingularHead),
+                Expectation::Nonterminal(NonterminalCategory::PluralHead),
+                Expectation::Nonterminal(NonterminalCategory::NominalModifier),
+                Expectation::Nonterminal(NonterminalCategory::SingularNominal),
+                Expectation::Nonterminal(NonterminalCategory::PluralNominal),
+                Expectation::Terminal(TerminalClass::Color),
+                Expectation::Terminal(TerminalClass::Status),
+                Expectation::Terminal(TerminalClass::Supertype),
+                Expectation::Terminal(TerminalClass::Noun),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(15)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(16)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(17)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(18)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(19)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(20)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(21)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(22)),
+                Expectation::Literal(","),
+                Expectation::Literal("."),
+                Expectation::Literal("non"),
+                Expectation::Literal("non-"),
+            ]),
         })
     );
 }
@@ -1639,7 +1878,21 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 start: text.len(),
                 end: text.len(),
             },
-            expectations: BTreeSet::from([Expectation::Literal(","), Expectation::Literal("."),]),
+            expectations: BTreeSet::from([
+                Expectation::Nonterminal(NonterminalCategory::SingularHead),
+                Expectation::Nonterminal(NonterminalCategory::PluralHead),
+                Expectation::Terminal(TerminalClass::Noun),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(15)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(16)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(17)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(18)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(19)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(20)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(21)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(22)),
+                Expectation::Literal(","),
+                Expectation::Literal("."),
+            ]),
         })
     );
 }

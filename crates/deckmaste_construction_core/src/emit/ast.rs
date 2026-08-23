@@ -717,6 +717,9 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::Vowel => quote! { Onset::Vowel },
         crate::feature::FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
         crate::feature::FeatureValue::Other => quote! { PossessiveEnding::Other },
+        crate::feature::FeatureValue::Zero => quote! { Cardinality::Zero },
+        crate::feature::FeatureValue::One => quote! { Cardinality::One },
+        crate::feature::FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
     }
 }
 
@@ -1585,6 +1588,7 @@ mod tests {
                 "ObjectStem",
                 "ActionStem",
                 "Agreement",
+                "Cardinality",
                 "Number",
                 "Onset",
                 "PossessiveEnding",

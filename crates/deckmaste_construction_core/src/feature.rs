@@ -10,6 +10,7 @@ use crate::model;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Feature {
     Agreement,
+    Cardinality,
     Number,
     Onset,
     PossessiveEnding,
@@ -25,6 +26,9 @@ pub(crate) enum FeatureValue {
     Vowel,
     EndsInS,
     Other,
+    Zero,
+    One,
+    TwoPlus,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,6 +70,7 @@ impl Feature {
     pub(crate) fn domain(self) -> &'static [FeatureValue] {
         match self {
             Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
+            Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
             Self::Number => &[FeatureValue::Singular, FeatureValue::Plural],
             Self::Onset => &[FeatureValue::Consonant, FeatureValue::Vowel],
             Self::PossessiveEnding => &[FeatureValue::EndsInS, FeatureValue::Other],
@@ -92,6 +97,7 @@ impl Feature {
     pub(crate) fn key(self) -> &'static str {
         match self {
             Self::Agreement => "agreement",
+            Self::Cardinality => "cardinality",
             Self::Number => "number",
             Self::Onset => "onset",
             Self::PossessiveEnding => "possessive_ending",
@@ -110,6 +116,9 @@ impl FeatureValue {
             Self::Vowel => "Vowel",
             Self::EndsInS => "EndsInS",
             Self::Other => "Other",
+            Self::Zero => "Zero",
+            Self::One => "One",
+            Self::TwoPlus => "TwoPlus",
         }
     }
 }
@@ -240,6 +249,7 @@ impl Feature {
     fn snapshot(self) -> &'static str {
         match self {
             Self::Agreement => "agreement",
+            Self::Cardinality => "cardinality",
             Self::Number => "number",
             Self::Onset => "onset",
             Self::PossessiveEnding => "possessive_ending",
@@ -259,6 +269,9 @@ impl FeatureValue {
             Self::Vowel => "Vowel",
             Self::EndsInS => "EndsInS",
             Self::Other => "Other",
+            Self::Zero => "Zero",
+            Self::One => "One",
+            Self::TwoPlus => "TwoPlus",
         }
     }
 }
@@ -294,10 +307,19 @@ pub(crate) fn lower_constant(
         (model::Feature::Onset, "Vowel") => FeatureValue::Vowel,
         (model::Feature::PossessiveEnding, "EndsInS") => FeatureValue::EndsInS,
         (model::Feature::PossessiveEnding, "Other") => FeatureValue::Other,
+        (model::Feature::Cardinality, "Zero") => FeatureValue::Zero,
+        (model::Feature::Cardinality, "One") => FeatureValue::One,
+        (model::Feature::Cardinality, "TwoPlus") => FeatureValue::TwoPlus,
         (model::Feature::Agreement, _) => {
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not an agreement value"),
+            ));
+        }
+        (model::Feature::Cardinality, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a cardinality value"),
             ));
         }
         (model::Feature::Number, _) => {
@@ -326,6 +348,7 @@ impl From<model::Feature> for Feature {
     fn from(value: model::Feature) -> Self {
         match value {
             model::Feature::Agreement => Self::Agreement,
+            model::Feature::Cardinality => Self::Cardinality,
             model::Feature::Number => Self::Number,
             model::Feature::Onset => Self::Onset,
             model::Feature::PossessiveEnding => Self::PossessiveEnding,

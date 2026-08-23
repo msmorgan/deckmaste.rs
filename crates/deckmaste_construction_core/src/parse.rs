@@ -690,6 +690,7 @@ fn parse_equation(input: ParseStream<'_>) -> syn::Result<FeatureEquation> {
 fn feature_from_ident(ident: &Ident) -> Option<Feature> {
     match ident.to_string().as_str() {
         "agreement" => Some(Feature::Agreement),
+        "cardinality" => Some(Feature::Cardinality),
         "number" => Some(Feature::Number),
         "onset" => Some(Feature::Onset),
         "possessive_ending" => Some(Feature::PossessiveEnding),

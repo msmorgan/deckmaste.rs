@@ -869,17 +869,20 @@ mod tests {
     use super::materialize;
     use super::materialize_node;
     use super::materialize_observed;
+    use crate::ast::BareSingularNominal;
     use crate::ast::Clause;
+    use crate::ast::CommonNoun;
+    use crate::ast::CommonSingularHead;
     use crate::ast::Connive;
     use crate::ast::Imperative;
-    use crate::ast::Noun;
-    use crate::ast::NounLexeme;
-    use crate::ast::NounPhrase;
-    use crate::ast::Pronoun;
-    use crate::ast::PronounNp;
+    use crate::ast::Object;
+    use crate::ast::ObjectPronoun;
+    use crate::ast::PersonalObject;
     use crate::ast::ScalarNumber;
     use crate::ast::SelfReferenceSpelling;
     use crate::ast::Sentence;
+    use crate::ast::SingularHead;
+    use crate::ast::SingularNominal;
     use crate::ast::Variable;
     use crate::ast::VerbLexeme;
     use crate::ast::VerbPhrase;
@@ -892,7 +895,6 @@ mod tests {
     use crate::constructions::LexicalOwnerTemplate;
     use crate::constructions::Number;
     use crate::constructions::Onset;
-    use crate::constructions::PossessiveEnding;
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
     use crate::environment::canonical_test_environment;
@@ -998,18 +1000,21 @@ mod tests {
         let children = |article, onset| {
             [
                 BuildValue::Leaf(Leaf::Literal(article)),
-                BuildValue::Leaf(Leaf::Noun {
-                    noun: Noun::Lexeme(NounLexeme::Player),
-                    number: Number::Singular,
+                BuildValue::SingularNominal(
+                    SingularNominal::BareSingularNominal(BareSingularNominal {
+                        head: SingularHead::CommonSingularHead(CommonSingularHead {
+                            noun: CommonNoun::Player,
+                        }),
+                    }),
+                    Agreement::ThirdPersonSingular,
                     onset,
-                    possessive_ending: PossessiveEnding::Other,
-                }),
+                ),
             ]
         };
 
         assert!(
             super::build_checked(
-                RuleId::NounPhraseCommonAn,
+                RuleId::NounPhraseIndefiniteReferenceAn,
                 &children("an", Onset::Vowel),
                 &parse_context,
             )
@@ -1018,7 +1023,7 @@ mod tests {
         );
         assert!(
             super::build_checked(
-                RuleId::NounPhraseCommonA,
+                RuleId::NounPhraseIndefiniteReferenceA,
                 &children("a", Onset::Consonant),
                 &parse_context,
             )
@@ -1027,7 +1032,7 @@ mod tests {
         );
         assert_eq!(
             super::build_checked(
-                RuleId::NounPhraseCommonAn,
+                RuleId::NounPhraseIndefiniteReferenceAn,
                 &children("an", Onset::Consonant),
                 &parse_context,
             ),
@@ -1035,7 +1040,7 @@ mod tests {
         );
         assert_eq!(
             super::build_checked(
-                RuleId::NounPhraseCommonA,
+                RuleId::NounPhraseIndefiniteReferenceA,
                 &children("a", Onset::Vowel),
                 &parse_context,
             ),
@@ -1168,11 +1173,11 @@ mod tests {
                     }],
                 },
                 PackedNode {
-                    rule: RuleId::NounPhrasePronoun,
+                    rule: RuleId::ObjectObjectPronoun,
                     start: 0,
                     end: 0,
                     families: vec![Family {
-                        children: vec![lexical(Leaf::Pronoun(Pronoun::You))],
+                        children: vec![lexical(Leaf::ObjectPronoun(ObjectPronoun::You))],
                     }],
                 },
             ],
@@ -1183,7 +1188,9 @@ mod tests {
             MaterializationStateFor::<BuildValue, Construction, Category, Lexical, Leaf>::default();
         let clause = Clause::Where(WhereClause {
             variable: Variable::X,
-            value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+            value: Object::ObjectPronoun(PersonalObject {
+                word: ObjectPronoun::You,
+            }),
         });
         let base = Sentence::Imperative(Imperative {
             predicate: VerbPhrase::Connive(Connive),
@@ -1212,9 +1219,9 @@ mod tests {
                 Construction::SentenceImperative,
                 Construction::VerbPhraseConnive,
                 Construction::ClauseWhere,
-                Construction::NounPhrasePronoun,
+                Construction::ObjectObjectPronoun,
                 Construction::ClauseWhere,
-                Construction::NounPhrasePronoun,
+                Construction::ObjectObjectPronoun,
             ]
         );
         assert_eq!(
@@ -1242,8 +1249,8 @@ mod tests {
                 RulePosition::Lexical(Lexical::Literal("the")),
                 RulePosition::Lexical(Lexical::Literal("number")),
                 RulePosition::Lexical(Lexical::Literal("of")),
-                RulePosition::Nonterminal(Category::NounPhrase),
-                RulePosition::Lexical(Lexical::Pronoun),
+                RulePosition::Nonterminal(Category::Object),
+                RulePosition::Lexical(Lexical::ObjectPronoun),
                 RulePosition::Lexical(Lexical::Literal("where")),
                 RulePosition::Lexical(Lexical::Variable),
                 RulePosition::Lexical(Lexical::Verb(
@@ -1253,8 +1260,8 @@ mod tests {
                 RulePosition::Lexical(Lexical::Literal("the")),
                 RulePosition::Lexical(Lexical::Literal("number")),
                 RulePosition::Lexical(Lexical::Literal("of")),
-                RulePosition::Nonterminal(Category::NounPhrase),
-                RulePosition::Lexical(Lexical::Pronoun),
+                RulePosition::Nonterminal(Category::Object),
+                RulePosition::Lexical(Lexical::ObjectPronoun),
             ]
         );
     }
@@ -1454,7 +1461,11 @@ mod tests {
                 Construction::AbilityParagraph,
                 Construction::SentenceImperative,
                 Construction::VerbPhraseDestroy,
-                Construction::NounPhraseTarget,
+                Construction::ObjectObjectNominal,
+                Construction::NounPhraseOrdinarySingularReference,
+                Construction::SingularSelectorTargetSingularSelector,
+                Construction::SingularNominalBareSingularNominal,
+                Construction::SingularHeadTypeSingularHead,
             ]
         );
         assert_eq!(
@@ -1468,10 +1479,14 @@ mod tests {
                     position: GrammarPosition::Verb,
                     feature: FeatureConstraint::Any,
                 })),
+                RulePosition::Nonterminal(Category::Object),
                 RulePosition::Nonterminal(Category::NounPhrase),
+                RulePosition::Nonterminal(Category::SingularSelector),
                 RulePosition::Lexical(Lexical::Literal("target")),
+                RulePosition::Nonterminal(Category::SingularNominal),
+                RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
-                    7,
+                    15,
                     FeatureConstraint::Exact(Number::Singular),
                 )),
             ]
@@ -1498,7 +1513,7 @@ mod tests {
                 ),
                 (
                     crate::parser::TextSpan { start: 7, end: 14 },
-                    "form:target/target/0",
+                    "form:target_singular_selector/target_singular_selector/0",
                 ),
                 (
                     crate::parser::TextSpan { start: 14, end: 23 },
@@ -1650,7 +1665,7 @@ mod tests {
             );
             if limit > 0 {
                 let cycle = &trace.materialization_cycles().items()[0];
-                assert_eq!(cycle.node_ordinal(), 5);
+                assert_eq!(cycle.node_ordinal(), 20);
                 assert_eq!(cycle.construction_path().total(), 2);
                 assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
                 assert_eq!(

@@ -905,7 +905,16 @@ enum NonterminalKind {
     OracleText,
     Sentence,
     Clause,
+    Subject,
+    Object,
     NounPhrase,
+    SingularHead,
+    PluralHead,
+    NominalModifier,
+    SingularNominal,
+    PluralNominal,
+    SingularSelector,
+    PluralSelector,
     VerbPhrase,
     PossessiveOwner,
     Possessive,
@@ -1330,7 +1339,16 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::OracleText => NonterminalKind::OracleText,
         NonterminalCategory::Sentence => NonterminalKind::Sentence,
         NonterminalCategory::Clause => NonterminalKind::Clause,
+        NonterminalCategory::Subject => NonterminalKind::Subject,
+        NonterminalCategory::Object => NonterminalKind::Object,
         NonterminalCategory::NounPhrase => NonterminalKind::NounPhrase,
+        NonterminalCategory::SingularHead => NonterminalKind::SingularHead,
+        NonterminalCategory::PluralHead => NonterminalKind::PluralHead,
+        NonterminalCategory::NominalModifier => NonterminalKind::NominalModifier,
+        NonterminalCategory::SingularNominal => NonterminalKind::SingularNominal,
+        NonterminalCategory::PluralNominal => NonterminalKind::PluralNominal,
+        NonterminalCategory::SingularSelector => NonterminalKind::SingularSelector,
+        NonterminalCategory::PluralSelector => NonterminalKind::PluralSelector,
         NonterminalCategory::VerbPhrase => NonterminalKind::VerbPhrase,
         NonterminalCategory::PossessiveOwner => NonterminalKind::PossessiveOwner,
         NonterminalCategory::Possessive => NonterminalKind::Possessive,
@@ -3412,16 +3430,8 @@ mod tests {
             "scanner matches must retain overlapping successful spans: {spans:?}"
         );
 
-        let bounded = trace(
-            "Whenever a player connives, you gain X life.",
-            "Probe Card",
-            1,
-        );
-        let bounded = DiagnosticReport::from_probe(
-            "Whenever a player connives, you gain X life.",
-            "Probe Card",
-            &bounded,
-        );
+        let bounded = trace("Destroy any target.", "Probe Card", 1);
+        let bounded = DiagnosticReport::from_probe("Destroy any target.", "Probe Card", &bounded);
         assert!(bounded.trace.forest_nodes.omitted > 0);
         assert!(bounded.trace.forest_nodes.items.iter().any(|node| {
             node.families

@@ -1727,7 +1727,10 @@ fn closed_verb_feature(
             | FeatureValue::Consonant
             | FeatureValue::Vowel
             | FeatureValue::EndsInS
-            | FeatureValue::Other => {
+            | FeatureValue::Other
+            | FeatureValue::Zero
+            | FeatureValue::One
+            | FeatureValue::TwoPlus => {
                 Err(internal("closed verb agreement has a non-agreement value"))
             }
         },
@@ -1760,7 +1763,12 @@ pub(crate) fn open_verb_feature(
             | FeatureValue::Consonant
             | FeatureValue::Vowel
             | FeatureValue::EndsInS
-            | FeatureValue::Other => Err(internal("open verb agreement has a non-agreement value")),
+            | FeatureValue::Other
+            | FeatureValue::Zero
+            | FeatureValue::One
+            | FeatureValue::TwoPlus => {
+                Err(internal("open verb agreement has a non-agreement value"))
+            }
         },
         Some(
             crate::feature::FeatureResolution::External
@@ -1794,6 +1802,7 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
         AtomTerminal::Vocab(_) => Ok(quote! {
             LexicalOwnerTemplate::Vocab { declaration: #declaration }
         }),
+        AtomTerminal::Lexeme => Ok(quote! { LexicalOwnerTemplate::NounLexeme }),
         AtomTerminal::Binding(binding) => {
             let (kind, prefix) = match binding.kind() {
                 TerminalBindingKind::Codec => (quote! { LexicalProvenanceKind::Codec }, "codec"),
@@ -1837,6 +1846,7 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
             let name = ident(vocab.name());
             Ok(quote! { Lexical::#name })
         }
+        AtomTerminal::Lexeme => Ok(quote! { Lexical::Noun }),
         AtomTerminal::Binding(binding) => {
             if binding.codec_atom() == Some(crate::model::CodecAtomClass::Noun) {
                 return Ok(quote! { Lexical::Noun });
@@ -1898,7 +1908,10 @@ fn noun_number(
             | FeatureValue::Consonant
             | FeatureValue::Vowel
             | FeatureValue::EndsInS
-            | FeatureValue::Other => Err(internal("noun number has a non-number value")),
+            | FeatureValue::Other
+            | FeatureValue::Zero
+            | FeatureValue::One
+            | FeatureValue::TwoPlus => Err(internal("noun number has a non-number value")),
         },
         FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => {
             Ok(quote! { FeatureConstraint::Any })

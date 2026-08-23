@@ -61,6 +61,12 @@ pub(crate) enum Agreement {
     ThirdPersonSingular,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum Cardinality {
+    Zero,
+    One,
+    TwoPlus,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum Number {
     Singular,
     Plural,
@@ -179,6 +185,7 @@ pub(crate) enum LexicalOwnerTemplate {
     Static { kind: LexicalProvenanceKind, stable_id: &'static str },
     Vocab { declaration: &'static str },
     Lexeme { declaration: &'static str, member: &'static str },
+    NounLexeme,
     Identity { declaration: &'static str },
     Declaration { kind: ::macro_ron::v2::DeclarationKind, name: &'static str },
 }
@@ -698,6 +705,28 @@ impl LexicalOwnerTemplate {
                     LexicalOwner::static_owner(
                         LexicalProvenanceKind::Lexeme,
                         "lexeme:Verbs/Act/third_person_singular",
+                    ),
+                )
+            }
+            (
+                LexicalOwnerTemplate::NounLexeme,
+                Leaf::Noun { noun: Nouns::Person, number: Number::Singular, .. },
+            ) => {
+                Some(
+                    LexicalOwner::static_owner(
+                        LexicalProvenanceKind::Lexeme,
+                        "lexeme:Nouns/Person/singular",
+                    ),
+                )
+            }
+            (
+                LexicalOwnerTemplate::NounLexeme,
+                Leaf::Noun { noun: Nouns::Person, number: Number::Plural, .. },
+            ) => {
+                Some(
+                    LexicalOwner::static_owner(
+                        LexicalProvenanceKind::Lexeme,
+                        "lexeme:Nouns/Person/plural",
                     ),
                 )
             }

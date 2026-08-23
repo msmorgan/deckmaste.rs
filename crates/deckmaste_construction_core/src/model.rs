@@ -212,6 +212,7 @@ pub struct FeatureSlot {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Feature {
     Agreement,
+    Cardinality,
     Number,
     Onset,
     PossessiveEnding,

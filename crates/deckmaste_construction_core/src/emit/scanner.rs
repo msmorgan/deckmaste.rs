@@ -192,12 +192,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let declaration_noun_arms = declaration_noun_arms(plan);
     let unknown_declaration_noun_arm = (!declaration_noun_arms.is_empty())
         .then(|| quote! { Lexical::DeclarationNoun(_, _) => Vec::new(), });
-    let noun_lexeme_arm = plan
-        .runtime_declaration_nouns()
-        .next()
-        .is_none()
-        .then(|| noun_lexeme_arm(plan))
-        .flatten();
+    let noun_lexeme_arm = noun_lexeme_arm(plan);
     let punctuation_literals = plan.runtime_punctuation_literals();
     let punctuation_arm = (!punctuation_literals.is_empty()).then(|| {
         quote! {
@@ -401,10 +396,33 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
     plan.runtime_declaration_nouns().map(|(terminal_index, codec)| {
         let noun = codec.codec_ident();
         let declaration = codec.declaration_value_ident();
-        let closed_plan = plan
-            .runtime_noun_lexeme()
-            .expect("validated declaration_noun closed branch is the noun lexeme");
-        let closed_candidates = noun_surface_candidates(closed_plan);
+        let closed_scan = codec.closed_lexeme().map(|closed| {
+                let closed_plan = plan
+                    .runtime_noun_lexeme()
+                    .expect("validated declaration_noun closed branch is the noun lexeme");
+                assert_eq!(closed, closed_plan.name());
+                let closed_candidates = noun_surface_candidates(closed_plan);
+                quote! {
+                    for (lexeme, number, onset, surface) in [#(#closed_candidates),*] {
+                        if matches!(wanted, FeatureConstraint::Any)
+                            || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)
+                        {
+                            if let Some(end) = input.word_end(surface, terminal.right_boundary) {
+                                matches.push(LexicalMatch {
+                                    end,
+                                    value: Leaf::#noun {
+                                        noun: #noun::Lexeme(lexeme),
+                                        number,
+                                        onset,
+                                        possessive_ending: possessive_ending_at(input.text, end),
+                                    },
+                                    owner: None,
+                                });
+                            }
+                        }
+                    }
+                }
+            });
         let allowed = codec.kinds().iter().map(|kind| match kind {
             crate::semantic::DeclarationKindFamily::Type => {
                 quote! { ::macro_ron::v2::DeclarationKind::Type }
@@ -421,6 +439,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         let number_feature = match codec.feature_axis() {
             crate::feature::Feature::Number => quote! { wanted },
             crate::feature::Feature::Agreement
+            | crate::feature::Feature::Cardinality
             | crate::feature::Feature::Onset
             | crate::feature::Feature::PossessiveEnding => {
                 unreachable!("validated declaration_noun has the Number feature axis")
@@ -429,24 +448,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         quote! {
             Lexical::DeclarationNoun(#terminal_index, wanted) => {
                 let mut matches = Vec::new();
-                for (lexeme, number, onset, surface) in [#(#closed_candidates),*] {
-                    if matches!(wanted, FeatureConstraint::Any)
-                        || matches!(wanted, FeatureConstraint::Exact(expected) if expected == number)
-                    {
-                        if let Some(end) = input.word_end(surface, terminal.right_boundary) {
-                            matches.push(LexicalMatch {
-                                end,
-                                value: Leaf::#noun {
-                                    noun: #noun::Lexeme(lexeme),
-                                    number,
-                                    onset,
-                                    possessive_ending: possessive_ending_at(input.text, end),
-                                },
-                                owner: None,
-                            });
-                        }
-                    }
-                }
+                #closed_scan
                 for (end, id, feature, onset) in input.declaration_noun_readings(
                     #position,
                     #number_feature,

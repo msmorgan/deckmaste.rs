@@ -2061,13 +2061,21 @@ fn validate_declaration_noun_source(
     source: &crate::model::DeclarationNounSource,
     errors: &mut Option<syn::Error>,
 ) {
-    let closed = validate_single_ident_slot(
-        &source.closed_slots,
-        &source.recipe,
-        "closed",
-        "declaration_noun",
-        errors,
-    );
+    let closed = match source.closed_slots.as_slice() {
+        [] => None,
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate declaration_noun field `closed`",
+                    ),
+                );
+            }
+            Some(&slot.value)
+        }
+    };
     let position = validate_single_ident_slot(
         &source.position_slots,
         &source.recipe,
@@ -2300,6 +2308,7 @@ fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Fe
         .filter_map(|category| {
             let reads = [
                 Feature::Agreement,
+                Feature::Cardinality,
                 Feature::Number,
                 Feature::Onset,
                 Feature::PossessiveEnding,
@@ -2430,6 +2439,18 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
             _ => None,
         })
         .collect();
+    let noun_morphologies = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Morphology(morphology)
+                if identifier_key(&morphology.recipe) == "english_noun" =>
+            {
+                Some(identifier_key(&morphology.name))
+            }
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
 
     for declaration in &raw.declarations {
         match declaration {
@@ -2592,7 +2613,9 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 }
                 terminals.entry(name).or_insert(TerminalInfo {
                     kind: TerminalKind::Lexeme,
-                    codec_atom: None,
+                    codec_atom: noun_morphologies
+                        .contains(&identifier_key(&lexeme.morphology))
+                        .then_some(CodecAtomClass::Noun),
                     variants,
                     variant_order,
                 });
@@ -3243,6 +3266,7 @@ fn generated_name_inventory(
                     };
                     let (spelling, display) = match feature {
                         ParsedFeature::Agreement => ("agreement", "Agreement"),
+                        ParsedFeature::Cardinality => ("cardinality", "Cardinality"),
                         ParsedFeature::Number => ("number", "Number"),
                         ParsedFeature::Onset => ("onset", "Onset"),
                         ParsedFeature::PossessiveEnding => {
@@ -3802,6 +3826,7 @@ fn owner_rule_variant_names(
 fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Feature) -> bool {
     let parsed_feature = match feature {
         Feature::Agreement => ParsedFeature::Agreement,
+        Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Number => ParsedFeature::Number,
         Feature::Onset => ParsedFeature::Onset,
         Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
@@ -3978,16 +4003,24 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
             role_provides_number(raw, &fields, &field)
                 .then(|| (identifier_key(&field), ParsedFeature::Number))
         }));
+        local_vocab_providers.extend(fields.keys().filter_map(|field| {
+            let field = syn::Ident::new(field, construction.name.span());
+            role_provides_cardinality(raw, &fields, &field)
+                .then(|| (identifier_key(&field), ParsedFeature::Cardinality))
+        }));
         local_vocab_providers.extend(construction.equations.iter().filter_map(|equation| {
-            let ParsedFeaturePlace::Role {
-                field,
-                feature: ParsedFeature::Number,
-            } = &equation.target
-            else {
+            let ParsedFeaturePlace::Role { field, feature } = &equation.target else {
                 return None;
             };
-            role_provides_number(raw, &fields, field)
-                .then(|| (identifier_key(field), ParsedFeature::Number))
+            match feature {
+                ParsedFeature::Cardinality => role_provides_cardinality(raw, &fields, field)
+                    .then(|| (identifier_key(field), ParsedFeature::Cardinality)),
+                ParsedFeature::Number => role_provides_number(raw, &fields, field)
+                    .then(|| (identifier_key(field), ParsedFeature::Number)),
+                ParsedFeature::Agreement
+                | ParsedFeature::Onset
+                | ParsedFeature::PossessiveEnding => None,
+            }
         }));
         for (form, (form_verbs, form_open_verb_count)) in
             construction.forms.iter().zip(&form_verb_rows)
@@ -4617,9 +4650,10 @@ fn check_noun_role(
 ) {
     check_role_kind(role, fields, false, errors);
     let supported = match fields.get(&identifier_key(role)) {
-        Some(FieldKind::Lex(path)) => symbols.terminals.get(&path_name(path)).is_some_and(|info| {
-            info.kind == TerminalKind::Codec && info.codec_atom == Some(CodecAtomClass::Noun)
-        }),
+        Some(FieldKind::Lex(path)) => symbols
+            .terminals
+            .get(&path_name(path))
+            .is_some_and(|info| info.codec_atom == Some(CodecAtomClass::Noun)),
         Some(FieldKind::Identity(_)) => false,
         Some(FieldKind::Category(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
         | None => return,
@@ -6979,6 +7013,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
     for (category, constructions) in categories {
         for feature in [
             ParsedFeature::Agreement,
+            ParsedFeature::Cardinality,
             ParsedFeature::Number,
             ParsedFeature::Onset,
             ParsedFeature::PossessiveEnding,
@@ -6988,16 +7023,19 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             }
         }
     }
-    providers.extend(raw.declarations.iter().filter_map(|declaration| {
+    for declaration in &raw.declarations {
         let Declaration::Codec(binding) = declaration else {
-            return None;
+            continue;
         };
-        matches!(
+        if matches!(
             binding.generated,
             Some(crate::model::GeneratedCodecRecipe::EnglishCardinal(_))
-        )
-        .then(|| (identifier_key(&binding.name), ParsedFeature::Number))
-    }));
+        ) {
+            let terminal = identifier_key(&binding.name);
+            providers.insert((terminal.clone(), ParsedFeature::Number));
+            providers.insert((terminal, ParsedFeature::Cardinality));
+        }
+    }
     providers
 }
 
@@ -7015,6 +7053,7 @@ fn place_key(place: &ParsedFeaturePlace) -> String {
 fn feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
+        ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
         ParsedFeature::PossessiveEnding => "possessive_ending",
@@ -7196,6 +7235,18 @@ fn validate_backend_completeness(
 ) -> syn::Result<()> {
     let mut errors = None;
     let mut terminals = Vec::new();
+    let noun_morphologies = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Morphology(morphology)
+                if identifier_key(&morphology.recipe) == "english_noun" =>
+            {
+                Some(identifier_key(&morphology.name))
+            }
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
 
     validate_lowerable_backend_shapes(raw)?;
 
@@ -7220,13 +7271,13 @@ fn validate_backend_completeness(
                 name: identifier_key(&lexeme.name),
                 lex_atom: false,
                 identity_atom: false,
-                noun_atom: false,
+                noun_atom: noun_morphologies.contains(&identifier_key(&lexeme.morphology)),
                 verb_atom: resolved
                     .verb_lexeme_provider
                     .as_ref()
                     .is_some_and(|provider| provider == &identifier_key(&lexeme.name)),
-                direct_render: false,
-                direct_build: false,
+                direct_render: noun_morphologies.contains(&identifier_key(&lexeme.morphology)),
+                direct_build: noun_morphologies.contains(&identifier_key(&lexeme.morphology)),
                 traversal: true,
             }),
             Declaration::Codec(binding) => terminals.push(TerminalCapabilities {
@@ -7446,9 +7497,17 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeatureValue::FromRole(_),
             ) => true,
             (
-                ParsedFeaturePlace::Construction(ParsedFeature::Number),
+                ParsedFeaturePlace::Construction(
+                    ParsedFeature::Cardinality | ParsedFeature::Number,
+                ),
                 ParsedFeatureValue::FromRole(source),
-            ) => !has_noun || role_provides_number(raw, &fields, &source.role),
+            ) => match source.feature {
+                ParsedFeature::Number => {
+                    !has_noun || role_provides_number(raw, &fields, &source.role)
+                }
+                ParsedFeature::Cardinality => role_provides_cardinality(raw, &fields, &source.role),
+                _ => false,
+            },
             (
                 ParsedFeaturePlace::Role {
                     field,
@@ -7468,11 +7527,21 @@ fn validate_lowerable_feature_compositions(
             }
             (
                 ParsedFeaturePlace::Role {
-                    feature: ParsedFeature::Number,
+                    feature: ParsedFeature::Cardinality | ParsedFeature::Number,
                     field,
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
-            ) => role_provides_number(raw, &fields, field),
+            ) => match &equation.target {
+                ParsedFeaturePlace::Role {
+                    feature: ParsedFeature::Number,
+                    ..
+                } => role_provides_number(raw, &fields, field),
+                ParsedFeaturePlace::Role {
+                    feature: ParsedFeature::Cardinality,
+                    ..
+                } => role_provides_cardinality(raw, &fields, field),
+                _ => false,
+            },
             (
                 ParsedFeaturePlace::Role {
                     feature: ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
@@ -7504,6 +7573,43 @@ fn role_provides_number(
 ) -> bool {
     match fields.get(&identifier_key(role)) {
         Some(FieldKind::Category(_)) => true,
+        Some(FieldKind::Lex(path)) => {
+            raw.declarations
+                .iter()
+                .any(|declaration| match declaration {
+                    Declaration::Codec(binding)
+                        if identifier_key(&binding.name) == path_name(path)
+                            && matches!(
+                                binding.generated,
+                                Some(
+                                    crate::model::GeneratedCodecRecipe::DeclarationNoun(_)
+                                        | crate::model::GeneratedCodecRecipe::EnglishCardinal(_)
+                                )
+                            ) =>
+                    {
+                        true
+                    }
+                    Declaration::Lexeme(lexeme)
+                        if identifier_key(&lexeme.name) == path_name(path) =>
+                    {
+                        lexeme_recipe(raw, lexeme)
+                            == Some(crate::morphology::MorphologyRecipe::EnglishNoun)
+                    }
+                    _ => false,
+                })
+        }
+        Some(FieldKind::Identity(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
+        | None => false,
+    }
+}
+
+fn role_provides_cardinality(
+    raw: &Declarations,
+    fields: &HashMap<String, &FieldKind>,
+    role: &syn::Ident,
+) -> bool {
+    match fields.get(&identifier_key(role)) {
+        Some(FieldKind::Category(_)) => true,
         Some(FieldKind::Lex(path)) => raw.declarations.iter().any(|declaration| {
             matches!(
                 declaration,
@@ -7511,10 +7617,7 @@ fn role_provides_number(
                     if identifier_key(&binding.name) == path_name(path)
                         && matches!(
                             binding.generated,
-                            Some(
-                                crate::model::GeneratedCodecRecipe::DeclarationNoun(_)
-                                    | crate::model::GeneratedCodecRecipe::EnglishCardinal(_)
-                            )
+                            Some(crate::model::GeneratedCodecRecipe::EnglishCardinal(_))
                         )
             )
         }),
@@ -7544,6 +7647,7 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
     for (category, members) in categories {
         for feature in [
             ParsedFeature::Agreement,
+            ParsedFeature::Cardinality,
             ParsedFeature::Number,
             ParsedFeature::Onset,
             ParsedFeature::PossessiveEnding,
@@ -7583,6 +7687,7 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
 fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
+        ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
         ParsedFeature::PossessiveEnding => "possessive_ending",
@@ -8359,15 +8464,21 @@ pub(crate) mod tests {
         })
         .expect("the exact declaration noun recipe validates");
 
-        for (body, expected) in [
-            (
-                quote! {
+        validate(quote! {
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            codec TypeNoun {
+                generate declaration_noun {
                     position = Noun;
-                    kinds = [Type, Subtype];
+                    kinds = [Type];
                     feature = Number;
-                },
-                "declaration_noun requires one `closed` field",
-            ),
+                }
+            }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a declaration-only noun codec validates without a closed branch");
+
+        for (body, expected) in [
             (
                 quote! {
                     closed = NounLexeme;
@@ -12136,7 +12247,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 109);
+        assert_eq!(expansion.plan().items().len(), 110);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -12478,7 +12589,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 109);
+        assert_eq!(expansion.plan().items().len(), 110);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -12614,7 +12725,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 109);
+        assert_eq!(emission.items().len(), 110);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

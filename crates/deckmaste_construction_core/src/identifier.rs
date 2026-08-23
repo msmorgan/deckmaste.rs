@@ -15,6 +15,7 @@ pub(crate) const CHECKED_CONSTRUCTOR: &str = "try_new";
 pub(crate) const BUILD_REJECTION_TYPE: &str = "BuildRejection";
 pub(crate) const BUILD_VIOLATION_TYPE: &str = "BuildViolation";
 pub(crate) const AGREEMENT_TYPE: &str = "Agreement";
+pub(crate) const CARDINALITY_TYPE: &str = "Cardinality";
 pub(crate) const NUMBER_TYPE: &str = "Number";
 pub(crate) const ONSET_TYPE: &str = "Onset";
 pub(crate) const POSSESSIVE_ENDING_TYPE: &str = "PossessiveEnding";
@@ -40,6 +41,7 @@ pub(crate) const LEXICAL_OWNER_TYPE: &str = "LexicalOwner";
 pub(crate) const LEXICAL_OWNER_IDENTITY_TYPE: &str = "LexicalOwnerIdentity";
 pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     AGREEMENT_TYPE,
+    CARDINALITY_TYPE,
     NUMBER_TYPE,
     ONSET_TYPE,
     POSSESSIVE_ENDING_TYPE,

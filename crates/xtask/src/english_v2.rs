@@ -1672,52 +1672,20 @@ mod tests {
         saw_cfg && !combined.can_be_true
     }
 
-    const ALL_DECLARATION_ORIGINS: &[&str] = &[
+    const VOCAB_ORIGINS: &[&str] = &[
         "vocab TriggerWord",
-        "vocab Demonstrative",
-        "vocab Pronoun",
+        "vocab SubjectPronoun",
+        "vocab ObjectPronoun",
+        "vocab PossessiveDeterminerPronoun",
+        "vocab PossessiveAbsolutePronoun",
+        "vocab ReflexivePronoun",
         "vocab Variable",
+        "vocab Color",
+        "vocab Status",
+        "vocab Designation",
+        "vocab ChosenQuality",
+        "vocab NonCommonNoun",
         "vocab Supertype",
-        "morphology EnglishVerb",
-        "morphology EnglishNoun",
-        "lexeme NounLexeme",
-        "lexeme VerbLexeme",
-        "codec Noun",
-        "identity SelfReferenceSpelling",
-        "identity CardName",
-        "codec CardinalNumber",
-        "codec ScalarNumber",
-        "construction paragraph",
-        "construction triggered",
-        "construction imperative",
-        "construction declarative",
-        "construction with_where",
-        "construction event",
-        "construction where",
-        "construction pronoun",
-        "construction common",
-        "construction named",
-        "construction demonstrative",
-        "construction target",
-        "construction self_reference",
-        "construction count",
-        "construction possessive_self_reference",
-        "construction possessive_plural_noun",
-        "construction possessive",
-        "construction destroy",
-        "construction connive",
-        "construction deal_damage",
-        "construction gain_life",
-        "construction number",
-        "construction variable",
-        "construction cardinal",
-        "abstract sum DocumentBlock",
-        "abstract product OracleText",
-        "root Ability",
-        "root Sentence",
-        "root Possessive",
-        "root CardinalQuantity",
-        "root OracleText",
     ];
 
     const CONSTRUCTION_ORIGINS: &[&str] = &[
@@ -1728,11 +1696,90 @@ mod tests {
         "construction with_where",
         "construction event",
         "construction where",
-        "construction pronoun",
-        "construction common",
-        "construction named",
-        "construction demonstrative",
-        "construction target",
+        "construction subject_nominal",
+        "construction subject_pronoun",
+        "construction object_nominal",
+        "construction object_pronoun",
+        "construction reflexive_object",
+        "construction common_singular_head",
+        "construction type_singular_head",
+        "construction artifact_subtype_singular_head",
+        "construction battle_subtype_singular_head",
+        "construction creature_subtype_singular_head",
+        "construction enchantment_subtype_singular_head",
+        "construction land_subtype_singular_head",
+        "construction planeswalker_subtype_singular_head",
+        "construction spell_subtype_singular_head",
+        "construction common_plural_head",
+        "construction type_plural_head",
+        "construction artifact_subtype_plural_head",
+        "construction battle_subtype_plural_head",
+        "construction creature_subtype_plural_head",
+        "construction enchantment_subtype_plural_head",
+        "construction land_subtype_plural_head",
+        "construction planeswalker_subtype_plural_head",
+        "construction spell_subtype_plural_head",
+        "construction color_modifier",
+        "construction status_modifier",
+        "construction supertype_modifier",
+        "construction common_noun_modifier",
+        "construction type_modifier",
+        "construction artifact_subtype_modifier",
+        "construction battle_subtype_modifier",
+        "construction creature_subtype_modifier",
+        "construction enchantment_subtype_modifier",
+        "construction land_subtype_modifier",
+        "construction planeswalker_subtype_modifier",
+        "construction spell_subtype_modifier",
+        "construction non_color_modifier",
+        "construction non_common_noun_modifier",
+        "construction non_status_modifier",
+        "construction non_supertype_modifier",
+        "construction non_type_modifier",
+        "construction non_artifact_subtype_modifier",
+        "construction non_battle_subtype_modifier",
+        "construction non_creature_subtype_modifier",
+        "construction non_enchantment_subtype_modifier",
+        "construction non_land_subtype_modifier",
+        "construction non_planeswalker_subtype_modifier",
+        "construction non_spell_subtype_modifier",
+        "construction bare_singular_nominal",
+        "construction modified_singular_nominal",
+        "construction bare_plural_nominal",
+        "construction modified_plural_nominal",
+        "construction unmarked_singular_selector",
+        "construction target_singular_selector",
+        "construction other_singular_selector",
+        "construction other_target_singular_selector",
+        "construction unmarked_plural_selector",
+        "construction target_plural_selector",
+        "construction other_plural_selector",
+        "construction other_target_plural_selector",
+        "construction indefinite_reference",
+        "construction named_card_reference",
+        "construction ordinary_singular_reference",
+        "construction ordinary_plural_reference",
+        "construction definite_singular_reference",
+        "construction definite_plural_reference",
+        "construction any_target_reference",
+        "construction another_reference",
+        "construction each_reference",
+        "construction all_reference",
+        "construction fixed_reference",
+        "construction variable_reference",
+        "construction up_to_one_reference",
+        "construction up_to_many_reference",
+        "construction any_number_reference",
+        "construction one_or_more_reference",
+        "construction this_reference",
+        "construction that_reference",
+        "construction those_reference",
+        "construction designated_singular_reference",
+        "construction designated_plural_reference",
+        "construction chosen_quality_reference",
+        "construction possessed_singular_reference",
+        "construction possessed_plural_reference",
+        "construction possessive_absolute_reference",
         "construction self_reference",
         "construction count",
         "construction possessive_self_reference",
@@ -1747,15 +1794,150 @@ mod tests {
         "construction cardinal",
     ];
 
+    const SUBJECT_ORIGINS: &[&str] = &[
+        "construction subject_nominal",
+        "construction subject_pronoun",
+    ];
+    const OBJECT_ORIGINS: &[&str] = &[
+        "construction object_nominal",
+        "construction object_pronoun",
+        "construction reflexive_object",
+    ];
+    const MODIFIER_ORIGINS: &[&str] = &[
+        "construction color_modifier",
+        "construction status_modifier",
+        "construction supertype_modifier",
+        "construction common_noun_modifier",
+        "construction type_modifier",
+        "construction artifact_subtype_modifier",
+        "construction battle_subtype_modifier",
+        "construction creature_subtype_modifier",
+        "construction enchantment_subtype_modifier",
+        "construction land_subtype_modifier",
+        "construction planeswalker_subtype_modifier",
+        "construction spell_subtype_modifier",
+        "construction non_color_modifier",
+        "construction non_common_noun_modifier",
+        "construction non_status_modifier",
+        "construction non_supertype_modifier",
+        "construction non_type_modifier",
+        "construction non_artifact_subtype_modifier",
+        "construction non_battle_subtype_modifier",
+        "construction non_creature_subtype_modifier",
+        "construction non_enchantment_subtype_modifier",
+        "construction non_land_subtype_modifier",
+        "construction non_planeswalker_subtype_modifier",
+        "construction non_spell_subtype_modifier",
+    ];
+
+    const SINGULAR_NOMINAL_ORIGINS: &[&str] = &[
+        "construction bare_singular_nominal",
+        "construction modified_singular_nominal",
+    ];
+    const PLURAL_NOMINAL_ORIGINS: &[&str] = &[
+        "construction bare_plural_nominal",
+        "construction modified_plural_nominal",
+    ];
+    const SINGULAR_SELECTOR_ORIGINS: &[&str] = &[
+        "construction unmarked_singular_selector",
+        "construction target_singular_selector",
+        "construction other_singular_selector",
+        "construction other_target_singular_selector",
+    ];
+    const PLURAL_SELECTOR_ORIGINS: &[&str] = &[
+        "construction unmarked_plural_selector",
+        "construction target_plural_selector",
+        "construction other_plural_selector",
+        "construction other_target_plural_selector",
+    ];
+    const NOUN_PHRASE_ORIGINS: &[&str] = &[
+        "construction indefinite_reference",
+        "construction named_card_reference",
+        "construction ordinary_singular_reference",
+        "construction ordinary_plural_reference",
+        "construction definite_singular_reference",
+        "construction definite_plural_reference",
+        "construction any_target_reference",
+        "construction another_reference",
+        "construction each_reference",
+        "construction all_reference",
+        "construction fixed_reference",
+        "construction variable_reference",
+        "construction up_to_one_reference",
+        "construction up_to_many_reference",
+        "construction any_number_reference",
+        "construction one_or_more_reference",
+        "construction this_reference",
+        "construction that_reference",
+        "construction those_reference",
+        "construction designated_singular_reference",
+        "construction designated_plural_reference",
+        "construction chosen_quality_reference",
+        "construction possessed_singular_reference",
+        "construction possessed_plural_reference",
+        "construction possessive_absolute_reference",
+        "construction self_reference",
+        "construction count",
+    ];
+
+    static ALL_DECLARATION_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
+        std::sync::LazyLock::new(|| {
+            let mut origins = VOCAB_ORIGINS.to_vec();
+            origins.extend([
+                "morphology EnglishVerb",
+                "morphology EnglishNoun",
+                "lexeme CommonNoun",
+                "lexeme VerbLexeme",
+                "codec TypeNoun",
+                "codec ArtifactSubtypeNoun",
+                "codec BattleSubtypeNoun",
+                "codec CreatureSubtypeNoun",
+                "codec EnchantmentSubtypeNoun",
+                "codec LandSubtypeNoun",
+                "codec PlaneswalkerSubtypeNoun",
+                "codec SpellSubtypeNoun",
+                "identity SelfReferenceSpelling",
+                "identity CardName",
+                "codec CardinalNumber",
+                "codec ScalarNumber",
+            ]);
+            origins.extend(CONSTRUCTION_ORIGINS);
+            origins.extend([
+                "abstract sum DocumentBlock",
+                "abstract product OracleText",
+                "root Ability",
+                "root Sentence",
+                "root Possessive",
+                "root CardinalQuantity",
+                "root OracleText",
+            ]);
+            origins
+        });
+
     const SCANNER_ORIGINS: &[&str] = &[
         "vocab TriggerWord",
-        "vocab Demonstrative",
-        "vocab Pronoun",
+        "vocab SubjectPronoun",
+        "vocab ObjectPronoun",
+        "vocab PossessiveDeterminerPronoun",
+        "vocab PossessiveAbsolutePronoun",
+        "vocab ReflexivePronoun",
         "vocab Variable",
+        "vocab Color",
+        "vocab Status",
+        "vocab Designation",
+        "vocab ChosenQuality",
+        "vocab NonCommonNoun",
         "vocab Supertype",
-        "lexeme NounLexeme",
+        "lexeme CommonNoun",
         "lexeme VerbLexeme",
-        "codec Noun",
+        "codec TypeNoun",
+        "codec ArtifactSubtypeNoun",
+        "codec BattleSubtypeNoun",
+        "codec CreatureSubtypeNoun",
+        "codec EnchantmentSubtypeNoun",
+        "codec LandSubtypeNoun",
+        "codec PlaneswalkerSubtypeNoun",
+        "codec SpellSubtypeNoun",
         "identity SelfReferenceSpelling",
         "identity CardName",
         "codec CardinalNumber",
@@ -1769,67 +1951,48 @@ mod tests {
         "root OracleText",
     ];
 
-    const VISITOR_ORIGINS: &[&str] = &[
-        "construction paragraph",
-        "construction triggered",
-        "construction imperative",
-        "construction declarative",
-        "construction with_where",
-        "construction event",
-        "construction where",
-        "construction pronoun",
-        "construction common",
-        "construction named",
-        "construction demonstrative",
-        "construction target",
-        "construction self_reference",
-        "construction count",
-        "construction possessive_self_reference",
-        "construction possessive_plural_noun",
-        "construction possessive",
-        "construction destroy",
-        "construction connive",
-        "construction deal_damage",
-        "construction gain_life",
-        "construction number",
-        "construction variable",
-        "construction cardinal",
-        "codec CardinalNumber",
-        "codec ScalarNumber",
-        "codec Noun",
-        "construction paragraph",
-        "construction triggered",
-        "construction imperative",
-        "construction declarative",
-        "construction with_where",
-        "construction event",
-        "construction where",
-        "construction pronoun",
-        "construction common",
-        "construction named",
-        "construction demonstrative",
-        "construction target",
-        "construction self_reference",
-        "construction count",
-        "construction possessive_self_reference",
-        "construction possessive_plural_noun",
-        "construction possessive",
-        "construction destroy",
-        "construction connive",
-        "construction deal_damage",
-        "construction gain_life",
-        "construction number",
-        "construction variable",
-        "construction cardinal",
-        "vocab TriggerWord",
-        "vocab Demonstrative",
-        "vocab Pronoun",
-        "vocab Variable",
-        "vocab Supertype",
-        "identity SelfReferenceSpelling",
-        "lexeme NounLexeme",
-        "lexeme VerbLexeme",
-    ];
+    static VISITOR_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
+        std::sync::LazyLock::new(|| {
+            let mut origins = CONSTRUCTION_ORIGINS.to_vec();
+            origins.extend([
+                "codec CardinalNumber",
+                "codec ScalarNumber",
+                "codec TypeNoun",
+                "codec ArtifactSubtypeNoun",
+                "codec BattleSubtypeNoun",
+                "codec CreatureSubtypeNoun",
+                "codec EnchantmentSubtypeNoun",
+                "codec LandSubtypeNoun",
+                "codec PlaneswalkerSubtypeNoun",
+                "codec SpellSubtypeNoun",
+            ]);
+            origins.extend(CONSTRUCTION_ORIGINS);
+            origins.extend(VOCAB_ORIGINS);
+            origins.extend([
+                "identity SelfReferenceSpelling",
+                "lexeme CommonNoun",
+                "lexeme VerbLexeme",
+            ]);
+            origins
+        });
+
+    static CATEGORY_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
+        std::sync::LazyLock::new(|| {
+            let mut origins = CONSTRUCTION_ORIGINS.to_vec();
+            origins.extend(["abstract sum DocumentBlock", "abstract product OracleText"]);
+            origins
+        });
+
+    static RULE_ORIGINS: std::sync::LazyLock<Vec<&'static str>> = std::sync::LazyLock::new(|| {
+        let mut origins = CONSTRUCTION_ORIGINS.to_vec();
+        origins.extend([
+            "root Ability",
+            "root Possessive",
+            "root CardinalQuantity",
+            "root OracleText",
+        ]);
+        origins
+    });
 
     #[allow(
         clippy::too_many_lines,
@@ -1848,19 +2011,79 @@ mod tests {
             "type Clause" | "function render_clause" | "function walk_clause" => {
                 &["construction event", "construction where"]
             }
+            "type Subject"
+            | "function render_subject"
+            | "function agreement_for_subject"
+            | "function walk_subject" => SUBJECT_ORIGINS,
+            "type Object" | "function render_object" | "function walk_object" => OBJECT_ORIGINS,
+            "type SingularHead"
+            | "function render_singular_head"
+            | "function agreement_for_singular_head"
+            | "function number_for_singular_head"
+            | "function onset_for_singular_head"
+            | "function walk_singular_head" => &[
+                "construction common_singular_head",
+                "construction type_singular_head",
+                "construction artifact_subtype_singular_head",
+                "construction battle_subtype_singular_head",
+                "construction creature_subtype_singular_head",
+                "construction enchantment_subtype_singular_head",
+                "construction land_subtype_singular_head",
+                "construction planeswalker_subtype_singular_head",
+                "construction spell_subtype_singular_head",
+            ],
+            "type PluralHead"
+            | "function render_plural_head"
+            | "function agreement_for_plural_head"
+            | "function number_for_plural_head"
+            | "function onset_for_plural_head"
+            | "function possessive_ending_for_plural_head"
+            | "function walk_plural_head" => &[
+                "construction common_plural_head",
+                "construction type_plural_head",
+                "construction artifact_subtype_plural_head",
+                "construction battle_subtype_plural_head",
+                "construction creature_subtype_plural_head",
+                "construction enchantment_subtype_plural_head",
+                "construction land_subtype_plural_head",
+                "construction planeswalker_subtype_plural_head",
+                "construction spell_subtype_plural_head",
+            ],
+            "type NominalModifier"
+            | "function render_nominal_modifier"
+            | "function number_for_nominal_modifier"
+            | "function onset_for_nominal_modifier"
+            | "function walk_nominal_modifier" => MODIFIER_ORIGINS,
+            "type SingularNominal"
+            | "function render_singular_nominal"
+            | "function agreement_for_singular_nominal"
+            | "function number_for_singular_nominal"
+            | "function onset_for_singular_nominal"
+            | "function walk_singular_nominal" => SINGULAR_NOMINAL_ORIGINS,
+            "type PluralNominal"
+            | "function render_plural_nominal"
+            | "function agreement_for_plural_nominal"
+            | "function number_for_plural_nominal"
+            | "function onset_for_plural_nominal"
+            | "function walk_plural_nominal" => PLURAL_NOMINAL_ORIGINS,
+            "type SingularSelector"
+            | "function render_singular_selector"
+            | "function agreement_for_singular_selector"
+            | "function number_for_singular_selector"
+            | "function onset_for_singular_selector"
+            | "function walk_singular_selector" => SINGULAR_SELECTOR_ORIGINS,
+            "type PluralSelector"
+            | "function render_plural_selector"
+            | "function agreement_for_plural_selector"
+            | "function number_for_plural_selector"
+            | "function onset_for_plural_selector"
+            | "function walk_plural_selector" => PLURAL_SELECTOR_ORIGINS,
             "type NounPhrase"
             | "function render_noun_phrase"
             | "function agreement_for_noun_phrase"
             | "function number_for_noun_phrase"
-            | "function walk_noun_phrase" => &[
-                "construction pronoun",
-                "construction common",
-                "construction named",
-                "construction demonstrative",
-                "construction target",
-                "construction self_reference",
-                "construction count",
-            ],
+            | "function onset_for_noun_phrase"
+            | "function walk_noun_phrase" => NOUN_PHRASE_ORIGINS,
             "type PossessiveOwner"
             | "function render_possessive_owner"
             | "function number_for_possessive_owner"
@@ -1880,6 +2103,8 @@ mod tests {
                 &["construction number", "construction variable"]
             }
             "type CardinalQuantity"
+            | "function render_cardinal_quantity_body"
+            | "function cardinality_for_cardinal_quantity"
             | "function walk_cardinal_quantity"
             | "type CardinalQuantityValue"
             | "function walk_cardinal_quantity_value" => &["construction cardinal"],
@@ -1909,17 +2134,268 @@ mod tests {
             }
             "type EventClause" | "function walk_event_clause" => &["construction event"],
             "type WhereClause" | "function walk_where_clause" => &["construction where"],
-            "type PronounNp" | "function walk_pronoun_np" => &["construction pronoun"],
-            "type Common" | "function walk_common" => &["construction common"],
-            "type NamedNp" | "function walk_named_np" => &["construction named"],
-            "type DemonstrativeNp"
-            | "function walk_demonstrative_np"
-            | "function agreement_for_demonstrative"
-            | "function number_for_demonstrative" => &["construction demonstrative"],
-            "type TargetNp" | "function walk_target_np" => &["construction target"],
-            "type SelfReferenceNp" | "impl SelfReferenceNp" | "function walk_self_reference_np" => {
-                &["construction self_reference"]
+            "type NominalSubject" | "function walk_nominal_subject" => {
+                &["construction subject_nominal"]
             }
+            "type PersonalSubject" | "function walk_personal_subject" => {
+                &["construction subject_pronoun"]
+            }
+            "type NominalObject" | "function walk_nominal_object" => {
+                &["construction object_nominal"]
+            }
+            "type PersonalObject" | "function walk_personal_object" => {
+                &["construction object_pronoun"]
+            }
+            "type ReflexiveObject" | "function walk_reflexive_object" => {
+                &["construction reflexive_object"]
+            }
+            "type CommonSingularHead" | "function walk_common_singular_head" => {
+                &["construction common_singular_head"]
+            }
+            "type TypeSingularHead" | "function walk_type_singular_head" => {
+                &["construction type_singular_head"]
+            }
+            "type ArtifactSubtypeSingularHead" | "function walk_artifact_subtype_singular_head" => {
+                &["construction artifact_subtype_singular_head"]
+            }
+            "type BattleSubtypeSingularHead" | "function walk_battle_subtype_singular_head" => {
+                &["construction battle_subtype_singular_head"]
+            }
+            "type CreatureSubtypeSingularHead" | "function walk_creature_subtype_singular_head" => {
+                &["construction creature_subtype_singular_head"]
+            }
+            "type EnchantmentSubtypeSingularHead"
+            | "function walk_enchantment_subtype_singular_head" => {
+                &["construction enchantment_subtype_singular_head"]
+            }
+            "type LandSubtypeSingularHead" | "function walk_land_subtype_singular_head" => {
+                &["construction land_subtype_singular_head"]
+            }
+            "type PlaneswalkerSubtypeSingularHead"
+            | "function walk_planeswalker_subtype_singular_head" => {
+                &["construction planeswalker_subtype_singular_head"]
+            }
+            "type SpellSubtypeSingularHead" | "function walk_spell_subtype_singular_head" => {
+                &["construction spell_subtype_singular_head"]
+            }
+            "type CommonPluralHead" | "function walk_common_plural_head" => {
+                &["construction common_plural_head"]
+            }
+            "type TypePluralHead" | "function walk_type_plural_head" => {
+                &["construction type_plural_head"]
+            }
+            "type ArtifactSubtypePluralHead" | "function walk_artifact_subtype_plural_head" => {
+                &["construction artifact_subtype_plural_head"]
+            }
+            "type BattleSubtypePluralHead" | "function walk_battle_subtype_plural_head" => {
+                &["construction battle_subtype_plural_head"]
+            }
+            "type CreatureSubtypePluralHead" | "function walk_creature_subtype_plural_head" => {
+                &["construction creature_subtype_plural_head"]
+            }
+            "type EnchantmentSubtypePluralHead"
+            | "function walk_enchantment_subtype_plural_head" => {
+                &["construction enchantment_subtype_plural_head"]
+            }
+            "type LandSubtypePluralHead" | "function walk_land_subtype_plural_head" => {
+                &["construction land_subtype_plural_head"]
+            }
+            "type PlaneswalkerSubtypePluralHead"
+            | "function walk_planeswalker_subtype_plural_head" => {
+                &["construction planeswalker_subtype_plural_head"]
+            }
+            "type SpellSubtypePluralHead" | "function walk_spell_subtype_plural_head" => {
+                &["construction spell_subtype_plural_head"]
+            }
+            "type ColorModifier" | "function walk_color_modifier" => {
+                &["construction color_modifier"]
+            }
+            "type StatusModifier" | "function walk_status_modifier" => {
+                &["construction status_modifier"]
+            }
+            "type SupertypeModifier" | "function walk_supertype_modifier" => {
+                &["construction supertype_modifier"]
+            }
+            "type CommonNounModifier" | "function walk_common_noun_modifier" => {
+                &["construction common_noun_modifier"]
+            }
+            "type TypeModifier" | "function walk_type_modifier" => &["construction type_modifier"],
+            "type ArtifactSubtypeModifier" | "function walk_artifact_subtype_modifier" => {
+                &["construction artifact_subtype_modifier"]
+            }
+            "type BattleSubtypeModifier" | "function walk_battle_subtype_modifier" => {
+                &["construction battle_subtype_modifier"]
+            }
+            "type CreatureSubtypeModifier" | "function walk_creature_subtype_modifier" => {
+                &["construction creature_subtype_modifier"]
+            }
+            "type EnchantmentSubtypeModifier" | "function walk_enchantment_subtype_modifier" => {
+                &["construction enchantment_subtype_modifier"]
+            }
+            "type LandSubtypeModifier" | "function walk_land_subtype_modifier" => {
+                &["construction land_subtype_modifier"]
+            }
+            "type PlaneswalkerSubtypeModifier" | "function walk_planeswalker_subtype_modifier" => {
+                &["construction planeswalker_subtype_modifier"]
+            }
+            "type SpellSubtypeModifier" | "function walk_spell_subtype_modifier" => {
+                &["construction spell_subtype_modifier"]
+            }
+            "type NonColorModifier" | "function walk_non_color_modifier" => {
+                &["construction non_color_modifier"]
+            }
+            "type NonCommonNounModifier" | "function walk_non_common_noun_modifier" => {
+                &["construction non_common_noun_modifier"]
+            }
+            "type NonStatusModifier" | "function walk_non_status_modifier" => {
+                &["construction non_status_modifier"]
+            }
+            "type NonSupertypeModifier" | "function walk_non_supertype_modifier" => {
+                &["construction non_supertype_modifier"]
+            }
+            "type NonTypeModifier" | "function walk_non_type_modifier" => {
+                &["construction non_type_modifier"]
+            }
+            "type NonArtifactSubtypeModifier" | "function walk_non_artifact_subtype_modifier" => {
+                &["construction non_artifact_subtype_modifier"]
+            }
+            "type NonBattleSubtypeModifier" | "function walk_non_battle_subtype_modifier" => {
+                &["construction non_battle_subtype_modifier"]
+            }
+            "type NonCreatureSubtypeModifier" | "function walk_non_creature_subtype_modifier" => {
+                &["construction non_creature_subtype_modifier"]
+            }
+            "type NonEnchantmentSubtypeModifier"
+            | "function walk_non_enchantment_subtype_modifier" => {
+                &["construction non_enchantment_subtype_modifier"]
+            }
+            "type NonLandSubtypeModifier" | "function walk_non_land_subtype_modifier" => {
+                &["construction non_land_subtype_modifier"]
+            }
+            "type NonPlaneswalkerSubtypeModifier"
+            | "function walk_non_planeswalker_subtype_modifier" => {
+                &["construction non_planeswalker_subtype_modifier"]
+            }
+            "type NonSpellSubtypeModifier" | "function walk_non_spell_subtype_modifier" => {
+                &["construction non_spell_subtype_modifier"]
+            }
+            "type BareSingularNominal" | "function walk_bare_singular_nominal" => {
+                &["construction bare_singular_nominal"]
+            }
+            "type ModifiedSingularNominal" | "function walk_modified_singular_nominal" => {
+                &["construction modified_singular_nominal"]
+            }
+            "type BarePluralNominal" | "function walk_bare_plural_nominal" => {
+                &["construction bare_plural_nominal"]
+            }
+            "type ModifiedPluralNominal" | "function walk_modified_plural_nominal" => {
+                &["construction modified_plural_nominal"]
+            }
+            "type UnmarkedSingularSelector" | "function walk_unmarked_singular_selector" => {
+                &["construction unmarked_singular_selector"]
+            }
+            "type TargetSingularSelector" | "function walk_target_singular_selector" => {
+                &["construction target_singular_selector"]
+            }
+            "type OtherSingularSelector" | "function walk_other_singular_selector" => {
+                &["construction other_singular_selector"]
+            }
+            "type OtherTargetSingularSelector" | "function walk_other_target_singular_selector" => {
+                &["construction other_target_singular_selector"]
+            }
+            "type UnmarkedPluralSelector" | "function walk_unmarked_plural_selector" => {
+                &["construction unmarked_plural_selector"]
+            }
+            "type TargetPluralSelector" | "function walk_target_plural_selector" => {
+                &["construction target_plural_selector"]
+            }
+            "type OtherPluralSelector" | "function walk_other_plural_selector" => {
+                &["construction other_plural_selector"]
+            }
+            "type OtherTargetPluralSelector" | "function walk_other_target_plural_selector" => {
+                &["construction other_target_plural_selector"]
+            }
+            "type IndefiniteReference" | "function walk_indefinite_reference" => {
+                &["construction indefinite_reference"]
+            }
+            "type NamedCardReference" | "function walk_named_card_reference" => {
+                &["construction named_card_reference"]
+            }
+            "type OrdinarySingularReference"
+            | "impl OrdinarySingularReference"
+            | "function walk_ordinary_singular_reference" => {
+                &["construction ordinary_singular_reference"]
+            }
+            "type OrdinaryPluralReference" | "function walk_ordinary_plural_reference" => {
+                &["construction ordinary_plural_reference"]
+            }
+            "type DefiniteSingularReference" | "function walk_definite_singular_reference" => {
+                &["construction definite_singular_reference"]
+            }
+            "type DefinitePluralReference" | "function walk_definite_plural_reference" => {
+                &["construction definite_plural_reference"]
+            }
+            "type AnyTargetReference" | "function walk_any_target_reference" => {
+                &["construction any_target_reference"]
+            }
+            "type AnotherReference"
+            | "impl AnotherReference"
+            | "function walk_another_reference" => &["construction another_reference"],
+            "type EachReference" | "function walk_each_reference" => {
+                &["construction each_reference"]
+            }
+            "type AllReference" | "function walk_all_reference" => &["construction all_reference"],
+            "type FixedReference" | "impl FixedReference" | "function walk_fixed_reference" => {
+                &["construction fixed_reference"]
+            }
+            "type VariableReference" | "function walk_variable_reference" => {
+                &["construction variable_reference"]
+            }
+            "type UpToOneReference"
+            | "impl UpToOneReference"
+            | "function walk_up_to_one_reference" => &["construction up_to_one_reference"],
+            "type UpToManyReference"
+            | "impl UpToManyReference"
+            | "function walk_up_to_many_reference" => &["construction up_to_many_reference"],
+            "type AnyNumberReference" | "function walk_any_number_reference" => {
+                &["construction any_number_reference"]
+            }
+            "type OneOrMoreReference" | "function walk_one_or_more_reference" => {
+                &["construction one_or_more_reference"]
+            }
+            "type ThisReference" | "function walk_this_reference" => {
+                &["construction this_reference"]
+            }
+            "type ThatReference" | "function walk_that_reference" => {
+                &["construction that_reference"]
+            }
+            "type ThoseReference" | "function walk_those_reference" => {
+                &["construction those_reference"]
+            }
+            "type DesignatedSingularReference" | "function walk_designated_singular_reference" => {
+                &["construction designated_singular_reference"]
+            }
+            "type DesignatedPluralReference" | "function walk_designated_plural_reference" => {
+                &["construction designated_plural_reference"]
+            }
+            "type ChosenQualityReference" | "function walk_chosen_quality_reference" => {
+                &["construction chosen_quality_reference"]
+            }
+            "type PossessedSingularReference" | "function walk_possessed_singular_reference" => {
+                &["construction possessed_singular_reference"]
+            }
+            "type PossessedPluralReference" | "function walk_possessed_plural_reference" => {
+                &["construction possessed_plural_reference"]
+            }
+            "type PossessiveAbsoluteReference"
+            | "function walk_possessive_absolute_reference"
+            | "function agreement_for_possessive_absolute_pronoun"
+            | "function number_for_possessive_absolute_pronoun" => {
+                &["construction possessive_absolute_reference"]
+            }
+            "type SourceSelfReference"
+            | "impl SourceSelfReference"
+            | "function walk_source_self_reference" => &["construction self_reference"],
             "type CountNp" | "impl CountNp" | "function walk_count_np" => &["construction count"],
             "type PossessiveSelfReference"
             | "impl PossessiveSelfReference"
@@ -1941,33 +2417,96 @@ mod tests {
             "type TriggerWord" | "function render_trigger_word" | "function walk_trigger_word" => {
                 &["vocab TriggerWord"]
             }
-            "type Demonstrative"
-            | "function render_demonstrative"
-            | "function walk_demonstrative" => &["vocab Demonstrative"],
-            "type Pronoun" | "function render_pronoun" | "function walk_pronoun" => {
-                &["vocab Pronoun"]
+            "type SubjectPronoun"
+            | "function render_subject_pronoun"
+            | "function walk_subject_pronoun" => &["vocab SubjectPronoun"],
+            "type ObjectPronoun"
+            | "function render_object_pronoun"
+            | "function walk_object_pronoun" => &["vocab ObjectPronoun"],
+            "type PossessiveDeterminerPronoun"
+            | "function render_possessive_determiner_pronoun"
+            | "function walk_possessive_determiner_pronoun" => {
+                &["vocab PossessiveDeterminerPronoun"]
             }
-            "function agreement_for_pronoun" => &["construction pronoun", "construction count"],
+            "type PossessiveAbsolutePronoun"
+            | "function render_possessive_absolute_pronoun"
+            | "function walk_possessive_absolute_pronoun" => &["vocab PossessiveAbsolutePronoun"],
+            "type ReflexivePronoun"
+            | "function render_reflexive_pronoun"
+            | "function walk_reflexive_pronoun" => &["vocab ReflexivePronoun"],
+            "function agreement_for_subject_pronoun" => {
+                &["construction subject_pronoun", "construction count"]
+            }
+            "function agreement_for_object_pronoun" => &["construction object_pronoun"],
+            "function agreement_for_reflexive_pronoun"
+            | "function number_for_reflexive_pronoun" => &["construction reflexive_object"],
             "type Variable" | "function render_variable" | "function walk_variable" => {
                 &["vocab Variable"]
             }
+            "type Color" | "function render_color" | "function walk_color" => &["vocab Color"],
+            "type Status" | "function render_status" | "function walk_status" => &["vocab Status"],
+            "type Designation" | "function render_designation" | "function walk_designation" => {
+                &["vocab Designation"]
+            }
+            "type ChosenQuality"
+            | "function render_chosen_quality"
+            | "function walk_chosen_quality" => &["vocab ChosenQuality"],
+            "type NonCommonNoun"
+            | "function render_non_common_noun"
+            | "function walk_non_common_noun" => &["vocab NonCommonNoun"],
             "type Supertype" | "function render_supertype" | "function walk_supertype" => {
                 &["vocab Supertype"]
             }
-            "type NounLexeme"
-            | "function surface_for_noun_lexeme"
-            | "function walk_noun_lexeme" => &["lexeme NounLexeme"],
+            "type CommonNoun"
+            | "function surface_for_common_noun"
+            | "function walk_common_noun" => &["lexeme CommonNoun"],
             "type VerbLexeme"
             | "function surface_for_verb_lexeme"
             | "function walk_verb_lexeme" => &["lexeme VerbLexeme"],
-            "type DeclarationNoun"
-            | "impl DeclarationNoun"
-            | "type Noun"
-            | "function walk_declaration_noun"
-            | "function walk_noun" => &["codec Noun"],
+            "type DeclarationTypeNoun"
+            | "impl DeclarationTypeNoun"
+            | "type TypeNoun"
+            | "function walk_declaration_type_noun"
+            | "function walk_type_noun" => &["codec TypeNoun"],
+            "type DeclarationArtifactSubtypeNoun"
+            | "impl DeclarationArtifactSubtypeNoun"
+            | "type ArtifactSubtypeNoun"
+            | "function walk_declaration_artifact_subtype_noun"
+            | "function walk_artifact_subtype_noun" => &["codec ArtifactSubtypeNoun"],
+            "type DeclarationBattleSubtypeNoun"
+            | "impl DeclarationBattleSubtypeNoun"
+            | "type BattleSubtypeNoun"
+            | "function walk_declaration_battle_subtype_noun"
+            | "function walk_battle_subtype_noun" => &["codec BattleSubtypeNoun"],
+            "type DeclarationCreatureSubtypeNoun"
+            | "impl DeclarationCreatureSubtypeNoun"
+            | "type CreatureSubtypeNoun"
+            | "function walk_declaration_creature_subtype_noun"
+            | "function walk_creature_subtype_noun" => &["codec CreatureSubtypeNoun"],
+            "type DeclarationEnchantmentSubtypeNoun"
+            | "impl DeclarationEnchantmentSubtypeNoun"
+            | "type EnchantmentSubtypeNoun"
+            | "function walk_declaration_enchantment_subtype_noun"
+            | "function walk_enchantment_subtype_noun" => &["codec EnchantmentSubtypeNoun"],
+            "type DeclarationLandSubtypeNoun"
+            | "impl DeclarationLandSubtypeNoun"
+            | "type LandSubtypeNoun"
+            | "function walk_declaration_land_subtype_noun"
+            | "function walk_land_subtype_noun" => &["codec LandSubtypeNoun"],
+            "type DeclarationPlaneswalkerSubtypeNoun"
+            | "impl DeclarationPlaneswalkerSubtypeNoun"
+            | "type PlaneswalkerSubtypeNoun"
+            | "function walk_declaration_planeswalker_subtype_noun"
+            | "function walk_planeswalker_subtype_noun" => &["codec PlaneswalkerSubtypeNoun"],
+            "type DeclarationSpellSubtypeNoun"
+            | "impl DeclarationSpellSubtypeNoun"
+            | "type SpellSubtypeNoun"
+            | "function walk_declaration_spell_subtype_noun"
+            | "function walk_spell_subtype_noun" => &["codec SpellSubtypeNoun"],
             "type CardinalNumber"
             | "function format_cardinal_number"
             | "function number_for_cardinal_number"
+            | "function cardinality_for_cardinal_number"
             | "function parse_cardinal_number"
             | "function render_cardinal_number"
             | "function walk_cardinal_number" => &["codec CardinalNumber"],
@@ -1986,6 +2525,7 @@ mod tests {
             | "constant REQUIRED_CATALOG_PROVIDERS"
             | "function walk_card_name" => &["identity CardName"],
             "type Agreement"
+            | "type Cardinality"
             | "type Number"
             | "type Onset"
             | "type PossessiveEnding"
@@ -2048,7 +2588,7 @@ mod tests {
             | "type SequenceOwner"
             | "type FixedSurfaceAtom"
             | "function sequence_separator"
-            | "function sequence_terminator" => ALL_DECLARATION_ORIGINS,
+            | "function sequence_terminator" => ALL_DECLARATION_ORIGINS.as_slice(),
             "function scan_lexical" | "function possessive_ending_at" => SCANNER_ORIGINS,
             "impl Ability" | "impl Render for Ability" | "function render_ability_with_claims" => {
                 &["root Ability"]
@@ -2066,36 +2606,9 @@ mod tests {
             | "impl Render for OracleText"
             | "function render_oracle_text_with_claims" => &["root OracleText"],
             "function render_ability_body" => &["construction paragraph", "construction triggered"],
-            "trait Visitor" => VISITOR_ORIGINS,
+            "trait Visitor" => VISITOR_ORIGINS.as_slice(),
             "function walk_self_reference_spelling" => &["identity SelfReferenceSpelling"],
-            "type Category" => &[
-                "construction paragraph",
-                "construction triggered",
-                "construction imperative",
-                "construction declarative",
-                "construction with_where",
-                "construction event",
-                "construction where",
-                "construction pronoun",
-                "construction common",
-                "construction named",
-                "construction demonstrative",
-                "construction target",
-                "construction self_reference",
-                "construction count",
-                "construction possessive_self_reference",
-                "construction possessive_plural_noun",
-                "construction possessive",
-                "construction destroy",
-                "construction connive",
-                "construction deal_damage",
-                "construction gain_life",
-                "construction number",
-                "construction variable",
-                "construction cardinal",
-                "abstract sum DocumentBlock",
-                "abstract product OracleText",
-            ],
+            "type Category" => CATEGORY_ORIGINS.as_slice(),
             "type Construction"
             | "impl Construction"
             | "type RuleId"
@@ -2109,36 +2622,7 @@ mod tests {
                 "root CardinalQuantity",
                 "root OracleText",
             ],
-            "constant RULES" => &[
-                "construction paragraph",
-                "construction triggered",
-                "construction imperative",
-                "construction declarative",
-                "construction with_where",
-                "construction event",
-                "construction where",
-                "construction pronoun",
-                "construction common",
-                "construction named",
-                "construction demonstrative",
-                "construction target",
-                "construction self_reference",
-                "construction count",
-                "construction possessive_self_reference",
-                "construction possessive_plural_noun",
-                "construction possessive",
-                "construction destroy",
-                "construction connive",
-                "construction deal_damage",
-                "construction gain_life",
-                "construction number",
-                "construction variable",
-                "construction cardinal",
-                "root Ability",
-                "root Possessive",
-                "root CardinalQuantity",
-                "root OracleText",
-            ],
+            "constant RULES" => RULE_ORIGINS.as_slice(),
             _ => return None,
         })
     }
@@ -2233,6 +2717,15 @@ mod tests {
         "type Ability",
         "type Sentence",
         "type Clause",
+        "type Subject",
+        "type Object",
+        "type SingularHead",
+        "type PluralHead",
+        "type NominalModifier",
+        "type SingularNominal",
+        "type PluralNominal",
+        "type SingularSelector",
+        "type PluralSelector",
         "type NounPhrase",
         "type PossessiveOwner",
         "type Possessive",
@@ -2251,13 +2744,97 @@ mod tests {
         "impl WithWhere",
         "type EventClause",
         "type WhereClause",
-        "type PronounNp",
-        "type Common",
-        "type NamedNp",
-        "type DemonstrativeNp",
-        "type TargetNp",
-        "type SelfReferenceNp",
-        "impl SelfReferenceNp",
+        "type NominalSubject",
+        "type PersonalSubject",
+        "type NominalObject",
+        "type PersonalObject",
+        "type ReflexiveObject",
+        "type CommonSingularHead",
+        "type TypeSingularHead",
+        "type ArtifactSubtypeSingularHead",
+        "type BattleSubtypeSingularHead",
+        "type CreatureSubtypeSingularHead",
+        "type EnchantmentSubtypeSingularHead",
+        "type LandSubtypeSingularHead",
+        "type PlaneswalkerSubtypeSingularHead",
+        "type SpellSubtypeSingularHead",
+        "type CommonPluralHead",
+        "type TypePluralHead",
+        "type ArtifactSubtypePluralHead",
+        "type BattleSubtypePluralHead",
+        "type CreatureSubtypePluralHead",
+        "type EnchantmentSubtypePluralHead",
+        "type LandSubtypePluralHead",
+        "type PlaneswalkerSubtypePluralHead",
+        "type SpellSubtypePluralHead",
+        "type ColorModifier",
+        "type StatusModifier",
+        "type SupertypeModifier",
+        "type CommonNounModifier",
+        "type TypeModifier",
+        "type ArtifactSubtypeModifier",
+        "type BattleSubtypeModifier",
+        "type CreatureSubtypeModifier",
+        "type EnchantmentSubtypeModifier",
+        "type LandSubtypeModifier",
+        "type PlaneswalkerSubtypeModifier",
+        "type SpellSubtypeModifier",
+        "type NonColorModifier",
+        "type NonCommonNounModifier",
+        "type NonStatusModifier",
+        "type NonSupertypeModifier",
+        "type NonTypeModifier",
+        "type NonArtifactSubtypeModifier",
+        "type NonBattleSubtypeModifier",
+        "type NonCreatureSubtypeModifier",
+        "type NonEnchantmentSubtypeModifier",
+        "type NonLandSubtypeModifier",
+        "type NonPlaneswalkerSubtypeModifier",
+        "type NonSpellSubtypeModifier",
+        "type BareSingularNominal",
+        "type ModifiedSingularNominal",
+        "type BarePluralNominal",
+        "type ModifiedPluralNominal",
+        "type UnmarkedSingularSelector",
+        "type TargetSingularSelector",
+        "type OtherSingularSelector",
+        "type OtherTargetSingularSelector",
+        "type UnmarkedPluralSelector",
+        "type TargetPluralSelector",
+        "type OtherPluralSelector",
+        "type OtherTargetPluralSelector",
+        "type IndefiniteReference",
+        "type NamedCardReference",
+        "type OrdinarySingularReference",
+        "impl OrdinarySingularReference",
+        "type OrdinaryPluralReference",
+        "type DefiniteSingularReference",
+        "type DefinitePluralReference",
+        "type AnyTargetReference",
+        "type AnotherReference",
+        "impl AnotherReference",
+        "type EachReference",
+        "type AllReference",
+        "type FixedReference",
+        "impl FixedReference",
+        "type VariableReference",
+        "type UpToOneReference",
+        "impl UpToOneReference",
+        "type UpToManyReference",
+        "impl UpToManyReference",
+        "type AnyNumberReference",
+        "type OneOrMoreReference",
+        "type ThisReference",
+        "type ThatReference",
+        "type ThoseReference",
+        "type DesignatedSingularReference",
+        "type DesignatedPluralReference",
+        "type ChosenQualityReference",
+        "type PossessedSingularReference",
+        "type PossessedPluralReference",
+        "type PossessiveAbsoluteReference",
+        "type SourceSelfReference",
+        "impl SourceSelfReference",
         "type CountNp",
         "impl CountNp",
         "type PossessiveSelfReference",
@@ -2272,17 +2849,46 @@ mod tests {
         "type VariableAmount",
         "type CardinalQuantityValue",
         "type TriggerWord",
-        "type Demonstrative",
-        "type Pronoun",
+        "type SubjectPronoun",
+        "type ObjectPronoun",
+        "type PossessiveDeterminerPronoun",
+        "type PossessiveAbsolutePronoun",
+        "type ReflexivePronoun",
         "type Variable",
+        "type Color",
+        "type Status",
+        "type Designation",
+        "type ChosenQuality",
+        "type NonCommonNoun",
         "type Supertype",
-        "type NounLexeme",
-        "function surface_for_noun_lexeme",
+        "type CommonNoun",
+        "function surface_for_common_noun",
         "type VerbLexeme",
         "function surface_for_verb_lexeme",
-        "type DeclarationNoun",
-        "impl DeclarationNoun",
-        "type Noun",
+        "type DeclarationTypeNoun",
+        "impl DeclarationTypeNoun",
+        "type TypeNoun",
+        "type DeclarationArtifactSubtypeNoun",
+        "impl DeclarationArtifactSubtypeNoun",
+        "type ArtifactSubtypeNoun",
+        "type DeclarationBattleSubtypeNoun",
+        "impl DeclarationBattleSubtypeNoun",
+        "type BattleSubtypeNoun",
+        "type DeclarationCreatureSubtypeNoun",
+        "impl DeclarationCreatureSubtypeNoun",
+        "type CreatureSubtypeNoun",
+        "type DeclarationEnchantmentSubtypeNoun",
+        "impl DeclarationEnchantmentSubtypeNoun",
+        "type EnchantmentSubtypeNoun",
+        "type DeclarationLandSubtypeNoun",
+        "impl DeclarationLandSubtypeNoun",
+        "type LandSubtypeNoun",
+        "type DeclarationPlaneswalkerSubtypeNoun",
+        "impl DeclarationPlaneswalkerSubtypeNoun",
+        "type PlaneswalkerSubtypeNoun",
+        "type DeclarationSpellSubtypeNoun",
+        "impl DeclarationSpellSubtypeNoun",
+        "type SpellSubtypeNoun",
         "type SelfReferenceSpelling",
         "impl SelfReferenceSpelling",
         "type CardName",
@@ -2293,6 +2899,7 @@ mod tests {
         "impl CatalogProvider",
         "constant REQUIRED_CATALOG_PROVIDERS",
         "type Agreement",
+        "type Cardinality",
         "type Number",
         "type Onset",
         "type PossessiveEnding",
@@ -2381,33 +2988,88 @@ mod tests {
         "function render_ability_body",
         "function render_sentence_body",
         "function render_clause",
+        "function render_subject",
+        "function render_object",
+        "function render_singular_head",
+        "function render_plural_head",
+        "function render_nominal_modifier",
+        "function render_singular_nominal",
+        "function render_plural_nominal",
+        "function render_singular_selector",
+        "function render_plural_selector",
         "function render_noun_phrase",
         "function render_possessive_owner",
         "function render_verb_phrase",
         "function render_amount",
+        "function render_cardinal_quantity_body",
         "function render_trigger_word",
-        "function render_demonstrative",
-        "function render_pronoun",
+        "function render_subject_pronoun",
+        "function render_object_pronoun",
+        "function render_possessive_determiner_pronoun",
+        "function render_possessive_absolute_pronoun",
+        "function render_reflexive_pronoun",
         "function render_variable",
+        "function render_color",
+        "function render_status",
+        "function render_designation",
+        "function render_chosen_quality",
+        "function render_non_common_noun",
         "function render_supertype",
-        "function agreement_for_pronoun",
-        "function agreement_for_demonstrative",
-        "function number_for_demonstrative",
+        "function agreement_for_subject_pronoun",
+        "function agreement_for_object_pronoun",
+        "function agreement_for_reflexive_pronoun",
+        "function number_for_reflexive_pronoun",
+        "function agreement_for_possessive_absolute_pronoun",
+        "function number_for_possessive_absolute_pronoun",
         "function format_cardinal_number",
         "function number_for_cardinal_number",
+        "function cardinality_for_cardinal_number",
         "function parse_cardinal_number",
         "function render_cardinal_number",
         "function format_scalar_number",
         "function parse_scalar_number",
         "function render_scalar_number",
+        "function agreement_for_subject",
+        "function agreement_for_singular_head",
+        "function agreement_for_plural_head",
+        "function agreement_for_singular_nominal",
+        "function agreement_for_plural_nominal",
+        "function agreement_for_singular_selector",
+        "function agreement_for_plural_selector",
         "function agreement_for_noun_phrase",
+        "function cardinality_for_cardinal_quantity",
+        "function number_for_singular_head",
+        "function number_for_plural_head",
+        "function number_for_nominal_modifier",
+        "function number_for_singular_nominal",
+        "function number_for_plural_nominal",
+        "function number_for_singular_selector",
+        "function number_for_plural_selector",
         "function number_for_noun_phrase",
         "function number_for_possessive_owner",
+        "function onset_for_singular_head",
+        "function onset_for_plural_head",
+        "function onset_for_nominal_modifier",
+        "function onset_for_singular_nominal",
+        "function onset_for_plural_nominal",
+        "function onset_for_singular_selector",
+        "function onset_for_plural_selector",
+        "function onset_for_noun_phrase",
+        "function possessive_ending_for_plural_head",
         "function possessive_ending_for_possessive_owner",
         "trait Visitor",
         "function walk_ability",
         "function walk_sentence",
         "function walk_clause",
+        "function walk_subject",
+        "function walk_object",
+        "function walk_singular_head",
+        "function walk_plural_head",
+        "function walk_nominal_modifier",
+        "function walk_singular_nominal",
+        "function walk_plural_nominal",
+        "function walk_singular_selector",
+        "function walk_plural_selector",
         "function walk_noun_phrase",
         "function walk_possessive_owner",
         "function walk_possessive",
@@ -2426,12 +3088,91 @@ mod tests {
         "function walk_with_where",
         "function walk_event_clause",
         "function walk_where_clause",
-        "function walk_pronoun_np",
-        "function walk_common",
-        "function walk_named_np",
-        "function walk_demonstrative_np",
-        "function walk_target_np",
-        "function walk_self_reference_np",
+        "function walk_nominal_subject",
+        "function walk_personal_subject",
+        "function walk_nominal_object",
+        "function walk_personal_object",
+        "function walk_reflexive_object",
+        "function walk_common_singular_head",
+        "function walk_type_singular_head",
+        "function walk_artifact_subtype_singular_head",
+        "function walk_battle_subtype_singular_head",
+        "function walk_creature_subtype_singular_head",
+        "function walk_enchantment_subtype_singular_head",
+        "function walk_land_subtype_singular_head",
+        "function walk_planeswalker_subtype_singular_head",
+        "function walk_spell_subtype_singular_head",
+        "function walk_common_plural_head",
+        "function walk_type_plural_head",
+        "function walk_artifact_subtype_plural_head",
+        "function walk_battle_subtype_plural_head",
+        "function walk_creature_subtype_plural_head",
+        "function walk_enchantment_subtype_plural_head",
+        "function walk_land_subtype_plural_head",
+        "function walk_planeswalker_subtype_plural_head",
+        "function walk_spell_subtype_plural_head",
+        "function walk_color_modifier",
+        "function walk_status_modifier",
+        "function walk_supertype_modifier",
+        "function walk_common_noun_modifier",
+        "function walk_type_modifier",
+        "function walk_artifact_subtype_modifier",
+        "function walk_battle_subtype_modifier",
+        "function walk_creature_subtype_modifier",
+        "function walk_enchantment_subtype_modifier",
+        "function walk_land_subtype_modifier",
+        "function walk_planeswalker_subtype_modifier",
+        "function walk_spell_subtype_modifier",
+        "function walk_non_color_modifier",
+        "function walk_non_common_noun_modifier",
+        "function walk_non_status_modifier",
+        "function walk_non_supertype_modifier",
+        "function walk_non_type_modifier",
+        "function walk_non_artifact_subtype_modifier",
+        "function walk_non_battle_subtype_modifier",
+        "function walk_non_creature_subtype_modifier",
+        "function walk_non_enchantment_subtype_modifier",
+        "function walk_non_land_subtype_modifier",
+        "function walk_non_planeswalker_subtype_modifier",
+        "function walk_non_spell_subtype_modifier",
+        "function walk_bare_singular_nominal",
+        "function walk_modified_singular_nominal",
+        "function walk_bare_plural_nominal",
+        "function walk_modified_plural_nominal",
+        "function walk_unmarked_singular_selector",
+        "function walk_target_singular_selector",
+        "function walk_other_singular_selector",
+        "function walk_other_target_singular_selector",
+        "function walk_unmarked_plural_selector",
+        "function walk_target_plural_selector",
+        "function walk_other_plural_selector",
+        "function walk_other_target_plural_selector",
+        "function walk_indefinite_reference",
+        "function walk_named_card_reference",
+        "function walk_ordinary_singular_reference",
+        "function walk_ordinary_plural_reference",
+        "function walk_definite_singular_reference",
+        "function walk_definite_plural_reference",
+        "function walk_any_target_reference",
+        "function walk_another_reference",
+        "function walk_each_reference",
+        "function walk_all_reference",
+        "function walk_fixed_reference",
+        "function walk_variable_reference",
+        "function walk_up_to_one_reference",
+        "function walk_up_to_many_reference",
+        "function walk_any_number_reference",
+        "function walk_one_or_more_reference",
+        "function walk_this_reference",
+        "function walk_that_reference",
+        "function walk_those_reference",
+        "function walk_designated_singular_reference",
+        "function walk_designated_plural_reference",
+        "function walk_chosen_quality_reference",
+        "function walk_possessed_singular_reference",
+        "function walk_possessed_plural_reference",
+        "function walk_possessive_absolute_reference",
+        "function walk_source_self_reference",
         "function walk_count_np",
         "function walk_possessive_self_reference",
         "function walk_possessive_noun",
@@ -2444,18 +3185,40 @@ mod tests {
         "function walk_variable_amount",
         "function walk_cardinal_quantity_value",
         "function walk_trigger_word",
-        "function walk_demonstrative",
-        "function walk_pronoun",
+        "function walk_subject_pronoun",
+        "function walk_object_pronoun",
+        "function walk_possessive_determiner_pronoun",
+        "function walk_possessive_absolute_pronoun",
+        "function walk_reflexive_pronoun",
         "function walk_variable",
+        "function walk_color",
+        "function walk_status",
+        "function walk_designation",
+        "function walk_chosen_quality",
+        "function walk_non_common_noun",
         "function walk_supertype",
         "function walk_self_reference_spelling",
         "function walk_card_name",
-        "function walk_noun_lexeme",
+        "function walk_common_noun",
         "function walk_verb_lexeme",
         "function walk_cardinal_number",
         "function walk_scalar_number",
-        "function walk_declaration_noun",
-        "function walk_noun",
+        "function walk_declaration_type_noun",
+        "function walk_type_noun",
+        "function walk_declaration_artifact_subtype_noun",
+        "function walk_artifact_subtype_noun",
+        "function walk_declaration_battle_subtype_noun",
+        "function walk_battle_subtype_noun",
+        "function walk_declaration_creature_subtype_noun",
+        "function walk_creature_subtype_noun",
+        "function walk_declaration_enchantment_subtype_noun",
+        "function walk_enchantment_subtype_noun",
+        "function walk_declaration_land_subtype_noun",
+        "function walk_land_subtype_noun",
+        "function walk_declaration_planeswalker_subtype_noun",
+        "function walk_planeswalker_subtype_noun",
+        "function walk_declaration_spell_subtype_noun",
+        "function walk_spell_subtype_noun",
         "type Category",
         "type Construction",
         "impl Construction",
@@ -2855,7 +3618,7 @@ mod tests {
                      }\n\
                  }\n\
                  fn macro_surface() {\n\
-                     generated!([(NounLexeme::Player, Number::Singular, \"player\")]);\n\
+                     generated!([(CommonNoun::Player, Number::Singular, \"player\")]);\n\
                  }\n\
              }\n\
              fn macro_shadow() { helper!(({ scan_noun }), [walk_declaration_noun]); }\n\
@@ -2866,9 +3629,9 @@ mod tests {
                  fn inflect() {}\n\
                  fn scan_verb() {}\n\
                  fn scan_bound_terminal() {}\n\
-                 const CLOSED_OWNER: &str = \"lexeme:NounLexeme/Player\";\n\
-                 static CLOSED_SURFACES: &[(NounLexeme, Number, &str)] =\n\
-                     &[(NounLexeme::Player, Number::Singular, \"player\")];\n\
+                 const CLOSED_OWNER: &str = \"lexeme:CommonNoun/Player\";\n\
+                 static CLOSED_SURFACES: &[(CommonNoun, Number, &str)] =\n\
+                     &[(CommonNoun::Player, Number::Singular, \"player\")];\n\
              }\n\
              fn later_production() { helper!({ render_noun }); }",
         )
@@ -2930,12 +3693,12 @@ mod tests {
             (
                 "macro",
                 "fn surface() { \
-                 generated!([(NounLexeme::Player, Number::Singular, \"player\")]); }",
+                 generated!([(CommonNoun::Player, Number::Singular, \"player\")]); }",
             ),
             (
                 "multi-argument macro",
                 "fn surface() { \
-                 generated!(mode, [(NounLexeme::Player, Number::Singular, \"player\")]); }",
+                 generated!(mode, [(CommonNoun::Player, Number::Singular, \"player\")]); }",
             ),
         ] {
             let sentinel = syn::parse_file(source)
@@ -2974,7 +3737,7 @@ mod tests {
              fn scan_verb_count() -> usize { 0 }\n\
              const DESCRIPTION: &str = \"fn inflect and scan_bound_terminal\";\n\
              const FEATURED_OWNER: &str = \"lexeme:VerbLexeme/Deal/bare\";\n\
-             fn macro_decoy() { generated!(NounLexeme::Player, \"player\"); }\n\
+             fn macro_decoy() { generated!(CommonNoun::Player, \"player\"); }\n\
              enum Term { Lexeme }\n\
              fn ordinary(value: Term) -> &'static str {\n\
                  match value { Term::Lexeme => \"ordinary\" }\n\
@@ -3116,7 +3879,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 235);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 514);
         assert_eq!(headings, EXPECTED_ITEM_KEYS);
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
@@ -3169,7 +3932,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 235);
+        assert_eq!(parsed.items.len(), 514);
     }
 
     #[test]
@@ -3291,38 +4054,90 @@ mod tests {
             ProductionAuthorityKind::Struct,
             "DeclarationNoun"
         ));
+        for name in [
+            "TypeNoun",
+            "DeclarationTypeNoun",
+            "ArtifactSubtypeNoun",
+            "DeclarationArtifactSubtypeNoun",
+            "BattleSubtypeNoun",
+            "DeclarationBattleSubtypeNoun",
+            "CreatureSubtypeNoun",
+            "DeclarationCreatureSubtypeNoun",
+            "EnchantmentSubtypeNoun",
+            "DeclarationEnchantmentSubtypeNoun",
+            "LandSubtypeNoun",
+            "DeclarationLandSubtypeNoun",
+            "PlaneswalkerSubtypeNoun",
+            "DeclarationPlaneswalkerSubtypeNoun",
+            "SpellSubtypeNoun",
+            "DeclarationSpellSubtypeNoun",
+        ] {
+            assert!(!contains_production_authority(
+                &ast,
+                ProductionAuthorityKind::Struct,
+                name,
+            ));
+        }
         for function in ["scan_noun", "noun_forms", "rendered_catalog"] {
             assert!(!contains_production_function(&scan, function));
         }
         for function in ["render_noun", "pluralize"] {
             assert!(!contains_production_function(&render, function));
         }
-        assert!(!contains_production_function(
-            &visit,
-            "walk_declaration_noun"
-        ));
+        for function in [
+            "walk_declaration_noun",
+            "walk_declaration_type_noun",
+            "walk_declaration_artifact_subtype_noun",
+            "walk_declaration_battle_subtype_noun",
+            "walk_declaration_creature_subtype_noun",
+            "walk_declaration_enchantment_subtype_noun",
+            "walk_declaration_land_subtype_noun",
+            "walk_declaration_planeswalker_subtype_noun",
+            "walk_declaration_spell_subtype_noun",
+        ] {
+            assert!(!contains_production_function(&visit, function));
+        }
 
         let invocation = deckmaste_construction_core::invocation_from_source(PRODUCTION_SOURCE)
             .expect("production source has one direct macro invocation");
         let declarations = deckmaste_construction_core::parse_declarations(invocation.tokens)
             .expect("production declaration parses");
-        let binding = declarations
+        let bindings = declarations
             .declarations
             .iter()
-            .find_map(|declaration| match declaration {
+            .filter_map(|declaration| match declaration {
                 deckmaste_construction_core::Declaration::Codec(binding)
-                    if binding.name == "Noun" =>
+                    if [
+                        "TypeNoun",
+                        "ArtifactSubtypeNoun",
+                        "BattleSubtypeNoun",
+                        "CreatureSubtypeNoun",
+                        "EnchantmentSubtypeNoun",
+                        "LandSubtypeNoun",
+                        "PlaneswalkerSubtypeNoun",
+                        "SpellSubtypeNoun",
+                    ]
+                    .iter()
+                    .any(|name| binding.name == *name) =>
                 {
                     Some(binding)
                 }
                 _ => None,
             })
-            .expect("production has the generated Noun codec");
-        assert!(binding.generated.is_some());
-        assert!(binding.render.is_none());
-        assert!(binding.build.is_none());
-        assert!(binding.traversal.variants.is_empty());
-        assert!(binding.traversal.calls.is_empty());
+            .collect::<Vec<_>>();
+        assert_eq!(bindings.len(), 8, "production has every typed noun codec");
+        for binding in bindings {
+            assert!(matches!(
+                binding.generated.as_ref(),
+                Some(deckmaste_construction_core::GeneratedCodecRecipe::DeclarationNoun(
+                    source
+                )) if source.closed_slots.is_empty()
+            ));
+            assert!(binding.render.is_none());
+            assert!(binding.build.is_none());
+            assert!(binding.traversal.variants.is_empty());
+            assert!(binding.traversal.calls.is_empty());
+        }
     }
 
     #[test]

@@ -1,5 +1,0 @@
-error: declaration_noun requires one `closed` field
- --> tests/compile_fail/declaration_noun_missing_closed.rs:7:18
-  |
-7 |         generate declaration_noun {
-  |                  ^^^^^^^^^^^^^^^^

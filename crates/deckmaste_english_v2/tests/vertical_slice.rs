@@ -27,7 +27,7 @@ struct RecordingVisitor {
     scalar_numbers: Vec<u32>,
     self_reference_spellings: Vec<SelfReferenceSpelling>,
     trigger_words: Vec<TriggerWord>,
-    nouns: Vec<NounLexeme>,
+    nouns: Vec<CommonNoun>,
     verbs: Vec<VerbLexeme>,
     declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
     catalog_providers: Vec<CatalogProvider>,
@@ -38,11 +38,6 @@ impl Visitor for RecordingVisitor {
     fn visit_amount(&mut self, amount: &Amount) {
         self.amounts.push(amount.clone());
         walk_amount(self, amount);
-    }
-
-    fn visit_declaration_noun(&mut self, noun: &DeclarationNoun) {
-        self.declaration_nouns
-            .push((noun.id().kind(), noun.id().name().to_owned()));
     }
 
     fn visit_variable(&mut self, variable: Variable) {
@@ -61,7 +56,7 @@ impl Visitor for RecordingVisitor {
         self.trigger_words.push(word);
     }
 
-    fn visit_noun_lexeme(&mut self, noun: NounLexeme) {
+    fn visit_common_noun(&mut self, noun: CommonNoun) {
         self.nouns.push(noun);
     }
 
@@ -70,9 +65,14 @@ impl Visitor for RecordingVisitor {
     }
 
     fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
-        if matches!(declaration.kind(), DeclarationKind::KeywordAction) {
-            self.declarations
-                .push((declaration.kind(), declaration.name().to_owned()));
+        match declaration.kind() {
+            DeclarationKind::Type | DeclarationKind::Subtype(_) => self
+                .declaration_nouns
+                .push((declaration.kind(), declaration.name().to_owned())),
+            DeclarationKind::KeywordAction => self
+                .declarations
+                .push((declaration.kind(), declaration.name().to_owned())),
+            _ => {}
         }
     }
 
@@ -105,16 +105,35 @@ fn environment() -> ParserEnvironment {
     .expect("builtin-v2 declaration and catalog environment freezes")
 }
 
+enum Noun {
+    Lexeme(CommonNoun),
+    Type(TypeNoun),
+    ArtifactSubtype(ArtifactSubtypeNoun),
+}
+
 fn card_type(spelling: &str) -> Noun {
     declaration_noun(DeclarationKind::Type, spelling, SurfaceFeature::Singular)
 }
 
 fn declaration_noun(kind: DeclarationKind, name: &str, _feature: SurfaceFeature) -> Noun {
     let environment = environment();
-    Noun::Declaration(
-        DeclarationNoun::new(&environment, DeclarationId::new(kind, name))
-            .expect("normalized noun declaration is present"),
-    )
+    let id = DeclarationId::new(kind, name);
+    match kind {
+        DeclarationKind::Type => Noun::Type(TypeNoun::Declaration(
+            DeclarationTypeNoun::new(&environment, id)
+                .expect("normalized Type noun declaration is present"),
+        )),
+        DeclarationKind::Subtype(SubtypeCategory::Artifact) => {
+            Noun::ArtifactSubtype(ArtifactSubtypeNoun::Declaration(
+                DeclarationArtifactSubtypeNoun::new(&environment, id)
+                    .expect("normalized Subtype noun declaration is present"),
+            ))
+        }
+        DeclarationKind::Subtype(_) => {
+            panic!("this vertical-slice builder uses only its Artifact subtype fixture")
+        }
+        _ => panic!("test helper accepts only Type/Subtype noun identities"),
+    }
 }
 
 fn creature() -> Noun {
@@ -141,17 +160,96 @@ fn context(card_name: &str) -> ParseContext<'_> {
     ParseContext::new(card_name).expect("test card name is a valid parse context")
 }
 
-fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SelfReferenceNp {
+fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SourceSelfReference {
     let context = context(card_name);
-    SelfReferenceNp::new(spelling, &context).expect("test spelling is valid for its context")
+    SourceSelfReference::new(spelling, &context).expect("test spelling is valid for its context")
 }
 
-fn target_creature() -> NounPhrase {
-    NounPhrase::Target(TargetNp { head: creature() })
+fn singular_nominal(noun: Noun) -> SingularNominal {
+    SingularNominal::BareSingularNominal(BareSingularNominal {
+        head: match noun {
+            Noun::Lexeme(noun) => SingularHead::CommonSingularHead(CommonSingularHead { noun }),
+            Noun::Type(noun) => SingularHead::TypeSingularHead(TypeSingularHead { noun }),
+            Noun::ArtifactSubtype(noun) => {
+                SingularHead::ArtifactSubtypeSingularHead(ArtifactSubtypeSingularHead { noun })
+            }
+        },
+    })
 }
 
-fn it() -> NounPhrase {
-    NounPhrase::Pronoun(PronounNp { word: Pronoun::It })
+fn plural_nominal(noun: Noun) -> PluralNominal {
+    PluralNominal::BarePluralNominal(BarePluralNominal {
+        head: plural_head(noun),
+    })
+}
+
+fn plural_head(noun: Noun) -> PluralHead {
+    match noun {
+        Noun::Lexeme(noun) => PluralHead::CommonPluralHead(CommonPluralHead { noun }),
+        Noun::Type(noun) => PluralHead::TypePluralHead(TypePluralHead { noun }),
+        Noun::ArtifactSubtype(noun) => {
+            PluralHead::ArtifactSubtypePluralHead(ArtifactSubtypePluralHead { noun })
+        }
+    }
+}
+
+fn indefinite(noun: Noun) -> NounPhrase {
+    NounPhrase::IndefiniteReference(IndefiniteReference {
+        nominal: singular_nominal(noun),
+    })
+}
+
+fn target_noun(noun: Noun) -> NounPhrase {
+    NounPhrase::OrdinarySingularReference(
+        OrdinarySingularReference::new(SingularSelector::TargetSingularSelector(
+            TargetSingularSelector {
+                nominal: singular_nominal(noun),
+            },
+        ))
+        .expect("a target selector is an ordinary singular reference"),
+    )
+}
+
+fn that_noun(noun: Noun) -> NounPhrase {
+    NounPhrase::ThatReference(ThatReference {
+        nominal: singular_nominal(noun),
+    })
+}
+
+fn those_noun(noun: Noun) -> NounPhrase {
+    NounPhrase::ThoseReference(ThoseReference {
+        nominal: plural_nominal(noun),
+    })
+}
+
+fn nominal_subject(value: NounPhrase) -> Subject {
+    Subject::SubjectNominal(NominalSubject { value })
+}
+
+fn nominal_object(value: NounPhrase) -> Object {
+    Object::ObjectNominal(NominalObject { value })
+}
+
+fn subject_you() -> Subject {
+    Subject::SubjectPronoun(PersonalSubject {
+        word: SubjectPronoun::You,
+    })
+}
+
+fn object_you() -> Object {
+    Object::ObjectPronoun(PersonalObject {
+        word: ObjectPronoun::You,
+    })
+}
+
+fn target_creature() -> Object {
+    nominal_object(target_noun(creature()))
+}
+
+fn it() -> Object {
+    Object::ObjectPronoun(PersonalObject {
+        word: ObjectPronoun::It,
+    })
 }
 
 fn damage(amount: Amount) -> VerbPhrase {
@@ -160,16 +258,11 @@ fn damage(amount: Amount) -> VerbPhrase {
 
 fn triggered_damage() -> Ability {
     let event = Clause::Event(EventClause {
-        subject: NounPhrase::Common(Common {
-            head: Noun::Lexeme(NounLexeme::Player),
-        }),
+        subject: nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
         predicate: VerbPhrase::Connive(Connive),
     });
     let effect = Sentence::Declarative(Declarative {
-        subject: NounPhrase::Demonstrative(DemonstrativeNp {
-            word: Demonstrative::That,
-            head: creature(),
-        }),
+        subject: nominal_subject(that_noun(creature())),
         predicate: damage(Amount::Variable(VariableAmount {
             variable: Variable::X,
         })),
@@ -330,7 +423,7 @@ fn gain_life_with_where() -> Sentence {
     Sentence::WithWhere(
         WithWhere::new(
             Box::new(Sentence::Declarative(Declarative {
-                subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+                subject: subject_you(),
                 predicate: VerbPhrase::GainLife(GainLife {
                     amount: Amount::Variable(VariableAmount {
                         variable: Variable::X,
@@ -339,10 +432,14 @@ fn gain_life_with_where() -> Sentence {
             })),
             Clause::Where(WhereClause {
                 variable: Variable::X,
-                value: NounPhrase::Count(
-                    CountNp::new(creatures(), Pronoun::You, ScalarNumber { magnitude: 2 })
-                        .expect("You is a valid count controller"),
-                ),
+                value: nominal_object(NounPhrase::Count(
+                    CountNp::new(
+                        plural_head(creatures()),
+                        SubjectPronoun::You,
+                        ScalarNumber { magnitude: 2 },
+                    )
+                    .expect("You is a valid count controller"),
+                )),
             }),
         )
         .expect("Where is a valid trailing clause"),
@@ -401,7 +498,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         }),
     });
     let gain = Sentence::Declarative(Declarative {
-        subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+        subject: subject_you(),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 2 },
@@ -419,7 +516,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
     assert_eq!(paragraph.sentences(), paragraph_sentences.as_slice());
 
     let event = Clause::Event(EventClause {
-        subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+        subject: subject_you(),
         predicate: VerbPhrase::Connive(Connive),
     });
     assert!(
@@ -431,7 +528,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
             TriggerWord::Whenever,
             Clause::Where(WhereClause {
                 variable: Variable::X,
-                value: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+                value: object_you(),
             }),
             vec![gain.clone()],
         )
@@ -484,21 +581,21 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
 fn declaration_noun_construction_requires_allowed_environment_membership() {
     let environment = environment();
     assert!(
-        DeclarationNoun::new(
+        DeclarationTypeNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Creature"),
         )
         .is_some()
     );
     assert!(
-        DeclarationNoun::new(
+        DeclarationTypeNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::Type, "Definitely Not A Type"),
         )
         .is_none()
     );
     assert!(
-        DeclarationNoun::new(
+        DeclarationTypeNoun::new(
             &environment,
             DeclarationId::new(DeclarationKind::KeywordAbility, "Flying"),
         )
@@ -511,7 +608,7 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
 fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_effects() {
     let constructor: fn(TriggerWord, Clause, Vec<Sentence>) -> Option<Triggered> = Triggered::new;
     let event = Clause::Event(EventClause {
-        subject: NounPhrase::Pronoun(PronounNp { word: Pronoun::You }),
+        subject: subject_you(),
         predicate: VerbPhrase::Connive(Connive),
     });
     let effect = Sentence::Imperative(Imperative {
@@ -560,10 +657,14 @@ fn renders_gain_life_with_a_where_binder_exactly() {
 #[test]
 fn renders_a_plural_count_subject_with_a_bare_verb() {
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::Count(
-            CountNp::new(creatures(), Pronoun::You, ScalarNumber { magnitude: 2 })
-                .expect("You is a valid count controller"),
-        ),
+        subject: nominal_subject(NounPhrase::Count(
+            CountNp::new(
+                plural_head(creatures()),
+                SubjectPronoun::You,
+                ScalarNumber { magnitude: 2 },
+            )
+            .expect("You is a valid count controller"),
+        )),
         predicate: VerbPhrase::GainLife(GainLife {
             amount: Amount::Variable(VariableAmount {
                 variable: Variable::X,
@@ -584,7 +685,7 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
         "Zacama, Primal Calamity",
     );
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::SelfReference(subject),
+        subject: nominal_subject(NounPhrase::SelfReference(subject)),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
@@ -601,10 +702,10 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
 #[test]
 fn the_same_self_reference_value_renders_from_two_card_contexts() {
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::SelfReference(self_reference(
+        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
             SelfReferenceSpelling::Abbreviated,
             "Zacama, Primal Calamity",
-        )),
+        ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
@@ -624,10 +725,7 @@ fn the_same_self_reference_value_renders_from_two_card_contexts() {
 #[test]
 fn renders_those_with_a_plural_noun_and_bare_verb() {
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::Demonstrative(DemonstrativeNp {
-            word: Demonstrative::Those,
-            head: creatures(),
-        }),
+        subject: nominal_subject(those_noun(creatures())),
         predicate: damage(Amount::Number(NumberAmount {
             number: ScalarNumber { magnitude: 3 },
         })),
@@ -639,11 +737,11 @@ fn renders_those_with_a_plural_noun_and_bare_verb() {
 }
 
 #[test]
-fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
+fn demonstrative_references_visit_their_distinct_typed_ast_nodes() {
     #[derive(Debug, PartialEq, Eq)]
     enum Event {
-        DemonstrativeNp,
-        Word(Demonstrative),
+        ThatReference,
+        ThoseReference,
         Head(DeclarationKind, String),
     }
 
@@ -651,36 +749,36 @@ fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
     struct DemonstrativeVisitor(Vec<Event>);
 
     impl Visitor for DemonstrativeVisitor {
-        fn visit_demonstrative_np(&mut self, demonstrative: &DemonstrativeNp) {
-            self.0.push(Event::DemonstrativeNp);
-            deckmaste_english_v2::visit::walk_demonstrative_np(self, demonstrative);
+        fn visit_that_reference(&mut self, reference: &ThatReference) {
+            self.0.push(Event::ThatReference);
+            deckmaste_english_v2::visit::walk_that_reference(self, reference);
         }
 
-        fn visit_demonstrative(&mut self, word: Demonstrative) {
-            self.0.push(Event::Word(word));
+        fn visit_those_reference(&mut self, reference: &ThoseReference) {
+            self.0.push(Event::ThoseReference);
+            deckmaste_english_v2::visit::walk_those_reference(self, reference);
         }
 
-        fn visit_declaration_noun(&mut self, noun: &DeclarationNoun) {
+        fn visit_declaration_type_noun(&mut self, noun: &DeclarationTypeNoun) {
             self.0
                 .push(Event::Head(noun.id().kind(), noun.id().name().to_owned()));
         }
     }
 
-    for (word, head, expected) in [
+    for (value, expected, expected_event) in [
         (
-            Demonstrative::That,
-            creature(),
+            that_noun(creature()),
             "That creature deals 3 damage to it.",
+            Event::ThatReference,
         ),
         (
-            Demonstrative::Those,
-            creatures(),
+            those_noun(creatures()),
             "Those creatures deal 3 damage to it.",
+            Event::ThoseReference,
         ),
     ] {
-        let value = NounPhrase::Demonstrative(DemonstrativeNp { word, head });
         let sentence = Sentence::Declarative(Declarative {
-            subject: value.clone(),
+            subject: nominal_subject(value.clone()),
             predicate: damage(Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             })),
@@ -695,8 +793,7 @@ fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
         assert_eq!(
             visitor.0,
             [
-                Event::DemonstrativeNp,
-                Event::Word(word),
+                expected_event,
                 Event::Head(DeclarationKind::Type, "Creature".to_owned(),),
             ],
         );
@@ -706,7 +803,7 @@ fn demonstrative_form_selection_adds_no_ast_or_visitor_tag() {
 #[test]
 fn renders_an_with_a_singular_noun_and_third_person_verb() {
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::Common(Common { head: artifact() }),
+        subject: nominal_subject(indefinite(artifact())),
         predicate: damage(Amount::Number(NumberAmount {
             number: ScalarNumber { magnitude: 3 },
         })),
@@ -720,7 +817,7 @@ fn renders_an_with_a_singular_noun_and_third_person_verb() {
 #[test]
 fn renders_a_subtype_with_its_printed_case() {
     let value = Sentence::Declarative(Declarative {
-        subject: NounPhrase::Common(Common { head: equipment() }),
+        subject: nominal_subject(indefinite(equipment())),
         predicate: damage(Amount::Number(NumberAmount {
             number: ScalarNumber { magnitude: 3 },
         })),
@@ -742,10 +839,10 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         .expect("one sentence constructs a paragraph"),
     );
     let self_reference = Sentence::Declarative(Declarative {
-        subject: NounPhrase::SelfReference(self_reference(
+        subject: nominal_subject(NounPhrase::SelfReference(self_reference(
             SelfReferenceSpelling::Abbreviated,
             "Zacama, Primal Calamity",
-        )),
+        ))),
         predicate: VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
@@ -793,7 +890,7 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         vec![SelfReferenceSpelling::Abbreviated]
     );
     assert_eq!(visitor.trigger_words, vec![TriggerWord::Whenever]);
-    assert_eq!(visitor.nouns, vec![NounLexeme::Player]);
+    assert_eq!(visitor.nouns, vec![CommonNoun::Player]);
     assert_eq!(
         visitor.declarations,
         vec![

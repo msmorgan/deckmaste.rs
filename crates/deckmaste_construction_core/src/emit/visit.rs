@@ -596,9 +596,11 @@ fn walk_structural_value(
 fn emit_declaration_noun_walker(codec: &DeclarationNounPlan) -> GeneratedItem {
     let ty = codec.codec_ident();
     let declaration = codec.declaration_value_ident();
-    let closed = codec.closed_lexeme();
     let function = ident(&format!("walk_{}", snake_case(codec.codec_name())));
-    let closed_walker = ident(&format!("walk_{}", snake_case(&closed.to_string())));
+    let closed_arm = codec.closed_lexeme().map(|closed| {
+        let closed_walker = ident(&format!("walk_{}", snake_case(&closed.to_string())));
+        quote! { #ty::Lexeme(lexeme) => #closed_walker(visitor, *lexeme), }
+    });
     let declaration_callback = ident(&format!("visit_{}", snake_case(&declaration.to_string())));
     GeneratedItem::new(
         ItemKey::Named {
@@ -608,7 +610,7 @@ fn emit_declaration_noun_walker(codec: &DeclarationNounPlan) -> GeneratedItem {
         quote! {
             pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, noun: &#ty) {
                 match noun {
-                    #ty::Lexeme(lexeme) => #closed_walker(visitor, *lexeme),
+                    #closed_arm
                     #ty::Declaration(declaration) => visitor.#declaration_callback(declaration),
                 }
             }
@@ -966,12 +968,17 @@ fn emit_construction_form_walker_calls(
                 })
             }
             AtomPlan::Noun { role, terminal } => {
-                fields
+                let field = fields
                     .get(role)
                     .ok_or_else(|| internal("walker noun role absent"))?;
                 let callback = ident(&format!("visit_{}", snake_case(terminal)));
                 let value = field_value(construction, role, argument, field_locals)?;
-                Some(quote! { visitor.#callback(#value); })
+                Some(if terminal_mode(validated, terminal)? == VisitMode::Copy {
+                    let value = copy_value(field, value);
+                    quote! { visitor.#callback(#value); }
+                } else {
+                    quote! { visitor.#callback(#value); }
+                })
             }
             AtomPlan::VerbFixed { terminal, path, .. } => {
                 let walker = ident(&format!("walk_{}", snake_case(terminal)));

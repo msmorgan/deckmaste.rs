@@ -755,7 +755,7 @@ mod structural_trace_tests {
         #[derive(Default)]
         struct Recorder {
             self_references: Vec<crate::constructions::SelfReferenceSpelling>,
-            nouns: Vec<crate::constructions::NounLexeme>,
+            nouns: Vec<crate::constructions::CommonNoun>,
             declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
         }
 
@@ -767,13 +767,13 @@ mod structural_trace_tests {
                 self.self_references.push(spelling);
             }
 
-            fn visit_noun_lexeme(&mut self, noun: crate::constructions::NounLexeme) {
+            fn visit_common_noun(&mut self, noun: crate::constructions::CommonNoun) {
                 self.nouns.push(noun);
             }
 
-            fn visit_declaration_noun(&mut self, noun: &crate::constructions::DeclarationNoun) {
+            fn visit_declaration(&mut self, noun: &macro_ron::v2::DeclarationIdentity) {
                 self.declarations
-                    .push((noun.id().kind(), noun.id().name().to_owned()));
+                    .push((noun.kind(), noun.name().to_owned()));
             }
         }
 
@@ -833,7 +833,7 @@ mod structural_trace_tests {
                     [crate::constructions::SelfReferenceSpelling::Abbreviated],
                 ),
                 "Players'" => {
-                    assert_eq!(visitor.nouns, [crate::constructions::NounLexeme::Player]);
+                    assert_eq!(visitor.nouns, [crate::constructions::CommonNoun::Player]);
                 }
                 "Merfolk's" => assert_eq!(
                     visitor.declarations,
@@ -1117,7 +1117,7 @@ mod structural_trace_tests {
         );
 
         assert!(trace.clone().into_parse_result().is_err());
-        assert_eq!(trace.scanner_matches().total(), 3);
+        assert_eq!(trace.scanner_matches().total(), 5);
         assert_eq!(trace.selected_lexical_claims().total(), 0);
         assert_eq!(trace.ownership(), None);
         assert!(trace.ownership_failures().is_empty());

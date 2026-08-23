@@ -478,13 +478,16 @@ fn lower_value(
             let agreement = plan
                 .category_carries_agreement(name)
                 .then(|| quote! { , _ });
+            let cardinality = plan
+                .category_carries_cardinality(name)
+                .then(|| quote! { , _ });
             let number = plan.category_carries_number(name).then(|| quote! { , _ });
             let onset = plan.category_carries_onset(name).then(|| quote! { , _ });
             let possessive_ending = plan
                 .category_carries_possessive_ending(name)
                 .then(|| quote! { , _ });
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::#variant(#binding #agreement #number #onset #possessive_ending) },
+                pattern: quote! { BuildValue::#variant(#binding #agreement #cardinality #number #onset #possessive_ending) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -514,6 +517,13 @@ fn lower_terminal_value(
             let binding = binders.allocate(preferred);
             Ok(LoweredValue {
                 pattern: quote! { BuildValue::Leaf(Leaf::#leaf(#binding)) },
+                expression: quote! { *#binding },
+            })
+        }
+        AtomTerminal::Lexeme => {
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::Leaf(Leaf::Noun { noun: #binding, number: _, onset: _, possessive_ending: _ }) },
                 expression: quote! { *#binding },
             })
         }
@@ -1081,12 +1091,23 @@ fn lower_category_role(
         .insert(role_name.clone(), quote! { #role_binding.clone() });
 
     let carries_agreement = validated.category_carries_agreement(category_name);
+    let carries_cardinality = validated.category_carries_cardinality(category_name);
     let carries_number = validated.category_carries_number(category_name);
     let carries_onset = validated.category_carries_onset(category_name);
     let carries_possessive_ending = validated.category_carries_possessive_ending(category_name);
     let agreement = carries_agreement
         .then(|| role_agreement_pattern(validated, row, &role, category_name, lowering))
         .transpose()?;
+    let cardinality = carries_cardinality.then(|| {
+        let name = lowering
+            .binders
+            .allocate(&format!("{}_cardinality", identifier_key(&role)));
+        lowering.role_features.insert(
+            (identifier_key(&role), Feature::Cardinality),
+            LocalFeatureValue::Bound(name.clone()),
+        );
+        name
+    });
     let number = carries_number.then(|| role_number_pattern(validated, row, form, &role, lowering));
     let onset = carries_onset.then(|| {
         let name = lowering
@@ -1109,12 +1130,13 @@ fn lower_category_role(
         name
     });
     let agreement = agreement.map(|value| quote! { , #value });
+    let cardinality = cardinality.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let onset = onset.map(|value| quote! { , #value });
     let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     lowering
         .patterns
-        .push(quote! { BuildValue::#category(#role_binding #agreement #number #onset #possessive_ending) });
+        .push(quote! { BuildValue::#category(#role_binding #agreement #cardinality #number #onset #possessive_ending) });
     Ok(())
 }
 
@@ -1221,6 +1243,42 @@ fn lower_catalog_identity_role(
     );
 }
 
+fn lower_unsigned_number_role(
+    codec: &crate::semantic::UnsignedNumberPlan,
+    role: &syn::Ident,
+    lowering: &mut Lowering,
+) {
+    let number_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
+        .then(|| ident(&feature_helper("number", codec.codec_name())));
+    let cardinality_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
+        .then(|| ident(&feature_helper("cardinality", codec.codec_name())));
+    for provider in [&number_provider, &cardinality_provider]
+        .into_iter()
+        .flatten()
+    {
+        lowering.binders.reserve(provider.to_string());
+    }
+    let value = lowering.binders.allocate(&identifier_key(role));
+    let variant = codec.codec_ident();
+    lowering
+        .patterns
+        .push(quote! { BuildValue::Leaf(Leaf::#variant(#value)) });
+    lowering
+        .field_values
+        .insert(identifier_key(role), quote! { #value.clone() });
+    for (feature, provider) in [
+        (Feature::Number, number_provider),
+        (Feature::Cardinality, cardinality_provider),
+    ] {
+        if let Some(provider) = provider {
+            lowering.role_features.insert(
+                (identifier_key(role), feature),
+                LocalFeatureValue::Computed(quote! { #provider(#value) }),
+            );
+        }
+    }
+}
+
 fn lower_terminal_role(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
@@ -1268,6 +1326,41 @@ fn lower_terminal_role(
             );
             return Ok(());
         }
+        AtomTerminal::Lexeme => {
+            let value = lowering.binders.allocate(&identifier_key(&role));
+            let number = noun_number_pattern(validated, row, &role, lowering)?;
+            let onset = lowering
+                .binders
+                .allocate(&format!("{}_onset", identifier_key(&role)));
+            let possessive_ending = lowering
+                .binders
+                .allocate(&format!("{}_possessive_ending", identifier_key(&role)));
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::Onset),
+                LocalFeatureValue::Bound(onset.clone()),
+            );
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::PossessiveEnding),
+                LocalFeatureValue::Bound(possessive_ending.clone()),
+            );
+            let number_field = if number.to_string() == "number" {
+                quote! { number }
+            } else {
+                quote! { number: #number }
+            };
+            lowering.patterns.push(quote! {
+                BuildValue::Leaf(Leaf::Noun {
+                    noun: #value,
+                    #number_field,
+                    onset: #onset,
+                    possessive_ending: #possessive_ending,
+                })
+            });
+            lowering
+                .field_values
+                .insert(identifier_key(&role), quote! { *#value });
+            return Ok(());
+        }
         AtomTerminal::Binding(binding) => binding,
         AtomTerminal::ContextIdentity(identity) => {
             lower_context_identity_role(identity, &role, lowering);
@@ -1289,25 +1382,7 @@ fn lower_terminal_role(
             return Ok(());
         }
         AtomTerminal::UnsignedNumber(codec) => {
-            let variant = codec.codec_ident();
-            let number_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
-                .then(|| ident(&feature_helper("number", codec.codec_name())));
-            if let Some(provider) = &number_provider {
-                lowering.binders.reserve(provider.to_string());
-            }
-            let value = lowering.binders.allocate(&identifier_key(&role));
-            lowering
-                .patterns
-                .push(quote! { BuildValue::Leaf(Leaf::#variant(#value)) });
-            lowering
-                .field_values
-                .insert(identifier_key(&role), quote! { #value.clone() });
-            if let Some(provider) = number_provider {
-                lowering.role_features.insert(
-                    (identifier_key(&role), Feature::Number),
-                    LocalFeatureValue::Computed(quote! { #provider(#value) }),
-                );
-            }
+            lower_unsigned_number_role(codec, &role, lowering);
             return Ok(());
         }
         AtomTerminal::DeclarationNoun { plan, .. } => {
@@ -1671,7 +1746,10 @@ fn verb_onset_pattern(
             | FeatureValue::Consonant
             | FeatureValue::Vowel
             | FeatureValue::EndsInS
-            | FeatureValue::Other => {
+            | FeatureValue::Other
+            | FeatureValue::Zero
+            | FeatureValue::One
+            | FeatureValue::TwoPlus => {
                 return Err(internal("fixed verb resolved a non-Agreement feature"));
             }
         };
@@ -1839,11 +1917,16 @@ fn emit_success(
     };
     let category_value = quote! { #category::#variant(#element_value) };
     let carries_agreement = validated.category_carries_agreement(row.category());
+    let carries_cardinality = validated.category_carries_cardinality(row.category());
     let carries_number = validated.category_carries_number(row.category());
     let carries_onset = validated.category_carries_onset(row.category());
     let carries_possessive_ending = validated.category_carries_possessive_ending(row.category());
     let agreement = carries_agreement
         .then(|| construction_agreement(validated, row, lowering, agreement_override))
+        .transpose()?
+        .map(|value| quote! { , #value });
+    let cardinality = carries_cardinality
+        .then(|| construction_cardinality(validated, row, lowering))
         .transpose()?
         .map(|value| quote! { , #value });
     let number = carries_number
@@ -1858,7 +1941,7 @@ fn emit_success(
         .then(|| construction_possessive_ending(validated, row, lowering))
         .transpose()?
         .map(|value| quote! { , #value });
-    let wrapped = quote! { BuildValue::#category(#category_value #agreement #number #onset #possessive_ending) };
+    let wrapped = quote! { BuildValue::#category(#category_value #agreement #cardinality #number #onset #possessive_ending) };
     Ok(quote! { Ok(Some(#wrapped)) })
 }
 
@@ -1874,10 +1957,16 @@ fn emit_fallible_element_success(
     let variant = ident(row.category_variant());
     let mapped = quote! { #category::#variant };
     let carries_agreement = validated.category_carries_agreement(row.category());
+    let carries_cardinality = validated.category_carries_cardinality(row.category());
     let carries_number = validated.category_carries_number(row.category());
     let carries_onset = validated.category_carries_onset(row.category());
     let carries_possessive_ending = validated.category_carries_possessive_ending(row.category());
-    if !carries_agreement && !carries_number && !carries_onset && !carries_possessive_ending {
+    if !carries_agreement
+        && !carries_cardinality
+        && !carries_number
+        && !carries_onset
+        && !carries_possessive_ending
+    {
         return Ok(quote! {
             #result.map(#mapped).map(BuildValue::#category).map(Some)
         });
@@ -1885,6 +1974,9 @@ fn emit_fallible_element_success(
 
     let agreement = carries_agreement
         .then(|| construction_agreement(validated, row, lowering, agreement_override))
+        .transpose()?;
+    let cardinality = carries_cardinality
+        .then(|| construction_cardinality(validated, row, lowering))
         .transpose()?;
     let number = carries_number
         .then(|| construction_number(validated, row, lowering, number_override))
@@ -1901,12 +1993,13 @@ fn emit_fallible_element_success(
         argument
     });
     let agreement = agreement.map(|value| quote! { , #value });
+    let cardinality = cardinality.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let onset = onset.map(|value| quote! { , #value });
     let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     Ok(quote! {
         #result
-            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #agreement #number #onset #possessive_ending) })
+            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #agreement #cardinality #number #onset #possessive_ending) })
             .map(Some)
     })
 }
@@ -2050,6 +2143,21 @@ fn construction_number(
     Ok(resolved_feature_value_tokens(&output))
 }
 
+fn construction_cardinality(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    lowering: &Lowering,
+) -> syn::Result<TokenStream> {
+    let output = resolve_feature_place(
+        validated,
+        row,
+        lowering,
+        &FeaturePlace::Construction(Feature::Cardinality),
+        &mut HashSet::new(),
+    )?;
+    Ok(resolved_feature_value_tokens(&output))
+}
+
 fn construction_onset(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
@@ -2136,9 +2244,9 @@ fn resolve_feature_place(
                     let helper = ident(&feature_helper("agreement", terminal_for_role(row, role)?));
                     ResolvedFeatureValue::Computed(quote! { #helper(#source) })
                 }
-                FeaturePlace::Construction(Feature::Number)
+                FeaturePlace::Construction(Feature::Cardinality | Feature::Number)
                 | FeaturePlace::Role {
-                    feature: Feature::Number,
+                    feature: Feature::Cardinality | Feature::Number,
                     ..
                 } => {
                     let ty = ident(terminal_for_role(row, role)?);
@@ -2288,6 +2396,9 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Vowel => quote! { Onset::Vowel },
         FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
         FeatureValue::Other => quote! { PossessiveEnding::Other },
+        FeatureValue::Zero => quote! { Cardinality::Zero },
+        FeatureValue::One => quote! { Cardinality::One },
+        FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
     }
 }
 fn vocab_argument(name: &str) -> String {

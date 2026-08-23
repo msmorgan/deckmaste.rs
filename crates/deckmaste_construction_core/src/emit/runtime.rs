@@ -5,6 +5,7 @@ use quote::quote;
 use crate::identifier::AGREEMENT_TYPE;
 use crate::identifier::BUILD_REJECTION_TYPE;
 use crate::identifier::BUILD_VIOLATION_TYPE;
+use crate::identifier::CARDINALITY_TYPE;
 use crate::identifier::CASE_POSITION_TYPE;
 use crate::identifier::DECLARATION_CLASS_TYPE;
 use crate::identifier::DECLARATION_LEAF_TYPE;
@@ -92,14 +93,9 @@ impl<'a> RuntimeInventory<'a> {
     }
 
     fn noun_type(&self) -> Option<syn::Ident> {
-        self.declaration_nouns
-            .is_empty()
-            .then(|| {
-                self.noun_binding
-                    .map(|binding| binding.value_type_name().clone())
-                    .or_else(|| self.noun_lexeme.map(|lexeme| lexeme.name_ident().clone()))
-            })
-            .flatten()
+        self.noun_binding
+            .map(|binding| binding.value_type_name().clone())
+            .or_else(|| self.noun_lexeme.map(|lexeme| lexeme.name_ident().clone()))
     }
 }
 
@@ -111,6 +107,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum Agreement { Bare, ThirdPersonSingular }
+            },
+        ),
+        named_type(
+            CARDINALITY_TYPE,
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum Cardinality { Zero, One, TwoPlus }
             },
         ),
         named_type(
@@ -287,6 +290,9 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let agreement = plan
             .category_carries_agreement(root.category())
             .then(|| quote! { , _ });
+        let cardinality = plan
+            .category_carries_cardinality(root.category())
+            .then(|| quote! { , _ });
         let number = plan
             .category_carries_number(root.category())
             .then(|| quote! { , _ });
@@ -309,7 +315,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 
                     fn from_build(value: BuildValue) -> Option<Self> {
                         match value {
-                            BuildValue::#category(value #agreement #number #onset #possessive_ending) => Some(value),
+                            BuildValue::#category(value #agreement #cardinality #number #onset #possessive_ending) => Some(value),
                             _ => None,
                         }
                     }
@@ -501,6 +507,9 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let agreement = plan
                     .category_carries_agreement(item.name)
                     .then(|| quote! { , Agreement });
+                let cardinality = plan
+                    .category_carries_cardinality(item.name)
+                    .then(|| quote! { , Cardinality });
                 let number = plan
                     .category_carries_number(item.name)
                     .then(|| quote! { , Number });
@@ -510,7 +519,7 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let possessive_ending = plan
                     .category_carries_possessive_ending(item.name)
                     .then(|| quote! { , PossessiveEnding });
-                quote! { #name(#name #agreement #number #onset #possessive_ending) }
+                quote! { #name(#name #agreement #cardinality #number #onset #possessive_ending) }
             }
             super::SemanticTypeKind::Product | super::SemanticTypeKind::Sum => {
                 quote! { #name(#name) }
@@ -902,6 +911,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
 }
 
 fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
+    let noun_lexeme = inventory.noun_lexeme.map(|_| quote! { NounLexeme, });
     let declaration_noun =
         (!inventory.declaration_nouns.is_empty()).then(|| quote! { DeclarationNoun(usize), });
     let catalog_identity =
@@ -950,6 +960,7 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         declaration: &'static str,
                         member: &'static str,
                     },
+                    #noun_lexeme
                     Identity {
                         declaration: &'static str,
                     },
@@ -1445,48 +1456,86 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             }
         })
     });
+    let noun_lexeme_owner_arms = inventory.noun_lexeme.into_iter().flat_map(|lexeme| {
+        let noun = lexeme.name_ident();
+        lexeme.surfaces().iter().map(move |row| {
+            let member = emitted_ident(row.member(), Span::call_site());
+            let number = match row.feature() {
+                macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
+                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                macro_ron::v2::SurfaceFeature::Bare
+                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                | macro_ron::v2::SurfaceFeature::Fixed => {
+                    unreachable!("validated noun lexeme has the Number feature axis")
+                }
+            };
+            let stable_id =
+                crate::emit::closed_lexeme_owner_id(lexeme.name(), row.member(), row.feature());
+            quote! {
+                (
+                    LexicalOwnerTemplate::NounLexeme,
+                    Leaf::Noun {
+                        noun: #noun::#member,
+                        number: #number,
+                        ..
+                    },
+                ) => Some(LexicalOwner::static_owner(
+                    LexicalProvenanceKind::Lexeme,
+                    #stable_id,
+                )),
+            }
+        })
+    });
     let declaration_noun_owner =
         inventory
             .declaration_nouns
             .iter()
             .map(|(terminal_index, codec)| {
                 let noun = codec.codec_ident();
-                let closed = codec.closed_lexeme();
-                let closed_owner_arms = inventory
-                    .noun_lexeme
-                    .expect("validated declaration noun has its closed lexeme provider")
-                    .surfaces()
-                    .iter()
-                    .map(|row| {
-                        let member = emitted_ident(row.member(), Span::call_site());
-                        let number = match row.feature() {
-                            macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
-                            macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
-                            macro_ron::v2::SurfaceFeature::Bare
-                            | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                            | macro_ron::v2::SurfaceFeature::Fixed => {
-                                unreachable!("validated noun lexeme has the Number feature axis")
+                let closed_owner_arms = if let Some(closed) = codec.closed_lexeme() {
+                    inventory
+                        .noun_lexeme
+                        .expect("validated declaration noun has its closed lexeme provider")
+                        .surfaces()
+                        .iter()
+                        .map(|row| {
+                            let member = emitted_ident(row.member(), Span::call_site());
+                            let number = match row.feature() {
+                                macro_ron::v2::SurfaceFeature::Singular => {
+                                    quote! { Number::Singular }
+                                }
+                                macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                                macro_ron::v2::SurfaceFeature::Bare
+                                | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                                | macro_ron::v2::SurfaceFeature::Fixed => {
+                                    unreachable!(
+                                        "validated noun lexeme has the Number feature axis"
+                                    )
+                                }
+                            };
+                            let stable_id = crate::emit::closed_lexeme_owner_id(
+                                &closed.to_string(),
+                                row.member(),
+                                row.feature(),
+                            );
+                            quote! {
+                                (
+                                    LexicalOwnerTemplate::DeclarationNoun(#terminal_index),
+                                    Leaf::#noun {
+                                        noun: #noun::Lexeme(#closed::#member),
+                                        number: #number,
+                                        ..
+                                    },
+                                ) => Some(LexicalOwner::static_owner(
+                                    LexicalProvenanceKind::Lexeme,
+                                    #stable_id,
+                                )),
                             }
-                        };
-                        let stable_id = crate::emit::closed_lexeme_owner_id(
-                            &closed.to_string(),
-                            row.member(),
-                            row.feature(),
-                        );
-                        quote! {
-                            (
-                                LexicalOwnerTemplate::DeclarationNoun(#terminal_index),
-                                Leaf::#noun {
-                                    noun: #noun::Lexeme(#closed::#member),
-                                    number: #number,
-                                    ..
-                                },
-                            ) => Some(LexicalOwner::static_owner(
-                                LexicalProvenanceKind::Lexeme,
-                                #stable_id,
-                            )),
-                        }
-                    });
+                        })
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                };
                 quote! {
                     #(#closed_owner_arms)*
                     (
@@ -1761,6 +1810,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #(#context_owner_arms)*
                             #(#catalog_owner_arms)*
                             #(#verb_lexeme_owner_arms)*
+                            #(#noun_lexeme_owner_arms)*
                             (
                                 LexicalOwnerTemplate::Declaration { kind, name },
                                 Leaf::Declaration(declaration),

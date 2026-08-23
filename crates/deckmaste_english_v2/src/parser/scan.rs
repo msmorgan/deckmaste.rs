@@ -1059,14 +1059,21 @@ mod tests {
     use super::terminal_name_v1;
     use super::trace_label_counts;
     use super::value_label_v1;
-    use crate::ast::DeclarationNoun;
-    use crate::ast::Demonstrative;
-    use crate::ast::Noun;
-    use crate::ast::NounLexeme;
-    use crate::ast::Pronoun;
+    use crate::ast::ArtifactSubtypeNoun;
+    use crate::ast::BattleSubtypeNoun;
+    use crate::ast::CommonNoun;
+    use crate::ast::CreatureSubtypeNoun;
+    use crate::ast::DeclarationTypeNoun;
+    use crate::ast::EnchantmentSubtypeNoun;
+    use crate::ast::LandSubtypeNoun;
+    use crate::ast::ObjectPronoun;
+    use crate::ast::PlaneswalkerSubtypeNoun;
     use crate::ast::ScalarNumber;
     use crate::ast::SelfReferenceSpelling;
+    use crate::ast::SpellSubtypeNoun;
+    use crate::ast::SubjectPronoun;
     use crate::ast::TriggerWord;
+    use crate::ast::TypeNoun;
     use crate::ast::Variable;
     use crate::ast::VerbLexeme;
     use crate::constructions::Agreement;
@@ -1339,18 +1346,18 @@ mod tests {
             (
                 "Player.",
                 Number::Singular,
-                "lexeme:NounLexeme/Player/singular",
+                "lexeme:CommonNoun/Player/singular",
             ),
             (
                 "Players.",
                 Number::Plural,
-                "lexeme:NounLexeme/Player/plural",
+                "lexeme:CommonNoun/Player/plural",
             ),
         ] {
             let matches = scan(
                 text,
-                Lexical::DeclarationNoun(7, FeatureConstraint::Exact(number)),
-                LexicalOwnerTemplate::DeclarationNoun(7),
+                Lexical::Noun(FeatureConstraint::Exact(number)),
+                LexicalOwnerTemplate::NounLexeme,
             );
             let closed = matches
                 .iter()
@@ -1358,7 +1365,7 @@ mod tests {
                     matches!(
                         matched.value,
                         Leaf::Noun {
-                            noun: Noun::Lexeme(NounLexeme::Player),
+                            noun: CommonNoun::Player,
                             number: actual,
                             ..
                         } if actual == number
@@ -1370,8 +1377,8 @@ mod tests {
         assert!(
             scan(
                 "Playersx.",
-                Lexical::DeclarationNoun(7, FeatureConstraint::Any),
-                LexicalOwnerTemplate::DeclarationNoun(7),
+                Lexical::Noun(FeatureConstraint::Any),
+                LexicalOwnerTemplate::NounLexeme,
             )
             .is_empty()
         );
@@ -1523,16 +1530,16 @@ mod tests {
                 "vocab:TriggerWord/Whenever",
             ),
             (
-                Lexical::Demonstrative,
-                Leaf::Demonstrative(Demonstrative::Those),
-                "those",
-                "vocab:Demonstrative/Those",
+                Lexical::SubjectPronoun,
+                Leaf::SubjectPronoun(SubjectPronoun::They),
+                "they",
+                "vocab:SubjectPronoun/They",
             ),
             (
-                Lexical::Pronoun,
-                Leaf::Pronoun(Pronoun::You),
-                "you",
-                "vocab:Pronoun/You",
+                Lexical::ObjectPronoun,
+                Leaf::ObjectPronoun(ObjectPronoun::Them),
+                "them",
+                "vocab:ObjectPronoun/Them",
             ),
             (
                 Lexical::Variable,
@@ -1547,11 +1554,11 @@ mod tests {
                 Lexical::TriggerWord => LexicalOwnerTemplate::Vocab {
                     declaration: "TriggerWord",
                 },
-                Lexical::Demonstrative => LexicalOwnerTemplate::Vocab {
-                    declaration: "Demonstrative",
+                Lexical::SubjectPronoun => LexicalOwnerTemplate::Vocab {
+                    declaration: "SubjectPronoun",
                 },
-                Lexical::Pronoun => LexicalOwnerTemplate::Vocab {
-                    declaration: "Pronoun",
+                Lexical::ObjectPronoun => LexicalOwnerTemplate::Vocab {
+                    declaration: "ObjectPronoun",
                 },
                 Lexical::Variable => LexicalOwnerTemplate::Vocab {
                     declaration: "Variable",
@@ -2023,6 +2030,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the category-safe scanner matrix keeps both declaration domains, offsets, features, and direct common-noun ownership together"
+    )]
     fn declaration_noun_scanner_retains_collisions_features_and_exact_offsets() {
         let declarations = [
             read_str(
@@ -2033,6 +2044,36 @@ mod tests {
             read_str(
                 "/synthetic/subtypes/creature/Elf.ron",
                 r#"Subtype(category:Creature,name:"Elf",spelling:"elf",grammar:Noun(singular:"elf",plural:"elves"))"#,
+            )
+            .unwrap(),
+            read_str(
+                "/synthetic/subtypes/artifact/Clue.ron",
+                r#"Subtype(category:Artifact,name:"Clue",spelling:"Clue",grammar:Noun(singular:"Clue"))"#,
+            )
+            .unwrap(),
+            read_str(
+                "/synthetic/subtypes/battle/Siege.ron",
+                r#"Subtype(category:Battle,name:"Siege",spelling:"Siege",grammar:Noun(singular:"Siege"))"#,
+            )
+            .unwrap(),
+            read_str(
+                "/synthetic/subtypes/enchantment/Aura.ron",
+                r#"Subtype(category:Enchantment,name:"Aura",spelling:"Aura",grammar:Noun(singular:"Aura"))"#,
+            )
+            .unwrap(),
+            read_str(
+                "/synthetic/subtypes/land/Forest.ron",
+                r#"Subtype(category:Land,name:"Forest",spelling:"Forest",grammar:Noun(singular:"Forest"))"#,
+            )
+            .unwrap(),
+            read_str(
+                "/synthetic/subtypes/planeswalker/Jace.ron",
+                r#"Subtype(category:Planeswalker,name:"Jace",spelling:"Jace",grammar:Noun(singular:"Jace"))"#,
+            )
+            .unwrap(),
+            read_str(
+                "/synthetic/subtypes/spell/Arcane.ron",
+                r#"Subtype(category:Spell,name:"Arcane",spelling:"Arcane",grammar:Noun(singular:"Arcane"))"#,
             )
             .unwrap(),
             read_str(
@@ -2048,7 +2089,7 @@ mod tests {
         ];
         let environment = ParserEnvironment::try_from_declarations(declarations).unwrap();
         let context = context("Context Card");
-        let scan = |text, byte_offset, case, wanted| {
+        let scan = |codec, text, byte_offset, case, wanted| {
             super::scan_lexical(
                 &ScanInput {
                     text,
@@ -2065,8 +2106,8 @@ mod tests {
                     context: &context,
                 },
                 LexicalTerminal {
-                    matcher: Lexical::DeclarationNoun(7, wanted),
-                    owner: LexicalOwnerTemplate::DeclarationNoun(7),
+                    matcher: Lexical::DeclarationNoun(codec, wanted),
+                    owner: LexicalOwnerTemplate::DeclarationNoun(codec),
                     right_boundary: LexicalBoundary::Separated,
                 },
             )
@@ -2076,8 +2117,78 @@ mod tests {
                 matches
                     .into_iter()
                     .filter_map(|matched| match matched.value {
-                        Leaf::Noun {
-                            noun: Noun::Declaration(noun),
+                        Leaf::TypeNoun {
+                            noun: TypeNoun::Declaration(noun),
+                            number,
+                            ..
+                        } => Some((
+                            matched.end,
+                            noun.id().kind(),
+                            noun.id().name().to_owned(),
+                            number,
+                        )),
+                        Leaf::ArtifactSubtypeNoun {
+                            noun: ArtifactSubtypeNoun::Declaration(noun),
+                            number,
+                            ..
+                        } => Some((
+                            matched.end,
+                            noun.id().kind(),
+                            noun.id().name().to_owned(),
+                            number,
+                        )),
+                        Leaf::BattleSubtypeNoun {
+                            noun: BattleSubtypeNoun::Declaration(noun),
+                            number,
+                            ..
+                        } => Some((
+                            matched.end,
+                            noun.id().kind(),
+                            noun.id().name().to_owned(),
+                            number,
+                        )),
+                        Leaf::CreatureSubtypeNoun {
+                            noun: CreatureSubtypeNoun::Declaration(noun),
+                            number,
+                            ..
+                        } => Some((
+                            matched.end,
+                            noun.id().kind(),
+                            noun.id().name().to_owned(),
+                            number,
+                        )),
+                        Leaf::EnchantmentSubtypeNoun {
+                            noun: EnchantmentSubtypeNoun::Declaration(noun),
+                            number,
+                            ..
+                        } => Some((
+                            matched.end,
+                            noun.id().kind(),
+                            noun.id().name().to_owned(),
+                            number,
+                        )),
+                        Leaf::LandSubtypeNoun {
+                            noun: LandSubtypeNoun::Declaration(noun),
+                            number,
+                            ..
+                        } => Some((
+                            matched.end,
+                            noun.id().kind(),
+                            noun.id().name().to_owned(),
+                            number,
+                        )),
+                        Leaf::PlaneswalkerSubtypeNoun {
+                            noun: PlaneswalkerSubtypeNoun::Declaration(noun),
+                            number,
+                            ..
+                        } => Some((
+                            matched.end,
+                            noun.id().kind(),
+                            noun.id().name().to_owned(),
+                            number,
+                        )),
+                        Leaf::SpellSubtypeNoun {
+                            noun: SpellSubtypeNoun::Declaration(noun),
                             number,
                             ..
                         } => Some((
@@ -2091,48 +2202,107 @@ mod tests {
                     .collect::<Vec<_>>()
             };
 
+        let mut elf_declarations = declarations(scan(
+            15,
+            "Elves.",
+            0,
+            CasePosition::DocumentInitial,
+            FeatureConstraint::Exact(Number::Plural),
+        ));
+        elf_declarations.extend(declarations(scan(
+            18,
+            "Elves.",
+            0,
+            CasePosition::DocumentInitial,
+            FeatureConstraint::Exact(Number::Plural),
+        )));
         assert_eq!(
-            declarations(scan(
-                "Elves.",
-                0,
-                CasePosition::DocumentInitial,
-                FeatureConstraint::Exact(Number::Plural),
-            )),
+            elf_declarations,
             [
+                (5, DeclarationKind::Type, "Elf".to_owned(), Number::Plural,),
                 (
                     5,
                     DeclarationKind::Subtype(SubtypeCategory::Creature),
                     "Elf".to_owned(),
                     Number::Plural,
                 ),
-                (5, DeclarationKind::Type, "Elf".to_owned(), Number::Plural,),
             ],
-            "same-spelling Type/Subtype readings remain distinct in identity order",
+            "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
+        let mut continued = declarations(scan(
+            15,
+            "prefix elf.",
+            6,
+            CasePosition::Continuation,
+            FeatureConstraint::Exact(Number::Singular),
+        ));
+        continued.extend(declarations(scan(
+            18,
+            "prefix elf.",
+            6,
+            CasePosition::Continuation,
+            FeatureConstraint::Exact(Number::Singular),
+        )));
         assert_eq!(
-            declarations(scan(
-                "prefix elf.",
-                6,
-                CasePosition::Continuation,
-                FeatureConstraint::Exact(Number::Singular),
-            )),
+            continued,
             [
-                (
-                    10,
-                    DeclarationKind::Subtype(SubtypeCategory::Creature),
-                    "Elf".to_owned(),
-                    Number::Singular,
-                ),
                 (
                     10,
                     DeclarationKind::Type,
                     "Elf".to_owned(),
                     Number::Singular,
                 ),
+                (
+                    10,
+                    DeclarationKind::Subtype(SubtypeCategory::Creature),
+                    "Elf".to_owned(),
+                    Number::Singular,
+                ),
             ],
         );
 
+        for (codec, text, spelling, category) in [
+            (16, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (17, "Siege.", "Siege", SubtypeCategory::Battle),
+            (18, "Elf.", "Elf", SubtypeCategory::Creature),
+            (19, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (20, "Forest.", "Forest", SubtypeCategory::Land),
+            (21, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (22, "Arcane.", "Arcane", SubtypeCategory::Spell),
+        ] {
+            assert_eq!(
+                declarations(scan(
+                    codec,
+                    text,
+                    0,
+                    CasePosition::DocumentInitial,
+                    FeatureConstraint::Exact(Number::Singular),
+                )),
+                [(
+                    spelling.len(),
+                    DeclarationKind::Subtype(category),
+                    spelling.to_owned(),
+                    Number::Singular,
+                )],
+                "the exact family terminal accepts its own normalized declaration",
+            );
+            for wrong_codec in (16..=22).filter(|wrong_codec| *wrong_codec != codec) {
+                assert!(
+                    declarations(scan(
+                        wrong_codec,
+                        text,
+                        0,
+                        CasePosition::DocumentInitial,
+                        FeatureConstraint::Exact(Number::Singular),
+                    ))
+                    .is_empty(),
+                    "a cross-family terminal mutation must reject {spelling}",
+                );
+            }
+        }
+
         let player = scan(
+            15,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2140,26 +2310,58 @@ mod tests {
         );
         assert_eq!(
             player.len(),
-            2,
-            "core/declaration collision retains both branches"
+            1,
+            "the Type terminal retains only the open Type reading"
         );
         assert!(player.iter().all(|matched| matched.end == 6));
         assert!(player.iter().any(|matched| matches!(
-            matched.value,
-            Leaf::Noun {
-                noun: Noun::Lexeme(NounLexeme::Player),
+            &matched.value,
+            Leaf::TypeNoun {
+                noun: TypeNoun::Declaration(noun),
                 number: Number::Singular,
                 ..
             }
-        )));
-        assert!(player.iter().any(|matched| matches!(
-            &matched.value,
-            Leaf::Noun { noun: Noun::Declaration(noun), number: Number::Singular, .. }
                 if noun.id() == &DeclarationId::new(DeclarationKind::Type, "Player")
         )));
-        assert_noun_collision_owners(&player);
+        let common_player = super::scan_lexical(
+            &ScanInput {
+                text: "Player.",
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
+                },
+                environment: &environment,
+                context: &context,
+            },
+            LexicalTerminal {
+                matcher: Lexical::Noun(FeatureConstraint::Exact(Number::Singular)),
+                owner: LexicalOwnerTemplate::NounLexeme,
+                right_boundary: LexicalBoundary::Separated,
+            },
+        );
+        assert!(matches!(
+            common_player.as_slice(),
+            [super::LexicalMatch {
+                value: Leaf::Noun {
+                    noun: CommonNoun::Player,
+                    number: Number::Singular,
+                    ..
+                },
+                ..
+            }]
+        ));
+        assert_eq!(
+            common_player[0].owner.as_ref().unwrap().stable_id(),
+            "lexeme:CommonNoun/Player/singular",
+        );
+        assert_eq!(
+            player[0].owner.as_ref().unwrap().stable_id(),
+            "lexeme:type/Player/singular",
+        );
         assert!(
             scan(
+                14,
                 "Flying.",
                 0,
                 CasePosition::DocumentInitial,
@@ -2168,28 +2370,6 @@ mod tests {
             .is_empty(),
             "a noun-position reading of a disallowed declaration kind is rejected",
         );
-    }
-
-    fn assert_noun_collision_owners(
-        player: &[super::LexicalMatch<Leaf, crate::constructions::LexicalOwner>],
-    ) {
-        let owners = player
-            .iter()
-            .map(|matched| {
-                LexicalOwnerTemplate::DeclarationNoun(7)
-                    .instantiate(&matched.value)
-                    .expect("each noun branch has an exact owner")
-            })
-            .collect::<Vec<_>>();
-        assert!(owners.iter().any(|owner| {
-            owner.kind() == LexicalProvenanceKind::Lexeme
-                && owner.stable_id() == "lexeme:NounLexeme/Player/singular"
-        }));
-        assert!(owners.iter().any(|owner| {
-            owner.kind() == LexicalProvenanceKind::Lexeme
-                && owner.stable_id() == "lexeme:type/Player/singular"
-        }));
-        assert!(owners.iter().all(|owner| owner.stable_id() != "codec:Noun"));
     }
 
     #[test]
@@ -2447,8 +2627,12 @@ mod tests {
         }
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the exact generated nominal rule and terminal inventory is deliberately literal"
+    )]
     #[test]
-    fn structural_trace_generated_demonstrative_rule_and_terminal_names_are_pinned() {
+    fn structural_trace_generated_nominal_rule_and_terminal_names_are_pinned() {
         let mut seen_rules = BTreeSet::new();
         let rules = RULES
             .iter()
@@ -2472,14 +2656,91 @@ mod tests {
                 "SentenceWithWhere",
                 "ClauseEvent",
                 "ClauseWhere",
-                "NounPhrasePronoun",
-                "NounPhraseCommon [form an]",
-                "NounPhraseCommon [form a]",
-                "NounPhraseNamed [form an]",
-                "NounPhraseNamed [form a]",
-                "NounPhraseDemonstrative [form that]",
-                "NounPhraseDemonstrative [form those]",
-                "NounPhraseTarget",
+                "SubjectSubjectNominal",
+                "SubjectSubjectPronoun",
+                "ObjectObjectNominal",
+                "ObjectObjectPronoun",
+                "ObjectReflexiveObject",
+                "SingularHeadCommonSingularHead",
+                "SingularHeadTypeSingularHead",
+                "SingularHeadArtifactSubtypeSingularHead",
+                "SingularHeadBattleSubtypeSingularHead",
+                "SingularHeadCreatureSubtypeSingularHead",
+                "SingularHeadEnchantmentSubtypeSingularHead",
+                "SingularHeadLandSubtypeSingularHead",
+                "SingularHeadPlaneswalkerSubtypeSingularHead",
+                "SingularHeadSpellSubtypeSingularHead",
+                "PluralHeadCommonPluralHead",
+                "PluralHeadTypePluralHead",
+                "PluralHeadArtifactSubtypePluralHead",
+                "PluralHeadBattleSubtypePluralHead",
+                "PluralHeadCreatureSubtypePluralHead",
+                "PluralHeadEnchantmentSubtypePluralHead",
+                "PluralHeadLandSubtypePluralHead",
+                "PluralHeadPlaneswalkerSubtypePluralHead",
+                "PluralHeadSpellSubtypePluralHead",
+                "NominalModifierColorModifier",
+                "NominalModifierStatusModifier",
+                "NominalModifierSupertypeModifier",
+                "NominalModifierCommonNounModifier",
+                "NominalModifierTypeModifier",
+                "NominalModifierArtifactSubtypeModifier",
+                "NominalModifierBattleSubtypeModifier",
+                "NominalModifierCreatureSubtypeModifier",
+                "NominalModifierEnchantmentSubtypeModifier",
+                "NominalModifierLandSubtypeModifier",
+                "NominalModifierPlaneswalkerSubtypeModifier",
+                "NominalModifierSpellSubtypeModifier",
+                "NominalModifierNonColorModifier",
+                "NominalModifierNonCommonNounModifier",
+                "NominalModifierNonStatusModifier",
+                "NominalModifierNonSupertypeModifier",
+                "NominalModifierNonTypeModifier",
+                "NominalModifierNonArtifactSubtypeModifier",
+                "NominalModifierNonBattleSubtypeModifier",
+                "NominalModifierNonCreatureSubtypeModifier",
+                "NominalModifierNonEnchantmentSubtypeModifier",
+                "NominalModifierNonLandSubtypeModifier",
+                "NominalModifierNonPlaneswalkerSubtypeModifier",
+                "NominalModifierNonSpellSubtypeModifier",
+                "SingularNominalBareSingularNominal",
+                "SingularNominalModifiedSingularNominal",
+                "PluralNominalBarePluralNominal",
+                "PluralNominalModifiedPluralNominal",
+                "SingularSelectorUnmarkedSingularSelector",
+                "SingularSelectorTargetSingularSelector",
+                "SingularSelectorOtherSingularSelector",
+                "SingularSelectorOtherTargetSingularSelector",
+                "PluralSelectorUnmarkedPluralSelector",
+                "PluralSelectorTargetPluralSelector",
+                "PluralSelectorOtherPluralSelector",
+                "PluralSelectorOtherTargetPluralSelector",
+                "NounPhraseIndefiniteReference [form an]",
+                "NounPhraseIndefiniteReference [form a]",
+                "NounPhraseNamedCardReference",
+                "NounPhraseOrdinarySingularReference",
+                "NounPhraseOrdinaryPluralReference",
+                "NounPhraseDefiniteSingularReference",
+                "NounPhraseDefinitePluralReference",
+                "NounPhraseAnyTargetReference",
+                "NounPhraseAnotherReference",
+                "NounPhraseEachReference",
+                "NounPhraseAllReference",
+                "NounPhraseFixedReference",
+                "NounPhraseVariableReference",
+                "NounPhraseUpToOneReference",
+                "NounPhraseUpToManyReference",
+                "NounPhraseAnyNumberReference",
+                "NounPhraseOneOrMoreReference",
+                "NounPhraseThisReference",
+                "NounPhraseThatReference",
+                "NounPhraseThoseReference",
+                "NounPhraseDesignatedSingularReference",
+                "NounPhraseDesignatedPluralReference",
+                "NounPhraseChosenQualityReference",
+                "NounPhrasePossessedSingularReference",
+                "NounPhrasePossessedPluralReference",
+                "NounPhrasePossessiveAbsoluteReference",
                 "NounPhraseSelfReference",
                 "NounPhraseCount",
                 "PossessiveOwnerPossessiveSelfReference",
@@ -2526,22 +2787,62 @@ mod tests {
                 "Literal(\"the\")",
                 "Literal(\"number\")",
                 "Literal(\"of\")",
-                "Pronoun",
-                "Literal(\"an\")",
-                "DeclarationNoun(7, Exact(Singular))",
-                "Literal(\"a\")",
-                "Literal(\"named\")",
-                "CatalogIdentity(9)",
-                "Demonstrative",
-                "DeclarationNoun(7, Any)",
+                "SubjectPronoun",
+                "ObjectPronoun",
+                "ReflexivePronoun",
+                "Noun(Exact(Singular))",
+                "DeclarationNoun(15, Exact(Singular))",
+                "DeclarationNoun(16, Exact(Singular))",
+                "DeclarationNoun(17, Exact(Singular))",
+                "DeclarationNoun(18, Exact(Singular))",
+                "DeclarationNoun(19, Exact(Singular))",
+                "DeclarationNoun(20, Exact(Singular))",
+                "DeclarationNoun(21, Exact(Singular))",
+                "DeclarationNoun(22, Exact(Singular))",
+                "Noun(Exact(Plural))",
+                "DeclarationNoun(15, Exact(Plural))",
+                "DeclarationNoun(16, Exact(Plural))",
+                "DeclarationNoun(17, Exact(Plural))",
+                "DeclarationNoun(18, Exact(Plural))",
+                "DeclarationNoun(19, Exact(Plural))",
+                "DeclarationNoun(20, Exact(Plural))",
+                "DeclarationNoun(21, Exact(Plural))",
+                "DeclarationNoun(22, Exact(Plural))",
+                "Color",
+                "Status",
+                "Supertype",
+                "Literal(\"non\")",
+                "NonCommonNoun",
+                "Literal(\"non-\")",
                 "Literal(\"target\")",
+                "Literal(\"other\")",
+                "Literal(\"an\")",
+                "Literal(\"a\")",
+                "Literal(\"card\")",
+                "Literal(\"named\")",
+                "CatalogIdentity(24)",
+                "Literal(\"any\")",
+                "Literal(\"another\")",
+                "Literal(\"each\")",
+                "Literal(\"all\")",
+                "Literal(\"up\")",
+                "Literal(\"to\")",
+                "Literal(\"one\")",
+                "Literal(\"or\")",
+                "Literal(\"more\")",
+                "Literal(\"this\")",
+                "Literal(\"that\")",
+                "Literal(\"those\")",
+                "Designation",
+                "Literal(\"chosen\")",
+                "ChosenQuality",
+                "PossessiveDeterminerPronoun",
+                "PossessiveAbsolutePronoun",
                 "SelfReference",
-                "DeclarationNoun(7, Exact(Plural))",
                 "Verb(Control, Exact(Bare))",
                 "Literal(\"with\")",
                 "Literal(\"power\")",
                 "ScalarNumber",
-                "Literal(\"or\")",
                 "Literal(\"less\")",
                 "Literal(\"'s\")",
                 "Literal(\"'\")",
@@ -2549,7 +2850,6 @@ mod tests {
                 "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Connive\", position: Verb, feature: Any })",
                 "Verb(Deal, Any)",
                 "Literal(\"damage\")",
-                "Literal(\"to\")",
                 "Verb(Gain, Any)",
                 "Literal(\"life\")",
                 "CardinalNumber",
@@ -2568,33 +2868,39 @@ mod tests {
                 "TriggerWord(Whenever)",
             ),
             (
-                Leaf::Demonstrative(Demonstrative::That),
-                "Demonstrative(That)",
+                Leaf::SubjectPronoun(SubjectPronoun::They),
+                "SubjectPronoun(They)",
             ),
             (
-                Leaf::Demonstrative(Demonstrative::Those),
-                "Demonstrative(Those)",
+                Leaf::ObjectPronoun(ObjectPronoun::Them),
+                "ObjectPronoun(Them)",
             ),
-            (Leaf::Pronoun(Pronoun::It), "Pronoun(It)"),
-            (Leaf::Pronoun(Pronoun::You), "Pronoun(You)"),
+            (
+                Leaf::SubjectPronoun(SubjectPronoun::It),
+                "SubjectPronoun(It)",
+            ),
+            (
+                Leaf::ObjectPronoun(ObjectPronoun::You),
+                "ObjectPronoun(You)",
+            ),
             (Leaf::Variable(Variable::X), "Variable(X)"),
             (
                 Leaf::Noun {
-                    noun: Noun::Lexeme(NounLexeme::Player),
+                    noun: CommonNoun::Player,
                     number: super::Number::Singular,
                     onset: Onset::Consonant,
                     possessive_ending: PossessiveEnding::Other,
                 },
-                "Noun { noun: Lexeme(Player), number: Singular, onset: Consonant, possessive_ending: Other }",
+                "Noun { noun: Player, number: Singular, onset: Consonant, possessive_ending: Other }",
             ),
             (
                 Leaf::Noun {
-                    noun: Noun::Lexeme(NounLexeme::Player),
+                    noun: CommonNoun::Player,
                     number: super::Number::Plural,
                     onset: Onset::Consonant,
                     possessive_ending: PossessiveEnding::EndsInS,
                 },
-                "Noun { noun: Lexeme(Player), number: Plural, onset: Consonant, possessive_ending: EndsInS }",
+                "Noun { noun: Player, number: Plural, onset: Consonant, possessive_ending: EndsInS }",
             ),
             (
                 Leaf::Declaration(DeclarationLeaf {
@@ -2907,17 +3213,17 @@ mod tests {
             environment.surface(&id, SurfaceFeature::Plural),
             Some("creatures")
         );
-        let identity =
-            DeclarationNoun::from_reading(id).expect("Type is an allowed declaration noun kind");
-        let value = Leaf::Noun {
-            noun: Noun::Declaration(identity),
+        let identity = DeclarationTypeNoun::from_reading(id)
+            .expect("Type is an allowed declaration noun kind");
+        let value = Leaf::TypeNoun {
+            noun: TypeNoun::Declaration(identity),
             number: super::Number::Plural,
             onset: Onset::Consonant,
             possessive_ending: PossessiveEnding::EndsInS,
         };
         assert_eq!(
             value_label_v1(&value),
-            "Noun { noun: Declaration(DeclarationNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" } }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
+            "TypeNoun { noun: Declaration(DeclarationTypeNoun { id: DeclarationIdentity { kind: Type, name: \"Creature\" } }), number: Plural, onset: Consonant, possessive_ending: EndsInS }"
         );
     }
 

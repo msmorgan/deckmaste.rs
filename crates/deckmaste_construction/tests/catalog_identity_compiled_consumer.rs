@@ -6,8 +6,9 @@
 mod catalog_fixture {
     use std::sync::Arc;
 
-    use RulePosition::Lexical as L;
     use deckmaste_construction::constructions;
+
+    use RulePosition::Lexical as L;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum RulePosition<Category, Lexical> {
