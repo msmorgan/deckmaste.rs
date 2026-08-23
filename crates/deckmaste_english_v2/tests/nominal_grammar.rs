@@ -27,6 +27,8 @@ use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
+use deckmaste_english_v2::parser::ParseAnalysisOutcome;
+use deckmaste_english_v2::parser::ParseError;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::SelectionDecisive;
 use deckmaste_english_v2::parser::SelectionResolution;
@@ -2467,10 +2469,6 @@ fn restricted_nominal_postmodifiers_and_comparison_families_parse() {
 
     for (text, reason) in [
         (
-            "Destroy target creature that entered this turn.",
-            "general event relatives remain ordinary Plan 08 parse failures",
-        ),
-        (
             "Destroy target creature with power 2 or fewer.",
             "scalar syntax cannot select the countable fewer family",
         ),
@@ -2505,6 +2503,36 @@ fn restricted_nominal_postmodifiers_and_comparison_families_parse() {
     ] {
         assert!(parser.parse(text, &context).is_err(), "{reason}: {text:?}");
     }
+}
+
+fn assert_ordinary_parse_failure(error: &ParseError) {
+    assert!(
+        matches!(error, ParseError::Failure { .. }),
+        "must be an ordinary parse failure, got {error:?}",
+    );
+}
+
+#[test]
+fn general_event_relative_remains_an_exact_ordinary_parse_failure() {
+    let parser = parser();
+    let context = context("Context Card");
+    let text = "Destroy target creature that entered this turn.";
+    let analysis = parser.analyze(text, &context);
+
+    assert_eq!(analysis.outcome(), ParseAnalysisOutcome::ParseFailure);
+    let error = analysis
+        .into_parse_result()
+        .expect_err("general event relatives remain outside Task 10");
+    assert_ordinary_parse_failure(&error);
+}
+
+#[test]
+#[should_panic(expected = "must be an ordinary parse failure")]
+fn ordinary_parse_failure_assertion_rejects_unresolved_ambiguity() {
+    assert_ordinary_parse_failure(&ParseError::Ambiguous {
+        first: "BroadRelative",
+        second: "RestrictedPostmodifier",
+    });
 }
 
 #[test]

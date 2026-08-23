@@ -767,6 +767,47 @@ mod tests {
         found
     }
 
+    #[test]
+    fn task10_removed_hardcoded_count_path_has_no_rust_source_residue() {
+        let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let mut paths = discover_rust_sources(&workspace_root.join("crates/deckmaste_english_v2"));
+        let xtask_src = workspace_root.join("crates/xtask/src");
+        paths.extend(discover_rust_sources(&xtask_src.join("english_v2")));
+        paths.push(xtask_src.join("english_v2.rs"));
+        paths.sort();
+        paths.dedup();
+
+        let forbidden_identifiers = [["Count", "Np"].concat(), ["count", "_np"].concat()];
+        let count_construction = ["construction ", "count"].concat();
+        let mut violations = Vec::new();
+        for path in paths {
+            let source = fs::read_to_string(&path)
+                .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+            for identifier in &forbidden_identifiers {
+                if source.contains(identifier) {
+                    violations.push(format!("{} contains {identifier}", path.display()));
+                }
+            }
+            if source.match_indices(&count_construction).any(|(start, _)| {
+                source[start + count_construction.len()..]
+                    .chars()
+                    .next()
+                    .is_none_or(|next| !next.is_alphanumeric() && next != '_')
+            }) {
+                violations.push(format!(
+                    "{} contains a construction named count",
+                    path.display(),
+                ));
+            }
+        }
+
+        assert!(
+            violations.is_empty(),
+            "deleted hardcoded count-path residue:\n{}",
+            violations.join("\n"),
+        );
+    }
+
     fn parse_rust_sources(paths: &[PathBuf]) -> Vec<(String, syn::File)> {
         paths
             .iter()

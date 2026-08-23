@@ -1055,7 +1055,7 @@ constructions! {
         element VariableReference { count: lex Variable, selector: PluralSelector, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
-        derive onset = Values::Consonant;
+        derive onset = count.onset;
         form variable_reference = lex(count) selector;
     }
     construction up_to_one_reference: NounPhrase {
@@ -1558,5 +1558,38 @@ mod task9_feature_tests {
         assert_eq!(agreement_for_noun_phrase(&plural_shared), Agreement::Bare);
         assert_eq!(number_for_noun_phrase(&full_np), Number::Plural);
         assert_eq!(agreement_for_noun_phrase(&full_np), Agreement::Bare);
+    }
+}
+
+#[cfg(test)]
+mod task10_feature_tests {
+    use super::*;
+
+    fn variable_reference(count: Variable) -> NounPhrase {
+        NounPhrase::VariableReference(VariableReference {
+            count,
+            selector: PluralSelector::UnmarkedPluralSelector(UnmarkedPluralSelector {
+                nominal: PluralNominal::BarePluralNominal(BarePluralNominal {
+                    head: PluralHead::CommonPluralHead(CommonPluralHead {
+                        noun: CommonNoun::Player,
+                    }),
+                }),
+            }),
+        })
+    }
+
+    #[test]
+    fn variable_reference_onset_is_derived_from_its_count_lexeme() {
+        let context = ParseContext::new("Context Card").expect("test context is valid");
+        let environment = crate::environment::canonical_test_environment();
+
+        assert_eq!(
+            onset_for_noun_phrase(&variable_reference(Variable::X), &context, &environment),
+            Onset::Vowel,
+        );
+        assert_eq!(
+            onset_for_noun_phrase(&variable_reference(Variable::Y), &context, &environment),
+            Onset::Consonant,
+        );
     }
 }
