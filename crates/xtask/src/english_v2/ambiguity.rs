@@ -205,8 +205,12 @@ struct AmbiguityRow {
 impl AmbiguityRow {
     fn from_unit(unit: &CorpusUnit, parser: &Parser) -> Self {
         let mut row = Self::base(unit);
-        let context = ParseContext::new(unit.context_name())
-            .expect("corpus admission validates every parser context");
+        let context = ParseContext::new(
+            unit.context_name(),
+            unit.is_legendary(),
+            unit.context_onset(),
+        )
+        .expect("corpus admission validates every parser context");
 
         let analysis = parser.analyze_oracle_text(unit.text(), &context);
         row.decision = analysis.decision().map(SelectionDecision::from_parser);

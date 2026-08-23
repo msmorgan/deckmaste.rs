@@ -58,7 +58,8 @@ fn parser() -> Parser {
 }
 
 fn context(name: &str) -> ParseContext<'_> {
-    ParseContext::new(name).expect("test card name is a valid parse context")
+    ParseContext::new(name, false, Onset::Consonant)
+        .expect("test card name is a valid parse context")
 }
 
 #[derive(Default)]

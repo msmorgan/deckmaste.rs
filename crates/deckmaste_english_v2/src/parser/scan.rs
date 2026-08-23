@@ -1122,7 +1122,12 @@ mod tests {
     }
 
     fn context(card_name: &str) -> ParseContext<'_> {
-        ParseContext::new(card_name).expect("test card names are valid parse contexts")
+        ParseContext::new(
+            card_name,
+            card_name == "Zacama, Primal Calamity",
+            macro_ron::v2::Onset::Consonant,
+        )
+        .expect("test card names are valid parse contexts")
     }
 
     #[test]
@@ -3207,6 +3212,14 @@ mod tests {
                     ),
                 ],
             ),
+            (
+                "Fear, Fire, Foes!",
+                vec![(
+                    "Fear, Fire, Foes!",
+                    SelfReferenceSpelling::Full,
+                    "identity:SelfReferenceSpelling/Full",
+                )],
+            ),
         ];
 
         for (card_name, spellings) in cases {
@@ -3244,7 +3257,8 @@ mod tests {
                         terminal,
                     );
                     let expected_count = 1 + usize::from(
-                        card_name.contains(',') && spelling == SelfReferenceSpelling::Full,
+                        context.abbreviated_card_name() != context.card_name()
+                            && spelling == SelfReferenceSpelling::Full,
                     );
                     assert_eq!(matches.len(), expected_count, "{text:?} at {case:?}");
                     let selected_match = matches

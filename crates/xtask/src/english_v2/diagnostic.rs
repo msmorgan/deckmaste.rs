@@ -3062,7 +3062,8 @@ mod tests {
     }
 
     fn trace(text: &str, context: &str, limit: usize) -> ParserTrace {
-        let context = ParseContext::new(context).expect("fixture context is valid");
+        let context = ParseContext::new(context, false, macro_ron::v2::Onset::Consonant)
+            .expect("fixture context is valid");
         parser().trace(text, &context, TraceLimits::new(limit))
     }
 
@@ -3940,7 +3941,8 @@ mod tests {
 
     #[test]
     fn source_view_maps_runtime_ownership_inspection_failure() {
-        let context = ParseContext::new("Probe Card").expect("fixture context is valid");
+        let context = ParseContext::new("Probe Card", false, macro_ron::v2::Onset::Consonant)
+            .expect("fixture context is valid");
         let runtime = parser().trace_with_ownership_inspection_failure_for_test(
             "Destroy target creature.",
             &context,
@@ -3968,7 +3970,8 @@ mod tests {
             assert!(std::ptr::eq(delegated.items, actual.items()));
         }
 
-        let context = ParseContext::new("Probe Card").expect("fixture context is valid");
+        let context = ParseContext::new("Probe Card", false, macro_ron::v2::Onset::Consonant)
+            .expect("fixture context is valid");
         let runtime = parser().trace_with_ownership_failure_for_test(
             "Destroy target Spirit.",
             &context,

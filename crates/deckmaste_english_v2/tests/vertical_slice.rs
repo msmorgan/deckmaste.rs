@@ -157,11 +157,21 @@ fn equipment() -> Noun {
 }
 
 fn context(card_name: &str) -> ParseContext<'_> {
-    ParseContext::new(card_name).expect("test card name is a valid parse context")
+    ParseContext::new(card_name, false, macro_ron::v2::Onset::Consonant)
+        .expect("test card name is a valid parse context")
+}
+
+fn legendary_context(card_name: &str) -> ParseContext<'_> {
+    ParseContext::new(card_name, true, macro_ron::v2::Onset::Consonant)
+        .expect("test legendary card name is a valid parse context")
 }
 
 fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SourceSelfReference {
-    let context = context(card_name);
+    let context = if spelling == SelfReferenceSpelling::Abbreviated {
+        legendary_context(card_name)
+    } else {
+        context(card_name)
+    };
     SourceSelfReference::new(spelling, &context).expect("test spelling is valid for its context")
 }
 
@@ -705,7 +715,10 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
         }),
     });
     assert_eq!(
-        value.render(&context("Zacama, Primal Calamity"), &environment()),
+        value.render(
+            &legendary_context("Zacama, Primal Calamity"),
+            &environment()
+        ),
         "Zacama deals 3 damage to target creature."
     );
 }
@@ -725,8 +738,14 @@ fn the_same_self_reference_value_renders_from_two_card_contexts() {
         }),
     });
 
-    let zacama = value.render(&context("Zacama, Primal Calamity"), &environment());
-    let zoraline = value.render(&context("Zoraline, Cosmos Caller"), &environment());
+    let zacama = value.render(
+        &legendary_context("Zacama, Primal Calamity"),
+        &environment(),
+    );
+    let zoraline = value.render(
+        &legendary_context("Zoraline, Cosmos Caller"),
+        &environment(),
+    );
 
     assert_eq!(zacama, "Zacama deals 3 damage to target creature.");
     assert_eq!(zoraline, "Zoraline deals 3 damage to target creature.");

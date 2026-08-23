@@ -970,8 +970,12 @@ where
     let mut rows = Vec::with_capacity(corpus.units().len());
     for unit in corpus.units() {
         observer.record(format!("analyze_oracle_text:{}", unit.id()));
-        let context = ParseContext::new(unit.context_name())
-            .expect("Corpus validates every stored parse context");
+        let context = ParseContext::new(
+            unit.context_name(),
+            unit.is_legendary(),
+            unit.context_onset(),
+        )
+        .expect("Corpus validates every stored parse context");
         let analysis = parser.analyze_oracle_text(unit.text(), &context);
         observer.record(format!("map_row:{}", unit.id()));
         rows.push(runtime_analysis_row(unit, &analysis));
@@ -1297,11 +1301,14 @@ fn all_test_failures() -> Vec<RuntimeOwnershipFailure> {
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
+    use std::collections::BTreeMap;
+    use std::collections::BTreeSet;
     use std::io;
     use std::io::Write;
     use std::path::Path;
     use std::rc::Rc;
 
+    use deckmaste_english_v2::context::ParseContext;
     use deckmaste_english_v2::parser::ByteMismatchScope;
     use deckmaste_english_v2::parser::InternalFailureKind;
     use deckmaste_english_v2::parser::InvalidSpanKind;
@@ -1336,8 +1343,165 @@ mod tests {
     use crate::english_v2::corpus::Corpus;
     use crate::english_v2::corpus::CorpusUnit;
 
+    const PLAN06_COVERED_IDS: &str = include_str!("plan06_covered_ids.txt");
+    const PLAN07_TARGETS: &str = include_str!("plan07_targets.tsv");
+
+    fn sha256_hex(bytes: &[u8]) -> String {
+        use std::fmt::Write as _;
+
+        use sha2::Digest as _;
+
+        sha2::Sha256::digest(bytes)
+            .iter()
+            .fold(String::new(), |mut hexadecimal, byte| {
+                write!(&mut hexadecimal, "{byte:02x}").expect("writing to String cannot fail");
+                hexadecimal
+            })
+    }
+
     fn id(digit: char) -> String {
         digit.to_string().repeat(64)
+    }
+
+    #[test]
+    fn plan07_frozen_manifest_is_selected_exact_owned_and_disjoint_on_production_data() {
+        const EXPECTED_COUNTS: [(&str, usize); 13] = [
+            ("damage.any-target", 25),
+            ("damage.binary-target-coordination", 8),
+            ("damage.each-bare-head", 7),
+            ("damage.one-prenominal-modifier", 2),
+            ("destroy.all-bare-plural", 16),
+            ("destroy.all-binary-coordination", 4),
+            ("destroy.all-one-modifier", 12),
+            ("destroy.binary-target-coordination", 17),
+            ("destroy.fixed-or-x-target-count", 7),
+            ("destroy.one-prenominal-modifier", 31),
+            ("destroy.oxford-target-list", 5),
+            ("destroy.simple-power-toughness-comparison", 9),
+            ("destroy.target-bare-carrier", 2),
+        ];
+
+        assert_eq!(
+            sha256_hex(PLAN07_TARGETS.as_bytes()),
+            "3535a10fd5bcecc86dee14c1df28d4f66478f724b0dc465945063a6efb01723d",
+        );
+        let manifest_rows = PLAN07_TARGETS
+            .lines()
+            .skip(7)
+            .filter(|line| !line.is_empty())
+            .map(|line| line.split('\t').collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        assert_eq!(manifest_rows.len(), 145);
+
+        let mut category_counts = BTreeMap::new();
+        let target_ids = manifest_rows
+            .iter()
+            .map(|fields| {
+                *category_counts.entry(fields[0]).or_insert(0usize) += 1;
+                fields[1]
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(target_ids.len(), 145);
+        assert_eq!(
+            category_counts.into_iter().collect::<Vec<_>>(),
+            EXPECTED_COUNTS,
+        );
+
+        let baseline_ids = PLAN06_COVERED_IDS
+            .lines()
+            .skip(6)
+            .filter(|line| !line.is_empty())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(baseline_ids.len(), 412);
+        assert!(baseline_ids.is_disjoint(&target_ids));
+
+        let data =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgjson/AtomicCards.json");
+        let corpus = Corpus::load(&data).expect("production MTGJSON corpus loads");
+        assert_eq!(
+            corpus.source_fingerprint(),
+            "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+        );
+        let plus_two_mace = corpus
+            .units()
+            .iter()
+            .find(|unit| unit.context_name() == "+2 Mace")
+            .expect("production corpus contains +2 Mace");
+        assert!(!plus_two_mace.is_legendary());
+        assert_eq!(
+            plus_two_mace.context_onset(),
+            macro_ron::v2::Onset::Consonant
+        );
+        let aang = corpus
+            .units()
+            .iter()
+            .find(|unit| unit.context_name() == "Aang, A Lot to Learn")
+            .expect("production corpus contains the legendary Aang witness");
+        assert!(aang.is_legendary());
+        assert_eq!(aang.context_onset(), macro_ron::v2::Onset::Vowel);
+        let parser = crate::english_v2::parser_from_builtin_v2()
+            .expect("production English-v2 parser environment loads");
+        let mut coverage_rows = Vec::with_capacity(manifest_rows.len());
+
+        for fields in manifest_rows {
+            let [_, id, card_name, face_name, side, context_name, text] = fields.as_slice() else {
+                panic!("frozen manifest row has seven columns: {fields:?}");
+            };
+            let unit = corpus
+                .units()
+                .iter()
+                .find(|unit| unit.id() == *id)
+                .unwrap_or_else(|| panic!("production corpus contains frozen ID {id}"));
+            assert_eq!(unit.card_name(), *card_name, "{id}");
+            assert_eq!(unit.face_name().unwrap_or_default(), *face_name, "{id}");
+            assert_eq!(unit.side().unwrap_or_default(), *side, "{id}");
+            assert_eq!(unit.context_name(), *context_name, "{id}");
+            assert_eq!(unit.text(), *text, "{id}");
+
+            let context = ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .unwrap_or_else(|| panic!("frozen production context is valid for {id}"));
+            let analysis = parser.analyze_oracle_text(unit.text(), &context);
+            let row = super::runtime_analysis_row(unit, &analysis);
+            assert_eq!(row.status(), CoverageStatus::SelectedCovered, "{id}");
+            let selected = row
+                .selected()
+                .unwrap_or_else(|| panic!("selected evidence exists for {id}"));
+            assert_eq!(selected.rendered_text(), unit.text(), "{id}");
+            assert!(selected.ownership().covered, "{id}");
+            assert!(selected.ownership().failures().is_empty(), "{id}");
+            assert!(selected.roundtrip_failure().is_none(), "{id}");
+            coverage_rows.push(row);
+        }
+
+        let report = CoverageReport::try_new(corpus.source_fingerprint().to_owned(), coverage_rows)
+            .expect("frozen manifest coverage evidence is internally consistent");
+        assert_eq!(report.rows().len(), 145);
+        assert_eq!(report.summary().total_units(), 145);
+        assert_eq!(report.summary().selected_units(), 145);
+        assert_eq!(report.summary().covered_units(), 145);
+        assert_eq!(report.summary().selected_uncovered_units(), 0);
+        assert_eq!(report.summary().parse_failures(), 0);
+        assert_eq!(report.summary().unresolved_ties(), 0);
+        assert_eq!(report.summary().internal_failures(), 0);
+        assert_eq!(report.summary().roundtrip_mismatch_units(), 0);
+        assert_eq!(report.summary().ownership_failure_units(), 0);
+
+        let lock: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../english-v2-coverage.lock"))
+                .expect("production coverage lock parses");
+        let covered_ids = lock["covered"]
+            .as_array()
+            .expect("schema-2 lock has covered IDs")
+            .iter()
+            .map(|id| id.as_str().expect("covered ID is a string"))
+            .collect::<BTreeSet<_>>();
+        assert!(covered_ids.len() >= 557);
+        assert!(baseline_ids.is_subset(&covered_ids));
+        assert!(target_ids.is_subset(&covered_ids));
     }
 
     #[derive(Clone)]

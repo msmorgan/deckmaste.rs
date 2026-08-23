@@ -78,7 +78,12 @@ impl InspectSteps for ProductionSteps {
     }
 
     fn context<'a>(&mut self, unit: &'a Self::Unit) -> anyhow::Result<Self::Context<'a>> {
-        ParseContext::new(unit.context_name()).with_context(|| {
+        ParseContext::new(
+            unit.context_name(),
+            unit.is_legendary(),
+            unit.context_onset(),
+        )
+        .with_context(|| {
             format!(
                 "stored corpus context invariant failed for exact ID {} and context {}",
                 quoted(unit.id()),
@@ -255,7 +260,12 @@ mod tests {
             ),
         ] {
             let unit = unit(context, None, None, text);
-            let parse_context = ParseContext::new(unit.context_name()).unwrap();
+            let parse_context = ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .unwrap();
             for limit in [0, 1, 256] {
                 let probe_trace = parser.trace(text, &parse_context, TraceLimits::new(limit));
                 let inspect_trace = parser.trace(text, &parse_context, TraceLimits::new(limit));

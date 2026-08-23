@@ -147,7 +147,8 @@ mod tests {
     fn render_provenance_claims_spaces_punctuation_and_structured_terminals() {
         let environment = canonical_test_environment();
         let parser = Parser::new(environment.clone()).unwrap();
-        let context = ParseContext::new("Context Card").unwrap();
+        let context =
+            ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant).unwrap();
         let ability = parser.parse("Destroy target creature.", &context).unwrap();
         let (rendered, claims) =
             crate::constructions::render_ability_with_claims(&ability, &context, &environment);

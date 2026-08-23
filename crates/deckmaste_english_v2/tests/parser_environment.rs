@@ -455,7 +455,8 @@ fn parser_constructor_owns_and_clones_one_immutable_environment() {
     .expect("builtin-v2 declarations and provider compile");
     let parser = Parser::new(environment).expect("required declarations are present");
     let cloned = parser.clone();
-    let context = ParseContext::new("Context Card").expect("nonempty context");
+    let context = ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant)
+        .expect("nonempty context");
 
     assert_eq!(
         parser.parse("You gain 3 life.", &context),

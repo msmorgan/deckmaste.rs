@@ -68,15 +68,21 @@ slotmap = { version = "1.1.1", features = ["serde"] }
 # (`serde_json`), RON (`ron`, `macro_ron`), and the regex engine (`regex` plus
 # its `regex-automata`/`regex-syntax`/`aho-corasick`/`memchr` workhorses) — so
 # the tools stay fast to *run* without a release build of the whole tree (the
-# xtask alias uses the dev profile — see .cargo/config.toml). The regex crates
-# carry `resolve`'s per-line parser registry and `extract`'s per-card matching;
-# left unoptimized they were the dominant dev-only penalty (dev `resolve` ran
-# ~5x slower than release). Profile overrides only take effect from the
-# workspace root manifest, which is why they live here.
+# xtask alias uses the dev profile — see .cargo/config.toml). English v2's
+# full-corpus Plan gates likewise execute the chart for tens of thousands of
+# units, so its parser package is optimized while the orchestration crate stays
+# cheap to rebuild. The regex crates carry `resolve`'s per-line parser registry
+# and `extract`'s per-card matching; left unoptimized they were the dominant
+# dev-only penalty (dev `resolve` ran ~5x slower than release). Profile
+# overrides only take effect from the workspace root manifest, which is why
+# they live here.
 [profile.dev.package.deckmaste_migrations]
 opt-level = 2
 
 [profile.dev.package.deckmaste_english]
+opt-level = 2
+
+[profile.dev.package.deckmaste_english_v2]
 opt-level = 2
 
 [profile.dev.package.serde_json]

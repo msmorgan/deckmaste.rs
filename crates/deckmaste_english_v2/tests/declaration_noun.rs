@@ -48,7 +48,8 @@ fn declaration_noun_admits_dynamic_type_and_subtype_rows_without_catalogs() {
             r#"Subtype(category:Creature,name:"Wug",spelling:"Wug",grammar:Noun(singular:"Wug"))"#,
         ),
     ]);
-    let context = ParseContext::new("Context Card").expect("valid context");
+    let context = ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant)
+        .expect("valid context");
     for text in [
         "Destroy target relic.",
         "Destroy target Wug.",
@@ -82,7 +83,8 @@ fn declaration_noun_admits_dynamic_type_and_subtype_rows_without_catalogs() {
 #[test]
 fn rend_spirit_is_the_reviewed_declaration_noun_corpus_delta() {
     let parser = parser_with([]);
-    let context = ParseContext::new("Rend Spirit").expect("valid card context");
+    let context = ParseContext::new("Rend Spirit", false, macro_ron::v2::Onset::Consonant)
+        .expect("valid card context");
     let text = "Destroy target Spirit.";
 
     let parsed = parser.parse(text, &context).expect("Rend Spirit parses");

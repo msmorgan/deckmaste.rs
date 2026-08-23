@@ -1580,7 +1580,8 @@ mod task10_feature_tests {
 
     #[test]
     fn variable_reference_onset_is_derived_from_its_count_lexeme() {
-        let context = ParseContext::new("Context Card").expect("test context is valid");
+        let context = ParseContext::new("Context Card", false, Onset::Consonant)
+            .expect("test context is valid");
         let environment = crate::environment::canonical_test_environment();
 
         assert_eq!(
@@ -1591,5 +1592,38 @@ mod task10_feature_tests {
             onset_for_noun_phrase(&variable_reference(Variable::Y), &context, &environment),
             Onset::Consonant,
         );
+    }
+
+    #[test]
+    fn self_reference_onset_is_the_explicit_context_realization_fact() {
+        let environment = crate::environment::canonical_test_environment();
+        for (name, is_legendary, onset, spelling) in [
+            (
+                "+2 Mace",
+                false,
+                Onset::Consonant,
+                SelfReferenceSpelling::Full,
+            ),
+            (
+                "Aang, A Lot to Learn",
+                true,
+                Onset::Vowel,
+                SelfReferenceSpelling::Abbreviated,
+            ),
+        ] {
+            let context = ParseContext::new(name, is_legendary, onset)
+                .expect("nonempty opaque card-name context is valid");
+            let reference = SourceSelfReference::new(spelling, &context)
+                .expect("chosen spelling is licensed by the context");
+            assert_eq!(
+                onset_for_noun_phrase(
+                    &NounPhrase::SelfReference(reference),
+                    &context,
+                    &environment,
+                ),
+                onset,
+                "{name}",
+            );
+        }
     }
 }

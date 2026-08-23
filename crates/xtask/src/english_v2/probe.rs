@@ -60,9 +60,15 @@ impl ProbeSteps for ProductionSteps {
     }
 
     fn context<'a>(&mut self, name: &'a str) -> anyhow::Result<Self::Context<'a>> {
-        ParseContext::new(name).with_context(|| {
+        anyhow::ensure!(
+            !name.is_empty(),
+            "invalid --context \"\"; expected a nonempty parser context"
+        );
+        let onset = super::catalog_surface_onset(name)
+            .with_context(|| format!("normalizing opaque card-name onset for {name:?}"))?;
+        ParseContext::new(name, false, onset).with_context(|| {
             format!(
-                "invalid --context {}; expected a nonempty parser context with a nonempty comma abbreviation",
+                "invalid --context {}; expected a nonempty parser context",
                 quoted(name)
             )
         })
@@ -275,7 +281,11 @@ mod tests {
     fn validation_errors_are_context_rich_and_nonzero() {
         for (text, context, needle) in [
             ("Destroy target creature.", "", "--context"),
-            ("Destroy target creature.", ", Invalid", "--context"),
+            (
+                "Destroy target creature.",
+                ", Invalid",
+                "normalizing opaque card-name onset",
+            ),
         ] {
             let error = run(&args(text, context), &mut Vec::new()).unwrap_err();
             assert!(error.to_string().contains(needle), "{error:#}");

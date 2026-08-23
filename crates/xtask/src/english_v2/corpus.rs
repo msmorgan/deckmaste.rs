@@ -6,6 +6,7 @@ use anyhow::Context;
 use anyhow::ensure;
 use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v2::context::ParseContext;
+use macro_ron::v2::Onset;
 use sha2::Digest;
 use sha2::Sha256;
 
@@ -18,6 +19,8 @@ pub(super) struct CorpusUnit {
     face_name: Option<String>,
     side: Option<String>,
     context_name: String,
+    is_legendary: bool,
+    context_onset: Onset,
     text: String,
 }
 
@@ -40,6 +43,14 @@ impl CorpusUnit {
 
     pub(super) fn context_name(&self) -> &str {
         &self.context_name
+    }
+
+    pub(super) const fn is_legendary(&self) -> bool {
+        self.is_legendary
+    }
+
+    pub(super) const fn context_onset(&self) -> Onset {
+        self.context_onset
     }
 
     pub(super) fn text(&self) -> &str {
@@ -82,21 +93,36 @@ impl Corpus {
             .values()
             .flat_map(|cards| cards.iter())
             .filter(|card| card.vintage_playable())
-            .map(|card| {
+            .map(|card| -> anyhow::Result<_> {
                 let card_name = card.name.to_string();
                 let face_name = card.face_name.as_deref().map(str::to_owned);
                 let side = card.side.as_deref().map(str::to_owned);
                 let context_name = face_name.clone().unwrap_or_else(|| card_name.clone());
+                let is_legendary = card
+                    .supertypes
+                    .iter()
+                    .any(|supertype| supertype.as_str() == "Legendary");
+                let context_onset = if context_name.is_empty() {
+                    // ParseContext rejects the empty name before this onset can
+                    // participate in any realization.
+                    Onset::Consonant
+                } else {
+                    super::catalog_surface_onset(&context_name).with_context(|| {
+                        format!("normalizing opaque card-name onset for {context_name:?}")
+                    })?
+                };
                 let text = normalize_oracle_text(card.text.as_deref().unwrap_or_default());
-                corpus_unit(
+                Ok(corpus_unit(
                     &card_name,
                     face_name.as_deref(),
                     side.as_deref(),
                     &context_name,
+                    is_legendary,
+                    context_onset,
                     &text,
-                )
+                ))
             })
-            .collect::<Vec<_>>();
+            .collect::<anyhow::Result<Vec<_>>>()?;
         units.sort_by(|left, right| corpus_sort_key(left).cmp(&corpus_sort_key(right)));
         validate_contexts(&units)?;
 
@@ -139,16 +165,17 @@ fn quoted(value: &str) -> String {
 
 fn validate_contexts(units: &[CorpusUnit]) -> anyhow::Result<()> {
     for unit in units {
-        if ParseContext::new(unit.context_name()).is_some() {
+        if ParseContext::new(
+            unit.context_name(),
+            unit.is_legendary(),
+            unit.context_onset(),
+        )
+        .is_some()
+        {
             continue;
         }
-        let reason = if unit.context_name().is_empty() {
-            "context name is empty"
-        } else {
-            "card-name abbreviation before comma is empty"
-        };
         anyhow::bail!(
-            "invalid parser context: {reason}; card name {:?}, face name {:?}, side {:?}",
+            "invalid parser context: context name is empty; card name {:?}, face name {:?}, side {:?}",
             unit.card_name(),
             unit.face_name(),
             unit.side(),
@@ -162,6 +189,8 @@ fn corpus_unit(
     face_name: Option<&str>,
     side: Option<&str>,
     context_name: &str,
+    is_legendary: bool,
+    context_onset: Onset,
     text: &str,
 ) -> CorpusUnit {
     let mut hasher = Sha256::new();
@@ -183,6 +212,8 @@ fn corpus_unit(
         face_name: face_name.map(str::to_owned),
         side: side.map(str::to_owned),
         context_name: context_name.to_owned(),
+        is_legendary,
+        context_onset,
         text: text.to_owned(),
     }
 }
@@ -248,6 +279,8 @@ impl CorpusUnit {
             None,
             None,
             card_name,
+            false,
+            super::catalog_surface_onset(card_name).unwrap_or(Onset::Consonant),
             &normalize_oracle_text(text),
         )
     }
@@ -264,6 +297,8 @@ impl CorpusUnit {
             face_name,
             side,
             context_name,
+            false,
+            super::catalog_surface_onset(context_name).unwrap_or(Onset::Consonant),
             &normalize_oracle_text(text),
         )
     }
@@ -394,6 +429,35 @@ mod tests {
     }
 
     #[test]
+    fn corpus_threads_authoritative_legendary_face_metadata() {
+        let snapshot = br#"{"data":{
+            "Aang, A Lot to Learn":[{
+                "name":"Aang, A Lot to Learn", "layout":"normal",
+                "types":["Creature"], "supertypes":["Legendary"], "subtypes":[],
+                "legalities":{"vintage":"Legal"}, "text":"Aang gains 2 life."
+            }],
+            "Fear, Fire, Foes!":[{
+                "name":"Fear, Fire, Foes!", "layout":"normal",
+                "types":["Sorcery"], "supertypes":[], "subtypes":[],
+                "legalities":{"vintage":"Legal"}, "text":"Fear, Fire, Foes! deals 1 damage to any target."
+            }]
+        }}"#;
+        let corpus = Corpus::from_bytes(snapshot).expect("metadata fixture loads");
+        let legendary = corpus
+            .units()
+            .iter()
+            .find(|unit| unit.context_name() == "Aang, A Lot to Learn")
+            .expect("legendary row exists");
+        let ordinary = corpus
+            .units()
+            .iter()
+            .find(|unit| unit.context_name() == "Fear, Fire, Foes!")
+            .expect("nonlegendary row exists");
+        assert!(legendary.is_legendary());
+        assert!(!ordinary.is_legendary());
+    }
+
+    #[test]
     fn corpus_retains_an_explicit_empty_text_face() {
         let snapshot = br#"{"data":{"Explicit Empty":[{"name":"Explicit Empty","layout":"normal","types":["Creature"],"supertypes":[],"subtypes":[],"legalities":{"vintage":"Legal"},"text":""}]}}"#;
 
@@ -404,29 +468,21 @@ mod tests {
     }
 
     #[test]
-    fn corpus_rejects_context_names_that_cannot_construct_parse_contexts() {
-        for (name, expected_reason) in [
-            ("", "context name is empty"),
-            (", Leading", "card-name abbreviation before comma is empty"),
-        ] {
-            let snapshot = format!(
-                r#"{{"data": {{"Fixture": [{{"name": "{name}", "layout": "normal", "types": ["Creature"], "supertypes": [], "subtypes": [], "legalities": {{"vintage": "Legal"}}, "text": "Fixture text."}}]}}}}"#
-            );
+    fn corpus_rejects_only_empty_parse_contexts() {
+        let snapshot = br#"{"data":{"Fixture":[{"name":"","layout":"normal","types":["Creature"],"supertypes":[],"subtypes":[],"legalities":{"vintage":"Legal"},"text":"Fixture text."}]}}"#;
 
-            let error = Corpus::from_bytes(snapshot.as_bytes())
-                .expect_err("invalid parser context must reject the MTGJSON source")
-                .to_string();
+        let error = Corpus::from_bytes(snapshot)
+            .expect_err("empty parser context must reject the MTGJSON source")
+            .to_string();
 
-            assert!(error.contains("invalid parser context"));
-            assert!(error.contains(expected_reason));
-            assert!(error.contains(&format!("card name {name:?}")));
-        }
+        assert!(error.contains("invalid parser context"));
+        assert!(error.contains("context name is empty"));
+        assert!(error.contains("card name \"\""));
     }
 
     #[test]
     #[should_panic(expected = "invalid parser context")]
     fn test_corpus_constructor_rejects_invalid_contexts() {
-        let _ =
-            Corpus::from_units_for_test(vec![CorpusUnit::for_test(", Leading", "Fixture text.")]);
+        let _ = Corpus::from_units_for_test(vec![CorpusUnit::for_test("", "Fixture text.")]);
     }
 }

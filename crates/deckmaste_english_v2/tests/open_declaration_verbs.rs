@@ -64,7 +64,8 @@ fn parser() -> Parser {
 }
 
 fn context() -> ParseContext<'static> {
-    ParseContext::new("Context Card").expect("context is valid")
+    ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant)
+        .expect("context is valid")
 }
 
 #[test]

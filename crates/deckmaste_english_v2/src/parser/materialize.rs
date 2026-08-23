@@ -937,7 +937,16 @@ mod tests {
     }
 
     fn context(card_name: &str) -> ParseContext<'_> {
-        ParseContext::new(card_name).expect("test card names are valid parse contexts")
+        ParseContext::new(
+            card_name,
+            card_name == "Zacama, Primal Calamity",
+            if card_name == "Artifact Avatar" {
+                macro_ron::v2::Onset::Vowel
+            } else {
+                macro_ron::v2::Onset::Consonant
+            },
+        )
+        .expect("test card names are valid parse contexts")
     }
 
     fn assert_acyclic_number_survives(forest: &Forest<RuleId, Leaf>) {

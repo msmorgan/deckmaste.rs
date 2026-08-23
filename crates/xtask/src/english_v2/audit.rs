@@ -138,7 +138,11 @@ fn audit_unit(unit: &CorpusUnit, parser: &Parser) -> AuditRow {
         message: None,
     };
 
-    let Some(context) = ParseContext::new(unit.context_name()) else {
+    let Some(context) = ParseContext::new(
+        unit.context_name(),
+        unit.is_legendary(),
+        unit.context_onset(),
+    ) else {
         row.message = Some("parse context did not materialize".to_owned());
         return row;
     };
@@ -306,7 +310,8 @@ mod tests {
 
     #[test]
     fn authored_build_rejection_counts_as_parse_failure_not_internal_failure() {
-        let context = ParseContext::new("Context Card").expect("test context is valid");
+        let context = ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant)
+            .expect("test context is valid");
         let error = parser()
             .analyze_oracle_text("You gain X life, a player connives.", &context)
             .into_parse_result()

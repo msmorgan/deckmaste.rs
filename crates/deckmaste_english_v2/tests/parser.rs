@@ -49,7 +49,13 @@ fn parser() -> Parser {
 }
 
 fn context(card_name: &str) -> ParseContext<'_> {
-    ParseContext::new(card_name).expect("test card name is a valid parse context")
+    ParseContext::new(card_name, false, Onset::Consonant)
+        .expect("test card name is a valid parse context")
+}
+
+fn legendary_context(card_name: &str) -> ParseContext<'_> {
+    ParseContext::new(card_name, true, Onset::Consonant)
+        .expect("test legendary card name is a valid parse context")
 }
 
 fn single_paragraph(oracle_text: &OracleText) -> &Paragraph {
@@ -280,7 +286,11 @@ fn oracle_text_parses_all_eight_two_sentence_faces_as_one_ordered_paragraph() {
             "You gain 2 life.",
         ),
     ] {
-        let context = context(card_name);
+        let context = if card_name == "Zacama, Primal Calamity" {
+            legendary_context(card_name)
+        } else {
+            context(card_name)
+        };
         let parsed = parser
             .parse_oracle_text(text, &context)
             .unwrap_or_else(|error| panic!("{card_name} must parse: {error:?}"));
@@ -385,7 +395,11 @@ fn oracle_text_trace_retains_its_exact_value_type_and_root_name() {
 }
 
 fn self_reference(spelling: SelfReferenceSpelling, card_name: &str) -> SourceSelfReference {
-    let context = context(card_name);
+    let context = if spelling == SelfReferenceSpelling::Abbreviated {
+        legendary_context(card_name)
+    } else {
+        context(card_name)
+    };
     SourceSelfReference::new(spelling, &context).expect("test spelling is valid for its context")
 }
 
@@ -516,14 +530,60 @@ fn self_reference_spelling_variants_remain_publicly_importable() {
 }
 
 #[test]
-fn parse_context_rejects_empty_self_names_and_abbreviations() {
-    assert!(ParseContext::new("").is_none());
-    assert!(ParseContext::new(", the Empty Prefix").is_none());
+fn parse_context_rejects_only_empty_self_names() {
+    assert!(ParseContext::new("", false, Onset::Consonant).is_none());
+    assert!(ParseContext::new(", the Empty Prefix", false, Onset::Consonant).is_some());
+}
+
+#[test]
+fn parse_context_uses_opaque_full_names_and_legendary_only_short_forms() {
+    let opaque = ParseContext::new("+2 Mace", false, Onset::Consonant)
+        .expect("every nonempty full name is opaque");
+    assert_eq!(opaque.card_name(), "+2 Mace");
+    assert_eq!(opaque.abbreviated_card_name(), "+2 Mace");
+
+    for name in ["Fear, Fire, Foes!", "Grizzly Bears"] {
+        let context = ParseContext::new(name, false, Onset::Consonant)
+            .expect("nonlegendary full name is valid");
+        assert_eq!(context.abbreviated_card_name(), name);
+        assert!(
+            SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &context).is_none(),
+            "nonlegendary {name:?} must not license an abbreviation",
+        );
+    }
+
+    for (name, abbreviated) in [
+        ("Aang, A Lot to Learn", "Aang"),
+        ("The Balrog, Durin's Bane", "The Balrog"),
+        ("King Darien XLVIII", "King Darien"),
+        ("Sidar Jabari of Zhalfir", "Sidar Jabari"),
+        ("Tor Wauki the Younger", "Tor Wauki"),
+        ("Sliver Queen", "Sliver"),
+    ] {
+        let onset = if name.starts_with("Aang") { Onset::Vowel } else { Onset::Consonant };
+        let context = ParseContext::new(name, true, onset).expect("legendary full name is valid");
+        assert_eq!(context.abbreviated_card_name(), abbreviated, "{name}");
+        assert!(
+            SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &context).is_some(),
+            "legendary {name:?} licenses {abbreviated:?}",
+        );
+    }
+
+    for name in ["The First Sliver", "Progenitus"] {
+        let context =
+            ParseContext::new(name, true, Onset::Consonant).expect("legendary full name is valid");
+        assert_eq!(context.abbreviated_card_name(), name);
+        assert!(
+            SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &context).is_none(),
+            "legendary {name:?} has no distinct licensed abbreviation",
+        );
+    }
 }
 
 #[test]
 fn self_reference_spelling_is_checked_against_its_context() {
-    let no_comma = ParseContext::new("Context Card").expect("nonempty context is valid");
+    let no_comma = ParseContext::new("Context Card", false, Onset::Consonant)
+        .expect("nonempty context is valid");
     assert!(SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &no_comma).is_none());
     assert_eq!(
         SourceSelfReference::new(SelfReferenceSpelling::Full, &no_comma)
@@ -532,8 +592,8 @@ fn self_reference_spelling_is_checked_against_its_context() {
         SelfReferenceSpelling::Full
     );
 
-    let comma =
-        ParseContext::new("Zacama, Primal Calamity").expect("nonempty abbreviation is valid");
+    let comma = ParseContext::new("Zacama, Primal Calamity", true, Onset::Consonant)
+        .expect("legendary abbreviation is valid");
     assert_eq!(
         SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &comma)
             .expect("comma-bearing context has a distinct abbreviation")
@@ -551,13 +611,13 @@ fn context_identity_stores_only_the_reusable_arm() {
     );
     let spelling = SelfReferenceSpelling::Abbreviated;
     assert_eq!(
-        SourceSelfReference::new(spelling, &context("Zacama, Primal Calamity"))
+        SourceSelfReference::new(spelling, &legendary_context("Zacama, Primal Calamity"))
             .expect("the stored arm is valid for one comma abbreviation")
             .spelling(),
         spelling
     );
     assert_eq!(
-        SourceSelfReference::new(spelling, &context("Zoraline, Cosmos Caller"))
+        SourceSelfReference::new(spelling, &legendary_context("Zoraline, Cosmos Caller"))
             .expect("the same stored arm is valid for another comma abbreviation")
             .spelling(),
         spelling
@@ -657,7 +717,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &plain_context).is_none(),
         "an unavailable abbreviation is rejected",
     );
-    let abbreviated_context = context("Zacama, Primal Calamity");
+    let abbreviated_context = legendary_context("Zacama, Primal Calamity");
     let self_reference =
         SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &abbreviated_context)
             .expect("a distinct abbreviated spelling is valid");
@@ -1455,7 +1515,11 @@ fn parses_and_round_trips_the_five_slice_abilities() {
             triggered_gain_life(),
         ),
     ] {
-        let context = context(card_name);
+        let context = if card_name == "Zacama, Primal Calamity" {
+            legendary_context(card_name)
+        } else {
+            context(card_name)
+        };
         assert_eq!(parser.parse(text, &context), Ok(expected.clone()));
         assert_eq!(
             parser.parse(text, &context),
@@ -2090,9 +2154,14 @@ fn lexical_matches_reject_prefixes_of_longer_lexemes() {
             TextSpan { start: 0, end: 8 },
         ),
     ] {
-        let Err(ParseError::Failure { span, expectations }) =
-            parser().parse(text, &context(card_name))
-        else {
+        let Err(ParseError::Failure { span, expectations }) = parser().parse(
+            text,
+            &if card_name == "Zacama, Primal Calamity" {
+                legendary_context(card_name)
+            } else {
+                context(card_name)
+            },
+        ) else {
             panic!("lexical prefix must fail for {text:?}");
         };
 
