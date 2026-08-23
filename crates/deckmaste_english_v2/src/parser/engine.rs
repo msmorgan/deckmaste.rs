@@ -1206,6 +1206,65 @@ mod tests {
         },
     ];
 
+    const FAMILY_REACHABLE_DELAYED_PACKING_RULES: &[Rule<
+        ToyCategory,
+        &'static str,
+        ToyRuleId,
+    >] = &[
+        Rule {
+            id: ToyRuleId::RootAdapter,
+            lhs: ToyCategory::Start,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Wrapper)],
+        },
+        Rule {
+            id: ToyRuleId::Wrapper,
+            lhs: ToyCategory::Wrapper,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Child)],
+        },
+        Rule {
+            id: ToyRuleId::FastChild,
+            lhs: ToyCategory::Child,
+            rhs: &[RulePosition::Lexical("fast")],
+        },
+        Rule {
+            id: ToyRuleId::DelayedChild,
+            lhs: ToyCategory::Child,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Delay)],
+        },
+        Rule {
+            id: ToyRuleId::Delay,
+            lhs: ToyCategory::Delay,
+            rhs: &[RulePosition::Lexical("delayed")],
+        },
+    ];
+
+    const WHOLE_FOREST_UNRELATED_GROWTH_RULES: &[Rule<
+        ToyCategory,
+        &'static str,
+        ToyRuleId,
+    >] = &[
+        Rule {
+            id: ToyRuleId::RootAdapter,
+            lhs: ToyCategory::Start,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Value)],
+        },
+        Rule {
+            id: ToyRuleId::ValueLeaf,
+            lhs: ToyCategory::Value,
+            rhs: &[RulePosition::Lexical("fast")],
+        },
+        Rule {
+            id: ToyRuleId::DelayedChild,
+            lhs: ToyCategory::Value,
+            rhs: &[RulePosition::Nonterminal(ToyCategory::Delay)],
+        },
+        Rule {
+            id: ToyRuleId::Delay,
+            lhs: ToyCategory::Delay,
+            rhs: &[RulePosition::Lexical("delayed")],
+        },
+    ];
+
     fn reaches_delayed_child(
         forest: &Forest<ToyRuleId, &'static str>,
         family: &Family<&'static str>,
@@ -1383,6 +1442,104 @@ mod tests {
                 .iter()
                 .any(|node| node.rule == ToyRuleId::DirectParent)
         );
+    }
+
+    #[test]
+    fn family_reachable_root_retries_after_reachable_existing_node_gains_a_family() {
+        let mut root_checks = Vec::new();
+        let forest = parse_root_with_state(
+            FAMILY_REACHABLE_DELAYED_PACKING_RULES,
+            RootRule::family_reachable(ToyRuleId::RootAdapter),
+            1,
+            &(),
+            |literal, start, &(), _suppress_right_boundary| {
+                (start == 0)
+                    .then_some(vec![StatefulLexicalMatch {
+                        lexical: LexicalMatch {
+                            end: 1,
+                            value: literal,
+                            owner: None::<()>,
+                        },
+                        state: (),
+                    }])
+                    .unwrap_or_default()
+            },
+            |rule, family, forest| {
+                let accepted = rule != ToyRuleId::RootAdapter
+                    || reaches_delayed_child(forest, family);
+                if rule == ToyRuleId::RootAdapter {
+                    root_checks.push(accepted);
+                }
+                accepted
+            },
+        )
+        .expect("reachable packed-family growth must revive the rejected root");
+
+        assert_eq!(root_checks, [false, true]);
+        assert_eq!(forest.accepted_roots().count(), 1);
+        let wrapper = forest
+            .nodes
+            .iter()
+            .find(|node| node.rule == ToyRuleId::Wrapper)
+            .expect("one reachable wrapper node");
+        assert_eq!(wrapper.families.len(), 2);
+    }
+
+    #[test]
+    fn whole_forest_root_retries_after_an_unrelated_new_node_changes_validation() {
+        let mut root_checks = Vec::new();
+        let forest = parse_root_with_state(
+            WHOLE_FOREST_UNRELATED_GROWTH_RULES,
+            RootRule::whole_forest(ToyRuleId::RootAdapter),
+            1,
+            &(),
+            |literal, start, &(), _suppress_right_boundary| {
+                (start == 0)
+                    .then_some(vec![StatefulLexicalMatch {
+                        lexical: LexicalMatch {
+                            end: 1,
+                            value: literal,
+                            owner: None::<()>,
+                        },
+                        state: (),
+                    }])
+                    .unwrap_or_default()
+            },
+            |rule, family, forest| {
+                if rule != ToyRuleId::RootAdapter {
+                    return true;
+                }
+                let child_rule = family.children.iter().find_map(|child| {
+                    let Child::Node(node_id) = child else {
+                        return None;
+                    };
+                    Some(forest.node(*node_id).rule)
+                });
+                let unrelated_delay_exists = forest
+                    .nodes
+                    .iter()
+                    .any(|node| node.rule == ToyRuleId::Delay);
+                let accepted =
+                    child_rule == Some(ToyRuleId::ValueLeaf) && unrelated_delay_exists;
+                root_checks.push((child_rule, unrelated_delay_exists, accepted));
+                accepted
+            },
+        )
+        .expect("unrelated whole-forest growth must revive the rejected root");
+
+        assert!(root_checks.contains(&(Some(ToyRuleId::ValueLeaf), false, false)));
+        assert!(root_checks.contains(&(Some(ToyRuleId::ValueLeaf), true, true)));
+        let root = forest.accepted_roots().next().expect("one accepted root");
+        assert_eq!(forest.accepted_roots().count(), 1);
+        let [Child::Node(value_id)] = root.families[0].children.as_slice() else {
+            panic!("the accepted root has one value child");
+        };
+        let value = forest.node(*value_id);
+        assert_eq!(value.rule, ToyRuleId::ValueLeaf);
+        assert!(matches!(
+            value.families[0].children.as_slice(),
+            [Child::Lexical(SpannedLexical { value: "fast", .. })]
+        ));
     }
 
     #[test]

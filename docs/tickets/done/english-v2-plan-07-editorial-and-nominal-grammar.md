@@ -59,8 +59,11 @@ Completion evidence on the task-closed tree:
   Stage 5 boundary with `expected_incomplete=true`.
 
 The full-corpus chart package remains optimized in the dev profile, consistent
-with the workspace's existing runtime-package policy. The chart now retries
-completed families only when an existing packed node gains a family; a new
-node cannot be referenced by an earlier completed family. The dedicated
-delayed-packed-growth tests remain green, and the final parse sample is
-9.911343313s. Standard constraints apply.
+with the workspace's existing runtime-package policy. The generated checked
+builder's family-reachable root retries earlier completions when a reachable
+existing packed node gains a family, without global retries for newly created
+nodes. Generic category roots and explicit whole-forest roots retain the
+conservative global retry because their validators may inspect unrelated
+forest state. Dedicated tests authenticate both dependency modes through real
+delayed-growth control flow, and the final parse sample is 9.911343313s.
+Standard constraints apply.
