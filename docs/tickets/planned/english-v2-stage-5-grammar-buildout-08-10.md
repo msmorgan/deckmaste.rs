@@ -20,13 +20,13 @@ parse failures. The elapsed-time hard ceiling remains 16.26 seconds for each
 of the seven corpus-scale gates. Derived at exactly 1.5× the fresh Plan 07
 samples, Plan 08 WARNING thresholds are:
 
-- expand: 1.108501506s;
-- report: 0.7404841905s;
-- parse: 18.588990480s;
-- roundtrip: 17.047222473s;
-- ambiguity: 18.7905469695s;
-- coverage: 19.1157010635s;
-- require-complete: 16.703354229s.
+- expand: 1.2311941755s;
+- report: 0.7940437335s;
+- parse: 18.4067056425s;
+- roundtrip: 17.4384060465s;
+- ambiguity: 18.783147744s;
+- coverage: 18.663425958s;
+- require-complete: 17.334442698s.
 
 The warning thresholds do not relax the 16.26-second hard ceiling. Before
 implementing each remaining plan, author and obtain approval of its detailed
@@ -39,10 +39,12 @@ At each plan boundary, mint a scoped completion ticket for the finished plan
 and integrate it, re-minting this ticket's remainder when the lifecycle
 requires. Never hold more than one plan's work unintegrated.
 
-Acceptance is the Plan 10 coverage ratchet: every normalized Vintage corpus
-unit is either covered (selected, byte-exact, totally owned) or on an
-enumerated, reviewed quarantine list of corpus irregularities, which may be
-empty and whose every entry is data rather than a grammar special case; no
-unresolved ambiguities; no internal, round-trip, or ownership failures among
-selected units; every counted-list and performance gate green; and a final
-independent review before the last integration. Standard constraints apply.
+Acceptance is the Plan 10 closed-world coverage ratchet: every normalized
+Vintage corpus unit is covered (selected, byte-exact, and totally owned), with
+no quarantine or exception inventory. A genuine selection tie remains a hard
+STOP-and-report boundary requiring the complete census, competing ASTs, and
+specificity evidence; it may not be hidden by dominance, an exception, or a
+grammar restructure. There are no unresolved ambiguities and no internal,
+round-trip, or ownership failures among selected units; every counted-list and
+performance gate is green; and a final independent review precedes the last
+integration. Standard constraints apply.

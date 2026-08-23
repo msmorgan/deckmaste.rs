@@ -15,6 +15,7 @@ mod report;
 mod roundtrip;
 mod timing;
 
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::io::Write;
@@ -37,11 +38,14 @@ use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 
 fn catalog_surface_onset(surface: &str) -> Option<macro_ron::v2::Onset> {
+    const EXACT_OVERRIDES: [(&str, macro_ron::v2::Onset); 1] =
+        [("+2 Mace", macro_ron::v2::Onset::Consonant)];
+
+    if let Some((_, onset)) = EXACT_OVERRIDES.iter().find(|(name, _)| *name == surface) {
+        return Some(*onset);
+    }
     macro_ron::v2::normalize_surface_onset(surface, None).or_else(|| {
         let initial = surface.chars().next()?;
-        if initial == '+' {
-            return Some(macro_ron::v2::Onset::Consonant);
-        }
         initial.is_alphabetic().then(|| {
             if "AEIOUÀÁÂÃÄÅÆÈÉÊËÌÍÎÏÒÓÔÕÖØÙÚÛÜÝŸ"
                 .chars()
@@ -55,13 +59,20 @@ fn catalog_surface_onset(surface: &str) -> Option<macro_ron::v2::Onset> {
     })
 }
 
-fn adapt_card_name_catalog_provider(catalog_root: &Path) -> anyhow::Result<CatalogProviderRows> {
+#[derive(Debug)]
+struct AdaptedCardNameCatalog {
+    provider: CatalogProviderRows,
+    context_onsets: BTreeMap<String, macro_ron::v2::Onset>,
+}
+
+fn adapt_card_name_catalog_provider(catalog_root: &Path) -> anyhow::Result<AdaptedCardNameCatalog> {
     let catalogs = deckmaste_catalogs::CatalogSet::load(catalog_root).with_context(|| {
         format!(
             "loading generated canonical catalogs from {}",
             catalog_root.display()
         )
     })?;
+    let mut context_onsets = BTreeMap::new();
     let rows = catalogs
         .get(deckmaste_catalogs::CatalogKind::CardNames)
         .iter()
@@ -69,10 +80,14 @@ fn adapt_card_name_catalog_provider(catalog_root: &Path) -> anyhow::Result<Catal
             let onset = catalog_surface_onset(name).with_context(|| {
                 format!("freezing card-name catalog surface with unknown onset: {name:?}")
             })?;
+            context_onsets.insert(name.clone(), onset);
             Ok(CatalogProviderRow::new(name.as_str(), name.as_str(), onset))
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
-    Ok(CatalogProviderRows::new(CatalogProvider::CardNames, rows))
+    Ok(AdaptedCardNameCatalog {
+        provider: CatalogProviderRows::new(CatalogProvider::CardNames, rows),
+        context_onsets,
+    })
 }
 
 fn parser_from_builtin_v2() -> anyhow::Result<Parser> {
@@ -81,8 +96,8 @@ fn parser_from_builtin_v2() -> anyhow::Result<Parser> {
     )
     .context("loading integrated builtin-v2 declarations")?;
     let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
-    let provider = adapt_card_name_catalog_provider(&catalog_root)?;
-    let environment = ParserEnvironment::try_from_parts(declarations, [provider])
+    let adapted = adapt_card_name_catalog_provider(&catalog_root)?;
+    let environment = ParserEnvironment::try_from_parts(declarations, [adapted.provider])
         .context("freezing integrated builtin-v2 declarations and catalog providers")?;
     Parser::new(environment)
         .context("building builtin-v2 parser from generated environment requirements")
@@ -97,7 +112,7 @@ mod catalog_adapter_tests {
         let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
         let provider = adapt_card_name_catalog_provider(&catalog_root)
             .expect("generated catalog adapts without parser-side discovery");
-        let environment = ParserEnvironment::try_from_parts([], [provider])
+        let environment = ParserEnvironment::try_from_parts([], [provider.provider])
             .expect("adapter rows freeze without parser-side discovery");
 
         assert_eq!(
@@ -113,6 +128,27 @@ mod catalog_adapter_tests {
                 "Seven Dwarves",
             ),
             Some(macro_ron::v2::Onset::Consonant)
+        );
+    }
+
+    #[test]
+    fn named_catalog_adapter_uses_the_exact_reviewed_plus_two_mace_onset() {
+        assert_eq!(
+            catalog_surface_onset("+2 Mace"),
+            Some(macro_ron::v2::Onset::Consonant),
+        );
+        assert_eq!(
+            catalog_surface_onset("+3 Mace"),
+            None,
+            "the exception is an exact metadata row, not a parser for leading plus signs",
+        );
+
+        let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+        let adapted = adapt_card_name_catalog_provider(&catalog_root)
+            .expect("generated card-name metadata freezes");
+        assert_eq!(
+            adapted.context_onsets.get("+2 Mace"),
+            Some(&macro_ron::v2::Onset::Consonant),
         );
     }
 
@@ -221,12 +257,40 @@ struct ProbeArgs {
     text: String,
     #[arg(long)]
     context: String,
+    #[arg(long, value_enum)]
+    onset: ProbeOnset,
+    #[arg(long)]
+    legendary: bool,
     #[arg(long, default_value_t = 256)]
     limit: usize,
     #[arg(long, value_enum, default_value_t = ProbeRoot::Ability)]
     root: ProbeRoot,
     #[arg(long)]
     json: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+enum ProbeOnset {
+    Consonant,
+    Vowel,
+}
+
+impl From<ProbeOnset> for macro_ron::v2::Onset {
+    fn from(onset: ProbeOnset) -> Self {
+        match onset {
+            ProbeOnset::Consonant => Self::Consonant,
+            ProbeOnset::Vowel => Self::Vowel,
+        }
+    }
+}
+
+impl From<macro_ron::v2::Onset> for ProbeOnset {
+    fn from(onset: macro_ron::v2::Onset) -> Self {
+        match onset {
+            macro_ron::v2::Onset::Consonant => Self::Consonant,
+            macro_ron::v2::Onset::Vowel => Self::Vowel,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, ValueEnum)]
@@ -595,6 +659,8 @@ mod tests {
             text.to_owned(),
             "--context".to_owned(),
             "Probe Card".to_owned(),
+            "--onset".to_owned(),
+            "consonant".to_owned(),
         ];
         if let Some(root) = root {
             arguments.extend(["--root".to_owned(), root.to_owned()]);

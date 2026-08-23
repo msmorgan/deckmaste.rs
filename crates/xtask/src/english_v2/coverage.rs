@@ -1363,8 +1363,38 @@ mod tests {
         digit.to_string().repeat(64)
     }
 
+    fn assert_full_production_selected_covered_lock(
+        report: &CoverageReport,
+        baseline_ids: &BTreeSet<&str>,
+        target_ids: &BTreeSet<&str>,
+    ) {
+        let lock: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../english-v2-coverage.lock"))
+                .expect("production coverage lock parses");
+        let covered_ids = lock["covered"]
+            .as_array()
+            .expect("schema-2 lock has covered IDs")
+            .iter()
+            .map(|id| id.as_str().expect("covered ID is a string"))
+            .collect::<BTreeSet<_>>();
+        let production_selected_covered_ids = report
+            .selected_covered_ids()
+            .expect("full production selected-covered IDs are unique");
+        assert_eq!(covered_ids.len(), 600);
+        assert_eq!(
+            covered_ids,
+            production_selected_covered_ids
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>(),
+            "the lock must equal the complete production SelectedCovered set",
+        );
+        assert!(baseline_ids.is_subset(&covered_ids));
+        assert!(target_ids.is_subset(&covered_ids));
+    }
+
     #[test]
-    fn plan07_frozen_manifest_is_selected_exact_owned_and_disjoint_on_production_data() {
+    fn plan07_frozen_manifest_and_full_lock_are_exact_on_production_data() {
         const EXPECTED_COUNTS: [(&str, usize); 13] = [
             ("damage.any-target", 25),
             ("damage.binary-target-coordination", 8),
@@ -1441,7 +1471,27 @@ mod tests {
         assert_eq!(aang.context_onset(), macro_ron::v2::Onset::Vowel);
         let parser = crate::english_v2::parser_from_builtin_v2()
             .expect("production English-v2 parser environment loads");
-        let mut coverage_rows = Vec::with_capacity(manifest_rows.len());
+        let coverage_rows = corpus
+            .units()
+            .iter()
+            .map(|unit| {
+                let context = ParseContext::new(
+                    unit.context_name(),
+                    unit.is_legendary(),
+                    unit.context_onset(),
+                )
+                .unwrap_or_else(|| panic!("production context is valid for {}", unit.id()));
+                let analysis = parser.analyze_oracle_text(unit.text(), &context);
+                super::runtime_analysis_row(unit, &analysis)
+            })
+            .collect::<Vec<_>>();
+        let report = CoverageReport::try_new(corpus.source_fingerprint().to_owned(), coverage_rows)
+            .expect("full production coverage evidence is internally consistent");
+        let rows_by_id = report
+            .rows()
+            .iter()
+            .map(|row| (row.id.as_str(), row))
+            .collect::<BTreeMap<_, _>>();
 
         for fields in manifest_rows {
             let [_, id, card_name, face_name, side, context_name, text] = fields.as_slice() else {
@@ -1458,14 +1508,10 @@ mod tests {
             assert_eq!(unit.context_name(), *context_name, "{id}");
             assert_eq!(unit.text(), *text, "{id}");
 
-            let context = ParseContext::new(
-                unit.context_name(),
-                unit.is_legendary(),
-                unit.context_onset(),
-            )
-            .unwrap_or_else(|| panic!("frozen production context is valid for {id}"));
-            let analysis = parser.analyze_oracle_text(unit.text(), &context);
-            let row = super::runtime_analysis_row(unit, &analysis);
+            let row = rows_by_id
+                .get(id)
+                .copied()
+                .unwrap_or_else(|| panic!("full production report contains {id}"));
             assert_eq!(row.status(), CoverageStatus::SelectedCovered, "{id}");
             let selected = row
                 .selected()
@@ -1474,34 +1520,20 @@ mod tests {
             assert!(selected.ownership().covered, "{id}");
             assert!(selected.ownership().failures().is_empty(), "{id}");
             assert!(selected.roundtrip_failure().is_none(), "{id}");
-            coverage_rows.push(row);
         }
 
-        let report = CoverageReport::try_new(corpus.source_fingerprint().to_owned(), coverage_rows)
-            .expect("frozen manifest coverage evidence is internally consistent");
-        assert_eq!(report.rows().len(), 145);
-        assert_eq!(report.summary().total_units(), 145);
-        assert_eq!(report.summary().selected_units(), 145);
-        assert_eq!(report.summary().covered_units(), 145);
+        assert_eq!(report.rows().len(), 32_641);
+        assert_eq!(report.summary().total_units(), 32_641);
+        assert_eq!(report.summary().selected_units(), 600);
+        assert_eq!(report.summary().covered_units(), 600);
         assert_eq!(report.summary().selected_uncovered_units(), 0);
-        assert_eq!(report.summary().parse_failures(), 0);
+        assert_eq!(report.summary().parse_failures(), 32_041);
         assert_eq!(report.summary().unresolved_ties(), 0);
         assert_eq!(report.summary().internal_failures(), 0);
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);
         assert_eq!(report.summary().ownership_failure_units(), 0);
 
-        let lock: serde_json::Value =
-            serde_json::from_str(include_str!("../../../../english-v2-coverage.lock"))
-                .expect("production coverage lock parses");
-        let covered_ids = lock["covered"]
-            .as_array()
-            .expect("schema-2 lock has covered IDs")
-            .iter()
-            .map(|id| id.as_str().expect("covered ID is a string"))
-            .collect::<BTreeSet<_>>();
-        assert!(covered_ids.len() >= 557);
-        assert!(baseline_ids.is_subset(&covered_ids));
-        assert!(target_ids.is_subset(&covered_ids));
+        assert_full_production_selected_covered_lock(&report, &baseline_ids, &target_ids);
     }
 
     #[derive(Clone)]

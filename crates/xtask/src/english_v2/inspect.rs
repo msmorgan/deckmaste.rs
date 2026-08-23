@@ -504,7 +504,7 @@ mod tests {
     const ONE_ROW: &[u8] = br#"{
         "data": {
             "Fixture": [{
-                "name": "Card\nName", "faceName": "Face\rName", "side": "a\nside",
+                "name": "Card\nName", "faceName": "Seven Dwarves", "side": "a\nside",
                 "layout": "modal_dfc", "types": ["Creature"], "supertypes": [],
                 "subtypes": [], "legalities": {"vintage": "Legal"},
                 "text": "Destroy target Forest.\nSecond complete line (reminder text)."
@@ -531,7 +531,7 @@ mod tests {
             [(
                 ParserEntryPoint::TraceOracleText,
                 "Destroy target Forest.\nSecond complete line (reminder text).".to_owned(),
-                "Face\rName".to_owned(),
+                "Seven Dwarves".to_owned(),
             )],
             "inspect must enter the real OracleText trace exactly once"
         );
@@ -548,6 +548,8 @@ mod tests {
         let probe_args = ProbeArgs {
             text: unit.text().to_owned(),
             context: unit.context_name().to_owned(),
+            onset: unit.context_onset().into(),
+            legendary: unit.is_legendary(),
             limit: 0,
             root: crate::english_v2::ProbeRoot::Ability,
             json: true,

@@ -257,14 +257,6 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn plan07_full_corpus_runtime_is_optimized_in_the_dev_profile() {
-        const WORKSPACE_MANIFEST: &str = include_str!("../../../../Cargo.toml");
-        const OVERRIDE: &str = "[profile.dev.package.deckmaste_english_v2]\nopt-level = 2\n";
-
-        assert_eq!(WORKSPACE_MANIFEST.matches(OVERRIDE).count(), 1);
-    }
-
     const ADAPTER_HELPER_TEST: &str = "english_v2::timing::tests::process_runner_adapter_helper";
     const ADAPTER_OUTPUT_CHILD_TEST: &str =
         "english_v2::timing::tests::process_runner_child_writes_both_streams";

@@ -383,14 +383,18 @@ particular object, including when it uses an approved shortened printed name
 parser neither structurally parses it nor validates its punctuation or word
 onset. A distinct abbreviated arm exists only when authoritative per-face
 MTGJSON metadata says `Legendary`; its spelling follows the established
-families in order: prefix before a comma, except a leading `The ` remains
-full; otherwise remove a canonical trailing Roman numeral, take the prefix
-before the earliest ` the ` or ` of ` epithet, or take the first word. Equal
-or empty results do not create an abbreviated arm. The grammar represents
-source self-reference as a bare per-parse-context identity and stores only
-its full/abbreviated spelling choice; the name, shortening, legendary flag,
-and separately normalized realization onset remain context facts, never AST
-state. An independently mentioned card-name `catalog_identity` is admitted
+families in order: first take the prefix before a comma (so `The Balrog,
+Durin's Bane` shortens to `The Balrog`); only when there is no comma does a
+leading `The ` block shortening; otherwise remove a canonical trailing Roman
+numeral, take the prefix before the earliest ` the ` or ` of ` epithet, or
+take the first word. Equal or empty results do not create an abbreviated arm.
+The current Comprehensive Rules and exact Oracle text are correctness
+authority for this behavior. English v1 contributes the shortening mechanism
+only; it is neither a compatibility target nor an acceptance authority. The
+grammar represents source self-reference as a bare per-parse-context identity
+and stores only its full/abbreviated spelling choice; the name, shortening,
+legendary flag, and separately normalized realization onset remain context
+facts, never AST state. An independently mentioned card-name `catalog_identity` is admitted
 only inside an explicit name-bearing construction such as `a card named Seven
 Dwarves`; it is never a rival bare noun phrase for the current card's name.
 

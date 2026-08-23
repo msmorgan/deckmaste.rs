@@ -251,7 +251,10 @@ mod tests {
         let data = directory.path().join("cards.json");
         fs::write(
             &data,
-            snapshot(&[("Clean", CLEAN_TEXT), ("Failed", "You frobnitz a card.")]),
+            snapshot(&[
+                ("Seven Dwarves", CLEAN_TEXT),
+                ("Grizzly Bears", "You frobnitz a card."),
+            ]),
         )
         .unwrap();
         let mut output = Vec::new();

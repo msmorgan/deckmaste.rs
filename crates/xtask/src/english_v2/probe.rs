@@ -10,6 +10,7 @@ use deckmaste_english_v2::parser::ParserTrace;
 use deckmaste_english_v2::parser::TraceLimits;
 
 use super::ProbeArgs;
+use super::ProbeOnset;
 use super::ProbeRoot;
 use super::diagnostic;
 use super::diagnostic::DiagnosticReport;
@@ -24,7 +25,12 @@ trait ProbeSteps {
     type Trace;
 
     fn load_parser(&mut self) -> anyhow::Result<Self::Parser>;
-    fn context<'a>(&mut self, name: &'a str) -> anyhow::Result<Self::Context<'a>>;
+    fn context<'a>(
+        &mut self,
+        name: &'a str,
+        is_legendary: bool,
+        onset: ProbeOnset,
+    ) -> anyhow::Result<Self::Context<'a>>;
     fn trace(
         &mut self,
         parser: &Self::Parser,
@@ -59,15 +65,18 @@ impl ProbeSteps for ProductionSteps {
         crate::english_v2::parser_from_builtin_v2()
     }
 
-    fn context<'a>(&mut self, name: &'a str) -> anyhow::Result<Self::Context<'a>> {
+    fn context<'a>(
+        &mut self,
+        name: &'a str,
+        is_legendary: bool,
+        onset: ProbeOnset,
+    ) -> anyhow::Result<Self::Context<'a>> {
         anyhow::ensure!(
             !name.is_empty(),
             "invalid --context \"\"; expected a nonempty parser context"
         );
-        let onset = super::catalog_surface_onset(name)
-            .with_context(|| format!("normalizing opaque card-name onset for {name:?}"))?;
-        ParseContext::new(name, false, onset).with_context(|| {
-            format!(
+        ParseContext::new(name, is_legendary, onset.into()).ok_or_else(|| {
+            anyhow::anyhow!(
                 "invalid --context {}; expected a nonempty parser context",
                 quoted(name)
             )
@@ -124,7 +133,7 @@ fn orchestrate<S: ProbeSteps>(
     );
 
     let parser = steps.load_parser()?;
-    let context = steps.context(&args.context)?;
+    let context = steps.context(&args.context, args.legendary, args.onset)?;
     let trace = steps.trace(
         &parser,
         &args.text,
@@ -167,6 +176,8 @@ mod tests {
         ProbeArgs {
             text: text.to_owned(),
             context: context.to_owned(),
+            onset: ProbeOnset::Consonant,
+            legendary: false,
             limit: 1,
             root: ProbeRoot::Ability,
             json: true,
@@ -279,17 +290,34 @@ mod tests {
 
     #[test]
     fn validation_errors_are_context_rich_and_nonzero() {
-        for (text, context, needle) in [
-            ("Destroy target creature.", "", "--context"),
-            (
-                "Destroy target creature.",
-                ", Invalid",
-                "normalizing opaque card-name onset",
-            ),
-        ] {
-            let error = run(&args(text, context), &mut Vec::new()).unwrap_err();
-            assert!(error.to_string().contains(needle), "{error:#}");
-        }
+        let error = run(&args("Destroy target creature.", ""), &mut Vec::new()).unwrap_err();
+        assert!(error.to_string().contains("--context"), "{error:#}");
+    }
+
+    #[test]
+    fn explicit_probe_metadata_admits_opaque_names_and_licenses_only_legendary_abbreviation() {
+        let mut opaque = args("Destroy target creature.", ", Invalid");
+        opaque.onset = ProbeOnset::Vowel;
+        run(&opaque, &mut Vec::new()).expect("opaque spelling cannot reject a probe context");
+
+        let text = "Zacama deals 3 damage to target creature.";
+        let mut legendary = args(text, "Zacama, Primal Calamity");
+        legendary.legendary = true;
+        legendary.root = ProbeRoot::Sentence;
+        let mut legendary_output = Vec::new();
+        run(&legendary, &mut legendary_output).expect("licensed short form probe completes");
+        let legendary_report: Value = serde_json::from_slice(&legendary_output).unwrap();
+        assert_eq!(legendary_report["trace"]["outcome"]["status"], "selected");
+
+        let mut ordinary = legendary;
+        ordinary.legendary = false;
+        let mut ordinary_output = Vec::new();
+        run(&ordinary, &mut ordinary_output).expect("ordinary parse failure is diagnostic output");
+        let ordinary_report: Value = serde_json::from_slice(&ordinary_output).unwrap();
+        assert_eq!(
+            ordinary_report["trace"]["outcome"]["status"],
+            "parse_failure"
+        );
     }
 
     #[derive(Default)]
@@ -309,7 +337,12 @@ mod tests {
             Ok(())
         }
 
-        fn context<'a>(&mut self, _name: &'a str) -> anyhow::Result<Self::Context<'a>> {
+        fn context<'a>(
+            &mut self,
+            _name: &'a str,
+            _is_legendary: bool,
+            _onset: ProbeOnset,
+        ) -> anyhow::Result<Self::Context<'a>> {
             self.events.push("context");
             Ok(())
         }

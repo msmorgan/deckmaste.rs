@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
@@ -86,7 +87,10 @@ pub(super) struct Corpus {
 }
 
 impl Corpus {
-    pub(super) fn from_bytes(bytes: &[u8]) -> anyhow::Result<Self> {
+    pub(super) fn from_bytes_with_context_onsets(
+        bytes: &[u8],
+        context_onsets: &BTreeMap<String, Onset>,
+    ) -> anyhow::Result<Self> {
         let cards = AtomicCards::parse(bytes).context("parsing MTGJSON atomic-card snapshot")?;
         let mut units = cards
             .data
@@ -102,15 +106,15 @@ impl Corpus {
                     .supertypes
                     .iter()
                     .any(|supertype| supertype.as_str() == "Legendary");
-                let context_onset = if context_name.is_empty() {
-                    // ParseContext rejects the empty name before this onset can
-                    // participate in any realization.
-                    Onset::Consonant
-                } else {
-                    super::catalog_surface_onset(&context_name).with_context(|| {
-                        format!("normalizing opaque card-name onset for {context_name:?}")
-                    })?
-                };
+                ensure!(
+                    !context_name.is_empty(),
+                    "invalid parser context: context name is empty; card name {card_name:?}, face name {face_name:?}, side {side:?}",
+                );
+                let context_onset = context_onsets.get(&context_name).copied().with_context(|| {
+                    format!(
+                        "missing explicit card-name onset metadata for opaque context {context_name:?}"
+                    )
+                })?;
                 let text = normalize_oracle_text(card.text.as_deref().unwrap_or_default());
                 Ok(corpus_unit(
                     &card_name,
@@ -134,7 +138,9 @@ impl Corpus {
 
     pub(super) fn load(path: &Path) -> anyhow::Result<Self> {
         let bytes = fs::read(path).with_context(|| format!("reading {}", path.display()))?;
-        Self::from_bytes(&bytes)
+        let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+        let adapted = super::adapt_card_name_catalog_provider(&catalog_root)?;
+        Self::from_bytes_with_context_onsets(&bytes, &adapted.context_onsets)
     }
 
     pub(super) fn source_fingerprint(&self) -> &str {
@@ -274,13 +280,21 @@ fn normalize_roll_row_line(line: &str) -> String {
 #[cfg(test)]
 impl CorpusUnit {
     pub(super) fn for_test(card_name: &str, text: &str) -> Self {
+        let context_onset = if card_name.is_empty() {
+            // The test-only invalid-context constructor rejects this unit
+            // before the realization fact can be observed.
+            Onset::Consonant
+        } else {
+            super::catalog_surface_onset(card_name)
+                .expect("test corpus fixture must use a name with known onset")
+        };
         corpus_unit(
             card_name,
             None,
             None,
             card_name,
             false,
-            super::catalog_surface_onset(card_name).unwrap_or(Onset::Consonant),
+            context_onset,
             &normalize_oracle_text(text),
         )
     }
@@ -298,7 +312,8 @@ impl CorpusUnit {
             side,
             context_name,
             false,
-            super::catalog_surface_onset(context_name).unwrap_or(Onset::Consonant),
+            super::catalog_surface_onset(context_name)
+                .expect("test corpus fixture must use a context name with known onset"),
             &normalize_oracle_text(text),
         )
     }
@@ -318,7 +333,26 @@ impl Corpus {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
+
+    fn explicit_onsets(
+        rows: impl IntoIterator<Item = (&'static str, Onset)>,
+    ) -> BTreeMap<String, Onset> {
+        rows.into_iter()
+            .map(|(name, onset)| (name.to_owned(), onset))
+            .collect()
+    }
+
+    fn snapshot_onsets() -> BTreeMap<String, Onset> {
+        explicit_onsets([
+            ("Alpha", Onset::Vowel),
+            ("Empty", Onset::Vowel),
+            ("Front", Onset::Consonant),
+            ("Restricted", Onset::Consonant),
+        ])
+    }
 
     const SNAPSHOT_A: &[u8] = br#"{
         "data": {
@@ -407,8 +441,9 @@ mod tests {
 
     #[test]
     fn corpus_filters_normalizes_and_sorts_equivalent_snapshots() {
-        let left = Corpus::from_bytes(SNAPSHOT_A).unwrap();
-        let right = Corpus::from_bytes(SNAPSHOT_B).unwrap();
+        let onsets = snapshot_onsets();
+        let left = Corpus::from_bytes_with_context_onsets(SNAPSHOT_A, &onsets).unwrap();
+        let right = Corpus::from_bytes_with_context_onsets(SNAPSHOT_B, &onsets).unwrap();
         assert_eq!(left.units(), right.units());
         assert_eq!(left.units().len(), 4);
         assert_eq!(
@@ -442,7 +477,12 @@ mod tests {
                 "legalities":{"vintage":"Legal"}, "text":"Fear, Fire, Foes! deals 1 damage to any target."
             }]
         }}"#;
-        let corpus = Corpus::from_bytes(snapshot).expect("metadata fixture loads");
+        let onsets = explicit_onsets([
+            ("Aang, A Lot to Learn", Onset::Vowel),
+            ("Fear, Fire, Foes!", Onset::Consonant),
+        ]);
+        let corpus = Corpus::from_bytes_with_context_onsets(snapshot, &onsets)
+            .expect("metadata fixture loads");
         let legendary = corpus
             .units()
             .iter()
@@ -461,7 +501,8 @@ mod tests {
     fn corpus_retains_an_explicit_empty_text_face() {
         let snapshot = br#"{"data":{"Explicit Empty":[{"name":"Explicit Empty","layout":"normal","types":["Creature"],"supertypes":[],"subtypes":[],"legalities":{"vintage":"Legal"},"text":""}]}}"#;
 
-        let corpus = Corpus::from_bytes(snapshot).unwrap();
+        let onsets = explicit_onsets([("Explicit Empty", Onset::Vowel)]);
+        let corpus = Corpus::from_bytes_with_context_onsets(snapshot, &onsets).unwrap();
         assert_eq!(corpus.units().len(), 1);
         assert_eq!(corpus.units()[0].context_name(), "Explicit Empty");
         assert_eq!(corpus.units()[0].text(), "");
@@ -471,13 +512,56 @@ mod tests {
     fn corpus_rejects_only_empty_parse_contexts() {
         let snapshot = br#"{"data":{"Fixture":[{"name":"","layout":"normal","types":["Creature"],"supertypes":[],"subtypes":[],"legalities":{"vintage":"Legal"},"text":"Fixture text."}]}}"#;
 
-        let error = Corpus::from_bytes(snapshot)
+        let error = Corpus::from_bytes_with_context_onsets(snapshot, &BTreeMap::new())
             .expect_err("empty parser context must reject the MTGJSON source")
             .to_string();
 
         assert!(error.contains("invalid parser context"));
         assert!(error.contains("context name is empty"));
         assert!(error.contains("card name \"\""));
+    }
+
+    #[test]
+    fn corpus_admits_opaque_nonempty_names_with_explicit_onset_metadata() {
+        let snapshot = br#"{"data":{
+            ", Invalid":[{
+                "name":", Invalid", "layout":"normal", "types":["Creature"],
+                "supertypes":[], "subtypes":[],
+                "legalities":{"vintage":"Legal"}, "text":", Invalid deals 1 damage to any target."
+            }],
+            "+2 Mace":[{
+                "name":"+2 Mace", "layout":"normal", "types":["Artifact"],
+                "supertypes":[], "subtypes":["Equipment"],
+                "legalities":{"vintage":"Legal"}, "text":"Equipped creature gets +2/+2."
+            }]
+        }}"#;
+        let onsets = explicit_onsets([(", Invalid", Onset::Vowel), ("+2 Mace", Onset::Consonant)]);
+
+        let corpus = Corpus::from_bytes_with_context_onsets(snapshot, &onsets)
+            .expect("nonempty opaque names with explicit realization metadata load");
+
+        assert_eq!(corpus.units().len(), 2);
+        assert_eq!(corpus.units()[0].context_name(), "+2 Mace");
+        assert_eq!(corpus.units()[0].context_onset(), Onset::Consonant);
+        assert_eq!(corpus.units()[1].context_name(), ", Invalid");
+        assert_eq!(corpus.units()[1].context_onset(), Onset::Vowel);
+    }
+
+    #[test]
+    fn corpus_reports_missing_realization_metadata_without_parsing_the_name() {
+        let snapshot = br#"{"data":{"! Unknown":[{
+            "name":"! Unknown", "layout":"normal", "types":["Creature"],
+            "supertypes":[], "subtypes":[], "legalities":{"vintage":"Legal"},
+            "text":"! Unknown deals 1 damage to any target."
+        }]}}"#;
+
+        let error = Corpus::from_bytes_with_context_onsets(snapshot, &BTreeMap::new())
+            .expect_err("the separate generated onset fact is required")
+            .to_string();
+
+        assert!(error.contains("missing explicit card-name onset metadata"));
+        assert!(error.contains("! Unknown"));
+        assert!(!error.contains("normalizing"));
     }
 
     #[test]
