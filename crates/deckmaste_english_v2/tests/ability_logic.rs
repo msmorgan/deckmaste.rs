@@ -9,8 +9,10 @@ use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
+use deckmaste_english_v2::parser::ParseError;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::SelectionResolution;
+use deckmaste_english_v2::parser::TextSpan;
 use deckmaste_english_v2::render::Render as _;
 use deckmaste_english_v2::visit::Visitor;
 use macro_ron::v2::Onset;
@@ -2704,6 +2706,50 @@ fn connive_clause() -> FiniteClause {
     )
 }
 
+fn player_subject() -> Subject {
+    Subject::SubjectNominal(NominalSubject {
+        value: NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+            reference: NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
+                reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
+                    reference: ControllerStage::UnqualifiedControllerStage(
+                        UnqualifiedControllerStage {
+                            reference: UnqualifiedReference::IndefiniteReference(
+                                IndefiniteReference {
+                                    nominal: SingularNominal::BareSingularNominal(
+                                        BareSingularNominal {
+                                            head: SingularHead::CommonSingularHead(
+                                                CommonSingularHead {
+                                                    noun: CommonNoun::Player,
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                },
+                            ),
+                        },
+                    ),
+                }),
+            }),
+        }),
+    })
+}
+
+fn player_connive_clause() -> FiniteClause {
+    plain_finite(
+        player_subject(),
+        Predicate::Atomic(VerbPhrase::Connive(Connive {})),
+    )
+}
+
+fn tap_cost() -> ActivationCostComponent {
+    ActivationCostComponent::SymbolRun(
+        SymbolRun::new(vec![CostSymbol::FixedCostSymbol(FixedSymbol {
+            symbol: FixedCostSymbol::Tap,
+        })])
+        .expect("one fixed symbol forms a nonempty symbol run"),
+    )
+}
+
 fn gain_clause(amount: u32) -> Clause {
     Clause::Finite(plain_finite(
         you_subject(),
@@ -3060,6 +3106,151 @@ impl Visitor for AttachmentVisitor {
     }
 }
 
+#[derive(Default)]
+struct AttachmentEnvelopeVisitor(Vec<&'static str>);
+
+impl Visitor for AttachmentEnvelopeVisitor {
+    fn visit_ability(&mut self, value: &Ability) {
+        self.0.push("Ability");
+        deckmaste_english_v2::visit::walk_ability(self, value);
+    }
+
+    fn visit_plain(&mut self, value: &Plain) {
+        self.0.push("Plain");
+        deckmaste_english_v2::visit::walk_plain(self, value);
+    }
+
+    fn visit_triggered(&mut self, value: &Triggered) {
+        self.0.push("Triggered");
+        deckmaste_english_v2::visit::walk_triggered(self, value);
+    }
+
+    fn visit_activated(&mut self, value: &Activated) {
+        self.0.push("Activated");
+        deckmaste_english_v2::visit::walk_activated(self, value);
+    }
+
+    fn visit_trigger_prefix(&mut self, value: &TriggerPrefix) {
+        self.0.push("TriggerPrefix");
+        deckmaste_english_v2::visit::walk_trigger_prefix(self, value);
+    }
+
+    fn visit_finite(&mut self, value: &Finite) {
+        self.0.push("Finite");
+        deckmaste_english_v2::visit::walk_finite(self, value);
+    }
+
+    fn visit_trigger_marker(&mut self, value: TriggerMarker) {
+        match value {
+            TriggerMarker::Whenever => self.0.push("TriggerMarker:Whenever"),
+            TriggerMarker::When => self.0.push("TriggerMarker:When"),
+        }
+    }
+
+    fn visit_activation_cost_component(&mut self, value: &ActivationCostComponent) {
+        self.0.push("ActivationCostComponent");
+        deckmaste_english_v2::visit::walk_activation_cost_component(self, value);
+    }
+
+    fn visit_symbol_run(&mut self, value: &SymbolRun) {
+        self.0.push("SymbolRun");
+        deckmaste_english_v2::visit::walk_symbol_run(self, value);
+    }
+
+    fn visit_cost_symbol(&mut self, value: &CostSymbol) {
+        self.0.push("CostSymbol");
+        deckmaste_english_v2::visit::walk_cost_symbol(self, value);
+    }
+
+    fn visit_fixed_symbol(&mut self, value: &FixedSymbol) {
+        self.0.push("FixedSymbol");
+        deckmaste_english_v2::visit::walk_fixed_symbol(self, value);
+    }
+
+    fn visit_fixed_cost_symbol(&mut self, value: FixedCostSymbol) {
+        match value {
+            FixedCostSymbol::Tap => self.0.push("FixedCostSymbol:Tap"),
+            other => panic!("unexpected activation witness symbol: {other:?}"),
+        }
+    }
+
+    fn visit_ability_body(&mut self, value: &AbilityBody) {
+        self.0.push("AbilityBody");
+        deckmaste_english_v2::visit::walk_ability_body(self, value);
+    }
+
+    fn visit_sentences(&mut self, value: &Sentences) {
+        self.0.push("Sentences");
+        deckmaste_english_v2::visit::walk_sentences(self, value);
+    }
+
+    fn visit_sentence(&mut self, value: &Sentence) {
+        self.0.push("Sentence");
+        deckmaste_english_v2::visit::walk_sentence(self, value);
+    }
+
+    fn visit_attached(&mut self, value: &Attached) {
+        self.0.push("Attached");
+        deckmaste_english_v2::visit::walk_attached(self, value);
+    }
+
+    fn visit_clause_attachment(&mut self, value: &ClauseAttachment) {
+        self.0.push("ClauseAttachment");
+        deckmaste_english_v2::visit::walk_clause_attachment(self, value);
+    }
+
+    fn visit_preposed_if_predicate(&mut self, value: &PreposedIfPredicate) {
+        self.0.push("PreposedIfPredicate");
+        deckmaste_english_v2::visit::walk_preposed_if_predicate(self, value);
+    }
+
+    fn visit_postposed_if_predicate(&mut self, value: &PostposedIfPredicate) {
+        self.0.push("PostposedIfPredicate");
+        deckmaste_english_v2::visit::walk_postposed_if_predicate(self, value);
+    }
+
+    fn visit_finite_clause(&mut self, value: &FiniteClause) {
+        self.0.push("FiniteClause");
+        deckmaste_english_v2::visit::walk_finite_clause(self, value);
+    }
+
+    fn visit_subject(&mut self, value: &Subject) {
+        match value {
+            Subject::SubjectPronoun(PersonalSubject {
+                word: SubjectPronoun::You,
+            }) => self.0.push("Subject:You"),
+            Subject::SubjectNominal(NominalSubject { value }) => {
+                match unqualified_reference(value) {
+                    UnqualifiedReference::IndefiniteReference(IndefiniteReference {
+                        nominal:
+                            SingularNominal::BareSingularNominal(BareSingularNominal {
+                                head:
+                                    SingularHead::CommonSingularHead(CommonSingularHead {
+                                        noun: CommonNoun::Player,
+                                    }),
+                            }),
+                    }) => self.0.push("Subject:Player"),
+                    other => panic!("unexpected trigger subject payload: {other:?}"),
+                }
+            }
+            other => panic!("unexpected attachment subject payload: {other:?}"),
+        }
+    }
+
+    fn visit_predicate(&mut self, value: &Predicate) {
+        match value {
+            Predicate::Atomic(VerbPhrase::Connive(_)) => self.0.push("Predicate:Connive"),
+            Predicate::Atomic(VerbPhrase::GainLife(GainLife {
+                amount:
+                    Amount::Number(NumberAmount {
+                        number: ScalarNumber { magnitude: 2 },
+                    }),
+            })) => self.0.push("Predicate:Gain2"),
+            other => panic!("unexpected attachment predicate payload: {other:?}"),
+        }
+    }
+}
+
 fn literal_claims(
     parser: &Parser,
     context: &ParseContext<'_>,
@@ -3112,40 +3303,49 @@ fn conditional_attachment_stage_has_exact_root_trigger_and_activation_evidence()
 
     let trigger_text = "Whenever a player connives, gain 2 life if you connive.";
     let trigger = assert_one_logic_candidate(&parser, &context, trigger_text);
-    let Ability::Triggered(Triggered {
-        body: AbilityBody::Sentences(trigger_body),
-        ..
-    }) = trigger
-    else {
-        panic!("the attachment remains inside a trigger body")
-    };
     assert_eq!(
-        trigger_body.sentences(),
-        [Sentence::Attached(Attached {
-            attachment: ClauseAttachment::PostposedIfPredicate(PostposedIfPredicate {
-                body: gain.clone(),
-                condition: condition.clone(),
+        trigger,
+        Ability::Triggered(Triggered {
+            trigger: TriggerPrefix::Finite(Finite {
+                marker: TriggerMarker::Whenever,
+                clause: player_connive_clause(),
             }),
-        })],
+            intervening_if: None,
+            body: AbilityBody::Sentences(
+                Sentences::new(vec![Sentence::Attached(Attached {
+                    attachment: ClauseAttachment::PostposedIfPredicate(PostposedIfPredicate {
+                        body: gain.clone(),
+                        condition: condition.clone(),
+                    }),
+                })])
+                .expect("one trigger-body sentence"),
+            ),
+        }),
+        "the complete trigger envelope retains its prefix, absent intervening condition, and body",
     );
 
     let activation_text = "{T}: If you connive, gain 2 life.";
     let activation = assert_one_logic_candidate(&parser, &context, activation_text);
-    let Ability::Activated(Activated {
-        body: AbilityBody::Sentences(activation_body),
-        ..
-    }) = activation
-    else {
-        panic!("the attachment remains inside the post-colon body")
+    let Ability::Activated(activated) = &activation else {
+        panic!("the post-colon surface has the activated envelope")
     };
     assert_eq!(
-        activation_body.sentences(),
-        [Sentence::Attached(Attached {
-            attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
-                condition,
-                body: gain,
-            }),
-        })],
+        activated.costs(),
+        &[tap_cost()],
+        "the complete activation envelope retains its typed tap cost",
+    );
+    assert_eq!(
+        activated.body,
+        AbilityBody::Sentences(
+            Sentences::new(vec![Sentence::Attached(Attached {
+                attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
+                    condition: condition.clone(),
+                    body: gain.clone(),
+                }),
+            })])
+            .expect("one post-colon sentence"),
+        ),
+        "the complete activation envelope retains its attachment body",
     );
 
     for (text, expected) in [
@@ -3180,26 +3380,78 @@ fn conditional_attachment_stage_has_exact_root_trigger_and_activation_evidence()
         );
     }
 
-    let mut visitor = AttachmentVisitor::default();
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(sentences),
-    }) = root
-    else {
-        unreachable!()
-    };
-    visitor.visit_sentence(&sentences.sentences()[0]);
+    let mut visitor = AttachmentEnvelopeVisitor::default();
+    visitor.visit_ability(&root);
     assert_eq!(
         visitor.0,
         [
+            "Ability",
+            "Plain",
+            "AbilityBody",
+            "Sentences",
             "Sentence",
             "Attached",
             "ClauseAttachment",
             "PreposedIfPredicate",
             "FiniteClause",
-            "Predicate",
-            "Predicate",
+            "Subject:You",
+            "Predicate:Connive",
+            "Predicate:Gain2",
         ],
         "the condition is visited before the attached imperative predicate",
+    );
+
+    let mut trigger_visitor = AttachmentEnvelopeVisitor::default();
+    trigger_visitor.visit_ability(&trigger);
+    assert_eq!(
+        trigger_visitor.0,
+        [
+            "Ability",
+            "Triggered",
+            "TriggerPrefix",
+            "Finite",
+            "TriggerMarker:Whenever",
+            "FiniteClause",
+            "Subject:Player",
+            "Predicate:Connive",
+            "AbilityBody",
+            "Sentences",
+            "Sentence",
+            "Attached",
+            "ClauseAttachment",
+            "PostposedIfPredicate",
+            "Predicate:Gain2",
+            "FiniteClause",
+            "Subject:You",
+            "Predicate:Connive",
+        ],
+        "the trigger envelope delegates prefix before its attached body payload",
+    );
+
+    let mut activation_visitor = AttachmentEnvelopeVisitor::default();
+    activation_visitor.visit_ability(&activation);
+    assert_eq!(
+        activation_visitor.0,
+        [
+            "Ability",
+            "Activated",
+            "ActivationCostComponent",
+            "SymbolRun",
+            "CostSymbol",
+            "FixedSymbol",
+            "FixedCostSymbol:Tap",
+            "AbilityBody",
+            "Sentences",
+            "Sentence",
+            "Attached",
+            "ClauseAttachment",
+            "PreposedIfPredicate",
+            "FiniteClause",
+            "Subject:You",
+            "Predicate:Connive",
+            "Predicate:Gain2",
+        ],
+        "the activation envelope delegates cost before its post-colon attached body",
     );
 
     for invalid in [
@@ -3216,6 +3468,41 @@ fn conditional_attachment_stage_has_exact_root_trigger_and_activation_evidence()
         assert!(
             parser.parse(invalid, &context).is_err(),
             "attachment punctuation, spacing, capitalization, and order stay local: {invalid}",
+        );
+    }
+
+    for (text, expected_span) in [
+        (
+            "If you connive, gain 2 life if you connive.",
+            TextSpan { start: 28, end: 30 },
+        ),
+        (
+            "Gain 2 life if you connive unless you connive.",
+            TextSpan { start: 27, end: 33 },
+        ),
+        (
+            "Gain 2 life, if you connive.",
+            TextSpan { start: 13, end: 15 },
+        ),
+        (
+            "{T}: If you connive, gain 2 life if you connive.",
+            TextSpan { start: 33, end: 35 },
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        assert!(
+            analysis.selected().is_none(),
+            "the nonrecursive intermediate stage cannot select a composed/reordered attachment: {text}",
+        );
+        let error = parser
+            .parse(text, &context)
+            .expect_err("the composed/reordered attachment remains a parse failure");
+        let ParseError::Failure { span, .. } = error else {
+            panic!("the attachment negative must be an ordinary parse failure: {text}")
+        };
+        assert_eq!(
+            span, expected_span,
+            "the rejection boundary is exact: {text}"
         );
     }
 }
