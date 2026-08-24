@@ -556,16 +556,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
                 }) => "connive",
                 Sentence::Declarative(_) => "gain",
                 Sentence::WithWhere(_) => "where",
-                Sentence::Imperative(_)
-                | Sentence::PreposedIf(_)
-                | Sentence::PostposedIf(_)
-                | Sentence::PostposedUnless(_)
-                | Sentence::PreposedAsLongAs(_)
-                | Sentence::PreposedWhile(_)
-                | Sentence::PreposedDuring(_)
-                | Sentence::PreposedUntil(_)
-                | Sentence::ThenSequence(_)
-                | Sentence::ReflexiveSubordinate(_) => "other",
+                Sentence::Imperative(_) | Sentence::Attached(_) => "other",
             };
             self.0.push(Event::Sentence(label));
             deckmaste_english_v2::visit::walk_sentence(self, sentence);

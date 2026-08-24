@@ -298,6 +298,26 @@ constructions! {
         Finite: FiniteClause,
         Coordination: ClauseCoordination,
     }
+    abstract sum ClauseAttachment {
+        PreposedIf,
+        PreposedIfPredicate,
+        PostposedIf,
+        PostposedIfPredicate,
+        PostposedUnless,
+        PostposedUnlessPredicate,
+        PreposedAsLongAs,
+        PreposedAsLongAsPredicate,
+        PreposedWhile,
+        PreposedWhilePredicate,
+        PreposedDuring,
+        PreposedDuringPredicate,
+        PreposedUntil,
+        PreposedUntilPredicate,
+        ThenSequence,
+        ThenPredicateSequence,
+        ReflexiveSubordinate,
+        ReflexivePredicateSubordinate,
+    }
     abstract sum ConditionClause { FiniteCondition, }
     construction finite_condition: FiniteCondition {
         element FiniteConditionValue { clause: FiniteClause, }
@@ -451,35 +471,74 @@ constructions! {
         element Declarative { clause: Clause, }
         form declarative = clause;
     }
-    construction preposed_if: Sentence {
+    construction attached: Sentence {
+        element Attached { attachment: ClauseAttachment, }
+        form attached = attachment;
+    }
+    construction preposed_if: ClauseAttachment {
         element PreposedIf { condition: FiniteClause, body: Clause, }
         form preposed_if = "if" condition "," body;
     }
-    construction postposed_if: Sentence {
+    construction preposed_if_predicate: ClauseAttachment {
+        element PreposedIfPredicate { condition: FiniteClause, body: Predicate, }
+        derive body.agreement = Values::Bare;
+        form preposed_if_predicate = "if" condition "," body;
+    }
+    construction postposed_if: ClauseAttachment {
         element PostposedIf { body: Clause, condition: FiniteClause, }
         form postposed_if = body "if" condition;
     }
-    construction postposed_unless: Sentence {
+    construction postposed_if_predicate: ClauseAttachment {
+        element PostposedIfPredicate { body: Predicate, condition: FiniteClause, }
+        derive body.agreement = Values::Bare;
+        form postposed_if_predicate = body "if" condition;
+    }
+    construction postposed_unless: ClauseAttachment {
         element PostposedUnless { body: Clause, condition: FiniteClause, }
         form postposed_unless = body "unless" condition;
     }
-    construction preposed_as_long_as: Sentence {
+    construction postposed_unless_predicate: ClauseAttachment {
+        element PostposedUnlessPredicate { body: Predicate, condition: FiniteClause, }
+        derive body.agreement = Values::Bare;
+        form postposed_unless_predicate = body "unless" condition;
+    }
+    construction preposed_as_long_as: ClauseAttachment {
         element PreposedAsLongAs { condition: FiniteClause, body: Clause, }
         form preposed_as_long_as = "as" "long" "as" condition "," body;
     }
-    construction preposed_while: Sentence {
+    construction preposed_as_long_as_predicate: ClauseAttachment {
+        element PreposedAsLongAsPredicate { condition: FiniteClause, body: Predicate, }
+        derive body.agreement = Values::Bare;
+        form preposed_as_long_as_predicate = "as" "long" "as" condition "," body;
+    }
+    construction preposed_while: ClauseAttachment {
         element PreposedWhile { condition: FiniteClause, body: Clause, }
         form preposed_while = "while" condition "," body;
     }
-    construction preposed_during: Sentence {
+    construction preposed_while_predicate: ClauseAttachment {
+        element PreposedWhilePredicate { condition: FiniteClause, body: Predicate, }
+        derive body.agreement = Values::Bare;
+        form preposed_while_predicate = "while" condition "," body;
+    }
+    construction preposed_during: ClauseAttachment {
         element PreposedDuring { condition: FiniteClause, body: Clause, }
         form preposed_during = "during" condition "," body;
     }
-    construction preposed_until: Sentence {
+    construction preposed_during_predicate: ClauseAttachment {
+        element PreposedDuringPredicate { condition: FiniteClause, body: Predicate, }
+        derive body.agreement = Values::Bare;
+        form preposed_during_predicate = "during" condition "," body;
+    }
+    construction preposed_until: ClauseAttachment {
         element PreposedUntil { condition: FiniteClause, body: Clause, }
         form preposed_until = "until" condition "," body;
     }
-    construction then_sequence: Sentence {
+    construction preposed_until_predicate: ClauseAttachment {
+        element PreposedUntilPredicate { condition: FiniteClause, body: Predicate, }
+        derive body.agreement = Values::Bare;
+        form preposed_until_predicate = "until" condition "," body;
+    }
+    construction then_sequence: ClauseAttachment {
         element ThenSequence {
             members: seq Clause separated by position {
                 pair = ", then ";
@@ -491,9 +550,30 @@ constructions! {
         require len(members) >= 2;
         form then_sequence = members;
     }
-    construction reflexive_subordinate: Sentence {
+    construction then_predicate_sequence: ClauseAttachment {
+        element ThenPredicateSequence {
+            members: seq Predicate separated by position {
+                pair = ", then ";
+                first = ", then ";
+                middle = ", then ";
+                last = ", then ";
+            },
+        }
+        require len(members) >= 2;
+        derive members.agreement = Values::Bare;
+        form then_predicate_sequence = members;
+    }
+    construction reflexive_subordinate: ClauseAttachment {
         element ReflexiveSubordinate { kind: lex ReflexiveSubordinateKind, body: Clause, }
         form reflexive_subordinate = lex(kind) "," body;
+    }
+    construction reflexive_predicate_subordinate: ClauseAttachment {
+        element ReflexivePredicateSubordinate {
+            kind: lex ReflexiveSubordinateKind,
+            body: Predicate,
+        }
+        derive body.agreement = Values::Bare;
+        form reflexive_predicate_subordinate = lex(kind) "," body;
     }
     construction with_where: Sentence {
         element WithWhere { body: Sentence, clause: WhereClauseCategory, }

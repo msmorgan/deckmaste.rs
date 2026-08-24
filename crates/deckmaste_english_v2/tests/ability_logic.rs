@@ -2712,6 +2712,26 @@ fn gain_clause(amount: u32) -> Clause {
 }
 
 #[test]
+fn attachment_products_have_an_intermediate_linguistic_stage_for_imperatives() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let expected = Sentence::Attached(Attached {
+        attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
+            condition: connive_clause(),
+            body: Predicate::Atomic(VerbPhrase::Connive(Connive {})),
+        }),
+    });
+    let selected = assert_one_logic_candidate(&parser, &context, "If you connive, connive.");
+    assert_eq!(
+        selected,
+        Ability::Plain(Plain {
+            body: AbilityBody::Sentences(Sentences::new(vec![expected]).expect("one sentence")),
+        }),
+        "the attachment lives between Sentence and its predicate/finite-clause payload",
+    );
+}
+
+#[test]
 fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
     let parser = parser();
     let context = context("Context Card", false);
@@ -2721,49 +2741,63 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
     for (text, expected) in [
         (
             "If you connive, you gain 2 life.",
-            Sentence::PreposedIf(PreposedIf {
-                condition: condition.clone(),
-                body: body.clone(),
+            Sentence::Attached(Attached {
+                attachment: ClauseAttachment::PreposedIf(PreposedIf {
+                    condition: condition.clone(),
+                    body: body.clone(),
+                }),
             }),
         ),
         (
             "You gain 2 life if you connive.",
-            Sentence::PostposedIf(PostposedIf {
-                body: body.clone(),
-                condition: condition.clone(),
+            Sentence::Attached(Attached {
+                attachment: ClauseAttachment::PostposedIf(PostposedIf {
+                    body: body.clone(),
+                    condition: condition.clone(),
+                }),
             }),
         ),
         (
             "You gain 2 life unless you connive.",
-            Sentence::PostposedUnless(PostposedUnless {
-                body: body.clone(),
-                condition: condition.clone(),
+            Sentence::Attached(Attached {
+                attachment: ClauseAttachment::PostposedUnless(PostposedUnless {
+                    body: body.clone(),
+                    condition: condition.clone(),
+                }),
             }),
         ),
         (
             "As long as you connive, you gain 2 life.",
-            Sentence::PreposedAsLongAs(PreposedAsLongAs {
-                condition: condition.clone(),
-                body: body.clone(),
+            Sentence::Attached(Attached {
+                attachment: ClauseAttachment::PreposedAsLongAs(PreposedAsLongAs {
+                    condition: condition.clone(),
+                    body: body.clone(),
+                }),
             }),
         ),
         (
             "While you connive, you gain 2 life.",
-            Sentence::PreposedWhile(PreposedWhile {
-                condition: condition.clone(),
-                body: body.clone(),
+            Sentence::Attached(Attached {
+                attachment: ClauseAttachment::PreposedWhile(PreposedWhile {
+                    condition: condition.clone(),
+                    body: body.clone(),
+                }),
             }),
         ),
         (
             "During you connive, you gain 2 life.",
-            Sentence::PreposedDuring(PreposedDuring {
-                condition: condition.clone(),
-                body: body.clone(),
+            Sentence::Attached(Attached {
+                attachment: ClauseAttachment::PreposedDuring(PreposedDuring {
+                    condition: condition.clone(),
+                    body: body.clone(),
+                }),
             }),
         ),
         (
             "Until you connive, you gain 2 life.",
-            Sentence::PreposedUntil(PreposedUntil { condition, body }),
+            Sentence::Attached(Attached {
+                attachment: ClauseAttachment::PreposedUntil(PreposedUntil { condition, body }),
+            }),
         ),
     ] {
         let selected = assert_one_logic_candidate(&parser, &context, text);
@@ -2805,7 +2839,12 @@ fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
     else {
         panic!("ordered clauses remain inside an ordinary linguistic body")
     };
-    let [Sentence::ThenSequence(sequence)] = sentences.sentences() else {
+    let [
+        Sentence::Attached(Attached {
+            attachment: ClauseAttachment::ThenSequence(sequence),
+        }),
+    ] = sentences.sentences()
+    else {
         panic!("then stores an ordered finite-clause sequence rather than nested sentences")
     };
     assert_eq!(
@@ -2839,7 +2878,9 @@ fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
         };
         let [
             Sentence::Declarative(_),
-            Sentence::ReflexiveSubordinate(subordinate),
+            Sentence::Attached(Attached {
+                attachment: ClauseAttachment::ReflexiveSubordinate(subordinate),
+            }),
         ] = sentences.sentences()
         else {
             panic!("the reflexive subordinate is its own sentence shape: {text}")
@@ -2883,7 +2924,9 @@ fn ordinary_trailing_if_is_not_trigger_intervening_if_and_keeps_its_own_bytes() 
     };
     assert!(matches!(
         ordinary_body.sentences(),
-        [Sentence::PostposedIf(_)]
+        [Sentence::Attached(Attached {
+            attachment: ClauseAttachment::PostposedIf(_),
+        })]
     ));
 
     let intervening_analysis = parser.analyze(intervening, &context);
@@ -2962,6 +3005,31 @@ fn ordinary_trailing_if_is_not_trigger_intervening_if_and_keeps_its_own_bytes() 
 struct AttachmentVisitor(Vec<&'static str>);
 
 impl Visitor for AttachmentVisitor {
+    fn visit_sentence(&mut self, value: &Sentence) {
+        self.0.push("Sentence");
+        deckmaste_english_v2::visit::walk_sentence(self, value);
+    }
+
+    fn visit_attached(&mut self, value: &Attached) {
+        self.0.push("Attached");
+        deckmaste_english_v2::visit::walk_attached(self, value);
+    }
+
+    fn visit_clause_attachment(&mut self, value: &ClauseAttachment) {
+        self.0.push("ClauseAttachment");
+        deckmaste_english_v2::visit::walk_clause_attachment(self, value);
+    }
+
+    fn visit_preposed_if_predicate(&mut self, value: &PreposedIfPredicate) {
+        self.0.push("PreposedIfPredicate");
+        deckmaste_english_v2::visit::walk_preposed_if_predicate(self, value);
+    }
+
+    fn visit_postposed_if_predicate(&mut self, value: &PostposedIfPredicate) {
+        self.0.push("PostposedIfPredicate");
+        deckmaste_english_v2::visit::walk_postposed_if_predicate(self, value);
+    }
+
     fn visit_then_sequence(&mut self, value: &ThenSequence) {
         self.0.push("ThenSequence");
         deckmaste_english_v2::visit::walk_then_sequence(self, value);
@@ -2985,6 +3053,326 @@ impl Visitor for AttachmentVisitor {
         self.0.push("FiniteClause");
         deckmaste_english_v2::visit::walk_finite_clause(self, value);
     }
+
+    fn visit_predicate(&mut self, value: &Predicate) {
+        self.0.push("Predicate");
+        deckmaste_english_v2::visit::walk_predicate(self, value);
+    }
+}
+
+fn literal_claims(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+    literals: &[&str],
+) -> Vec<(usize, usize, String)> {
+    parser
+        .analyze(text, context)
+        .ownership()
+        .expect("selected attachment has ownership")
+        .parsed_claims()
+        .iter()
+        .filter(|claim| {
+            literals.contains(&&text[claim.span().start..claim.span().end])
+                && claim.kind() == LexicalProvenanceKind::FormLiteral
+        })
+        .map(|claim| {
+            (
+                claim.span().start,
+                claim.span().end,
+                claim.stable_owner_id().to_owned(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn conditional_attachment_stage_has_exact_root_trigger_and_activation_evidence() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let condition = connive_clause();
+    let gain = Predicate::Atomic(gain_life_predicate(2));
+
+    let root_text = "If you connive, gain 2 life.";
+    let root = assert_one_logic_candidate(&parser, &context, root_text);
+    assert_eq!(
+        root,
+        Ability::Plain(Plain {
+            body: AbilityBody::Sentences(
+                Sentences::new(vec![Sentence::Attached(Attached {
+                    attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
+                        condition: condition.clone(),
+                        body: gain.clone(),
+                    }),
+                })])
+                .expect("one root sentence"),
+            ),
+        }),
+    );
+
+    let trigger_text = "Whenever a player connives, gain 2 life if you connive.";
+    let trigger = assert_one_logic_candidate(&parser, &context, trigger_text);
+    let Ability::Triggered(Triggered {
+        body: AbilityBody::Sentences(trigger_body),
+        ..
+    }) = trigger
+    else {
+        panic!("the attachment remains inside a trigger body")
+    };
+    assert_eq!(
+        trigger_body.sentences(),
+        [Sentence::Attached(Attached {
+            attachment: ClauseAttachment::PostposedIfPredicate(PostposedIfPredicate {
+                body: gain.clone(),
+                condition: condition.clone(),
+            }),
+        })],
+    );
+
+    let activation_text = "{T}: If you connive, gain 2 life.";
+    let activation = assert_one_logic_candidate(&parser, &context, activation_text);
+    let Ability::Activated(Activated {
+        body: AbilityBody::Sentences(activation_body),
+        ..
+    }) = activation
+    else {
+        panic!("the attachment remains inside the post-colon body")
+    };
+    assert_eq!(
+        activation_body.sentences(),
+        [Sentence::Attached(Attached {
+            attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
+                condition,
+                body: gain,
+            }),
+        })],
+    );
+
+    for (text, expected) in [
+        (
+            root_text,
+            vec![(
+                14,
+                15,
+                "form:preposed_if_predicate/preposed_if_predicate/2".to_owned(),
+            )],
+        ),
+        (
+            trigger_text,
+            vec![(26, 27, "form:triggered/triggered/1".to_owned())],
+        ),
+        (
+            activation_text,
+            vec![
+                (3, 5, "form:activated/activated/1".to_owned()),
+                (
+                    19,
+                    20,
+                    "form:preposed_if_predicate/preposed_if_predicate/2".to_owned(),
+                ),
+            ],
+        ),
+    ] {
+        assert_eq!(
+            literal_claims(&parser, &context, text, &[",", ": "]),
+            expected,
+            "attachment punctuation has exact spans and owners at its enclosing scope: {text}",
+        );
+    }
+
+    let mut visitor = AttachmentVisitor::default();
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(sentences),
+    }) = root
+    else {
+        unreachable!()
+    };
+    visitor.visit_sentence(&sentences.sentences()[0]);
+    assert_eq!(
+        visitor.0,
+        [
+            "Sentence",
+            "Attached",
+            "ClauseAttachment",
+            "PreposedIfPredicate",
+            "FiniteClause",
+            "Predicate",
+            "Predicate",
+        ],
+        "the condition is visited before the attached imperative predicate",
+    );
+
+    for invalid in [
+        "If you connive gain 2 life.",
+        "If you connive,  gain 2 life.",
+        "if you connive, gain 2 life.",
+        "Gain 2 life if you connive,.",
+        "Whenever a player connives, Gain 2 life if you connive.",
+        "Whenever a player connives, gain 2 life if you connive,.",
+        "{T}: If you connive gain 2 life.",
+        "{T}:  If you connive, gain 2 life.",
+        "{T}: if you connive, gain 2 life.",
+    ] {
+        assert!(
+            parser.parse(invalid, &context).is_err(),
+            "attachment punctuation, spacing, capitalization, and order stay local: {invalid}",
+        );
+    }
+}
+
+#[test]
+fn conditional_and_reflexive_attachments_preserve_exact_self_reference_licensing() {
+    let parser = parser();
+    for (name, legendary, surface, spelling) in [
+        (
+            "Aang, A Lot to Learn",
+            true,
+            "Aang",
+            SelfReferenceSpelling::Abbreviated,
+        ),
+        (
+            "Grizzly Bears",
+            false,
+            "Grizzly Bears",
+            SelfReferenceSpelling::Full,
+        ),
+    ] {
+        let context = context(name, legendary);
+        for text in [
+            format!("If {surface} connives, {surface} gains 2 life."),
+            format!("{surface} gains 1 life. If you do, {surface} gains 2 life."),
+        ] {
+            let selected = assert_one_logic_candidate(&parser, &context, &text);
+            let mut visitor = SelfReferenceVisitor::default();
+            visitor.visit_ability(&selected);
+            assert_eq!(visitor.spellings, [spelling, spelling], "{text}");
+        }
+    }
+
+    let ordinary = context("Grizzly Bears", false);
+    for text in [
+        "If Grizzly connives, Grizzly gains 2 life.",
+        "Grizzly gains 1 life. If you do, Grizzly gains 2 life.",
+    ] {
+        assert!(
+            parser.parse(text, &ordinary).is_err(),
+            "neither attachment licenses a nonlegendary abbreviation: {text}",
+        );
+    }
+}
+
+#[test]
+fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let condition = connive_clause();
+    let gain = Predicate::Atomic(gain_life_predicate(2));
+
+    for (text, expected) in [
+        (
+            "Gain 2 life if you connive.",
+            ClauseAttachment::PostposedIfPredicate(PostposedIfPredicate {
+                body: gain.clone(),
+                condition: condition.clone(),
+            }),
+        ),
+        (
+            "Gain 2 life unless you connive.",
+            ClauseAttachment::PostposedUnlessPredicate(PostposedUnlessPredicate {
+                body: gain.clone(),
+                condition: condition.clone(),
+            }),
+        ),
+        (
+            "As long as you connive, gain 2 life.",
+            ClauseAttachment::PreposedAsLongAsPredicate(PreposedAsLongAsPredicate {
+                condition: condition.clone(),
+                body: gain.clone(),
+            }),
+        ),
+        (
+            "While you connive, gain 2 life.",
+            ClauseAttachment::PreposedWhilePredicate(PreposedWhilePredicate {
+                condition: condition.clone(),
+                body: gain.clone(),
+            }),
+        ),
+        (
+            "During you connive, gain 2 life.",
+            ClauseAttachment::PreposedDuringPredicate(PreposedDuringPredicate {
+                condition: condition.clone(),
+                body: gain.clone(),
+            }),
+        ),
+        (
+            "Until you connive, gain 2 life.",
+            ClauseAttachment::PreposedUntilPredicate(PreposedUntilPredicate {
+                condition: condition.clone(),
+                body: gain.clone(),
+            }),
+        ),
+    ] {
+        let selected = assert_one_logic_candidate(&parser, &context, text);
+        let Ability::Plain(Plain {
+            body: AbilityBody::Sentences(sentences),
+        }) = selected
+        else {
+            unreachable!()
+        };
+        assert_eq!(
+            sentences.sentences(),
+            [Sentence::Attached(Attached {
+                attachment: expected
+            })],
+            "each predicate attachment inhabits the single intermediate stage: {text}",
+        );
+    }
+
+    let ordered = assert_one_logic_candidate(&parser, &context, "Gain 1 life, then connive.");
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(ordered_sentences),
+    }) = ordered
+    else {
+        unreachable!()
+    };
+    let [
+        Sentence::Attached(Attached {
+            attachment: ClauseAttachment::ThenPredicateSequence(sequence),
+        }),
+    ] = ordered_sentences.sentences()
+    else {
+        panic!("predicate ordering stores its members in the attachment stage")
+    };
+    assert_eq!(
+        sequence.members(),
+        [
+            Predicate::Atomic(gain_life_predicate(1)),
+            Predicate::Atomic(VerbPhrase::Connive(Connive {})),
+        ],
+    );
+
+    let reflexive = assert_one_logic_candidate(
+        &parser,
+        &context,
+        "You gain 1 life. When you do, gain 2 life.",
+    );
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(reflexive_sentences),
+    }) = reflexive
+    else {
+        unreachable!()
+    };
+    let [
+        _,
+        Sentence::Attached(Attached {
+            attachment: ClauseAttachment::ReflexivePredicateSubordinate(subordinate),
+        }),
+    ] = reflexive_sentences.sentences()
+    else {
+        panic!("predicate reflexive subordinate stores its body in the attachment stage")
+    };
+    assert_eq!(subordinate.kind, ReflexiveSubordinateKind::WhenYouDo);
+    assert_eq!(subordinate.body, gain);
 }
 
 #[test]
@@ -3016,7 +3404,12 @@ fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names
     else {
         unreachable!()
     };
-    let [Sentence::ThenSequence(sequence)] = sentences.sentences() else {
+    let [
+        Sentence::Attached(Attached {
+            attachment: ClauseAttachment::ThenSequence(sequence),
+        }),
+    ] = sentences.sentences()
+    else {
         unreachable!()
     };
     let mut visitor = AttachmentVisitor::default();
@@ -3027,10 +3420,13 @@ fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names
             "ThenSequence",
             "Clause",
             "FiniteClause",
+            "Predicate",
             "Clause",
             "FiniteClause",
+            "Predicate",
             "Clause",
             "FiniteClause",
+            "Predicate",
         ],
     );
 
@@ -3045,7 +3441,13 @@ fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names
     else {
         unreachable!()
     };
-    let [_, Sentence::ReflexiveSubordinate(subordinate)] = sentences.sentences() else {
+    let [
+        _,
+        Sentence::Attached(Attached {
+            attachment: ClauseAttachment::ReflexiveSubordinate(subordinate),
+        }),
+    ] = sentences.sentences()
+    else {
         unreachable!()
     };
     let mut visitor = AttachmentVisitor::default();
@@ -3057,6 +3459,7 @@ fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names
             "ReflexiveSubordinateKind",
             "Clause",
             "FiniteClause",
+            "Predicate",
         ],
     );
 
@@ -3111,6 +3514,7 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
         "OrClauseCoordination.members",
         "AndOrClauseCoordination.members",
         "ThenSequence.members",
+        "ThenPredicateSequence.members",
     ] {
         assert!(
             report
@@ -3123,6 +3527,7 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
     assert_eq!(
         report.sequence_feature_roles(),
         [
+            "ThenPredicateSequence.members.agreement",
             "AndPredicateCoordination.members.agreement",
             "OrPredicateCoordination.members.agreement",
             "AndOrPredicateCoordination.members.agreement",

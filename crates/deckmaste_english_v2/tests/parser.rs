@@ -1013,6 +1013,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "ActivationCostComponent",
             "Predicate",
             "Clause",
+            "ClauseAttachment",
             "ConditionClause",
             "DocumentBlock",
             "OracleText",
@@ -1035,15 +1036,25 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Activated",
             "Imperative",
             "Declarative",
+            "Attached",
             "PreposedIf",
+            "PreposedIfPredicate",
             "PostposedIf",
+            "PostposedIfPredicate",
             "PostposedUnless",
+            "PostposedUnlessPredicate",
             "PreposedAsLongAs",
+            "PreposedAsLongAsPredicate",
             "PreposedWhile",
+            "PreposedWhilePredicate",
             "PreposedDuring",
+            "PreposedDuringPredicate",
             "PreposedUntil",
+            "PreposedUntilPredicate",
             "ThenSequence",
+            "ThenPredicateSequence",
             "ReflexiveSubordinate",
+            "ReflexivePredicateSubordinate",
             "WithWhere",
             "AndPredicateCoordination",
             "OrPredicateCoordination",
@@ -2131,9 +2142,9 @@ fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_err
                 end: text.len()
             }
         );
-        assert_eq!(failure.expectations().total(), 28);
+        assert_eq!(failure.expectations().total(), 31);
         assert_eq!(failure.expectations().shown(), expected_shown);
-        assert_eq!(failure.expectations().omitted(), 28 - expected_shown);
+        assert_eq!(failure.expectations().omitted(), 31 - expected_shown);
         if limit > 0 {
             assert_eq!(
                 failure.expectations().items()[0],
@@ -2241,14 +2252,17 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Literal(" or "),
                 Expectation::Literal(","),
                 Expectation::Literal(", "),
+                Expectation::Literal(", then "),
                 Expectation::Literal("."),
                 Expectation::Literal(": "),
                 Expectation::Literal("a"),
                 Expectation::Literal("an"),
                 Expectation::Literal("from"),
+                Expectation::Literal("if"),
                 Expectation::Literal("in"),
                 Expectation::Literal("non"),
                 Expectation::Literal("non-"),
+                Expectation::Literal("unless"),
                 Expectation::Literal("with"),
             ]),
         })
@@ -2287,12 +2301,15 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Literal(" or "),
                 Expectation::Literal(","),
                 Expectation::Literal(", "),
+                Expectation::Literal(", then "),
                 Expectation::Literal("."),
                 Expectation::Literal(": "),
                 Expectation::Literal("a"),
                 Expectation::Literal("an"),
                 Expectation::Literal("from"),
+                Expectation::Literal("if"),
                 Expectation::Literal("in"),
+                Expectation::Literal("unless"),
                 Expectation::Literal("with"),
             ]),
         })
