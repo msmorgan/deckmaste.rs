@@ -499,8 +499,8 @@ badUnlicensedY Oh impossible
 public export
 badDoubleStaticRider : Unspellable (StaticEffect []) (\ok =>
   AndAlso [ Gets Macros.thisCreature (PtUp (LetterVal X)) (PtUp (Lit 0))
-          , DefinesLetter X (CountOf Macros.creatureYouControl)
-          , DefinesLetter X (CountOf Macros.creature) {ok} ])
+          , Define X (CountOf Macros.creatureYouControl)
+          , Define X (CountOf Macros.creature) {ok} ])
 badDoubleStaticRider Oh impossible
 
 

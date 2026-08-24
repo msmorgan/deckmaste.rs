@@ -2474,175 +2474,177 @@ mutual
   costAmount (CostLess a) = a
   costAmount (CostMore a) = a
 
-  public export
-  data StaticEffect : Bindings -> Type where
-    Gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
-           (tou : PtShift (shiftIntro pow)) ->
-           {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
-           StaticEffect bs
-    DefinesPt : (n : Noun bs Object) -> (sl : DefinedSlots) ->
-                (amt : Amount (nomIntro n)) ->
-                {auto 0 sd : SelfDefined n} ->
-                StaticEffect bs
-    HasBasePt : (n : Noun bs Object) -> (pow : Amount bs) ->
-                (tou : Amount (amtIntro pow)) -> StaticEffect bs
-    SwitchesPt : (n : Noun bs Object) ->
-                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                 StaticEffect bs
-    CostsToCast : {k : Kind} -> (n : Noun bs k) -> (sh : CostShift bs) ->
-                  {auto 0 cs : CostSubject n} ->
+  namespace Static
+    public export
+    data StaticEffect : Bindings -> Type where
+      Gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
+             (tou : PtShift (shiftIntro pow)) ->
+             {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
+             StaticEffect bs
+      DefinesPt : (n : Noun bs Object) -> (sl : DefinedSlots) ->
+                  (amt : Amount (nomIntro n)) ->
+                  {auto 0 sd : SelfDefined n} ->
                   StaticEffect bs
-    AltCost : (c : Maybe (Cost bs)) ->
-              {auto 0 ap : AltPayment c} -> StaticEffect bs
-    ||| The static twin of `Define`: "[se], where [l] is [amt]" as one
-    ||| member of an `AndAlso` after the statement that used the letter.
-    ||| -- spelling: as `Define`.
-    DefinesLetter : (l : Letter) -> (amt : Amount bs) ->
-                    {auto 0 ok : So (anyOpenLetter l bs)} -> StaticEffect bs
-    Gains : (n : Noun bs Object) -> (ab : AbilityAt bs) ->
-            {auto 0 ok : GrantSubject ab n} ->
-            {auto 0 gr : Grantable ab} -> StaticEffect bs
-    Deontic : (n : Noun bs Object) -> (c : Compulsion bs) ->
-              (deed : Deed) -> (role : Role) ->
-              (patient : DeonticPatient {bs = nomIntro n} deed role) ->
-              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-              {auto 0 dp : DeedParticipant deed role (nounTy n)} -> StaticEffect bs
-    MayDeclineUntap : (n : Noun bs Object) ->
-                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                      StaticEffect bs
-    OutcomeGate : (k : OutcomeGateKind) -> (who : Noun bs Player) ->
-                  StaticEffect bs
-    PlayerCant : (act : PlayerAct) -> (who : Noun bs Player) ->
-                 StaticEffect bs
-    ObjectCant : {k : Kind} -> (act : ObjectAct) -> (what : Noun bs k) ->
-                 {auto 0 sub : ActSubject act what} -> StaticEffect bs
-    DoesntUntap : (n : Noun bs Object) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                  StaticEffect bs
-    CantUntapMoreThan : (who : Noun bs Player) -> (k : Nat) ->
-                        (p : Predicate bs Object) ->
-                        {auto 0 zn : ZoneFits (seedZone p) (Just Battlefield)} ->
-                        StaticEffect bs
-    Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
-    BecomesAlso : (n : Noun bs Object) -> (added : TokenChars bs) ->
-                  {auto 0 ne : LineNonEmpty added.line} ->
-                  {auto 0 nw : AddsSomething (nounTy n) added.line} ->
-                  {auto 0 af : AddedFits (nounTy n) added.line} ->
-                  {auto 0 cd : ColorsDistinct added.colors} ->
-                  {auto 0 ta : TokenAbilities added} ->
-                  {auto 0 un : AdditionUnnamed added} -> StaticEffect bs
-    AddsEveryType : (n : Noun bs Object) -> (space : TypeSpace) ->
-                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                    {auto 0 sh : SpaceHosted space (nounTy n)} ->
-                    StaticEffect bs
-    SetsType : (n : Noun bs Object) -> (t : TokenChars bs) ->
-               (ret : Maybe CardType) ->
-               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-               {auto 0 ne : LineNonEmpty t.line} ->
-               {auto 0 af : AddedFits (nounTy n) t.line} ->
-               {auto 0 ta : TokenAbilities t} ->
-               {auto 0 tc : TokenCanonical t} ->
-               {auto 0 ro : RetentionOk t.line ret} -> StaticEffect bs
-    SetsChosenBasicType : (n : Noun bs Object) ->
-                          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                          {auto 0 ls : LandSubject n} -> StaticEffect bs
-    AddsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
-                     {auto 0 qr : QualityRead q} ->
-                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                     StaticEffect bs
-    SetsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
-                     {auto 0 qr : QualityRead q} ->
-                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                     StaticEffect bs
-    AlsoOffBattlefield : (se : StaticEffect bs) ->
-                         {auto 0 nx : NotExtended se} -> StaticEffect bs
-    BecomesCopy : (n : Noun bs Object) -> (src : Noun (nomIntro n) Object) ->
-                  (exc : List (CopyExcept (nomIntro src))) ->
-                  {auto 0 pm : PerMember src} -> StaticEffect bs
-    LosesAllAbilities : (n : Noun bs Object) ->
-                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                        StaticEffect bs
-    GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                   {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
-    Intercepts : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
-                 (use : ReplUse) ->
-                 {auto 0 ok : Interceptable ev} -> StaticEffect bs
-    Prevents : (kind : DamageKind) -> (size : Shield bs) ->
-               (scope : DamageScope (shieldIntro size)) ->
-               (by : Maybe (Noun (scopeIntro scope) Object)) ->
-               (also : Maybe (Effect (outcomeB DamagePrevented :: byIntro by))) ->
-               StaticEffect bs
-    PreventsFrom : (kind : DamageKind) ->
-                   (src : DamageAgent bs) ->
-                   (scope : DamageScope (agentIntro src)) ->
-                   (cut : PreventCut (scopeIntro scope)) ->
-                   (use : ReplUse) ->
-                   (also : Maybe (Effect (outcomeB DamagePrevented :: cutIntro cut))) ->
-                   StaticEffect bs
-    Redirects : {k : Kind} -> (kind : DamageKind) -> (size : Shield bs) ->
-                (scope : DamageScope (shieldIntro size)) ->
-                (by : Maybe (Noun (scopeIntro scope) Object)) ->
-                (to : Noun (byIntro by) k) ->
-                {auto 0 rk : DamageRecipient to} ->
-                {auto 0 one : SingleRecipient to} -> StaticEffect bs
-    RedirectsFrom : {k : Kind} -> (kind : DamageKind) ->
-                    (src : DamageAgent bs) ->
-                    (scope : DamageScope (agentIntro src)) ->
-                    (to : Noun (scopeIntro scope) k) ->
-                    (use : ReplUse) ->
-                    {auto 0 rk : DamageRecipient to} ->
-                    {auto 0 one : SingleRecipient to} -> StaticEffect bs
-    Scales : (kind : DamageKind) -> (src : Noun bs Object) ->
-             (scope : DamageScope (nomIntro src)) ->
-             (op : DamageScale (scopeIntro scope)) ->
-             (use : ReplUse) -> StaticEffect bs
-    CantPrevent : (kind : DamageKind) -> (scope : DamageScope bs) ->
-                  (by : Maybe (Noun (scopeIntro scope) Object)) -> StaticEffect bs
-    Conditionally : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
-                    (marking : CondMarking) ->
-                    {auto 0 nn : NotConditional se} ->
-                    {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
-    ||| The postposed static conditional, "[se] as long as [c]" / "[se]
-    ||| unless [c]": the condition is written after the statement and reads
-    ||| the statement's own subject ("has hexproof as long as IT's
-    ||| untapped"), so it sits at `staticIntro se`. `Conditionally` is the
-    ||| leading twin, whose statement reads the condition; neither is a
-    ||| macro over the other and neither reads forward.
-    ||| -- spelling: "[se] as long as [c]"; under `NotCond` with `Unless`,
-    ||| "[se] unless [c]".
-    OnlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
-                (marking : CondMarking) ->
-                {auto 0 nn : NotConditional se} ->
-                {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
-    MayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-              (verb : PlayVerb) ->
-              (from : Maybe (ZoneExpr (nomIntro what))) ->
-              (asThough : Maybe PlayAsThough) ->
-              (limit : Maybe PlayLimit) ->
-              (window : Maybe PlayWindow) ->
-              {auto 0 pz : PlaySource (nounZone what) from asThough} ->
-              {auto 0 cv : CastableTy verb (nounTy what)} -> StaticEffect bs
-    Visibility : (v : ExposeVerb) -> (who : Noun bs Player) ->
-                 (what : VisibleThing) ->
-                 {auto 0 vo : VisibilityOk v what} -> StaticEffect bs
-    MayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity) ->
-                             {auto 0 nz : NonZeroQ q} ->
-                             {auto 0 wf : WellFormedQ q} -> StaticEffect bs
-    ||| [CR#506.3a] and [CR#508.4d] both say what happens when a
-    ||| permanent enters attacking, so either rider is a real entry.
-    EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                  StaticEffect bs
-    EntersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
-                         (kind : CounterKind) ->
-                         (mark : EntryCounterMark) ->
-                         StaticEffect bs
-    EntersChoice : (n : Noun bs Object) -> (q : QualitySort) ->
-                   (dom : Maybe (ChoiceDomain q)) ->
+      HasBasePt : (n : Noun bs Object) -> (pow : Amount bs) ->
+                  (tou : Amount (amtIntro pow)) -> StaticEffect bs
+      SwitchesPt : (n : Noun bs Object) ->
                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                    StaticEffect bs
-    AndAlso : {0 n : Nat} -> StaticParts n bs ->
-              {auto 0 ne : IsSucc n} -> StaticEffect bs
+      CostsToCast : {k : Kind} -> (n : Noun bs k) -> (sh : CostShift bs) ->
+                    {auto 0 cs : CostSubject n} ->
+                    StaticEffect bs
+      AltCost : (c : Maybe (Cost bs)) ->
+                {auto 0 ap : AltPayment c} -> StaticEffect bs
+      ||| The static twin of the clause-level `Define`: "[se], where [l] is
+      ||| [amt]" as one member of an `AndAlso` after the statement that used
+      ||| the letter.
+      ||| -- spelling: as `Define`.
+      Define : (l : Letter) -> (amt : Amount bs) ->
+               {auto 0 ok : So (anyOpenLetter l bs)} -> StaticEffect bs
+      Gains : (n : Noun bs Object) -> (ab : AbilityAt bs) ->
+              {auto 0 ok : GrantSubject ab n} ->
+              {auto 0 gr : Grantable ab} -> StaticEffect bs
+      Deontic : (n : Noun bs Object) -> (c : Compulsion bs) ->
+                (deed : Deed) -> (role : Role) ->
+                (patient : DeonticPatient {bs = nomIntro n} deed role) ->
+                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                {auto 0 dp : DeedParticipant deed role (nounTy n)} -> StaticEffect bs
+      MayDeclineUntap : (n : Noun bs Object) ->
+                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                        StaticEffect bs
+      OutcomeGate : (k : OutcomeGateKind) -> (who : Noun bs Player) ->
+                    StaticEffect bs
+      PlayerCant : (act : PlayerAct) -> (who : Noun bs Player) ->
+                   StaticEffect bs
+      ObjectCant : {k : Kind} -> (act : ObjectAct) -> (what : Noun bs k) ->
+                   {auto 0 sub : ActSubject act what} -> StaticEffect bs
+      DoesntUntap : (n : Noun bs Object) ->
+                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                    StaticEffect bs
+      CantUntapMoreThan : (who : Noun bs Player) -> (k : Nat) ->
+                          (p : Predicate bs Object) ->
+                          {auto 0 zn : ZoneFits (seedZone p) (Just Battlefield)} ->
+                          StaticEffect bs
+      Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
+      BecomesAlso : (n : Noun bs Object) -> (added : TokenChars bs) ->
+                    {auto 0 ne : LineNonEmpty added.line} ->
+                    {auto 0 nw : AddsSomething (nounTy n) added.line} ->
+                    {auto 0 af : AddedFits (nounTy n) added.line} ->
+                    {auto 0 cd : ColorsDistinct added.colors} ->
+                    {auto 0 ta : TokenAbilities added} ->
+                    {auto 0 un : AdditionUnnamed added} -> StaticEffect bs
+      AddsEveryType : (n : Noun bs Object) -> (space : TypeSpace) ->
+                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                      {auto 0 sh : SpaceHosted space (nounTy n)} ->
+                      StaticEffect bs
+      SetsType : (n : Noun bs Object) -> (t : TokenChars bs) ->
+                 (ret : Maybe CardType) ->
+                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                 {auto 0 ne : LineNonEmpty t.line} ->
+                 {auto 0 af : AddedFits (nounTy n) t.line} ->
+                 {auto 0 ta : TokenAbilities t} ->
+                 {auto 0 tc : TokenCanonical t} ->
+                 {auto 0 ro : RetentionOk t.line ret} -> StaticEffect bs
+      SetsChosenBasicType : (n : Noun bs Object) ->
+                            {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                            {auto 0 ls : LandSubject n} -> StaticEffect bs
+      AddsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
+                       {auto 0 qr : QualityRead q} ->
+                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                       StaticEffect bs
+      SetsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
+                       {auto 0 qr : QualityRead q} ->
+                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                       StaticEffect bs
+      AlsoOffBattlefield : (se : StaticEffect bs) ->
+                           {auto 0 nx : NotExtended se} -> StaticEffect bs
+      BecomesCopy : (n : Noun bs Object) -> (src : Noun (nomIntro n) Object) ->
+                    (exc : List (CopyExcept (nomIntro src))) ->
+                    {auto 0 pm : PerMember src} -> StaticEffect bs
+      LosesAllAbilities : (n : Noun bs Object) ->
+                          {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                          StaticEffect bs
+      GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+                     {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
+      Intercepts : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
+                   (use : ReplUse) ->
+                   {auto 0 ok : Interceptable ev} -> StaticEffect bs
+      Prevents : (kind : DamageKind) -> (size : Shield bs) ->
+                 (scope : DamageScope (shieldIntro size)) ->
+                 (by : Maybe (Noun (scopeIntro scope) Object)) ->
+                 (also : Maybe (Effect (outcomeB DamagePrevented :: byIntro by))) ->
+                 StaticEffect bs
+      PreventsFrom : (kind : DamageKind) ->
+                     (src : DamageAgent bs) ->
+                     (scope : DamageScope (agentIntro src)) ->
+                     (cut : PreventCut (scopeIntro scope)) ->
+                     (use : ReplUse) ->
+                     (also : Maybe (Effect (outcomeB DamagePrevented :: cutIntro cut))) ->
+                     StaticEffect bs
+      Redirects : {k : Kind} -> (kind : DamageKind) -> (size : Shield bs) ->
+                  (scope : DamageScope (shieldIntro size)) ->
+                  (by : Maybe (Noun (scopeIntro scope) Object)) ->
+                  (to : Noun (byIntro by) k) ->
+                  {auto 0 rk : DamageRecipient to} ->
+                  {auto 0 one : SingleRecipient to} -> StaticEffect bs
+      RedirectsFrom : {k : Kind} -> (kind : DamageKind) ->
+                      (src : DamageAgent bs) ->
+                      (scope : DamageScope (agentIntro src)) ->
+                      (to : Noun (scopeIntro scope) k) ->
+                      (use : ReplUse) ->
+                      {auto 0 rk : DamageRecipient to} ->
+                      {auto 0 one : SingleRecipient to} -> StaticEffect bs
+      Scales : (kind : DamageKind) -> (src : Noun bs Object) ->
+               (scope : DamageScope (nomIntro src)) ->
+               (op : DamageScale (scopeIntro scope)) ->
+               (use : ReplUse) -> StaticEffect bs
+      CantPrevent : (kind : DamageKind) -> (scope : DamageScope bs) ->
+                    (by : Maybe (Noun (scopeIntro scope) Object)) -> StaticEffect bs
+      Conditionally : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
+                      (marking : CondMarking) ->
+                      {auto 0 nn : NotConditional se} ->
+                      {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
+      ||| The postposed static conditional, "[se] as long as [c]" / "[se]
+      ||| unless [c]": the condition is written after the statement and reads
+      ||| the statement's own subject ("has hexproof as long as IT's
+      ||| untapped"), so it sits at `staticIntro se`. `Conditionally` is the
+      ||| leading twin, whose statement reads the condition; neither is a
+      ||| macro over the other and neither reads forward.
+      ||| -- spelling: "[se] as long as [c]"; under `NotCond` with `Unless`,
+      ||| "[se] unless [c]".
+      OnlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
+                  (marking : CondMarking) ->
+                  {auto 0 nn : NotConditional se} ->
+                  {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
+      MayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+                (verb : PlayVerb) ->
+                (from : Maybe (ZoneExpr (nomIntro what))) ->
+                (asThough : Maybe PlayAsThough) ->
+                (limit : Maybe PlayLimit) ->
+                (window : Maybe PlayWindow) ->
+                {auto 0 pz : PlaySource (nounZone what) from asThough} ->
+                {auto 0 cv : CastableTy verb (nounTy what)} -> StaticEffect bs
+      Visibility : (v : ExposeVerb) -> (who : Noun bs Player) ->
+                   (what : VisibleThing) ->
+                   {auto 0 vo : VisibilityOk v what} -> StaticEffect bs
+      MayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity) ->
+                               {auto 0 nz : NonZeroQ q} ->
+                               {auto 0 wf : WellFormedQ q} -> StaticEffect bs
+      ||| [CR#506.3a] and [CR#508.4d] both say what happens when a
+      ||| permanent enters attacking, so either rider is a real entry.
+      EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
+                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                    StaticEffect bs
+      EntersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
+                           (kind : CounterKind) ->
+                           (mark : EntryCounterMark) ->
+                           StaticEffect bs
+      EntersChoice : (n : Noun bs Object) -> (q : QualitySort) ->
+                     (dom : Maybe (ChoiceDomain q)) ->
+                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     StaticEffect bs
+      AndAlso : {0 n : Nat} -> StaticParts n bs ->
+                {auto 0 ne : IsSucc n} -> StaticEffect bs
 
   public export
   data Compulsion : Bindings -> Type where
@@ -2756,7 +2758,7 @@ mutual
 
   public export
   staticKind : {0 bs : Bindings} -> StaticEffect bs -> StaticKind
-  staticKind (DefinesLetter _ _) = LetterDefinition
+  staticKind (Define _ _) = LetterDefinition
   staticKind (Gets _ _ _) = PtDelta
   staticKind (DefinesPt _ _ _) = PtDefinition
   staticKind (HasBasePt _ _ _) = BasePtSet
@@ -2802,7 +2804,7 @@ mutual
 
   public export
   staticIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
-  staticIntro (DefinesLetter l amt) = defineLetter l (amtIntro amt)
+  staticIntro (Define l amt) = defineLetter l (amtIntro amt)
   staticIntro (Gets n pow tou) = shiftDelta tou ++ shiftDelta pow ++ selfSubjIntro n
   staticIntro (DefinesPt n _ amt) = amtDelta amt ++ selfSubjIntro n
   staticIntro (HasBasePt n pow tou) = amtDelta tou ++ amtDelta pow ++ selfSubjIntro n
@@ -3168,6 +3170,7 @@ mutual
     ||| nothing, so the step presupposes an open X to define -- the gate --
     ||| and settles every open instance at once [CR#107.3i]. A second
     ||| definition finds none open and is refused by the same gate.
+    ||| `Static.Define` writes the same construction in a static clause.
     ||| -- spelling: ", where X is [amt]" attached to the clause before it,
     ||| never "then"; a `Sequentially` whose member is a `Define` spells no
     ||| "then" at that seam.

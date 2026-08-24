@@ -1658,7 +1658,7 @@ ivoryTower =
                   (Sequentially
                      [ Macros.gainsLife You (LetterVal X)
                      , Define X (Minus (CountOf (InZone (Macros.handOf You)))
-                                       (Lit 4)) ]) ]
+                                (Lit 4)) ]) ]
        Nothing
 
 harshSustenance : Card
@@ -1713,14 +1713,14 @@ deathsShadow =
        (MkTypeLine [Avatar] [Creature])
        [ Static (AndAlso [ Gets Macros.thisCreature
                                 (PtDown (LetterVal X)) (PtDown (LetterVal X))
-                         , DefinesLetter X (PlayerStatOf LifeTotal You) ]) ]
+                         , Define X (PlayerStatOf LifeTotal You) ]) ]
        (Just (13, 13))
 
 spontaneousMutation : Ability
 spontaneousMutation =
   Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
                          (PtDown (LetterVal X)) (PtDown (Lit 0))
-                  , DefinesLetter X (CountOf (InZone (Macros.graveyardOf You))) ])
+                  , Define X (CountOf (InZone (Macros.graveyardOf You))) ])
 
 stagBeetle : Card
 stagBeetle =
@@ -1730,7 +1730,7 @@ stagBeetle =
        [ Static (AndAlso [ Macros.entersWithCounters Macros.thisCreature
                                                      (LetterVal X)
                                                      Macros.plusOnePlusOne
-                         , DefinesLetter X
+                         , Define X
                              (CountOf (Macros.otherCreature Macros.thisCreature)) ]) ]
        (Just (0, 0))
 
@@ -1745,7 +1745,7 @@ acceleratedMutation =
                                        (PtUp (LetterVal X)) (PtUp (LetterVal X)))
                                  (Just Macros.untilEndOfTurn)
                   , Define X (Aggregate MaxOf (CharAxis ManaValue)
-                                        (And [Permanent, ControlledBy You])) ]) ]
+                                 (And [Permanent, ControlledBy You])) ]) ]
        Nothing
 
 carrionGrub : Card
@@ -1754,7 +1754,7 @@ carrionGrub =
        (MkTypeLine [Insect] [Creature])
        [ Static (AndAlso [ Gets Macros.thisCreature
                                 (PtUp (LetterVal X)) (PtUp (Lit 0))
-                         , DefinesLetter X
+                         , Define X
                              (Aggregate MaxOf (CharAxis Power)
                                         (And [Macros.creature,
                                               InZone (Macros.graveyardOf You)])) ])
@@ -1776,7 +1776,7 @@ toweringTitan =
   Static (AndAlso [ Macros.entersWithCounters Macros.thisCreature
                                               (LetterVal X)
                                               Macros.plusOnePlusOne
-                  , DefinesLetter X
+                  , Define X
                       (Aggregate SumOf (CharAxis Toughness)
                          (Macros.otherCreatureYouControl Macros.thisCreature)) ])
 
@@ -1787,7 +1787,7 @@ ghalta =
        (Just [Macros.generic 10, Macros.pip Green, Macros.pip Green]) [Legendary]
        (MkTypeLine [Elder, Dinosaur] [Creature])
        [ Static (AndAlso [ CostsToCast This (CostLess (LetterVal X))
-                         , DefinesLetter X
+                         , Define X
                              (Aggregate SumOf (CharAxis Power)
                                         Macros.creatureYouControl) ])
        , Macros.keyword Trample ]
@@ -2000,7 +2000,7 @@ aettirAndPriwen : Ability
 aettirAndPriwen =
   Static (AndAlso [ HasBasePt (AttachHost Equipped (TypeW Creature))
                               (LetterVal X) (LetterVal X)
-                  , DefinesLetter X (PlayerStatOf LifeTotal You) ])
+                  , Define X (PlayerStatOf LifeTotal You) ])
 
 diminish : Card
 diminish =
@@ -2288,7 +2288,7 @@ chainsaw =
                           (PutCounters (Lit 1) Rev Macros.thisEquipment)
        , Static (AndAlso [ Gets (AttachHost Equipped (TypeW Creature))
                                 (PtUp (LetterVal X)) (PtUp (Lit 0))
-                         , DefinesLetter X (CountersOn Rev Macros.thisEquipment) ])
+                         , Define X (CountersOn Rev Macros.thisEquipment) ])
        , Macros.keywordCosting Equip (Mana [Macros.generic 3]) ]
        Nothing
 
@@ -2300,11 +2300,11 @@ chainsaw =
 phyrexianIngesterPump : Ability
 phyrexianIngesterPump =
   Static (AndAlso [ Gets Macros.thisCreature (PtUp (LetterVal X)) (PtUp (LetterVal Y))
-                  , DefinesLetter X
+                  , Define X
                       (StatOf Power
                          (Macros.a (And [Macros.creature,
                                          ExiledWith Macros.thisCreature])))
-                  , DefinesLetter Y (StatOf Toughness (That CardW)) ])
+                  , Define Y (StatOf Toughness (That CardW)) ])
 
 ||| Soul's Might: "Put X +1/+1 counters on target creature, where X is
 ||| that creature's power." The definition reads the mention its own
@@ -4471,7 +4471,7 @@ avenShrine =
            (Sequentially
               [ Macros.gainsLife They (LetterVal X)
               , Define X (CountOf (And [InZone Macros.graveyardZ,
-                                        Named (SameNameAs (That SpellW))])) ]) ]
+                                 Named (SameNameAs (That SpellW))])) ]) ]
        Nothing
 
 public export
