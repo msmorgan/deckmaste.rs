@@ -24,6 +24,7 @@ use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
 use crate::semantic::AccessorMode;
+use crate::semantic::AgreementAuthorityPlan;
 use crate::semantic::AtomPlan;
 use crate::semantic::BindingPlan;
 use crate::semantic::BindingRenderPlan;
@@ -3892,64 +3893,68 @@ fn emit_category_agreement_match_helper(
         .iter()
         .map(|construction| {
             let variant = ident(construction.category_variant());
-            let value = ident("value");
-            let constraint = validated
-                .feature_equations(construction.construction_id())
-                .iter()
-                .find_map(|equation| {
-                    let (
-                        FeaturePlace::Construction(Feature::Agreement),
-                        FeatureExpr::FromRole {
-                            role,
-                            feature: Feature::Agreement,
-                        },
-                    ) = (equation.target(), equation.value())
-                    else {
-                        return None;
-                    };
-                    Some(identifier_key(role))
-                });
-            let predicate = if let Some(role) = constraint {
-                let field = construction.field(&role)?;
-                let field_name = field.name();
-                match field.structural_kind() {
-                    Some(StructuralFieldKindPlan::Sequence {
-                        item: ValueKindPlan::Sum(sum),
-                        ..
-                    }) if validated.sum_requires_external_agreement(sum)
-                        && validated.sum_has_intrinsic_agreement(sum) =>
-                    {
-                        let helper = ident(&feature_helper("agreement_matches", sum));
-                        quote! {
-                            #value
-                                .#field_name
-                                .iter()
-                                .all(|member| #helper(member, agreement))
-                        }
-                    }
-                    Some(StructuralFieldKindPlan::Required(ValueKindPlan::Category(source)))
-                        if validated.category_has_agreement_constraint(source) =>
-                    {
-                        let helper = ident(&feature_helper("agreement_matches", source));
-                        quote! { #helper(&#value.#field_name, agreement) }
-                    }
-                    None if field.kind() == ConstructionFieldKind::Category
-                        && validated.category_has_agreement_constraint(field.terminal()) =>
-                    {
-                        let helper = ident(&feature_helper("agreement_matches", field.terminal()));
-                        quote! { #helper(&#value.#field_name, agreement) }
-                    }
-                    Some(
-                        StructuralFieldKindPlan::Required(_)
-                        | StructuralFieldKindPlan::Optional(_)
-                        | StructuralFieldKindPlan::Sequence { .. },
-                    )
-                    | None => quote! { true },
+            match validated.construction_agreement_authority(construction) {
+                AgreementAuthorityPlan::Contextual => Ok(quote! { #ty::#variant(_) => true }),
+                AgreementAuthorityPlan::Exact => {
+                    let equation = validated
+                        .feature_equations(construction.construction_id())
+                        .iter()
+                        .find(|equation| {
+                            matches!(
+                                equation.target(),
+                                FeaturePlace::Construction(Feature::Agreement)
+                            )
+                        })
+                        .ok_or_else(|| internal("exact Agreement authority lacks its equation"))?;
+                    let mut allocator = LocalAllocator::default();
+                    let mut roles = feature_roles(validated, construction, equation.value())?;
+                    extend_bound_prefix_guard_roles(
+                        validated,
+                        construction,
+                        equation.value(),
+                        &mut roles,
+                    )?;
+                    let element = ident(construction.element_type());
+                    let (pattern, locals) = feature_constant_pattern(
+                        validated,
+                        construction,
+                        &ty,
+                        &variant,
+                        &element,
+                        &roles,
+                        &mut allocator,
+                    );
+                    let expected = feature_expr(
+                        validated,
+                        construction,
+                        equation.value(),
+                        Feature::Agreement,
+                        &locals,
+                    )?;
+                    Ok(quote! { #pattern => #expected == agreement })
                 }
-            } else {
-                quote! { true }
-            };
-            Ok(quote! { #ty::#variant(#value) => #predicate })
+                AgreementAuthorityPlan::SequenceConstraint { role, target } => {
+                    let value = ident("value");
+                    let field = construction.field(&role)?;
+                    let field_name = field.name();
+                    let helper = ident(&feature_helper("agreement_matches", &target));
+                    Ok(quote! {
+                        #ty::#variant(#value) => #value
+                            .#field_name
+                            .iter()
+                            .all(|member| #helper(member, agreement))
+                    })
+                }
+                AgreementAuthorityPlan::ValueConstraint { role, target } => {
+                    let value = ident("value");
+                    let field = construction.field(&role)?;
+                    let field_name = field.name();
+                    let helper = ident(&feature_helper("agreement_matches", &target));
+                    Ok(quote! {
+                        #ty::#variant(#value) => #helper(&#value.#field_name, agreement)
+                    })
+                }
+            }
         })
         .collect::<syn::Result<Vec<_>>>()?;
     Ok(GeneratedItem::new(

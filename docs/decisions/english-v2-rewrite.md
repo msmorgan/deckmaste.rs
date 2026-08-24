@@ -142,9 +142,13 @@ and their renderer receives the enclosing feature once and applies it to all
 members. When an explicit sum mixes intrinsic and contextual Agreement
 alternatives, a generated constraint helper treats contextual alternatives as
 accepting the supplied Agreement and checks intrinsic alternatives against it.
-Homogeneous outward relay preserves that constraint through materialization and
-requires every enclosing Agreement writer to satisfy it, without storing the
-chosen feature in the public AST.
+Constraint authority and its source are classified per construction variant:
+the category helper only dispatches those exact variant results, so an
+intrinsic sibling cannot inherit a contextual acceptance arm and an unrelated
+checked sibling cannot inherit a relay source requirement. Homogeneous outward
+relay preserves that constraint through materialization and requires every
+enclosing Agreement writer to satisfy it, without storing the chosen feature
+in the public AST.
 
 `Onset::{Consonant,Vowel}` is a v2-owned sealed compiler feature, emitted and
 carried through generated feature plans exactly like `Number`. It is a

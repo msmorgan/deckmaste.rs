@@ -1562,12 +1562,30 @@ pub mod fixture {
             derive agreement = members.agreement;
             form relayed_mixed_child_choices = members;
         }
+        construction intrinsic_third_mixed_choice: RelayedMixedChoiceSequence {
+            element IntrinsicThirdMixedChoice {}
+            derive agreement = Values::ThirdPersonSingular;
+            form intrinsic_third_mixed_choice = "intrinsic third";
+        }
+        construction checked_bare_mixed_choice: RelayedMixedChoiceSequence {
+            element CheckedBareMixedChoice { mode: lex Mode, }
+            require mode is One;
+            derive agreement = Values::Bare;
+            form checked_bare_mixed_choice = lex(mode);
+        }
         construction mixed_relay_envelope: MixedRelayEnvelopeRoot {
             element MixedRelayEnvelope {
                 choices: RelayedMixedChoiceSequence,
             }
             derive choices.agreement = Values::Bare;
             form mixed_relay_envelope = choices;
+        }
+        construction third_relay_envelope: MixedRelayEnvelopeRoot {
+            element ThirdRelayEnvelope {
+                choices: RelayedMixedChoiceSequence,
+            }
+            derive choices.agreement = Values::ThirdPersonSingular;
+            form third_relay_envelope = choices;
         }
         construction partitioned: PartitionRoot {
             element Partitioned { word: lex Partition, }
@@ -5295,6 +5313,38 @@ pub mod fixture {
             },
         );
 
+        let intrinsic_third =
+            RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice);
+        let intrinsic_rejection = MixedRelayEnvelope::try_new(intrinsic_third)
+            .expect_err("a Bare writer rejects the category's intrinsic Third variant");
+        assert_eq!(intrinsic_rejection.owner(), "MixedRelayEnvelope");
+        assert_eq!(intrinsic_rejection.role(), "choices");
+        let intrinsic_third =
+            RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice);
+        let third_envelope = ThirdRelayEnvelope::try_new(intrinsic_third)
+            .expect("a Third writer accepts the category's intrinsic Third variant");
+        assert_eq!(
+            Render::render(
+                &MixedRelayEnvelopeRoot::ThirdRelayEnvelope(third_envelope),
+                &ParseContext::default(),
+            ),
+            "Intrinsic third.",
+        );
+
+        let checked_bare = CheckedBareMixedChoice::try_new(Mode::One)
+            .expect("the unrelated checked variant accepts its legal value");
+        let checked_category = RelayedMixedChoiceSequence::CheckedBareMixedChoice(checked_bare);
+        let checked_envelope = MixedRelayEnvelope::try_new(checked_category)
+            .expect("the Bare writer accepts the checked variant's intrinsic Bare agreement");
+        assert_eq!(
+            Render::render(
+                &MixedRelayEnvelopeRoot::MixedRelayEnvelope(checked_envelope),
+                &ParseContext::default(),
+            ),
+            "One.",
+        );
+        assert!(CheckedBareMixedChoice::try_new(Mode::Many).is_err());
+
         let relayed_bare = RelayedMixedChoiceSequence::RelayedMixedChildChoices(
             RelayedMixedChildChoices::try_new(vec![bare(), contextual()])
                 .expect("the relay is internally homogeneous at Bare"),
@@ -5305,6 +5355,40 @@ pub mod fixture {
         assert_eq!(Render::render(&root, &ParseContext::default()), "Bare act.");
 
         let context = ParseContext::default();
+        let built_intrinsic = build_checked(
+            RuleId::RelayedMixedChoiceSequenceIntrinsicThirdMixedChoice,
+            &[BuildValue::Leaf(Leaf::Literal("intrinsic third"))],
+            &context,
+        )
+        .expect("the intrinsic sibling has no checked-constructor emission failure")
+        .expect("the intrinsic sibling materializes");
+        assert!(matches!(
+            built_intrinsic,
+            BuildValue::RelayedMixedChoiceSequence(
+                RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(_),
+                Agreement::ThirdPersonSingular
+            )
+        ));
+        assert!(
+            build(
+                RuleId::MixedRelayEnvelopeRootMixedRelayEnvelope,
+                &[built_intrinsic.clone()],
+                &context,
+            )
+            .is_none(),
+            "the generated Bare writer rejects the intrinsic Third carrier",
+        );
+        let built_third_envelope = build(
+            RuleId::MixedRelayEnvelopeRootThirdRelayEnvelope,
+            &[built_intrinsic],
+            &context,
+        )
+        .expect("the generated Third writer accepts the intrinsic Third carrier");
+        assert!(matches!(
+            built_third_envelope,
+            BuildValue::MixedRelayEnvelopeRoot(MixedRelayEnvelopeRoot::ThirdRelayEnvelope(_))
+        ));
+
         let mixed = |value, agreement| BuildValue::MixedAgreementChild(value, agreement);
         let pair = build(
             RuleId::RelayedMixedChildChoicesMembersSequenceLength2,
@@ -5366,12 +5450,51 @@ pub mod fixture {
 
         let parsed = parse_structural(Category::RelayedMixedChoiceSequence, "Third acts", &context);
         assert_eq!(parsed.accepted_root_ids().count(), 1);
+        let parsed_intrinsic = parse_structural(
+            Category::RelayedMixedChoiceSequence,
+            "Intrinsic third",
+            &context,
+        );
+        assert_eq!(parsed_intrinsic.accepted_root_ids().count(), 1);
         let parsed_mismatch =
             parse_structural(Category::RelayedMixedChoiceSequence, "Third act", &context);
         assert_eq!(
             parsed_mismatch.accepted_root_ids().count(),
             1,
             "the scanner preserves the conflicting lexical carrier before generated build rejects it",
+        );
+
+        let built_checked = build_checked(
+            RuleId::RelayedMixedChoiceSequenceCheckedBareMixedChoice,
+            &[BuildValue::Leaf(Leaf::Mode(Mode::One))],
+            &context,
+        )
+        .expect("the checked sibling emits without demanding a relay FromRole source")
+        .expect("the legal checked sibling materializes");
+        assert!(matches!(
+            built_checked,
+            BuildValue::RelayedMixedChoiceSequence(
+                RelayedMixedChoiceSequence::CheckedBareMixedChoice(_),
+                Agreement::Bare
+            )
+        ));
+        let checked_rejection = build_checked(
+            RuleId::RelayedMixedChoiceSequenceCheckedBareMixedChoice,
+            &[BuildValue::Leaf(Leaf::Mode(Mode::Many))],
+            &context,
+        )
+        .expect_err("the checked sibling retains its unrelated invariant");
+        assert_eq!(checked_rejection.owner(), "RelayedMixedChoiceSequence");
+
+        let parsed_checked =
+            parse_structural(Category::RelayedMixedChoiceSequence, "One", &context);
+        assert_eq!(parsed_checked.accepted_root_ids().count(), 1);
+        let scanned_illegal =
+            parse_structural(Category::RelayedMixedChoiceSequence, "Many", &context);
+        assert_eq!(
+            scanned_illegal.accepted_root_ids().count(),
+            1,
+            "the scanner preserves the lexical checked variant before its invariant rejects materialization",
         );
     }
 

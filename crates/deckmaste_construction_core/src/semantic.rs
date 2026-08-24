@@ -1213,6 +1213,14 @@ pub(crate) struct RootPlan {
     render_entry: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum AgreementAuthorityPlan {
+    Contextual,
+    Exact,
+    SequenceConstraint { role: String, target: String },
+    ValueConstraint { role: String, target: String },
+}
+
 #[derive(Debug)]
 pub(crate) struct FeaturePlan {
     boxed_fields: HashSet<(String, String)>,
@@ -1863,66 +1871,134 @@ impl SemanticPlan {
             .requires_external_agreement()
     }
 
-    pub(crate) fn category_has_agreement_constraint(&self, category: &str) -> bool {
-        fn has_constraint(
-            plan: &SemanticPlan,
-            category: &str,
-            visiting: &mut HashSet<String>,
-        ) -> bool {
-            if !visiting.insert(category.to_owned()) {
-                return false;
-            }
-            let result = plan
-                .constructions
-                .iter()
-                .filter(|construction| construction.category() == category)
-                .any(|construction| {
-                    plan.feature_equations(construction.construction_id())
-                        .iter()
-                        .any(|equation| {
-                            let (
-                                feature::FeaturePlace::Construction(Feature::Agreement),
-                                feature::FeatureExpr::FromRole {
-                                    role,
-                                    feature: Feature::Agreement,
-                                },
-                            ) = (equation.target(), equation.value())
-                            else {
-                                return false;
-                            };
-                            let Ok(field) = construction.field(&identifier_key(role)) else {
-                                return false;
-                            };
-                            match field.structural_kind() {
-                                Some(StructuralFieldKindPlan::Sequence {
-                                    item: ValueKindPlan::Sum(sum),
-                                    ..
-                                }) => {
-                                    plan.sum_requires_external_agreement(sum)
-                                        && plan.sum_has_intrinsic_agreement(sum)
-                                }
-                                Some(StructuralFieldKindPlan::Required(
-                                    ValueKindPlan::Category(_),
-                                ))
-                                | None
-                                    if field.kind() == ConstructionFieldKind::Category =>
-                                {
-                                    has_constraint(plan, field.terminal(), visiting)
-                                }
-                                Some(
-                                    StructuralFieldKindPlan::Required(_)
-                                    | StructuralFieldKindPlan::Optional(_)
-                                    | StructuralFieldKindPlan::Sequence { .. },
-                                )
-                                | None => false,
-                            }
-                        })
-                });
-            visiting.remove(category);
-            result
-        }
+    pub(crate) fn construction_agreement_authority(
+        &self,
+        construction: &ConstructionPlan,
+    ) -> AgreementAuthorityPlan {
+        self.construction_agreement_authority_inner(construction, &mut HashSet::new())
+    }
 
-        has_constraint(self, category, &mut HashSet::new())
+    fn construction_agreement_authority_inner(
+        &self,
+        construction: &ConstructionPlan,
+        visiting: &mut HashSet<String>,
+    ) -> AgreementAuthorityPlan {
+        let place = feature::FeaturePlace::Construction(Feature::Agreement);
+        if self.feature_resolution(construction.construction_id(), &place)
+            == Some(feature::FeatureResolution::External)
+        {
+            return AgreementAuthorityPlan::Contextual;
+        }
+        let Some(equation) = self
+            .feature_equations(construction.construction_id())
+            .iter()
+            .find(|equation| equation.target() == &place)
+        else {
+            return AgreementAuthorityPlan::Contextual;
+        };
+        let feature::FeatureExpr::FromRole {
+            role,
+            feature: Feature::Agreement,
+        } = equation.value()
+        else {
+            return AgreementAuthorityPlan::Exact;
+        };
+        let role = identifier_key(role);
+        let Ok(field) = construction.field(&role) else {
+            return AgreementAuthorityPlan::Contextual;
+        };
+        let (sequence, value) = match field.structural_kind() {
+            Some(StructuralFieldKindPlan::Sequence { item, .. }) => (true, item),
+            Some(StructuralFieldKindPlan::Required(value)) => (false, value),
+            Some(StructuralFieldKindPlan::Optional(_)) => {
+                return AgreementAuthorityPlan::Exact;
+            }
+            None if field.kind() == ConstructionFieldKind::Category => {
+                let terminal = field.terminal();
+                let value = if self.sum_carries_agreement(terminal) {
+                    ValueKindPlan::Sum(terminal.to_owned())
+                } else {
+                    ValueKindPlan::Category(terminal.to_owned())
+                };
+                return self.agreement_authority_for_value(&role, false, &value, visiting);
+            }
+            None => return AgreementAuthorityPlan::Exact,
+        };
+        self.agreement_authority_for_value(&role, sequence, value, visiting)
+    }
+
+    fn agreement_authority_for_value(
+        &self,
+        role: &str,
+        sequence: bool,
+        value: &ValueKindPlan,
+        visiting: &mut HashSet<String>,
+    ) -> AgreementAuthorityPlan {
+        let target = match value {
+            ValueKindPlan::Sum(sum)
+                if self.sum_requires_external_agreement(sum)
+                    && self.sum_has_intrinsic_agreement(sum) =>
+            {
+                Some(sum.clone())
+            }
+            ValueKindPlan::Category(category)
+                if self.category_has_agreement_constraint_inner(category, visiting) =>
+            {
+                Some(category.clone())
+            }
+            ValueKindPlan::Sum(sum) if self.sum_requires_external_agreement(sum) => {
+                return AgreementAuthorityPlan::Contextual;
+            }
+            ValueKindPlan::Category(category)
+                if self.category_requires_external_agreement(category) =>
+            {
+                return AgreementAuthorityPlan::Contextual;
+            }
+            ValueKindPlan::Category(_)
+            | ValueKindPlan::Sum(_)
+            | ValueKindPlan::Product(_)
+            | ValueKindPlan::Lex(_)
+            | ValueKindPlan::Identity(_) => None,
+        };
+        match (sequence, target) {
+            (true, Some(target)) => AgreementAuthorityPlan::SequenceConstraint {
+                role: role.to_owned(),
+                target,
+            },
+            (false, Some(target)) => AgreementAuthorityPlan::ValueConstraint {
+                role: role.to_owned(),
+                target,
+            },
+            (_, None) => AgreementAuthorityPlan::Exact,
+        }
+    }
+
+    fn category_has_agreement_constraint_inner(
+        &self,
+        category: &str,
+        visiting: &mut HashSet<String>,
+    ) -> bool {
+        if !self.category_requires_external_agreement(category)
+            || !visiting.insert(category.to_owned())
+        {
+            return false;
+        }
+        let result = self
+            .constructions
+            .iter()
+            .filter(|construction| construction.category() == category)
+            .any(|construction| {
+                !matches!(
+                    self.construction_agreement_authority_inner(construction, visiting),
+                    AgreementAuthorityPlan::Contextual
+                )
+            });
+        visiting.remove(category);
+        result
+    }
+
+    pub(crate) fn category_has_agreement_constraint(&self, category: &str) -> bool {
+        self.category_has_agreement_constraint_inner(category, &mut HashSet::new())
     }
 
     pub(crate) fn construction_requires_checked_ast(

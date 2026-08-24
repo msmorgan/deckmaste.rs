@@ -22,6 +22,7 @@ use crate::plan::DeclarationKind;
 use crate::plan::GeneratedItem;
 use crate::plan::ItemKey;
 use crate::plan::NamedKind;
+use crate::semantic::AgreementAuthorityPlan;
 use crate::semantic::AtomPlan;
 use crate::semantic::AtomTerminal;
 use crate::semantic::BindingBuildExprPlan;
@@ -2298,27 +2299,15 @@ fn emit_fallible_element_success(
         lowering.constructor_map_local = Some(argument.clone());
         argument
     });
-    if validated.category_has_agreement_constraint(row.category()) {
+    let agreement_constraint_role = match validated.construction_agreement_authority(row) {
+        AgreementAuthorityPlan::SequenceConstraint { role, .. }
+        | AgreementAuthorityPlan::ValueConstraint { role, .. } => Some(role),
+        AgreementAuthorityPlan::Contextual | AgreementAuthorityPlan::Exact => None,
+    };
+    if let Some(role) = agreement_constraint_role {
         let agreement = agreement
             .as_ref()
             .ok_or_else(|| internal("agreement-constrained category lacks carried agreement"))?;
-        let role = validated
-            .feature_equations(row.construction_id())
-            .iter()
-            .find_map(|equation| {
-                let (
-                    FeaturePlace::Construction(Feature::Agreement),
-                    FeatureExpr::FromRole {
-                        role,
-                        feature: Feature::Agreement,
-                    },
-                ) = (equation.target(), equation.value())
-                else {
-                    return None;
-                };
-                Some(identifier_key(role))
-            })
-            .ok_or_else(|| internal("agreement-constrained category lacks its source role"))?;
         let helper = ident(&feature_helper("agreement_matches", row.category()));
         let owner = syn::LitStr::new(row.element_type(), row.origin_span());
         let role = syn::LitStr::new(&role, row.origin_span());

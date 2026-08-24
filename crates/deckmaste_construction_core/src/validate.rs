@@ -12175,6 +12175,7 @@ pub(crate) mod tests {
         let plan = validate(quote! {
             morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Act = "act", }
+            vocab Marker { One = "one", Many = "many", }
             construction bare: Item {
                 element BareItem {}
                 derive agreement = Values::Bare;
@@ -12203,6 +12204,12 @@ pub(crate) mod tests {
                 derive agreement = members.agreement;
                 form relay = members;
             }
+            construction checked_constant: MixedRelay {
+                element CheckedConstant { marker: lex Marker, }
+                require marker is One;
+                derive agreement = Values::Bare;
+                form checked_constant = lex(marker);
+            }
             construction envelope: EnvelopeRoot {
                 element Envelope { relay: MixedRelay, }
                 derive relay.agreement = Values::Bare;
@@ -12224,6 +12231,8 @@ pub(crate) mod tests {
             .find(|construction| construction.construction_id() == "envelope")
             .expect("envelope construction is sealed");
         assert!(plan.construction_requires_checked_ast(envelope));
+        crate::emit::build::emit(&plan)
+            .expect("each checked category variant emits from its own Agreement source");
     }
 
     #[test]
