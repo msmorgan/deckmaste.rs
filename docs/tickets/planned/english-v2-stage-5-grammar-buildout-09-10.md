@@ -10,10 +10,10 @@ structural ownership, and selection without silent dominance.
 
 The remaining roadmap is:
 
-- Plan 09: effect/predicate grammar, beginning with the 324 authenticated
+- Plan 09: effect/predicate grammar, beginning with the 358 authenticated
   candidate rows whose complete OracleText currently stops at a predicate
   boundary;
-- Plan 10: the 37 authenticated candidate rows still requiring attachment
+- Plan 10: the 3 authenticated candidate rows still requiring attachment
   syntax, plus advanced modal, keyword, ability-word, reminder, and frame
   completion and final corpus closure.
 

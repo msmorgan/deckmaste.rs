@@ -590,6 +590,39 @@ mod tests {
     const PLAN08_CANDIDATE_RESULTS: &str = include_str!("english_v2/plan08_candidate_results.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
+    #[derive(Clone, Copy)]
+    struct Plan08AttachmentWitness {
+        id: &'static str,
+        failure_span: deckmaste_english_v2::parser::TextSpan,
+        supported_primary: &'static str,
+        supported_secondary: Option<&'static str>,
+        primary_selects: bool,
+    }
+
+    const PLAN08_ATTACHMENT_WITNESSES: [Plan08AttachmentWitness; 3] = [
+        Plan08AttachmentWitness {
+            id: "298faf6c5ee4c3846b7426789dea4ae776cf6890f4016e3035388c353e4d6c0b",
+            failure_span: deckmaste_english_v2::parser::TextSpan { start: 9, end: 11 },
+            supported_primary: "{3}, {T}: This artifact deals 1 damage to any target.",
+            supported_secondary: Some("{R}, {T}: This artifact deals 1 damage to any target."),
+            primary_selects: true,
+        },
+        Plan08AttachmentWitness {
+            id: "3bdbeecb5f1fbcaf544f3da00141d4b6b95eee9856a64aa72cfaf3c8aa65d051",
+            failure_span: deckmaste_english_v2::parser::TextSpan { start: 0, end: 9 },
+            supported_primary: "{8}: This creature deals 4 damage to each opponent.",
+            supported_secondary: None,
+            primary_selects: true,
+        },
+        Plan08AttachmentWitness {
+            id: "d88429519c5e257ef7e45666074b18c0b0788a97cb6df2cad78914fcd7c84705",
+            failure_span: deckmaste_english_v2::parser::TextSpan { start: 0, end: 6 },
+            supported_primary: "{T}, Tap an untapped Ally you control: You gain 2 life.",
+            supported_secondary: Some("{T}: You gain 2 life."),
+            primary_selects: false,
+        },
+    ];
+
     fn sha256_hex(bytes: &[u8]) -> String {
         use std::fmt::Write as _;
 
@@ -601,6 +634,80 @@ mod tests {
                 write!(&mut hexadecimal, "{byte:02x}").expect("writing to String cannot fail");
                 hexadecimal
             })
+    }
+
+    fn plan08_predicate_prefix_witness(
+        text: &str,
+        full_span: deckmaste_english_v2::parser::TextSpan,
+        parser: &deckmaste_english_v2::parser::Parser,
+        context: &deckmaste_english_v2::context::ParseContext<'_>,
+    ) -> Option<String> {
+        use deckmaste_english_v2::parser::Expectation;
+        use deckmaste_english_v2::parser::ParseError;
+
+        let prefix_end = text[full_span.end..]
+            .find(". ")
+            .map_or(text.len(), |relative| full_span.end + relative + 1);
+        let witness = text[..prefix_end].to_owned();
+        let Err(ParseError::Failure { span, expectations }) = parser.parse(&witness, context)
+        else {
+            return None;
+        };
+        (span == full_span
+            && expectations
+                .iter()
+                .any(|expectation| matches!(expectation, Expectation::Nonterminal(_))))
+        .then_some(witness)
+    }
+
+    fn assert_unique_plan08_ability(
+        parser: &deckmaste_english_v2::parser::Parser,
+        context: &deckmaste_english_v2::context::ParseContext<'_>,
+        id: &str,
+        text: &str,
+    ) {
+        use deckmaste_english_v2::parser::ParseAnalysisOutcome;
+        use deckmaste_english_v2::parser::SelectionResolution;
+
+        let analysis = parser.analyze(text, context);
+        assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected, "{id}");
+        assert_eq!(
+            analysis
+                .ownership()
+                .expect("controlled witness ownership")
+                .rendered_text(),
+            text,
+            "{id}",
+        );
+        let decision = analysis.decision().expect("controlled witness decision");
+        assert_eq!(decision.resolution(), SelectionResolution::Unique, "{id}");
+        assert!(decision.exception_uses().is_empty(), "{id}");
+    }
+
+    fn assert_plan08_attachment_witness(
+        witness: Plan08AttachmentWitness,
+        parser: &deckmaste_english_v2::parser::Parser,
+        context: &deckmaste_english_v2::context::ParseContext<'_>,
+    ) {
+        use deckmaste_english_v2::parser::ParseError;
+
+        if witness.primary_selects {
+            assert_unique_plan08_ability(parser, context, witness.id, witness.supported_primary);
+        } else {
+            let ParseError::Failure { span, .. } = parser
+                .parse(witness.supported_primary, context)
+                .expect_err("label removal advances to the next unsupported boundary")
+            else {
+                panic!(
+                    "label removal has an ordinary later failure: {}",
+                    witness.id
+                );
+            };
+            assert!(span.start > 0, "{}", witness.id);
+        }
+        if let Some(secondary) = witness.supported_secondary {
+            assert_unique_plan08_ability(parser, context, witness.id, secondary);
+        }
     }
 
     #[test]
@@ -771,6 +878,143 @@ mod tests {
 
     #[allow(
         clippy::too_many_lines,
+        reason = "the complete deferred structural census is deliberately literal"
+    )]
+    #[test]
+    fn plan08_deferred_boundary_witnesses_are_structural_not_punctuation() {
+        use deckmaste_english_v2::parser::ParseError;
+
+        let data =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgjson/AtomicCards.json");
+        let corpus = corpus::Corpus::load(&data).expect("production MTGJSON corpus loads");
+        let units = corpus
+            .units()
+            .iter()
+            .map(|unit| (unit.id(), unit))
+            .collect::<BTreeMap<_, _>>();
+        let rows = PLAN08_CANDIDATE_RESULTS
+            .lines()
+            .skip(10)
+            .map(|line| {
+                let fields = line.split('\t').collect::<Vec<_>>();
+                (fields[3], fields)
+            })
+            .collect::<BTreeMap<_, _>>();
+        let parser = parser_from_builtin_v2().expect("production English-v2 parser loads");
+
+        let mut predicted_counts = BTreeMap::new();
+        let mut witness_membership = String::new();
+        let mut mismatches = Vec::new();
+        for fields in rows
+            .values()
+            .filter(|fields| fields[0] != "plan08-selected")
+        {
+            let id = fields[3];
+            let unit = units
+                .get(id)
+                .unwrap_or_else(|| panic!("corpus contains {id}"));
+            let context = deckmaste_english_v2::context::ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .expect("production candidate context is valid");
+            let ParseError::Failure { span, expectations } = parser
+                .parse_oracle_text(unit.text(), &context)
+                .expect_err("deferred candidate has an ordinary parse failure")
+            else {
+                panic!("deferred candidate has an ordinary parse failure: {id}");
+            };
+            if PLAN08_ATTACHMENT_WITNESSES
+                .iter()
+                .any(|witness| witness.id == id)
+            {
+                *predicted_counts
+                    .entry("plan10-attachment")
+                    .or_insert(0usize) += 1;
+                if fields[0] != "plan10-attachment" {
+                    mismatches.push((id, fields[4], fields[0], "plan10-attachment"));
+                }
+            } else if let Some(witness) =
+                plan08_predicate_prefix_witness(unit.text(), span, &parser, &context)
+            {
+                *predicted_counts.entry("plan09-predicate").or_insert(0usize) += 1;
+                if fields[0] != "plan09-predicate" {
+                    mismatches.push((id, fields[4], fields[0], "plan09-predicate"));
+                }
+                witness_membership.push_str(id);
+                witness_membership.push('\t');
+                witness_membership
+                    .push_str(&serde_json::to_string(&witness).expect("witness is a JSON string"));
+                witness_membership.push('\t');
+                witness_membership.push_str(&span.start.to_string());
+                witness_membership.push('\t');
+                witness_membership.push_str(&span.end.to_string());
+                witness_membership.push('\t');
+                witness_membership.push_str(
+                    &serde_json::to_string(
+                        &expectations
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>(),
+                    )
+                    .expect("expectations are a JSON array"),
+                );
+                witness_membership.push('\n');
+            } else {
+                panic!(
+                    "unclassified deferred candidate is a Plan 08 defect: {id} {:?}",
+                    expectations
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                );
+            }
+        }
+        assert_eq!(
+            predicted_counts.into_iter().collect::<Vec<_>>(),
+            [
+                ("plan09-predicate", 358usize),
+                ("plan10-attachment", 3usize),
+            ],
+        );
+        assert_eq!(
+            sha256_hex(witness_membership.as_bytes()),
+            "cae10d975c30177e7b9970b459b9adb9058d5250c3e48a6bfe845c3c80b4047d",
+        );
+        assert!(
+            mismatches.is_empty(),
+            "manifest disagrees with {mismatches:#?}"
+        );
+
+        for witness in PLAN08_ATTACHMENT_WITNESSES {
+            let id = witness.id;
+            let fields = rows
+                .get(id)
+                .unwrap_or_else(|| panic!("manifest contains {id}"));
+            assert_eq!(fields[0], "plan10-attachment", "{id}");
+            let unit = units
+                .get(id)
+                .unwrap_or_else(|| panic!("corpus contains {id}"));
+            let context = deckmaste_english_v2::context::ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .expect("production candidate context is valid");
+            let ParseError::Failure { span, .. } = parser
+                .parse_oracle_text(unit.text(), &context)
+                .expect_err("deferred candidate has an ordinary parse failure")
+            else {
+                panic!("deferred candidate has an ordinary parse failure: {id}");
+            };
+            assert_eq!(span, witness.failure_span, "{id}");
+            assert_plan08_attachment_witness(witness, &parser, &context);
+        }
+    }
+
+    #[allow(
+        clippy::too_many_lines,
         reason = "the frozen 427-row closure inventory is deliberately literal"
     )]
     #[test]
@@ -788,14 +1032,14 @@ mod tests {
             "# baseline_covered=608",
             "# baseline_status=parse_failure",
             "# candidates=427",
-            "# categories=plan08-selected:66,plan09-predicate:324,plan10-attachment:37,plan08-defect:0",
+            "# categories=plan08-selected:66,plan09-predicate:358,plan10-attachment:3,plan08-defect:0",
             "# selected_families=ability.activated:56,ability.triggered:10",
             "# columns=category\\tpool_family\\tplan08_family\\tid\\tcard_name_json\\tface_name_json\\tside_json\\tcontext_name_json\\tis_legendary\\tcontext_onset\\toracle_text_json\\textracted_effect_json\\tfailure_start\\tfailure_end\\tboundary",
         ];
         const EXPECTED_COUNTS: [(&str, usize); 3] = [
             ("plan08-selected", 66),
-            ("plan09-predicate", 324),
-            ("plan10-attachment", 37),
+            ("plan09-predicate", 358),
+            ("plan10-attachment", 3),
         ];
         const EXPECTED_SELECTED_FAMILIES: [(&str, usize); 2] =
             [("ability.activated", 56), ("ability.triggered", 10)];
@@ -822,7 +1066,7 @@ mod tests {
         );
         assert_eq!(
             sha256_hex(PLAN08_CANDIDATE_RESULTS.as_bytes()),
-            "9faa72678ab20320333770710f4f5a9d16a7da5c68a8ca8ad9be70b142b3c42a",
+            "0020c88cadcc5e892c203a3860a7ee37b09b08a5175ce022854ab9359db6a8c3",
         );
         assert_eq!(
             PLAN08_CANDIDATE_RESULTS
@@ -987,7 +1231,7 @@ mod tests {
                         start: failure_start.parse().expect("failure start"),
                         end: failure_end.parse().expect("failure end"),
                     };
-                    let ParseError::Failure { span, .. } = analysis
+                    let ParseError::Failure { span, expectations } = analysis
                         .into_parse_result()
                         .expect_err("deferred row fails")
                     else {
@@ -1015,14 +1259,30 @@ mod tests {
                         extracted,
                         "{id}",
                     );
-                    let has_attachment_surface =
-                        unit.text().contains(". ") || unit.text().contains(" — ");
                     if *category == "plan09-predicate" {
                         assert_eq!(*boundary, "predicate", "{id}");
-                        assert!(!has_attachment_surface, "{id}");
+                        plan08_predicate_prefix_witness(
+                            unit.text(),
+                            span,
+                            &parser,
+                            &context,
+                        )
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "Plan 09 prefix must reproduce the structured full-row failure: {id} {expectations:?}"
+                            )
+                        });
                     } else {
                         assert_eq!(*boundary, "attachment", "{id}");
-                        assert!(has_attachment_surface, "{id}");
+                        let witness = PLAN08_ATTACHMENT_WITNESSES
+                            .iter()
+                            .copied()
+                            .find(|witness| witness.id == *id)
+                            .unwrap_or_else(|| {
+                                panic!("Plan 10 row requires a literal structural witness: {id}")
+                            });
+                        assert_eq!(span, witness.failure_span, "{id}");
+                        assert_plan08_attachment_witness(witness, &parser, &context);
                     }
                 }
                 "plan08-defect" => panic!("Plan 08 grammar defect blocks closure: {id}"),

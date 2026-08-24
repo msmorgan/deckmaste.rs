@@ -21,19 +21,19 @@ and SHA-256
 Every complete OracleText/context pair has one authenticated classification in
 `crates/xtask/src/english_v2/plan08_candidate_results.tsv`; that 427-row
 manifest has SHA-256
-`9faa72678ab20320333770710f4f5a9d16a7da5c68a8ca8ad9be70b142b3c42a`
+`0020c88cadcc5e892c203a3860a7ee37b09b08a5175ce022854ab9359db6a8c3`
 and the exact partition is:
 
 - 66 Plan 08 selected: 56 `ability.activated` and 10
   `ability.triggered`;
-- 324 still missing a Plan 09 predicate boundary;
-- 37 still requiring a Plan 10 attachment boundary;
+- 358 still missing a Plan 09 predicate boundary;
+- 3 still requiring a Plan 10 attachment boundary;
 - 0 Plan 08 grammar defects.
 
 The frozen production delta is the 118-row
 `crates/xtask/src/english_v2/plan08_targets.tsv`, with the same source
 fingerprint and SHA-256
-`bd59a8b37e46090198c5192b22b69eae4b687023c09d46efce3bd24156a3c348`.
+`c6dbe1e53031c0f6394d1b0644c7fecdb8391a0fe7484c272ba1cc7fd364818e`.
 It contains the 66 selected candidate rows plus 52 independently explained
 out-of-pool additions. Its exact family counts are 56 `ability.activated`, 28
 `ability.plain-modal`, 10 `ability.triggered`, 23 `clause.coordination`, and
@@ -77,15 +77,20 @@ Completion evidence on the task-closed tree:
   compiled-consumer tests, and its documentation tests passed;
 - English v2: 131 library tests, 154 integration tests, and 2 documentation
   tests passed;
-- xtask English v2: 166 library tests and 9 CLI tests passed;
+- xtask English v2: 167 library tests and 9 CLI tests passed;
+- the seven focused stale-construction-fixture checks passed exactly 7/7; the
+  structural deferred-boundary census, complete candidate partition, and
+  frozen target/full-lock focused checks each passed exactly 1/1;
 - strict all-target/all-feature Clippy for the four closure crates, the five
   Plan 04 authority tests, expand/report/probe/inspect smokes, coverage check,
   and citation checks passed; citation check inspected 16,248 citations with
   0 stale, and the changed-file citation audit found 0 sites;
 - candidate-pool fingerprint, partition counts, selected identity/render/
-  ownership/claims/family, deferred boundaries, target membership/disjointness/
-  additivity, out-of-pool explanation, and complete lock equality each have an
-  independent literal oracle and mutation-authenticated RED;
+  ownership/claims/family, structural deferred boundaries, target membership/
+  disjointness/additivity, out-of-pool explanation, and complete lock equality
+  each have an independent literal oracle and mutation-authenticated RED. The
+  deferred census hash is
+  `cae10d975c30177e7b9970b459b9adb9058d5250c3e48a6bfe845c3c80b4047d`;
 - the Plan 04 scratch-copy perturbation changed one declared surface and one
   declared invariant in a single expansion build. Scanner, renderer, claims,
   and constructor behavior tracked both edits; both old behaviors produced no
