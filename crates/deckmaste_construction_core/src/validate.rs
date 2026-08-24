@@ -7440,6 +7440,26 @@ fn seal_category_render_capabilities(
     let providers = feature_providers(raw);
     let mut agreement_contextual = HashSet::new();
 
+    let contextual_sums = |contextual_categories: &HashSet<String>| {
+        let mut contextual = HashSet::new();
+        loop {
+            let before = contextual.len();
+            for declaration in &raw.declarations {
+                let Declaration::AbstractSum(sum) = declaration else { continue };
+                if sum.alternatives.iter().any(|alternative| {
+                    let value = path_name(&alternative.value_type);
+                    contextual_categories.contains(&value) || contextual.contains(&value)
+                }) {
+                    contextual.insert(identifier_key(&sum.name));
+                }
+            }
+            if contextual.len() == before {
+                break;
+            }
+        }
+        contextual
+    };
+
     for construction in &constructions {
         let has_fixed_verb = construction
             .forms
@@ -7467,6 +7487,7 @@ fn seal_category_render_capabilities(
 
     loop {
         let before = agreement_contextual.len();
+        let contextual_sums = contextual_sums(&agreement_contextual);
         for construction in &constructions {
             let passes_external_to_child = construction
                 .forms
@@ -7520,11 +7541,11 @@ fn seal_category_render_capabilities(
                             && matches!(
                                 &field.kind,
                                 FieldKind::Sequence { item, .. }
-                                    if matches!(
-                                        item.as_ref(),
-                                        FieldKind::Category(path)
-                                            if agreement_contextual.contains(&path_name(path))
-                                    )
+                                    if matches!(item.as_ref(), FieldKind::Category(path) if {
+                                        let item = path_name(path);
+                                        agreement_contextual.contains(&item)
+                                            || contextual_sums.contains(&item)
+                                    })
                             )
                     })
             });
@@ -7538,6 +7559,21 @@ fn seal_category_render_capabilities(
     }
 
     let mut context_required = HashSet::new();
+    let sum_names = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::AbstractSum(sum) => Some(identifier_key(&sum.name)),
+            Declaration::Construction(_)
+            | Declaration::AbstractProduct(_)
+            | Declaration::Vocab(_)
+            | Declaration::Morphology(_)
+            | Declaration::Lexeme(_)
+            | Declaration::Codec(_)
+            | Declaration::Identity(_)
+            | Declaration::Root(_) => None,
+        })
+        .collect::<HashSet<_>>();
     loop {
         let before = context_required.len();
         for construction in &constructions {
@@ -7554,8 +7590,16 @@ fn seal_category_render_capabilities(
                             .fields
                             .iter()
                             .find(|field| same_identifier(&field.name, role))
-                            .is_some_and(|field| {
-                                matches!(field_kind_leaf(&field.kind), FieldKind::Category(path) if context_required.contains(&path_name(path)))
+                            .is_some_and(|field| match field_kind_leaf(&field.kind) {
+                                FieldKind::Category(path) => {
+                                    let category = path_name(path);
+                                    context_required.contains(&category)
+                                        || sum_names.contains(&category)
+                                }
+                                FieldKind::Lex(_)
+                                | FieldKind::Identity(_)
+                                | FieldKind::Optional(_)
+                                | FieldKind::Sequence { .. } => false,
                             }),
                         FormAtom::Circumfix(circumfix) => construction
                             .element
@@ -12124,6 +12168,62 @@ pub(crate) mod tests {
             unsupported.contains("category `NumberedChoice` does not provide number"),
             "{unsupported}"
         );
+    }
+
+    #[test]
+    fn mixed_sum_agreement_preserves_intrinsic_constraints_and_contextual_relay() {
+        let plan = validate(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Act = "act", }
+            construction bare: Item {
+                element BareItem {}
+                derive agreement = Values::Bare;
+                form bare = "bare";
+            }
+            construction third: Item {
+                element ThirdItem {}
+                derive agreement = Values::ThirdPersonSingular;
+                form third = "third";
+            }
+            construction contextual: Contextual {
+                element ContextualItem {}
+                derive agreement = verb.agreement;
+                form contextual = verb(Verbs::Act);
+            }
+            abstract sum MixedChoice { Item, Contextual, }
+            construction inbound: InboundRoot {
+                element InboundMixed { members: seq MixedChoice separated by " ", }
+                require len(members) >= 2;
+                derive members.agreement = Values::Bare;
+                form inbound = members;
+            }
+            construction relay: MixedRelay {
+                element RelayedMixed { members: seq MixedChoice separated by " ", }
+                require len(members) >= 2;
+                derive agreement = members.agreement;
+                form relay = members;
+            }
+            construction envelope: EnvelopeRoot {
+                element Envelope { relay: MixedRelay, }
+                derive relay.agreement = Values::Bare;
+                form envelope = relay;
+            }
+            root InboundRoot { punctuation = "."; eoi = true; standalone_render = true; }
+            root EnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("mixed intrinsic/contextual agreement has generated constraint authority")
+        .into_semantic();
+
+        assert!(plan.sum_requires_external_agreement("MixedChoice"));
+        assert!(plan.sum_has_intrinsic_agreement("MixedChoice"));
+        assert!(plan.category_requires_external_agreement("MixedRelay"));
+        assert!(plan.category_has_agreement_constraint("MixedRelay"));
+        let envelope = plan
+            .constructions()
+            .iter()
+            .find(|construction| construction.construction_id() == "envelope")
+            .expect("envelope construction is sealed");
+        assert!(plan.construction_requires_checked_ast(envelope));
     }
 
     #[test]

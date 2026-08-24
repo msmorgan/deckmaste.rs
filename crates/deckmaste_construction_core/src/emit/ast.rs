@@ -106,7 +106,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             tokens,
             origins.clone(),
         ));
-        if !construction.fields().is_empty() && construction_requires_constructor(construction) {
+        if !construction.fields().is_empty()
+            && construction_requires_constructor(plan, construction)
+        {
             items.push(GeneratedItem::new(
                 ItemKey::Impl {
                     trait_name: None,
@@ -362,8 +364,8 @@ fn emit_product(
     })
 }
 
-fn construction_requires_constructor(construction: &ConstructionPlan) -> bool {
-    construction.invariant().requires_constructor()
+fn construction_requires_constructor(plan: &SemanticPlan, construction: &ConstructionPlan) -> bool {
+    plan.construction_requires_checked_ast(construction)
         || construction.fields().iter().any(|field| {
             field
                 .structural_plan()
@@ -590,6 +592,54 @@ fn emit_invariant_checks(
             })
             .collect::<syn::Result<Vec<_>>>()?,
     );
+    length_checks.extend(
+        plan.feature_equations(construction.construction_id())
+            .iter()
+            .filter_map(|equation| {
+                let crate::feature::FeaturePlace::Role {
+                    field,
+                    feature: crate::feature::Feature::Agreement,
+                } = equation.target()
+                else {
+                    return None;
+                };
+                let Ok(constrained) = construction.field(&identifier_key(field)) else {
+                    return None;
+                };
+                if constrained.kind() != crate::semantic::ConstructionFieldKind::Category
+                    || !plan.category_has_agreement_constraint(constrained.terminal())
+                {
+                    return None;
+                }
+                Some((|| {
+                    let expected = resolve_constructor_feature(
+                        plan,
+                        construction,
+                        equation.target(),
+                        &mut std::collections::HashSet::new(),
+                        locals,
+                    )?;
+                    let value = field_local(locals, constrained)?;
+                    let helper = emitted_ident(
+                        &feature_helper("agreement_matches", constrained.terminal()),
+                        proc_macro2::Span::call_site(),
+                    );
+                    let role = syn::LitStr::new(&constrained.name_key(), field.span());
+                    Ok(quote! {
+                        if !#helper(&#value, #expected) {
+                            return Err(BuildRejection::new(
+                                #structural_owner,
+                                #role,
+                                BuildViolation::Invariant {
+                                    identity: "value matches derived agreement",
+                                },
+                            ));
+                        }
+                    })
+                })())
+            })
+            .collect::<syn::Result<Vec<_>>>()?,
+    );
     Ok((predicate_check, context_checks, length_checks))
 }
 
@@ -621,6 +671,7 @@ fn emit_sequence_feature_check(
     }
     if let crate::semantic::ValueKindPlan::Sum(sum) = item
         && plan.sum_requires_external_agreement(sum)
+        && !plan.sum_has_intrinsic_agreement(sum)
     {
         return Ok(TokenStream::new());
     }
@@ -638,8 +689,15 @@ fn emit_sequence_feature_check(
     };
     let role = field.name_key();
     let values = field_local(locals, field)?;
+    let mixed_sum = matches!(
+        item,
+        crate::semantic::ValueKindPlan::Sum(sum)
+            if plan.sum_requires_external_agreement(sum)
+                && plan.sum_has_intrinsic_agreement(sum)
+    );
+    let helper_feature = if mixed_sum { "agreement_matches" } else { feature.key() };
     let helper = emitted_ident(
-        &feature_helper(feature.key(), feature_owner),
+        &feature_helper(helper_feature, feature_owner),
         proc_macro2::Span::call_site(),
     );
     let target = crate::feature::FeaturePlace::Role {
@@ -658,9 +716,24 @@ fn emit_sequence_feature_check(
             &mut std::collections::HashSet::new(),
             locals,
         )?;
+        let predicate = if mixed_sum {
+            quote! { #values.iter().all(|value| #helper(value, #expected)) }
+        } else {
+            quote! { #values.iter().all(|value| #helper(value) == #expected) }
+        };
+        (predicate, "all members match derived agreement")
+    } else if mixed_sum {
         (
-            quote! { #values.iter().all(|value| #helper(value) == #expected) },
-            "all members match derived agreement",
+            quote! {
+                [Agreement::Bare, Agreement::ThirdPersonSingular]
+                    .into_iter()
+                    .any(|agreement| {
+                        #values
+                            .iter()
+                            .all(|value| #helper(value, agreement))
+                    })
+            },
+            "all members share agreement",
         )
     } else {
         (

@@ -1546,6 +1546,29 @@ pub mod fixture {
             derive agreement = members.agreement;
             form relayed_child_choices = members;
         }
+        construction uniform_mixed_child_choices: MixedChoiceSequence {
+            element UniformMixedChildChoices {
+                members: seq MixedAgreementChild separated by " ",
+            }
+            require len(members) >= 2;
+            derive members.agreement = Values::Bare;
+            form uniform_mixed_child_choices = members;
+        }
+        construction relayed_mixed_child_choices: RelayedMixedChoiceSequence {
+            element RelayedMixedChildChoices {
+                members: seq MixedAgreementChild separated by " ",
+            }
+            require len(members) >= 2;
+            derive agreement = members.agreement;
+            form relayed_mixed_child_choices = members;
+        }
+        construction mixed_relay_envelope: MixedRelayEnvelopeRoot {
+            element MixedRelayEnvelope {
+                choices: RelayedMixedChoiceSequence,
+            }
+            derive choices.agreement = Values::Bare;
+            form mixed_relay_envelope = choices;
+        }
         construction partitioned: PartitionRoot {
             element Partitioned { word: lex Partition, }
             form first when word is First = "alpha" lex(word);
@@ -1847,6 +1870,7 @@ pub mod fixture {
 
         abstract sum Choice { Child, MarkerCategory, }
         abstract sum AgreementChild { Child, }
+        abstract sum MixedAgreementChild { Child, Predicate, }
         abstract product Holder {
             maybe: opt Child,
             items: seq Choice terminated by ",",
@@ -1925,6 +1949,9 @@ pub mod fixture {
         root SingletonSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root HomogeneousChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root RelayedChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
+        root MixedChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
+        root RelayedMixedChoiceSequence { punctuation = "."; eoi = true; standalone_render = false; }
+        root MixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalVisitRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -5149,6 +5176,205 @@ pub mod fixture {
         );
     }
 
+    pub(super) fn assert_mixed_sum_sequence_checks_intrinsic_alternatives() {
+        let bare = MixedAgreementChild::Child(Child::Bare(BareChild));
+        let third = MixedAgreementChild::Child(Child::Third(ThirdChild));
+        let contextual = MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
+
+        let rejection = UniformMixedChildChoices::try_new(vec![third.clone(), contextual.clone()])
+            .expect_err("an intrinsic Third alternative cannot satisfy derived Bare agreement");
+        assert_eq!(rejection.owner(), "UniformMixedChildChoices");
+        assert_eq!(rejection.role(), "members");
+        assert_eq!(
+            rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "all members match derived agreement",
+            },
+        );
+
+        let accepted = UniformMixedChildChoices::try_new(vec![bare.clone(), contextual.clone()])
+            .expect("an intrinsic Bare and contextual member satisfy derived Bare agreement");
+        let root = MixedChoiceSequence::UniformMixedChildChoices(accepted);
+        assert_eq!(Render::render(&root, &ParseContext::default()), "Bare act.");
+
+        let context = ParseContext::default();
+        let parsed = parse_structural(Category::MixedChoiceSequence, "Bare act", &context);
+        assert_eq!(parsed.accepted_root_ids().count(), 1);
+        let parsed_mismatch =
+            parse_structural(Category::MixedChoiceSequence, "Third act", &context);
+        assert_eq!(
+            parsed_mismatch.accepted_root_ids().count(),
+            1,
+            "the chart preserves both lexical readings before generated materialization rejects their agreement mismatch",
+        );
+
+        let mixed = |value, agreement| BuildValue::MixedAgreementChild(value, agreement);
+        let pair = build(
+            RuleId::UniformMixedChildChoicesMembersSequenceLength2,
+            &[
+                mixed(bare.clone(), Agreement::Bare),
+                BuildValue::Leaf(Leaf::Literal(" ")),
+                mixed(contextual.clone(), Agreement::Bare),
+            ],
+            &context,
+        )
+        .expect("the mixed sum pair retains one homogeneous transient agreement");
+        assert!(matches!(
+            pair,
+            BuildValue::UniformMixedChildChoicesMembersSequence(_, Agreement::Bare)
+        ));
+        assert!(
+            build(
+                RuleId::UniformMixedChildChoicesMembersSequenceLength2,
+                &[
+                    mixed(third.clone(), Agreement::ThirdPersonSingular),
+                    BuildValue::Leaf(Leaf::Literal(" ")),
+                    mixed(contextual.clone(), Agreement::Bare),
+                ],
+                &context,
+            )
+            .is_none(),
+            "the generated exact build rejects a contextual carrier that mismatches the intrinsic alternative",
+        );
+
+        let fabricated = BuildValue::UniformMixedChildChoicesMembersSequence(
+            vec![third, contextual],
+            Agreement::Bare,
+        );
+        let materialization_rejection = build_checked(
+            RuleId::MixedChoiceSequenceUniformMixedChildChoices,
+            &[fabricated],
+            &context,
+        )
+        .expect_err(
+            "owner materialization rechecks the intrinsic member against its carried agreement",
+        );
+        assert_eq!(
+            materialization_rejection.owner(),
+            "UniformMixedChildChoices"
+        );
+        assert_eq!(materialization_rejection.role(), "members");
+    }
+
+    pub(super) fn assert_mixed_sum_sequence_relay_checks_intrinsic_constraints() {
+        let bare = || MixedAgreementChild::Child(Child::Bare(BareChild));
+        let third = || MixedAgreementChild::Child(Child::Third(ThirdChild));
+        let contextual =
+            || MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
+
+        RelayedMixedChildChoices::try_new(vec![third(), contextual()])
+            .expect("a contextual alternative can realize the intrinsic Third agreement");
+        RelayedMixedChildChoices::try_new(vec![contextual(), bare()])
+            .expect("a contextual alternative can realize the intrinsic Bare agreement");
+        RelayedMixedChildChoices::try_new(vec![contextual(), contextual()])
+            .expect("an all-contextual sequence accepts one homogeneous external agreement");
+
+        let rejection = RelayedMixedChildChoices::try_new(vec![third(), contextual(), bare()])
+            .expect_err("conflicting intrinsic alternatives have no homogeneous agreement");
+        assert_eq!(rejection.owner(), "RelayedMixedChildChoices");
+        assert_eq!(rejection.role(), "members");
+        assert_eq!(
+            rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "all members share agreement",
+            },
+        );
+
+        let relayed_third = RelayedMixedChoiceSequence::RelayedMixedChildChoices(
+            RelayedMixedChildChoices::try_new(vec![third(), contextual()])
+                .expect("the relay is internally homogeneous at Third"),
+        );
+        let envelope_rejection = MixedRelayEnvelope::try_new(relayed_third)
+            .expect_err("a Bare writer rejects a relay constrained to intrinsic Third");
+        assert_eq!(envelope_rejection.owner(), "MixedRelayEnvelope");
+        assert_eq!(envelope_rejection.role(), "choices");
+        assert_eq!(
+            envelope_rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "value matches derived agreement",
+            },
+        );
+
+        let relayed_bare = RelayedMixedChoiceSequence::RelayedMixedChildChoices(
+            RelayedMixedChildChoices::try_new(vec![bare(), contextual()])
+                .expect("the relay is internally homogeneous at Bare"),
+        );
+        let envelope = MixedRelayEnvelope::try_new(relayed_bare)
+            .expect("a Bare writer accepts a relay constrained to intrinsic Bare");
+        let root = MixedRelayEnvelopeRoot::MixedRelayEnvelope(envelope);
+        assert_eq!(Render::render(&root, &ParseContext::default()), "Bare act.");
+
+        let context = ParseContext::default();
+        let mixed = |value, agreement| BuildValue::MixedAgreementChild(value, agreement);
+        let pair = build(
+            RuleId::RelayedMixedChildChoicesMembersSequenceLength2,
+            &[
+                mixed(third(), Agreement::ThirdPersonSingular),
+                BuildValue::Leaf(Leaf::Literal(" ")),
+                mixed(contextual(), Agreement::ThirdPersonSingular),
+            ],
+            &context,
+        )
+        .expect("relay build preserves the homogeneous Third carrier");
+        assert!(matches!(
+            &pair,
+            BuildValue::RelayedMixedChildChoicesMembersSequence(_, Agreement::ThirdPersonSingular)
+        ));
+        let built_owner = build_checked(
+            RuleId::RelayedMixedChoiceSequenceRelayedMixedChildChoices,
+            &[pair],
+            &context,
+        )
+        .expect("relay owner preserves the intrinsic Third constraint")
+        .expect("the exact owner rule builds");
+        assert!(matches!(
+            built_owner,
+            BuildValue::RelayedMixedChoiceSequence(
+                RelayedMixedChoiceSequence::RelayedMixedChildChoices(_),
+                Agreement::ThirdPersonSingular
+            )
+        ));
+        assert!(
+            build(
+                RuleId::RelayedMixedChildChoicesMembersSequenceLength2,
+                &[
+                    mixed(third(), Agreement::ThirdPersonSingular),
+                    BuildValue::Leaf(Leaf::Literal(" ")),
+                    mixed(contextual(), Agreement::Bare),
+                ],
+                &context,
+            )
+            .is_none(),
+            "relay exact build rejects a mismatched contextual carrier",
+        );
+
+        let fabricated = BuildValue::RelayedMixedChildChoicesMembersSequence(
+            vec![third(), contextual()],
+            Agreement::Bare,
+        );
+        let materialization_rejection = build_checked(
+            RuleId::RelayedMixedChoiceSequenceRelayedMixedChildChoices,
+            &[fabricated],
+            &context,
+        )
+        .expect_err("relay materialization checks the carried agreement against intrinsic members");
+        assert_eq!(
+            materialization_rejection.owner(),
+            "RelayedMixedChildChoices"
+        );
+        assert_eq!(materialization_rejection.role(), "members");
+
+        let parsed = parse_structural(Category::RelayedMixedChoiceSequence, "Third acts", &context);
+        assert_eq!(parsed.accepted_root_ids().count(), 1);
+        let parsed_mismatch =
+            parse_structural(Category::RelayedMixedChoiceSequence, "Third act", &context);
+        assert_eq!(
+            parsed_mismatch.accepted_root_ids().count(),
+            1,
+            "the scanner preserves the conflicting lexical carrier before generated build rejects it",
+        );
+    }
+
     pub(super) fn assert_nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
         let one = std::num::NonZeroU32::new(1).expect("one is nonzero");
         let maximum = std::num::NonZeroU32::new(u32::MAX).expect("u32::MAX is nonzero");
@@ -5367,4 +5593,14 @@ fn singleton_sequence_agreement_crosses_checked_build_render_scan_and_materializ
 #[test]
 fn sum_sequence_agreement_uses_the_explicit_carrier_across_every_member_and_boundary() {
     fixture::assert_sum_sequence_agreement_uses_the_explicit_sum_carrier();
+}
+
+#[test]
+fn mixed_sum_sequence_checks_intrinsic_alternatives_against_derived_agreement() {
+    fixture::assert_mixed_sum_sequence_checks_intrinsic_alternatives();
+}
+
+#[test]
+fn mixed_sum_sequence_relay_checks_every_intrinsic_constraint() {
+    fixture::assert_mixed_sum_sequence_relay_checks_intrinsic_constraints();
 }

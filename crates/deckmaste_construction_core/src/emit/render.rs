@@ -489,11 +489,25 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             items.push(emit_feature_helper(validated, category, members, feature)?);
         }
     }
+    for (category, members) in &categories {
+        if validated.category_has_agreement_constraint(category) {
+            items.push(emit_category_agreement_match_helper(
+                validated, category, members,
+            )?);
+        }
+    }
     for sum in validated.sums().iter().filter(|sum| {
         validated.sum_carries_agreement(sum.name())
             && !validated.sum_requires_external_agreement(sum.name())
     }) {
         items.push(emit_sum_agreement_helper(validated, sum)?);
+    }
+    for sum in validated.sums().iter().filter(|sum| {
+        validated.sum_carries_agreement(sum.name())
+            && validated.sum_requires_external_agreement(sum.name())
+            && validated.sum_has_intrinsic_agreement(sum.name())
+    }) {
+        items.push(emit_sum_agreement_match_helper(validated, sum)?);
     }
     Ok(items)
 }
@@ -3856,6 +3870,168 @@ fn emit_sum_agreement_helper(
         },
         quote! {
             fn #function(value: &#ty) -> Agreement {
+                match value { #(#arms),* }
+            }
+        },
+        vec![DeclarationKey::new(
+            DeclarationKind::AbstractSum,
+            sum.name(),
+        )],
+    ))
+}
+
+fn emit_category_agreement_match_helper(
+    validated: &SemanticPlan,
+    category: &str,
+    members: &[&ConstructionPlan],
+) -> syn::Result<GeneratedItem> {
+    let function_name = feature_helper("agreement_matches", category);
+    let function = ident(&function_name);
+    let ty = ident(category);
+    let arms = members
+        .iter()
+        .map(|construction| {
+            let variant = ident(construction.category_variant());
+            let value = ident("value");
+            let constraint = validated
+                .feature_equations(construction.construction_id())
+                .iter()
+                .find_map(|equation| {
+                    let (
+                        FeaturePlace::Construction(Feature::Agreement),
+                        FeatureExpr::FromRole {
+                            role,
+                            feature: Feature::Agreement,
+                        },
+                    ) = (equation.target(), equation.value())
+                    else {
+                        return None;
+                    };
+                    Some(identifier_key(role))
+                });
+            let predicate = if let Some(role) = constraint {
+                let field = construction.field(&role)?;
+                let field_name = field.name();
+                match field.structural_kind() {
+                    Some(StructuralFieldKindPlan::Sequence {
+                        item: ValueKindPlan::Sum(sum),
+                        ..
+                    }) if validated.sum_requires_external_agreement(sum)
+                        && validated.sum_has_intrinsic_agreement(sum) =>
+                    {
+                        let helper = ident(&feature_helper("agreement_matches", sum));
+                        quote! {
+                            #value
+                                .#field_name
+                                .iter()
+                                .all(|member| #helper(member, agreement))
+                        }
+                    }
+                    Some(StructuralFieldKindPlan::Required(ValueKindPlan::Category(source)))
+                        if validated.category_has_agreement_constraint(source) =>
+                    {
+                        let helper = ident(&feature_helper("agreement_matches", source));
+                        quote! { #helper(&#value.#field_name, agreement) }
+                    }
+                    None if field.kind() == ConstructionFieldKind::Category
+                        && validated.category_has_agreement_constraint(field.terminal()) =>
+                    {
+                        let helper = ident(&feature_helper("agreement_matches", field.terminal()));
+                        quote! { #helper(&#value.#field_name, agreement) }
+                    }
+                    Some(
+                        StructuralFieldKindPlan::Required(_)
+                        | StructuralFieldKindPlan::Optional(_)
+                        | StructuralFieldKindPlan::Sequence { .. },
+                    )
+                    | None => quote! { true },
+                }
+            } else {
+                quote! { true }
+            };
+            Ok(quote! { #ty::#variant(#value) => #predicate })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(value: &#ty, agreement: Agreement) -> bool {
+                match value { #(#arms),* }
+            }
+        },
+        members
+            .iter()
+            .map(|construction| {
+                DeclarationKey::new(
+                    DeclarationKind::Construction,
+                    construction.construction_id(),
+                )
+            })
+            .collect(),
+    ))
+}
+
+fn emit_sum_agreement_match_helper(
+    validated: &SemanticPlan,
+    sum: &crate::semantic::SumPlan,
+) -> syn::Result<GeneratedItem> {
+    let function_name = feature_helper("agreement_matches", sum.name());
+    let function = ident(&function_name);
+    let ty = ident(sum.name());
+    let arms = sum
+        .alternatives()
+        .iter()
+        .map(|alternative| {
+            let variant = ident(alternative.name());
+            let predicate = match alternative.value() {
+                ValueKindPlan::Category(category)
+                    if validated.category_requires_external_agreement(category) =>
+                {
+                    quote! { true }
+                }
+                ValueKindPlan::Category(category)
+                    if validated.category_carries_agreement(category) =>
+                {
+                    let helper = ident(&feature_helper("agreement", category));
+                    quote! { #helper(value) == agreement }
+                }
+                ValueKindPlan::Sum(nested)
+                    if validated.sum_requires_external_agreement(nested)
+                        && validated.sum_has_intrinsic_agreement(nested) =>
+                {
+                    let helper = ident(&feature_helper("agreement_matches", nested));
+                    quote! { #helper(value, agreement) }
+                }
+                ValueKindPlan::Sum(nested) if validated.sum_requires_external_agreement(nested) => {
+                    quote! { true }
+                }
+                ValueKindPlan::Sum(nested) if validated.sum_carries_agreement(nested) => {
+                    let helper = ident(&feature_helper("agreement", nested));
+                    quote! { #helper(value) == agreement }
+                }
+                ValueKindPlan::Category(_)
+                | ValueKindPlan::Sum(_)
+                | ValueKindPlan::Product(_)
+                | ValueKindPlan::Lex(_)
+                | ValueKindPlan::Identity(_) => {
+                    return Err(internal(
+                        "agreement-bearing sum alternative lacks agreement authority",
+                    ));
+                }
+            };
+            Ok(quote! { #ty::#variant(value) => #predicate })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(value: &#ty, agreement: Agreement) -> bool {
                 match value { #(#arms),* }
             }
         },

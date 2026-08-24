@@ -2181,7 +2181,7 @@ fn emit_success(
     let element = ident(row.element_type());
     let category = ident(row.category());
     let variant = ident(row.category_variant());
-    if !row.fields().is_empty() && row.requires_constructor() {
+    if !row.fields().is_empty() && validated.construction_requires_checked_ast(row) {
         let mut arguments = row
             .fields()
             .iter()
@@ -2298,6 +2298,61 @@ fn emit_fallible_element_success(
         lowering.constructor_map_local = Some(argument.clone());
         argument
     });
+    if validated.category_has_agreement_constraint(row.category()) {
+        let agreement = agreement
+            .as_ref()
+            .ok_or_else(|| internal("agreement-constrained category lacks carried agreement"))?;
+        let role = validated
+            .feature_equations(row.construction_id())
+            .iter()
+            .find_map(|equation| {
+                let (
+                    FeaturePlace::Construction(Feature::Agreement),
+                    FeatureExpr::FromRole {
+                        role,
+                        feature: Feature::Agreement,
+                    },
+                ) = (equation.target(), equation.value())
+                else {
+                    return None;
+                };
+                Some(identifier_key(role))
+            })
+            .ok_or_else(|| internal("agreement-constrained category lacks its source role"))?;
+        let helper = ident(&feature_helper("agreement_matches", row.category()));
+        let owner = syn::LitStr::new(row.element_type(), row.origin_span());
+        let role = syn::LitStr::new(&role, row.origin_span());
+        let cardinality = cardinality.map(|value| quote! { , #value });
+        let number = number.map(|value| quote! { , #value });
+        let onset = onset.map(|value| quote! { , #value });
+        let possessive_ending = possessive_ending.map(|value| quote! { , #value });
+        return Ok(quote! {
+            match #result {
+                Ok(#argument) => {
+                    let value = #category::#variant(#argument);
+                    if #helper(&value, #agreement) {
+                        Ok(Some(BuildValue::#category(
+                            value,
+                            #agreement
+                            #cardinality
+                            #number
+                            #onset
+                            #possessive_ending
+                        )))
+                    } else {
+                        Err(BuildRejection::new(
+                            #owner,
+                            #role,
+                            BuildViolation::Invariant {
+                                identity: "value matches carried agreement",
+                            },
+                        ))
+                    }
+                }
+                Err(rejection) => Err(rejection),
+            }
+        });
+    }
     let agreement = agreement.map(|value| quote! { , #value });
     let cardinality = cardinality.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });

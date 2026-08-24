@@ -1821,6 +1821,36 @@ impl SemanticPlan {
         requires(self, sum, &mut HashSet::new())
     }
 
+    pub(crate) fn sum_has_intrinsic_agreement(&self, sum: &str) -> bool {
+        fn has_intrinsic(plan: &SemanticPlan, sum: &str, visiting: &mut HashSet<String>) -> bool {
+            if !visiting.insert(sum.to_owned()) {
+                return false;
+            }
+            let result = plan
+                .sums
+                .iter()
+                .find(|candidate| candidate.name() == sum)
+                .is_some_and(|sum| {
+                    sum.alternatives()
+                        .iter()
+                        .any(|alternative| match alternative.value() {
+                            ValueKindPlan::Category(category) => {
+                                plan.category_carries_agreement(category)
+                                    && !plan.category_requires_external_agreement(category)
+                            }
+                            ValueKindPlan::Sum(nested) => has_intrinsic(plan, nested, visiting),
+                            ValueKindPlan::Product(_)
+                            | ValueKindPlan::Lex(_)
+                            | ValueKindPlan::Identity(_) => false,
+                        })
+                });
+            visiting.remove(sum);
+            result
+        }
+
+        has_intrinsic(self, sum, &mut HashSet::new())
+    }
+
     pub(crate) fn sequence_feature(&self, owner: &str, role: &str) -> Option<Feature> {
         self.features
             .sequence_features
@@ -1831,6 +1861,94 @@ impl SemanticPlan {
     pub(crate) fn category_requires_external_agreement(&self, category: &str) -> bool {
         self.category_render_capability(category)
             .requires_external_agreement()
+    }
+
+    pub(crate) fn category_has_agreement_constraint(&self, category: &str) -> bool {
+        fn has_constraint(
+            plan: &SemanticPlan,
+            category: &str,
+            visiting: &mut HashSet<String>,
+        ) -> bool {
+            if !visiting.insert(category.to_owned()) {
+                return false;
+            }
+            let result = plan
+                .constructions
+                .iter()
+                .filter(|construction| construction.category() == category)
+                .any(|construction| {
+                    plan.feature_equations(construction.construction_id())
+                        .iter()
+                        .any(|equation| {
+                            let (
+                                feature::FeaturePlace::Construction(Feature::Agreement),
+                                feature::FeatureExpr::FromRole {
+                                    role,
+                                    feature: Feature::Agreement,
+                                },
+                            ) = (equation.target(), equation.value())
+                            else {
+                                return false;
+                            };
+                            let Ok(field) = construction.field(&identifier_key(role)) else {
+                                return false;
+                            };
+                            match field.structural_kind() {
+                                Some(StructuralFieldKindPlan::Sequence {
+                                    item: ValueKindPlan::Sum(sum),
+                                    ..
+                                }) => {
+                                    plan.sum_requires_external_agreement(sum)
+                                        && plan.sum_has_intrinsic_agreement(sum)
+                                }
+                                Some(StructuralFieldKindPlan::Required(
+                                    ValueKindPlan::Category(_),
+                                ))
+                                | None
+                                    if field.kind() == ConstructionFieldKind::Category =>
+                                {
+                                    has_constraint(plan, field.terminal(), visiting)
+                                }
+                                Some(
+                                    StructuralFieldKindPlan::Required(_)
+                                    | StructuralFieldKindPlan::Optional(_)
+                                    | StructuralFieldKindPlan::Sequence { .. },
+                                )
+                                | None => false,
+                            }
+                        })
+                });
+            visiting.remove(category);
+            result
+        }
+
+        has_constraint(self, category, &mut HashSet::new())
+    }
+
+    pub(crate) fn construction_requires_checked_ast(
+        &self,
+        construction: &ConstructionPlan,
+    ) -> bool {
+        construction.requires_constructor()
+            || self
+                .feature_equations(construction.construction_id())
+                .iter()
+                .any(|equation| {
+                    let feature::FeaturePlace::Role {
+                        field,
+                        feature: Feature::Agreement,
+                    } = equation.target()
+                    else {
+                        return false;
+                    };
+                    construction
+                        .field(&identifier_key(field))
+                        .ok()
+                        .is_some_and(|field| {
+                            field.kind() == ConstructionFieldKind::Category
+                                && self.category_has_agreement_constraint(field.terminal())
+                        })
+                })
     }
 
     pub(crate) fn boxed_fields(&self) -> &HashSet<(String, String)> {
