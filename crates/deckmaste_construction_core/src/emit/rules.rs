@@ -83,9 +83,21 @@ pub(super) enum RuleSymbolPlan {
         form_index: usize,
         atom_index: usize,
     },
+    CircumfixAffix {
+        construction_index: usize,
+        form_index: usize,
+        atom_index: usize,
+        side: CircumfixSide,
+    },
     Value(ValueKindPlan),
     Helper(String),
     Surface(StructuralSurfaceSymbolPlan),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum CircumfixSide {
+    Prefix,
+    Suffix,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,6 +126,7 @@ impl RuleSymbolPlan {
         match self {
             Self::Authored { .. } => "authored".to_owned(),
             Self::BoundAffix { .. } => "bound-affix".to_owned(),
+            Self::CircumfixAffix { side, .. } => format!("circumfix-{side:?}"),
             Self::Value(value) => format!("value:{}", value_name(value)),
             Self::Helper(category) => format!("helper:{category}"),
             Self::Surface(StructuralSurfaceSymbolPlan {
@@ -498,6 +511,17 @@ fn emit_rule_symbol(plan: &SemanticPlan, symbol: &RuleSymbolPlan) -> syn::Result
             *form_index,
             *atom_index,
         ),
+        RuleSymbolPlan::CircumfixAffix {
+            construction_index,
+            form_index,
+            atom_index,
+            side,
+        } => emit_circumfix_affix_position(
+            &plan.constructions()[*construction_index],
+            *form_index,
+            *atom_index,
+            *side,
+        ),
         RuleSymbolPlan::Value(value) => emit_value_position(plan, value),
         RuleSymbolPlan::Helper(category) => {
             let category = ident(category);
@@ -657,6 +681,12 @@ fn lower_construction_rows(
                         form_index,
                         atom_index,
                     };
+                    let circumfix = |side| RuleSymbolPlan::CircumfixAffix {
+                        construction_index,
+                        form_index,
+                        atom_index,
+                        side,
+                    };
                     match atom {
                         AtomPlan::Bound {
                             direction: crate::semantic::BoundDirectionPlan::Prefix,
@@ -666,13 +696,38 @@ fn lower_construction_rows(
                             direction: crate::semantic::BoundDirectionPlan::Suffix,
                             ..
                         } => rhs.extend([authored, affix]),
+                        AtomPlan::Circumfix { .. } => rhs.extend([
+                            circumfix(CircumfixSide::Prefix),
+                            authored,
+                            circumfix(CircumfixSide::Suffix),
+                        ]),
                         _ => rhs.push(authored),
                     }
                 }
                 continue;
             };
             let field_variants = owner_field_variants(construction.element_type(), field)?;
-            variants = combine_owner_variants(variants, field, &field_variants);
+            if matches!(atom, AtomPlan::Circumfix { .. }) {
+                for (_, rhs) in &mut variants {
+                    rhs.push(RuleSymbolPlan::CircumfixAffix {
+                        construction_index,
+                        form_index,
+                        atom_index,
+                        side: CircumfixSide::Prefix,
+                    });
+                }
+                variants = combine_owner_variants(variants, field, &field_variants);
+                for (_, rhs) in &mut variants {
+                    rhs.push(RuleSymbolPlan::CircumfixAffix {
+                        construction_index,
+                        form_index,
+                        atom_index,
+                        side: CircumfixSide::Suffix,
+                    });
+                }
+            } else {
+                variants = combine_owner_variants(variants, field, &field_variants);
+            }
         }
         rows.extend(
             variants
@@ -1509,7 +1564,8 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
         AtomPlan::Literal(_)
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_)
-        | AtomPlan::Bound { .. } => None,
+        | AtomPlan::Bound { .. }
+        | AtomPlan::Circumfix { .. } => None,
     }
 }
 
@@ -1536,13 +1592,9 @@ fn emit_position(
         AtomPlan::Bound {
             direction: crate::semantic::BoundDirectionPlan::Suffix,
             ..
-        }
+        } | AtomPlan::Circumfix { .. }
     );
-    let right_boundary = if let AtomPlan::Bound {
-        direction: crate::semantic::BoundDirectionPlan::Suffix,
-        ..
-    } = atom
-    {
+    let right_boundary = if adjacent_value {
         quote! { LexicalBoundary::Adjacent }
     } else {
         quote! { LexicalBoundary::Separated }
@@ -1558,7 +1610,11 @@ fn emit_position(
         match structural.kind() {
             StructuralFieldKindPlan::Optional(_) => {
                 let category = ident(&helper_category(construction.element_type(), structural)?);
-                return Ok(quote! { N(Category::#category) });
+                return Ok(if adjacent_value {
+                    quote! { RulePosition::AdjacentNonterminal(Category::#category) }
+                } else {
+                    quote! { N(Category::#category) }
+                });
             }
             StructuralFieldKindPlan::Sequence { surface, .. } => {
                 if matches!(surface.separator(), Some(SeparatorPlan::Positional(_))) {
@@ -1567,7 +1623,11 @@ fn emit_position(
                     ));
                 }
                 let category = ident(&helper_category(construction.element_type(), structural)?);
-                return Ok(quote! { N(Category::#category) });
+                return Ok(if adjacent_value {
+                    quote! { RulePosition::AdjacentNonterminal(Category::#category) }
+                } else {
+                    quote! { N(Category::#category) }
+                });
             }
             StructuralFieldKindPlan::Required(_) => {}
         }
@@ -1663,7 +1723,9 @@ fn emit_position(
                 &right_boundary,
             ))
         }
-        AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
+        AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
+            unreachable!("value_atom removes form wrappers")
+        }
     }
 }
 
@@ -1694,6 +1756,43 @@ fn emit_bound_affix_position(
         crate::semantic::BoundDirectionPlan::Prefix => quote! { LexicalBoundary::Adjacent },
         crate::semantic::BoundDirectionPlan::Suffix => quote! { LexicalBoundary::LeftAdjacent },
     };
+    Ok(lexical_terminal_with_boundary(
+        &quote! { Lexical::Literal(#literal) },
+        &quote! {
+            LexicalOwnerTemplate::Static {
+                kind: LexicalProvenanceKind::FormLiteral,
+                stable_id: #stable_id,
+            }
+        },
+        &boundary,
+    ))
+}
+
+fn emit_circumfix_affix_position(
+    construction: &ConstructionPlan,
+    form_index: usize,
+    atom_index: usize,
+    side: CircumfixSide,
+) -> syn::Result<TokenStream> {
+    let form = &construction.forms()[form_index];
+    let AtomPlan::Circumfix { prefix, suffix, .. } = &form.atoms()[atom_index] else {
+        return Err(internal(
+            "circumfix-affix rule symbol references an ordinary atom",
+        ));
+    };
+    let (surface, side_name, boundary) = match side {
+        CircumfixSide::Prefix => (prefix, "prefix", quote! { LexicalBoundary::Adjacent }),
+        CircumfixSide::Suffix => (suffix, "suffix", quote! { LexicalBoundary::LeftAdjacent }),
+    };
+    let literal = syn::LitStr::new(surface, Span::call_site());
+    let stable_id = syn::LitStr::new(
+        &format!(
+            "form:{}/{}/{atom_index}/{side_name}",
+            construction.construction_id(),
+            form.name(),
+        ),
+        Span::call_site(),
+    );
     Ok(lexical_terminal_with_boundary(
         &quote! { Lexical::Literal(#literal) },
         &quote! {
@@ -2109,6 +2208,74 @@ mod tests {
             error.contains("bound atom reached structural role lowering"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn circumfix_rows_wrap_but_do_not_replace_structural_sequence_authority() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                construction item: Item {
+                    element ItemValue {}
+                    form item = "item";
+                }
+                construction singular: Root {
+                    element Singular { value: Item, }
+                    form singular = circumfix("[", value, "]");
+                }
+                construction sequence: Root {
+                    element Sequence { values: seq Item separated by "}{", }
+                    require len(values) >= 1;
+                    form sequence = circumfix("{", values, "}");
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("circumfix rule fixture parses"),
+        )
+        .expect("circumfix rule fixture validates")
+        .into_semantic();
+        let rows = super::lowered_rows(&plan).expect("circumfix rows lower");
+        let labels = |id: &str| {
+            rows.iter()
+                .find(|row| row.id == id)
+                .unwrap_or_else(|| panic!("missing rule row {id}"))
+                .rhs
+                .iter()
+                .map(super::RuleSymbolPlan::test_label)
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            labels("RootSingular"),
+            ["circumfix-Prefix", "authored", "circumfix-Suffix"],
+        );
+        assert_eq!(
+            labels("RootSequence"),
+            [
+                "circumfix-Prefix",
+                "helper:SequenceValuesSequenceCategory",
+                "circumfix-Suffix",
+            ],
+        );
+        assert_eq!(labels("SequenceValuesSequenceSingleton"), ["value:Item"],);
+        assert_eq!(
+            labels("SequenceValuesSequenceRecursive"),
+            [
+                "value:Item",
+                "literal:}{",
+                "helper:SequenceValuesSequenceCategory",
+            ],
+        );
+        let recursive = rows
+            .iter()
+            .find(|row| row.id == "SequenceValuesSequenceRecursive")
+            .expect("recursive helper exists");
+        assert!(matches!(
+            &recursive.rhs[1],
+            super::RuleSymbolPlan::Surface(super::StructuralSurfaceSymbolPlan {
+                stable_id,
+                ..
+            }) if stable_id == "structural:Sequence/values/separator/uniform/0"
+        ));
     }
 
     fn bounded_sequence_semantic_plan() -> crate::semantic::SemanticPlan {

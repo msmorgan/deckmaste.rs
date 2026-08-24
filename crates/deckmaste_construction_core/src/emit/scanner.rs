@@ -646,6 +646,50 @@ mod tests {
         );
     }
 
+    #[test]
+    fn circumfix_scanning_uses_the_generic_literal_dispatch() {
+        let expansion = crate::generate(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            construction bracketed: Root {
+                element Bracketed { value: Item, }
+                form bracketed = circumfix("[", value, "]");
+            }
+            construction braced: Root {
+                element Braced { values: seq Item separated by "}{", }
+                require len(values) >= 1;
+                form braced = circumfix("{", values, "}");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("circumfix scanner fixture generates");
+        let source = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "scan_lexical"
+                )
+            })
+            .expect("circumfix fixture emits its scanner")
+            .tokens
+            .to_string();
+
+        assert!(source.contains("Lexical :: Literal (literal)"), "{source}");
+        for forbidden in ["bracket", "brace", "mana", "loyalty"] {
+            assert!(
+                !source.to_ascii_lowercase().contains(forbidden),
+                "scanner contains a circumfix-specific branch `{forbidden}`: {source}",
+            );
+        }
+    }
+
     #[derive(Default)]
     struct ClosedVerbArmVisitor<'ast> {
         bodies: Vec<&'ast syn::Expr>,

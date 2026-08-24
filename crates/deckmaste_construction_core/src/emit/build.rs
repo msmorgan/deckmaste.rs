@@ -196,6 +196,9 @@ fn emit_arm_from_plan(
                 .find(|field| field.name_key() == field_role)
                 .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
                 .ok_or_else(|| internal("positional atom has no structural plan"))?;
+            if let AtomPlan::Circumfix { prefix, .. } = atom {
+                push_fixed_form_literal(&mut lowering, prefix);
+            }
             lower_sequence_owner_field(
                 plan,
                 rule,
@@ -204,6 +207,9 @@ fn emit_arm_from_plan(
                 state,
                 &mut lowering,
             )?;
+            if let AtomPlan::Circumfix { suffix, .. } = atom {
+                push_fixed_form_literal(&mut lowering, suffix);
+            }
         } else {
             lower_atom(plan, row, form, atom, &mut lowering)?;
         }
@@ -775,7 +781,8 @@ fn lower_sequence_rhs(
                 patterns.push(fixed_surface_pattern(plan, &surface.atom)?);
             }
             super::rules::RuleSymbolPlan::Authored { .. }
-            | super::rules::RuleSymbolPlan::BoundAffix { .. } => {
+            | super::rules::RuleSymbolPlan::BoundAffix { .. }
+            | super::rules::RuleSymbolPlan::CircumfixAffix { .. } => {
                 return Err(internal(&format!(
                     "{state} sequence RHS contains a construction atom"
                 )));
@@ -900,7 +907,8 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
         AtomPlan::Literal(_)
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_)
-        | AtomPlan::Bound { .. } => None,
+        | AtomPlan::Bound { .. }
+        | AtomPlan::Circumfix { .. } => None,
     }
 }
 
@@ -922,12 +930,18 @@ fn lower_atom(
             StructuralFieldKindPlan::Optional(_) => {
                 let variant = ident(&carrier_variant(row.element_type(), structural)?);
                 let binding = lowering.binders.allocate(role);
+                if let AtomPlan::Circumfix { prefix, .. } = atom {
+                    push_fixed_form_literal(lowering, prefix);
+                }
                 lowering
                     .patterns
                     .push(quote! { BuildValue::#variant(#binding) });
                 lowering
                     .field_values
                     .insert(role.to_owned(), quote! { #binding.clone() });
+                if let AtomPlan::Circumfix { suffix, .. } = atom {
+                    push_fixed_form_literal(lowering, suffix);
+                }
                 return Ok(());
             }
             StructuralFieldKindPlan::Sequence { surface, .. } => {
@@ -941,12 +955,18 @@ fn lower_atom(
                 }
                 let variant = ident(&carrier_variant(row.element_type(), structural)?);
                 let binding = lowering.binders.allocate(role);
+                if let AtomPlan::Circumfix { prefix, .. } = atom {
+                    push_fixed_form_literal(lowering, prefix);
+                }
                 lowering
                     .patterns
                     .push(quote! { BuildValue::#variant(#binding) });
                 lowering
                     .field_values
                     .insert(role.to_owned(), quote! { #binding.clone() });
+                if let AtomPlan::Circumfix { suffix, .. } = atom {
+                    push_fixed_form_literal(lowering, suffix);
+                }
                 return Ok(());
             }
             StructuralFieldKindPlan::Required(_) => {}
@@ -958,6 +978,15 @@ fn lower_atom(
             affix,
             value,
         } => lower_bound_atom(validated, row, form, *direction, affix, value, lowering)?,
+        AtomPlan::Circumfix {
+            prefix,
+            value,
+            suffix,
+        } => {
+            push_fixed_form_literal(lowering, prefix);
+            lower_atom(validated, row, form, value, lowering)?;
+            push_fixed_form_literal(lowering, suffix);
+        }
         AtomPlan::Literal(literal) => {
             let literal = syn::LitStr::new(literal, Span::call_site());
             lowering
@@ -1032,6 +1061,13 @@ fn lower_atom(
         }
     }
     Ok(())
+}
+
+fn push_fixed_form_literal(lowering: &mut Lowering, surface: &str) {
+    let literal = syn::LitStr::new(surface, Span::call_site());
+    lowering
+        .patterns
+        .push(quote! { BuildValue::Leaf(Leaf::Literal(#literal)) });
 }
 
 fn lower_bound_atom(

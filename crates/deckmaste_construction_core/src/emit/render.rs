@@ -1509,6 +1509,10 @@ fn render_base_allocator(
     allocator
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "exhaustive allocator reservation follows every render atom shape"
+)]
 fn render_allocator(
     validated: &SemanticPlan,
     members: &[&ConstructionPlan],
@@ -1662,7 +1666,9 @@ fn render_allocator(
                         allocator.reserve(feature_helper("number", construction.category()));
                     }
                 }
-                AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
+                AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
+                    unreachable!("value_atom removes form wrappers")
+                }
             }
         }
     }
@@ -1760,8 +1766,10 @@ struct RenderLocals {
 }
 
 fn render_arm_requires_block(construction: &ConstructionPlan, root_impl: bool) -> bool {
-    matches!(construction.forms()[0].atoms(), [AtomPlan::Bound { .. }])
-        || (!root_impl && matches!(construction.forms()[0].atoms(), [AtomPlan::Category { .. }]))
+    matches!(
+        construction.forms()[0].atoms(),
+        [AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. }]
+    ) || (!root_impl && matches!(construction.forms()[0].atoms(), [AtomPlan::Category { .. }]))
 }
 
 fn render_arms(
@@ -1958,6 +1966,25 @@ fn render_atoms(
                     &fields,
                 );
             }
+            if let AtomPlan::Circumfix {
+                prefix,
+                value,
+                suffix,
+            } = atom
+            {
+                return render_circumfix_atom(
+                    validated,
+                    construction,
+                    form,
+                    atom_index,
+                    prefix,
+                    value,
+                    suffix,
+                    locals,
+                    root_names,
+                    &fields,
+                );
+            }
             if let Some(role) = render_atom_role(atom)
                 && let Some(field) = fields.get(role)
                 && let Some(structural) = field.structural_plan()
@@ -2079,6 +2106,86 @@ fn render_bound_atom(
             writer.suppress_next_space();
             #affix_claim
         },
+    })
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "circumfix rendering preserves the enclosing form and delegated payload inputs"
+)]
+fn render_circumfix_atom(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    form: &FormPlan,
+    atom_index: usize,
+    prefix: &str,
+    value: &AtomPlan,
+    suffix: &str,
+    locals: &RenderLocals,
+    root_names: &HashSet<String>,
+    fields: &HashMap<String, &ConstructionFieldPlan>,
+) -> syn::Result<TokenStream> {
+    let affix_claim = |surface: &str, side: &str| {
+        let statement = render_fixed_surface_statement(surface);
+        let stable_id = syn::LitStr::new(
+            &format!(
+                "form:{}/{}/{atom_index}/{side}",
+                construction.construction_id(),
+                form.name(),
+            ),
+            Span::call_site(),
+        );
+        quote! {
+            writer.claim(
+                || LexicalOwner::static_owner(
+                    LexicalProvenanceKind::FormLiteral,
+                    #stable_id,
+                ),
+                |writer| { #statement },
+            );
+        }
+    };
+    let prefix_claim = affix_claim(prefix, "prefix");
+    let suffix_claim = affix_claim(suffix, "suffix");
+    let value_statement = if let Some(role) = render_atom_role(value)
+        && let Some(field) = fields.get(role)
+        && let Some(structural) = field.structural_plan()
+    {
+        render_construction_structural_field(
+            validated,
+            construction,
+            role,
+            structural,
+            locals,
+            root_names,
+        )?
+    } else {
+        render_atom_statement(validated, construction, value, locals, root_names, fields)?
+    };
+    let value_render = if matches!(value, AtomPlan::Category { .. }) {
+        value_statement
+    } else {
+        let owner = render_owner(
+            validated,
+            construction,
+            form.name(),
+            atom_index,
+            value,
+            locals,
+        )?;
+        quote! {
+            writer.claim(
+                || #owner,
+                |writer| { #value_statement },
+            );
+        }
+    };
+    Ok(quote! {
+        #prefix_claim
+        writer.suppress_next_space();
+        #value_render
+        writer.suppress_next_space();
+        #suffix_claim
     })
 }
 
@@ -2249,6 +2356,9 @@ fn render_atom_statement(
             )
         }
         AtomPlan::Bound { .. } => Err(internal("bound atoms must be rendered as two claims")),
+        AtomPlan::Circumfix { .. } => {
+            Err(internal("circumfix atoms must be rendered as three claims"))
+        }
     }
 }
 
@@ -2291,7 +2401,9 @@ fn render_atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
-        AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
+        AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
+            unreachable!("value_atom removes form wrappers")
+        }
     }
 }
 
@@ -2553,7 +2665,9 @@ fn render_owner(
                 }
             })
         }
-        AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
+        AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
+            unreachable!("value_atom removes form wrappers")
+        }
     }
 }
 
@@ -2951,7 +3065,8 @@ fn implicit_verb_onset(
         | AtomPlan::Lex { .. }
         | AtomPlan::Identity { .. }
         | AtomPlan::Noun { .. }
-        | AtomPlan::Bound { .. } => unreachable!("verb onset selected a verb atom"),
+        | AtomPlan::Bound { .. }
+        | AtomPlan::Circumfix { .. } => unreachable!("verb onset selected a verb atom"),
     }
 }
 

@@ -763,7 +763,9 @@ fn emit_construction_walker(
             | AtomPlan::Category { .. }
             | AtomPlan::Noun { .. }
             | AtomPlan::OpenDeclaration(_) => None,
-            AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
+            AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
+                unreachable!("value_atom removes form wrappers")
+            }
         };
         if let Some(terminal) = terminal {
             allocator.reserve(format!("walk_{}", snake_case(&terminal)));
@@ -993,7 +995,9 @@ fn emit_construction_form_walker_calls(
                     );
                 })
             }
-            AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
+            AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
+                unreachable!("value_atom removes form wrappers")
+            }
         };
         if let Some(call) = call {
             calls.push(call);
@@ -1009,7 +1013,9 @@ fn visit_atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
-        AtomPlan::Bound { .. } => unreachable!("value_atom removes bound wrappers"),
+        AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
+            unreachable!("value_atom removes form wrappers")
+        }
     }
 }
 

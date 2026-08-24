@@ -258,6 +258,7 @@ pub enum FormAtom {
     OpenVerb(OpenDeclarationAtom),
     Noun(Ident),
     Bound(BoundAtom),
+    Circumfix(CircumfixAtom),
 }
 
 #[derive(Debug)]
@@ -265,6 +266,13 @@ pub struct BoundAtom {
     pub direction: BoundDirection,
     pub affix: LitStr,
     pub value: Box<FormAtom>,
+}
+
+#[derive(Debug)]
+pub struct CircumfixAtom {
+    pub prefix: LitStr,
+    pub role: Ident,
+    pub suffix: LitStr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

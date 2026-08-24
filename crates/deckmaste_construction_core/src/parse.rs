@@ -768,6 +768,31 @@ fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<For
             "prefix" | "suffix" => {
                 return Err(syn::Error::new(ident.span(), "bound atoms cannot nest"));
             }
+            "circumfix" if allow_bound => {
+                let prefix = content.parse()?;
+                content.parse::<Token![,]>()?;
+                let value = parse_form_atom(&content, false)?;
+                content.parse::<Token![,]>()?;
+                let suffix = content.parse()?;
+                if !content.is_empty() {
+                    return Err(content
+                        .error("circumfix atoms accept exactly two fixed affixes and one role"));
+                }
+                let FormAtom::Role(role) = value else {
+                    return Err(syn::Error::new(
+                        ident.span(),
+                        "circumfix atom values must be ordinary declared roles",
+                    ));
+                };
+                FormAtom::Circumfix(crate::model::CircumfixAtom {
+                    prefix,
+                    role,
+                    suffix,
+                })
+            }
+            "circumfix" => {
+                return Err(syn::Error::new(ident.span(), "circumfix atoms cannot nest"));
+            }
             "verb" => {
                 let path = parse_generated_owned_path(&content)?;
                 if !content.is_empty() {
@@ -2608,6 +2633,80 @@ mod tests {
         .expect("the four closed bound-atom spellings parse");
 
         assert_eq!(declarations.declarations.len(), 6);
+    }
+
+    #[test]
+    fn circumfix_atoms_parse_required_and_nonempty_sequence_roles() {
+        let declarations = crate::parse_declarations(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            construction singular: Root {
+                element Singular { value: Item, }
+                form singular = circumfix("[", value, "]");
+            }
+            construction sequence: Root {
+                element Sequence { values: seq Item separated by "}{", }
+                require len(values) >= 1;
+                form sequence = circumfix("{", values, "}");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("fixed circumfixes over singular and sequence roles parse");
+
+        assert_eq!(declarations.declarations.len(), 4);
+    }
+
+    #[test]
+    fn circumfix_atoms_reject_nonroles_extra_operands_and_nesting() {
+        let rejected = [
+            (
+                quote::quote! { circumfix("[", "value", "]") },
+                "ordinary declared roles",
+            ),
+            (
+                quote::quote! { circumfix("[", verb(Verbs::Act), "]") },
+                "ordinary declared roles",
+            ),
+            (
+                quote::quote! { circumfix("[", open_verb(KeywordAction, "act"), "]") },
+                "ordinary declared roles",
+            ),
+            (
+                quote::quote! { circumfix("[", callback(value), "]") },
+                "unknown form atom",
+            ),
+            (
+                quote::quote! { circumfix("[", value, "]", "extra") },
+                "exactly two fixed affixes and one role",
+            ),
+            (
+                quote::quote! { circumfix("[", prefix("non", value), "]") },
+                "bound atoms cannot nest",
+            ),
+            (
+                quote::quote! { circumfix("[", circumfix("{", value, "}"), "]") },
+                "circumfix atoms cannot nest",
+            ),
+            (
+                quote::quote! { prefix("non", circumfix("[", value, "]")) },
+                "circumfix atoms cannot nest",
+            ),
+        ];
+
+        for (atom, diagnostic) in rejected {
+            let source = quote::quote! {
+                construction invalid: Root {
+                    element Invalid { value: Root, }
+                    form invalid = #atom;
+                }
+            };
+            let error = crate::parse_declarations(source)
+                .expect_err("forbidden circumfix shapes must be rejected")
+                .to_string();
+            assert!(error.contains(diagnostic), "{error}");
+        }
     }
 
     #[test]

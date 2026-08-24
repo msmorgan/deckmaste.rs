@@ -655,6 +655,11 @@ pub(crate) enum AtomPlan {
         affix: String,
         value: Box<AtomPlan>,
     },
+    Circumfix {
+        prefix: String,
+        value: Box<AtomPlan>,
+        suffix: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -916,6 +921,14 @@ impl RuntimeEmissionPlan {
                             && is_punctuation_literal(affix)
                         {
                             literals.push(affix.clone());
+                        }
+                        if let AtomPlan::Circumfix { prefix, suffix, .. } = atom {
+                            literals.extend(
+                                [prefix, suffix]
+                                    .into_iter()
+                                    .filter(|surface| is_punctuation_literal(surface))
+                                    .cloned(),
+                            );
                         }
                         let atom = atom.value_atom();
                         if let AtomPlan::Literal(literal) = atom
@@ -3015,7 +3028,10 @@ fn form_atom_is_nullable(
             .find(|field| field.name_key() == *role)
             .and_then(ConstructionFieldPlan::structural_kind)
             .is_some_and(|kind| structural_kind_is_nullable(kind, nullable_types)),
-        AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) | AtomPlan::Bound { .. } => false,
+        AtomPlan::VerbFixed { .. }
+        | AtomPlan::OpenDeclaration(_)
+        | AtomPlan::Bound { .. }
+        | AtomPlan::Circumfix { .. } => false,
     }
 }
 
@@ -3910,7 +3926,7 @@ fn accessor_mode(
 impl AtomPlan {
     pub(crate) fn value_atom(&self) -> &Self {
         match self {
-            Self::Bound { value, .. } => value.value_atom(),
+            Self::Bound { value, .. } | Self::Circumfix { value, .. } => value.value_atom(),
             atom => atom,
         }
     }
@@ -4001,6 +4017,17 @@ impl AtomPlan {
                     value: Box::new(Self::from_source(&authored.value, resolved)?),
                 })
             }
+            (FormAtom::Circumfix(authored), AtomContribution::Category { role, category }) => {
+                ensure_atom_name(&authored.role, role, "circumfix role name")?;
+                Ok(Self::Circumfix {
+                    prefix: authored.prefix.value(),
+                    value: Box::new(Self::Category {
+                        role: role.clone(),
+                        category: category.clone(),
+                    }),
+                    suffix: authored.suffix.value(),
+                })
+            }
             _ => Err(syn::Error::new(
                 form_atom_span(source),
                 "sealed construction atom kind is inconsistent",
@@ -4028,6 +4055,11 @@ impl AtomPlan {
                 affix,
                 value,
             } => format!("{direction:?}({affix:?}, {})", value.snapshot()),
+            Self::Circumfix {
+                prefix,
+                value,
+                suffix,
+            } => format!("circumfix({prefix:?}, {}, {suffix:?})", value.snapshot()),
         }
     }
 }
@@ -4082,6 +4114,7 @@ fn form_atom_span(atom: &FormAtom) -> Span {
         FormAtom::Verb(VerbOperand::Fixed(path)) => path.span(),
         FormAtom::OpenVerb(open) => open.name.span(),
         FormAtom::Bound(bound) => bound.affix.span(),
+        FormAtom::Circumfix(circumfix) => circumfix.prefix.span(),
     }
 }
 
@@ -4137,7 +4170,8 @@ fn number_carry_categories(
                     | AtomPlan::Noun { .. }
                     | AtomPlan::VerbFixed { .. }
                     | AtomPlan::OpenDeclaration(_)
-                    | AtomPlan::Bound { .. } => None,
+                    | AtomPlan::Bound { .. }
+                    | AtomPlan::Circumfix { .. } => None,
                 })
             {
                 carried.insert(category);
@@ -4304,7 +4338,8 @@ fn validate_onset_provider_capabilities(
                             | AtomPlan::Lex { .. }
                             | AtomPlan::Identity { .. }
                             | AtomPlan::Noun { .. }
-                            | AtomPlan::Bound { .. } => None,
+                            | AtomPlan::Bound { .. }
+                            | AtomPlan::Circumfix { .. } => None,
                         })
                         .collect::<Vec<_>>();
                     let [provider] = providers.as_slice() else {
@@ -5805,6 +5840,63 @@ mod tests {
                 vec!["word=Other".to_owned()],
             ]
         );
+    }
+
+    #[test]
+    fn circumfix_plan_seals_two_boundaries_around_one_delegated_payload() {
+        let semantic = guarded_form_result(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            construction singular: Root {
+                element Singular { value: Item, }
+                form singular = circumfix("[", value, "]");
+            }
+            construction sequence: Root {
+                element Sequence { values: seq Item separated by "}{", }
+                require len(values) >= 1;
+                form sequence = circumfix("{", values, "}");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("circumfix semantic fixture seals");
+
+        let singular = &semantic.constructions()[1].forms()[0].atoms()[0];
+        assert!(matches!(
+            singular,
+            super::AtomPlan::Circumfix {
+                prefix,
+                value,
+                suffix,
+            } if prefix == "["
+                && suffix == "]"
+                && matches!(value.as_ref(), super::AtomPlan::Category { role, category } if role == "value" && category == "Item")
+        ));
+        let sequence = &semantic.constructions()[2];
+        assert!(matches!(
+            &sequence.forms()[0].atoms()[0],
+            super::AtomPlan::Circumfix {
+                prefix,
+                value,
+                suffix,
+            } if prefix == "{"
+                && suffix == "}"
+                && matches!(value.as_ref(), super::AtomPlan::Category { role, category } if role == "values" && category == "Item")
+        ));
+        assert!(matches!(
+            sequence.fields()[0]
+                .structural_plan()
+                .expect("sequence payload retains its structural authority")
+                .kind(),
+            StructuralFieldKindPlan::Sequence {
+                item: ValueKindPlan::Category(item),
+                bounds,
+                surface,
+            } if item == "Item"
+                && *bounds == LengthBounds::new(1, None)
+                && matches!(surface.separator(), Some(SeparatorPlan::Uniform(separator)) if matches!(separator.atoms(), [FixedSurfaceAtomPlan::Literal(value)] if value == "}{"))
+        ));
     }
 
     #[test]

@@ -700,6 +700,9 @@ fn form_atom_has_fixed_width(atom: &FormAtom, fields: &HashMap<String, &FieldKin
         FormAtom::Verb(_) | FormAtom::OpenVerb(_) => true,
         FormAtom::Role(_) => false,
         FormAtom::Bound(bound) => form_atom_has_fixed_width(&bound.value, fields),
+        FormAtom::Circumfix(circumfix) => {
+            !circumfix.prefix.value().is_empty() || !circumfix.suffix.value().is_empty()
+        }
     }
 }
 
@@ -3959,7 +3962,8 @@ fn validate_bound_form_atom<'a>(
         FormAtom::Literal(_)
         | FormAtom::Verb(VerbOperand::Fixed(_))
         | FormAtom::OpenVerb(_)
-        | FormAtom::Bound(_) => None,
+        | FormAtom::Bound(_)
+        | FormAtom::Circumfix(_) => None,
     };
     if let Some(role) = value_role
         && matches!(
@@ -3976,6 +3980,47 @@ fn validate_bound_form_atom<'a>(
         );
     }
     &bound.value
+}
+
+fn validate_circumfix_form_atom(
+    circumfix: &crate::model::CircumfixAtom,
+    fields: &HashMap<String, &FieldKind>,
+    errors: &mut Option<syn::Error>,
+) {
+    for (side, affix) in [("prefix", &circumfix.prefix), ("suffix", &circumfix.suffix)] {
+        let surface = affix.value();
+        if surface.is_empty() {
+            combine(
+                errors,
+                syn::Error::new(
+                    affix.span(),
+                    format!("a circumfix {side} must have a nonempty fixed byte surface"),
+                ),
+            );
+        }
+        if surface.chars().any(char::is_whitespace) {
+            combine(
+                errors,
+                syn::Error::new(
+                    affix.span(),
+                    format!("a circumfix {side} must not contain whitespace"),
+                ),
+            );
+        }
+    }
+    if matches!(
+        fields.get(&identifier_key(&circumfix.role)),
+        Some(FieldKind::Optional(_))
+    ) {
+        combine(
+            errors,
+            syn::Error::new(
+                circumfix.role.span(),
+                "circumfix atom values must be required singular or sequence fields",
+            ),
+        );
+    }
+    check_role_kind(&circumfix.role, fields, true, errors);
 }
 
 #[expect(
@@ -4072,6 +4117,10 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
         for form in &construction.forms {
             validate_form_guard(construction, form, &fields, symbols, &mut errors);
             for atom in &form.atoms {
+                if let FormAtom::Circumfix(circumfix) = atom {
+                    validate_circumfix_form_atom(circumfix, &fields, &mut errors);
+                    continue;
+                }
                 let atom = validate_bound_form_atom(atom, &fields, &mut errors);
                 match atom {
                     FormAtom::Role(role) => check_role_kind(role, &fields, true, &mut errors),
@@ -4104,6 +4153,9 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     FormAtom::OpenVerb(open) => validate_open_declaration(open, &mut errors),
                     FormAtom::Literal(_) => {}
                     FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
+                    FormAtom::Circumfix(_) => {
+                        unreachable!("circumfix atoms were validated before ordinary atoms")
+                    }
                 }
             }
         }
@@ -4260,6 +4312,9 @@ fn validate_feature_guarded_traversal_programs(
                         open.name.value()
                     )),
                     FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
+                    FormAtom::Circumfix(circumfix) => {
+                        Some(format!("category:{}", identifier_key(&circumfix.role)))
+                    }
                 }
             })
             .collect::<Vec<_>>()
@@ -4502,6 +4557,18 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
             .collect();
         let mut atoms = Vec::new();
         for atom in construction.forms.iter().flat_map(|form| &form.atoms) {
+            if let FormAtom::Circumfix(circumfix) = atom {
+                if let Some(FieldKind::Category(path)) = fields
+                    .get(&identifier_key(&circumfix.role))
+                    .map(|kind| field_kind_leaf(kind))
+                {
+                    atoms.push(AtomContribution::Category {
+                        role: identifier_key(&circumfix.role),
+                        category: path_name(path),
+                    });
+                }
+                continue;
+            }
             let atom = match atom {
                 FormAtom::Bound(bound) => bound.value.as_ref(),
                 atom => atom,
@@ -4561,6 +4628,9 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                 }),
                 FormAtom::Verb(VerbOperand::Projected(_)) => None,
                 FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
+                FormAtom::Circumfix(_) => {
+                    unreachable!("circumfix atoms resolve before ordinary atoms")
+                }
             };
             if let Some(resolved) = resolved {
                 atoms.push(resolved);
@@ -4985,6 +5055,7 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                     | FormAtom::OpenVerb(_)
                     | FormAtom::Literal(_) => None,
                     FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
+                    FormAtom::Circumfix(circumfix) => Some(&circumfix.role),
                 };
                 if let Some(role) = role
                     && let Some(count) = counts.get_mut(&identifier_key(role))
@@ -6839,6 +6910,20 @@ fn seal_category_render_capabilities(
                             .is_some_and(|field| {
                                 matches!(&field.kind, FieldKind::Category(path) if context_required.contains(&path_name(path)))
                             }),
+                        FormAtom::Circumfix(circumfix) => construction
+                            .element
+                            .fields
+                            .iter()
+                            .find(|field| same_identifier(&field.name, &circumfix.role))
+                            .is_some_and(|field| match field_kind_leaf(&field.kind) {
+                                FieldKind::Category(path) => {
+                                    context_required.contains(&path_name(path))
+                                }
+                                FieldKind::Lex(_)
+                                | FieldKind::Identity(_)
+                                | FieldKind::Optional(_)
+                                | FieldKind::Sequence { .. } => false,
+                            }),
                         FormAtom::Literal(_)
                         | FormAtom::Lex(_)
                         | FormAtom::Verb(_)
@@ -7932,6 +8017,92 @@ pub(crate) mod tests {
                 "{actual}"
             );
         }
+    }
+
+    #[test]
+    fn circumfix_atoms_validate_required_and_sequence_category_roles() {
+        validate(quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            construction singular: Root {
+                element Singular { value: Item, }
+                form singular = circumfix("[", value, "]");
+            }
+            construction sequence: Root {
+                element Sequence { values: seq Item separated by "}{", }
+                require len(values) >= 1;
+                form sequence = circumfix("{", values, "}");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("circumfix roles retain their singular or sequence structural authority");
+    }
+
+    #[test]
+    fn circumfix_atoms_reject_empty_whitespace_optional_and_lexical_inputs() {
+        let affixes = [
+            (
+                quote! { circumfix("", value, "]") },
+                "circumfix prefix must have a nonempty fixed byte surface",
+            ),
+            (
+                quote! { circumfix("[", value, "") },
+                "circumfix suffix must have a nonempty fixed byte surface",
+            ),
+            (
+                quote! { circumfix("[ ", value, "]") },
+                "circumfix prefix must not contain whitespace",
+            ),
+            (
+                quote! { circumfix("[", value, " ]") },
+                "circumfix suffix must not contain whitespace",
+            ),
+        ];
+        for (atom, diagnostic) in affixes {
+            let actual = error(quote! {
+                construction item: Item {
+                    element ItemValue {}
+                    form item = "item";
+                }
+                construction invalid: Root {
+                    element Invalid { value: Item, }
+                    form invalid = #atom;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            });
+            assert!(actual.contains(diagnostic), "{actual}");
+        }
+
+        let optional = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            construction invalid: Root {
+                element Invalid { value: opt Item, }
+                form invalid = circumfix("[", value, "]");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            optional.contains("circumfix atom values must be required singular or sequence fields"),
+            "{optional}",
+        );
+
+        let lexical = error(quote! {
+            vocab Word { Value = "value", }
+            construction invalid: Root {
+                element Invalid { value: lex Word, }
+                form invalid = circumfix("[", value, "]");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            lexical.contains("lexical field `value` used as a category role"),
+            "{lexical}",
+        );
     }
 
     #[test]

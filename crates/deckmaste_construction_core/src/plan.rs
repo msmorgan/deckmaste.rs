@@ -1989,6 +1989,14 @@ mod tests {
                 },
                 "fixed-verb variant name",
             ),
+            (
+                parsed_form(&quote::quote! { circumfix("[", child, "]") }),
+                crate::validate::AtomContribution::Category {
+                    role: "other".to_owned(),
+                    category: "Cat".to_owned(),
+                },
+                "circumfix role name",
+            ),
         ];
 
         for (form, resolved, expected) in cases {
@@ -2007,6 +2015,33 @@ mod tests {
         ] {
             assert!(!source.contains("ValidatedDeclarations"));
             assert!(!source.contains(".raw()"));
+        }
+    }
+
+    #[test]
+    fn circumfix_emitters_contain_no_english_specific_production_branches() {
+        for source in [
+            include_str!("emit/build.rs"),
+            include_str!("emit/render.rs"),
+            include_str!("emit/rules.rs"),
+            include_str!("emit/scanner.rs"),
+            include_str!("emit/visit.rs"),
+        ] {
+            let production = source
+                .rsplit_once("#[cfg(test)]\nmod tests")
+                .map_or(source, |(production, _)| production);
+            for forbidden in ["mana", "loyalty", "bracketed_value", "braced_values"] {
+                assert!(
+                    !production.to_ascii_lowercase().contains(forbidden),
+                    "production circumfix lowering contains English-specific `{forbidden}`",
+                );
+            }
+            for forbidden in ["\"[\"", "\"]\"", "\"{\"", "\"}\""] {
+                assert!(
+                    !production.contains(forbidden),
+                    "production circumfix lowering contains fixed delimiter `{forbidden}`",
+                );
+            }
         }
     }
 

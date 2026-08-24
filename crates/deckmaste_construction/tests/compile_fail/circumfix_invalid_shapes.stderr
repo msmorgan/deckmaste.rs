@@ -1,0 +1,23 @@
+error: circumfix atoms accept exactly two fixed affixes and one role
+ --> tests/compile_fail/circumfix_invalid_shapes.rs:5:53
+  |
+5 |             form invalid = circumfix("[", value, "]", "extra");
+  |                                                     ^
+
+error: bound atoms cannot nest
+  --> tests/compile_fail/circumfix_invalid_shapes.rs:14:43
+   |
+14 |             form invalid = circumfix("[", prefix("non", value), "]");
+   |                                           ^^^^^^
+
+error: circumfix atoms cannot nest
+  --> tests/compile_fail/circumfix_invalid_shapes.rs:23:43
+   |
+23 |             form invalid = circumfix("[", circumfix("{", value, "}"), "]");
+   |                                           ^^^^^^^^^
+
+error: circumfix atoms cannot nest
+  --> tests/compile_fail/circumfix_invalid_shapes.rs:32:42
+   |
+32 |             form invalid = prefix("non", circumfix("[", value, "]"));
+   |                                          ^^^^^^^^^

@@ -1,0 +1,23 @@
+error: a circumfix prefix must have a nonempty fixed byte surface
+ --> tests/compile_fail/circumfix_invalid_affixes.rs:6:38
+  |
+6 |             form invalid = circumfix("", value, "]");
+  |                                      ^^
+
+error: a circumfix suffix must have a nonempty fixed byte surface
+  --> tests/compile_fail/circumfix_invalid_affixes.rs:16:50
+   |
+16 |             form invalid = circumfix("[", value, "");
+   |                                                  ^^
+
+error: a circumfix prefix must not contain whitespace
+  --> tests/compile_fail/circumfix_invalid_affixes.rs:26:38
+   |
+26 |             form invalid = circumfix("[ ", value, "]");
+   |                                      ^^^^
+
+error: a circumfix suffix must not contain whitespace
+  --> tests/compile_fail/circumfix_invalid_affixes.rs:36:50
+   |
+36 |             form invalid = circumfix("[", value, " ]");
+   |                                                  ^^^^

@@ -1,0 +1,29 @@
+error: circumfix atom values must be ordinary declared roles
+ --> tests/compile_fail/circumfix_forbidden_operands.rs:5:28
+  |
+5 |             form invalid = circumfix("[", "value", "]");
+  |                            ^^^^^^^^^
+
+error: circumfix atom values must be ordinary declared roles
+  --> tests/compile_fail/circumfix_forbidden_operands.rs:14:28
+   |
+14 |             form invalid = circumfix("[", lex(value), "]");
+   |                            ^^^^^^^^^
+
+error: circumfix atom values must be ordinary declared roles
+  --> tests/compile_fail/circumfix_forbidden_operands.rs:23:28
+   |
+23 |             form invalid = circumfix("[", verb(Verbs::Act), "]");
+   |                            ^^^^^^^^^
+
+error: unknown form atom
+  --> tests/compile_fail/circumfix_forbidden_operands.rs:32:43
+   |
+32 |             form invalid = circumfix("[", callback(value), "]");
+   |                                           ^^^^^^^^
+
+error: circumfix atom values must be ordinary declared roles
+  --> tests/compile_fail/circumfix_forbidden_operands.rs:41:28
+   |
+41 |             form invalid = circumfix("[", open_verb(KeywordAction, "act"), "]");
+   |                            ^^^^^^^^^

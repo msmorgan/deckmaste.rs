@@ -94,6 +94,8 @@ pub struct EscapeHatchReport {
     positional_separator_tables: Vec<String>,
     terminators: Vec<String>,
     stored_separator_fields: Vec<String>,
+    generated_form_boundaries: Vec<String>,
+    stored_form_boundary_fields: Vec<String>,
     mapping_layers: Vec<String>,
     handwritten_codecs: Vec<String>,
     stored_form_tags: Vec<String>,
@@ -144,6 +146,20 @@ impl EscapeHatchReport {
     /// Derived structural surfaces never contribute a row here.
     pub fn stored_separator_fields(&self) -> &[String] {
         &self.stored_separator_fields
+    }
+
+    #[must_use]
+    /// Returns fixed circumfix boundaries generated from form syntax, in source
+    /// order.
+    pub fn generated_form_boundaries(&self) -> &[String] {
+        &self.generated_form_boundaries
+    }
+
+    #[must_use]
+    /// Returns AST fields that store circumfix boundary syntax.
+    /// Generated form boundaries never contribute a row here.
+    pub fn stored_form_boundary_fields(&self) -> &[String] {
+        &self.stored_form_boundary_fields
     }
 
     #[must_use]
@@ -337,6 +353,41 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
         stored_separator_fields,
     } = structural_report_inventory(plan);
     let mapping_layers = Vec::new();
+    let generated_form_boundaries = plan
+        .constructions()
+        .iter()
+        .flat_map(|construction| {
+            construction.forms().iter().flat_map(move |form| {
+                form.atoms()
+                    .iter()
+                    .enumerate()
+                    .flat_map(move |(atom_index, atom)| match atom {
+                        crate::semantic::AtomPlan::Circumfix { prefix, suffix, .. } => vec![
+                            format!(
+                                "{}.{}[{atom_index}].prefix={prefix}",
+                                construction.construction_id(),
+                                form.name(),
+                            ),
+                            format!(
+                                "{}.{}[{atom_index}].suffix={suffix}",
+                                construction.construction_id(),
+                                form.name(),
+                            ),
+                        ]
+                        .into_iter(),
+                        crate::semantic::AtomPlan::Literal(_)
+                        | crate::semantic::AtomPlan::Category { .. }
+                        | crate::semantic::AtomPlan::Lex { .. }
+                        | crate::semantic::AtomPlan::Identity { .. }
+                        | crate::semantic::AtomPlan::Noun { .. }
+                        | crate::semantic::AtomPlan::VerbFixed { .. }
+                        | crate::semantic::AtomPlan::OpenDeclaration(_)
+                        | crate::semantic::AtomPlan::Bound { .. } => Vec::new().into_iter(),
+                    })
+            })
+        })
+        .collect();
+    let stored_form_boundary_fields = Vec::new();
     let mut handwritten_codecs = Vec::new();
     let stored_form_tags = Vec::new();
     let mut stored_spelling_codecs = Vec::new();
@@ -426,6 +477,8 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
         positional_separator_tables,
         terminators,
         stored_separator_fields,
+        generated_form_boundaries,
+        stored_form_boundary_fields,
         mapping_layers,
         handwritten_codecs,
         stored_form_tags,
@@ -510,6 +563,45 @@ mod tests {
         assert_eq!(report.positional_separator_tables(), ["Holder.items"]);
         assert_eq!(report.terminators(), ["Holder.items"]);
         assert!(report.stored_separator_fields().is_empty());
+    }
+
+    #[test]
+    fn circumfix_boundaries_are_generated_rows_without_stored_fields() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction item: Item {
+                    element ItemValue {}
+                    form item = "item";
+                }
+                construction bracketed: Root {
+                    element Bracketed { value: Item, }
+                    form bracketed = circumfix("[", value, "]");
+                }
+                construction braced: Root {
+                    element Braced { values: seq Item separated by "}{", }
+                    require len(values) >= 1;
+                    form braced = circumfix("{", values, "}");
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("circumfix report fixture parses"),
+        )
+        .expect("circumfix report fixture validates")
+        .into_semantic();
+        let report = super::escape_hatch_report(&semantic).expect("circumfix report seals");
+
+        assert_eq!(
+            report.generated_form_boundaries(),
+            [
+                "bracketed.bracketed[0].prefix=[",
+                "bracketed.bracketed[0].suffix=]",
+                "braced.braced[0].prefix={",
+                "braced.braced[0].suffix=}",
+            ],
+        );
+        assert!(report.stored_form_boundary_fields().is_empty());
+        assert!(report.stored_separator_fields().is_empty());
+        assert_eq!(report.sequence_roles(), ["Braced.values"]);
     }
 
     #[test]

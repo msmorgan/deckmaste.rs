@@ -1348,6 +1348,10 @@ pub mod fixture {
             Merfolk = "Merfolk",
             Equipment = "Equipment",
         }
+        vocab CircumfixWord {
+            WhiteBlue = "W/U",
+            Tap = "T",
+        }
         vocab Letter { A = "a", B = "b", }
         morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
         lexeme VerbLexeme using EnglishVerb {
@@ -1576,6 +1580,29 @@ pub mod fixture {
                 owner.possessive_ending is EndsInS
             ) = suffix(owner, "'");
             form plural_other otherwise = suffix(owner, "'s");
+        }
+        construction plus_two: CircumfixValue {
+            element PlusTwoValue {}
+            form plus_two = "+2";
+        }
+        construction circumfix_two: CircumfixValue {
+            element CircumfixTwoValue {}
+            form circumfix_two = "2";
+        }
+        construction circumfix_word_value: CircumfixValue {
+            element CircumfixValueNode { value: lex CircumfixWord, }
+            form circumfix_word_value = lex(value);
+        }
+        construction bracketed_value: CircumfixSingularRoot {
+            element BracketedValue { value: CircumfixValue, }
+            form bracketed_value = circumfix("[", value, "]");
+        }
+        construction braced_values: CircumfixSequenceRoot {
+            element BracedValues {
+                values: seq CircumfixValue separated by "}{",
+            }
+            require len(values) >= 1;
+            form braced_values = circumfix("{", values, "}");
         }
         construction refined: Parent {
             element RefinedParent { mode: lex Mode, child: Child, }
@@ -1841,6 +1868,8 @@ pub mod fixture {
         root DualBoundaryRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DerivedPossessiveRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root PrefixArticle { punctuation = "."; eoi = true; standalone_render = true; }
+        root CircumfixSingularRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root CircumfixSequenceRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root BeSentence { punctuation = "."; eoi = true; standalone_render = true; }
         root VerbArticle { punctuation = "."; eoi = true; standalone_render = true; }
         root NamedArticle { punctuation = "."; eoi = true; standalone_render = true; }
@@ -1861,6 +1890,7 @@ pub mod fixture {
         NonZeroScalarNumber(std::num::NonZeroU32),
         SelfRef(SelfRef),
         StructuralWord(StructuralWord),
+        CircumfixWord(CircumfixWord),
     }
 
     #[derive(Default)]
@@ -1907,6 +1937,10 @@ pub mod fixture {
 
         fn visit_structural_word(&mut self, word: StructuralWord) {
             self.0.push(VisitEvent::StructuralWord(word));
+        }
+
+        fn visit_circumfix_word(&mut self, word: CircumfixWord) {
+            self.0.push(VisitEvent::CircumfixWord(word));
         }
     }
 
@@ -3421,6 +3455,285 @@ pub mod fixture {
         }
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one authentic consumer keeps every circumfix boundary assertion together"
+    )]
+    pub(super) fn assert_circumfix_atoms_delegate_payloads_and_own_only_outer_boundaries() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+        };
+        let value = |value| CircumfixValue::CircumfixWordValue(CircumfixValueNode { value });
+        let singular = CircumfixSingularRoot::BracketedValue(BracketedValue {
+            value: CircumfixValue::PlusTwo(PlusTwoValue),
+        });
+        let sequence = CircumfixSequenceRoot::BracedValues(
+            BracedValues::new(vec![
+                CircumfixValue::CircumfixTwo(CircumfixTwoValue),
+                value(CircumfixWord::WhiteBlue),
+                value(CircumfixWord::Tap),
+            ])
+            .expect("three values satisfy the declared nonempty sequence"),
+        );
+
+        let cases = [
+            (
+                Category::CircumfixSingularRoot,
+                "[+2]",
+                render_circumfix_singular_root_with_claims(&singular, &context),
+                vec![
+                    (
+                        0,
+                        1,
+                        "form:bracketed_value/bracketed_value/0/prefix".to_owned(),
+                    ),
+                    (1, 3, "form:plus_two/plus_two/0".to_owned()),
+                    (
+                        3,
+                        4,
+                        "form:bracketed_value/bracketed_value/0/suffix".to_owned(),
+                    ),
+                ],
+            ),
+            (
+                Category::CircumfixSequenceRoot,
+                "{2}{W/U}{T}",
+                render_circumfix_sequence_root_with_claims(&sequence, &context),
+                vec![
+                    (0, 1, "form:braced_values/braced_values/0/prefix".to_owned()),
+                    (1, 2, "form:circumfix_two/circumfix_two/0".to_owned()),
+                    (
+                        2,
+                        4,
+                        "structural:BracedValues/values/separator/uniform/0".to_owned(),
+                    ),
+                    (4, 7, "vocab:CircumfixWord/WhiteBlue".to_owned()),
+                    (
+                        7,
+                        9,
+                        "structural:BracedValues/values/separator/uniform/0".to_owned(),
+                    ),
+                    (9, 10, "vocab:CircumfixWord/Tap".to_owned()),
+                    (
+                        10,
+                        11,
+                        "form:braced_values/braced_values/0/suffix".to_owned(),
+                    ),
+                ],
+            ),
+        ];
+        for (category, surface, (rendered, rendered_claims), expected_claims) in cases {
+            assert_eq!(rendered, format!("{surface}."));
+            let rendered_claims = rendered_claims
+                .into_iter()
+                .filter(|claim| claim.end <= surface.len())
+                .map(|claim| (claim.start, claim.end, claim.owner.stable_id().to_owned()))
+                .collect::<Vec<_>>();
+            assert_eq!(rendered_claims, expected_claims);
+            assert_exact_partition(surface, &rendered_claims);
+
+            let forest = parse_structural(category, surface, &context);
+            let root = forest
+                .accepted_root_ids()
+                .next()
+                .expect("one accepted circumfix root");
+            let mut parsed_claims = Vec::new();
+            collect_first_family_claims(&forest, root, &mut parsed_claims);
+            assert_eq!(parsed_claims, rendered_claims);
+            assert_exact_partition(surface, &parsed_claims);
+        }
+
+        let singular_value = BuildValue::CircumfixValue(CircumfixValue::PlusTwo(PlusTwoValue));
+        let built = build(
+            RuleId::CircumfixSingularRootBracketedValue,
+            &[
+                BuildValue::Leaf(Leaf::Literal("[")),
+                singular_value.clone(),
+                BuildValue::Leaf(Leaf::Literal("]")),
+            ],
+            &context,
+        )
+        .expect("the singular public rule builds through both fixed boundaries");
+        assert!(matches!(built, BuildValue::CircumfixSingularRoot(_)));
+        for children in [
+            vec![singular_value.clone(), BuildValue::Leaf(Leaf::Literal("]"))],
+            vec![
+                BuildValue::Leaf(Leaf::Literal("[[")),
+                singular_value.clone(),
+                BuildValue::Leaf(Leaf::Literal("]")),
+            ],
+            vec![BuildValue::Leaf(Leaf::Literal("[")), singular_value.clone()],
+            vec![
+                BuildValue::Leaf(Leaf::Literal("[")),
+                singular_value.clone(),
+                BuildValue::Leaf(Leaf::Literal("]]")),
+            ],
+        ] {
+            assert!(
+                build(
+                    RuleId::CircumfixSingularRootBracketedValue,
+                    &children,
+                    &context
+                )
+                .is_none(),
+                "removing or duplicating either outer singular boundary is rejected",
+            );
+        }
+
+        let sequence_tail = build(
+            RuleId::BracedValuesValuesSequenceSingleton,
+            &[BuildValue::CircumfixValue(value(CircumfixWord::Tap))],
+            &context,
+        )
+        .expect("the delegated sequence singleton builds its stored member");
+        let sequence_middle = build(
+            RuleId::BracedValuesValuesSequenceRecursive,
+            &[
+                BuildValue::CircumfixValue(value(CircumfixWord::WhiteBlue)),
+                BuildValue::Leaf(Leaf::Literal("}{")),
+                sequence_tail.clone(),
+            ],
+            &context,
+        )
+        .expect("the delegated sequence helper builds through the second interior edge");
+        let sequence_carrier = build(
+            RuleId::BracedValuesValuesSequenceRecursive,
+            &[
+                BuildValue::CircumfixValue(CircumfixValue::CircumfixTwo(CircumfixTwoValue)),
+                BuildValue::Leaf(Leaf::Literal("}{")),
+                sequence_middle.clone(),
+            ],
+            &context,
+        )
+        .expect("the delegated sequence helper builds through the first interior edge");
+        for (member, tail) in [
+            (
+                BuildValue::CircumfixValue(value(CircumfixWord::WhiteBlue)),
+                sequence_tail,
+            ),
+            (
+                BuildValue::CircumfixValue(CircumfixValue::CircumfixTwo(CircumfixTwoValue)),
+                sequence_middle,
+            ),
+        ] {
+            for children in [
+                vec![member.clone(), tail.clone()],
+                vec![
+                    member.clone(),
+                    BuildValue::Leaf(Leaf::Literal("}}{{")),
+                    tail.clone(),
+                ],
+            ] {
+                assert!(
+                    build(
+                        RuleId::BracedValuesValuesSequenceRecursive,
+                        &children,
+                        &context,
+                    )
+                    .is_none(),
+                    "removing or duplicating either delegated sequence edge is rejected",
+                );
+            }
+        }
+        let built = build(
+            RuleId::CircumfixSequenceRootBracedValues,
+            &[
+                BuildValue::Leaf(Leaf::Literal("{")),
+                sequence_carrier.clone(),
+                BuildValue::Leaf(Leaf::Literal("}")),
+            ],
+            &context,
+        )
+        .expect("the sequence public rule builds through both fixed outer boundaries");
+        assert!(matches!(built, BuildValue::CircumfixSequenceRoot(_)));
+        for children in [
+            vec![
+                sequence_carrier.clone(),
+                BuildValue::Leaf(Leaf::Literal("}")),
+            ],
+            vec![
+                BuildValue::Leaf(Leaf::Literal("{{")),
+                sequence_carrier.clone(),
+                BuildValue::Leaf(Leaf::Literal("}")),
+            ],
+            vec![
+                BuildValue::Leaf(Leaf::Literal("{")),
+                sequence_carrier.clone(),
+            ],
+            vec![
+                BuildValue::Leaf(Leaf::Literal("{")),
+                sequence_carrier.clone(),
+                BuildValue::Leaf(Leaf::Literal("}}")),
+            ],
+        ] {
+            assert!(
+                build(
+                    RuleId::CircumfixSequenceRootBracedValues,
+                    &children,
+                    &context
+                )
+                .is_none(),
+                "removing or duplicating either outer sequence boundary is rejected",
+            );
+        }
+
+        let mutate = |surface: &str, index: usize, duplicate: bool| {
+            let mut mutated = surface.to_owned();
+            let byte = char::from(surface.as_bytes()[index]);
+            if duplicate {
+                mutated.insert(index, byte);
+            } else {
+                mutated.remove(index);
+            }
+            mutated
+        };
+        for (category, surface, boundary_bytes) in [
+            (Category::CircumfixSingularRoot, "[+2]", vec![0, 3]),
+            (
+                Category::CircumfixSequenceRoot,
+                "{2}{W/U}{T}",
+                vec![0, 2, 3, 7, 8, 10],
+            ),
+        ] {
+            for index in boundary_bytes {
+                for duplicate in [false, true] {
+                    let malformed = mutate(surface, index, duplicate);
+                    assert!(
+                        try_parse_structural(category, &malformed, &context).is_err(),
+                        "each removed or duplicated outer/sequence boundary byte is rejected: {malformed:?}",
+                    );
+                }
+            }
+        }
+        for malformed in ["[ +2]", "[+2 ]", "{2} {W/U}{T}", "{2}{w/u}{T}"] {
+            let category = if malformed.starts_with('[') {
+                Category::CircumfixSingularRoot
+            } else {
+                Category::CircumfixSequenceRoot
+            };
+            assert!(
+                try_parse_structural(category, malformed, &context).is_err(),
+                "circumfix adjacency and case transitions stay exact: {malformed:?}",
+            );
+        }
+
+        let mut visitor = RecordingVisitor::default();
+        walk_circumfix_singular_root(&mut visitor, &singular);
+        walk_circumfix_sequence_root(&mut visitor, &sequence);
+        assert_eq!(
+            visitor.0,
+            [
+                VisitEvent::CircumfixWord(CircumfixWord::WhiteBlue),
+                VisitEvent::CircumfixWord(CircumfixWord::Tap),
+            ],
+            "visiting delegates only the stored singular and sequence payloads",
+        );
+    }
+
     pub(super) fn assert_same_origin_dual_boundary_predictions() {
         let context = ParseContext {
             sentinel: 99,
@@ -4410,6 +4723,11 @@ fn verb_onset_survives_scan_build_forwarding_guard_and_render() {
 #[test]
 fn bound_atoms_scan_and_render_adjacent_disjoint_claims() {
     fixture::assert_bound_atoms_preserve_adjacent_disjoint_claims();
+}
+
+#[test]
+fn circumfix_atoms_delegate_payloads_and_own_only_fixed_outer_boundaries() {
+    fixture::assert_circumfix_atoms_delegate_payloads_and_own_only_outer_boundaries();
 }
 
 #[test]
