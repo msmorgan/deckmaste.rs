@@ -383,7 +383,7 @@ badRingBearerInGraveyard Oh impossible
 ||| English's demonstratives skip the speaker: "that creature" never picks out the trigger's own subject.
 public export
 badThatCreatureIsSelf : Unspellable Ability (\ok =>
-  Triggered Whenever (Attacks Macros.thisCreature Nothing) Nothing Nothing Nothing Nothing
+  Triggered Whenever (Attacks Macros.thisCreature NoDefender) Nothing Nothing Nothing Nothing
             (Macros.gets (That (TypeW Creature) {ok = ok}) (PtUp (Lit 2)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn)))
 badThatCreatureIsSelf Refl impossible
 

@@ -3566,6 +3566,30 @@ firesongJoinEcho =
                    (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))
                , DealDamage This (Lit 1) (Macros.thatJoin) ]
 
+||| Tahngarth, First Mate's last two clauses -- "choose a player or
+||| planeswalker that opponent is attacking. Tahngarth is attacking that
+||| player or planeswalker." The choose mints the joined binding; the
+||| attack declaration below reads it back in the DEFENDER slot, which is
+||| what the joined slot buys: the card never says which half it names.
+||| The restriction "that opponent is attacking" is dropped -- no predicate
+||| describes a player by what is attacking it.
+public export
+tahngarthChoosesDefender : Effect []
+tahngarthChoosesDefender =
+  Choose (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Nothing
+
+||| "Tahngarth is attacking that player or planeswalker", in the context
+||| the choose above leaves behind. [CR#506.3] closes what the slot may
+||| name and the joined head is inside that set; the same slot refuses a
+||| creature (`badCreatureAttackDefender`). It is a `GameEvent` rather than
+||| an `Effect` because no effect row makes an on-battlefield permanent an
+||| attacking creature -- `EntersAttacking` is an entry rider and names no
+||| defender.
+public export
+tahngarthAttacksThatJoin : GameEvent (effIntro Cards.tahngarthChoosesDefender)
+tahngarthAttacksThatJoin =
+  Macros.attacksPlayer Macros.thisCreature Macros.thatJoin
+
 public export
 endure : Card
 endure =

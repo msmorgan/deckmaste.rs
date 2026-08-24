@@ -1217,14 +1217,17 @@ entersWithAdditionalCounters n amt kind =
 public export
 attacks : (n : Noun bs Object) ->
           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
-attacks n = Attacks n Nothing {zn}
+attacks n = Attacks n NoDefender {zn}
 
-||| "Whenever <creature> attacks <player>."
+||| "Whenever <creature> attacks <player>", and the same shape wherever
+||| [CR#506.3] lets the defender be named: a planeswalker, a battle, or a
+||| joined phrase such as "that player or planeswalker".
 public export
-attacksPlayer : (n : Noun bs Object) -> (whom : Noun (nomIntro n) Player) ->
+attacksPlayer : {k : Kind} -> (n : Noun bs Object) -> (whom : Noun (nomIntro n) k) ->
                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                {auto 0 df : AttackDefender (Just whom)} -> GameEvent bs
-attacksPlayer n whom = Attacks n (Just whom) {zn} {df}
+                {auto 0 sg : nounPlur whom = OneOf} ->
+                {auto 0 at : Attackable whom} -> GameEvent bs
+attacksPlayer n whom = Attacks n (OneDefender whom {sg} {at}) {zn}
 
 ||| "Whenever one or more tokens are created."
 public export

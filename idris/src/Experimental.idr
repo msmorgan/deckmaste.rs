@@ -1889,11 +1889,45 @@ mutual
     ForAsLongAs : Condition bs -> Duration bs
     UntilEvent : GameEvent bs -> Duration bs
 
+  ||| The card types an attack may name [CR#506.3]: "Only a player, a
+  ||| planeswalker, or a battle can be attacked." A creature is never
+  ||| attacked, and neither is any other permanent type.
   public export
-  data AttackDefender : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
-    NoDefender : AttackDefender Nothing
-    OneDefender : {0 m : Noun bs Player} ->
-                  {auto 0 sg : nounPlur m = OneOf} -> AttackDefender (Just m)
+  attackableTy : Maybe CardType -> Bool
+  attackableTy (Just Planeswalker) = True
+  attackableTy (Just Battle) = True
+  attackableTy _ = False
+
+  ||| The same closed set read off a phrase's kind. A player is attackable
+  ||| however it is described; an object only at an attackable type; a
+  ||| joined phrase only when both halves are, so "that player or
+  ||| planeswalker" passes while "any target" [CR#115.4] does not -- its
+  ||| object half projects no single attackable type.
+  public export
+  attackableKind : Kind -> Maybe CardType -> Bool
+  attackableKind Player _ = True
+  attackableKind Object t = attackableTy t
+  attackableKind (a \/ b) t = attackableKind a t && attackableKind b t
+  attackableKind _ _ = False
+
+  ||| The phrase names something that can be attacked [CR#506.3]. The
+  ||| joined kind alone would admit a creature defender, which the rule
+  ||| closes out.
+  public export
+  Attackable : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+  Attackable {k} n = So (attackableKind k (nounTy n))
+
+  ||| The defender an attack names, or none written. A creature attacks
+  ||| one defender [CR#508.1b] and [CR#506.3] closes what that may be, so
+  ||| the slot is kind-polymorphic under a gate rather than player-kinded:
+  ||| "that player or planeswalker" is an ordinary joined-kind noun.
+  ||| The unwritten row carries no kind at all.
+  public export
+  data AttackDefender : Bindings -> Type where
+    NoDefender : AttackDefender bs
+    OneDefender : {k : Kind} -> (m : Noun bs k) ->
+                  {auto 0 sg : nounPlur m = OneOf} ->
+                  {auto 0 at : Attackable m} -> AttackDefender bs
 
   public export
   data BlockPartner : {0 bs : Bindings} -> Maybe (Noun bs Object) -> Type where
@@ -2017,9 +2051,9 @@ mutual
     Enters : (n : Noun bs Object) ->
              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     Attacks : (n : Noun bs Object) ->
-              (whom : Maybe (Noun (nomIntro n) Player)) ->
+              (whom : AttackDefender (nomIntro n)) ->
               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-              {auto 0 df : AttackDefender whom} -> GameEvent bs
+              GameEvent bs
     Blocks : (n : Noun bs Object) ->
              (what : Maybe (Noun (nomIntro n) Object)) ->
              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -2123,8 +2157,8 @@ mutual
   eventIntro (Draws who) = nomIntro who
   eventIntro (LosesGame who) = nomIntro who
   eventIntro (Enters n) = nomIntro n
-  eventIntro (Attacks n Nothing) = nomIntro n
-  eventIntro (Attacks _ (Just whom)) = nomIntro whom
+  eventIntro (Attacks n NoDefender) = nomIntro n
+  eventIntro (Attacks _ (OneDefender whom)) = nomIntro whom
   eventIntro (Blocks n Nothing) = nomIntro n
   eventIntro (Blocks _ (Just what)) = nomIntro what
   eventIntro (BecomesBlocked n Nothing) = nomIntro n
@@ -2180,8 +2214,8 @@ mutual
   eventAfter (Draws who) = nomIntro who
   eventAfter (LosesGame who) = nomIntro who
   eventAfter (Enters n) = moveIntro Nothing n (Just Battlefield)
-  eventAfter (Attacks n Nothing) = selfSubjIntro n
-  eventAfter (Attacks n (Just whom)) = nounDelta whom ++ selfSubjIntro n
+  eventAfter (Attacks n NoDefender) = selfSubjIntro n
+  eventAfter (Attacks n (OneDefender whom)) = nounDelta whom ++ selfSubjIntro n
   eventAfter (Blocks n Nothing) = selfSubjIntro n
   eventAfter (Blocks _ (Just what)) = nomIntro what
   eventAfter (BecomesBlocked n Nothing) = selfSubjIntro n
@@ -2658,8 +2692,11 @@ mutual
   public export
   data DeonticPatient : {0 bs : Bindings} -> Deed -> Role -> Type where
     NoDeonticPatient : DeonticPatient {bs} d r
-    ||| The player an attack is aimed at [CR#506.3].
-    DefendingPlayer : (m : Noun bs Player) -> DeonticPatient {bs} Attack Agent
+    ||| What an attack is aimed at [CR#506.3] -- a player, a planeswalker
+    ||| or a battle, and under a joined kind a phrase naming either half.
+    DefendingPlayer : {k : Kind} -> (m : Noun bs k) ->
+                      {auto 0 at : Attackable m} ->
+                      DeonticPatient {bs} Attack Agent
     DeonticCounterpart : (m : Noun bs Object) ->
                          {auto 0 dp : DeedParticipant d (counterRole r) (nounTy m)} ->
                          {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->

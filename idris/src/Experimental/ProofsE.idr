@@ -243,8 +243,18 @@ badPartitiveOfCountedGroup Oh impossible
 ||| A creature attacks one defender: [CR#508.1b] announces which one each attacking creature attacks.
 public export
 badPluralAttackDefender : Unspellable (GameEvent []) (\ok =>
-  Attacks (Macros.a Macros.creature) (Just (PlayerGroup YourOpponents)) {df = ok})
-badPluralAttackDefender OneDefender impossible
+  Attacks (Macros.a Macros.creature)
+          (OneDefender (PlayerGroup YourOpponents) {sg = ok}))
+badPluralAttackDefender Refl impossible
+
+
+||| "Whenever a creature attacks another creature, …"
+||| Only a player, a planeswalker, or a battle can be attacked [CR#506.3]; the slot's kind admits an object, and the rule is what closes the set.
+public export
+badCreatureAttackDefender : Unspellable (GameEvent []) (\ok =>
+  Attacks (Macros.a Macros.creature)
+          (OneDefender (Macros.a Macros.creature) {at = ok}))
+badCreatureAttackDefender Oh impossible
 
 
 ||| "Look at the top four cards of your library. Put one of them into your hand. An opponent chooses the rest."
