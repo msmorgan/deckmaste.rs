@@ -577,9 +577,16 @@ mod tests {
         args: ProbeArgs,
     }
 
+    #[derive(Debug, clap::Parser)]
+    struct PlanGateCli {
+        #[command(flatten)]
+        args: timing::PlanGateArgs,
+    }
+
     const PRODUCTION_SOURCE: &str = include_str!("../../deckmaste_english_v2/src/constructions.rs");
     const PLAN06_COVERED_IDS: &str = include_str!("english_v2/plan06_covered_ids.txt");
     const PLAN07_TARGETS: &str = include_str!("english_v2/plan07_targets.tsv");
+    const PLAN08_CANDIDATE_POOL: &str = include_str!("english_v2/plan08_candidate_pool.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
     fn sha256_hex(bytes: &[u8]) -> String {
@@ -593,6 +600,26 @@ mod tests {
                 write!(&mut hexadecimal, "{byte:02x}").expect("writing to String cannot fail");
                 hexadecimal
             })
+    }
+
+    #[test]
+    fn plan_gate_cli_accepts_plan08_without_retiring_plan07() {
+        use clap::Parser as _;
+
+        let plan08 =
+            PlanGateCli::try_parse_from(["plan-gate", "--profile", "08", "--gate", "parse"])
+                .expect("Plan 08 timing profile parses");
+        assert_eq!(
+            format!("{:?}", plan08.args),
+            "PlanGateArgs { profile: Plan08, gate: Parse }"
+        );
+        let plan07 =
+            PlanGateCli::try_parse_from(["plan-gate", "--profile", "07", "--gate", "parse"])
+                .expect("Plan 07 remains selectable for historical evidence");
+        assert_eq!(
+            format!("{:?}", plan07.args),
+            "PlanGateArgs { profile: Plan07, gate: Parse }"
+        );
     }
 
     #[test]
@@ -739,6 +766,177 @@ mod tests {
 
         assert_eq!(counts.into_iter().collect::<Vec<_>>(), EXPECTED_COUNTS);
         assert_eq!((destroy, damage), (103, 42));
+    }
+
+    #[test]
+    fn plan08_candidate_pool_authenticates_the_frozen_preimplementation_search() {
+        const EXPECTED_HEADERS: [&str; 9] = [
+            "# English v2 Plan 08 preimplementation candidate pool",
+            "# classifier_schema=1",
+            "# source_fingerprint=e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+            "# baseline_covered=608",
+            "# candidates=427",
+            "# baseline_status=parse_failure",
+            "# trigger_probe=capitalizes_only_the_extracted_initial_for_standalone_Sentence_CasePosition",
+            "# probe_context=face_name_or_card_name_with_ASCII_initial_onset_and_no_legendary_shortening",
+            "# columns=family\\tid\\tcard_name\\tface_name\\tcontext_name\\ttext\\textracted_effect",
+        ];
+        const EXPECTED_FAMILIES: [(&str, usize); 2] = [
+            ("activated-effect-selects", 191),
+            ("trigger-effect-selects", 236),
+        ];
+
+        assert_eq!(
+            sha256_hex(PLAN08_CANDIDATE_POOL.as_bytes()),
+            "8b9870dba508681ecc25dc43b21500d82cd941d2408456810ad39f799ffb425f",
+        );
+        assert_eq!(
+            PLAN08_CANDIDATE_POOL.lines().take(9).collect::<Vec<_>>(),
+            EXPECTED_HEADERS,
+        );
+        assert!(PLAN08_CANDIDATE_POOL.ends_with('\n'));
+
+        let rows = PLAN08_CANDIDATE_POOL
+            .lines()
+            .skip(9)
+            .map(|line| line.split('\t').collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        assert_eq!(rows.len(), 427);
+
+        let data =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgjson/AtomicCards.json");
+        let corpus = corpus::Corpus::load(&data).expect("production MTGJSON corpus loads");
+        assert_eq!(
+            corpus.source_fingerprint(),
+            "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+        );
+        let parser = parser_from_builtin_v2().expect("production English-v2 parser loads");
+        let lock: serde_json::Value =
+            serde_json::from_str(include_str!("../../../english-v2-coverage.lock"))
+                .expect("coverage lock parses");
+        let covered = lock["covered"]
+            .as_array()
+            .expect("schema-2 lock has covered identities")
+            .iter()
+            .map(|id| id.as_str().expect("covered identity is a string"))
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(covered.len(), 608);
+
+        let mut families = std::collections::BTreeMap::new();
+        let mut ids = std::collections::BTreeSet::new();
+        let mut previous_sort_key = None;
+        for fields in rows {
+            let [family, id, card_name, face_name, context_name, text, _] = fields.as_slice()
+            else {
+                panic!("Plan 08 candidate row has seven columns: {fields:?}");
+            };
+            assert!(matches!(
+                *family,
+                "activated-effect-selects" | "trigger-effect-selects"
+            ));
+            assert_eq!(id.len(), 64, "{id}");
+            assert!(
+                id.bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
+                "{id}"
+            );
+            if let Some(previous) = previous_sort_key {
+                assert!(
+                    previous < (*family, *id),
+                    "candidate rows must be strictly sorted by family then ID"
+                );
+            }
+            previous_sort_key = Some((*family, *id));
+            assert!(ids.insert(*id), "candidate ID must be unique: {id}");
+            assert!(
+                !covered.contains(id),
+                "Plan 08 candidate overlaps the 608-unit lock: {id}"
+            );
+            *families.entry(*family).or_insert(0usize) += 1;
+
+            let unit = corpus
+                .units()
+                .iter()
+                .find(|unit| unit.id() == *id)
+                .unwrap_or_else(|| panic!("production corpus contains Plan 08 candidate {id}"));
+            assert_eq!(unit.card_name(), *card_name, "{id}");
+            assert_eq!(unit.face_name().unwrap_or("<none>"), *face_name, "{id}");
+            assert_eq!(unit.context_name(), *context_name, "{id}");
+            assert_eq!(unit.text(), *text, "{id}");
+            let context = deckmaste_english_v2::context::ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .unwrap_or_else(|| panic!("candidate has a valid production context: {id}"));
+            assert_eq!(
+                parser.analyze_oracle_text(unit.text(), &context).outcome(),
+                deckmaste_english_v2::parser::ParseAnalysisOutcome::ParseFailure,
+                "candidate retains its full-document baseline parse failure: {id}",
+            );
+        }
+        assert_eq!(ids.len(), 427);
+        assert_eq!(families.into_iter().collect::<Vec<_>>(), EXPECTED_FAMILIES);
+    }
+
+    #[test]
+    fn plan08_production_baseline_remains_the_frozen_plan07_starting_point() {
+        let data =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgjson/AtomicCards.json");
+        let mut coverage_json = Vec::new();
+        coverage::run(
+            &CoverageArgs {
+                corpus: CorpusArgs { data: data.clone() },
+                lock: PathBuf::from("english-v2-coverage.lock"),
+                json: true,
+                check: false,
+                bless: false,
+            },
+            &mut coverage_json,
+        )
+        .expect("production coverage baseline renders");
+        let coverage: serde_json::Value =
+            serde_json::from_slice(&coverage_json).expect("coverage baseline is JSON");
+        assert_eq!(
+            coverage["source_fingerprint"],
+            "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd"
+        );
+        assert_eq!(coverage["summary"]["total_units"], 32_641);
+        assert_eq!(coverage["summary"]["selected_units"], 608);
+        assert_eq!(coverage["summary"]["covered_units"], 608);
+        assert_eq!(coverage["summary"]["parse_failures"], 32_033);
+        for counter in [
+            "selected_uncovered_units",
+            "unresolved_ties",
+            "internal_failures",
+            "roundtrip_mismatch_units",
+            "ownership_failure_units",
+        ] {
+            assert_eq!(coverage["summary"][counter], 0, "{counter}");
+        }
+
+        let mut ambiguity_json = Vec::new();
+        ambiguity::run(
+            &AmbiguityArgs {
+                corpus: CorpusArgs { data },
+                json: true,
+                require_resolved: false,
+            },
+            &mut ambiguity_json,
+        )
+        .expect("production ambiguity baseline renders");
+        let ambiguity: serde_json::Value =
+            serde_json::from_slice(&ambiguity_json).expect("ambiguity baseline is JSON");
+        assert_eq!(ambiguity["summary"]["unique"], 602);
+        assert_eq!(ambiguity["summary"]["specificity_resolved"], 6);
+        for counter in [
+            "exception_resolved",
+            "unresolved_ties",
+            "internal_failures",
+            "exception_uses",
+        ] {
+            assert_eq!(ambiguity["summary"][counter], 0, "{counter}");
+        }
     }
 
     fn parse_probe_args(root: Option<&str>, json: bool, text: &str) -> ProbeArgs {

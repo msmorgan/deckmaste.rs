@@ -25,14 +25,30 @@ pub(super) struct PlanGateArgs {
 enum PlanProfile {
     #[value(name = "07")]
     Plan07,
+    #[value(name = "08")]
+    Plan08,
 }
 
 impl PlanProfile {
     const fn name(self) -> &'static str {
         match self {
             Self::Plan07 => "07",
+            Self::Plan08 => "08",
         }
     }
+
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Plan07 => "english-v2-plan07",
+            Self::Plan08 => "english-v2-plan08",
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct WarningThreshold {
+    tenths_of_nanosecond: u128,
+    rendered: &'static str,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -59,15 +75,64 @@ impl PlanGate {
         }
     }
 
-    const fn warning_threshold(self) -> Duration {
-        match self {
-            Self::Expand => Duration::from_millis(300),
-            Self::Report => Duration::from_millis(225),
-            Self::Parse => Duration::from_millis(13_245),
-            Self::Roundtrip => Duration::from_millis(12_240),
-            Self::Ambiguity => Duration::from_millis(12_960),
-            Self::Coverage => Duration::from_millis(13_290),
-            Self::RequireComplete => Duration::from_secs(12),
+    const fn warning_threshold(self, profile: PlanProfile) -> WarningThreshold {
+        match (profile, self) {
+            (PlanProfile::Plan07, Self::Expand) => WarningThreshold {
+                tenths_of_nanosecond: 3_000_000_000,
+                rendered: "0.300000000",
+            },
+            (PlanProfile::Plan07, Self::Report) => WarningThreshold {
+                tenths_of_nanosecond: 2_250_000_000,
+                rendered: "0.225000000",
+            },
+            (PlanProfile::Plan07, Self::Parse) => WarningThreshold {
+                tenths_of_nanosecond: 132_450_000_000,
+                rendered: "13.245000000",
+            },
+            (PlanProfile::Plan07, Self::Roundtrip) => WarningThreshold {
+                tenths_of_nanosecond: 122_400_000_000,
+                rendered: "12.240000000",
+            },
+            (PlanProfile::Plan07, Self::Ambiguity) => WarningThreshold {
+                tenths_of_nanosecond: 129_600_000_000,
+                rendered: "12.960000000",
+            },
+            (PlanProfile::Plan07, Self::Coverage) => WarningThreshold {
+                tenths_of_nanosecond: 132_900_000_000,
+                rendered: "13.290000000",
+            },
+            (PlanProfile::Plan07, Self::RequireComplete) => WarningThreshold {
+                tenths_of_nanosecond: 120_000_000_000,
+                rendered: "12.000000000",
+            },
+            (PlanProfile::Plan08, Self::Expand) => WarningThreshold {
+                tenths_of_nanosecond: 11_815_357_365,
+                rendered: "1.1815357365",
+            },
+            (PlanProfile::Plan08, Self::Report) => WarningThreshold {
+                tenths_of_nanosecond: 7_659_729_825,
+                rendered: "0.7659729825",
+            },
+            (PlanProfile::Plan08, Self::Parse) => WarningThreshold {
+                tenths_of_nanosecond: 148_670_149_695,
+                rendered: "14.8670149695",
+            },
+            (PlanProfile::Plan08, Self::Roundtrip) => WarningThreshold {
+                tenths_of_nanosecond: 132_118_697_115,
+                rendered: "13.2118697115",
+            },
+            (PlanProfile::Plan08, Self::Ambiguity) => WarningThreshold {
+                tenths_of_nanosecond: 150_661_526_490,
+                rendered: "15.0661526490",
+            },
+            (PlanProfile::Plan08, Self::Coverage) => WarningThreshold {
+                tenths_of_nanosecond: 153_698_812_485,
+                rendered: "15.3698812485",
+            },
+            (PlanProfile::Plan08, Self::RequireComplete) => WarningThreshold {
+                tenths_of_nanosecond: 136_325_952_750,
+                rendered: "13.6325952750",
+            },
         }
     }
 
@@ -191,33 +256,37 @@ fn run_with(
     let finished = clock.now();
     let elapsed = finished.checked_sub(started).ok_or_else(|| {
         anyhow!(
-            "english-v2-plan07-clock-failure gate={}: elapsed clock moved backwards",
+            "{}-clock-failure gate={}: elapsed clock moved backwards",
+            args.profile.label(),
             args.gate.name(),
         )
     })?;
 
     writeln!(
         output,
-        "SAMPLE english-v2-plan07-elapsed gate={} profile={} elapsed_seconds={}",
+        "SAMPLE {}-elapsed gate={} profile={} elapsed_seconds={}",
+        args.profile.label(),
         args.gate.name(),
         args.profile.name(),
         seconds(elapsed),
     )?;
-    let warning = args.gate.warning_threshold();
-    if elapsed >= warning {
+    let warning = args.gate.warning_threshold(args.profile);
+    if elapsed.as_nanos().saturating_mul(10) >= warning.tenths_of_nanosecond {
         writeln!(
             output,
-            "WARNING english-v2-plan07-relative-slowdown gate={} elapsed_seconds={} warning_seconds={}",
+            "WARNING {}-relative-slowdown gate={} elapsed_seconds={} warning_seconds={}",
+            args.profile.label(),
             args.gate.name(),
             seconds(elapsed),
-            seconds(warning),
+            warning.rendered,
         )?;
     }
     output.flush()?;
 
     if elapsed > HARD_CEILING {
         bail!(
-            "english-v2-plan07-timing-failure gate={} elapsed_seconds={} hard_ceiling_seconds={}",
+            "{}-timing-failure gate={} elapsed_seconds={} hard_ceiling_seconds={}",
+            args.profile.label(),
             args.gate.name(),
             seconds(elapsed),
             seconds(HARD_CEILING),
@@ -226,13 +295,15 @@ fn run_with(
 
     let child = child.map_err(|error| {
         anyhow!(
-            "english-v2-plan07-child-launch-failure gate={}: {error:#}",
+            "{}-child-launch-failure gate={}: {error:#}",
+            args.profile.label(),
             args.gate.name(),
         )
     })?;
     if !child.success {
         bail!(
-            "english-v2-plan07-child-failure gate={} exit_code={} expected_incomplete={}",
+            "{}-child-failure gate={} exit_code={} expected_incomplete={}",
+            args.profile.label(),
             args.gate.name(),
             child.exit_description(),
             args.gate.expects_incomplete_failure(),
@@ -330,6 +401,15 @@ mod tests {
         elapsed: Duration,
         result: anyhow::Result<ChildOutcome>,
     ) -> (anyhow::Result<()>, String, Vec<GateCommand>) {
+        exercise_with_profile(PlanProfile::Plan07, gate, elapsed, result)
+    }
+
+    fn exercise_with_profile(
+        profile: PlanProfile,
+        gate: PlanGate,
+        elapsed: Duration,
+        result: anyhow::Result<ChildOutcome>,
+    ) -> (anyhow::Result<()>, String, Vec<GateCommand>) {
         let mut clock = FakeClock {
             samples: VecDeque::from([Duration::ZERO, elapsed]),
         };
@@ -338,7 +418,12 @@ mod tests {
             observed: vec![],
         };
         let mut output = Vec::new();
-        let result = run_with(&args(gate), &mut output, &mut runner, &mut clock);
+        let result = run_with(
+            &PlanGateArgs { profile, gate },
+            &mut output,
+            &mut runner,
+            &mut clock,
+        );
         (
             result,
             String::from_utf8(output).expect("gate output is UTF-8"),
@@ -572,6 +657,91 @@ mod tests {
                 "{gate:?} omitted its above-threshold warning",
             );
         }
+    }
+
+    #[test]
+    fn plan08_warning_boundaries_are_inclusive_and_render_the_frozen_thresholds() {
+        let cases = [
+            (PlanGate::Expand, "1.1815357365"),
+            (PlanGate::Report, "0.7659729825"),
+            (PlanGate::Parse, "14.8670149695"),
+            (PlanGate::Roundtrip, "13.2118697115"),
+            (PlanGate::Ambiguity, "15.0661526490"),
+            (PlanGate::Coverage, "15.3698812485"),
+            (PlanGate::RequireComplete, "13.6325952750"),
+        ];
+
+        for (gate, expected_threshold) in cases {
+            let threshold = gate.warning_threshold(PlanProfile::Plan08);
+            assert_eq!(threshold.rendered, expected_threshold);
+            let exact = Duration::from_nanos(
+                threshold
+                    .tenths_of_nanosecond
+                    .div_ceil(10)
+                    .try_into()
+                    .expect("Plan 08 threshold fits in a Duration"),
+            );
+            let below = exact.saturating_sub(Duration::from_nanos(1));
+
+            let (_, below_output, _) =
+                exercise_with_profile(PlanProfile::Plan08, gate, below, Ok(success()));
+            assert!(
+                !below_output.contains("WARNING"),
+                "{gate:?} warned below its Plan 08 threshold"
+            );
+
+            let (_, exact_output, _) =
+                exercise_with_profile(PlanProfile::Plan08, gate, exact, Ok(success()));
+            assert!(
+                exact_output.contains("SAMPLE english-v2-plan08-elapsed"),
+                "{gate:?} omitted its Plan 08 sample"
+            );
+            assert!(
+                exact_output.contains("WARNING english-v2-plan08-relative-slowdown"),
+                "{gate:?} omitted its inclusive Plan 08 warning"
+            );
+            assert!(
+                exact_output.contains(expected_threshold),
+                "{gate:?} did not render its exact frozen threshold"
+            );
+
+            let (_, above_output, _) = exercise_with_profile(
+                PlanProfile::Plan08,
+                gate,
+                exact + Duration::from_nanos(1),
+                Ok(success()),
+            );
+            assert!(
+                above_output.contains("WARNING english-v2-plan08-relative-slowdown"),
+                "{gate:?} omitted its above-threshold Plan 08 warning"
+            );
+        }
+    }
+
+    #[test]
+    fn plan08_hard_ceiling_is_shared_but_uses_the_plan08_labels() {
+        let (exact_result, exact_output, _) = exercise_with_profile(
+            PlanProfile::Plan08,
+            PlanGate::Expand,
+            HARD_CEILING,
+            Ok(success()),
+        );
+        exact_result.expect("the shared hard ceiling remains inclusive for Plan 08");
+        assert!(exact_output.contains("SAMPLE english-v2-plan08-elapsed"));
+
+        let (above_result, above_output, _) = exercise_with_profile(
+            PlanProfile::Plan08,
+            PlanGate::Expand,
+            HARD_CEILING + Duration::from_nanos(1),
+            Ok(success()),
+        );
+        assert!(
+            above_result
+                .expect_err("the shared hard ceiling rejects Plan 08 above its boundary")
+                .to_string()
+                .contains("english-v2-plan08-timing-failure")
+        );
+        assert!(above_output.contains("SAMPLE english-v2-plan08-elapsed"));
     }
 
     #[test]
