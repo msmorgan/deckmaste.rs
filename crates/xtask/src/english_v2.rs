@@ -596,17 +596,12 @@ mod tests {
             witness: Plan09TriggerWitness,
         },
         Plan09ActivatedCostAction,
-        Plan10KeywordAbility {
+        Plan10KeywordReference {
             catalog_entry: &'static str,
-            boundary_phrase: &'static str,
-        },
-        Plan10KeywordAction {
-            catalog_entry: &'static str,
-            boundary_phrase: &'static str,
+            prefix: &'static str,
         },
         Plan10AbilityWord {
             catalog_entry: &'static str,
-            label: &'static str,
         },
         Plan10FlavorWord {
             label: &'static str,
@@ -620,7 +615,6 @@ mod tests {
         GainAmount,
         DamageAmount,
         PredicateRootOrTemporalBody,
-        InterveningCondition,
     }
 
     impl Plan08DeferredAuthority {
@@ -629,8 +623,7 @@ mod tests {
                 Self::Plan09TriggerPredicate { .. } | Self::Plan09ActivatedCostAction => {
                     "plan09-predicate"
                 }
-                Self::Plan10KeywordAbility { .. }
-                | Self::Plan10KeywordAction { .. }
+                Self::Plan10KeywordReference { .. }
                 | Self::Plan10AbilityWord { .. }
                 | Self::Plan10FlavorWord { .. }
                 | Self::Plan10AdvancedCost => "plan10-attachment",
@@ -648,7 +641,6 @@ mod tests {
     #[derive(Clone, Copy)]
     struct Plan08BoundaryCatalogs<'a> {
         keyword_abilities: &'a str,
-        keyword_actions: &'a str,
         ability_words: &'a str,
     }
 
@@ -681,7 +673,7 @@ mod tests {
         }
     }
 
-    const PLAN08_DEFERRED_RULES: [Plan08DeferredRule; 47] = [
+    const PLAN08_DEFERRED_RULES: [Plan08DeferredRule; 46] = [
         plan09_cost("Discard"),
         plan09_cost("Exile"),
         plan09_cost("Pay"),
@@ -694,7 +686,6 @@ mod tests {
             failure_surface: "Cohort",
             authority: Plan08DeferredAuthority::Plan10AbilityWord {
                 catalog_entry: "Cohort",
-                label: "Cohort",
             },
         },
         Plan08DeferredRule {
@@ -741,37 +732,22 @@ mod tests {
         plan09_trigger("sacrifice"),
         plan09_trigger("sacrifices"),
         plan09_trigger("taps"),
-        plan09_trigger_witness("there", Plan09TriggerWitness::InterveningCondition),
-        Plan08DeferredRule {
-            pool_family: "trigger-effect-selects",
-            failure_surface: "cycles",
-            authority: Plan08DeferredAuthority::Plan10KeywordAbility {
-                catalog_entry: "Cycling",
-                boundary_phrase: "cycles",
-            },
-        },
+        plan09_trigger("cycles"),
         Plan08DeferredRule {
             pool_family: "trigger-effect-selects",
             failure_surface: "flying",
-            authority: Plan08DeferredAuthority::Plan10KeywordAbility {
+            authority: Plan08DeferredAuthority::Plan10KeywordReference {
                 catalog_entry: "Flying",
-                boundary_phrase: "flying",
+                prefix: "",
             },
         },
-        Plan08DeferredRule {
-            pool_family: "trigger-effect-selects",
-            failure_surface: "scry",
-            authority: Plan08DeferredAuthority::Plan10KeywordAction {
-                catalog_entry: "Scry",
-                boundary_phrase: "scry",
-            },
-        },
+        plan09_trigger("scry"),
         Plan08DeferredRule {
             pool_family: "trigger-effect-selects",
             failure_surface: "without",
-            authority: Plan08DeferredAuthority::Plan10KeywordAbility {
+            authority: Plan08DeferredAuthority::Plan10KeywordReference {
                 catalog_entry: "Flying",
-                boundary_phrase: "without flying",
+                prefix: "without ",
             },
         },
     ];
@@ -852,6 +828,7 @@ mod tests {
             Plan08DeferredAuthority::Plan09TriggerPredicate { witness } => {
                 assert_eq!(rule.pool_family, "trigger-effect-selects");
                 let prefix = &text[..span.start];
+                let modal_body = "choose one —\n• You gain 1 life.\n• You gain 2 life.";
                 let mut controlled = Vec::new();
                 if matches!(
                     witness,
@@ -860,21 +837,18 @@ mod tests {
                 ) {
                     controlled.extend(
                         ["gain", "gains"]
-                            .map(|verb| format!("{prefix}{verb} 1 life, you gain 1 life.")),
+                            .map(|verb| format!("{prefix}{verb} 1 life, {modal_body}")),
                     );
                 }
                 if matches!(witness, Plan09TriggerWitness::GainAmount) {
-                    controlled.push(format!("{prefix}1 life, you gain 1 life."));
+                    controlled.push(format!("{prefix}1 life, {modal_body}"));
                 }
                 if matches!(witness, Plan09TriggerWitness::DamageAmount) {
-                    controlled.push(format!("{prefix}1 damage to you, you gain 1 life."));
+                    controlled.push(format!("{prefix}1 damage to you, {modal_body}"));
                 }
                 if matches!(witness, Plan09TriggerWitness::PredicateRootOrTemporalBody) {
                     controlled
                         .extend(["gain", "gains"].map(|verb| format!("{prefix}{verb} 1 life.")));
-                }
-                if matches!(witness, Plan09TriggerWitness::InterveningCondition) {
-                    controlled.push(format!("{prefix}you gain 1 life, you gain 1 life."));
                 }
                 let selected = controlled
                     .iter()
@@ -884,20 +858,7 @@ mod tests {
                     })
                     .collect::<Vec<_>>();
                 assert_eq!(selected.len(), 1, "{id}: {controlled:#?}");
-                let analysis = parser.analyze(selected[0], context);
-                assert_eq!(
-                    analysis
-                        .ownership()
-                        .expect("controlled trigger witness ownership")
-                        .rendered_text(),
-                    selected[0],
-                    "{id}",
-                );
-                let decision = analysis
-                    .decision()
-                    .expect("controlled trigger witness selection");
-                assert_eq!(decision.survivors().len(), 1, "{id}");
-                assert!(decision.exception_uses().is_empty(), "{id}");
+                assert_unique_plan08_ability(parser, context, id, selected[0]);
             }
             Plan08DeferredAuthority::Plan09ActivatedCostAction => {
                 assert_eq!(rule.pool_family, "activated-effect-selects");
@@ -905,29 +866,25 @@ mod tests {
                     .find(": ")
                     .expect("activated witness has a cost boundary");
                 assert!(span.end <= colon, "{id}");
-                let controlled = format!("{{T}}{}", &text[colon..]);
+                let prefix = &text[..span.start];
+                let controlled = format!("{prefix}{{T}}{}", &text[colon..]);
+                assert!(controlled.starts_with(prefix), "{id}");
                 assert_unique_plan08_ability(parser, context, id, &controlled);
             }
-            Plan08DeferredAuthority::Plan10KeywordAbility {
+            Plan08DeferredAuthority::Plan10KeywordReference {
                 catalog_entry,
-                boundary_phrase,
+                prefix,
             } => {
                 assert!(has_entry(catalogs.keyword_abilities, catalog_entry));
-                assert!(text[span.start..].starts_with(boundary_phrase));
+                let expected = format!("{prefix}{}", catalog_entry.to_ascii_lowercase());
+                assert!(
+                    text[span.start..].starts_with(&expected),
+                    "{id}: {expected:?}"
+                );
             }
-            Plan08DeferredAuthority::Plan10KeywordAction {
-                catalog_entry,
-                boundary_phrase,
-            } => {
-                assert!(has_entry(catalogs.keyword_actions, catalog_entry));
-                assert!(text[span.start..].starts_with(boundary_phrase));
-            }
-            Plan08DeferredAuthority::Plan10AbilityWord {
-                catalog_entry,
-                label,
-            } => {
+            Plan08DeferredAuthority::Plan10AbilityWord { catalog_entry } => {
                 assert!(has_entry(catalogs.ability_words, catalog_entry));
-                assert!(text.starts_with(&format!("{label} — ")));
+                assert!(text.starts_with(&format!("{catalog_entry} — ")));
             }
             Plan08DeferredAuthority::Plan10FlavorWord { label } => {
                 assert!(text.starts_with(&format!("{label} — ")));
@@ -950,17 +907,18 @@ mod tests {
 
         let analysis = parser.analyze(text, context);
         assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected, "{id}");
-        assert_eq!(
-            analysis
-                .ownership()
-                .expect("controlled witness ownership")
-                .rendered_text(),
-            text,
-            "{id}",
-        );
         let decision = analysis.decision().expect("controlled witness decision");
         assert_eq!(decision.resolution(), SelectionResolution::Unique, "{id}");
+        assert_eq!(decision.survivors().len(), 1, "{id}");
         assert!(decision.exception_uses().is_empty(), "{id}");
+        let ownership = analysis.ownership().expect("controlled witness ownership");
+        assert!(ownership.failures().is_empty(), "{id}: {ownership:?}");
+        assert!(ownership.summary().covered(), "{id}: {ownership:?}");
+        assert_eq!(ownership.rendered_text(), text, "{id}");
+        assert_eq!(ownership.summary().gap_spans(), 0, "{id}");
+        assert_eq!(ownership.summary().overlap_spans(), 0, "{id}");
+        assert_eq!(ownership.summary().synthetic_claims(), 0, "{id}");
+        assert_eq!(ownership.summary().provenance_plan_mismatches(), 0, "{id}");
     }
 
     fn assert_plan08_attachment_witness(
@@ -1184,29 +1142,36 @@ mod tests {
         let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
         let keyword_abilities = fs::read_to_string(catalog_root.join("keyword-abilities.txt"))
             .expect("frozen keyword-ability catalog loads");
-        let keyword_actions = fs::read_to_string(catalog_root.join("keyword-actions.txt"))
-            .expect("frozen keyword-action catalog loads");
         let ability_words = fs::read_to_string(catalog_root.join("ability-words.txt"))
             .expect("frozen ability-word catalog loads");
         let review_witnesses = [
             (
+                "4d4491c2f480c2aa7872d83e25b6830975f891b16d7812fcb4c37f88c8b3e096",
+                deckmaste_english_v2::parser::TextSpan { start: 18, end: 24 },
+                "cycles",
+                "plan09-predicate",
+            ),
+            (
                 "90b98deb5a29c770617138c40ba5ebc08dff502c512d397f392932ce1aa9acf5",
                 deckmaste_english_v2::parser::TextSpan { start: 13, end: 17 },
                 "scry",
-                "Scry",
-                keyword_actions.as_str(),
+                "plan09-predicate",
             ),
             (
                 "c82603ae98da0c4df2e8e05fffe027dab0d880ae8daedee2d34b0bca20e50ec9",
                 deckmaste_english_v2::parser::TextSpan { start: 25, end: 31 },
                 "flying",
-                "Flying",
-                keyword_abilities.as_str(),
+                "plan10-attachment",
+            ),
+            (
+                "f13464c138a233223f1d566f1a74da3239942c3c36f9056b03c8db9f4bf90ef7",
+                deckmaste_english_v2::parser::TextSpan { start: 20, end: 27 },
+                "without",
+                "plan10-attachment",
             ),
         ];
         let mut review_categories = Vec::new();
-        for (id, expected_span, expected_surface, catalog_entry, catalog) in review_witnesses {
-            assert!(catalog.lines().any(|entry| entry == catalog_entry), "{id}");
+        for (id, expected_span, expected_surface, expected_category) in review_witnesses {
             let fields = rows
                 .get(id)
                 .unwrap_or_else(|| panic!("manifest contains review witness {id}"));
@@ -1227,7 +1192,48 @@ mod tests {
             };
             assert_eq!(span, expected_span, "{id}");
             assert_eq!(&unit.text()[span.start..span.end], expected_surface, "{id}");
+            assert_eq!(fields[0], expected_category, "{id}");
             review_categories.push((id, fields[0]));
+        }
+        for (id, replacement_end, replacement) in [
+            (
+                "c82603ae98da0c4df2e8e05fffe027dab0d880ae8daedee2d34b0bca20e50ec9",
+                31,
+                "power 2 or less",
+            ),
+            (
+                "f13464c138a233223f1d566f1a74da3239942c3c36f9056b03c8db9f4bf90ef7",
+                34,
+                "with power 2 or less",
+            ),
+        ] {
+            let unit = units
+                .get(id)
+                .unwrap_or_else(|| panic!("corpus contains keyword-reference witness {id}"));
+            let fields = rows
+                .get(id)
+                .unwrap_or_else(|| panic!("manifest contains keyword-reference witness {id}"));
+            let start = fields[12].parse::<usize>().expect("failure start");
+            let controlled = format!(
+                "{}{replacement}{}",
+                &unit.text()[..start],
+                &unit.text()[replacement_end..],
+            );
+            assert!(controlled.starts_with(&unit.text()[..start]), "{id}");
+            let context = deckmaste_english_v2::context::ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .expect("keyword-reference witness context is valid");
+            let ParseError::Failure { span, .. } = parser
+                .parse_oracle_text(&controlled, &context)
+                .expect_err("supported scalar attachment advances to the predicate boundary")
+            else {
+                panic!("keyword-reference control has an ordinary failure: {id}");
+            };
+            assert!(span.start > start, "{id}");
+            assert_eq!(&controlled[span.start..span.end], "attacks", "{id}");
         }
         let mut predicted_counts = BTreeMap::new();
         let mut used_rules = BTreeSet::new();
@@ -1263,7 +1269,6 @@ mod tests {
                 span,
                 Plan08BoundaryCatalogs {
                     keyword_abilities: &keyword_abilities,
-                    keyword_actions: &keyword_actions,
                     ability_words: &ability_words,
                 },
             );
@@ -1278,8 +1283,8 @@ mod tests {
         assert_eq!(
             predicted_counts.into_iter().collect::<Vec<_>>(),
             [
-                ("plan09-predicate", 354usize),
-                ("plan10-attachment", 7usize),
+                ("plan09-predicate", 355usize),
+                ("plan10-attachment", 5usize),
             ],
         );
         assert!(
@@ -1290,11 +1295,19 @@ mod tests {
             review_categories,
             [
                 (
+                    "4d4491c2f480c2aa7872d83e25b6830975f891b16d7812fcb4c37f88c8b3e096",
+                    "plan09-predicate",
+                ),
+                (
                     "90b98deb5a29c770617138c40ba5ebc08dff502c512d397f392932ce1aa9acf5",
-                    "plan10-attachment",
+                    "plan09-predicate",
                 ),
                 (
                     "c82603ae98da0c4df2e8e05fffe027dab0d880ae8daedee2d34b0bca20e50ec9",
+                    "plan10-attachment",
+                ),
+                (
+                    "f13464c138a233223f1d566f1a74da3239942c3c36f9056b03c8db9f4bf90ef7",
                     "plan10-attachment",
                 ),
             ],
@@ -1345,17 +1358,17 @@ mod tests {
             "# baseline_covered=608",
             "# baseline_status=parse_failure",
             "# candidates=427",
-            "# categories=plan08-selected:66,plan09-predicate:354,plan10-attachment:7,plan08-defect:0",
-            "# selected_families=ability.activated:56,ability.triggered:10",
+            "# categories=plan08-selected:67,plan09-predicate:355,plan10-attachment:5,plan08-defect:0",
+            "# selected_families=ability.activated:56,ability.triggered:11",
             "# columns=category\\tpool_family\\tplan08_family\\tid\\tcard_name_json\\tface_name_json\\tside_json\\tcontext_name_json\\tis_legendary\\tcontext_onset\\toracle_text_json\\textracted_effect_json\\tfailure_start\\tfailure_end\\tboundary",
         ];
         const EXPECTED_COUNTS: [(&str, usize); 3] = [
-            ("plan08-selected", 66),
-            ("plan09-predicate", 354),
-            ("plan10-attachment", 7),
+            ("plan08-selected", 67),
+            ("plan09-predicate", 355),
+            ("plan10-attachment", 5),
         ];
         const EXPECTED_SELECTED_FAMILIES: [(&str, usize); 2] =
-            [("ability.activated", 56), ("ability.triggered", 10)];
+            [("ability.activated", 56), ("ability.triggered", 11)];
 
         fn decode(value: &str) -> String {
             serde_json::from_str(value).expect("manifest JSON string is valid")
@@ -1379,7 +1392,7 @@ mod tests {
         );
         assert_eq!(
             sha256_hex(PLAN08_CANDIDATE_RESULTS.as_bytes()),
-            "cb5f2a5be7829192e5fbc234b394fa5b3121ab1c08e320160ce7292afb9a6048",
+            "918d7eaf1d0d66342b308b7290a2ab19621325749c59de9a4341a6a56bfbeac4",
         );
         assert_eq!(
             PLAN08_CANDIDATE_RESULTS
@@ -1423,8 +1436,6 @@ mod tests {
         let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
         let keyword_abilities = fs::read_to_string(catalog_root.join("keyword-abilities.txt"))
             .expect("frozen keyword-ability catalog loads");
-        let keyword_actions = fs::read_to_string(catalog_root.join("keyword-actions.txt"))
-            .expect("frozen keyword-action catalog loads");
         let ability_words = fs::read_to_string(catalog_root.join("ability-words.txt"))
             .expect("frozen ability-word catalog loads");
         let mut category_counts = BTreeMap::new();
@@ -1590,7 +1601,6 @@ mod tests {
                         span,
                         Plan08BoundaryCatalogs {
                             keyword_abilities: &keyword_abilities,
-                            keyword_actions: &keyword_actions,
                             ability_words: &ability_words,
                         },
                     );
@@ -1648,9 +1658,9 @@ mod tests {
             "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd"
         );
         assert_eq!(coverage["summary"]["total_units"], 32_641);
-        assert_eq!(coverage["summary"]["selected_units"], 733);
-        assert_eq!(coverage["summary"]["covered_units"], 733);
-        assert_eq!(coverage["summary"]["parse_failures"], 31_908);
+        assert_eq!(coverage["summary"]["selected_units"], 735);
+        assert_eq!(coverage["summary"]["covered_units"], 735);
+        assert_eq!(coverage["summary"]["parse_failures"], 31_906);
         for counter in [
             "selected_uncovered_units",
             "unresolved_ties",
@@ -1673,7 +1683,7 @@ mod tests {
         .expect("production ambiguity baseline renders");
         let ambiguity: serde_json::Value =
             serde_json::from_slice(&ambiguity_json).expect("ambiguity baseline is JSON");
-        assert_eq!(ambiguity["summary"]["unique"], 733);
+        assert_eq!(ambiguity["summary"]["unique"], 735);
         assert_eq!(ambiguity["summary"]["specificity_resolved"], 0);
         for counter in [
             "exception_resolved",
@@ -2825,6 +2835,34 @@ mod tests {
             | "function render_finite_condition"
             | "function walk_finite_condition"
             | "function walk_finite_condition_value" => &["construction finite_condition"],
+            "type ExistentialCondition"
+            | "type ExistentialConditionValue"
+            | "function render_existential_condition"
+            | "function walk_existential_condition"
+            | "function walk_existential_condition_value" => {
+                &["construction existential_condition"]
+            }
+            "type ExistentialClause"
+            | "function render_existential_clause"
+            | "function walk_existential_clause" => &[
+                "construction singular_existential_clause",
+                "construction plural_existential_clause",
+            ],
+            "type SingularExistentialClause"
+            | "impl SingularExistentialClause"
+            | "function walk_singular_existential_clause" => {
+                &["construction singular_existential_clause"]
+            }
+            "type PluralExistentialClause"
+            | "impl PluralExistentialClause"
+            | "function walk_plural_existential_clause" => {
+                &["construction plural_existential_clause"]
+            }
+            "type AmongPhrase"
+            | "type AmongPhraseValue"
+            | "function render_among_phrase"
+            | "function walk_among_phrase"
+            | "function walk_among_phrase_value" => &["construction among_phrase"],
             "type Ability"
             | "function __deckmaste_construction_internal_render_root_ability"
             | "function walk_ability" => &[
@@ -3003,6 +3041,7 @@ mod tests {
                 "construction bare_singular_nominal",
                 "construction modified_singular_nominal",
                 "construction negative_modified_singular_nominal",
+                "construction compound_modified_singular_nominal",
             ],
             "type PluralNominal"
             | "function render_plural_nominal"
@@ -3013,10 +3052,12 @@ mod tests {
             | "function walk_plural_nominal" => &[
                 "construction bare_plural_nominal",
                 "construction modified_plural_nominal",
+                "construction compound_modified_plural_nominal",
                 "construction negative_modified_plural_nominal",
             ],
             "type SingularCoordinationMember"
             | "function render_singular_coordination_member"
+            | "function onset_for_singular_coordination_member"
             | "function agreement_matches_for_singular_coordination_member"
             | "function walk_singular_coordination_member" => &[
                 "construction bare_singular_coordination_member",
@@ -3037,6 +3078,17 @@ mod tests {
                 "construction singular_and_nominal_coordination",
                 "construction singular_or_nominal_coordination",
                 "construction singular_and_or_nominal_coordination",
+            ],
+            "type DeterminerScopedNominalCoordination"
+            | "function render_determiner_scoped_nominal_coordination"
+            | "function onset_for_determiner_scoped_nominal_coordination"
+            | "function walk_determiner_scoped_nominal_coordination" => &[
+                "construction determiner_scoped_and_nominal_pair",
+                "construction determiner_scoped_and_nominal_series",
+                "construction determiner_scoped_or_nominal_pair",
+                "construction determiner_scoped_or_nominal_series",
+                "construction determiner_scoped_and_or_nominal_pair",
+                "construction determiner_scoped_and_or_nominal_series",
             ],
             "type PluralNominalCoordination"
             | "function render_plural_nominal_coordination"
@@ -3131,6 +3183,7 @@ mod tests {
                 "construction target_coordination_determiner_phrase",
                 "construction indefinite_determiner_phrase",
                 "construction this_determiner_phrase",
+                "construction that_determiner_phrase",
                 "construction another_determiner_phrase",
             ],
             "type FullNounPhraseCoordination"
@@ -3158,6 +3211,7 @@ mod tests {
             | "function walk_controller_owner_qualification" => &[
                 "construction you_control",
                 "construction opponent_controls",
+                "construction demonstrative_controls",
                 "construction you_own",
             ],
             "type SingularController"
@@ -3615,6 +3669,15 @@ mod tests {
             | "function walk_coordinated_modifier_member" => {
                 &["construction coordinated_modifier_member"]
             }
+            "type CompoundNominalModifier"
+            | "type CompoundModifierMember"
+            | "impl CompoundModifierMember"
+            | "function render_compound_nominal_modifier"
+            | "function onset_for_compound_nominal_modifier"
+            | "function walk_compound_nominal_modifier"
+            | "function walk_compound_modifier_member" => {
+                &["construction compound_modifier_member"]
+            }
             "type BareSingularNominal" | "function walk_bare_singular_nominal" => {
                 &["construction bare_singular_nominal"]
             }
@@ -3631,6 +3694,16 @@ mod tests {
             }
             "type ModifiedPluralNominal" | "function walk_modified_plural_nominal" => {
                 &["construction modified_plural_nominal"]
+            }
+            "type CompoundModifiedSingularNominal"
+            | "impl CompoundModifiedSingularNominal"
+            | "function walk_compound_modified_singular_nominal" => {
+                &["construction compound_modified_singular_nominal"]
+            }
+            "type CompoundModifiedPluralNominal"
+            | "impl CompoundModifiedPluralNominal"
+            | "function walk_compound_modified_plural_nominal" => {
+                &["construction compound_modified_plural_nominal"]
             }
             "type NegativeModifiedPluralNominal"
             | "impl NegativeModifiedPluralNominal"
@@ -3677,6 +3750,33 @@ mod tests {
             | "impl SingularAndOrNominalCoordination"
             | "function walk_singular_and_or_nominal_coordination" => {
                 &["construction singular_and_or_nominal_coordination"]
+            }
+            "type DeterminerScopedAndNominalPair"
+            | "function walk_determiner_scoped_and_nominal_pair" => {
+                &["construction determiner_scoped_and_nominal_pair"]
+            }
+            "type DeterminerScopedAndNominalSeries"
+            | "impl DeterminerScopedAndNominalSeries"
+            | "function walk_determiner_scoped_and_nominal_series" => {
+                &["construction determiner_scoped_and_nominal_series"]
+            }
+            "type DeterminerScopedOrNominalPair"
+            | "function walk_determiner_scoped_or_nominal_pair" => {
+                &["construction determiner_scoped_or_nominal_pair"]
+            }
+            "type DeterminerScopedOrNominalSeries"
+            | "impl DeterminerScopedOrNominalSeries"
+            | "function walk_determiner_scoped_or_nominal_series" => {
+                &["construction determiner_scoped_or_nominal_series"]
+            }
+            "type DeterminerScopedAndOrNominalPair"
+            | "function walk_determiner_scoped_and_or_nominal_pair" => {
+                &["construction determiner_scoped_and_or_nominal_pair"]
+            }
+            "type DeterminerScopedAndOrNominalSeries"
+            | "impl DeterminerScopedAndOrNominalSeries"
+            | "function walk_determiner_scoped_and_or_nominal_series" => {
+                &["construction determiner_scoped_and_or_nominal_series"]
             }
             "type PluralAndNominalCoordination"
             | "impl PluralAndNominalCoordination"
@@ -3837,6 +3937,9 @@ mod tests {
             "type ThisDeterminerPhrase" | "function walk_this_determiner_phrase" => {
                 &["construction this_determiner_phrase"]
             }
+            "type ThatDeterminerPhrase" | "function walk_that_determiner_phrase" => {
+                &["construction that_determiner_phrase"]
+            }
             "type AnotherDeterminerPhrase"
             | "impl AnotherDeterminerPhrase"
             | "function walk_another_determiner_phrase" => {
@@ -3869,6 +3972,9 @@ mod tests {
             "type OpponentControls" | "function walk_opponent_controls" => {
                 &["construction opponent_controls"]
             }
+            "type DemonstrativeControls"
+            | "impl DemonstrativeControls"
+            | "function walk_demonstrative_controls" => &["construction demonstrative_controls"],
             "type YouOwn" | "impl YouOwn" | "function walk_you_own" => &["construction you_own"],
             "type PossessedZone" | "function walk_possessed_zone" => {
                 &["construction possessed_zone"]
@@ -3999,9 +4105,6 @@ mod tests {
             "type ChosenQuality"
             | "function render_chosen_quality"
             | "function walk_chosen_quality" => &["vocab ChosenQuality"],
-            "type IndefiniteArticle"
-            | "function render_indefinite_article"
-            | "function walk_indefinite_article" => &["vocab IndefiniteArticle"],
             "type SingularDemonstrative"
             | "function render_singular_demonstrative"
             | "function walk_singular_demonstrative" => &["vocab SingularDemonstrative"],
@@ -4195,7 +4298,6 @@ mod tests {
                 "vocab Status",
                 "vocab Designation",
                 "vocab ChosenQuality",
-                "vocab IndefiniteArticle",
                 "vocab SingularDemonstrative",
                 "vocab ControllerNoun",
                 "vocab FixedCostSymbol",
@@ -4230,6 +4332,10 @@ mod tests {
                 "abstract sum ClauseAttachment",
                 "abstract sum ConditionClause",
                 "construction finite_condition",
+                "construction existential_condition",
+                "construction singular_existential_clause",
+                "construction plural_existential_clause",
+                "construction among_phrase",
                 "construction plain",
                 "construction sentences",
                 "construction modal_mode",
@@ -4329,11 +4435,14 @@ mod tests {
                 "construction negative_modifier_member",
                 "construction non_target_common_noun_modifier",
                 "construction coordinated_modifier_member",
+                "construction compound_modifier_member",
                 "construction bare_singular_nominal",
                 "construction modified_singular_nominal",
                 "construction negative_modified_singular_nominal",
                 "construction bare_plural_nominal",
                 "construction modified_plural_nominal",
+                "construction compound_modified_singular_nominal",
+                "construction compound_modified_plural_nominal",
                 "construction negative_modified_plural_nominal",
                 "construction bare_singular_coordination_member",
                 "construction modified_singular_coordination_member",
@@ -4344,6 +4453,12 @@ mod tests {
                 "construction singular_and_nominal_coordination",
                 "construction singular_or_nominal_coordination",
                 "construction singular_and_or_nominal_coordination",
+                "construction determiner_scoped_and_nominal_pair",
+                "construction determiner_scoped_and_nominal_series",
+                "construction determiner_scoped_or_nominal_pair",
+                "construction determiner_scoped_or_nominal_series",
+                "construction determiner_scoped_and_or_nominal_pair",
+                "construction determiner_scoped_and_or_nominal_series",
                 "construction plural_and_nominal_coordination",
                 "construction plural_or_nominal_coordination",
                 "construction plural_and_or_nominal_coordination",
@@ -4392,6 +4507,7 @@ mod tests {
                 "construction target_coordination_determiner_phrase",
                 "construction indefinite_determiner_phrase",
                 "construction this_determiner_phrase",
+                "construction that_determiner_phrase",
                 "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
@@ -4403,6 +4519,7 @@ mod tests {
                 "construction you_control",
                 "construction opponent_controller",
                 "construction opponent_controls",
+                "construction demonstrative_controls",
                 "construction you_own",
                 "construction possessed_zone",
                 "construction unpossessed_zone",
@@ -4469,7 +4586,6 @@ mod tests {
                 "vocab Status",
                 "vocab Designation",
                 "vocab ChosenQuality",
-                "vocab IndefiniteArticle",
                 "vocab SingularDemonstrative",
                 "vocab ControllerNoun",
                 "vocab FixedCostSymbol",
@@ -4497,6 +4613,7 @@ mod tests {
                 "codec ScalarNumber",
                 "codec LoyaltyMagnitude",
                 "construction finite_condition",
+                "construction existential_condition",
                 "construction triggered",
                 "construction preposed_if",
                 "construction preposed_if_predicate",
@@ -4511,6 +4628,9 @@ mod tests {
                 "construction reflexive_subordinate",
                 "construction reflexive_predicate_subordinate",
                 "construction with_where",
+                "construction determiner_scoped_and_nominal_series",
+                "construction determiner_scoped_or_nominal_series",
+                "construction determiner_scoped_and_or_nominal_series",
                 "vocab ReflexiveSubordinateKind",
                 "root Ability",
                 "root Sentence",
@@ -4567,6 +4687,14 @@ mod tests {
             | "function walk_negative_modified_singular_nominal_modifiers_sequence" => {
                 &["construction NegativeModifiedSingularNominal"]
             }
+            "function render_compound_modified_singular_nominal_rest_sequence"
+            | "function walk_compound_modified_singular_nominal_rest_sequence" => {
+                &["construction CompoundModifiedSingularNominal"]
+            }
+            "function render_compound_modified_plural_nominal_rest_sequence"
+            | "function walk_compound_modified_plural_nominal_rest_sequence" => {
+                &["construction CompoundModifiedPluralNominal"]
+            }
             "function render_negative_modified_plural_nominal_modifiers_sequence"
             | "function walk_negative_modified_plural_nominal_modifiers_sequence" => {
                 &["construction NegativeModifiedPluralNominal"]
@@ -4590,6 +4718,18 @@ mod tests {
             "function render_singular_and_or_nominal_coordination_members_sequence"
             | "function walk_singular_and_or_nominal_coordination_members_sequence" => {
                 &["construction SingularAndOrNominalCoordination"]
+            }
+            "function render_determiner_scoped_and_nominal_series_middle_sequence"
+            | "function walk_determiner_scoped_and_nominal_series_middle_sequence" => {
+                &["construction DeterminerScopedAndNominalSeries"]
+            }
+            "function render_determiner_scoped_or_nominal_series_middle_sequence"
+            | "function walk_determiner_scoped_or_nominal_series_middle_sequence" => {
+                &["construction DeterminerScopedOrNominalSeries"]
+            }
+            "function render_determiner_scoped_and_or_nominal_series_middle_sequence"
+            | "function walk_determiner_scoped_and_or_nominal_series_middle_sequence" => {
+                &["construction DeterminerScopedAndOrNominalSeries"]
             }
             "function render_plural_and_nominal_coordination_members_sequence"
             | "function walk_plural_and_nominal_coordination_members_sequence" => {
@@ -4641,6 +4781,10 @@ mod tests {
             | "function render_oracle_text_with_claims" => &["root OracleText"],
             "trait Visitor" => &[
                 "construction finite_condition",
+                "construction existential_condition",
+                "construction singular_existential_clause",
+                "construction plural_existential_clause",
+                "construction among_phrase",
                 "construction plain",
                 "construction triggered",
                 "construction activated",
@@ -4719,11 +4863,14 @@ mod tests {
                 "construction negative_modifier_member",
                 "construction non_target_common_noun_modifier",
                 "construction coordinated_modifier_member",
+                "construction compound_modifier_member",
                 "construction bare_singular_nominal",
                 "construction modified_singular_nominal",
                 "construction negative_modified_singular_nominal",
+                "construction compound_modified_singular_nominal",
                 "construction bare_plural_nominal",
                 "construction modified_plural_nominal",
+                "construction compound_modified_plural_nominal",
                 "construction negative_modified_plural_nominal",
                 "construction bare_singular_coordination_member",
                 "construction modified_singular_coordination_member",
@@ -4734,6 +4881,12 @@ mod tests {
                 "construction singular_and_nominal_coordination",
                 "construction singular_or_nominal_coordination",
                 "construction singular_and_or_nominal_coordination",
+                "construction determiner_scoped_and_nominal_pair",
+                "construction determiner_scoped_and_nominal_series",
+                "construction determiner_scoped_or_nominal_pair",
+                "construction determiner_scoped_or_nominal_series",
+                "construction determiner_scoped_and_or_nominal_pair",
+                "construction determiner_scoped_and_or_nominal_series",
                 "construction plural_and_nominal_coordination",
                 "construction plural_or_nominal_coordination",
                 "construction plural_and_or_nominal_coordination",
@@ -4785,6 +4938,7 @@ mod tests {
                 "construction target_coordination_determiner_phrase",
                 "construction indefinite_determiner_phrase",
                 "construction this_determiner_phrase",
+                "construction that_determiner_phrase",
                 "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
@@ -4793,6 +4947,7 @@ mod tests {
                 "construction that_much",
                 "construction you_control",
                 "construction opponent_controls",
+                "construction demonstrative_controls",
                 "construction you_own",
                 "construction opponent_controller",
                 "construction possessed_zone",
@@ -4842,6 +4997,10 @@ mod tests {
                 "codec PlaneswalkerSubtypeNoun",
                 "codec SpellSubtypeNoun",
                 "construction finite_condition",
+                "construction existential_condition",
+                "construction singular_existential_clause",
+                "construction plural_existential_clause",
+                "construction among_phrase",
                 "construction plain",
                 "construction sentences",
                 "construction modal_mode",
@@ -4941,11 +5100,14 @@ mod tests {
                 "construction negative_modifier_member",
                 "construction non_target_common_noun_modifier",
                 "construction coordinated_modifier_member",
+                "construction compound_modifier_member",
                 "construction bare_singular_nominal",
                 "construction modified_singular_nominal",
                 "construction negative_modified_singular_nominal",
                 "construction bare_plural_nominal",
                 "construction modified_plural_nominal",
+                "construction compound_modified_singular_nominal",
+                "construction compound_modified_plural_nominal",
                 "construction negative_modified_plural_nominal",
                 "construction bare_singular_coordination_member",
                 "construction modified_singular_coordination_member",
@@ -4956,6 +5118,12 @@ mod tests {
                 "construction singular_and_nominal_coordination",
                 "construction singular_or_nominal_coordination",
                 "construction singular_and_or_nominal_coordination",
+                "construction determiner_scoped_and_nominal_pair",
+                "construction determiner_scoped_and_nominal_series",
+                "construction determiner_scoped_or_nominal_pair",
+                "construction determiner_scoped_or_nominal_series",
+                "construction determiner_scoped_and_or_nominal_pair",
+                "construction determiner_scoped_and_or_nominal_series",
                 "construction plural_and_nominal_coordination",
                 "construction plural_or_nominal_coordination",
                 "construction plural_and_or_nominal_coordination",
@@ -5004,6 +5172,7 @@ mod tests {
                 "construction target_coordination_determiner_phrase",
                 "construction indefinite_determiner_phrase",
                 "construction this_determiner_phrase",
+                "construction that_determiner_phrase",
                 "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
@@ -5015,6 +5184,7 @@ mod tests {
                 "construction you_control",
                 "construction opponent_controller",
                 "construction opponent_controls",
+                "construction demonstrative_controls",
                 "construction you_own",
                 "construction possessed_zone",
                 "construction unpossessed_zone",
@@ -5068,7 +5238,6 @@ mod tests {
                 "vocab Status",
                 "vocab Designation",
                 "vocab ChosenQuality",
-                "vocab IndefiniteArticle",
                 "vocab SingularDemonstrative",
                 "vocab ControllerNoun",
                 "vocab FixedCostSymbol",
@@ -5092,6 +5261,10 @@ mod tests {
                 "abstract sum ClauseAttachment",
                 "abstract sum ConditionClause",
                 "construction finite_condition",
+                "construction existential_condition",
+                "construction singular_existential_clause",
+                "construction plural_existential_clause",
+                "construction among_phrase",
                 "construction plain",
                 "construction sentences",
                 "construction modal_mode",
@@ -5191,11 +5364,14 @@ mod tests {
                 "construction negative_modifier_member",
                 "construction non_target_common_noun_modifier",
                 "construction coordinated_modifier_member",
+                "construction compound_modifier_member",
                 "construction bare_singular_nominal",
                 "construction modified_singular_nominal",
                 "construction negative_modified_singular_nominal",
                 "construction bare_plural_nominal",
                 "construction modified_plural_nominal",
+                "construction compound_modified_singular_nominal",
+                "construction compound_modified_plural_nominal",
                 "construction negative_modified_plural_nominal",
                 "construction bare_singular_coordination_member",
                 "construction modified_singular_coordination_member",
@@ -5206,6 +5382,12 @@ mod tests {
                 "construction singular_and_nominal_coordination",
                 "construction singular_or_nominal_coordination",
                 "construction singular_and_or_nominal_coordination",
+                "construction determiner_scoped_and_nominal_pair",
+                "construction determiner_scoped_and_nominal_series",
+                "construction determiner_scoped_or_nominal_pair",
+                "construction determiner_scoped_or_nominal_series",
+                "construction determiner_scoped_and_or_nominal_pair",
+                "construction determiner_scoped_and_or_nominal_series",
                 "construction plural_and_nominal_coordination",
                 "construction plural_or_nominal_coordination",
                 "construction plural_and_or_nominal_coordination",
@@ -5254,6 +5436,7 @@ mod tests {
                 "construction target_coordination_determiner_phrase",
                 "construction indefinite_determiner_phrase",
                 "construction this_determiner_phrase",
+                "construction that_determiner_phrase",
                 "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
@@ -5265,6 +5448,7 @@ mod tests {
                 "construction you_control",
                 "construction opponent_controller",
                 "construction opponent_controls",
+                "construction demonstrative_controls",
                 "construction you_own",
                 "construction possessed_zone",
                 "construction unpossessed_zone",
@@ -5312,6 +5496,10 @@ mod tests {
             | "function build_checked"
             | "function build" => &[
                 "construction finite_condition",
+                "construction existential_condition",
+                "construction singular_existential_clause",
+                "construction plural_existential_clause",
+                "construction among_phrase",
                 "construction plain",
                 "construction sentences",
                 "construction modal_mode",
@@ -5411,11 +5599,14 @@ mod tests {
                 "construction negative_modifier_member",
                 "construction non_target_common_noun_modifier",
                 "construction coordinated_modifier_member",
+                "construction compound_modifier_member",
                 "construction bare_singular_nominal",
                 "construction modified_singular_nominal",
                 "construction negative_modified_singular_nominal",
                 "construction bare_plural_nominal",
                 "construction modified_plural_nominal",
+                "construction compound_modified_singular_nominal",
+                "construction compound_modified_plural_nominal",
                 "construction negative_modified_plural_nominal",
                 "construction bare_singular_coordination_member",
                 "construction modified_singular_coordination_member",
@@ -5426,6 +5617,12 @@ mod tests {
                 "construction singular_and_nominal_coordination",
                 "construction singular_or_nominal_coordination",
                 "construction singular_and_or_nominal_coordination",
+                "construction determiner_scoped_and_nominal_pair",
+                "construction determiner_scoped_and_nominal_series",
+                "construction determiner_scoped_or_nominal_pair",
+                "construction determiner_scoped_or_nominal_series",
+                "construction determiner_scoped_and_or_nominal_pair",
+                "construction determiner_scoped_and_or_nominal_series",
                 "construction plural_and_nominal_coordination",
                 "construction plural_or_nominal_coordination",
                 "construction plural_and_or_nominal_coordination",
@@ -5474,6 +5671,7 @@ mod tests {
                 "construction target_coordination_determiner_phrase",
                 "construction indefinite_determiner_phrase",
                 "construction this_determiner_phrase",
+                "construction that_determiner_phrase",
                 "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
@@ -5485,6 +5683,7 @@ mod tests {
                 "construction you_control",
                 "construction opponent_controller",
                 "construction opponent_controls",
+                "construction demonstrative_controls",
                 "construction you_own",
                 "construction possessed_zone",
                 "construction unpossessed_zone",
@@ -5535,6 +5734,10 @@ mod tests {
             ],
             "constant RULES" => &[
                 "construction finite_condition",
+                "construction existential_condition",
+                "construction singular_existential_clause",
+                "construction plural_existential_clause",
+                "construction among_phrase",
                 "construction plain",
                 "construction sentences",
                 "construction modal_mode",
@@ -5634,11 +5837,14 @@ mod tests {
                 "construction negative_modifier_member",
                 "construction non_target_common_noun_modifier",
                 "construction coordinated_modifier_member",
+                "construction compound_modifier_member",
                 "construction bare_singular_nominal",
                 "construction modified_singular_nominal",
                 "construction negative_modified_singular_nominal",
                 "construction bare_plural_nominal",
                 "construction modified_plural_nominal",
+                "construction compound_modified_singular_nominal",
+                "construction compound_modified_plural_nominal",
                 "construction negative_modified_plural_nominal",
                 "construction bare_singular_coordination_member",
                 "construction modified_singular_coordination_member",
@@ -5649,6 +5855,12 @@ mod tests {
                 "construction singular_and_nominal_coordination",
                 "construction singular_or_nominal_coordination",
                 "construction singular_and_or_nominal_coordination",
+                "construction determiner_scoped_and_nominal_pair",
+                "construction determiner_scoped_and_nominal_series",
+                "construction determiner_scoped_or_nominal_pair",
+                "construction determiner_scoped_or_nominal_series",
+                "construction determiner_scoped_and_or_nominal_pair",
+                "construction determiner_scoped_and_or_nominal_series",
                 "construction plural_and_nominal_coordination",
                 "construction plural_or_nominal_coordination",
                 "construction plural_and_or_nominal_coordination",
@@ -5697,6 +5909,7 @@ mod tests {
                 "construction target_coordination_determiner_phrase",
                 "construction indefinite_determiner_phrase",
                 "construction this_determiner_phrase",
+                "construction that_determiner_phrase",
                 "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
@@ -5708,6 +5921,7 @@ mod tests {
                 "construction you_control",
                 "construction opponent_controller",
                 "construction opponent_controls",
+                "construction demonstrative_controls",
                 "construction you_own",
                 "construction possessed_zone",
                 "construction unpossessed_zone",
@@ -5845,6 +6059,9 @@ mod tests {
 
     const EXPECTED_ITEM_KEYS: &[&str] = &[
         "type FiniteCondition",
+        "type ExistentialCondition",
+        "type ExistentialClause",
+        "type AmongPhrase",
         "type Ability",
         "type AbilityBody",
         "type ModalMode",
@@ -5864,11 +6081,13 @@ mod tests {
         "type NominalModifier",
         "type NegativeNominalModifier",
         "type CoordinatedNominalModifier",
+        "type CompoundNominalModifier",
         "type SingularNominal",
         "type PluralNominal",
         "type SingularCoordinationMember",
         "type PluralCoordinationMember",
         "type SingularNominalCoordination",
+        "type DeterminerScopedNominalCoordination",
         "type PluralNominalCoordination",
         "type SingularSelector",
         "type PluralSelector",
@@ -5904,6 +6123,12 @@ mod tests {
         "type DocumentBlock",
         "type OracleText",
         "type FiniteConditionValue",
+        "type ExistentialConditionValue",
+        "type SingularExistentialClause",
+        "impl SingularExistentialClause",
+        "type PluralExistentialClause",
+        "impl PluralExistentialClause",
+        "type AmongPhraseValue",
         "type Plain",
         "type Sentences",
         "impl Sentences",
@@ -6031,12 +6256,18 @@ mod tests {
         "type NonTargetCommonNounModifier",
         "type CoordinatedModifierMember",
         "impl CoordinatedModifierMember",
+        "type CompoundModifierMember",
+        "impl CompoundModifierMember",
         "type BareSingularNominal",
         "type ModifiedSingularNominal",
         "type NegativeModifiedSingularNominal",
         "impl NegativeModifiedSingularNominal",
         "type BarePluralNominal",
         "type ModifiedPluralNominal",
+        "type CompoundModifiedSingularNominal",
+        "impl CompoundModifiedSingularNominal",
+        "type CompoundModifiedPluralNominal",
+        "impl CompoundModifiedPluralNominal",
         "type NegativeModifiedPluralNominal",
         "impl NegativeModifiedPluralNominal",
         "type BareSingularCoordinationMember",
@@ -6053,6 +6284,15 @@ mod tests {
         "impl SingularOrNominalCoordination",
         "type SingularAndOrNominalCoordination",
         "impl SingularAndOrNominalCoordination",
+        "type DeterminerScopedAndNominalPair",
+        "type DeterminerScopedAndNominalSeries",
+        "impl DeterminerScopedAndNominalSeries",
+        "type DeterminerScopedOrNominalPair",
+        "type DeterminerScopedOrNominalSeries",
+        "impl DeterminerScopedOrNominalSeries",
+        "type DeterminerScopedAndOrNominalPair",
+        "type DeterminerScopedAndOrNominalSeries",
+        "impl DeterminerScopedAndOrNominalSeries",
         "type PluralAndNominalCoordination",
         "impl PluralAndNominalCoordination",
         "type PluralOrNominalCoordination",
@@ -6110,6 +6350,7 @@ mod tests {
         "type TargetCoordinationDeterminerPhrase",
         "type IndefiniteDeterminerPhrase",
         "type ThisDeterminerPhrase",
+        "type ThatDeterminerPhrase",
         "type AnotherDeterminerPhrase",
         "impl AnotherDeterminerPhrase",
         "type FullAndNounPhraseCoordination",
@@ -6128,6 +6369,8 @@ mod tests {
         "type OpponentController",
         "impl OpponentController",
         "type OpponentControls",
+        "type DemonstrativeControls",
+        "impl DemonstrativeControls",
         "type YouOwn",
         "impl YouOwn",
         "type PossessedZone",
@@ -6185,7 +6428,6 @@ mod tests {
         "type Status",
         "type Designation",
         "type ChosenQuality",
-        "type IndefiniteArticle",
         "type SingularDemonstrative",
         "type ControllerNoun",
         "type FixedCostSymbol",
@@ -6346,12 +6588,17 @@ mod tests {
         "function render_or_clause_coordination_members_sequence",
         "function render_and_or_clause_coordination_members_sequence",
         "function render_negative_modified_singular_nominal_modifiers_sequence",
+        "function render_compound_modified_singular_nominal_rest_sequence",
+        "function render_compound_modified_plural_nominal_rest_sequence",
         "function render_negative_modified_plural_nominal_modifiers_sequence",
         "function render_negative_modified_singular_coordination_member_modifiers_sequence",
         "function render_negative_modified_plural_coordination_member_modifiers_sequence",
         "function render_singular_and_nominal_coordination_members_sequence",
         "function render_singular_or_nominal_coordination_members_sequence",
         "function render_singular_and_or_nominal_coordination_members_sequence",
+        "function render_determiner_scoped_and_nominal_series_middle_sequence",
+        "function render_determiner_scoped_or_nominal_series_middle_sequence",
+        "function render_determiner_scoped_and_or_nominal_series_middle_sequence",
         "function render_plural_and_nominal_coordination_members_sequence",
         "function render_plural_or_nominal_coordination_members_sequence",
         "function render_plural_and_or_nominal_coordination_members_sequence",
@@ -6389,6 +6636,9 @@ mod tests {
         "impl Render for OracleText",
         "function render_oracle_text_with_claims",
         "function render_finite_condition",
+        "function render_existential_condition",
+        "function render_existential_clause",
+        "function render_among_phrase",
         "function __deckmaste_construction_internal_render_root_ability",
         "function render_ability_body",
         "function render_modal_mode",
@@ -6408,11 +6658,13 @@ mod tests {
         "function render_nominal_modifier",
         "function render_negative_nominal_modifier",
         "function render_coordinated_nominal_modifier",
+        "function render_compound_nominal_modifier",
         "function render_singular_nominal",
         "function render_plural_nominal",
         "function render_singular_coordination_member",
         "function render_plural_coordination_member",
         "function render_singular_nominal_coordination",
+        "function render_determiner_scoped_nominal_coordination",
         "function render_plural_nominal_coordination",
         "function render_singular_selector",
         "function render_plural_selector",
@@ -6454,7 +6706,6 @@ mod tests {
         "function render_status",
         "function render_designation",
         "function render_chosen_quality",
-        "function render_indefinite_article",
         "function render_singular_demonstrative",
         "function render_controller_noun",
         "function render_fixed_cost_symbol",
@@ -6520,8 +6771,11 @@ mod tests {
         "function onset_for_plural_head",
         "function onset_for_nominal_modifier",
         "function onset_for_coordinated_nominal_modifier",
+        "function onset_for_compound_nominal_modifier",
         "function onset_for_singular_nominal",
         "function onset_for_plural_nominal",
+        "function onset_for_singular_coordination_member",
+        "function onset_for_determiner_scoped_nominal_coordination",
         "function onset_for_plural_selector",
         "function onset_for_unqualified_reference",
         "function onset_for_count_reference",
@@ -6557,6 +6811,9 @@ mod tests {
         "function agreement_matches_for_predicate",
         "trait Visitor",
         "function walk_finite_condition",
+        "function walk_existential_condition",
+        "function walk_existential_clause",
+        "function walk_among_phrase",
         "function walk_ability",
         "function walk_ability_body",
         "function walk_modal_mode",
@@ -6576,11 +6833,13 @@ mod tests {
         "function walk_nominal_modifier",
         "function walk_negative_nominal_modifier",
         "function walk_coordinated_nominal_modifier",
+        "function walk_compound_nominal_modifier",
         "function walk_singular_nominal",
         "function walk_plural_nominal",
         "function walk_singular_coordination_member",
         "function walk_plural_coordination_member",
         "function walk_singular_nominal_coordination",
+        "function walk_determiner_scoped_nominal_coordination",
         "function walk_plural_nominal_coordination",
         "function walk_singular_selector",
         "function walk_plural_selector",
@@ -6627,12 +6886,17 @@ mod tests {
         "function walk_or_clause_coordination_members_sequence",
         "function walk_and_or_clause_coordination_members_sequence",
         "function walk_negative_modified_singular_nominal_modifiers_sequence",
+        "function walk_compound_modified_singular_nominal_rest_sequence",
+        "function walk_compound_modified_plural_nominal_rest_sequence",
         "function walk_negative_modified_plural_nominal_modifiers_sequence",
         "function walk_negative_modified_singular_coordination_member_modifiers_sequence",
         "function walk_negative_modified_plural_coordination_member_modifiers_sequence",
         "function walk_singular_and_nominal_coordination_members_sequence",
         "function walk_singular_or_nominal_coordination_members_sequence",
         "function walk_singular_and_or_nominal_coordination_members_sequence",
+        "function walk_determiner_scoped_and_nominal_series_middle_sequence",
+        "function walk_determiner_scoped_or_nominal_series_middle_sequence",
+        "function walk_determiner_scoped_and_or_nominal_series_middle_sequence",
         "function walk_plural_and_nominal_coordination_members_sequence",
         "function walk_plural_or_nominal_coordination_members_sequence",
         "function walk_plural_and_or_nominal_coordination_members_sequence",
@@ -6643,6 +6907,10 @@ mod tests {
         "function walk_oracle_text_blocks_sequence",
         "function walk_oracle_text",
         "function walk_finite_condition_value",
+        "function walk_existential_condition_value",
+        "function walk_singular_existential_clause",
+        "function walk_plural_existential_clause",
+        "function walk_among_phrase_value",
         "function walk_plain",
         "function walk_sentences",
         "function walk_modal_mode_value",
@@ -6742,11 +7010,14 @@ mod tests {
         "function walk_negative_modifier_member",
         "function walk_non_target_common_noun_modifier",
         "function walk_coordinated_modifier_member",
+        "function walk_compound_modifier_member",
         "function walk_bare_singular_nominal",
         "function walk_modified_singular_nominal",
         "function walk_negative_modified_singular_nominal",
         "function walk_bare_plural_nominal",
         "function walk_modified_plural_nominal",
+        "function walk_compound_modified_singular_nominal",
+        "function walk_compound_modified_plural_nominal",
         "function walk_negative_modified_plural_nominal",
         "function walk_bare_singular_coordination_member",
         "function walk_modified_singular_coordination_member",
@@ -6757,6 +7028,12 @@ mod tests {
         "function walk_singular_and_nominal_coordination",
         "function walk_singular_or_nominal_coordination",
         "function walk_singular_and_or_nominal_coordination",
+        "function walk_determiner_scoped_and_nominal_pair",
+        "function walk_determiner_scoped_and_nominal_series",
+        "function walk_determiner_scoped_or_nominal_pair",
+        "function walk_determiner_scoped_or_nominal_series",
+        "function walk_determiner_scoped_and_or_nominal_pair",
+        "function walk_determiner_scoped_and_or_nominal_series",
         "function walk_plural_and_nominal_coordination",
         "function walk_plural_or_nominal_coordination",
         "function walk_plural_and_or_nominal_coordination",
@@ -6805,6 +7082,7 @@ mod tests {
         "function walk_target_coordination_determiner_phrase",
         "function walk_indefinite_determiner_phrase",
         "function walk_this_determiner_phrase",
+        "function walk_that_determiner_phrase",
         "function walk_another_determiner_phrase",
         "function walk_full_and_noun_phrase_coordination",
         "function walk_full_or_noun_phrase_coordination",
@@ -6816,6 +7094,7 @@ mod tests {
         "function walk_you_control",
         "function walk_opponent_controller",
         "function walk_opponent_controls",
+        "function walk_demonstrative_controls",
         "function walk_you_own",
         "function walk_possessed_zone",
         "function walk_unpossessed_zone",
@@ -6869,7 +7148,6 @@ mod tests {
         "function walk_status",
         "function walk_designation",
         "function walk_chosen_quality",
-        "function walk_indefinite_article",
         "function walk_singular_demonstrative",
         "function walk_controller_noun",
         "function walk_fixed_cost_symbol",
@@ -7565,7 +7843,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 1070);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 1134);
         assert!(
             headings == EXPECTED_ITEM_KEYS,
             "missing={:#?}; unexpected={:#?}; first mismatch={:?}",
@@ -7639,7 +7917,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 1070);
+        assert_eq!(parsed.items.len(), 1134);
     }
 
     #[test]

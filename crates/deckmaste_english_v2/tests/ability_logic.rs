@@ -90,6 +90,19 @@ impl Visitor for SubjectStructureVisitor {
         deckmaste_english_v2::visit::walk_full_or_noun_phrase_coordination(self, value);
     }
 
+    fn visit_determiner_scoped_nominal_coordination(
+        &mut self,
+        value: &DeterminerScopedNominalCoordination,
+    ) {
+        self.0.push("DeterminerScopedNominalCoordination");
+        deckmaste_english_v2::visit::walk_determiner_scoped_nominal_coordination(self, value);
+    }
+
+    fn visit_determiner_scoped_or_nominal_pair(&mut self, value: &DeterminerScopedOrNominalPair) {
+        self.0.push("DeterminerScopedOrNominalPair");
+        deckmaste_english_v2::visit::walk_determiner_scoped_or_nominal_pair(self, value);
+    }
+
     fn visit_this_determiner_phrase(&mut self, value: &ThisDeterminerPhrase) {
         self.0.push("ThisDeterminerPhrase");
         deckmaste_english_v2::visit::walk_this_determiner_phrase(self, value);
@@ -127,10 +140,14 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
         (
             "Whenever a spell or ability deals 1 damage to you, you gain 1 life.",
             "UnqualifiedReferenceIndefiniteCoordinationReference",
-            &["IndefiniteCoordinationReference"][..],
             &[
-                "vocab:IndefiniteArticle/A",
-                "structural:SingularOrNominalCoordination/members/separator/pair/0",
+                "IndefiniteCoordinationReference",
+                "DeterminerScopedNominalCoordination",
+                "DeterminerScopedOrNominalPair",
+            ][..],
+            &[
+                "form:indefinite_coordination_reference/a/0",
+                "form:determiner_scoped_or_nominal_pair/determiner_scoped_or_nominal_pair/1",
             ][..],
         ),
         (
@@ -150,10 +167,14 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
         (
             "Whenever an artifact or enchantment deals 1 damage to you, you gain 1 life.",
             "UnqualifiedReferenceIndefiniteCoordinationReference",
-            &["IndefiniteCoordinationReference"][..],
             &[
-                "vocab:IndefiniteArticle/An",
-                "structural:SingularOrNominalCoordination/members/separator/pair/0",
+                "IndefiniteCoordinationReference",
+                "DeterminerScopedNominalCoordination",
+                "DeterminerScopedOrNominalPair",
+            ][..],
+            &[
+                "form:indefinite_coordination_reference/an/0",
+                "form:determiner_scoped_or_nominal_pair/determiner_scoped_or_nominal_pair/1",
             ][..],
         ),
         (
@@ -253,6 +274,330 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
         panic!("unsupported coordinator has an ordinary parse failure")
     };
     assert_eq!(&mutation[span.start..span.end], "nor");
+}
+
+#[test]
+fn indefinite_coordination_articles_follow_the_realized_head_onset() {
+    let parser = parser();
+    let context = context("Context Card", false);
+
+    for text in [
+        "Whenever a spell or ability deals 1 damage to you, you gain 1 life.",
+        "Whenever an artifact or enchantment deals 1 damage to you, you gain 1 life.",
+    ] {
+        let analysis = parser.analyze(text, &context);
+        assert_eq!(
+            analysis.outcome(),
+            deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected,
+            "derived indefinite article must accept its matching head onset: {text}: {:?}",
+            parser.parse(text, &context),
+        );
+        let decision = analysis
+            .decision()
+            .expect("matching indefinite coordination has a selection decision");
+        assert_eq!(decision.resolution(), SelectionResolution::Unique, "{text}");
+        let ownership = analysis
+            .ownership()
+            .expect("matching indefinite coordination owns its bytes");
+        assert!(ownership.failures().is_empty(), "{text}: {ownership:?}");
+        assert!(ownership.summary().covered(), "{text}: {ownership:?}");
+        assert_eq!(ownership.rendered_text(), text, "{text}");
+    }
+
+    for text in [
+        "Whenever an spell or ability deals 1 damage to you, you gain 1 life.",
+        "Whenever a artifact or enchantment deals 1 damage to you, you gain 1 life.",
+    ] {
+        assert_eq!(
+            parser.analyze(text, &context).outcome(),
+            deckmaste_english_v2::parser::ParseAnalysisOutcome::ParseFailure,
+            "indefinite article must reject the reciprocal head onset: {text}",
+        );
+    }
+}
+
+#[test]
+fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() {
+    let parser = parser();
+    let context = context("Mask of Intolerance", false);
+    let controlled = "At the beginning of each player's upkeep, if there are four or more basic land types among lands that player controls, you gain 1 life.";
+
+    let parsed = parser
+        .parse(controlled, &context)
+        .expect("the preserved existential condition reaches the supported consequence");
+    assert_eq!(parsed.render(&context, parser.environment()), controlled);
+    let Ability::Triggered(Triggered {
+        intervening_if:
+            Some(ConditionClause::ExistentialCondition(ExistentialCondition::ExistentialCondition(
+                ExistentialConditionValue {
+                    clause: ExistentialClause::PluralExistentialClause(existential),
+                },
+            ))),
+        ..
+    }) = &parsed
+    else {
+        panic!("the intervening condition owns an existential clause, pivot, and among-domain")
+    };
+    assert!(matches!(
+        existential.pivot(),
+        NounPhrase::QualifiedNounPhrase(_)
+    ));
+
+    let analysis = parser.analyze(controlled, &context);
+    let decision = analysis
+        .decision()
+        .expect("the controlled existential witness has a selection decision");
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    assert!(decision.exception_uses().is_empty());
+    let ownership = analysis
+        .ownership()
+        .expect("the controlled existential witness owns its bytes");
+    assert!(ownership.failures().is_empty(), "{ownership:?}");
+    assert!(ownership.summary().covered(), "{ownership:?}");
+    assert_eq!(ownership.rendered_text(), controlled);
+
+    let construction_path = decision.candidates()[0].construction_path();
+    for required in [
+        "ExistentialConditionExistentialCondition",
+        "ExistentialClausePluralExistentialClause",
+        "UnqualifiedReferenceCountComparisonReference",
+        "PluralNominalCompoundModifiedPluralNominal",
+        "AmongPhraseAmongPhrase",
+        "ControllerOwnerQualificationDemonstrativeControls",
+        "DeterminerPhraseThatDeterminerPhrase",
+    ] {
+        assert!(
+            construction_path.iter().any(|actual| actual == required),
+            "missing {required}: {construction_path:?}",
+        );
+    }
+    let claims = ownership
+        .parsed_claims()
+        .iter()
+        .map(|claim| (claim.span(), claim.stable_owner_id()))
+        .collect::<Vec<_>>();
+    for expected in [
+        (
+            TextSpan { start: 41, end: 44 },
+            "form:existential_condition/existential_condition/0",
+        ),
+        (
+            TextSpan { start: 44, end: 50 },
+            "form:plural_existential_clause/plural_existential_clause/0",
+        ),
+        (TextSpan { start: 50, end: 54 }, "lexeme:VerbLexeme/Be/bare"),
+        (
+            TextSpan { start: 84, end: 90 },
+            "form:among_phrase/among_phrase/0",
+        ),
+        (
+            TextSpan { start: 78, end: 84 },
+            "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        ),
+        (
+            TextSpan {
+                start: 96,
+                end: 101,
+            },
+            "form:that_determiner_phrase/that_determiner_phrase/0",
+        ),
+        (
+            TextSpan {
+                start: 108,
+                end: 117,
+            },
+            "lexeme:VerbLexeme/Control/third_person_singular",
+        ),
+        (
+            TextSpan {
+                start: 117,
+                end: 118,
+            },
+            "form:existential_condition/existential_condition/2",
+        ),
+    ] {
+        assert!(
+            claims.iter().any(|actual| actual == &expected),
+            "{expected:?}: {claims:?}"
+        );
+    }
+
+    let original = "At the beginning of each player's upkeep, if there are four or more basic land types among lands that player controls, this artifact deals 3 damage to that player.";
+    let original_analysis = parser.analyze(original, &context);
+    assert_eq!(
+        original_analysis.outcome(),
+        deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected,
+        "Mask's already-supported consequence makes the repaired authentic row Plan 08",
+    );
+    assert_eq!(
+        original_analysis.decision().unwrap().resolution(),
+        SelectionResolution::Unique,
+    );
+    let original_ownership = original_analysis
+        .ownership()
+        .expect("the authentic Mask row owns every byte");
+    assert!(
+        original_ownership.failures().is_empty(),
+        "{original_ownership:?}"
+    );
+    assert!(
+        original_ownership.summary().covered(),
+        "{original_ownership:?}"
+    );
+    assert_eq!(original_ownership.rendered_text(), original);
+}
+
+#[derive(Default)]
+struct ExistentialStructureVisitor(Vec<&'static str>);
+
+impl Visitor for ExistentialStructureVisitor {
+    fn visit_condition_clause(&mut self, value: &ConditionClause) {
+        self.0.push("ConditionClause");
+        deckmaste_english_v2::visit::walk_condition_clause(self, value);
+    }
+
+    fn visit_existential_condition(&mut self, value: &ExistentialCondition) {
+        self.0.push("ExistentialCondition");
+        deckmaste_english_v2::visit::walk_existential_condition(self, value);
+    }
+
+    fn visit_existential_condition_value(&mut self, value: &ExistentialConditionValue) {
+        self.0.push("ExistentialConditionValue");
+        deckmaste_english_v2::visit::walk_existential_condition_value(self, value);
+    }
+
+    fn visit_existential_clause(&mut self, value: &ExistentialClause) {
+        self.0.push("ExistentialClause");
+        deckmaste_english_v2::visit::walk_existential_clause(self, value);
+    }
+
+    fn visit_plural_existential_clause(&mut self, value: &PluralExistentialClause) {
+        self.0.push("PluralExistentialClause");
+        deckmaste_english_v2::visit::walk_plural_existential_clause(self, value);
+    }
+
+    fn visit_compound_modified_plural_nominal(&mut self, value: &CompoundModifiedPluralNominal) {
+        self.0.push("CompoundModifiedPluralNominal");
+        deckmaste_english_v2::visit::walk_compound_modified_plural_nominal(self, value);
+    }
+
+    fn visit_compound_nominal_modifier(&mut self, value: &CompoundNominalModifier) {
+        self.0.push("CompoundNominalModifier");
+        deckmaste_english_v2::visit::walk_compound_nominal_modifier(self, value);
+    }
+
+    fn visit_compound_modifier_member(&mut self, value: &CompoundModifierMember) {
+        self.0.push("CompoundModifierMember");
+        deckmaste_english_v2::visit::walk_compound_modifier_member(self, value);
+    }
+
+    fn visit_among_phrase(&mut self, value: &AmongPhrase) {
+        self.0.push("AmongPhrase");
+        deckmaste_english_v2::visit::walk_among_phrase(self, value);
+    }
+
+    fn visit_among_phrase_value(&mut self, value: &AmongPhraseValue) {
+        self.0.push("AmongPhraseValue");
+        deckmaste_english_v2::visit::walk_among_phrase_value(self, value);
+    }
+
+    fn visit_demonstrative_controls(&mut self, value: &DemonstrativeControls) {
+        self.0.push("DemonstrativeControls");
+        deckmaste_english_v2::visit::walk_demonstrative_controls(self, value);
+    }
+
+    fn visit_that_determiner_phrase(&mut self, value: &ThatDeterminerPhrase) {
+        self.0.push("ThatDeterminerPhrase");
+        deckmaste_english_v2::visit::walk_that_determiner_phrase(self, value);
+    }
+}
+
+#[test]
+fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let cases = [
+        (
+            "At the beginning of upkeep, if there is an artifact, you gain 1 life.",
+            "lexeme:VerbLexeme/Be/third_person_singular",
+        ),
+        (
+            "At the beginning of upkeep, if there are artifacts, you gain 1 life.",
+            "lexeme:VerbLexeme/Be/bare",
+        ),
+    ];
+
+    for (text, be_claim) in cases {
+        let analysis = parser.analyze(text, &context);
+        assert_eq!(
+            analysis.outcome(),
+            deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected,
+            "{text}"
+        );
+        assert_eq!(
+            analysis.decision().unwrap().resolution(),
+            SelectionResolution::Unique,
+            "{text}"
+        );
+        let ownership = analysis
+            .ownership()
+            .expect("existential agreement witness ownership");
+        assert!(ownership.failures().is_empty(), "{text}: {ownership:?}");
+        assert!(ownership.summary().covered(), "{text}: {ownership:?}");
+        assert_eq!(ownership.rendered_text(), text);
+        assert!(
+            ownership
+                .parsed_claims()
+                .iter()
+                .any(|claim| claim.stable_owner_id() == be_claim)
+        );
+    }
+
+    let full = "At the beginning of each player's upkeep, if there are four or more basic land types among lands that player controls, you gain 1 life.";
+    let parsed = parser
+        .parse(full, &context)
+        .expect("full existential visitor witness parses");
+    let mut visitor = ExistentialStructureVisitor::default();
+    visitor.visit_ability(&parsed);
+    assert_eq!(
+        visitor.0,
+        [
+            "ConditionClause",
+            "ExistentialCondition",
+            "ExistentialConditionValue",
+            "ExistentialClause",
+            "PluralExistentialClause",
+            "CompoundModifiedPluralNominal",
+            "CompoundNominalModifier",
+            "CompoundModifierMember",
+            "CompoundNominalModifier",
+            "CompoundModifierMember",
+            "AmongPhrase",
+            "AmongPhraseValue",
+            "DemonstrativeControls",
+            "ThatDeterminerPhrase",
+        ],
+    );
+}
+
+#[test]
+fn existential_there_rejects_malformed_agreement_capitalization_spacing_and_pivots() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    for text in [
+        "At the beginning of upkeep, if there are an artifact, you gain 1 life.",
+        "At the beginning of upkeep, if there is artifacts, you gain 1 life.",
+        "At the beginning of upkeep, if There are artifacts, you gain 1 life.",
+        "At the beginning of upkeep, if there  are artifacts, you gain 1 life.",
+        "At the beginning of upkeep, if thereare artifacts, you gain 1 life.",
+        "At the beginning of upkeep, if there are, you gain 1 life.",
+        "At the beginning of upkeep, if there are artifacts among, you gain 1 life.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "malformed existential must not produce an authentic parse: {text}",
+        );
+    }
 }
 
 #[derive(Default)]
@@ -632,7 +977,10 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
     assert_eq!(variants("TriggerMarker"), ["When", "Whenever"]);
     assert_eq!(variants("TriggerPrefix"), ["Finite", "Temporal"]);
     assert_eq!(variants("AtPhrase"), ["AtPhrase"]);
-    assert_eq!(variants("ConditionClause"), ["FiniteCondition"]);
+    assert_eq!(
+        variants("ConditionClause"),
+        ["FiniteCondition", "ExistentialCondition"]
+    );
     assert_eq!(variants("FiniteCondition"), ["FiniteCondition"]);
     assert_eq!(variants("AtBoundary"), ["Beginning", "End"]);
     assert_eq!(

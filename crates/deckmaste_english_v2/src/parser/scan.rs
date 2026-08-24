@@ -2212,14 +2212,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            30,
+            29,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            33,
+            32,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2239,14 +2239,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            30,
+            29,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            33,
+            32,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2271,13 +2271,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (31, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (32, "Siege.", "Siege", SubtypeCategory::Battle),
-            (33, "Elf.", "Elf", SubtypeCategory::Creature),
-            (34, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (35, "Forest.", "Forest", SubtypeCategory::Land),
-            (36, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (37, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (30, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (31, "Siege.", "Siege", SubtypeCategory::Battle),
+            (32, "Elf.", "Elf", SubtypeCategory::Creature),
+            (33, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (34, "Forest.", "Forest", SubtypeCategory::Land),
+            (35, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (36, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2295,7 +2295,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (31..=37).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (30..=36).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2311,7 +2311,7 @@ mod tests {
         }
 
         let player = scan(
-            30,
+            29,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2655,6 +2655,14 @@ mod tests {
             rules,
             [
                 "FiniteConditionFiniteCondition",
+                "ExistentialConditionExistentialCondition",
+                "ExistentialClauseSingularExistentialClause",
+                "SingularExistentialClauseDomainOptionalAbsent",
+                "SingularExistentialClauseDomainOptionalPresent",
+                "ExistentialClausePluralExistentialClause",
+                "PluralExistentialClauseDomainOptionalAbsent",
+                "PluralExistentialClauseDomainOptionalPresent",
+                "AmongPhraseAmongPhrase",
                 "AbilityPlain",
                 "AbilityBodySentences",
                 "SentencesSentencesSequenceSingleton",
@@ -2802,6 +2810,7 @@ mod tests {
                 "NegativeNominalModifierNegativeModifierMember",
                 "CoordinatedNominalModifierNonTargetCommonNounModifier",
                 "CoordinatedNominalModifierCoordinatedModifierMember",
+                "CompoundNominalModifierCompoundModifierMember",
                 "SingularNominalBareSingularNominal",
                 "SingularNominalModifiedSingularNominal",
                 "SingularNominalNegativeModifiedSingularNominal",
@@ -2809,6 +2818,12 @@ mod tests {
                 "NegativeModifiedSingularNominalModifiersSequenceRecursive",
                 "PluralNominalBarePluralNominal",
                 "PluralNominalModifiedPluralNominal",
+                "SingularNominalCompoundModifiedSingularNominal",
+                "CompoundModifiedSingularNominalRestSequenceSingleton",
+                "CompoundModifiedSingularNominalRestSequenceRecursive",
+                "PluralNominalCompoundModifiedPluralNominal",
+                "CompoundModifiedPluralNominalRestSequenceSingleton",
+                "CompoundModifiedPluralNominalRestSequenceRecursive",
                 "PluralNominalNegativeModifiedPluralNominal",
                 "NegativeModifiedPluralNominalModifiersSequenceLength2",
                 "NegativeModifiedPluralNominalModifiersSequenceRecursive",
@@ -2834,6 +2849,18 @@ mod tests {
                 "SingularAndOrNominalCoordinationMembersSequenceThreePlus",
                 "SingularAndOrNominalCoordinationMembersSequenceLast",
                 "SingularAndOrNominalCoordinationMembersSequenceMiddle",
+                "DeterminerScopedNominalCoordinationDeterminerScopedAndNominalPair",
+                "DeterminerScopedNominalCoordinationDeterminerScopedAndNominalSeries",
+                "DeterminerScopedAndNominalSeriesMiddleSequenceSingleton",
+                "DeterminerScopedAndNominalSeriesMiddleSequenceRecursive",
+                "DeterminerScopedNominalCoordinationDeterminerScopedOrNominalPair",
+                "DeterminerScopedNominalCoordinationDeterminerScopedOrNominalSeries",
+                "DeterminerScopedOrNominalSeriesMiddleSequenceSingleton",
+                "DeterminerScopedOrNominalSeriesMiddleSequenceRecursive",
+                "DeterminerScopedNominalCoordinationDeterminerScopedAndOrNominalPair",
+                "DeterminerScopedNominalCoordinationDeterminerScopedAndOrNominalSeries",
+                "DeterminerScopedAndOrNominalSeriesMiddleSequenceSingleton",
+                "DeterminerScopedAndOrNominalSeriesMiddleSequenceRecursive",
                 "PluralAndNominalCoordinationMembersSequencePair",
                 "PluralAndNominalCoordinationMembersSequenceThreePlus",
                 "PluralAndNominalCoordinationMembersSequenceLast",
@@ -2859,7 +2886,8 @@ mod tests {
                 "PluralSelectorOtherTargetPluralSelector",
                 "UnqualifiedReferenceIndefiniteReference [form an]",
                 "UnqualifiedReferenceIndefiniteReference [form a]",
-                "UnqualifiedReferenceIndefiniteCoordinationReference",
+                "UnqualifiedReferenceIndefiniteCoordinationReference [form an]",
+                "UnqualifiedReferenceIndefiniteCoordinationReference [form a]",
                 "UnqualifiedReferenceNamedCardReference",
                 "UnqualifiedReferenceOrdinarySingularReference",
                 "UnqualifiedReferenceOrdinaryPluralReference",
@@ -2890,8 +2918,10 @@ mod tests {
                 "UnqualifiedReferencePossessiveAbsoluteReference",
                 "DeterminerPhraseTargetDeterminerPhrase",
                 "DeterminerPhraseTargetCoordinationDeterminerPhrase",
-                "DeterminerPhraseIndefiniteDeterminerPhrase",
+                "DeterminerPhraseIndefiniteDeterminerPhrase [form an]",
+                "DeterminerPhraseIndefiniteDeterminerPhrase [form a]",
                 "DeterminerPhraseThisDeterminerPhrase",
+                "DeterminerPhraseThatDeterminerPhrase",
                 "DeterminerPhraseAnotherDeterminerPhrase",
                 "FullAndNounPhraseCoordinationMembersSequencePair",
                 "FullAndNounPhraseCoordinationMembersSequenceThreePlus",
@@ -2913,6 +2943,7 @@ mod tests {
                 "SingularControllerOpponentController [form an]",
                 "SingularControllerOpponentController [form a]",
                 "ControllerOwnerQualificationOpponentControls",
+                "ControllerOwnerQualificationDemonstrativeControls",
                 "ControllerOwnerQualificationYouOwn",
                 "ZoneReferencePossessedZone",
                 "ZoneReferenceUnpossessedZone",
@@ -2982,6 +3013,7 @@ mod tests {
                 "ClauseAttachmentReflexiveSubordinate",
                 "ClauseAttachmentReflexivePredicateSubordinate",
                 "ConditionClauseFiniteCondition",
+                "ConditionClauseExistentialCondition",
                 "DocumentBlockAbility"
             ]
         );
@@ -3002,6 +3034,10 @@ mod tests {
             [
                 "Literal(\"if\")",
                 "Literal(\",\")",
+                "Literal(\"there\")",
+                "Verb(Be, Exact(ThirdPersonSingular))",
+                "Verb(Be, Exact(Bare))",
+                "Literal(\"among\")",
                 "Literal(\".\")",
                 "Literal(\" \")",
                 "Literal(\"• \")",
@@ -3048,7 +3084,6 @@ mod tests {
                 "Auxiliary",
                 "Literal(\"where\")",
                 "Variable",
-                "Verb(Be, Exact(ThirdPersonSingular))",
                 "Literal(\"the\")",
                 "Literal(\"number\")",
                 "Literal(\"of\")",
@@ -3056,6 +3091,7 @@ mod tests {
                 "ObjectPronoun",
                 "ReflexivePronoun",
                 "Noun(Exact(Singular))",
+                "DeclarationNoun(29, Exact(Singular))",
                 "DeclarationNoun(30, Exact(Singular))",
                 "DeclarationNoun(31, Exact(Singular))",
                 "DeclarationNoun(32, Exact(Singular))",
@@ -3063,8 +3099,8 @@ mod tests {
                 "DeclarationNoun(34, Exact(Singular))",
                 "DeclarationNoun(35, Exact(Singular))",
                 "DeclarationNoun(36, Exact(Singular))",
-                "DeclarationNoun(37, Exact(Singular))",
                 "Noun(Exact(Plural))",
+                "DeclarationNoun(29, Exact(Plural))",
                 "DeclarationNoun(30, Exact(Plural))",
                 "DeclarationNoun(31, Exact(Plural))",
                 "DeclarationNoun(32, Exact(Plural))",
@@ -3072,7 +3108,6 @@ mod tests {
                 "DeclarationNoun(34, Exact(Plural))",
                 "DeclarationNoun(35, Exact(Plural))",
                 "DeclarationNoun(36, Exact(Plural))",
-                "DeclarationNoun(37, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -3080,14 +3115,18 @@ mod tests {
                 "NonCommonNoun",
                 "Literal(\"non-\")",
                 "NonTargetCommonModifier",
+                "Literal(\"type\")",
+                "Literal(\"types\")",
+                "Literal(\"and\")",
+                "Literal(\"or\")",
+                "Literal(\"and/or\")",
                 "Literal(\"target\")",
                 "Literal(\"other\")",
                 "Literal(\"an\")",
                 "Literal(\"a\")",
-                "IndefiniteArticle",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(39)",
+                "CatalogIdentity(38)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -3095,7 +3134,6 @@ mod tests {
                 "Literal(\"up\")",
                 "Literal(\"to\")",
                 "Literal(\"one\")",
-                "Literal(\"or\")",
                 "Literal(\"more\")",
                 "Literal(\"that\")",
                 "Literal(\"many\")",

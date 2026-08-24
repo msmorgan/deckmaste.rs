@@ -10,10 +10,10 @@ structural ownership, and selection without silent dominance.
 
 The remaining roadmap is:
 
-- Plan 09: effect/predicate grammar, beginning with the 354 authenticated
+- Plan 09: effect/predicate grammar, beginning with the 355 authenticated
   candidate rows whose complete OracleText currently stops at a predicate
   boundary;
-- Plan 10: the 7 authenticated candidate rows still requiring attachment
+- Plan 10: the 5 authenticated candidate rows still requiring attachment
   syntax, plus advanced modal, keyword, ability-word, reminder, and frame
   completion and final corpus closure.
 
@@ -24,11 +24,11 @@ scope. `target` remains a linguistic determiner in English syntax; later
 semantic targeting projection must not be encoded as a targeted-noun-phrase
 grammar category.
 
-The locked Plan 08 corpus baseline is 32,641 normalized units: 733 are
-selected, covered, unique, byte-exact, and totally owned, while 31,908 are
+The locked Plan 08 corpus baseline is 32,641 normalized units: 735 are
+selected, covered, unique, byte-exact, and totally owned, while 31,906 are
 ordinary parse failures. The schema-2 lock preserves all 608 Plan 07 IDs and
-adds exactly the frozen 125 Plan 08 targets. Its SHA-256 is
-`ae6aedbef1574a884c5c822ae0c9f074b71754bf8d80cb07d59a28e896e7cdae`;
+adds exactly the frozen 127 Plan 08 targets. Its SHA-256 is
+`4138c19adff3822903d03d254c17af2810d31eabe1251a2c58550383d2bc4968`;
 the corpus source fingerprint remains
 `e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd`.
 
@@ -36,13 +36,13 @@ The elapsed-time hard ceiling remains 16.26 seconds for each of the seven
 corpus-scale gates. Derived at exactly 1.5× the fresh Plan 08 samples, Plan 09
 WARNING thresholds are:
 
-- expand: 1.7581478250s;
-- report: 1.1388438960s;
-- parse: 20.3375552040s;
-- roundtrip: 18.7153397520s;
-- ambiguity: 20.1380457720s;
-- coverage: 20.9106194250s;
-- require-complete: 19.2568443945s.
+- expand: 1.8969641790s;
+- report: 1.2664998975s;
+- parse: 22.1920343820s;
+- roundtrip: 19.7274238755s;
+- ambiguity: 21.4901364675s;
+- coverage: 22.1024426310s;
+- require-complete: 20.0884238970s.
 
 The warning thresholds do not relax the 16.26-second hard ceiling. Before
 implementing either remaining plan, author and obtain approval of its detailed

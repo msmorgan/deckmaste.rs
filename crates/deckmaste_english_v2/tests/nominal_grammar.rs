@@ -5634,3 +5634,238 @@ fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsisten
         );
     }
 }
+
+#[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the complete positive and negative compound-modifier matrix is deliberately literal"
+)]
+fn compound_classifier_nominals_admit_every_positive_modifier_and_reject_negative_ones() {
+    struct PositiveWitness {
+        text: &'static str,
+        modifier_path: &'static str,
+        nominal_path: &'static str,
+        head_owner: &'static str,
+    }
+
+    let parser = parser();
+    let context = context("Grammar Witness");
+    for witness in [
+        PositiveWitness {
+            text: "Destroy a blue artifact type.",
+            modifier_path: "NominalModifierColorModifier",
+            nominal_path: "SingularNominalCompoundModifiedSingularNominal",
+            head_owner: "form:compound_modified_singular_nominal/compound_modified_singular_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all tapped artifact types.",
+            modifier_path: "NominalModifierStatusModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all legendary artifact types.",
+            modifier_path: "NominalModifierSupertypeModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all spell artifact types.",
+            modifier_path: "NominalModifierCommonNounModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all artifact creature types.",
+            modifier_path: "NominalModifierTypeModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all Equipment artifact types.",
+            modifier_path: "NominalModifierArtifactSubtypeModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all Siege battle types.",
+            modifier_path: "NominalModifierBattleSubtypeModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all Human creature types.",
+            modifier_path: "NominalModifierCreatureSubtypeModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all Aura enchantment types.",
+            modifier_path: "NominalModifierEnchantmentSubtypeModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all Plains land types.",
+            modifier_path: "NominalModifierLandSubtypeModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all Jace planeswalker types.",
+            modifier_path: "NominalModifierPlaneswalkerSubtypeModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+        PositiveWitness {
+            text: "Destroy all Arcane spell types.",
+            modifier_path: "NominalModifierSpellSubtypeModifier",
+            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
+            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+        },
+    ] {
+        let analysis = parser.analyze(witness.text, &context);
+        assert_eq!(
+            analysis.outcome(),
+            ParseAnalysisOutcome::Selected,
+            "positive compound classifier must select: {:?}",
+            witness.text,
+        );
+        let decision = analysis
+            .decision()
+            .expect("selected compound classifier has a decision");
+        assert_eq!(decision.candidates().len(), 1, "{:?}", witness.text);
+        assert_eq!(decision.resolution(), SelectionResolution::Unique);
+        assert_eq!(decision.survivors(), [0]);
+        assert_eq!(decision.selected(), Some(0));
+        assert!(decision.exception_uses().is_empty());
+        let path = decision.candidates()[0].construction_path();
+        assert!(path.iter().any(|item| item == witness.modifier_path));
+        assert!(path.iter().any(|item| item == witness.nominal_path));
+        assert_eq!(
+            path.iter()
+                .filter(|item| *item == "CompoundNominalModifierCompoundModifierMember")
+                .count(),
+            2,
+            "each two-member classifier traverses the generic wrapper twice: {:?}",
+            witness.text,
+        );
+
+        let selected = analysis
+            .selected()
+            .expect("positive compound classifier has an AST");
+        assert_eq!(
+            selected.render(&context, parser.environment()),
+            witness.text
+        );
+        let ownership = analysis
+            .ownership()
+            .expect("positive compound classifier owns its bytes");
+        assert_eq!(ownership.rendered_text(), witness.text);
+        assert!(ownership.failures().is_empty());
+        let summary = ownership.summary();
+        assert!(summary.covered());
+        assert_eq!(summary.gap_spans(), 0);
+        assert_eq!(summary.overlap_spans(), 0);
+        assert_eq!(summary.synthetic_claims(), 0);
+        assert_eq!(summary.provenance_plan_mismatches(), 0);
+        assert!(
+            ownership
+                .parsed_claims()
+                .iter()
+                .any(|claim| claim.stable_owner_id() == witness.head_owner),
+            "fixed classifier head has the exact form owner: {:?}",
+            witness.text,
+        );
+    }
+
+    for text in [
+        "Destroy all nonblack artifact types.",
+        "Destroy all nontoken artifact types.",
+        "Destroy all nontapped artifact types.",
+        "Destroy all nonlegendary artifact types.",
+        "Destroy all nonartifact creature types.",
+        "Destroy all non-Equipment artifact types.",
+        "Destroy all non-Siege battle types.",
+        "Destroy all non-Human creature types.",
+        "Destroy all non-Aura enchantment types.",
+        "Destroy all non-Plains land types.",
+        "Destroy all non-Jace planeswalker types.",
+        "Destroy all non-Arcane spell types.",
+    ] {
+        assert_eq!(
+            parser.analyze(text, &context).outcome(),
+            ParseAnalysisOutcome::ParseFailure,
+            "negative modifiers remain outside positive classifier compounds: {text:?}",
+        );
+    }
+}
+
+#[test]
+fn indefinite_full_noun_phrase_members_derive_each_article_from_their_own_onset() {
+    let parser = parser();
+    let context = context("Grammar Witness");
+    let text = "Whenever a creature and an artifact deal 1 damage to you, you gain 1 life.";
+    let analysis = parser.analyze(text, &context);
+    assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected);
+    let decision = analysis
+        .decision()
+        .expect("full noun-phrase coordination has a decision");
+    assert_eq!(decision.candidates().len(), 1);
+    assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    assert_eq!(decision.survivors(), [0]);
+    assert_eq!(decision.selected(), Some(0));
+    assert!(decision.exception_uses().is_empty());
+    assert_eq!(
+        decision.candidates()[0]
+            .construction_path()
+            .iter()
+            .filter(|item| *item == "DeterminerPhraseIndefiniteDeterminerPhrase")
+            .count(),
+        2,
+    );
+    let selected = analysis
+        .selected()
+        .expect("full noun-phrase coordination has an AST");
+    assert_eq!(selected.render(&context, parser.environment()), text);
+    let ownership = analysis
+        .ownership()
+        .expect("full noun-phrase coordination owns its bytes");
+    assert_eq!(ownership.rendered_text(), text);
+    assert!(ownership.failures().is_empty());
+    let summary = ownership.summary();
+    assert!(summary.covered());
+    assert_eq!(summary.gap_spans(), 0);
+    assert_eq!(summary.overlap_spans(), 0);
+    assert_eq!(summary.synthetic_claims(), 0);
+    assert_eq!(summary.provenance_plan_mismatches(), 0);
+    let article_owners = ownership
+        .parsed_claims()
+        .iter()
+        .filter(|claim| {
+            matches!(
+                claim.stable_owner_id(),
+                "form:indefinite_determiner_phrase/a/0" | "form:indefinite_determiner_phrase/an/0"
+            )
+        })
+        .map(deckmaste_english_v2::parser::LexicalClaim::stable_owner_id)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        article_owners,
+        [
+            "form:indefinite_determiner_phrase/a/0",
+            "form:indefinite_determiner_phrase/an/0",
+        ],
+    );
+
+    for malformed in [
+        "Whenever an creature and an artifact deal 1 damage to you, you gain 1 life.",
+        "Whenever a creature and a artifact deal 1 damage to you, you gain 1 life.",
+    ] {
+        assert_eq!(
+            parser.analyze(malformed, &context).outcome(),
+            ParseAnalysisOutcome::ParseFailure,
+            "each determiner must reject the reciprocal onset: {malformed:?}",
+        );
+    }
+}

@@ -951,12 +951,14 @@ enum NonterminalKind {
     NominalModifier,
     NegativeNominalModifier,
     CoordinatedNominalModifier,
+    CompoundNominalModifier,
     SingularNominal,
     PluralNominal,
     SingularCoordinationMember,
     PluralCoordinationMember,
     SingularNominalCoordination,
     PluralNominalCoordination,
+    DeterminerScopedNominalCoordination,
     SingularSelector,
     PluralSelector,
     DeterminerPhrase,
@@ -980,6 +982,9 @@ enum NonterminalKind {
     CardinalQuantity,
     ConditionClause,
     FiniteCondition,
+    ExistentialCondition,
+    ExistentialClause,
+    AmongPhrase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1451,6 +1456,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::CoordinatedNominalModifier => {
             NonterminalKind::CoordinatedNominalModifier
         }
+        NonterminalCategory::CompoundNominalModifier => NonterminalKind::CompoundNominalModifier,
         NonterminalCategory::SingularNominal => NonterminalKind::SingularNominal,
         NonterminalCategory::PluralNominal => NonterminalKind::PluralNominal,
         NonterminalCategory::SingularCoordinationMember => {
@@ -1462,6 +1468,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::PluralNominalCoordination => {
             NonterminalKind::PluralNominalCoordination
+        }
+        NonterminalCategory::DeterminerScopedNominalCoordination => {
+            NonterminalKind::DeterminerScopedNominalCoordination
         }
         NonterminalCategory::SingularSelector => NonterminalKind::SingularSelector,
         NonterminalCategory::PluralSelector => NonterminalKind::PluralSelector,
@@ -1490,6 +1499,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::CardinalQuantity => NonterminalKind::CardinalQuantity,
         NonterminalCategory::ConditionClause => NonterminalKind::ConditionClause,
         NonterminalCategory::FiniteCondition => NonterminalKind::FiniteCondition,
+        NonterminalCategory::ExistentialCondition => NonterminalKind::ExistentialCondition,
+        NonterminalCategory::ExistentialClause => NonterminalKind::ExistentialClause,
+        NonterminalCategory::AmongPhrase => NonterminalKind::AmongPhrase,
     }
 }
 

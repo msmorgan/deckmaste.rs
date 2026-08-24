@@ -21,24 +21,29 @@ and SHA-256
 Every complete OracleText/context pair has one authenticated classification in
 `crates/xtask/src/english_v2/plan08_candidate_results.tsv`; that 427-row
 manifest has SHA-256
-`cb5f2a5be7829192e5fbc234b394fa5b3121ab1c08e320160ce7292afb9a6048`
+`918d7eaf1d0d66342b308b7290a2ab19621325749c59de9a4341a6a56bfbeac4`
 and the exact partition is:
 
-- 66 Plan 08 selected: 56 `ability.activated` and 10
+- 67 Plan 08 selected: 56 `ability.activated` and 11
   `ability.triggered`;
-- 354 still missing a Plan 09 predicate boundary;
-- 7 still requiring a Plan 10 attachment boundary;
+- 355 still missing a Plan 09 predicate boundary;
+- 5 still requiring a Plan 10 attachment boundary;
 - 0 Plan 08 grammar defects.
 
-The frozen production delta is the 125-row
+The frozen production delta is the 127-row
 `crates/xtask/src/english_v2/plan08_targets.tsv`, with the same source
 fingerprint and SHA-256
-`01073cbc5cdc3cb2f38d37956ccfd8f48e85b5f932a7aeaceb4afd096570d9e2`.
-It contains the 66 selected candidate rows plus 59 independently explained
+`4f6f749bcb93acb534b830a5393672a41a31ccc9c7a2deb4df7a8fb28ea3275e`.
+It contains the 67 selected candidate rows plus 60 independently explained
 out-of-pool additions. Its exact family counts are 56 `ability.activated`, 28
-`ability.plain-modal`, 10 `ability.triggered`, 23 `clause.coordination`, and
+`ability.plain-modal`, 12 `ability.triggered`, 23 `clause.coordination`, and
 1 `finite.auxiliary`, and 7 `nominal.demonstrative-possessive`; no out-of-pool
 addition is unexplained.
+
+The two new authenticated triggered rows are Mask of Intolerance, whose
+structural existential condition is now parsed directly, and the out-of-pool
+Karmic Justice, selected by the same generic determiner-scoped nominal
+coordination that replaced the unconstrained stored article spelling.
 
 The seven nominal additions are Smash to Smithereens, Peak Eruption,
 Destructive Revelry, Poison the Well, Melt Terrain, Consign to the Pit, and
@@ -46,15 +51,19 @@ Cryoclasm. Each selects through the generic demonstrative-possessive form
 `that <nominal>'s controller`; none is a card-specific production or a
 targeting-semantic category.
 
-The schema-2 coverage lock is an exact add-only 608→733 ratchet (+125).
-Every baseline ID remains, all and only the 125 frozen targets are added, and
+The schema-2 coverage lock is an exact add-only 608→735 ratchet (+127).
+Every baseline ID remains, all and only the 127 frozen targets are added, and
 the lock equals the complete production `SelectedCovered` set. The baseline
 ID-set SHA-256 is
 `35ea73406725742d51b92df60bb07a261ed7570d6767caf59306a88785de87c2`;
 the final lock SHA-256 is
-`ae6aedbef1574a884c5c822ae0c9f074b71754bf8d80cb07d59a28e896e7cdae`.
-The final corpus census is exactly 32,641 total / 733 selected, covered,
-unique, byte-exact, and totally owned / 31,908 ordinary parse failures.
+`4138c19adff3822903d03d254c17af2810d31eabe1251a2c58550383d2bc4968`.
+The final corpus census is exactly 32,641 total / 735 selected, covered,
+unique, byte-exact, and totally owned / 31,906 ordinary parse failures.
+The exact ownership census is 3,940 claims / 19,516 claimed bytes: 2,122
+form-literal claims / 7,664 bytes, 386 vocabulary claims / 1,765 bytes,
+1,037 lexeme claims / 7,954 bytes, 271 codec claims / 539 bytes, and 124
+identity claims / 1,594 bytes.
 
 The specificity census moved from six specificity-resolved rows to zero.
 Each former row was inspected against the pre-modal census and final parser:
@@ -80,18 +89,24 @@ counters are all zero.
 Completion evidence on the task-closed tree:
 
 - construction core: 315 library tests and its documentation tests passed;
-- construction proc macro: 2 catalog tests, all 69 trybuild fixtures, 28
+- construction proc macro: 2 catalog tests, all 67 trybuild fixtures, 28
   compiled-consumer tests, and its documentation tests passed;
-- English v2: 131 library tests, 155 integration tests, and 2 documentation
+- English v2: 131 library tests, 161 integration tests, and 2 documentation
   tests passed;
 - xtask English v2: 167 library tests and 9 CLI tests passed;
 - the seven focused stale-construction-fixture checks passed exactly 7/7; the
   structural deferred-boundary census, complete candidate partition, and
   frozen target/full-lock focused checks each passed exactly 1/1;
 - the finite-subject coordination/exclusion regression passed exactly 1/1
-  across the seven concrete review witnesses, including AST, visit, render,
-  agreement, ownership, claims, and a supported-predicate-preserving negative
-  mutation;
+  across the seven concrete review witnesses, and the existential-condition
+  regression preserves Mask of Intolerance's complete `there are` condition
+  while changing only its later predicate. Both assert AST, visit, render,
+  agreement, ownership, claims, capitalization/spacing, and reciprocal
+  malformed negatives;
+- all 12 admitted compound nominal-modifier families and all 12 excluded
+  negative counterparts are behaviorally witnessed, including singular
+  `type` and plural `types`; a separate full-noun-phrase witness derives `a`
+  and `an` independently from the onset of each coordinated member;
 - strict all-target/all-feature Clippy for the four closure crates, the five
   Plan 04 authority tests, expand/report/probe/inspect smokes, coverage check,
   and citation checks passed; citation check inspected 16,248 citations with
@@ -100,24 +115,27 @@ Completion evidence on the task-closed tree:
   ownership/claims/family, structural deferred boundaries, target membership/
   disjointness/additivity, out-of-pool explanation, and complete lock equality
   each have an independent literal oracle and mutation-authenticated RED. All
-  361 deferred rows reach their exact frozen failure span and match exactly one
-  of 47 exercised boundary rules. Every Plan 09 rule also selects through a
+  360 deferred rows reach their exact frozen failure span and match exactly one
+  of 46 exercised boundary rules. Every Plan 09 rule also selects through a
   controlled supported substitution at the reached predicate or cost
-  boundary; keyword ability, keyword action, and ability word scope is
+  boundary; finite `cycles` and `scry` are classified by their predicate
+  syntax, while keyword-reference and ability-word scope is relationally
   authenticated against the frozen generated catalogs;
 - the Plan 04 scratch-copy perturbation changed one declared surface and one
   declared invariant in a single expansion build. Scanner, renderer, claims,
   and constructor behavior tracked both edits; both old behaviors produced no
   consumed mirror or selected parse. The live workspace diff hash remained
-  `534c5a0c6b868526fb27f47e0a41dff40272ac20ae36e763e6dafaf0b1d33089`
+  `f6e725dd754b77c8866d9f653cb71b658d1ff376dc953c7ff54055cb7d4d1038`
   before and after.
 
-The seven separate Plan 08 gate samples were expand 1.172098550s, report
-0.759229264s, parse 13.558370136s, roundtrip 12.476893168s, ambiguity
-13.425363848s, coverage 13.940412950s, and require-complete 12.837896263s.
-Every sample stayed at or below 16.26 seconds, and no gate emitted a slowdown
-warning. The require-complete child reported
-the expected incomplete 733-of-32,641 Stage 5 boundary with
+The seven separate Plan 08 gate samples were expand 1.264642786s, report
+0.844333265s, parse 14.794689588s, roundtrip 13.151615917s, ambiguity
+14.326757645s, coverage 14.734961754s, and require-complete 13.392282598s.
+Every sample stayed at or below 16.26 seconds. Expand and report emitted their
+named relative-slowdown warnings against the older 1.1815357365s and
+0.7659729825s warning thresholds; the other five gates emitted none. The
+require-complete child reported
+the expected incomplete 735-of-32,641 Stage 5 boundary with
 `expected_incomplete=true`; the wrapper remained nonzero after emitting the
 usable sample. The authenticated manifests, coverage lock, and closure gates
 themselves are complete and exact.
@@ -129,4 +147,7 @@ Agreement helper name is used by the AST harness. Literal name/origin/order
 assertions and deletion/substitution mutations authenticate those updates. A
 test-only fixture's unconditional Agreement writer, which contradicted an
 admitted intrinsic value, was removed after the full construction gate exposed
-it; invalid cross-pair rejection remains covered. Standard constraints apply.
+it; invalid cross-pair rejection remains covered. The final English-v2
+expansion inventory is exactly 1,134 item/origin pairs, including 5 optional
+roles, 32 sequence roles, and 14 uniform separators. Standard constraints
+apply.

@@ -92,7 +92,6 @@ constructions! {
     }
     vocab Designation { Chosen = "chosen", Exiled = "exiled", }
     vocab ChosenQuality { Color = "color", Name = "name", Type = "type", }
-    vocab IndefiniteArticle { A = "a", An = "an", }
     vocab SingularDemonstrative { This = "this", That = "that", }
     vocab ControllerNoun { Opponent = "opponent", Player = "player", }
     vocab FixedCostSymbol {
@@ -333,10 +332,36 @@ constructions! {
         ReflexiveSubordinate,
         ReflexivePredicateSubordinate,
     }
-    abstract sum ConditionClause { FiniteCondition, }
+    abstract sum ConditionClause { FiniteCondition, ExistentialCondition, }
     construction finite_condition: FiniteCondition {
         element FiniteConditionValue { clause: FiniteClause, }
         form finite_condition = "if" clause ",";
+    }
+    construction existential_condition: ExistentialCondition {
+        element ExistentialConditionValue { clause: ExistentialClause, }
+        form existential_condition = "if" clause ",";
+    }
+    construction singular_existential_clause: ExistentialClause {
+        element SingularExistentialClause {
+            pivot: NounPhrase,
+            domain: opt AmongPhrase,
+        }
+        require pivot.number is Singular;
+        derive verb.agreement = Values::ThirdPersonSingular;
+        form singular_existential_clause = "there" verb(VerbLexeme::Be) pivot domain;
+    }
+    construction plural_existential_clause: ExistentialClause {
+        element PluralExistentialClause {
+            pivot: NounPhrase,
+            domain: opt AmongPhrase,
+        }
+        require pivot.number is Plural;
+        derive verb.agreement = Values::Bare;
+        form plural_existential_clause = "there" verb(VerbLexeme::Be) pivot domain;
+    }
+    construction among_phrase: AmongPhrase {
+        element AmongPhraseValue { domain: NounPhrase, }
+        form among_phrase = "among" domain;
     }
     construction plain: Ability {
         element Plain {
@@ -1184,6 +1209,25 @@ constructions! {
         derive onset = value.onset;
         form coordinated_modifier_member = value;
     }
+    construction compound_modifier_member: CompoundNominalModifier {
+        element CompoundModifierMember { value: NominalModifier, }
+        require any(
+            value is ColorModifier,
+            value is StatusModifier,
+            value is SupertypeModifier,
+            value is CommonNounModifier,
+            value is TypeModifier,
+            value is ArtifactSubtypeModifier,
+            value is BattleSubtypeModifier,
+            value is CreatureSubtypeModifier,
+            value is EnchantmentSubtypeModifier,
+            value is LandSubtypeModifier,
+            value is PlaneswalkerSubtypeModifier,
+            value is SpellSubtypeModifier
+        );
+        derive onset = value.onset;
+        form compound_modifier_member = value;
+    }
     construction bare_singular_nominal: SingularNominal {
         element BareSingularNominal { head: SingularHead, }
         derive agreement = head.agreement;
@@ -1222,6 +1266,28 @@ constructions! {
         derive number = head.number;
         derive onset = modifier.onset;
         form modified_plural_nominal = modifier head;
+    }
+    construction compound_modified_singular_nominal: SingularNominal {
+        element CompoundModifiedSingularNominal {
+            first: CompoundNominalModifier,
+            rest: seq CompoundNominalModifier separated by " ",
+        }
+        require len(rest) >= 1;
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = first.onset;
+        form compound_modified_singular_nominal = first rest "type";
+    }
+    construction compound_modified_plural_nominal: PluralNominal {
+        element CompoundModifiedPluralNominal {
+            first: CompoundNominalModifier,
+            rest: seq CompoundNominalModifier separated by " ",
+        }
+        require len(rest) >= 1;
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = first.onset;
+        form compound_modified_plural_nominal = first rest "types";
     }
     construction negative_modified_plural_nominal: PluralNominal {
         element NegativeModifiedPluralNominal {
@@ -1325,6 +1391,60 @@ constructions! {
         }
         require len(members) >= 2;
         form singular_and_or_nominal_coordination = members;
+    }
+    construction determiner_scoped_and_nominal_pair: DeterminerScopedNominalCoordination {
+        element DeterminerScopedAndNominalPair {
+            first: SingularCoordinationMember,
+            second: SingularCoordinationMember,
+        }
+        derive onset = first.onset;
+        form determiner_scoped_and_nominal_pair = first "and" second;
+    }
+    construction determiner_scoped_and_nominal_series: DeterminerScopedNominalCoordination {
+        element DeterminerScopedAndNominalSeries {
+            first: SingularCoordinationMember,
+            middle: seq SingularCoordinationMember separated by ", ",
+            last: SingularCoordinationMember,
+        }
+        require len(middle) >= 1;
+        derive onset = first.onset;
+        form determiner_scoped_and_nominal_series = first "," middle "," "and" last;
+    }
+    construction determiner_scoped_or_nominal_pair: DeterminerScopedNominalCoordination {
+        element DeterminerScopedOrNominalPair {
+            first: SingularCoordinationMember,
+            second: SingularCoordinationMember,
+        }
+        derive onset = first.onset;
+        form determiner_scoped_or_nominal_pair = first "or" second;
+    }
+    construction determiner_scoped_or_nominal_series: DeterminerScopedNominalCoordination {
+        element DeterminerScopedOrNominalSeries {
+            first: SingularCoordinationMember,
+            middle: seq SingularCoordinationMember separated by ", ",
+            last: SingularCoordinationMember,
+        }
+        require len(middle) >= 1;
+        derive onset = first.onset;
+        form determiner_scoped_or_nominal_series = first "," middle "," "or" last;
+    }
+    construction determiner_scoped_and_or_nominal_pair: DeterminerScopedNominalCoordination {
+        element DeterminerScopedAndOrNominalPair {
+            first: SingularCoordinationMember,
+            second: SingularCoordinationMember,
+        }
+        derive onset = first.onset;
+        form determiner_scoped_and_or_nominal_pair = first "and/or" second;
+    }
+    construction determiner_scoped_and_or_nominal_series: DeterminerScopedNominalCoordination {
+        element DeterminerScopedAndOrNominalSeries {
+            first: SingularCoordinationMember,
+            middle: seq SingularCoordinationMember separated by ", ",
+            last: SingularCoordinationMember,
+        }
+        require len(middle) >= 1;
+        derive onset = first.onset;
+        form determiner_scoped_and_or_nominal_series = first "," middle "," "and/or" last;
     }
     construction plural_and_nominal_coordination: PluralNominalCoordination {
         element PluralAndNominalCoordination {
@@ -1455,13 +1575,13 @@ constructions! {
     }
     construction indefinite_coordination_reference: UnqualifiedReference {
         element IndefiniteCoordinationReference {
-            article: lex IndefiniteArticle,
-            coordination: SingularNominalCoordination,
+            coordination: DeterminerScopedNominalCoordination,
         }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
-        derive onset = Values::Consonant;
-        form indefinite_coordination_reference = lex(article) coordination;
+        derive onset = coordination.onset;
+        form an when coordination.onset is Vowel = "an" coordination;
+        form a otherwise = "a" coordination;
     }
     construction named_card_reference: UnqualifiedReference {
         element NamedCardReference { name: identity CardName, }
@@ -1728,14 +1848,12 @@ constructions! {
         form target_coordination_determiner_phrase = "target" coordination;
     }
     construction indefinite_determiner_phrase: DeterminerPhrase {
-        element IndefiniteDeterminerPhrase {
-            article: lex IndefiniteArticle,
-            nominal: SingularNominal,
-        }
+        element IndefiniteDeterminerPhrase { nominal: SingularNominal, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = nominal.onset;
-        form indefinite_determiner_phrase = lex(article) nominal;
+        form an when nominal.onset is Vowel = "an" nominal;
+        form a otherwise = "a" nominal;
     }
     construction this_determiner_phrase: DeterminerPhrase {
         element ThisDeterminerPhrase { nominal: SingularNominal, }
@@ -1743,6 +1861,13 @@ constructions! {
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form this_determiner_phrase = "this" nominal;
+    }
+    construction that_determiner_phrase: DeterminerPhrase {
+        element ThatDeterminerPhrase { nominal: SingularNominal, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form that_determiner_phrase = "that" nominal;
     }
     construction another_determiner_phrase: DeterminerPhrase {
         element AnotherDeterminerPhrase { selector: SingularSelector, }
@@ -1839,6 +1964,12 @@ constructions! {
         element OpponentControls { controller: SingularController, }
         derive verb.agreement = Values::ThirdPersonSingular;
         form opponent_controls = controller verb(VerbLexeme::Control);
+    }
+    construction demonstrative_controls: ControllerOwnerQualification {
+        element DemonstrativeControls { controller: DeterminerPhrase, }
+        require controller is ThatDeterminerPhrase;
+        derive verb.agreement = Values::ThirdPersonSingular;
+        form demonstrative_controls = controller verb(VerbLexeme::Control);
     }
     construction you_own: ControllerOwnerQualification {
         element YouOwn { owner: lex SubjectPronoun, }

@@ -1274,7 +1274,7 @@ mod structural_trace_tests {
         let (_, second) = parser.observe_structural(text, &context, TraceLimits::new(1));
         assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
         assert_eq!(first, second);
-        assert_eq!(first.scanner_matches().total(), 17);
+        assert_eq!(first.scanner_matches().total(), 18);
         assert_eq!(first.scanner_matches().shown(), 1);
     }
 
