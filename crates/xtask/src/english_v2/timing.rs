@@ -662,29 +662,58 @@ mod tests {
     #[test]
     fn plan08_warning_boundaries_are_inclusive_and_render_the_frozen_thresholds() {
         let cases = [
-            (PlanGate::Expand, "1.1815357365"),
-            (PlanGate::Report, "0.7659729825"),
-            (PlanGate::Parse, "14.8670149695"),
-            (PlanGate::Roundtrip, "13.2118697115"),
-            (PlanGate::Ambiguity, "15.0661526490"),
-            (PlanGate::Coverage, "15.3698812485"),
-            (PlanGate::RequireComplete, "13.6325952750"),
+            (
+                PlanGate::Expand,
+                11_815_357_365,
+                1_181_535_737,
+                "1.1815357365",
+            ),
+            (PlanGate::Report, 7_659_729_825, 765_972_983, "0.7659729825"),
+            (
+                PlanGate::Parse,
+                148_670_149_695,
+                14_867_014_970,
+                "14.8670149695",
+            ),
+            (
+                PlanGate::Roundtrip,
+                132_118_697_115,
+                13_211_869_712,
+                "13.2118697115",
+            ),
+            (
+                PlanGate::Ambiguity,
+                150_661_526_490,
+                15_066_152_649,
+                "15.0661526490",
+            ),
+            (
+                PlanGate::Coverage,
+                153_698_812_485,
+                15_369_881_249,
+                "15.3698812485",
+            ),
+            (
+                PlanGate::RequireComplete,
+                136_325_952_750,
+                13_632_595_275,
+                "13.6325952750",
+            ),
         ];
 
-        for (gate, expected_threshold) in cases {
+        for (gate, expected_tenths, first_at_or_above, expected_threshold) in cases {
             let threshold = gate.warning_threshold(PlanProfile::Plan08);
+            assert_eq!(threshold.tenths_of_nanosecond, expected_tenths);
             assert_eq!(threshold.rendered, expected_threshold);
-            let exact = Duration::from_nanos(
-                threshold
-                    .tenths_of_nanosecond
-                    .div_ceil(10)
-                    .try_into()
-                    .expect("Plan 08 threshold fits in a Duration"),
-            );
-            let below = exact.saturating_sub(Duration::from_nanos(1));
+            let exact = Duration::from_nanos(first_at_or_above);
+            let below = Duration::from_nanos(first_at_or_above - 1);
 
             let (_, below_output, _) =
                 exercise_with_profile(PlanProfile::Plan08, gate, below, Ok(success()));
+            assert!(
+                below_output.contains("SAMPLE english-v2-plan08-elapsed"),
+                "{gate:?} omitted its below-threshold Plan 08 sample"
+            );
             assert!(
                 !below_output.contains("WARNING"),
                 "{gate:?} warned below its Plan 08 threshold"
@@ -710,6 +739,10 @@ mod tests {
                 gate,
                 exact + Duration::from_nanos(1),
                 Ok(success()),
+            );
+            assert!(
+                above_output.contains("SAMPLE english-v2-plan08-elapsed"),
+                "{gate:?} omitted its above-threshold Plan 08 sample"
             );
             assert!(
                 above_output.contains("WARNING english-v2-plan08-relative-slowdown"),
