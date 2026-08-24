@@ -11997,10 +11997,10 @@ pub(crate) mod tests {
                 derive agreement = members.agreement;
                 form outward = members;
             }
-            construction checked: Root {
+            construction verified: Root {
                 element CheckedSequence { source: Item, coordinated: Coordinated, }
                 derive coordinated.agreement = source.agreement;
-                form checked = source coordinated;
+                form verified = source coordinated;
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
@@ -12204,11 +12204,11 @@ pub(crate) mod tests {
                 derive agreement = members.agreement;
                 form relay = members;
             }
-            construction checked_constant: MixedRelay {
+            construction fixed_marker: MixedRelay {
                 element CheckedConstant { marker: lex Marker, }
                 require marker is One;
                 derive agreement = Values::Bare;
-                form checked_constant = lex(marker);
+                form fixed_marker = lex(marker);
             }
             construction envelope: EnvelopeRoot {
                 element Envelope { relay: MixedRelay, }
@@ -12231,6 +12231,15 @@ pub(crate) mod tests {
             .find(|construction| construction.construction_id() == "envelope")
             .expect("envelope construction is sealed");
         assert!(plan.construction_requires_checked_ast(envelope));
+        let ast = crate::emit::ast::emit(&plan)
+            .expect("required sum agreement constructor checks emit through the AST emitter");
+        assert!(
+            ast.iter().any(|item| item
+                .tokens
+                .to_string()
+                .contains("agreement_matches_for_mixed_choice")),
+            "the required sum agreement helper remains reachable from emitted constructors",
+        );
         crate::emit::build::emit(&plan)
             .expect("each checked category variant emits from its own Agreement source");
     }

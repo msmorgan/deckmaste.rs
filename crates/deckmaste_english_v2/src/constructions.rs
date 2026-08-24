@@ -451,6 +451,50 @@ constructions! {
         element Declarative { clause: Clause, }
         form declarative = clause;
     }
+    construction preposed_if: Sentence {
+        element PreposedIf { condition: FiniteClause, body: Clause, }
+        form preposed_if = "if" condition "," body;
+    }
+    construction postposed_if: Sentence {
+        element PostposedIf { body: Clause, condition: FiniteClause, }
+        form postposed_if = body "if" condition;
+    }
+    construction postposed_unless: Sentence {
+        element PostposedUnless { body: Clause, condition: FiniteClause, }
+        form postposed_unless = body "unless" condition;
+    }
+    construction preposed_as_long_as: Sentence {
+        element PreposedAsLongAs { condition: FiniteClause, body: Clause, }
+        form preposed_as_long_as = "as" "long" "as" condition "," body;
+    }
+    construction preposed_while: Sentence {
+        element PreposedWhile { condition: FiniteClause, body: Clause, }
+        form preposed_while = "while" condition "," body;
+    }
+    construction preposed_during: Sentence {
+        element PreposedDuring { condition: FiniteClause, body: Clause, }
+        form preposed_during = "during" condition "," body;
+    }
+    construction preposed_until: Sentence {
+        element PreposedUntil { condition: FiniteClause, body: Clause, }
+        form preposed_until = "until" condition "," body;
+    }
+    construction then_sequence: Sentence {
+        element ThenSequence {
+            members: seq Clause separated by position {
+                pair = ", then ";
+                first = ", then ";
+                middle = ", then ";
+                last = ", then ";
+            },
+        }
+        require len(members) >= 2;
+        form then_sequence = members;
+    }
+    construction reflexive_subordinate: Sentence {
+        element ReflexiveSubordinate { kind: lex ReflexiveSubordinateKind, body: Clause, }
+        form reflexive_subordinate = lex(kind) "," body;
+    }
     construction with_where: Sentence {
         element WithWhere { body: Sentence, clause: WhereClauseCategory, }
         form with_where = body "," clause;
@@ -1807,6 +1851,7 @@ constructions! {
     }
 
     abstract sum DocumentBlock { Ability, }
+    vocab ReflexiveSubordinateKind { IfYouDo = "if you do", WhenYouDo = "when you do", }
     abstract product OracleText {
         blocks: seq DocumentBlock separated by "\n",
     }

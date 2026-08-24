@@ -487,14 +487,11 @@ fn emit_invariant_impl(
     })
 }
 
-fn emit_invariant_checks(
+fn invariant_subject_expressions(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
-    invariant_owner: &syn::LitStr,
-    structural_owner: &syn::LitStr,
-    construction_role: &syn::LitStr,
     locals: &HashMap<String, syn::Ident>,
-) -> syn::Result<(Option<TokenStream>, Vec<TokenStream>, Vec<TokenStream>)> {
+) -> syn::Result<HashMap<String, TokenStream>> {
     let mut subject_expressions = HashMap::new();
     for alternative in construction.invariant().alternatives() {
         for atom in alternative.atoms() {
@@ -509,6 +506,18 @@ fn emit_invariant_checks(
             );
         }
     }
+    Ok(subject_expressions)
+}
+
+fn emit_invariant_checks(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    invariant_owner: &syn::LitStr,
+    structural_owner: &syn::LitStr,
+    construction_role: &syn::LitStr,
+    locals: &HashMap<String, syn::Ident>,
+) -> syn::Result<(Option<TokenStream>, Vec<TokenStream>, Vec<TokenStream>)> {
+    let subject_expressions = invariant_subject_expressions(plan, construction, locals)?;
     let predicate = if construction.invariant().requires_constructor() {
         super::emit_invariant_expression(construction.invariant(), &subject_expressions)?
     } else {

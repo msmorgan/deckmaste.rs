@@ -5322,6 +5322,11 @@ pub mod fixture {
     }
 
     pub(super) fn assert_mixed_sum_sequence_relay_checks_intrinsic_constraints() {
+        assert_mixed_sum_sequence_relay_constructor_checks();
+        assert_mixed_sum_sequence_relay_build_and_parse_checks();
+    }
+
+    fn assert_mixed_sum_sequence_relay_constructor_checks() {
         let bare = || MixedAgreementChild::Child(Child::Bare(BareChild));
         let third = || MixedAgreementChild::Child(Child::Third(ThirdChild));
         let contextual =
@@ -5400,7 +5405,12 @@ pub mod fixture {
             .expect("a Bare writer accepts a relay constrained to intrinsic Bare");
         let root = MixedRelayEnvelopeRoot::MixedRelayEnvelope(envelope);
         assert_eq!(Render::render(&root, &ParseContext::default()), "Bare act.");
+    }
 
+    fn assert_mixed_sum_sequence_relay_build_and_parse_checks() {
+        let third = || MixedAgreementChild::Child(Child::Third(ThirdChild));
+        let contextual =
+            || MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
         let context = ParseContext::default();
         let built_intrinsic = build_checked(
             RuleId::RelayedMixedChoiceSequenceIntrinsicThirdMixedChoice,
@@ -5419,7 +5429,7 @@ pub mod fixture {
         assert!(
             build(
                 RuleId::MixedRelayEnvelopeRootMixedRelayEnvelope,
-                &[built_intrinsic.clone()],
+                std::slice::from_ref(&built_intrinsic),
                 &context,
             )
             .is_none(),
@@ -5546,6 +5556,11 @@ pub mod fixture {
     }
 
     pub(super) fn assert_outer_sum_preserves_selected_category_agreement_authority() {
+        assert_outer_sum_selected_category_constructor_checks();
+        assert_outer_sum_selected_category_build_checks();
+    }
+
+    fn assert_outer_sum_selected_category_constructor_checks() {
         let outer = |value| OuterRelayedMixedChoice::RelayedMixedChoiceSequence(value);
         let intrinsic_third =
             || RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice);
@@ -5613,7 +5628,12 @@ pub mod fixture {
             ),
             "One.",
         );
+    }
 
+    fn assert_outer_sum_selected_category_build_checks() {
+        let outer = |value| OuterRelayedMixedChoice::RelayedMixedChoiceSequence(value);
+        let intrinsic_third =
+            || RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice);
         let context = ParseContext::default();
         let built_intrinsic = build_checked(
             RuleId::RelayedMixedChoiceSequenceIntrinsicThirdMixedChoice,
@@ -5660,7 +5680,7 @@ pub mod fixture {
         assert!(
             build(
                 RuleId::OuterMixedRelayEnvelopeRootBareOuterMixedRelayEnvelope,
-                &[built_relay.clone()],
+                std::slice::from_ref(&built_relay),
                 &context,
             )
             .is_none(),
@@ -5781,7 +5801,7 @@ pub mod fixture {
         assert!(
             build(
                 RuleId::DirectOuterMixedRelayEnvelopeRootBareDirectOuterMixedRelayEnvelope,
-                &[built_outer.clone()],
+                std::slice::from_ref(&built_outer),
                 &context,
             )
             .is_none(),

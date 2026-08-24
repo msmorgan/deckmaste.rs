@@ -10,6 +10,7 @@ use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::parser::SelectionResolution;
 use deckmaste_english_v2::render::Render as _;
 use deckmaste_english_v2::visit::Visitor;
 use macro_ron::v2::Onset;
@@ -605,15 +606,19 @@ fn assert_selected_trigger(parser: &Parser, context: &ParseContext<'_>, text: &s
     let selected = analysis
         .selected()
         .unwrap_or_else(|| panic!("closed trigger surface must select: {text}: {analysis:?}"));
+    let decision = analysis
+        .decision()
+        .expect("a selected trigger has a selection decision");
     assert_eq!(
-        analysis
-            .decision()
-            .expect("a selected trigger has a selection decision")
-            .candidates()
-            .len(),
+        decision.survivors().len(),
         1,
-        "closed trigger surface has one semantic candidate: {text}"
+        "closed trigger surface has exactly one surviving candidate: {text}"
     );
+    assert!(matches!(
+        decision.resolution(),
+        SelectionResolution::Unique | SelectionResolution::Specificity
+    ));
+    assert!(decision.exception_uses().is_empty());
     assert_eq!(selected.render(context, parser.environment()), text);
     let ownership = analysis
         .ownership()
@@ -691,16 +696,6 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
     else {
         panic!("the immediate if clause has its dedicated finite-condition attachment")
     };
-
-    assert!(
-        parser
-            .parse(
-                "Whenever a player connives, you gain X life if you connive.",
-                &context,
-            )
-            .is_err(),
-        "ordinary postposed if syntax cannot materialize as intervening-if"
-    );
 }
 
 #[test]
@@ -947,7 +942,6 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
         "At The beginning of each player's draw step, you gain X life.",
         "At the beginning of each player's draw step,you gain X life.",
         "At the beginning of each player's draw step, You gain X life.",
-        "Whenever a player connives, If you connive, you gain X life.",
         "Whenever a player connives, if you connive,you gain X life.",
         "Whenever a player connives, if you connive you gain X life.",
     ] {
@@ -1763,7 +1757,9 @@ fn subject_identity(subject: &Subject) -> &'static str {
             }) => "player",
             other => panic!("unexpected nominal coordination subject payload: {other:?}"),
         },
-        other => panic!("unexpected coordination subject payload: {other:?}"),
+        other @ Subject::SubjectPronoun(_) => {
+            panic!("unexpected coordination subject payload: {other:?}")
+        }
     }
 }
 
@@ -2701,6 +2697,402 @@ fn coordination_case_transitions_and_self_reference_reuse_existing_envelopes() {
     }
 }
 
+fn connive_clause() -> FiniteClause {
+    plain_finite(
+        you_subject(),
+        Predicate::Atomic(VerbPhrase::Connive(Connive {})),
+    )
+}
+
+fn gain_clause(amount: u32) -> Clause {
+    Clause::Finite(plain_finite(
+        you_subject(),
+        Predicate::Atomic(gain_life_predicate(amount)),
+    ))
+}
+
+#[test]
+fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let condition = connive_clause();
+    let body = gain_clause(2);
+
+    for (text, expected) in [
+        (
+            "If you connive, you gain 2 life.",
+            Sentence::PreposedIf(PreposedIf {
+                condition: condition.clone(),
+                body: body.clone(),
+            }),
+        ),
+        (
+            "You gain 2 life if you connive.",
+            Sentence::PostposedIf(PostposedIf {
+                body: body.clone(),
+                condition: condition.clone(),
+            }),
+        ),
+        (
+            "You gain 2 life unless you connive.",
+            Sentence::PostposedUnless(PostposedUnless {
+                body: body.clone(),
+                condition: condition.clone(),
+            }),
+        ),
+        (
+            "As long as you connive, you gain 2 life.",
+            Sentence::PreposedAsLongAs(PreposedAsLongAs {
+                condition: condition.clone(),
+                body: body.clone(),
+            }),
+        ),
+        (
+            "While you connive, you gain 2 life.",
+            Sentence::PreposedWhile(PreposedWhile {
+                condition: condition.clone(),
+                body: body.clone(),
+            }),
+        ),
+        (
+            "During you connive, you gain 2 life.",
+            Sentence::PreposedDuring(PreposedDuring {
+                condition: condition.clone(),
+                body: body.clone(),
+            }),
+        ),
+        (
+            "Until you connive, you gain 2 life.",
+            Sentence::PreposedUntil(PreposedUntil { condition, body }),
+        ),
+    ] {
+        let selected = assert_one_logic_candidate(&parser, &context, text);
+        assert_eq!(
+            selected,
+            Ability::Plain(Plain {
+                body: AbilityBody::Sentences(
+                    Sentences::new(vec![expected]).expect("one conditional sentence is nonempty"),
+                ),
+            }),
+            "the surface has one independently specified position-specific AST: {text}",
+        );
+    }
+
+    for invalid in [
+        "If you connive you gain 2 life.",
+        "You gain 2 life, if you connive.",
+        "You gain 2 life unless, you connive.",
+        "if you connive, you gain 2 life.",
+        "If you connive,  you gain 2 life.",
+        "You gain 2 life if you connive,.",
+    ] {
+        assert!(
+            parser.parse(invalid, &context).is_err(),
+            "conditional attachment punctuation, spacing, and sentence case are structural: {invalid}",
+        );
+    }
+}
+
+#[test]
+fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let ordered_text = "You gain 1 life, then you connive, then a player gains 2 life.";
+    let ordered = assert_one_logic_candidate(&parser, &context, ordered_text);
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(sentences),
+    }) = ordered
+    else {
+        panic!("ordered clauses remain inside an ordinary linguistic body")
+    };
+    let [Sentence::ThenSequence(sequence)] = sentences.sentences() else {
+        panic!("then stores an ordered finite-clause sequence rather than nested sentences")
+    };
+    assert_eq!(
+        sequence
+            .members()
+            .iter()
+            .map(|member| match member {
+                Clause::Finite(member) => finite_clause_identity(member),
+                Clause::Coordination(_) => panic!("then members retain their finite clause shape"),
+            })
+            .collect::<Vec<_>>(),
+        ["you/gain:1", "you/connive", "player/gain:2"],
+    );
+
+    for (text, kind) in [
+        (
+            "You gain 1 life. If you do, you connive.",
+            ReflexiveSubordinateKind::IfYouDo,
+        ),
+        (
+            "You gain 1 life. When you do, you connive.",
+            ReflexiveSubordinateKind::WhenYouDo,
+        ),
+    ] {
+        let selected = assert_one_logic_candidate(&parser, &context, text);
+        let Ability::Plain(Plain {
+            body: AbilityBody::Sentences(sentences),
+        }) = selected
+        else {
+            unreachable!()
+        };
+        let [
+            Sentence::Declarative(_),
+            Sentence::ReflexiveSubordinate(subordinate),
+        ] = sentences.sentences()
+        else {
+            panic!("the reflexive subordinate is its own sentence shape: {text}")
+        };
+        assert_eq!(
+            subordinate.kind, kind,
+            "the lexical subordinate kind is stored: {text}"
+        );
+        assert_eq!(subordinate.body, Clause::Finite(connive_clause()));
+    }
+
+    for invalid in [
+        "You gain 1 life then you connive.",
+        "You gain 1 life, then you connive, a player gains 2 life.",
+        "You gain 1 life. If you do you connive.",
+        "You gain 1 life. if you do, you connive.",
+        "You gain 1 life. When you do,  you connive.",
+    ] {
+        assert!(
+            parser.parse(invalid, &context).is_err(),
+            "ordered and reflexive boundaries cannot borrow punctuation: {invalid}",
+        );
+    }
+}
+
+#[test]
+fn ordinary_trailing_if_is_not_trigger_intervening_if_and_keeps_its_own_bytes() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let ordinary = "Whenever a player connives, you gain 2 life if you connive.";
+    let intervening = "Whenever a player connives, if you connive, you gain 2 life.";
+
+    let ordinary_ability = assert_one_logic_candidate(&parser, &context, ordinary);
+    let Ability::Triggered(Triggered {
+        intervening_if: None,
+        body: AbilityBody::Sentences(ordinary_body),
+        ..
+    }) = ordinary_ability
+    else {
+        panic!("ordinary trailing if belongs to the triggered body")
+    };
+    assert!(matches!(
+        ordinary_body.sentences(),
+        [Sentence::PostposedIf(_)]
+    ));
+
+    let intervening_analysis = parser.analyze(intervening, &context);
+    let intervening_decision = intervening_analysis
+        .decision()
+        .expect("intervening-if surface reaches the selection boundary");
+    assert_eq!(intervening_decision.candidates().len(), 2);
+    assert_eq!(intervening_decision.survivors(), [0]);
+    assert_eq!(intervening_decision.selected(), Some(0));
+    assert_eq!(
+        intervening_decision.resolution(),
+        SelectionResolution::Specificity
+    );
+    assert!(intervening_decision.exception_uses().is_empty());
+    let intervening_ability = intervening_analysis
+        .selected()
+        .expect("intervening-if has one selected candidate")
+        .clone();
+    assert_eq!(
+        intervening_ability.render(&context, parser.environment()),
+        intervening
+    );
+    let Ability::Triggered(Triggered {
+        intervening_if: Some(ConditionClause::FiniteCondition(_)),
+        body: AbilityBody::Sentences(intervening_body),
+        ..
+    }) = intervening_ability
+    else {
+        panic!("intervening-if remains attached to the trigger envelope")
+    };
+    assert!(matches!(
+        intervening_body.sentences(),
+        [Sentence::Declarative(_)]
+    ));
+
+    for (text, expected_commas) in [
+        (ordinary, &[(26, 27, "form:triggered/triggered/1")][..]),
+        (
+            intervening,
+            &[
+                (26, 27, "form:triggered/triggered/1"),
+                (42, 43, "form:finite_condition/finite_condition/2"),
+            ][..],
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let comma_claims = analysis
+            .ownership()
+            .expect("selected attachment has ownership")
+            .parsed_claims()
+            .iter()
+            .filter(|claim| &text[claim.span().start..claim.span().end] == ",")
+            .collect::<Vec<_>>();
+        assert_eq!(
+            comma_claims
+                .iter()
+                .map(|claim| (
+                    claim.span().start,
+                    claim.span().end,
+                    claim.stable_owner_id()
+                ))
+                .collect::<Vec<_>>(),
+            expected_commas,
+            "comma ownership is unique to its attachment path: {text}",
+        );
+        assert!(
+            comma_claims
+                .iter()
+                .all(|claim| claim.kind() == LexicalProvenanceKind::FormLiteral),
+            "attachment commas are literal construction owners: {text}",
+        );
+    }
+}
+
+#[derive(Default)]
+struct AttachmentVisitor(Vec<&'static str>);
+
+impl Visitor for AttachmentVisitor {
+    fn visit_then_sequence(&mut self, value: &ThenSequence) {
+        self.0.push("ThenSequence");
+        deckmaste_english_v2::visit::walk_then_sequence(self, value);
+    }
+
+    fn visit_reflexive_subordinate(&mut self, value: &ReflexiveSubordinate) {
+        self.0.push("ReflexiveSubordinate");
+        deckmaste_english_v2::visit::walk_reflexive_subordinate(self, value);
+    }
+
+    fn visit_reflexive_subordinate_kind(&mut self, _value: ReflexiveSubordinateKind) {
+        self.0.push("ReflexiveSubordinateKind");
+    }
+
+    fn visit_clause(&mut self, value: &Clause) {
+        self.0.push("Clause");
+        deckmaste_english_v2::visit::walk_clause(self, value);
+    }
+
+    fn visit_finite_clause(&mut self, value: &FiniteClause) {
+        self.0.push("FiniteClause");
+        deckmaste_english_v2::visit::walk_finite_clause(self, value);
+    }
+}
+
+#[test]
+fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names() {
+    let parser = parser();
+    let ordinary = context("Context Card", false);
+    for text in [
+        "If you connive, you gain 2 life.",
+        "Whenever a player connives, you gain 2 life if you connive.",
+        "{T}: If you connive, you gain 2 life.",
+    ] {
+        assert_one_logic_candidate(&parser, &ordinary, text);
+    }
+    for invalid in [
+        "{T}: if you connive, you gain 2 life.",
+        "If you connive, you gain 2 life. if you connive, you gain 2 life.",
+    ] {
+        assert!(parser.parse(invalid, &ordinary).is_err(), "{invalid}");
+    }
+
+    let ordered = assert_one_logic_candidate(
+        &parser,
+        &ordinary,
+        "You gain 1 life, then you connive, then a player gains 2 life.",
+    );
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(sentences),
+    }) = ordered
+    else {
+        unreachable!()
+    };
+    let [Sentence::ThenSequence(sequence)] = sentences.sentences() else {
+        unreachable!()
+    };
+    let mut visitor = AttachmentVisitor::default();
+    visitor.visit_then_sequence(sequence);
+    assert_eq!(
+        visitor.0,
+        [
+            "ThenSequence",
+            "Clause",
+            "FiniteClause",
+            "Clause",
+            "FiniteClause",
+            "Clause",
+            "FiniteClause",
+        ],
+    );
+
+    let reflexive = assert_one_logic_candidate(
+        &parser,
+        &ordinary,
+        "You gain 1 life. When you do, you connive.",
+    );
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(sentences),
+    }) = reflexive
+    else {
+        unreachable!()
+    };
+    let [_, Sentence::ReflexiveSubordinate(subordinate)] = sentences.sentences() else {
+        unreachable!()
+    };
+    let mut visitor = AttachmentVisitor::default();
+    visitor.visit_reflexive_subordinate(subordinate);
+    assert_eq!(
+        visitor.0,
+        [
+            "ReflexiveSubordinate",
+            "ReflexiveSubordinateKind",
+            "Clause",
+            "FiniteClause",
+        ],
+    );
+
+    for (name, legendary, surface, spelling) in [
+        (
+            "Aang, A Lot to Learn",
+            true,
+            "Aang",
+            SelfReferenceSpelling::Abbreviated,
+        ),
+        (
+            "Grizzly Bears",
+            false,
+            "Grizzly Bears",
+            SelfReferenceSpelling::Full,
+        ),
+    ] {
+        let context = context(name, legendary);
+        let selected = assert_one_logic_candidate(
+            &parser,
+            &context,
+            &format!("If {surface} connives, {surface} gains 2 life."),
+        );
+        let mut visitor = SelfReferenceVisitor::default();
+        visitor.visit_ability(&selected);
+        assert_eq!(visitor.spellings, [spelling, spelling], "{name}");
+    }
+    let ordinary_name = context("Grizzly Bears", false);
+    assert!(
+        parser
+            .parse("If Grizzly connives, Grizzly gains 2 life.", &ordinary_name)
+            .is_err(),
+        "conditional grammar cannot license an ordinary-name abbreviation",
+    );
+}
+
 #[test]
 fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
     let source = include_str!("../src/constructions.rs");
@@ -2718,6 +3110,7 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
         "AndClauseCoordination.members",
         "OrClauseCoordination.members",
         "AndOrClauseCoordination.members",
+        "ThenSequence.members",
     ] {
         assert!(
             report
