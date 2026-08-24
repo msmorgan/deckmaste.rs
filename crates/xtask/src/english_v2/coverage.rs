@@ -1546,7 +1546,7 @@ mod tests {
             "# English v2 Plan 08 frozen corpus target manifest",
             "# manifest_schema=1",
             "# source_fingerprint=e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
-            "# candidate_results_sha256=0020c88cadcc5e892c203a3860a7ee37b09b08a5175ce022854ab9359db6a8c3",
+            "# candidate_results_sha256=303e15262ec4ef81dbbba478c41a1fbdcf285b03efec499a9c63d55cca9f014e",
             "# baseline_covered=608",
             "# baseline_ids_sha256=35ea73406725742d51b92df60bb07a261ed7570d6767caf59306a88785de87c2",
             "# baseline_status=parse_failure",
@@ -1573,7 +1573,7 @@ mod tests {
 
         assert_eq!(
             sha256_hex(PLAN08_TARGETS.as_bytes()),
-            "c6dbe1e53031c0f6394d1b0644c7fecdb8391a0fe7484c272ba1cc7fd364818e",
+            "0f6e8d073a09f5a9039931ed91e88e3a1354280c38f67a3dcd3e94057d2710e7",
         );
         assert_eq!(
             PLAN08_TARGETS

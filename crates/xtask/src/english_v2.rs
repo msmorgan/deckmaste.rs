@@ -590,6 +590,163 @@ mod tests {
     const PLAN08_CANDIDATE_RESULTS: &str = include_str!("english_v2/plan08_candidate_results.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum Plan08DeferredAuthority {
+        Plan09TriggerPredicate,
+        Plan09ActivatedCostAction,
+        Plan10KeywordAbility {
+            catalog_entry: &'static str,
+            boundary_phrase: &'static str,
+        },
+        Plan10KeywordAction {
+            catalog_entry: &'static str,
+            boundary_phrase: &'static str,
+        },
+        Plan10AbilityWord {
+            catalog_entry: &'static str,
+            label: &'static str,
+        },
+        Plan10FlavorWord {
+            label: &'static str,
+        },
+        Plan10AdvancedCost,
+    }
+
+    impl Plan08DeferredAuthority {
+        const fn category(self) -> &'static str {
+            match self {
+                Self::Plan09TriggerPredicate | Self::Plan09ActivatedCostAction => {
+                    "plan09-predicate"
+                }
+                Self::Plan10KeywordAbility { .. }
+                | Self::Plan10KeywordAction { .. }
+                | Self::Plan10AbilityWord { .. }
+                | Self::Plan10FlavorWord { .. }
+                | Self::Plan10AdvancedCost => "plan10-attachment",
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    struct Plan08DeferredRule {
+        pool_family: &'static str,
+        failure_surface: &'static str,
+        authority: Plan08DeferredAuthority,
+    }
+
+    const fn plan09_trigger(failure_surface: &'static str) -> Plan08DeferredRule {
+        Plan08DeferredRule {
+            pool_family: "trigger-effect-selects",
+            failure_surface,
+            authority: Plan08DeferredAuthority::Plan09TriggerPredicate,
+        }
+    }
+
+    const fn plan09_cost(failure_surface: &'static str) -> Plan08DeferredRule {
+        Plan08DeferredRule {
+            pool_family: "activated-effect-selects",
+            failure_surface,
+            authority: Plan08DeferredAuthority::Plan09ActivatedCostAction,
+        }
+    }
+
+    const PLAN08_DEFERRED_RULES: [Plan08DeferredRule; 49] = [
+        plan09_cost("Discard"),
+        plan09_cost("Exile"),
+        plan09_cost("Pay"),
+        plan09_cost("Put"),
+        plan09_cost("Remove"),
+        plan09_cost("Sacrifice"),
+        plan09_cost("Tap"),
+        Plan08DeferredRule {
+            pool_family: "activated-effect-selects",
+            failure_surface: "Cohort",
+            authority: Plan08DeferredAuthority::Plan10AbilityWord {
+                catalog_entry: "Cohort",
+                label: "Cohort",
+            },
+        },
+        Plan08DeferredRule {
+            pool_family: "activated-effect-selects",
+            failure_surface: "Scorching",
+            authority: Plan08DeferredAuthority::Plan10FlavorWord {
+                label: "Scorching Ray",
+            },
+        },
+        Plan08DeferredRule {
+            pool_family: "activated-effect-selects",
+            failure_surface: "or",
+            authority: Plan08DeferredAuthority::Plan10AdvancedCost,
+        },
+        plan09_trigger("activate"),
+        plan09_trigger("activates"),
+        plan09_trigger("and/or"),
+        plan09_trigger("are"),
+        plan09_trigger("attacks"),
+        plan09_trigger("becomes"),
+        plan09_trigger("blocks"),
+        plan09_trigger("cast"),
+        plan09_trigger("casts"),
+        plan09_trigger("combat"),
+        plan09_trigger("control"),
+        plan09_trigger("controls"),
+        plan09_trigger("create"),
+        plan09_trigger("damage"),
+        plan09_trigger("didn't"),
+        plan09_trigger("dies"),
+        plan09_trigger("discards"),
+        plan09_trigger("draw"),
+        plan09_trigger("draws"),
+        plan09_trigger("enter"),
+        plan09_trigger("enters"),
+        plan09_trigger("has"),
+        plan09_trigger("have"),
+        plan09_trigger("is"),
+        plan09_trigger("leave"),
+        plan09_trigger("life"),
+        plan09_trigger("loses"),
+        plan09_trigger("or"),
+        plan09_trigger("other"),
+        plan09_trigger("put"),
+        plan09_trigger("roll"),
+        plan09_trigger("sacrifice"),
+        plan09_trigger("sacrifices"),
+        plan09_trigger("taps"),
+        plan09_trigger("there"),
+        Plan08DeferredRule {
+            pool_family: "trigger-effect-selects",
+            failure_surface: "cycles",
+            authority: Plan08DeferredAuthority::Plan10KeywordAbility {
+                catalog_entry: "Cycling",
+                boundary_phrase: "cycles",
+            },
+        },
+        Plan08DeferredRule {
+            pool_family: "trigger-effect-selects",
+            failure_surface: "flying",
+            authority: Plan08DeferredAuthority::Plan10KeywordAbility {
+                catalog_entry: "Flying",
+                boundary_phrase: "flying",
+            },
+        },
+        Plan08DeferredRule {
+            pool_family: "trigger-effect-selects",
+            failure_surface: "scry",
+            authority: Plan08DeferredAuthority::Plan10KeywordAction {
+                catalog_entry: "Scry",
+                boundary_phrase: "scry",
+            },
+        },
+        Plan08DeferredRule {
+            pool_family: "trigger-effect-selects",
+            failure_surface: "without",
+            authority: Plan08DeferredAuthority::Plan10KeywordAbility {
+                catalog_entry: "Flying",
+                boundary_phrase: "without flying",
+            },
+        },
+    ];
+
     #[derive(Clone, Copy)]
     struct Plan08AttachmentWitness {
         id: &'static str,
@@ -636,28 +793,67 @@ mod tests {
             })
     }
 
-    fn plan08_predicate_prefix_witness(
-        text: &str,
-        full_span: deckmaste_english_v2::parser::TextSpan,
-        parser: &deckmaste_english_v2::parser::Parser,
-        context: &deckmaste_english_v2::context::ParseContext<'_>,
-    ) -> Option<String> {
-        use deckmaste_english_v2::parser::Expectation;
-        use deckmaste_english_v2::parser::ParseError;
+    fn plan08_deferred_rule(pool_family: &str, failure_surface: &str) -> Plan08DeferredRule {
+        let rules = PLAN08_DEFERRED_RULES
+            .iter()
+            .copied()
+            .filter(|rule| {
+                rule.pool_family == pool_family && rule.failure_surface == failure_surface
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rules.len(),
+            1,
+            "deferred boundary needs exactly one independent scope rule: {pool_family} {failure_surface:?}",
+        );
+        rules[0]
+    }
 
-        let prefix_end = text[full_span.end..]
-            .find(". ")
-            .map_or(text.len(), |relative| full_span.end + relative + 1);
-        let witness = text[..prefix_end].to_owned();
-        let Err(ParseError::Failure { span, expectations }) = parser.parse(&witness, context)
-        else {
-            return None;
-        };
-        (span == full_span
-            && expectations
-                .iter()
-                .any(|expectation| matches!(expectation, Expectation::Nonterminal(_))))
-        .then_some(witness)
+    fn assert_plan08_deferred_authority(
+        rule: Plan08DeferredRule,
+        text: &str,
+        span: deckmaste_english_v2::parser::TextSpan,
+        keyword_abilities: &str,
+        keyword_actions: &str,
+        ability_words: &str,
+    ) {
+        let has_entry = |catalog: &str, entry: &str| catalog.lines().any(|row| row == entry);
+        match rule.authority {
+            Plan08DeferredAuthority::Plan09TriggerPredicate => {
+                assert_eq!(rule.pool_family, "trigger-effect-selects");
+            }
+            Plan08DeferredAuthority::Plan09ActivatedCostAction => {
+                assert_eq!(rule.pool_family, "activated-effect-selects");
+            }
+            Plan08DeferredAuthority::Plan10KeywordAbility {
+                catalog_entry,
+                boundary_phrase,
+            } => {
+                assert!(has_entry(keyword_abilities, catalog_entry));
+                assert!(text[span.start..].starts_with(boundary_phrase));
+            }
+            Plan08DeferredAuthority::Plan10KeywordAction {
+                catalog_entry,
+                boundary_phrase,
+            } => {
+                assert!(has_entry(keyword_actions, catalog_entry));
+                assert!(text[span.start..].starts_with(boundary_phrase));
+            }
+            Plan08DeferredAuthority::Plan10AbilityWord {
+                catalog_entry,
+                label,
+            } => {
+                assert!(has_entry(ability_words, catalog_entry));
+                assert!(text.starts_with(&format!("{label} — ")));
+            }
+            Plan08DeferredAuthority::Plan10FlavorWord { label } => {
+                assert!(text.starts_with(&format!("{label} — ")));
+            }
+            Plan08DeferredAuthority::Plan10AdvancedCost => {
+                assert_eq!(rule.pool_family, "activated-effect-selects");
+                assert_eq!(&text[span.start..span.end], "or");
+            }
+        }
     }
 
     fn assert_unique_plan08_ability(
@@ -902,8 +1098,56 @@ mod tests {
             .collect::<BTreeMap<_, _>>();
         let parser = parser_from_builtin_v2().expect("production English-v2 parser loads");
 
+        let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+        let keyword_abilities = fs::read_to_string(catalog_root.join("keyword-abilities.txt"))
+            .expect("frozen keyword-ability catalog loads");
+        let keyword_actions = fs::read_to_string(catalog_root.join("keyword-actions.txt"))
+            .expect("frozen keyword-action catalog loads");
+        let ability_words = fs::read_to_string(catalog_root.join("ability-words.txt"))
+            .expect("frozen ability-word catalog loads");
+        let review_witnesses = [
+            (
+                "90b98deb5a29c770617138c40ba5ebc08dff502c512d397f392932ce1aa9acf5",
+                deckmaste_english_v2::parser::TextSpan { start: 13, end: 17 },
+                "scry",
+                "Scry",
+                keyword_actions.as_str(),
+            ),
+            (
+                "c82603ae98da0c4df2e8e05fffe027dab0d880ae8daedee2d34b0bca20e50ec9",
+                deckmaste_english_v2::parser::TextSpan { start: 25, end: 31 },
+                "flying",
+                "Flying",
+                keyword_abilities.as_str(),
+            ),
+        ];
+        let mut review_categories = Vec::new();
+        for (id, expected_span, expected_surface, catalog_entry, catalog) in review_witnesses {
+            assert!(catalog.lines().any(|entry| entry == catalog_entry), "{id}");
+            let fields = rows
+                .get(id)
+                .unwrap_or_else(|| panic!("manifest contains review witness {id}"));
+            let unit = units
+                .get(id)
+                .unwrap_or_else(|| panic!("corpus contains review witness {id}"));
+            let context = deckmaste_english_v2::context::ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .expect("review-witness context is valid");
+            let ParseError::Failure { span, .. } = parser
+                .parse_oracle_text(unit.text(), &context)
+                .expect_err("review witness reaches its missing boundary")
+            else {
+                panic!("review witness has an ordinary parse failure: {id}");
+            };
+            assert_eq!(span, expected_span, "{id}");
+            assert_eq!(&unit.text()[span.start..span.end], expected_surface, "{id}");
+            review_categories.push((id, fields[0]));
+        }
         let mut predicted_counts = BTreeMap::new();
-        let mut witness_membership = String::new();
+        let mut used_rules = BTreeSet::new();
         let mut mismatches = Vec::new();
         for fields in rows
             .values()
@@ -919,72 +1163,53 @@ mod tests {
                 unit.context_onset(),
             )
             .expect("production candidate context is valid");
-            let ParseError::Failure { span, expectations } = parser
+            let ParseError::Failure { span, .. } = parser
                 .parse_oracle_text(unit.text(), &context)
                 .expect_err("deferred candidate has an ordinary parse failure")
             else {
                 panic!("deferred candidate has an ordinary parse failure: {id}");
             };
-            if PLAN08_ATTACHMENT_WITNESSES
-                .iter()
-                .any(|witness| witness.id == id)
-            {
-                *predicted_counts
-                    .entry("plan10-attachment")
-                    .or_insert(0usize) += 1;
-                if fields[0] != "plan10-attachment" {
-                    mismatches.push((id, fields[4], fields[0], "plan10-attachment"));
-                }
-            } else if let Some(witness) =
-                plan08_predicate_prefix_witness(unit.text(), span, &parser, &context)
-            {
-                *predicted_counts.entry("plan09-predicate").or_insert(0usize) += 1;
-                if fields[0] != "plan09-predicate" {
-                    mismatches.push((id, fields[4], fields[0], "plan09-predicate"));
-                }
-                witness_membership.push_str(id);
-                witness_membership.push('\t');
-                witness_membership
-                    .push_str(&serde_json::to_string(&witness).expect("witness is a JSON string"));
-                witness_membership.push('\t');
-                witness_membership.push_str(&span.start.to_string());
-                witness_membership.push('\t');
-                witness_membership.push_str(&span.end.to_string());
-                witness_membership.push('\t');
-                witness_membership.push_str(
-                    &serde_json::to_string(
-                        &expectations
-                            .iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>(),
-                    )
-                    .expect("expectations are a JSON array"),
-                );
-                witness_membership.push('\n');
-            } else {
-                panic!(
-                    "unclassified deferred candidate is a Plan 08 defect: {id} {:?}",
-                    expectations
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                );
+            let failure_surface = &unit.text()[span.start..span.end];
+            let rule = plan08_deferred_rule(fields[1], failure_surface);
+            assert_plan08_deferred_authority(
+                rule,
+                unit.text(),
+                span,
+                &keyword_abilities,
+                &keyword_actions,
+                &ability_words,
+            );
+            used_rules.insert((rule.pool_family, rule.failure_surface));
+            let expected_category = rule.authority.category();
+            *predicted_counts.entry(expected_category).or_insert(0usize) += 1;
+            if fields[0] != expected_category {
+                mismatches.push((id, fields[4], fields[0], expected_category));
             }
         }
+        assert_eq!(used_rules.len(), PLAN08_DEFERRED_RULES.len());
         assert_eq!(
             predicted_counts.into_iter().collect::<Vec<_>>(),
             [
-                ("plan09-predicate", 358usize),
-                ("plan10-attachment", 3usize),
+                ("plan09-predicate", 354usize),
+                ("plan10-attachment", 7usize),
             ],
-        );
-        assert_eq!(
-            sha256_hex(witness_membership.as_bytes()),
-            "cae10d975c30177e7b9970b459b9adb9058d5250c3e48a6bfe845c3c80b4047d",
         );
         assert!(
             mismatches.is_empty(),
             "manifest disagrees with {mismatches:#?}"
+        );
+        assert_eq!(
+            review_categories,
+            [
+                (
+                    "90b98deb5a29c770617138c40ba5ebc08dff502c512d397f392932ce1aa9acf5",
+                    "plan10-attachment",
+                ),
+                (
+                    "c82603ae98da0c4df2e8e05fffe027dab0d880ae8daedee2d34b0bca20e50ec9",
+                    "plan10-attachment",
+                ),
+            ],
         );
 
         for witness in PLAN08_ATTACHMENT_WITNESSES {
@@ -1032,14 +1257,14 @@ mod tests {
             "# baseline_covered=608",
             "# baseline_status=parse_failure",
             "# candidates=427",
-            "# categories=plan08-selected:66,plan09-predicate:358,plan10-attachment:3,plan08-defect:0",
+            "# categories=plan08-selected:66,plan09-predicate:354,plan10-attachment:7,plan08-defect:0",
             "# selected_families=ability.activated:56,ability.triggered:10",
             "# columns=category\\tpool_family\\tplan08_family\\tid\\tcard_name_json\\tface_name_json\\tside_json\\tcontext_name_json\\tis_legendary\\tcontext_onset\\toracle_text_json\\textracted_effect_json\\tfailure_start\\tfailure_end\\tboundary",
         ];
         const EXPECTED_COUNTS: [(&str, usize); 3] = [
             ("plan08-selected", 66),
-            ("plan09-predicate", 358),
-            ("plan10-attachment", 3),
+            ("plan09-predicate", 354),
+            ("plan10-attachment", 7),
         ];
         const EXPECTED_SELECTED_FAMILIES: [(&str, usize); 2] =
             [("ability.activated", 56), ("ability.triggered", 10)];
@@ -1066,7 +1291,7 @@ mod tests {
         );
         assert_eq!(
             sha256_hex(PLAN08_CANDIDATE_RESULTS.as_bytes()),
-            "0020c88cadcc5e892c203a3860a7ee37b09b08a5175ce022854ab9359db6a8c3",
+            "303e15262ec4ef81dbbba478c41a1fbdcf285b03efec499a9c63d55cca9f014e",
         );
         assert_eq!(
             PLAN08_CANDIDATE_RESULTS
@@ -1107,6 +1332,13 @@ mod tests {
             .map(|unit| (unit.id(), unit))
             .collect::<BTreeMap<_, _>>();
         let parser = parser_from_builtin_v2().expect("production English-v2 parser loads");
+        let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
+        let keyword_abilities = fs::read_to_string(catalog_root.join("keyword-abilities.txt"))
+            .expect("frozen keyword-ability catalog loads");
+        let keyword_actions = fs::read_to_string(catalog_root.join("keyword-actions.txt"))
+            .expect("frozen keyword-action catalog loads");
+        let ability_words = fs::read_to_string(catalog_root.join("ability-words.txt"))
+            .expect("frozen ability-word catalog loads");
         let mut category_counts = BTreeMap::new();
         let mut selected_families = BTreeMap::new();
         let mut ids = BTreeSet::new();
@@ -1231,7 +1463,7 @@ mod tests {
                         start: failure_start.parse().expect("failure start"),
                         end: failure_end.parse().expect("failure end"),
                     };
-                    let ParseError::Failure { span, expectations } = analysis
+                    let ParseError::Failure { span, .. } = analysis
                         .into_parse_result()
                         .expect_err("deferred row fails")
                     else {
@@ -1259,30 +1491,29 @@ mod tests {
                         extracted,
                         "{id}",
                     );
+                    let failure_surface = &unit.text()[span.start..span.end];
+                    let rule = plan08_deferred_rule(pool_family, failure_surface);
+                    assert_plan08_deferred_authority(
+                        rule,
+                        unit.text(),
+                        span,
+                        &keyword_abilities,
+                        &keyword_actions,
+                        &ability_words,
+                    );
+                    assert_eq!(*category, rule.authority.category(), "{id}");
                     if *category == "plan09-predicate" {
                         assert_eq!(*boundary, "predicate", "{id}");
-                        plan08_predicate_prefix_witness(
-                            unit.text(),
-                            span,
-                            &parser,
-                            &context,
-                        )
-                        .unwrap_or_else(|| {
-                            panic!(
-                                "Plan 09 prefix must reproduce the structured full-row failure: {id} {expectations:?}"
-                            )
-                        });
                     } else {
                         assert_eq!(*boundary, "attachment", "{id}");
-                        let witness = PLAN08_ATTACHMENT_WITNESSES
+                        if let Some(witness) = PLAN08_ATTACHMENT_WITNESSES
                             .iter()
                             .copied()
                             .find(|witness| witness.id == *id)
-                            .unwrap_or_else(|| {
-                                panic!("Plan 10 row requires a literal structural witness: {id}")
-                            });
-                        assert_eq!(span, witness.failure_span, "{id}");
-                        assert_plan08_attachment_witness(witness, &parser, &context);
+                        {
+                            assert_eq!(span, witness.failure_span, "{id}");
+                            assert_plan08_attachment_witness(witness, &parser, &context);
+                        }
                     }
                 }
                 "plan08-defect" => panic!("Plan 08 grammar defect blocks closure: {id}"),

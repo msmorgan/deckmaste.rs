@@ -21,19 +21,19 @@ and SHA-256
 Every complete OracleText/context pair has one authenticated classification in
 `crates/xtask/src/english_v2/plan08_candidate_results.tsv`; that 427-row
 manifest has SHA-256
-`0020c88cadcc5e892c203a3860a7ee37b09b08a5175ce022854ab9359db6a8c3`
+`303e15262ec4ef81dbbba478c41a1fbdcf285b03efec499a9c63d55cca9f014e`
 and the exact partition is:
 
 - 66 Plan 08 selected: 56 `ability.activated` and 10
   `ability.triggered`;
-- 358 still missing a Plan 09 predicate boundary;
-- 3 still requiring a Plan 10 attachment boundary;
+- 354 still missing a Plan 09 predicate boundary;
+- 7 still requiring a Plan 10 attachment boundary;
 - 0 Plan 08 grammar defects.
 
 The frozen production delta is the 118-row
 `crates/xtask/src/english_v2/plan08_targets.tsv`, with the same source
 fingerprint and SHA-256
-`c6dbe1e53031c0f6394d1b0644c7fecdb8391a0fe7484c272ba1cc7fd364818e`.
+`0f6e8d073a09f5a9039931ed91e88e3a1354280c38f67a3dcd3e94057d2710e7`.
 It contains the 66 selected candidate rows plus 52 independently explained
 out-of-pool additions. Its exact family counts are 56 `ability.activated`, 28
 `ability.plain-modal`, 10 `ability.triggered`, 23 `clause.coordination`, and
@@ -88,9 +88,10 @@ Completion evidence on the task-closed tree:
 - candidate-pool fingerprint, partition counts, selected identity/render/
   ownership/claims/family, structural deferred boundaries, target membership/
   disjointness/additivity, out-of-pool explanation, and complete lock equality
-  each have an independent literal oracle and mutation-authenticated RED. The
-  deferred census hash is
-  `cae10d975c30177e7b9970b459b9adb9058d5250c3e48a6bfe845c3c80b4047d`;
+  each have an independent literal oracle and mutation-authenticated RED. All
+  361 deferred rows reach their exact frozen failure span and match exactly one
+  of 49 exercised boundary rules; keyword ability, keyword action, and ability
+  word scope is authenticated against the frozen generated catalogs;
 - the Plan 04 scratch-copy perturbation changed one declared surface and one
   declared invariant in a single expansion build. Scanner, renderer, claims,
   and constructor behavior tracked both edits; both old behaviors produced no
