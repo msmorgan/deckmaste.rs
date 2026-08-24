@@ -903,6 +903,21 @@ countOutcomes s (MkBinding _ Outcome OneOf (OutcomeP s') :: bs) =
   if s == s' then S (countOutcomes s bs) else countOutcomes s bs
 countOutcomes s (_ :: bs) = countOutcomes s bs
 
+||| Whether the discourse carries damage some clause has dealt -- the whole
+||| licence a "...this way" back-reference needs. [CR#608.2c] is what makes
+||| the reading available (later text may modify the meaning of earlier
+||| text, one of its two worked examples being a "...this way"
+||| back-reference) and it leaves WHICH earlier instruction the phrase names
+||| to the reader, so this is an existence test. Not a count: a text may
+||| carry two damage mentions at once, and not a head test either, since an
+||| intervening clause displaces the head without making "this way"
+||| unreadable.
+public export
+damageDealtInScope : Bindings -> Bool
+damageDealtInScope [] = False
+damageDealtInScope (MkBinding _ Outcome OneOf (OutcomeP DamageDealt) :: _) = True
+damageDealtInScope (_ :: bs) = damageDealtInScope bs
+
 public export
 countQuality : QualitySort -> Bindings -> Nat
 countQuality q [] = Z

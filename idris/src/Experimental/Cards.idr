@@ -4050,13 +4050,56 @@ livingHive =
                                   (Macros.creatureTok 1 1 [Green] [Insect])) ]
        (Just (6, 6))
 
+||| "Whenever this creature is dealt damage, it deals that much damage to
+||| any other target. If a player is dealt damage this way, they can't gain
+||| life for the rest of the game." -- the union-narrowing container. The
+||| damage went to a joined-kind phrase; `DealtThisWay` picks out the player
+||| case, and "they" reads the joined mention back at its player half
+||| ([CR#115.1] makes both readings real), which the condition has just
+||| established was the one that happened.
 public export
-screamingNemesisTrigger : Ability
-screamingNemesisTrigger =
-  Macros.triggered Whenever
-                   (IsDealtDamage Macros.thisCreature)
-                   (DealDamage It ThatMuch
-                        (Macros.target (And [Macros.anyTarget, OtherThan This])))
+screamingNemesis : Card
+screamingNemesis =
+  Macros.card "Screaming Nemesis"
+       (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [Spirit] [Creature])
+       [ Macros.keyword Haste
+       , Macros.triggered Whenever
+                          (IsDealtDamage Macros.thisCreature)
+                          (Sequentially
+                             [ DealDamage It ThatMuch
+                                 (Macros.target (And [Macros.anyTarget,
+                                                      OtherThan This]))
+                             , If (DealtThisWay AnyPlayer)
+                                  (Continuously (PlayerCant GainsLife They)
+                                                (Just RestOfGame))
+                                  Nothing ]) ]
+       (Just (3, 3))
+
+
+||| "When this creature enters, it deals 2 damage to any target and you gain
+||| 2 life. If a player is dealt damage this way, they discard a card." --
+||| the second union-narrowing witness, and the one that shows the licence
+||| has to be loose: the life-gain clause stands between the damage and the
+||| conditional, so "this way" reads past it.
+public export
+sonicShrieker : Card
+sonicShrieker =
+  Macros.card "Sonic Shrieker"
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip White,
+              Macros.pip Black]) []
+       (MkTypeLine [Dragon] [Creature])
+       [ Macros.keyword Flying
+       , Macros.triggered When
+                          (Enters Macros.thisCreature)
+                          (Sequentially
+                             [ DealDamage It (Lit 2)
+                                 (Macros.target Macros.anyTarget)
+                             , Macros.gainsLife You (Lit 2)
+                             , If (DealtThisWay AnyPlayer)
+                                  (Macros.discardsACard They)
+                                  Nothing ]) ]
+       (Just (4, 4))
 
 
 public export

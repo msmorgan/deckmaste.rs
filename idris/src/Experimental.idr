@@ -1903,6 +1903,35 @@ mutual
                  (bound : Amount (amtIntro subj)) ->
                  {auto 0 rd : ReadAmount subj} ->
                  Condition bs
+    ||| "If a player is dealt damage this way, ..." (Screaming Nemesis),
+    ||| "If a creature is dealt damage this way, ..." (Burn from Within):
+    ||| the kind refinement on damage the text has dealt.
+    ||| [CR#608.2c] is the rule that lets later text read the instruction it
+    ||| follows -- one of its two worked examples is a "...this way"
+    ||| back-reference -- and it settles no more than that the reading is
+    ||| available. WHICH earlier instruction "this way" names is left to
+    ||| whoever reads the card, so the licence here is deliberately loose:
+    ||| the gate asks only that SOME damage a clause dealt is in scope
+    ||| (`damageDealtInScope`), and no discrimination between two of them is
+    ||| attempted. A text carrying two damage mentions can therefore write a
+    ||| refinement pointing at one and an anaphor resolving against the
+    ||| other; that mis-pairing is tolerated overgeneration, refused at the
+    ||| spelling boundary, and narrowing it would need the discourse to
+    ||| order its outcome mentions, which nothing else asks for.
+    ||| The description is bounded by what damage can be dealt
+    ||| to -- battles, creatures, planeswalkers and players [CR#120.1] --
+    ||| whose coarsest bound in the kind lattice is `Object \/ Player`; a
+    ||| refinement at any other kind is a category error.
+    ||| It tests and names no referent, like every other described-set
+    ||| condition. Under a joined kind it needs to name none: the body's
+    ||| "they" reads the union binding the damage went to, at its player
+    ||| half, and this condition is what discharges the presupposition that
+    ||| read carries.
+    ||| -- spelling: "If [description] is dealt damage this way, [e]."
+    DealtThisWay : {k : Kind} -> (p : Predicate bs k) ->
+                   {auto 0 wy : So (damageDealtInScope bs)} ->
+                   {auto 0 rk : So (kindLte k (Object \/ Player))} ->
+                   Condition bs
     NotCond : (c : Condition bs) -> Condition bs
     AndCond : (cs : List (Condition bs)) ->
               {auto 0 tw : TwoConjuncts cs} ->
@@ -1943,6 +1972,7 @@ mutual
   condNegated (NoHolder _) = False
   condNegated (Matches _ _) = False
   condNegated (CompareAmt _ _ _) = False
+  condNegated (DealtThisWay _) = False
   condNegated (NotCond _) = True
   condNegated (AndCond _) = False
 
@@ -1978,6 +2008,7 @@ mutual
     [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing)]
   condDelta (Matches _ _) = []
   condDelta (CompareAmt subj _ bound) = gapB :: (amtDelta bound ++ amtDelta subj)
+  condDelta (DealtThisWay _) = []
   condDelta (NotCond _) = []
   condDelta (AndCond cs) = condDeltaAll cs
 

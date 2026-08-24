@@ -226,6 +226,28 @@ surface is 237 sentences over 220 cards, and most of it is the ordinary
 multiplier `CountOf` already spells. This entry is the read-back subset at the
 player sort and nothing else.
 
+### The joined element — 2 cards
+
+The same `elemIntro` generalisation, one kind further out. `ForEachOf`'s
+domain is `Noun bs Object`, so a joined-kind group is a type error and not a
+gate — there is nothing to pin, and the closure table's stated reason for the
+cell ("no binding possible per `YouAnd`'s Kind-indexed `Binding` argument",
+`docs/idris-workbench-closure-tables.md:745`) died with
+`workbench-join-is-a-constructor`: a lattice kind indexes a binding, as
+`bindFor`'s `PhJoin` row shows. Two lines are attested, not the table's one,
+and both read the element back at the joined kind:
+
+- Kaboom! — "Choose any number of target players or planeswalkers. For each of
+  them, … deals damage … to that player or planeswalker, then …"
+- Soulfire Eruption — "Choose any number of target creatures, planeswalkers,
+  and/or players. For each of them, … deals damage … to that permanent or
+  player."
+
+Take it with the player element above: one `elemIntro` indexed over `Kind`
+answers both, minting the payload the kind fixes (`joinHalfPayload` for a
+join) instead of always an `ObjectP`. Routed here by
+`workbench-joined-kind-binding`.
+
 ### The repeated schema — 6 cards
 
 "Repeat this process FOR …", where the domain does not bound the repetition but

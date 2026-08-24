@@ -373,3 +373,25 @@ public export
 youAndBindsNothing :
   nounDelta {bs = []} (Macros.youAnd Macros.thisCreature) = []
 youAndBindsNothing = Refl
+
+||| "You draw a card. If a player is dealt damage this way, you draw a card."
+||| "This way" reads an instruction the text has already written
+||| [CR#608.2c], and a draw dealt no damage anywhere in scope for it to
+||| read back. The licence is loose about WHICH damage; it still needs one.
+public export
+badDealtThisWayNoDamage : Unspellable (Effect []) (\ok =>
+  Sequentially [ Draw You (Lit 1)
+               , If (DealtThisWay AnyPlayer {wy = ok}) (Draw You (Lit 1)) Nothing ])
+badDealtThisWayNoDamage Oh impossible
+
+||| "This deals 2 damage to any target. If a mana ability is dealt damage
+||| this way, you draw a card."
+||| Damage is dealt to battles, creatures, planeswalkers and players
+||| [CR#120.1]; an ability is none of them, so the refinement narrows to a
+||| kind no damage could have reached.
+public export
+badDealtThisWayAbility : Unspellable (Effect []) (\ok =>
+  Sequentially [ DealDamage This (Lit 2) (Macros.target Macros.anyTarget)
+               , If (DealtThisWay IsManaAbility {rk = ok}) (Draw You (Lit 1))
+                    Nothing ])
+badDealtThisWayAbility Oh impossible
