@@ -1573,6 +1573,14 @@ pub mod fixture {
             derive agreement = Values::Bare;
             form checked_bare_mixed_choice = lex(mode);
         }
+        construction relayed_outer_mixed_choices: RelayedOuterMixedChoiceSequence {
+            element RelayedOuterMixedChoices {
+                members: seq OuterRelayedMixedChoice separated by " ",
+            }
+            require len(members) >= 1;
+            derive agreement = members.agreement;
+            form relayed_outer_mixed_choices = members;
+        }
         construction mixed_relay_envelope: MixedRelayEnvelopeRoot {
             element MixedRelayEnvelope {
                 choices: RelayedMixedChoiceSequence,
@@ -1586,6 +1594,20 @@ pub mod fixture {
             }
             derive choices.agreement = Values::ThirdPersonSingular;
             form third_relay_envelope = choices;
+        }
+        construction bare_outer_mixed_relay_envelope: OuterMixedRelayEnvelopeRoot {
+            element BareOuterMixedRelayEnvelope {
+                choices: RelayedOuterMixedChoiceSequence,
+            }
+            derive choices.agreement = Values::Bare;
+            form bare_outer_mixed_relay_envelope = choices;
+        }
+        construction third_outer_mixed_relay_envelope: OuterMixedRelayEnvelopeRoot {
+            element ThirdOuterMixedRelayEnvelope {
+                choices: RelayedOuterMixedChoiceSequence,
+            }
+            derive choices.agreement = Values::ThirdPersonSingular;
+            form third_outer_mixed_relay_envelope = choices;
         }
         construction partitioned: PartitionRoot {
             element Partitioned { word: lex Partition, }
@@ -1889,6 +1911,7 @@ pub mod fixture {
         abstract sum Choice { Child, MarkerCategory, }
         abstract sum AgreementChild { Child, }
         abstract sum MixedAgreementChild { Child, Predicate, }
+        abstract sum OuterRelayedMixedChoice { RelayedMixedChoiceSequence, }
         abstract product Holder {
             maybe: opt Child,
             items: seq Choice terminated by ",",
@@ -1969,7 +1992,9 @@ pub mod fixture {
         root RelayedChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root MixedChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root RelayedMixedChoiceSequence { punctuation = "."; eoi = true; standalone_render = false; }
+        root RelayedOuterMixedChoiceSequence { punctuation = "."; eoi = true; standalone_render = false; }
         root MixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root OuterMixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalVisitRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -5498,6 +5523,168 @@ pub mod fixture {
         );
     }
 
+    pub(super) fn assert_outer_sum_preserves_selected_category_agreement_authority() {
+        let outer = |value| OuterRelayedMixedChoice::RelayedMixedChoiceSequence(value);
+        let intrinsic_third =
+            || RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice);
+        let bare = || MixedAgreementChild::Child(Child::Bare(BareChild));
+        let contextual =
+            || MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
+
+        let relayed_intrinsic = RelayedOuterMixedChoices::try_new(vec![outer(intrinsic_third())])
+            .expect("the outer relay accepts a homogeneous intrinsic Third singleton");
+        let relayed_intrinsic =
+            RelayedOuterMixedChoiceSequence::RelayedOuterMixedChoices(relayed_intrinsic);
+        let bare_rejection = BareOuterMixedRelayEnvelope::try_new(relayed_intrinsic.clone())
+            .expect_err("a Bare writer rejects the outer sum's selected intrinsic Third sibling");
+        assert_eq!(bare_rejection.owner(), "BareOuterMixedRelayEnvelope");
+        assert_eq!(bare_rejection.role(), "choices");
+        assert_eq!(
+            bare_rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "value matches derived agreement",
+            },
+        );
+
+        let third_envelope = ThirdOuterMixedRelayEnvelope::try_new(relayed_intrinsic)
+            .expect("a Third writer accepts the outer sum's selected intrinsic Third sibling");
+        assert_eq!(
+            Render::render(
+                &OuterMixedRelayEnvelopeRoot::ThirdOuterMixedRelayEnvelope(third_envelope),
+                &ParseContext::default(),
+            ),
+            "Intrinsic third.",
+        );
+
+        let compatible_relay = RelayedMixedChoiceSequence::RelayedMixedChildChoices(
+            RelayedMixedChildChoices::try_new(vec![bare(), contextual()])
+                .expect("the inner relay is homogeneous at Bare"),
+        );
+        let relayed_compatible = RelayedOuterMixedChoices::try_new(vec![outer(compatible_relay)])
+            .expect("the outer relay accepts the compatible contextual path");
+        let relayed_compatible =
+            RelayedOuterMixedChoiceSequence::RelayedOuterMixedChoices(relayed_compatible);
+        let compatible_envelope = BareOuterMixedRelayEnvelope::try_new(relayed_compatible)
+            .expect("a Bare writer accepts the compatible relay through the outer sum");
+        assert_eq!(
+            Render::render(
+                &OuterMixedRelayEnvelopeRoot::BareOuterMixedRelayEnvelope(compatible_envelope),
+                &ParseContext::default(),
+            ),
+            "Bare act.",
+        );
+
+        let checked = CheckedBareMixedChoice::try_new(Mode::One)
+            .expect("the unrelated checked sibling accepts its legal value");
+        let relayed_checked = RelayedOuterMixedChoices::try_new(vec![outer(
+            RelayedMixedChoiceSequence::CheckedBareMixedChoice(checked),
+        )])
+        .expect("the unrelated checked sibling crosses the outer sum without a relay source");
+        let relayed_checked =
+            RelayedOuterMixedChoiceSequence::RelayedOuterMixedChoices(relayed_checked);
+        let checked_envelope = BareOuterMixedRelayEnvelope::try_new(relayed_checked)
+            .expect("a Bare writer accepts the unrelated checked sibling");
+        assert_eq!(
+            Render::render(
+                &OuterMixedRelayEnvelopeRoot::BareOuterMixedRelayEnvelope(checked_envelope),
+                &ParseContext::default(),
+            ),
+            "One.",
+        );
+
+        let context = ParseContext::default();
+        let built_intrinsic = build_checked(
+            RuleId::RelayedMixedChoiceSequenceIntrinsicThirdMixedChoice,
+            &[BuildValue::Leaf(Leaf::Literal("intrinsic third"))],
+            &context,
+        )
+        .expect("the inner intrinsic construction builds exactly")
+        .expect("the inner intrinsic construction materializes");
+        let built_outer = build(
+            RuleId::OuterRelayedMixedChoiceRelayedMixedChoiceSequence,
+            &[built_intrinsic],
+            &context,
+        )
+        .expect("the explicit sum preserves the inner Third carrier");
+        assert!(matches!(
+            &built_outer,
+            BuildValue::OuterRelayedMixedChoice(
+                OuterRelayedMixedChoice::RelayedMixedChoiceSequence(
+                    RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(_)
+                ),
+                Agreement::ThirdPersonSingular,
+            )
+        ));
+        let built_sequence = build(
+            RuleId::RelayedOuterMixedChoicesMembersSequenceSingleton,
+            &[built_outer],
+            &context,
+        )
+        .expect("the exact singleton sequence preserves the outer sum's Third carrier");
+        let built_relay = build_checked(
+            RuleId::RelayedOuterMixedChoiceSequenceRelayedOuterMixedChoices,
+            &[built_sequence],
+            &context,
+        )
+        .expect("the outer relay materializes without internal failure")
+        .expect("the outer relay construction builds");
+        assert!(matches!(
+            &built_relay,
+            BuildValue::RelayedOuterMixedChoiceSequence(
+                RelayedOuterMixedChoiceSequence::RelayedOuterMixedChoices(_),
+                Agreement::ThirdPersonSingular,
+            )
+        ));
+        assert!(
+            build(
+                RuleId::OuterMixedRelayEnvelopeRootBareOuterMixedRelayEnvelope,
+                &[built_relay.clone()],
+                &context,
+            )
+            .is_none(),
+            "the exact Bare build rejects the relayed Third carrier",
+        );
+        let built_third_envelope = build(
+            RuleId::OuterMixedRelayEnvelopeRootThirdOuterMixedRelayEnvelope,
+            &[built_relay],
+            &context,
+        )
+        .expect("the exact Third build accepts the relayed Third carrier");
+        assert!(matches!(
+            built_third_envelope,
+            BuildValue::OuterMixedRelayEnvelopeRoot(
+                OuterMixedRelayEnvelopeRoot::ThirdOuterMixedRelayEnvelope(_)
+            )
+        ));
+
+        let fabricated = BuildValue::RelayedOuterMixedChoicesMembersSequence(
+            vec![outer(intrinsic_third())],
+            Agreement::Bare,
+        );
+        let materialization_rejection = build_checked(
+            RuleId::RelayedOuterMixedChoiceSequenceRelayedOuterMixedChoices,
+            &[fabricated],
+            &context,
+        )
+        .expect_err("owner materialization rechecks the outer sum's selected intrinsic authority");
+        assert_eq!(
+            materialization_rejection.owner(),
+            "RelayedOuterMixedChoices"
+        );
+        assert_eq!(materialization_rejection.role(), "members");
+
+        let parsed = parse_structural(
+            Category::RelayedOuterMixedChoiceSequence,
+            "Intrinsic third",
+            &context,
+        );
+        assert_eq!(
+            parsed.accepted_root_ids().count(),
+            1,
+            "the scanner/chart preserves the inner intrinsic path across the outer sum",
+        );
+    }
+
     pub(super) fn assert_nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
         let one = std::num::NonZeroU32::new(1).expect("one is nonzero");
         let maximum = std::num::NonZeroU32::new(u32::MAX).expect("u32::MAX is nonzero");
@@ -5726,4 +5913,9 @@ fn mixed_sum_sequence_checks_intrinsic_alternatives_against_derived_agreement() 
 #[test]
 fn mixed_sum_sequence_relay_checks_every_intrinsic_constraint() {
     fixture::assert_mixed_sum_sequence_relay_checks_intrinsic_constraints();
+}
+
+#[test]
+fn outer_sum_preserves_selected_category_agreement_authority() {
+    fixture::assert_outer_sum_preserves_selected_category_agreement_authority();
 }

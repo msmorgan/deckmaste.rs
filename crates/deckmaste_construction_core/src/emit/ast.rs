@@ -607,7 +607,9 @@ fn emit_invariant_checks(
                     return None;
                 };
                 if constrained.kind() != crate::semantic::ConstructionFieldKind::Category
-                    || !plan.category_has_agreement_constraint(constrained.terminal())
+                    || constrained.structural_plan().is_some()
+                    || !(plan.sum_carries_agreement(constrained.terminal())
+                        || plan.category_carries_agreement(constrained.terminal()))
                 {
                     return None;
                 }
@@ -664,21 +666,15 @@ fn emit_sequence_feature_check(
             "checked sequence feature role is not statically nonempty",
         ));
     }
-    if let crate::semantic::ValueKindPlan::Category(category) = item
-        && plan.category_requires_external_agreement(category)
-    {
-        return Ok(TokenStream::new());
-    }
-    if let crate::semantic::ValueKindPlan::Sum(sum) = item
-        && plan.sum_requires_external_agreement(sum)
-        && !plan.sum_has_intrinsic_agreement(sum)
-    {
-        return Ok(TokenStream::new());
-    }
     let feature_owner = match item {
-        crate::semantic::ValueKindPlan::Category(category) => category,
+        crate::semantic::ValueKindPlan::Category(category)
+            if plan.category_carries_agreement(category) =>
+        {
+            category
+        }
         crate::semantic::ValueKindPlan::Sum(sum) if plan.sum_carries_agreement(sum) => sum,
-        crate::semantic::ValueKindPlan::Sum(_)
+        crate::semantic::ValueKindPlan::Category(_)
+        | crate::semantic::ValueKindPlan::Sum(_)
         | crate::semantic::ValueKindPlan::Product(_)
         | crate::semantic::ValueKindPlan::Lex(_)
         | crate::semantic::ValueKindPlan::Identity(_) => {
@@ -689,15 +685,8 @@ fn emit_sequence_feature_check(
     };
     let role = field.name_key();
     let values = field_local(locals, field)?;
-    let mixed_sum = matches!(
-        item,
-        crate::semantic::ValueKindPlan::Sum(sum)
-            if plan.sum_requires_external_agreement(sum)
-                && plan.sum_has_intrinsic_agreement(sum)
-    );
-    let helper_feature = if mixed_sum { "agreement_matches" } else { feature.key() };
     let helper = emitted_ident(
-        &feature_helper(helper_feature, feature_owner),
+        &feature_helper("agreement_matches", feature_owner),
         proc_macro2::Span::call_site(),
     );
     let target = crate::feature::FeaturePlace::Role {
@@ -716,13 +705,9 @@ fn emit_sequence_feature_check(
             &mut std::collections::HashSet::new(),
             locals,
         )?;
-        let predicate = if mixed_sum {
-            quote! { #values.iter().all(|value| #helper(value, #expected)) }
-        } else {
-            quote! { #values.iter().all(|value| #helper(value) == #expected) }
-        };
+        let predicate = quote! { #values.iter().all(|value| #helper(value, #expected)) };
         (predicate, "all members match derived agreement")
-    } else if mixed_sum {
+    } else {
         (
             quote! {
                 [Agreement::Bare, Agreement::ThirdPersonSingular]
@@ -733,18 +718,6 @@ fn emit_sequence_feature_check(
                             .all(|value| #helper(value, agreement))
                     })
             },
-            "all members share agreement",
-        )
-    } else {
-        (
-            quote! {{
-                let agreement = #helper(
-                    #values
-                        .first()
-                        .expect("validated sequence feature source is statically nonempty")
-                );
-                #values.iter().skip(1).all(|value| #helper(value) == agreement)
-            }},
             "all members share agreement",
         )
     };

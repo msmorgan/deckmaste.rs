@@ -491,7 +491,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         }
     }
     for (category, members) in &categories {
-        if validated.category_has_agreement_constraint(category) {
+        if validated.category_carries_agreement(category) {
             items.push(emit_category_agreement_match_helper(
                 validated, category, members,
             )?);
@@ -503,11 +503,11 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     }) {
         items.push(emit_sum_agreement_helper(validated, sum)?);
     }
-    for sum in validated.sums().iter().filter(|sum| {
-        validated.sum_carries_agreement(sum.name())
-            && validated.sum_requires_external_agreement(sum.name())
-            && validated.sum_has_intrinsic_agreement(sum.name())
-    }) {
+    for sum in validated
+        .sums()
+        .iter()
+        .filter(|sum| validated.sum_carries_agreement(sum.name()))
+    {
         items.push(emit_sum_agreement_match_helper(validated, sum)?);
     }
     Ok(items)
@@ -3993,29 +3993,14 @@ fn emit_sum_agreement_match_helper(
             let variant = ident(alternative.name());
             let predicate = match alternative.value() {
                 ValueKindPlan::Category(category)
-                    if validated.category_requires_external_agreement(category) =>
-                {
-                    quote! { true }
-                }
-                ValueKindPlan::Category(category)
                     if validated.category_carries_agreement(category) =>
                 {
-                    let helper = ident(&feature_helper("agreement", category));
-                    quote! { #helper(value) == agreement }
-                }
-                ValueKindPlan::Sum(nested)
-                    if validated.sum_requires_external_agreement(nested)
-                        && validated.sum_has_intrinsic_agreement(nested) =>
-                {
-                    let helper = ident(&feature_helper("agreement_matches", nested));
+                    let helper = ident(&feature_helper("agreement_matches", category));
                     quote! { #helper(value, agreement) }
                 }
-                ValueKindPlan::Sum(nested) if validated.sum_requires_external_agreement(nested) => {
-                    quote! { true }
-                }
                 ValueKindPlan::Sum(nested) if validated.sum_carries_agreement(nested) => {
-                    let helper = ident(&feature_helper("agreement", nested));
-                    quote! { #helper(value) == agreement }
+                    let helper = ident(&feature_helper("agreement_matches", nested));
+                    quote! { #helper(value, agreement) }
                 }
                 ValueKindPlan::Category(_)
                 | ValueKindPlan::Sum(_)

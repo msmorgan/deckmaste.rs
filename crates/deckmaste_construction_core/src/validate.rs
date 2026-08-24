@@ -12222,9 +12222,9 @@ pub(crate) mod tests {
         .into_semantic();
 
         assert!(plan.sum_requires_external_agreement("MixedChoice"));
-        assert!(plan.sum_has_intrinsic_agreement("MixedChoice"));
+        assert!(plan.sum_carries_agreement("MixedChoice"));
         assert!(plan.category_requires_external_agreement("MixedRelay"));
-        assert!(plan.category_has_agreement_constraint("MixedRelay"));
+        assert!(plan.category_carries_agreement("MixedRelay"));
         let envelope = plan
             .constructions()
             .iter()

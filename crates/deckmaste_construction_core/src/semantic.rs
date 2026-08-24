@@ -1829,36 +1829,6 @@ impl SemanticPlan {
         requires(self, sum, &mut HashSet::new())
     }
 
-    pub(crate) fn sum_has_intrinsic_agreement(&self, sum: &str) -> bool {
-        fn has_intrinsic(plan: &SemanticPlan, sum: &str, visiting: &mut HashSet<String>) -> bool {
-            if !visiting.insert(sum.to_owned()) {
-                return false;
-            }
-            let result = plan
-                .sums
-                .iter()
-                .find(|candidate| candidate.name() == sum)
-                .is_some_and(|sum| {
-                    sum.alternatives()
-                        .iter()
-                        .any(|alternative| match alternative.value() {
-                            ValueKindPlan::Category(category) => {
-                                plan.category_carries_agreement(category)
-                                    && !plan.category_requires_external_agreement(category)
-                            }
-                            ValueKindPlan::Sum(nested) => has_intrinsic(plan, nested, visiting),
-                            ValueKindPlan::Product(_)
-                            | ValueKindPlan::Lex(_)
-                            | ValueKindPlan::Identity(_) => false,
-                        })
-                });
-            visiting.remove(sum);
-            result
-        }
-
-        has_intrinsic(self, sum, &mut HashSet::new())
-    }
-
     pub(crate) fn sequence_feature(&self, owner: &str, role: &str) -> Option<Feature> {
         self.features
             .sequence_features
@@ -1875,13 +1845,12 @@ impl SemanticPlan {
         &self,
         construction: &ConstructionPlan,
     ) -> AgreementAuthorityPlan {
-        self.construction_agreement_authority_inner(construction, &mut HashSet::new())
+        self.construction_agreement_authority_inner(construction)
     }
 
     fn construction_agreement_authority_inner(
         &self,
         construction: &ConstructionPlan,
-        visiting: &mut HashSet<String>,
     ) -> AgreementAuthorityPlan {
         let place = feature::FeaturePlace::Construction(Feature::Agreement);
         if self.feature_resolution(construction.construction_id(), &place)
@@ -1920,11 +1889,11 @@ impl SemanticPlan {
                 } else {
                     ValueKindPlan::Category(terminal.to_owned())
                 };
-                return self.agreement_authority_for_value(&role, false, &value, visiting);
+                return self.agreement_authority_for_value(&role, false, &value);
             }
             None => return AgreementAuthorityPlan::Exact,
         };
-        self.agreement_authority_for_value(&role, sequence, value, visiting)
+        self.agreement_authority_for_value(&role, sequence, value)
     }
 
     fn agreement_authority_for_value(
@@ -1932,27 +1901,11 @@ impl SemanticPlan {
         role: &str,
         sequence: bool,
         value: &ValueKindPlan,
-        visiting: &mut HashSet<String>,
     ) -> AgreementAuthorityPlan {
         let target = match value {
-            ValueKindPlan::Sum(sum)
-                if self.sum_requires_external_agreement(sum)
-                    && self.sum_has_intrinsic_agreement(sum) =>
-            {
-                Some(sum.clone())
-            }
-            ValueKindPlan::Category(category)
-                if self.category_has_agreement_constraint_inner(category, visiting) =>
-            {
+            ValueKindPlan::Sum(sum) if self.sum_carries_agreement(sum) => Some(sum.clone()),
+            ValueKindPlan::Category(category) if self.category_carries_agreement(category) => {
                 Some(category.clone())
-            }
-            ValueKindPlan::Sum(sum) if self.sum_requires_external_agreement(sum) => {
-                return AgreementAuthorityPlan::Contextual;
-            }
-            ValueKindPlan::Category(category)
-                if self.category_requires_external_agreement(category) =>
-            {
-                return AgreementAuthorityPlan::Contextual;
             }
             ValueKindPlan::Category(_)
             | ValueKindPlan::Sum(_)
@@ -1971,34 +1924,6 @@ impl SemanticPlan {
             },
             (_, None) => AgreementAuthorityPlan::Exact,
         }
-    }
-
-    fn category_has_agreement_constraint_inner(
-        &self,
-        category: &str,
-        visiting: &mut HashSet<String>,
-    ) -> bool {
-        if !self.category_requires_external_agreement(category)
-            || !visiting.insert(category.to_owned())
-        {
-            return false;
-        }
-        let result = self
-            .constructions
-            .iter()
-            .filter(|construction| construction.category() == category)
-            .any(|construction| {
-                !matches!(
-                    self.construction_agreement_authority_inner(construction, visiting),
-                    AgreementAuthorityPlan::Contextual
-                )
-            });
-        visiting.remove(category);
-        result
-    }
-
-    pub(crate) fn category_has_agreement_constraint(&self, category: &str) -> bool {
-        self.category_has_agreement_constraint_inner(category, &mut HashSet::new())
     }
 
     pub(crate) fn construction_requires_checked_ast(
@@ -2022,7 +1947,8 @@ impl SemanticPlan {
                         .ok()
                         .is_some_and(|field| {
                             field.kind() == ConstructionFieldKind::Category
-                                && self.category_has_agreement_constraint(field.terminal())
+                                && (self.sum_carries_agreement(field.terminal())
+                                    || self.category_carries_agreement(field.terminal()))
                         })
                 })
     }
