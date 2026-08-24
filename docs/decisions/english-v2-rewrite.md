@@ -444,12 +444,32 @@ ad hoc literal strings or v1 feature vocabulary. This condition/coordination
 staging keeps their AST and ownership decisions before Plan 08 effect grammar.
 
 Plan 08 owns ordinary unlabelled plain modal U+2022 lists, moved here from
-Plan 10. Its public data boundary uses exact byte/case and boundary ownership
-for period-space sentence sequences, LF document blocks, comma-space trigger
-boundaries, comma-space cost components, colon-space activation boundaries,
-dash-LF modal headers, U+2022-space bullets, and LF mode separation. For every
-one of these boundaries, the boundary-owned space and following word claim
-cannot overlap.
+Plan 10. Its public data boundary uses this per-boundary assignment.
+
+### Per-boundary structural byte and case ownership
+
+`CasePosition::DocumentInitial` and `CasePosition::SentenceInitial` capitalize
+the following lexical word; `CasePosition::Continuation` preserves its running
+case. Each structural owner below claims every listed byte, including its ASCII
+space where present, before passing the stated position to the following node.
+
+| Boundary bytes | Structural owner | Following `CasePosition` / capitalization |
+| --- | --- | --- |
+| Sentence period (`.`) | `Sentence` | Sets `CasePosition::SentenceInitial`; the next lexical word is capitalized. |
+| Intersentence ASCII space | `SentenceSequence` | Preserves `CasePosition::SentenceInitial`; the following sentence's first lexical word remains capitalized. |
+| Document LF | `OracleText`'s document-block sequence | Sets `CasePosition::DocumentInitial`; the next document block's first lexical word is capitalized. |
+| Trigger → body comma-space | `Triggered` envelope | Sets `CasePosition::Continuation`; the body begins without capitalization. |
+| Trigger → intervening-if comma-space | `Triggered` envelope | Sets `CasePosition::Continuation`; `if` begins without capitalization. |
+| Intervening-if → body comma-space | `Triggered` envelope | Sets `CasePosition::Continuation`; the body begins without capitalization. |
+| Cost-component comma-space | `ActivationCost` sequence | Sets `CasePosition::Continuation`; the next cost component begins without capitalization. |
+| Activation colon-space | `Activated` envelope | Sets `CasePosition::SentenceInitial`; the `AbilityBody`'s first lexical word is capitalized. |
+| Modal header ASCII-space + U+2014 + LF | `Modal` header | Sets `CasePosition::SentenceInitial`; the first mode body is capitalized after its bullet. |
+| Mode U+2022 + ASCII-space | `ModalMode` | Preserves `CasePosition::SentenceInitial`; the mode body's first lexical word is capitalized. |
+| Intermode LF after preceding final period | `Modal` mode sequence | The preceding `Sentence` has set `CasePosition::SentenceInitial`; the next `ModalMode` preserves it through its bullet, so its body is capitalized. |
+
+Every separator-owned space is part of the structural owner's claim. The
+following lexical word claim begins after that surface: the separator-owned
+space and following word claim cannot overlap.
 Keyword-, ability-word-, reminder-, frame-coupled, labelled,
 pawprint-weighted, repetition, and other advanced modal forms remain Plan 10.
 
