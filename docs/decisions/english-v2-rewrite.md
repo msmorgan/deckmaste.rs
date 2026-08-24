@@ -69,6 +69,8 @@ live in the stable low-level `deckmaste_data` crate. The old
 `deckmaste_features` crate is v1 grammatical-feature vocabulary and is deleted
 at cutover together with the old English/compiler/macro machinery; Plan 07
 adds no new or direct dependency on it, and v2's dependency set is unchanged.
+Plan 08 likewise adds no crate edge and does not revive
+`deckmaste_features` or v1 feature vocabulary.
 The current `deckmaste_english_v2 -> macro_ron -> deckmaste_features` edge is
 cutover debt: the surviving `macro_ron`/v2 normalization path must shed that
 transitive dependency before `deckmaste_features` is deleted. The stable
@@ -146,6 +148,16 @@ last actually realized possessor surface. English possessives have exactly
 three guarded forms: singular takes `'s`; plural `EndsInS` takes `'`; the
 plural remainder takes `'s`. Neither affix punctuation nor a possessive form
 tag is stored.
+
+**Plan 08 declaration extensions (2026-08-23):** `unsigned_decimal` is the
+canonical nonzero unsigned decimal generated terminal recipe. The declaration
+states its representation bound; the compiler owns the canonical digit
+surface, scanner, renderer, and round-trip evidence. `circumfix(prefix,
+value, suffix)` is one fixed two-sided boundary around one required declared
+role. That role may be a singular category or terminal, or a sequence whose
+own separator and terminator remain authoritative. The circumfix bytes are
+derived and separately owned. Nesting, callbacks, optional roles,
+whitespace-bearing affixes, and literal-only payloads are rejected.
 - **Added:** inflected atoms — `verb(lexeme)` and `noun(role)` render their
   inflection from derived feature context; and the terminal declarations
   `vocab`, `lexeme`, `codec` (§Terminals).
@@ -398,6 +410,11 @@ facts, never AST state. An independently mentioned card-name `catalog_identity` 
 only inside an explicit name-bearing construction such as `a card named Seven
 Dwarves`; it is never a rival bare noun phrase for the current card's name.
 
+**Plan 08 cross-envelope obligation (2026-08-23):** the dedicated legendary
+self-reference ruling applies in every ability envelope. The only shortening
+license is exact per-face Oracle `Legendary` metadata supplied by xtask;
+punctuation or a name such as `+2 Mace` never licenses abbreviation.
+
 Catalog providers do not weaken the normalized grammar boundary. Generated
 metadata names each required typed provider, and construction fails on a
 missing or duplicate provider. xtask alone reads `deckmaste_catalogs` and
@@ -413,6 +430,28 @@ spelling-wide fallbacks are not onset authority.
 **Lexical coverage gate:** every token of every accepted corpus sentence must
 be claimed by a form literal, vocab, lexeme, codec, or identity — an
 unclaimed token fails at the lexical layer, loudly.
+
+## Plan 08 ability-and-logic grammar boundary
+
+`Ability` envelopes share one public `AbilityBody`; triggered and activated
+envelopes differ only in their envelope-specific structure around that body.
+Triggered envelopes stage finite and temporal trigger complements separately.
+An intervening `if` is not an ordinary condition: it is part of the triggered
+envelope, while ordinary condition attachment is staged as a structural
+operator. Cost surfaces are linguistic and v2-owned. Auxiliaries,
+coordination, condition attachment, and `then` are structural operators, not
+ad hoc literal strings or v1 feature vocabulary. This condition/coordination
+staging keeps their AST and ownership decisions before Plan 08 effect grammar.
+
+Plan 08 owns ordinary unlabelled plain modal U+2022 lists, moved here from
+Plan 10. Its public data boundary uses exact byte/case and boundary ownership
+for period-space sentence sequences, LF document blocks, comma-space trigger
+boundaries, comma-space cost components, colon-space activation boundaries,
+dash-LF modal headers, U+2022-space bullets, and LF mode separation. For every
+one of these boundaries, the boundary-owned space and following word claim
+cannot overlap.
+Keyword-, ability-word-, reminder-, frame-coupled, labelled,
+pawprint-weighted, repetition, and other advanced modal forms remain Plan 10.
 
 ## Parsing, selection, and failure
 

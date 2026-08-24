@@ -67,3 +67,9 @@ conservative global retry because their validators may inspect unrelated
 forest state. Dedicated tests authenticate both dependency modes through real
 delayed-growth control flow, and the final parse sample is 9.911343313s.
 Standard constraints apply.
+
+## Plan 08 deferral amendment (2026-08-23)
+
+Only ordinary unlabelled U+2022 modal structures moved from Plan 10 into Plan
+08. Keyword/ability-word/reminder/frame-coupled, labelled,
+pawprint-weighted, repetition, and other advanced modal forms remain Plan 10.
