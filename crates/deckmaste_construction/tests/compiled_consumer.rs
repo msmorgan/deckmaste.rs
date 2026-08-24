@@ -1522,6 +1522,30 @@ pub mod fixture {
             derive agreement = members.agreement;
             form relayed_children = members;
         }
+        construction singleton_children: SingletonSequence {
+            element SingletonChildren {
+                members: seq Child separated by " ",
+            }
+            require len(members) >= 1;
+            derive members.agreement = Values::Bare;
+            form singleton_children = members;
+        }
+        construction uniform_child_choices: HomogeneousChoiceSequence {
+            element UniformChildChoices {
+                members: seq AgreementChild separated by " ",
+            }
+            require len(members) >= 2;
+            derive members.agreement = Values::Bare;
+            form uniform_child_choices = members;
+        }
+        construction relayed_child_choices: RelayedChoiceSequence {
+            element RelayedChildChoices {
+                members: seq AgreementChild separated by " ",
+            }
+            require len(members) >= 2;
+            derive agreement = members.agreement;
+            form relayed_child_choices = members;
+        }
         construction partitioned: PartitionRoot {
             element Partitioned { word: lex Partition, }
             form first when word is First = "alpha" lex(word);
@@ -1822,6 +1846,7 @@ pub mod fixture {
         }
 
         abstract sum Choice { Child, MarkerCategory, }
+        abstract sum AgreementChild { Child, }
         abstract product Holder {
             maybe: opt Child,
             items: seq Choice terminated by ",",
@@ -1897,6 +1922,9 @@ pub mod fixture {
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root HomogeneousSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root RelayedSequence { punctuation = "."; eoi = true; standalone_render = true; }
+        root SingletonSequence { punctuation = "."; eoi = true; standalone_render = true; }
+        root HomogeneousChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
+        root RelayedChoiceSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalVisitRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -4960,6 +4988,167 @@ pub mod fixture {
         assert_eq!(Render::render(&sequence, &context), "Bare bare bare.");
     }
 
+    pub(super) fn assert_singleton_sequence_agreement_crosses_every_runtime_boundary() {
+        let bare = || Child::Bare(BareChild);
+        let third = || Child::Third(ThirdChild);
+
+        let singleton = SingletonChildren::new(vec![bare()])
+            .expect("the statically nonempty singleton satisfies its uniform agreement writer");
+        assert_eq!(singleton.members(), &[bare()]);
+        let rejection = SingletonChildren::try_new(vec![third()])
+            .expect_err("a singleton with the wrong derived agreement rejects");
+        assert_eq!(rejection.owner(), "SingletonChildren");
+        assert_eq!(rejection.role(), "members");
+        assert_eq!(
+            rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "all members match derived agreement",
+            },
+        );
+
+        let context = ParseContext::default();
+        let child = |value, agreement| BuildValue::Child(value, agreement);
+        let carrier = build(
+            RuleId::SingletonChildrenMembersSequenceSingleton,
+            &[child(bare(), Agreement::Bare)],
+            &context,
+        )
+        .expect("the singleton helper materializes one agreement-bearing member");
+        assert!(matches!(
+            carrier,
+            BuildValue::SingletonChildrenMembersSequence(_, Agreement::Bare)
+        ));
+        let built = build(
+            RuleId::SingletonSequenceSingletonChildren,
+            std::slice::from_ref(&carrier),
+            &context,
+        )
+        .expect("the singleton owner materializes its checked public construction");
+        let BuildValue::SingletonSequence(sequence) = built else {
+            panic!("the singleton sequence builds its declared category")
+        };
+        assert_eq!(Render::render(&sequence, &context), "Bare.");
+
+        let wrong_carrier = build(
+            RuleId::SingletonChildrenMembersSequenceSingleton,
+            &[child(third(), Agreement::ThirdPersonSingular)],
+            &context,
+        )
+        .expect("one member is homogeneous with itself before the owner writer applies");
+        let owner_rejection = build_checked(
+            RuleId::SingletonSequenceSingletonChildren,
+            &[wrong_carrier],
+            &context,
+        )
+        .expect_err("materialization enforces the singleton owner's derived agreement");
+        assert_eq!(owner_rejection.owner(), "SingletonChildren");
+        assert_eq!(owner_rejection.role(), "members");
+
+        let accepted = parse_structural(Category::SingletonSequence, "Bare", &context);
+        assert_eq!(accepted.accepted_root_ids().count(), 1);
+        let scanned_wrong_agreement =
+            parse_structural(Category::SingletonSequence, "Third", &context);
+        assert_eq!(
+            scanned_wrong_agreement.accepted_root_ids().count(),
+            1,
+            "the scanner and chart preserve the lexical reading before checked materialization rejects it",
+        );
+    }
+
+    pub(super) fn assert_sum_sequence_agreement_uses_the_explicit_sum_carrier() {
+        let bare = || AgreementChild::Child(Child::Bare(BareChild));
+        let third = || AgreementChild::Child(Child::Third(ThirdChild));
+
+        for length in [2, 3, 4] {
+            let members = (0..length).map(|_| bare()).collect::<Vec<_>>();
+            let sequence = UniformChildChoices::new(members.clone())
+                .expect("agreement-bearing sum members satisfy the uniform writer");
+            assert_eq!(sequence.members(), members);
+            let relayed = RelayedChildChoices::new(members)
+                .expect("agreement-bearing sum members satisfy the homogeneous outward relay");
+            assert_eq!(relayed.members().len(), length);
+        }
+        for members in [vec![bare(), third(), bare()], vec![bare(), bare(), third()]] {
+            let rejection = UniformChildChoices::try_new(members)
+                .expect_err("middle and final sum alternatives retain their carried agreement");
+            assert_eq!(rejection.owner(), "UniformChildChoices");
+            assert_eq!(rejection.role(), "members");
+            assert_eq!(
+                rejection.violation(),
+                &BuildViolation::Invariant {
+                    identity: "all members match derived agreement",
+                },
+            );
+            let relay_rejection = RelayedChildChoices::try_new(vec![bare(), third(), bare()])
+                .expect_err("the sum relay checks every member through its generated helper");
+            assert_eq!(relay_rejection.owner(), "RelayedChildChoices");
+            assert_eq!(relay_rejection.role(), "members");
+        }
+
+        let context = ParseContext::default();
+        for surface in ["Bare bare", "Bare bare bare", "Bare bare bare bare"] {
+            let forest = parse_structural(Category::HomogeneousChoiceSequence, surface, &context);
+            assert_eq!(forest.accepted_root_ids().count(), 1, "{surface}");
+        }
+        for surface in ["Bare third bare", "Bare bare third"] {
+            let forest = parse_structural(Category::HomogeneousChoiceSequence, surface, &context);
+            assert_eq!(
+                forest.accepted_root_ids().count(),
+                1,
+                "the scanner and chart preserve {surface:?} before materialization checks carried agreement",
+            );
+        }
+
+        let rendered = HomogeneousChoiceSequence::UniformChildChoices(
+            UniformChildChoices::new(vec![bare(), bare(), bare()])
+                .expect("render fixture is uniformly bare"),
+        );
+        assert_eq!(Render::render(&rendered, &context), "Bare bare bare.");
+
+        let choice =
+            |value, agreement| BuildValue::AgreementChild(AgreementChild::Child(value), agreement);
+        let pair = build(
+            RuleId::UniformChildChoicesMembersSequenceLength2,
+            &[
+                choice(Child::Bare(BareChild), Agreement::Bare),
+                BuildValue::Leaf(Leaf::Literal(" ")),
+                choice(Child::Bare(BareChild), Agreement::Bare),
+            ],
+            &context,
+        )
+        .expect("the exact sum pair materializes its agreement carrier");
+        assert!(matches!(
+            pair,
+            BuildValue::UniformChildChoicesMembersSequence(_, Agreement::Bare)
+        ));
+        assert!(
+            build(
+                RuleId::UniformChildChoicesMembersSequenceLength2,
+                &[
+                    choice(Child::Bare(BareChild), Agreement::Bare),
+                    BuildValue::Leaf(Leaf::Literal(" ")),
+                    choice(Child::Third(ThirdChild), Agreement::ThirdPersonSingular),
+                ],
+                &context,
+            )
+            .is_none(),
+            "the exact sum pair rejects a mismatched final carrier",
+        );
+        assert!(
+            build(
+                RuleId::UniformChildChoicesMembersSequenceRecursive,
+                &[
+                    choice(Child::Third(ThirdChild), Agreement::ThirdPersonSingular),
+                    BuildValue::Leaf(Leaf::Literal(" ")),
+                    pair,
+                ],
+                &context,
+            )
+            .is_none(),
+            "the recursive sum helper rejects a mismatched middle carrier",
+        );
+    }
+
     pub(super) fn assert_nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
         let one = std::num::NonZeroU32::new(1).expect("one is nonzero");
         let maximum = std::num::NonZeroU32::new(u32::MAX).expect("u32::MAX is nonzero");
@@ -5168,4 +5357,14 @@ fn nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
 #[test]
 fn sequence_agreement_is_uniform_across_every_member_and_boundary() {
     fixture::assert_sequence_agreement_is_uniform_across_every_member();
+}
+
+#[test]
+fn singleton_sequence_agreement_crosses_checked_build_render_scan_and_materialization() {
+    fixture::assert_singleton_sequence_agreement_crosses_every_runtime_boundary();
+}
+
+#[test]
+fn sum_sequence_agreement_uses_the_explicit_carrier_across_every_member_and_boundary() {
+    fixture::assert_sum_sequence_agreement_uses_the_explicit_sum_carrier();
 }

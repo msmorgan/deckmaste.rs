@@ -8,6 +8,7 @@ use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::render::Render as _;
 use deckmaste_english_v2::visit::Visitor;
@@ -1709,6 +1710,77 @@ fn plain_finite(subject: Subject, predicate: Predicate) -> FiniteClause {
     FiniteClause::PlainFiniteClause(PlainFiniteClause { subject, predicate })
 }
 
+fn predicate_identity(predicate: &VerbPhrase) -> String {
+    match predicate {
+        VerbPhrase::Connive(_) => "connive".to_owned(),
+        VerbPhrase::GainLife(GainLife {
+            amount:
+                Amount::Number(NumberAmount {
+                    number: ScalarNumber { magnitude },
+                }),
+        }) => format!("gain:{magnitude}"),
+        other => panic!("unexpected coordination predicate payload: {other:?}"),
+    }
+}
+
+fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
+    let NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+        reference:
+            NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
+                reference:
+                    ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
+                        reference:
+                            ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
+                                reference,
+                            }),
+                    }),
+            }),
+    }) = noun_phrase
+    else {
+        panic!("coordination subject uses the exact unqualified staging")
+    };
+    reference
+}
+
+fn subject_identity(subject: &Subject) -> &'static str {
+    match subject {
+        Subject::SubjectPronoun(PersonalSubject {
+            word: SubjectPronoun::You,
+        }) => "you",
+        Subject::SubjectNominal(NominalSubject { value }) => match unqualified_reference(value) {
+            UnqualifiedReference::SelfReference(reference) => {
+                assert_eq!(reference.spelling(), SelfReferenceSpelling::Abbreviated);
+                "self:abbreviated"
+            }
+            UnqualifiedReference::IndefiniteReference(IndefiniteReference {
+                nominal:
+                    SingularNominal::BareSingularNominal(BareSingularNominal {
+                        head:
+                            SingularHead::CommonSingularHead(CommonSingularHead {
+                                noun: CommonNoun::Player,
+                            }),
+                    }),
+            }) => "player",
+            other => panic!("unexpected nominal coordination subject payload: {other:?}"),
+        },
+        other => panic!("unexpected coordination subject payload: {other:?}"),
+    }
+}
+
+fn finite_clause_identity(clause: &FiniteClause) -> String {
+    let FiniteClause::PlainFiniteClause(PlainFiniteClause { subject, predicate }) = clause else {
+        panic!("clause coordination stores complete plain finite clauses")
+    };
+    let Predicate::Atomic(predicate) = predicate else {
+        panic!("the exact clause witnesses contain atomic predicates")
+    };
+    format!(
+        "{}/{}",
+        subject_identity(subject),
+        predicate_identity(predicate)
+    )
+}
+
 fn assert_one_logic_candidate(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Ability {
     let analysis = parser.analyze(text, context);
     let selected = analysis
@@ -1859,7 +1931,7 @@ fn assert_predicate_coordination(
     context: &ParseContext<'_>,
     text: &str,
     kind: CoordinationKind,
-    expected_members: usize,
+    expected_members: &[&str],
 ) {
     let selected = assert_one_logic_candidate(parser, context, text);
     let Ability::Plain(Plain {
@@ -1892,7 +1964,11 @@ fn assert_predicate_coordination(
         }
         _ => panic!("coordinator meaning is stored independently of punctuation: {text}"),
     };
-    assert_eq!(members.len(), expected_members, "{text}");
+    assert_eq!(
+        members.iter().map(predicate_identity).collect::<Vec<_>>(),
+        expected_members,
+        "the AST preserves every predicate payload in source order: {text}",
+    );
 }
 
 #[test]
@@ -1905,14 +1981,17 @@ fn predicate_coordination_is_nary_with_exact_pair_serial_and_final_surfaces() {
         (CoordinationKind::AndOr, "and/or"),
     ] {
         for (text, members) in [
-            (format!("You gain 1 life {coordinator} connive."), 2),
+            (
+                format!("You gain 1 life {coordinator} connive."),
+                &["gain:1", "connive"][..],
+            ),
             (
                 format!("You gain 1 life, connive, {coordinator} gain 2 life."),
-                3,
+                &["gain:1", "connive", "gain:2"][..],
             ),
             (
                 format!("You gain 1 life, connive, gain 2 life, {coordinator} gain 3 life."),
-                4,
+                &["gain:1", "connive", "gain:2", "gain:3"][..],
             ),
         ] {
             assert_predicate_coordination(&parser, &context, &text, kind, members);
@@ -1925,7 +2004,7 @@ fn assert_clause_coordination(
     context: &ParseContext<'_>,
     text: &str,
     kind: CoordinationKind,
-    expected_members: usize,
+    expected_members: &[&str],
 ) {
     let selected = assert_one_logic_candidate(parser, context, text);
     let Ability::Plain(Plain {
@@ -1952,7 +2031,14 @@ fn assert_clause_coordination(
         }
         _ => panic!("clause coordinator meaning is stored independently: {text}"),
     };
-    assert_eq!(members.len(), expected_members, "{text}");
+    assert_eq!(
+        members
+            .iter()
+            .map(finite_clause_identity)
+            .collect::<Vec<_>>(),
+        expected_members,
+        "the AST preserves every complete finite-clause payload in source order: {text}",
+    );
 }
 
 #[test]
@@ -1965,16 +2051,24 @@ fn complete_finite_clause_coordination_is_nary_and_preserves_member_agreement() 
         (CoordinationKind::AndOr, "and/or"),
     ] {
         for (text, members) in [
-            (format!("Aang gains 1 life {coordinator} you connive."), 2),
+            (
+                format!("Aang gains 1 life {coordinator} you connive."),
+                &["self:abbreviated/gain:1", "you/connive"][..],
+            ),
             (
                 format!("Aang gains 1 life, you connive, {coordinator} a player gains 2 life."),
-                3,
+                &["self:abbreviated/gain:1", "you/connive", "player/gain:2"][..],
             ),
             (
                 format!(
                     "Aang gains 1 life, you connive, a player gains 2 life, {coordinator} Aang gains 3 life."
                 ),
-                4,
+                &[
+                    "self:abbreviated/gain:1",
+                    "you/connive",
+                    "player/gain:2",
+                    "self:abbreviated/gain:3",
+                ][..],
             ),
         ] {
             assert_clause_coordination(&parser, &context, &text, kind, members);
@@ -2043,13 +2137,17 @@ enum LogicVisit {
     Predicate,
     PredicateCoordination,
     AndPredicateCoordination,
-    VerbPhrase,
+    GainLife(u32),
+    Connive,
     Clause,
     ClauseCoordination,
     AndClauseCoordination,
     FiniteClause,
     AuxiliaryFiniteClause,
     Subject,
+    SubjectPronoun(SubjectPronoun),
+    CommonNoun(CommonNoun),
+    SelfReference(SelfReferenceSpelling),
     Auxiliary(Auxiliary),
 }
 
@@ -2072,8 +2170,17 @@ impl Visitor for LogicVisitor {
         deckmaste_english_v2::visit::walk_and_predicate_coordination(self, value);
     }
 
-    fn visit_verb_phrase(&mut self, _value: &VerbPhrase) {
-        self.0.push(LogicVisit::VerbPhrase);
+    fn visit_verb_phrase(&mut self, value: &VerbPhrase) {
+        match value {
+            VerbPhrase::GainLife(GainLife {
+                amount:
+                    Amount::Number(NumberAmount {
+                        number: ScalarNumber { magnitude },
+                    }),
+            }) => self.0.push(LogicVisit::GainLife(*magnitude)),
+            VerbPhrase::Connive(_) => self.0.push(LogicVisit::Connive),
+            other => panic!("unexpected logic visitor predicate payload: {other:?}"),
+        }
     }
 
     fn visit_clause(&mut self, value: &Clause) {
@@ -2091,8 +2198,9 @@ impl Visitor for LogicVisitor {
         deckmaste_english_v2::visit::walk_and_clause_coordination(self, value);
     }
 
-    fn visit_finite_clause(&mut self, _value: &FiniteClause) {
+    fn visit_finite_clause(&mut self, value: &FiniteClause) {
         self.0.push(LogicVisit::FiniteClause);
+        deckmaste_english_v2::visit::walk_finite_clause(self, value);
     }
 
     fn visit_auxiliary_finite_clause(&mut self, value: &AuxiliaryFiniteClause) {
@@ -2100,8 +2208,21 @@ impl Visitor for LogicVisitor {
         deckmaste_english_v2::visit::walk_auxiliary_finite_clause(self, value);
     }
 
-    fn visit_subject(&mut self, _value: &Subject) {
+    fn visit_subject(&mut self, value: &Subject) {
         self.0.push(LogicVisit::Subject);
+        deckmaste_english_v2::visit::walk_subject(self, value);
+    }
+
+    fn visit_subject_pronoun(&mut self, value: SubjectPronoun) {
+        self.0.push(LogicVisit::SubjectPronoun(value));
+    }
+
+    fn visit_common_noun(&mut self, value: CommonNoun) {
+        self.0.push(LogicVisit::CommonNoun(value));
+    }
+
+    fn visit_self_reference_spelling(&mut self, value: SelfReferenceSpelling) {
+        self.0.push(LogicVisit::SelfReference(value));
     }
 
     fn visit_auxiliary(&mut self, value: Auxiliary) {
@@ -2138,8 +2259,8 @@ fn logic_visitors_follow_semantic_member_order() {
             LogicVisit::Predicate,
             LogicVisit::PredicateCoordination,
             LogicVisit::AndPredicateCoordination,
-            LogicVisit::VerbPhrase,
-            LogicVisit::VerbPhrase,
+            LogicVisit::GainLife(1),
+            LogicVisit::Connive,
         ],
     );
 
@@ -2166,7 +2287,15 @@ fn logic_visitors_follow_semantic_member_order() {
             LogicVisit::ClauseCoordination,
             LogicVisit::AndClauseCoordination,
             LogicVisit::FiniteClause,
+            LogicVisit::Subject,
+            LogicVisit::SubjectPronoun(SubjectPronoun::You),
+            LogicVisit::Predicate,
+            LogicVisit::GainLife(1),
             LogicVisit::FiniteClause,
+            LogicVisit::Subject,
+            LogicVisit::CommonNoun(CommonNoun::Player),
+            LogicVisit::Predicate,
+            LogicVisit::GainLife(2),
         ],
     );
 
@@ -2192,11 +2321,323 @@ fn logic_visitors_follow_semantic_member_order() {
         [
             LogicVisit::AuxiliaryFiniteClause,
             LogicVisit::Subject,
+            LogicVisit::SubjectPronoun(SubjectPronoun::You),
             LogicVisit::Auxiliary(Auxiliary::Cant),
             LogicVisit::Predicate,
-            LogicVisit::VerbPhrase,
+            LogicVisit::Connive,
         ],
     );
+}
+
+fn assert_coordination_separator_claims(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+    expected: &[(usize, usize, &str)],
+) {
+    let analysis = parser.analyze(text, context);
+    assert!(
+        analysis.selected().is_some(),
+        "separator witness selects: {text}"
+    );
+    let claims = analysis
+        .ownership()
+        .expect("separator witness has ownership")
+        .parsed_claims()
+        .iter()
+        .filter(|claim| claim.stable_owner_id().contains("/members/separator/"))
+        .map(|claim| {
+            assert_eq!(
+                claim.kind(),
+                LexicalProvenanceKind::FormLiteral,
+                "structural separators retain literal provenance: {text}",
+            );
+            (
+                claim.span().start,
+                claim.span().end,
+                claim.stable_owner_id(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(claims, expected, "exact separator owners and spans: {text}");
+}
+
+#[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the literal oracle independently pins every coordinator and positional edge"
+)]
+fn coordination_separators_have_exact_positional_spans_owners_and_provenance() {
+    let parser = parser();
+    let ordinary = context("Context Card", false);
+    for (text, claims) in [
+        (
+            "You gain 1 life and connive.",
+            &[(
+                15,
+                20,
+                "structural:AndPredicateCoordination/members/separator/pair/0",
+            )][..],
+        ),
+        (
+            "You gain 1 life, connive, and gain 2 life.",
+            &[
+                (
+                    15,
+                    17,
+                    "structural:AndPredicateCoordination/members/separator/first/0",
+                ),
+                (
+                    24,
+                    30,
+                    "structural:AndPredicateCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "You gain 1 life, connive, gain 2 life, and gain 3 life.",
+            &[
+                (
+                    15,
+                    17,
+                    "structural:AndPredicateCoordination/members/separator/first/0",
+                ),
+                (
+                    24,
+                    26,
+                    "structural:AndPredicateCoordination/members/separator/middle/0",
+                ),
+                (
+                    37,
+                    43,
+                    "structural:AndPredicateCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "You gain 1 life or connive.",
+            &[(
+                15,
+                19,
+                "structural:OrPredicateCoordination/members/separator/pair/0",
+            )][..],
+        ),
+        (
+            "You gain 1 life, connive, or gain 2 life.",
+            &[
+                (
+                    15,
+                    17,
+                    "structural:OrPredicateCoordination/members/separator/first/0",
+                ),
+                (
+                    24,
+                    29,
+                    "structural:OrPredicateCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "You gain 1 life, connive, gain 2 life, or gain 3 life.",
+            &[
+                (
+                    15,
+                    17,
+                    "structural:OrPredicateCoordination/members/separator/first/0",
+                ),
+                (
+                    24,
+                    26,
+                    "structural:OrPredicateCoordination/members/separator/middle/0",
+                ),
+                (
+                    37,
+                    42,
+                    "structural:OrPredicateCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "You gain 1 life and/or connive.",
+            &[(
+                15,
+                23,
+                "structural:AndOrPredicateCoordination/members/separator/pair/0",
+            )][..],
+        ),
+        (
+            "You gain 1 life, connive, and/or gain 2 life.",
+            &[
+                (
+                    15,
+                    17,
+                    "structural:AndOrPredicateCoordination/members/separator/first/0",
+                ),
+                (
+                    24,
+                    33,
+                    "structural:AndOrPredicateCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "You gain 1 life, connive, gain 2 life, and/or gain 3 life.",
+            &[
+                (
+                    15,
+                    17,
+                    "structural:AndOrPredicateCoordination/members/separator/first/0",
+                ),
+                (
+                    24,
+                    26,
+                    "structural:AndOrPredicateCoordination/members/separator/middle/0",
+                ),
+                (
+                    37,
+                    46,
+                    "structural:AndOrPredicateCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+    ] {
+        assert_coordination_separator_claims(&parser, &ordinary, text, claims);
+    }
+
+    let legendary = context("Aang, A Lot to Learn", true);
+    for (text, claims) in [
+        (
+            "Aang gains 1 life and you connive.",
+            &[(
+                17,
+                22,
+                "structural:AndClauseCoordination/members/separator/pair/0",
+            )][..],
+        ),
+        (
+            "Aang gains 1 life, you connive, and a player gains 2 life.",
+            &[
+                (
+                    17,
+                    19,
+                    "structural:AndClauseCoordination/members/separator/first/0",
+                ),
+                (
+                    30,
+                    36,
+                    "structural:AndClauseCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "Aang gains 1 life, you connive, a player gains 2 life, and Aang gains 3 life.",
+            &[
+                (
+                    17,
+                    19,
+                    "structural:AndClauseCoordination/members/separator/first/0",
+                ),
+                (
+                    30,
+                    32,
+                    "structural:AndClauseCoordination/members/separator/middle/0",
+                ),
+                (
+                    53,
+                    59,
+                    "structural:AndClauseCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "Aang gains 1 life or you connive.",
+            &[(
+                17,
+                21,
+                "structural:OrClauseCoordination/members/separator/pair/0",
+            )][..],
+        ),
+        (
+            "Aang gains 1 life, you connive, or a player gains 2 life.",
+            &[
+                (
+                    17,
+                    19,
+                    "structural:OrClauseCoordination/members/separator/first/0",
+                ),
+                (
+                    30,
+                    35,
+                    "structural:OrClauseCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "Aang gains 1 life, you connive, a player gains 2 life, or Aang gains 3 life.",
+            &[
+                (
+                    17,
+                    19,
+                    "structural:OrClauseCoordination/members/separator/first/0",
+                ),
+                (
+                    30,
+                    32,
+                    "structural:OrClauseCoordination/members/separator/middle/0",
+                ),
+                (
+                    53,
+                    58,
+                    "structural:OrClauseCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "Aang gains 1 life and/or you connive.",
+            &[(
+                17,
+                25,
+                "structural:AndOrClauseCoordination/members/separator/pair/0",
+            )][..],
+        ),
+        (
+            "Aang gains 1 life, you connive, and/or a player gains 2 life.",
+            &[
+                (
+                    17,
+                    19,
+                    "structural:AndOrClauseCoordination/members/separator/first/0",
+                ),
+                (
+                    30,
+                    39,
+                    "structural:AndOrClauseCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+        (
+            "Aang gains 1 life, you connive, a player gains 2 life, and/or Aang gains 3 life.",
+            &[
+                (
+                    17,
+                    19,
+                    "structural:AndOrClauseCoordination/members/separator/first/0",
+                ),
+                (
+                    30,
+                    32,
+                    "structural:AndOrClauseCoordination/members/separator/middle/0",
+                ),
+                (
+                    53,
+                    62,
+                    "structural:AndOrClauseCoordination/members/separator/last/0",
+                ),
+            ][..],
+        ),
+    ] {
+        assert_coordination_separator_claims(&parser, &legendary, text, claims);
+    }
 }
 
 #[test]

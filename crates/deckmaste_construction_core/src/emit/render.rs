@@ -489,6 +489,12 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             items.push(emit_feature_helper(validated, category, members, feature)?);
         }
     }
+    for sum in validated.sums().iter().filter(|sum| {
+        validated.sum_carries_agreement(sum.name())
+            && !validated.sum_requires_external_agreement(sum.name())
+    }) {
+        items.push(emit_sum_agreement_helper(validated, sum)?);
+    }
     Ok(items)
 }
 
@@ -2576,6 +2582,7 @@ fn sequence_role_feature_value(
         return feature_expr(plan, construction, writer.value(), feature, locals);
     }
     if feature == Feature::Agreement
+        && !locals.category.is_empty()
         && plan.category_requires_external_agreement(construction.category())
         && plan
             .feature_equations(construction.construction_id())
@@ -2595,11 +2602,18 @@ fn sequence_role_feature_value(
     {
         return Ok(quote! { agreement });
     }
-    let ValueKindPlan::Category(category) = item else {
-        return Err(internal("sequence feature item is not a category"));
+    let helper_owner = match item {
+        ValueKindPlan::Category(category) => category,
+        ValueKindPlan::Sum(sum) if plan.sum_carries_agreement(sum) => sum,
+        ValueKindPlan::Sum(_)
+        | ValueKindPlan::Product(_)
+        | ValueKindPlan::Lex(_)
+        | ValueKindPlan::Identity(_) => {
+            return Err(internal("sequence feature item does not carry agreement"));
+        }
     };
     let values = field_value(construction, role, locals)?;
-    let helper = ident(&feature_helper(feature_name(feature), category));
+    let helper = ident(&feature_helper(feature_name(feature), helper_owner));
     Ok(quote! {
         #helper(
             #values
@@ -3136,10 +3150,19 @@ fn feature_expr(
                 && validated.sequence_feature(construction.element_type(), &role_key)
                     == Some(*source_feature)
             {
-                let ValueKindPlan::Category(category) = item else {
-                    return Err(internal("sequence feature source item is not a category"));
+                let helper_owner = match item {
+                    ValueKindPlan::Category(category) => category,
+                    ValueKindPlan::Sum(sum) if validated.sum_carries_agreement(sum) => sum,
+                    ValueKindPlan::Sum(_)
+                    | ValueKindPlan::Product(_)
+                    | ValueKindPlan::Lex(_)
+                    | ValueKindPlan::Identity(_) => {
+                        return Err(internal(
+                            "sequence feature source item does not carry agreement",
+                        ));
+                    }
                 };
-                let helper = ident(&feature_helper(feature_name(*source_feature), category));
+                let helper = ident(&feature_helper(feature_name(*source_feature), helper_owner));
                 return Ok(quote! {
                     #helper(
                         #role_value
@@ -3785,6 +3808,61 @@ fn emit_feature_helper(
                 )
             })
             .collect(),
+    ))
+}
+
+fn emit_sum_agreement_helper(
+    validated: &SemanticPlan,
+    sum: &crate::semantic::SumPlan,
+) -> syn::Result<GeneratedItem> {
+    let function_name = feature_helper("agreement", sum.name());
+    let function = ident(&function_name);
+    let ty = ident(sum.name());
+    let arms = sum
+        .alternatives()
+        .iter()
+        .map(|alternative| {
+            let variant = ident(alternative.name());
+            let helper_name = match alternative.value() {
+                ValueKindPlan::Category(category)
+                    if validated.category_carries_agreement(category) =>
+                {
+                    category
+                }
+                ValueKindPlan::Sum(nested)
+                    if validated.sum_carries_agreement(nested)
+                        && !validated.sum_requires_external_agreement(nested) =>
+                {
+                    nested
+                }
+                ValueKindPlan::Category(_)
+                | ValueKindPlan::Sum(_)
+                | ValueKindPlan::Product(_)
+                | ValueKindPlan::Lex(_)
+                | ValueKindPlan::Identity(_) => {
+                    return Err(internal(
+                        "agreement-bearing sum alternative lacks a generated agreement helper",
+                    ));
+                }
+            };
+            let helper = ident(&feature_helper("agreement", helper_name));
+            Ok(quote! { #ty::#variant(value) => #helper(value) })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(value: &#ty) -> Agreement {
+                match value { #(#arms),* }
+            }
+        },
+        vec![DeclarationKey::new(
+            DeclarationKind::AbstractSum,
+            sum.name(),
+        )],
     ))
 }
 

@@ -1019,8 +1019,13 @@ fn emit_exact_sequence_success(carrier: &syn::Ident, parts: ExactSequenceParts) 
     let values = parts.values;
     let (agreement, guards) = homogeneous_sequence_feature(parts.agreements, None);
     if let Some(agreement) = agreement {
+        let predicate = if guards.is_empty() {
+            quote! { true }
+        } else {
+            quote! { #(#guards)&&* }
+        };
         quote! {
-            if #(#guards)&&* {
+            if #predicate {
                 Ok(Some(BuildValue::#carrier(vec![#(#values),*], *#agreement)))
             } else {
                 Ok(None)
@@ -1040,8 +1045,13 @@ fn emit_prefixed_sequence_success(
     let prefix_len = values.len();
     let (agreement, guards) = homogeneous_sequence_feature(parts.agreements, parts.tail_agreement);
     if let Some(agreement) = agreement {
+        let predicate = if guards.is_empty() {
+            quote! { true }
+        } else {
+            quote! { #(#guards)&&* }
+        };
         quote! {
-            if #(#guards)&&* {
+            if #predicate {
                 let mut values = Vec::with_capacity(#prefix_len + #tail.len());
                 #(values.push(#values);)*
                 values.extend(#tail.iter().cloned());

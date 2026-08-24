@@ -1792,6 +1792,35 @@ impl SemanticPlan {
         self.features.agreement_carry_sums.contains(sum)
     }
 
+    pub(crate) fn sum_requires_external_agreement(&self, sum: &str) -> bool {
+        fn requires(plan: &SemanticPlan, sum: &str, visiting: &mut HashSet<String>) -> bool {
+            if !visiting.insert(sum.to_owned()) {
+                return false;
+            }
+            let result = plan
+                .sums
+                .iter()
+                .find(|candidate| candidate.name() == sum)
+                .is_some_and(|sum| {
+                    sum.alternatives()
+                        .iter()
+                        .any(|alternative| match alternative.value() {
+                            ValueKindPlan::Category(category) => {
+                                plan.category_requires_external_agreement(category)
+                            }
+                            ValueKindPlan::Sum(nested) => requires(plan, nested, visiting),
+                            ValueKindPlan::Product(_)
+                            | ValueKindPlan::Lex(_)
+                            | ValueKindPlan::Identity(_) => false,
+                        })
+                });
+            visiting.remove(sum);
+            result
+        }
+
+        requires(self, sum, &mut HashSet::new())
+    }
+
     pub(crate) fn sequence_feature(&self, owner: &str, role: &str) -> Option<Feature> {
         self.features
             .sequence_features

@@ -614,16 +614,32 @@ fn emit_sequence_feature_check(
             "checked sequence feature role is not statically nonempty",
         ));
     }
-    let crate::semantic::ValueKindPlan::Category(category) = item else {
-        return Err(internal("checked sequence feature item is not a category"));
-    };
-    if plan.category_requires_external_agreement(category) {
+    if let crate::semantic::ValueKindPlan::Category(category) = item
+        && plan.category_requires_external_agreement(category)
+    {
         return Ok(TokenStream::new());
     }
+    if let crate::semantic::ValueKindPlan::Sum(sum) = item
+        && plan.sum_requires_external_agreement(sum)
+    {
+        return Ok(TokenStream::new());
+    }
+    let feature_owner = match item {
+        crate::semantic::ValueKindPlan::Category(category) => category,
+        crate::semantic::ValueKindPlan::Sum(sum) if plan.sum_carries_agreement(sum) => sum,
+        crate::semantic::ValueKindPlan::Sum(_)
+        | crate::semantic::ValueKindPlan::Product(_)
+        | crate::semantic::ValueKindPlan::Lex(_)
+        | crate::semantic::ValueKindPlan::Identity(_) => {
+            return Err(internal(
+                "checked sequence feature item does not carry agreement",
+            ));
+        }
+    };
     let role = field.name_key();
     let values = field_local(locals, field)?;
     let helper = emitted_ident(
-        &feature_helper(feature.key(), category),
+        &feature_helper(feature.key(), feature_owner),
         proc_macro2::Span::call_site(),
     );
     let target = crate::feature::FeaturePlace::Role {

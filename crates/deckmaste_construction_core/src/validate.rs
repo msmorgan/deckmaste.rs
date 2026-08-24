@@ -481,14 +481,15 @@ fn validate_sequence_feature_roles(
                 continue;
             }
             let Some(field) = fields.get(&role) else { continue };
-            let FieldKind::Sequence { item, .. } = &field.kind else { continue };
+            let FieldKind::Sequence { .. } = &field.kind else { continue };
             let Some(structural_field) = structural
                 .construction_fields
                 .get(&(construction_id.clone(), role.clone()))
             else {
                 continue;
             };
-            let StructuralFieldKindPlan::Sequence { bounds, .. } = structural_field.kind() else {
+            let StructuralFieldKindPlan::Sequence { item, bounds, .. } = structural_field.kind()
+            else {
                 continue;
             };
             if bounds.min() == 0 {
@@ -502,19 +503,21 @@ fn validate_sequence_feature_roles(
                     ),
                 );
             }
-            let FieldKind::Category(category) = item.as_ref() else {
-                combine(
-                    &mut errors,
-                    syn::Error::new(
-                        uses[0].1,
-                        format!(
-                            "{element}.{role}: sequence feature agreement requires feature-bearing category items"
+            let category = match item {
+                ValueKindPlan::Category(category) | ValueKindPlan::Sum(category) => category,
+                ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) | ValueKindPlan::Product(_) => {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            uses[0].1,
+                            format!(
+                                "{element}.{role}: sequence feature agreement requires feature-bearing category items"
+                            ),
                         ),
-                    ),
-                );
-                continue;
+                    );
+                    continue;
+                }
             };
-            let category = path_name(category);
             if !providers.contains(&(category.clone(), feature)) {
                 combine(
                     &mut errors,
@@ -2524,8 +2527,8 @@ fn seal_category_feature_reads(
             | Declaration::Root(_) => None,
         })
         .collect::<HashSet<_>>();
-    categories
-        .into_iter()
+    let mut reads = categories
+        .iter()
         .filter_map(|category| {
             let reads = [
                 Feature::Agreement,
@@ -2536,18 +2539,41 @@ fn seal_category_feature_reads(
             ]
             .into_iter()
             .filter(|feature| {
-                raw_category_reads_feature(raw, &category, *feature)
+                raw_category_reads_feature(raw, category, *feature)
                     || raw_sequence_reads_inherent_category_feature(
                         raw,
-                        &category,
+                        category,
                         *feature,
                         category_render,
                     )
             })
             .collect::<HashSet<_>>();
-            (!reads.is_empty()).then_some((category, reads))
+            (!reads.is_empty()).then_some((category.clone(), reads))
         })
-        .collect()
+        .collect::<HashMap<_, _>>();
+    let providers = feature_providers(raw);
+    for declaration in &raw.declarations {
+        let Declaration::AbstractSum(sum) = declaration else {
+            continue;
+        };
+        if !providers.contains(&(identifier_key(&sum.name), ParsedFeature::Agreement)) {
+            continue;
+        }
+        for alternative in &sum.alternatives {
+            let category = path_name(&alternative.value_type);
+            if categories.contains(&category)
+                && !category_render
+                    .get(&category)
+                    .is_some_and(|capability| capability.requires_external_agreement())
+            {
+                reads
+                    .entry(category)
+                    .or_default()
+                    .insert(Feature::Agreement);
+            }
+        }
+    }
+    reads
 }
 
 fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
@@ -7791,20 +7817,13 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
         for declaration in &raw.declarations {
             let Declaration::AbstractSum(sum) = declaration else { continue };
             let sum_name = identifier_key(&sum.name);
-            for feature in [
-                ParsedFeature::Agreement,
-                ParsedFeature::Cardinality,
-                ParsedFeature::Number,
-                ParsedFeature::Onset,
-                ParsedFeature::PossessiveEnding,
-            ] {
-                if !sum.alternatives.is_empty()
-                    && sum.alternatives.iter().all(|alternative| {
-                        providers.contains(&(path_name(&alternative.value_type), feature))
-                    })
-                {
-                    providers.insert((sum_name.clone(), feature));
-                }
+            let feature = ParsedFeature::Agreement;
+            if !sum.alternatives.is_empty()
+                && sum.alternatives.iter().all(|alternative| {
+                    providers.contains(&(path_name(&alternative.value_type), feature))
+                })
+            {
+                providers.insert((sum_name, feature));
             }
         }
         if providers.len() == before {
@@ -12063,6 +12082,47 @@ pub(crate) mod tests {
                 "MixedSequence.members: a sequence feature role cannot mix agreement and number"
             ),
             "{mixed}"
+        );
+    }
+
+    #[test]
+    fn agreement_sequences_accept_feature_bearing_sums_without_advertising_other_sum_features() {
+        validate(quote! {
+            construction bare: Item {
+                element BareItem {}
+                derive agreement = Values::Bare;
+                derive number = Values::Singular;
+                form bare = "bare";
+            }
+            abstract sum AgreementChoice { Item, }
+            construction coordinated: Root {
+                element SumSequence { members: seq AgreementChoice separated by " ", }
+                require len(members) >= 2;
+                derive members.agreement = Values::Bare;
+                derive agreement = members.agreement;
+                form coordinated = members;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("agreement-bearing sums have a real transient carrier and helper");
+
+        let unsupported = error(quote! {
+            construction numbered: Item {
+                element NumberedItem {}
+                derive number = Values::Singular;
+                form numbered = "numbered";
+            }
+            abstract sum NumberedChoice { Item, }
+            construction relayed: Root {
+                element NumberRelay { choice: NumberedChoice, }
+                derive number = choice.number;
+                form relayed = choice;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            unsupported.contains("category `NumberedChoice` does not provide number"),
+            "{unsupported}"
         );
     }
 
