@@ -93,6 +93,46 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let stem = crate::identifier::snake_case(codec.codec_name());
         let formatter = emitted_ident(&format!("format_{stem}"), Span::call_site());
         let parser = emitted_ident(&format!("parse_{stem}"), Span::call_site());
+        if codec.kind() == crate::semantic::UnsignedNumberKind::UnsignedDecimal
+            && codec.magnitude() == crate::semantic::UnsignedPrimitive::NonZeroU32
+        {
+            return quote! {
+                Lexical::#codec_name => {
+                    let offset = input.position.byte_offset;
+                    let prefix = usize::from(
+                        input.position.prefix == PrefixPosition::WordOwnedSpace,
+                    );
+                    let Some(remainder) = input.text.get(offset..) else {
+                        return Vec::new();
+                    };
+                    let Some(number) = (prefix == 0)
+                        .then_some(remainder)
+                        .or_else(|| remainder.strip_prefix(' '))
+                    else {
+                        return Vec::new();
+                    };
+                    let candidate_length = number
+                        .bytes()
+                        .take_while(|byte| byte.is_ascii_digit() || *byte == b',')
+                        .count();
+                    let Some(candidate) = number.get(..candidate_length) else {
+                        return Vec::new();
+                    };
+                    let Some(magnitude) = #parser(candidate) else {
+                        return Vec::new();
+                    };
+                    input
+                        .word_end(&#formatter(magnitude), terminal.right_boundary)
+                        .map(|end| LexicalMatch {
+                            end,
+                            value: Leaf::#codec_name(#codec_name { magnitude }),
+                            owner: None,
+                        })
+                        .into_iter()
+                        .collect()
+                }
+            };
+        }
         quote! {
             Lexical::#codec_name => {
                 let offset = input.position.byte_offset;

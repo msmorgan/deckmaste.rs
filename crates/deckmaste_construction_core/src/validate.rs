@@ -1803,11 +1803,11 @@ fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
                         ),
                     ),
                     [slot, rest @ ..] => {
-                        if slot.primitive != "u32" {
+                        if !matches!(slot, crate::model::UnsignedPrimitiveSource::U32 { .. }) {
                             combine(
                                 &mut errors,
                                 syn::Error::new(
-                                    slot.primitive.span(),
+                                    slot.primitive().span(),
                                     "signed_decimal magnitude must be `u32`",
                                 ),
                             );
@@ -1816,7 +1816,7 @@ fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
                             combine(
                                 &mut errors,
                                 syn::Error::new(
-                                    duplicate.slot.span(),
+                                    duplicate.slot().span(),
                                     "duplicate signed_decimal field `magnitude`",
                                 ),
                             );
@@ -1948,12 +1948,25 @@ fn validate_unsigned_number_source(
             ),
         ),
         [slot, rest @ ..] => {
-            if slot.primitive != "u32" {
+            let supported = match recipe.to_string().as_str() {
+                "english_cardinal" => {
+                    matches!(slot, crate::model::UnsignedPrimitiveSource::U32 { .. })
+                }
+                "unsigned_decimal" => matches!(
+                    slot,
+                    crate::model::UnsignedPrimitiveSource::U32 { .. }
+                        | crate::model::UnsignedPrimitiveSource::NonZeroU32 { .. }
+                ),
+                _ => unreachable!("validated unsigned-number source has a closed recipe"),
+            };
+            if !supported {
+                let expected =
+                    if recipe == "unsigned_decimal" { "`u32` or `NonZeroU32`" } else { "`u32`" };
                 combine(
                     errors,
                     syn::Error::new(
-                        slot.primitive.span(),
-                        format!("{recipe} magnitude must be `u32`"),
+                        slot.primitive().span(),
+                        format!("{recipe} magnitude must be {expected}"),
                     ),
                 );
             }
@@ -1961,7 +1974,7 @@ fn validate_unsigned_number_source(
                 combine(
                     errors,
                     syn::Error::new(
-                        duplicate.slot.span(),
+                        duplicate.slot().span(),
                         format!("duplicate {recipe} field `magnitude`"),
                     ),
                 );
@@ -8797,7 +8810,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn unsigned_numeral_recipe_validation_pins_the_u32_magnitude_boundary() {
+    fn unsigned_numeral_recipe_validation_pins_each_magnitude_boundary() {
         validate(quote! {
             codec CardinalNumber {
                 generate english_cardinal { magnitude = u32; }
@@ -8805,29 +8818,40 @@ pub(crate) mod tests {
             codec ScalarNumber {
                 generate unsigned_decimal { magnitude = u32; }
             }
+            codec NonZeroScalarNumber {
+                generate unsigned_decimal { magnitude = NonZeroU32; }
+            }
             construction only: Cat { element Only {} form only = "only"; }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("the exact two unsigned numeral recipes validate");
+        .expect("the sealed unsigned numeral primitives validate");
 
-        for recipe in ["english_cardinal", "unsigned_decimal"] {
-            for (body, expected) in [
-                (
-                    quote! {},
-                    format!("{recipe} requires one `magnitude` field"),
-                ),
-                (
-                    quote! { magnitude = u64; },
-                    format!("{recipe} magnitude must be `u32`"),
-                ),
-                (
-                    quote! { magnitude = u32; magnitude = u32; },
-                    format!("duplicate {recipe} field `magnitude`"),
-                ),
-            ] {
-                let message = unsigned_number_error(recipe, &body);
-                assert!(message.contains(&expected), "{expected}: {message}");
-            }
+        for (recipe, unsupported) in [
+            (
+                "english_cardinal",
+                "english_cardinal magnitude must be `u32`",
+            ),
+            (
+                "unsigned_decimal",
+                "unsigned_decimal magnitude must be `u32` or `NonZeroU32`",
+            ),
+        ] {
+            let missing = unsigned_number_error(recipe, &quote! {});
+            assert!(
+                missing.contains(&format!("{recipe} requires one `magnitude` field")),
+                "{missing}"
+            );
+            let unsupported_message = unsigned_number_error(recipe, &quote! { magnitude = u64; });
+            assert!(
+                unsupported_message.contains(unsupported),
+                "{unsupported_message}"
+            );
+            let duplicate =
+                unsigned_number_error(recipe, &quote! { magnitude = u32; magnitude = NonZeroU32; });
+            assert!(
+                duplicate.contains(&format!("duplicate {recipe} field `magnitude`")),
+                "{duplicate}"
+            );
         }
     }
 

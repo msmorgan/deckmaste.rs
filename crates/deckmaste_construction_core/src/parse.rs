@@ -1497,7 +1497,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
             }
             let primitive = content.call(Ident::parse_any)?;
             content.parse::<Token![;]>()?;
-            magnitude_slots.push(UnsignedPrimitiveSource { slot, primitive });
+            magnitude_slots.push(unsigned_primitive_source(slot, primitive));
         }
         let source = UnsignedNumberSource {
             recipe: recipe.clone(),
@@ -1524,7 +1524,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
             "magnitude" => {
                 let primitive = content.call(Ident::parse_any)?;
                 content.parse::<Token![;]>()?;
-                magnitude_slots.push(UnsignedPrimitiveSource { slot, primitive });
+                magnitude_slots.push(unsigned_primitive_source(slot, primitive));
             }
             "sign_type" => {
                 let name = content.call(Ident::parse_any)?;
@@ -1565,6 +1565,14 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
         magnitude_slots,
         sign_type_slots,
     }))
+}
+
+fn unsigned_primitive_source(slot: Ident, primitive: Ident) -> UnsignedPrimitiveSource {
+    match primitive.to_string().as_str() {
+        "u32" => UnsignedPrimitiveSource::U32 { slot, primitive },
+        "NonZeroU32" => UnsignedPrimitiveSource::NonZeroU32 { slot, primitive },
+        _ => UnsignedPrimitiveSource::Unsupported { slot, primitive },
+    }
 }
 
 fn parse_build_leaf(input: ParseStream<'_>) -> syn::Result<BuildLeaf> {

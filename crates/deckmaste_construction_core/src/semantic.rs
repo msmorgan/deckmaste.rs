@@ -735,6 +735,19 @@ pub(crate) struct DeclarationNounPlan {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UnsignedPrimitive {
     U32,
+    NonZeroU32,
+}
+
+impl UnsignedPrimitive {
+    fn from_source(source: &crate::model::UnsignedPrimitiveSource) -> Self {
+        match source {
+            crate::model::UnsignedPrimitiveSource::U32 { .. } => Self::U32,
+            crate::model::UnsignedPrimitiveSource::NonZeroU32 { .. } => Self::NonZeroU32,
+            crate::model::UnsignedPrimitiveSource::Unsupported { .. } => {
+                unreachable!("validated unsigned primitive is supported")
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -5044,7 +5057,12 @@ impl SignedDecimalPlan {
             sign_type: sign.name.clone(),
             positive_variant,
             negative_variant,
-            magnitude: UnsignedPrimitive::U32,
+            magnitude: UnsignedPrimitive::from_source(
+                recipe
+                    .magnitude_slots
+                    .first()
+                    .expect("validated signed_decimal has one magnitude"),
+            ),
         }
     }
 
@@ -5110,7 +5128,12 @@ impl UnsignedNumberPlan {
             origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
             codec_name: identifier_key(&source.name),
             codec_ident: source.name.clone(),
-            magnitude: UnsignedPrimitive::U32,
+            magnitude: UnsignedPrimitive::from_source(
+                recipe
+                    .magnitude_slots
+                    .first()
+                    .expect("validated unsigned numeral has one magnitude"),
+            ),
             kind,
         }
     }

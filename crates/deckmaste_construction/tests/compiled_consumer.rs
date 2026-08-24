@@ -1401,6 +1401,12 @@ pub mod fixture {
             }
         }
 
+        codec NonZeroScalarNumber {
+            generate unsigned_decimal {
+                magnitude = NonZeroU32;
+            }
+        }
+
 
         codec RawBranchToken {
             value_type = RawBranchToken;
@@ -1454,6 +1460,10 @@ pub mod fixture {
             derive cardinality = number.cardinality;
             derive number = number.number;
             form cardinal = lex(number);
+        }
+        construction positive: NonZeroQuantity {
+            element PositiveQuantityValue { number: lex NonZeroScalarNumber, }
+            form positive = lex(number);
         }
         construction counted_cardinal: CountedCardinal {
             element CountedCardinalValue { cardinal: CardinalQuantity, head: lex Head, }
@@ -1848,6 +1858,7 @@ pub mod fixture {
         SignedNumber(Sign, u32),
         CardinalNumber(u32),
         ScalarNumber(u32),
+        NonZeroScalarNumber(std::num::NonZeroU32),
         SelfRef(SelfRef),
         StructuralWord(StructuralWord),
     }
@@ -1883,6 +1894,11 @@ pub mod fixture {
 
         fn visit_scalar_number(&mut self, number: &ScalarNumber) {
             self.0.push(VisitEvent::ScalarNumber(number.magnitude));
+        }
+
+        fn visit_non_zero_scalar_number(&mut self, number: &NonZeroScalarNumber) {
+            self.0
+                .push(VisitEvent::NonZeroScalarNumber(number.magnitude));
         }
 
         fn visit_self_ref(&mut self, spelling: SelfRef) {
@@ -4235,6 +4251,109 @@ pub mod fixture {
             );
         }
     }
+
+    pub(super) fn assert_nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
+        let one = std::num::NonZeroU32::new(1).expect("one is nonzero");
+        let maximum = std::num::NonZeroU32::new(u32::MAX).expect("u32::MAX is nonzero");
+        assert_eq!(format_non_zero_scalar_number(one), "1");
+        assert_eq!(parse_non_zero_scalar_number("1"), Some(one));
+        assert_eq!(format_non_zero_scalar_number(maximum), "4,294,967,295");
+        assert_eq!(parse_non_zero_scalar_number("4,294,967,295"), Some(maximum));
+
+        for rejected in [
+            "",
+            "0",
+            "00",
+            "01",
+            "+1",
+            "-1",
+            "1000",
+            "1,00",
+            "1,000,",
+            "4,294,967,296",
+            "1.",
+        ] {
+            assert_eq!(parse_non_zero_scalar_number(rejected), None, "{rejected:?}");
+        }
+
+        let context = ParseContext::default();
+        for (surface, magnitude) in [("1", one), ("4,294,967,295", maximum)] {
+            let input = format!("{surface}.");
+            let matches = scan_lexical(
+                &ScanInput {
+                    text: &input,
+                    position: ScanPosition {
+                        byte_offset: 0,
+                        case: CasePosition::DocumentInitial,
+                        prefix: PrefixPosition::None,
+                    },
+                    context: &context,
+                },
+                LexicalTerminal {
+                    matcher: Lexical::NonZeroScalarNumber,
+                    owner: LexicalOwnerTemplate::Static {
+                        kind: LexicalProvenanceKind::Codec,
+                        stable_id: "codec:NonZeroScalarNumber",
+                    },
+                    right_boundary: LexicalBoundary::Separated,
+                },
+            );
+            assert_eq!(matches.len(), 1, "{surface}");
+            assert_eq!(matches[0].end, surface.len(), "{surface}");
+            assert_eq!(
+                matches[0].value,
+                Leaf::NonZeroScalarNumber(NonZeroScalarNumber { magnitude })
+            );
+        }
+
+        for rejected in ["0", "01", "+1", "-1", "4,294,967,296", "."] {
+            let matches = scan_lexical(
+                &ScanInput {
+                    text: rejected,
+                    position: ScanPosition {
+                        byte_offset: 0,
+                        case: CasePosition::DocumentInitial,
+                        prefix: PrefixPosition::None,
+                    },
+                    context: &context,
+                },
+                LexicalTerminal {
+                    matcher: Lexical::NonZeroScalarNumber,
+                    owner: LexicalOwnerTemplate::Static {
+                        kind: LexicalProvenanceKind::Codec,
+                        stable_id: "codec:NonZeroScalarNumber",
+                    },
+                    right_boundary: LexicalBoundary::Separated,
+                },
+            );
+            assert!(matches.is_empty(), "{rejected:?}: {matches:?}");
+        }
+
+        let number = NonZeroScalarNumber { magnitude: maximum };
+        let mut writer = Writer::new();
+        render_non_zero_scalar_number(&mut writer, &number);
+        assert_eq!(writer.finish(), "4,294,967,295");
+
+        let built = build(
+            RuleId::NonZeroQuantityPositive,
+            &[BuildValue::Leaf(Leaf::NonZeroScalarNumber(number.clone()))],
+            &context,
+        )
+        .expect("the generated construction builds the typed nonzero leaf");
+        assert_eq!(
+            built,
+            BuildValue::NonZeroQuantity(NonZeroQuantity::Positive(PositiveQuantityValue {
+                number: number.clone(),
+            }))
+        );
+
+        let mut recording = RecordingVisitor::default();
+        walk_non_zero_scalar_number(&mut recording, &number);
+        assert_eq!(
+            recording.0.last(),
+            Some(&VisitEvent::NonZeroScalarNumber(maximum))
+        );
+    }
 }
 
 #[test]
@@ -4316,4 +4435,9 @@ fn exact_name_wrapper_render_uses_frozen_context_onset() {
 #[test]
 fn unsigned_numeral_codecs_cover_canonical_surfaces_bounds_and_round_trips() {
     fixture::assert_unsigned_numeral_codecs_are_canonical_and_total();
+}
+
+#[test]
+fn nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
+    fixture::assert_nonzero_unsigned_decimal_is_typed_canonical_and_exact();
 }

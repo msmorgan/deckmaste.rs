@@ -229,6 +229,9 @@ pub(crate) fn emit(
                 let codec = row.codec_ident();
                 let magnitude = match row.magnitude() {
                     crate::semantic::UnsignedPrimitive::U32 => quote! { u32 },
+                    crate::semantic::UnsignedPrimitive::NonZeroU32 => {
+                        quote! { ::std::num::NonZeroU32 }
+                    }
                 };
                 items.push(GeneratedItem::new(
                     ItemKey::named_type(sign.to_string()),
@@ -255,6 +258,9 @@ pub(crate) fn emit(
                 let codec = row.codec_ident();
                 let magnitude = match row.magnitude() {
                     crate::semantic::UnsignedPrimitive::U32 => quote! { u32 },
+                    crate::semantic::UnsignedPrimitive::NonZeroU32 => {
+                        quote! { ::std::num::NonZeroU32 }
+                    }
                 };
                 items.push(GeneratedItem::new(
                     ItemKey::named_type(row.codec_name()),

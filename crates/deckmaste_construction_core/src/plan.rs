@@ -1090,6 +1090,83 @@ mod tests {
     }
 
     #[test]
+    fn unsigned_decimal_plan_routes_nonzero_magnitude_through_every_codec_emitter() {
+        let source: proc_macro2::TokenStream = r#"
+            codec ScalarNumber {
+                generate unsigned_decimal { magnitude = u32; }
+            }
+            codec NonZeroScalarNumber {
+                generate unsigned_decimal { magnitude = NonZeroU32; }
+            }
+            construction scalar: Amount {
+                element ScalarAmount { number: lex ScalarNumber, }
+                form scalar = lex(number);
+            }
+            construction nonzero: Amount {
+                element NonZeroAmount { number: lex NonZeroScalarNumber, }
+                form nonzero = lex(number);
+            }
+            root Amount { punctuation = "."; eoi = true; standalone_render = true; }
+        "#
+        .parse()
+        .expect("unsigned-decimal fixture tokenizes");
+        let authored = source.to_string();
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(source.clone()).expect("unsigned-decimal fixture parses"),
+        )
+        .expect("unsigned-decimal fixture validates")
+        .into_semantic();
+        let codecs = plan
+            .terminals()
+            .iter()
+            .filter_map(|terminal| match terminal {
+                crate::semantic::TerminalPlan::UnsignedNumber(codec) => {
+                    Some((codec.codec_name(), codec.magnitude()))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            codecs,
+            [
+                ("ScalarNumber", crate::semantic::UnsignedPrimitive::U32),
+                (
+                    "NonZeroScalarNumber",
+                    crate::semantic::UnsignedPrimitive::NonZeroU32,
+                ),
+            ]
+        );
+
+        let terminal = formatted(&crate::emit::terminal::emit(&plan).unwrap().0);
+        assert!(terminal.contains("std :: num :: NonZeroU32"), "{terminal}");
+        let outputs = [
+            ("runtime", formatted(&crate::emit::runtime::emit(&plan))),
+            ("scanner", formatted(&crate::emit::scanner::emit(&plan))),
+            (
+                "render",
+                formatted(&crate::emit::render::emit(&plan).unwrap()),
+            ),
+            (
+                "visitor",
+                formatted(&crate::emit::visit::emit(&plan).unwrap()),
+            ),
+            (
+                "rules",
+                formatted(&crate::emit::rules::emit(&plan).unwrap()),
+            ),
+            (
+                "build",
+                formatted(&crate::emit::build::emit(&plan).unwrap()),
+            ),
+        ];
+        for (phase, output) in outputs {
+            assert!(output.contains("ScalarNumber"), "{phase}: {output}");
+            assert!(output.contains("NonZeroScalarNumber"), "{phase}: {output}");
+        }
+        assert_eq!(source.to_string(), authored);
+    }
+
+    #[test]
     fn context_identity_plan_routes_each_typed_fact_to_its_consuming_emitters() {
         let source: proc_macro2::TokenStream = r#"
             identity SelfReferenceSpelling {

@@ -407,9 +407,28 @@ pub struct SignedDecimalSource {
 }
 
 #[derive(Debug)]
-pub struct UnsignedPrimitiveSource {
-    pub slot: Ident,
-    pub primitive: Ident,
+pub enum UnsignedPrimitiveSource {
+    U32 { slot: Ident, primitive: Ident },
+    NonZeroU32 { slot: Ident, primitive: Ident },
+    Unsupported { slot: Ident, primitive: Ident },
+}
+
+impl UnsignedPrimitiveSource {
+    pub(crate) fn slot(&self) -> &Ident {
+        match self {
+            Self::U32 { slot, .. }
+            | Self::NonZeroU32 { slot, .. }
+            | Self::Unsupported { slot, .. } => slot,
+        }
+    }
+
+    pub(crate) fn primitive(&self) -> &Ident {
+        match self {
+            Self::U32 { primitive, .. }
+            | Self::NonZeroU32 { primitive, .. }
+            | Self::Unsupported { primitive, .. } => primitive,
+        }
+    }
 }
 
 #[derive(Debug)]

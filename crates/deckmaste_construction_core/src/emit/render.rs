@@ -416,24 +416,44 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                     origin.clone(),
                 ));
             }
-            UnsignedNumberKind::UnsignedDecimal => {
-                items.push(GeneratedItem::new(
-                    ItemKey::Named {
-                        kind: NamedKind::Function,
-                        name: format.to_string(),
-                    },
-                    unsigned_decimal_formatter(&format),
-                    origin.clone(),
-                ));
-                items.push(GeneratedItem::new(
-                    ItemKey::Named {
-                        kind: NamedKind::Function,
-                        name: parse.to_string(),
-                    },
-                    unsigned_decimal_parser(&format, &parse),
-                    origin.clone(),
-                ));
-            }
+            UnsignedNumberKind::UnsignedDecimal => match codec.magnitude() {
+                crate::semantic::UnsignedPrimitive::U32 => {
+                    items.push(GeneratedItem::new(
+                        ItemKey::Named {
+                            kind: NamedKind::Function,
+                            name: format.to_string(),
+                        },
+                        unsigned_decimal_formatter(&format),
+                        origin.clone(),
+                    ));
+                    items.push(GeneratedItem::new(
+                        ItemKey::Named {
+                            kind: NamedKind::Function,
+                            name: parse.to_string(),
+                        },
+                        unsigned_decimal_parser(&format, &parse),
+                        origin.clone(),
+                    ));
+                }
+                crate::semantic::UnsignedPrimitive::NonZeroU32 => {
+                    items.push(GeneratedItem::new(
+                        ItemKey::Named {
+                            kind: NamedKind::Function,
+                            name: format.to_string(),
+                        },
+                        nonzero_unsigned_decimal_formatter(&format),
+                        origin.clone(),
+                    ));
+                    items.push(GeneratedItem::new(
+                        ItemKey::Named {
+                            kind: NamedKind::Function,
+                            name: parse.to_string(),
+                        },
+                        nonzero_unsigned_decimal_parser(&parse),
+                        origin.clone(),
+                    ));
+                }
+            },
         }
         let render = ident(&format!("render_{codec_name}"));
         let ty = codec.codec_ident();
@@ -640,6 +660,50 @@ fn unsigned_decimal_parser(formatter: &syn::Ident, function: &syn::Ident) -> Tok
         fn #function(input: &str) -> Option<u32> {
             let value = input.replace(',', "").parse::<u32>().ok()?;
             (#formatter(value) == input).then_some(value)
+        }
+    }
+}
+
+fn nonzero_unsigned_decimal_formatter(function: &syn::Ident) -> TokenStream {
+    quote! {
+        fn #function(value: ::std::num::NonZeroU32) -> String {
+            let digits = value.get().to_string();
+            let first_group_len = match digits.len() % 3 {
+                0 => 3,
+                remainder => remainder,
+            };
+            let mut surface = String::with_capacity(digits.len() + (digits.len() - 1) / 3);
+            surface.push_str(&digits[..first_group_len]);
+            let mut group_start = first_group_len;
+            while group_start < digits.len() {
+                surface.push(',');
+                surface.push_str(&digits[group_start..group_start + 3]);
+                group_start += 3;
+            }
+            surface
+        }
+    }
+}
+
+fn nonzero_unsigned_decimal_parser(function: &syn::Ident) -> TokenStream {
+    quote! {
+        fn #function(input: &str) -> Option<::std::num::NonZeroU32> {
+            let value = input.replace(',', "").parse::<u32>().ok()?;
+            let digits = value.to_string();
+            let first_group_len = match digits.len() % 3 {
+                0 => 3,
+                remainder => remainder,
+            };
+            let mut canonical = String::with_capacity(digits.len() + (digits.len() - 1) / 3);
+            canonical.push_str(&digits[..first_group_len]);
+            let mut group_start = first_group_len;
+            while group_start < digits.len() {
+                canonical.push(',');
+                canonical.push_str(&digits[group_start..group_start + 3]);
+                group_start += 3;
+            }
+            (canonical == input).then_some(())?;
+            ::std::num::NonZeroU32::new(value)
         }
     }
 }
