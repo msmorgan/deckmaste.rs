@@ -225,12 +225,11 @@ fn indefinite(noun: Noun) -> NounPhrase {
 
 fn target_noun(noun: Noun) -> NounPhrase {
     noun_phrase(UnqualifiedReference::OrdinarySingularReference(
-        OrdinarySingularReference::new(SingularSelector::TargetSingularSelector(
-            TargetSingularSelector {
+        OrdinarySingularReference {
+            phrase: DeterminerPhrase::TargetDeterminerPhrase(TargetDeterminerPhrase {
                 nominal: singular_nominal(noun),
-            },
-        ))
-        .expect("a target selector is an ordinary singular reference"),
+            }),
+        },
     ))
 }
 
@@ -241,13 +240,12 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                 reference: ControllerStage::ControllerQualifiedReference(
                     ControllerQualifiedReference {
                         reference: UnqualifiedReference::OrdinaryPluralReference(
-                            OrdinaryPluralReference {
-                                selector: PluralSelector::UnmarkedPluralSelector(
-                                    UnmarkedPluralSelector {
-                                        nominal: plural_nominal(creatures()),
-                                    },
-                                ),
-                            },
+                            OrdinaryPluralReference::new(PluralSelector::UnmarkedPluralSelector(
+                                UnmarkedPluralSelector {
+                                    nominal: plural_nominal(creatures()),
+                                },
+                            ))
+                            .expect("unmarked plural is valid for an ordinary reference"),
                         ),
                         controller_owner: ControllerOwnerQualification::YouControl(
                             YouControl::new(SubjectPronoun::You)
@@ -589,7 +587,9 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
     );
     let triggered_effects = vec![connive, gain];
     let triggered = triggered(event, triggered_effects.clone());
-    let AbilityBody::Sentences(triggered_body) = &triggered.body;
+    let AbilityBody::Sentences(triggered_body) = &triggered.body else {
+        panic!("the triggered fixture has an ordinary sentence body")
+    };
     assert_eq!(triggered_body.sentences(), triggered_effects.as_slice());
 
     let empty_oracle_text = OracleText { blocks: vec![] };
@@ -663,7 +663,9 @@ fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_eff
     let event = finite_clause(subject_you(), VerbPhrase::Connive(Connive));
     let effect = imperative(VerbPhrase::Connive(Connive));
     let value = triggered(event, vec![effect.clone()]);
-    let AbilityBody::Sentences(body) = value.body;
+    let AbilityBody::Sentences(body) = value.body else {
+        panic!("the generated invariant fixture has an ordinary sentence body")
+    };
     assert_eq!(body.sentences(), [effect]);
 }
 

@@ -2212,14 +2212,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            26,
+            28,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            29,
+            31,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2239,14 +2239,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            26,
+            28,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            29,
+            31,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2271,13 +2271,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (27, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (28, "Siege.", "Siege", SubtypeCategory::Battle),
-            (29, "Elf.", "Elf", SubtypeCategory::Creature),
-            (30, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (31, "Forest.", "Forest", SubtypeCategory::Land),
-            (32, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (33, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (29, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (30, "Siege.", "Siege", SubtypeCategory::Battle),
+            (31, "Elf.", "Elf", SubtypeCategory::Creature),
+            (32, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (33, "Forest.", "Forest", SubtypeCategory::Land),
+            (34, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (35, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2295,7 +2295,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (27..=33).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (29..=35).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2311,7 +2311,7 @@ mod tests {
         }
 
         let player = scan(
-            26,
+            28,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2659,6 +2659,17 @@ mod tests {
                 "AbilityBodySentences",
                 "SentencesSentencesSequenceSingleton",
                 "SentencesSentencesSequenceRecursive",
+                "ModalModeModalMode",
+                "ModalModeValueSentencesSequenceSingleton",
+                "ModalModeValueSentencesSequenceRecursive",
+                "AbilityBodyPlainModal [form exactly_one]",
+                "AbilityBodyPlainModal [form exactly_two]",
+                "AbilityBodyPlainModal [form one_to_two]",
+                "AbilityBodyPlainModal [form one_or_more]",
+                "AbilityBodyPlainModal [form zero_to_one]",
+                "AbilityBodyPlainModal [form opponent_exactly_one]",
+                "PlainModalModesSequenceLength2",
+                "PlainModalModesSequenceRecursive",
                 "TriggerPrefixFinite",
                 "TriggerPrefixTemporal",
                 "AtPhraseAtPhrase [form plural_main_phase]",
@@ -2874,8 +2885,8 @@ mod tests {
                 "UnqualifiedReferencePossessedSingularReference",
                 "UnqualifiedReferencePossessedPluralReference",
                 "UnqualifiedReferencePossessiveAbsoluteReference",
-                "TargetedNounPhraseSingularTargetedNounPhrase",
-                "TargetedNounPhrasePluralTargetedNounPhrase",
+                "DeterminerPhraseTargetDeterminerPhrase",
+                "DeterminerPhraseTargetCoordinationDeterminerPhrase",
                 "FullAndNounPhraseCoordinationMembersSequencePair",
                 "FullAndNounPhraseCoordinationMembersSequenceThreePlus",
                 "FullAndNounPhraseCoordinationMembersSequenceLast",
@@ -2986,6 +2997,11 @@ mod tests {
                 "Literal(\",\")",
                 "Literal(\".\")",
                 "Literal(\" \")",
+                "Literal(\"• \")",
+                "ModalChooser",
+                "ModalChoiceBounds",
+                "Literal(\" —\\n\")",
+                "Literal(\"\\n\")",
                 "TriggerMarker",
                 "Literal(\"at\")",
                 "AtBoundary",
@@ -3033,23 +3049,23 @@ mod tests {
                 "ObjectPronoun",
                 "ReflexivePronoun",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(26, Exact(Singular))",
-                "DeclarationNoun(27, Exact(Singular))",
                 "DeclarationNoun(28, Exact(Singular))",
                 "DeclarationNoun(29, Exact(Singular))",
                 "DeclarationNoun(30, Exact(Singular))",
                 "DeclarationNoun(31, Exact(Singular))",
                 "DeclarationNoun(32, Exact(Singular))",
                 "DeclarationNoun(33, Exact(Singular))",
+                "DeclarationNoun(34, Exact(Singular))",
+                "DeclarationNoun(35, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(26, Exact(Plural))",
-                "DeclarationNoun(27, Exact(Plural))",
                 "DeclarationNoun(28, Exact(Plural))",
                 "DeclarationNoun(29, Exact(Plural))",
                 "DeclarationNoun(30, Exact(Plural))",
                 "DeclarationNoun(31, Exact(Plural))",
                 "DeclarationNoun(32, Exact(Plural))",
                 "DeclarationNoun(33, Exact(Plural))",
+                "DeclarationNoun(34, Exact(Plural))",
+                "DeclarationNoun(35, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -3063,7 +3079,7 @@ mod tests {
                 "Literal(\"a\")",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(35)",
+                "CatalogIdentity(37)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -3110,7 +3126,6 @@ mod tests {
                 "Verb(Gain, Any)",
                 "Literal(\"life\")",
                 "CardinalNumber",
-                "Literal(\"\\n\")"
             ]
         );
     }

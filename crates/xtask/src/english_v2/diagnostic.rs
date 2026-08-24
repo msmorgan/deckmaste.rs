@@ -902,6 +902,7 @@ enum Expectation {
 enum NonterminalKind {
     Ability,
     AbilityBody,
+    ModalMode,
     ActivationCostComponent,
     SymbolRun,
     Loyalty,
@@ -958,7 +959,7 @@ enum NonterminalKind {
     PluralNominalCoordination,
     SingularSelector,
     PluralSelector,
-    TargetedNounPhrase,
+    DeterminerPhrase,
     FullNounPhraseCoordination,
     ControllerOwnerQualification,
     SingularController,
@@ -1395,6 +1396,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
     match kind {
         NonterminalCategory::Ability => NonterminalKind::Ability,
         NonterminalCategory::AbilityBody => NonterminalKind::AbilityBody,
+        NonterminalCategory::ModalMode => NonterminalKind::ModalMode,
         NonterminalCategory::ActivationCostComponent => NonterminalKind::ActivationCostComponent,
         NonterminalCategory::SymbolRun => NonterminalKind::SymbolRun,
         NonterminalCategory::Loyalty => NonterminalKind::Loyalty,
@@ -1463,7 +1465,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::SingularSelector => NonterminalKind::SingularSelector,
         NonterminalCategory::PluralSelector => NonterminalKind::PluralSelector,
-        NonterminalCategory::TargetedNounPhrase => NonterminalKind::TargetedNounPhrase,
+        NonterminalCategory::DeterminerPhrase => NonterminalKind::DeterminerPhrase,
         NonterminalCategory::FullNounPhraseCoordination => {
             NonterminalKind::FullNounPhraseCoordination
         }

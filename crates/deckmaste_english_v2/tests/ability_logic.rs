@@ -367,7 +367,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             (
                 52,
                 59,
-                "form:target_singular_selector/target_singular_selector/0"
+                "form:target_determiner_phrase/target_determiner_phrase/0"
             ),
             (59, 68, "lexeme:type/Creature/singular"),
             (68, 69, "structural:Sentences/sentences/terminator/0"),
@@ -1177,6 +1177,24 @@ fn generated_activation_inventory_is_closed_typed_and_surface_free() {
     };
 
     assert_eq!(variants("Ability"), ["Plain", "Triggered", "Activated"]);
+    assert_eq!(variants("AbilityBody"), ["Sentences", "PlainModal"]);
+    assert_eq!(variants("ModalMode"), ["ModalMode"]);
+    assert_eq!(
+        variants("ModalChooser"),
+        ["You", "Opponent"],
+        "the chooser is sealed semantic state rather than header spelling",
+    );
+    assert_eq!(
+        variants("ModalChoiceBounds"),
+        [
+            "ExactlyOne",
+            "ExactlyTwo",
+            "OneToTwo",
+            "OneOrMore",
+            "ZeroToOne",
+        ],
+        "modal cardinality is stored as semantic bounds rather than a form tag",
+    );
     assert_eq!(
         variants("ActivationCostComponent"),
         ["SymbolRun", "Loyalty", "Clause"],
@@ -1518,7 +1536,9 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
         ],
     );
     assert_eq!(magnitude.magnitude, NonZeroU32::new(2).unwrap());
-    let AbilityBody::Sentences(sentences) = &activated.body;
+    let AbilityBody::Sentences(sentences) = &activated.body else {
+        panic!("the activation witness has an ordinary sentence body")
+    };
     assert_eq!(sentences.sentences().len(), 2);
     assert!(matches!(sentences.sentences()[0], Sentence::Declarative(_)));
     assert!(matches!(sentences.sentences()[1], Sentence::Imperative(_)));
@@ -1556,7 +1576,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (
                 28,
                 35,
-                "form:target_singular_selector/target_singular_selector/0"
+                "form:target_determiner_phrase/target_determiner_phrase/0"
             ),
             (35, 44, "lexeme:type/Creature/singular"),
             (44, 46, "form:activated/activated/1"),
@@ -1570,7 +1590,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (
                 70,
                 77,
-                "form:target_singular_selector/target_singular_selector/0"
+                "form:target_determiner_phrase/target_determiner_phrase/0"
             ),
             (77, 86, "lexeme:type/Creature/singular"),
             (86, 87, "structural:Sentences/sentences/terminator/0"),
@@ -3834,6 +3854,31 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
     let report = expansion.escape_hatches();
     assert!(report.stored_separator_fields().is_empty());
     assert!(report.stored_form_tags().is_empty());
+    assert_eq!(
+        report.stored_spelling_codecs(),
+        ["SelfReferenceSpelling"],
+        "modal headers store chooser and bounds semantics, never a selected spelling arm",
+    );
+    for role in ["ModalModeValue.sentences", "PlainModal.modes"] {
+        assert!(
+            report.sequence_roles().iter().any(|actual| actual == role),
+            "generated report contains structural sequence authority for {role}",
+        );
+        assert!(
+            report
+                .uniform_separators()
+                .iter()
+                .any(|actual| actual == role),
+            "generated report contains exact uniform separator authority for {role}",
+        );
+    }
+    assert!(
+        report
+            .terminators()
+            .iter()
+            .any(|actual| actual == "ModalModeValue.sentences"),
+        "each modal sentence owns its generated period terminator",
+    );
     for role in [
         "AndPredicateCoordination.members",
         "OrPredicateCoordination.members",
@@ -3862,6 +3907,425 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
         ],
         "only predicate coordination relays homogeneous agreement; finite clauses retain independent subjects",
     );
+}
+
+fn modal_text(header: &str) -> String {
+    format!("{header} —\n• You gain 1 life.\n• You gain 2 life.")
+}
+
+fn wrapped_modal_text(envelope: &str, header: &str) -> String {
+    match envelope {
+        "root" => modal_text(header),
+        "trigger" => format!(
+            "Whenever a player connives, if you connive, {}",
+            modal_text(header)
+        ),
+        "activation" => format!("{{T}}: {}", modal_text(header)),
+        _ => panic!("unknown modal envelope {envelope}"),
+    }
+}
+
+fn selected_plain_modal<'a>(ability: &'a Ability, envelope: &str) -> &'a PlainModal {
+    let (("root", Ability::Plain(Plain { body }))
+    | ("activation", Ability::Activated(Activated { body, .. }))
+    | (
+        "trigger",
+        Ability::Triggered(Triggered {
+            intervening_if: Some(ConditionClause::FiniteCondition(_)),
+            body,
+            ..
+        }),
+    )) = (envelope, ability)
+    else {
+        panic!("modal body did not retain its {envelope} envelope: {ability:?}")
+    };
+    let AbilityBody::PlainModal(modal) = body else {
+        panic!("the envelope contains the unchanged plain-modal body")
+    };
+    modal
+}
+
+#[test]
+fn every_plain_modal_header_selects_independently_in_every_ability_envelope() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    for (root_header, wrapped_header, chooser, bounds) in [
+        (
+            "Choose one",
+            "choose one",
+            ModalChooser::You,
+            ModalChoiceBounds::ExactlyOne,
+        ),
+        (
+            "Choose two",
+            "choose two",
+            ModalChooser::You,
+            ModalChoiceBounds::ExactlyTwo,
+        ),
+        (
+            "Choose one or both",
+            "choose one or both",
+            ModalChooser::You,
+            ModalChoiceBounds::OneToTwo,
+        ),
+        (
+            "Choose one or more",
+            "choose one or more",
+            ModalChooser::You,
+            ModalChoiceBounds::OneOrMore,
+        ),
+        (
+            "Choose up to one",
+            "choose up to one",
+            ModalChooser::You,
+            ModalChoiceBounds::ZeroToOne,
+        ),
+        (
+            "An opponent chooses one",
+            "an opponent chooses one",
+            ModalChooser::Opponent,
+            ModalChoiceBounds::ExactlyOne,
+        ),
+    ] {
+        for (envelope, header) in [
+            ("root", root_header),
+            ("trigger", wrapped_header),
+            ("activation", root_header),
+        ] {
+            let text = wrapped_modal_text(envelope, header);
+            let selected = assert_one_logic_candidate(&parser, &context, &text);
+            let modal = selected_plain_modal(&selected, envelope);
+            assert_eq!(modal.chooser(), chooser, "{text}");
+            assert_eq!(modal.bounds(), bounds, "{text}");
+            assert_eq!(modal.modes().len(), 2, "{text}");
+            assert_eq!(
+                selected.render(&context, parser.environment()),
+                text,
+                "the complete wrapped modal renders identically",
+            );
+        }
+    }
+}
+
+fn modal_sentence(predicate: VerbPhrase) -> Sentence {
+    Sentence::Declarative(Declarative {
+        clause: Clause::Finite(plain_finite(you_subject(), Predicate::Atomic(predicate))),
+    })
+}
+
+fn modal_mode(sentences: Vec<Sentence>) -> ModalMode {
+    ModalMode::ModalMode(
+        ModalModeValue::new(sentences).expect("a modal mode has a nonempty sentence sequence"),
+    )
+}
+
+#[derive(Default)]
+struct ModalVisitor(Vec<String>);
+
+impl Visitor for ModalVisitor {
+    fn visit_ability(&mut self, value: &Ability) {
+        self.0.push("Ability".to_owned());
+        deckmaste_english_v2::visit::walk_ability(self, value);
+    }
+
+    fn visit_plain(&mut self, value: &Plain) {
+        self.0.push("Plain".to_owned());
+        deckmaste_english_v2::visit::walk_plain(self, value);
+    }
+
+    fn visit_ability_body(&mut self, value: &AbilityBody) {
+        self.0.push("AbilityBody".to_owned());
+        deckmaste_english_v2::visit::walk_ability_body(self, value);
+    }
+
+    fn visit_plain_modal(&mut self, value: &PlainModal) {
+        self.0.push("PlainModal".to_owned());
+        deckmaste_english_v2::visit::walk_plain_modal(self, value);
+    }
+
+    fn visit_modal_chooser(&mut self, value: ModalChooser) {
+        self.0.push(format!("ModalChooser:{value:?}"));
+    }
+
+    fn visit_modal_choice_bounds(&mut self, value: ModalChoiceBounds) {
+        self.0.push(format!("ModalChoiceBounds:{value:?}"));
+    }
+
+    fn visit_modal_mode(&mut self, value: &ModalMode) {
+        self.0.push("ModalMode".to_owned());
+        deckmaste_english_v2::visit::walk_modal_mode(self, value);
+    }
+
+    fn visit_modal_mode_value(&mut self, value: &ModalModeValue) {
+        self.0.push("ModalModeValue".to_owned());
+        deckmaste_english_v2::visit::walk_modal_mode_value(self, value);
+    }
+
+    fn visit_sentence(&mut self, value: &Sentence) {
+        self.0.push("Sentence".to_owned());
+        deckmaste_english_v2::visit::walk_sentence(self, value);
+    }
+
+    fn visit_gain_life(&mut self, value: &GainLife) {
+        let Amount::Number(NumberAmount {
+            number: ScalarNumber { magnitude },
+        }) = value.amount
+        else {
+            panic!("modal visitor expects a literal life amount")
+        };
+        self.0.push(format!("GainLife:{magnitude}"));
+    }
+
+    fn visit_connive(&mut self, _value: &Connive) {
+        self.0.push("Connive".to_owned());
+    }
+}
+
+#[test]
+fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let text = "Choose one —\n• You gain 1 life. You connive.\n• You gain 2 life.";
+    let selected = assert_one_logic_candidate(&parser, &context, text);
+    let expected = Ability::Plain(Plain {
+        body: AbilityBody::PlainModal(
+            PlainModal::new(
+                ModalChooser::You,
+                ModalChoiceBounds::ExactlyOne,
+                vec![
+                    modal_mode(vec![
+                        modal_sentence(gain_life_predicate(1)),
+                        modal_sentence(VerbPhrase::Connive(Connive {})),
+                    ]),
+                    modal_mode(vec![modal_sentence(gain_life_predicate(2))]),
+                ],
+            )
+            .expect("two nonempty modes and a licensed header construct"),
+        ),
+    });
+    assert_eq!(selected, expected);
+    assert_eq!(selected.render(&context, parser.environment()), text);
+
+    let mut visitor = ModalVisitor::default();
+    visitor.visit_ability(&selected);
+    assert_eq!(
+        visitor.0,
+        [
+            "Ability",
+            "Plain",
+            "AbilityBody",
+            "PlainModal",
+            "ModalChooser:You",
+            "ModalChoiceBounds:ExactlyOne",
+            "ModalMode",
+            "ModalModeValue",
+            "Sentence",
+            "GainLife:1",
+            "Sentence",
+            "Connive",
+            "ModalMode",
+            "ModalModeValue",
+            "Sentence",
+            "GainLife:2",
+        ],
+        "visitor order is header semantics, then every mode and sentence in source order",
+    );
+
+    let analysis = parser.analyze(text, &context);
+    let ownership = analysis.ownership().expect("the selected modal owns bytes");
+    assert!(ownership.failures().is_empty(), "{ownership:?}");
+    assert!(ownership.summary().covered(), "{ownership:?}");
+    assert_eq!(
+        ownership
+            .parsed_claims()
+            .iter()
+            .map(|claim| (
+                claim.span().start,
+                claim.span().end,
+                claim.stable_owner_id(),
+            ))
+            .collect::<Vec<_>>(),
+        [
+            (0, 6, "vocab:ModalChooser/You"),
+            (6, 10, "vocab:ModalChoiceBounds/ExactlyOne"),
+            (10, 15, "form:plain_modal/exactly_one/2"),
+            (15, 19, "form:modal_mode/modal_mode/0"),
+            (19, 22, "vocab:SubjectPronoun/You"),
+            (22, 27, "lexeme:VerbLexeme/Gain/bare"),
+            (27, 29, "codec:ScalarNumber"),
+            (29, 34, "form:gain_life/gain_life/2"),
+            (34, 35, "structural:ModalModeValue/sentences/terminator/0"),
+            (
+                35,
+                36,
+                "structural:ModalModeValue/sentences/separator/uniform/0"
+            ),
+            (36, 39, "vocab:SubjectPronoun/You"),
+            (39, 47, "lexeme:keyword_action/Connive/bare"),
+            (47, 48, "structural:ModalModeValue/sentences/terminator/0"),
+            (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
+            (49, 53, "form:modal_mode/modal_mode/0"),
+            (53, 56, "vocab:SubjectPronoun/You"),
+            (56, 61, "lexeme:VerbLexeme/Gain/bare"),
+            (61, 63, "codec:ScalarNumber"),
+            (63, 68, "form:gain_life/gain_life/2"),
+            (68, 69, "structural:ModalModeValue/sentences/terminator/0"),
+        ],
+    );
+}
+
+#[test]
+fn modal_header_guard_selection_is_mutation_authenticated() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let modes = || {
+        vec![
+            modal_mode(vec![modal_sentence(gain_life_predicate(1))]),
+            modal_mode(vec![modal_sentence(gain_life_predicate(2))]),
+        ]
+    };
+    for (chooser, bounds, header) in [
+        (
+            ModalChooser::You,
+            ModalChoiceBounds::ExactlyOne,
+            "Choose one",
+        ),
+        (
+            ModalChooser::You,
+            ModalChoiceBounds::ExactlyTwo,
+            "Choose two",
+        ),
+        (
+            ModalChooser::You,
+            ModalChoiceBounds::OneToTwo,
+            "Choose one or both",
+        ),
+        (
+            ModalChooser::You,
+            ModalChoiceBounds::OneOrMore,
+            "Choose one or more",
+        ),
+        (
+            ModalChooser::You,
+            ModalChoiceBounds::ZeroToOne,
+            "Choose up to one",
+        ),
+        (
+            ModalChooser::Opponent,
+            ModalChoiceBounds::ExactlyOne,
+            "An opponent chooses one",
+        ),
+    ] {
+        let modal = PlainModal::new(chooser, bounds, modes())
+            .expect("every admitted semantic header combination constructs");
+        let ability = Ability::Plain(Plain {
+            body: AbilityBody::PlainModal(modal),
+        });
+        assert_eq!(
+            ability.render(&context, parser.environment()),
+            modal_text(header),
+            "mutating semantic chooser or bounds selects its one guarded surface",
+        );
+    }
+    for bounds in [
+        ModalChoiceBounds::ExactlyTwo,
+        ModalChoiceBounds::OneToTwo,
+        ModalChoiceBounds::OneOrMore,
+        ModalChoiceBounds::ZeroToOne,
+    ] {
+        assert!(
+            PlainModal::new(ModalChooser::Opponent, bounds, modes()).is_none(),
+            "the opponent chooser is sealed to exactly one mode",
+        );
+    }
+    assert!(
+        ModalModeValue::new(vec![]).is_none(),
+        "a mode cannot lose its last sentence",
+    );
+    assert!(
+        PlainModal::new(
+            ModalChooser::You,
+            ModalChoiceBounds::ExactlyOne,
+            vec![modal_mode(vec![modal_sentence(gain_life_predicate(1))])],
+        )
+        .is_none(),
+        "a modal group cannot lose its second mode",
+    );
+}
+
+fn assert_ordinary_modal_failure(parser: &Parser, context: &ParseContext<'_>, text: &str) {
+    let analysis = parser.analyze(text, context);
+    assert!(
+        analysis.selected().is_none(),
+        "modal negative selected: {text}"
+    );
+    assert!(
+        matches!(parser.parse(text, context), Err(ParseError::Failure { .. })),
+        "modal negative must be an ordinary parse failure: {text}",
+    );
+}
+
+#[test]
+fn plain_modal_rejects_every_deferred_or_malformed_surface_as_an_ordinary_failure() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    for text in [
+        "Choose one —",
+        "Choose one —\n",
+        "Choose one —\n• You gain 1 life.",
+        "Choose one -\n• You gain 1 life.\n• You gain 2 life.",
+        "Choose one --\n• You gain 1 life.\n• You gain 2 life.",
+        "Choose one –\n• You gain 1 life.\n• You gain 2 life.",
+        "Choose one—\n• You gain 1 life.\n• You gain 2 life.",
+        "Choose one — • You gain 1 life.\n• You gain 2 life.",
+        "Choose one —\n•You gain 1 life.\n• You gain 2 life.",
+        "Choose one —\n* You gain 1 life.\n• You gain 2 life.",
+        "Choose one —\n• You gain 1 life\n• You gain 2 life.",
+        "Choose one —\n• You gain 1 life. • You gain 2 life.",
+        "Choose one —\n• You gain 1 life.\n• you gain 2 life.",
+        "Choose one —\n• First — You gain 1 life.\n• Second — You gain 2 life.",
+        "Choose up to five {P} worth of modes.\n{P} — You gain 1 life.\n{P} — You gain 2 life.",
+        "Choose one. If this spell was kicked, choose any number instead.\n• You gain 1 life.\n• You gain 2 life.",
+        "Choose one or more —\n• You gain 1 life.\n• You gain 2 life.\nYou may choose the same mode more than once.",
+        "Escalate {1}\nChoose one —\n• You gain 1 life.\n• You gain 2 life.",
+        "Landfall — Choose one —\n• You gain 1 life.\n• You gain 2 life.",
+        "Choose one —\n• You gain 1 life. (You really do.)\n• You gain 2 life.",
+        "I — Choose one —\n• You gain 1 life.\n• You gain 2 life.",
+    ] {
+        assert_ordinary_modal_failure(&parser, &context, text);
+    }
+}
+
+#[test]
+fn modal_self_reference_licensing_is_identical_in_every_envelope() {
+    let parser = parser();
+    let legendary = context("Aang, A Lot to Learn", true);
+    let ordinary = context("Grizzly Bears", false);
+    for (envelope, legendary_header, ordinary_header) in [
+        ("root", "Choose one", "Choose one"),
+        ("trigger", "choose one", "choose one"),
+        ("activation", "Choose one", "Choose one"),
+    ] {
+        let legendary_text = wrapped_modal_text(envelope, legendary_header)
+            .replace("You gain 1 life", "Aang gains 1 life")
+            .replace("You gain 2 life", "Aang gains 2 life");
+        let selected = assert_one_logic_candidate(&parser, &legendary, &legendary_text);
+        let mut visitor = SelfReferenceVisitor::default();
+        visitor.visit_ability(&selected);
+        assert_eq!(
+            visitor.spellings,
+            [
+                SelfReferenceSpelling::Abbreviated,
+                SelfReferenceSpelling::Abbreviated,
+            ],
+            "exact Legendary metadata licenses both modal references: {legendary_text}",
+        );
+
+        let ordinary_text = wrapped_modal_text(envelope, ordinary_header)
+            .replace("You gain 1 life", "Grizzly gains 1 life")
+            .replace("You gain 2 life", "Grizzly gains 2 life");
+        assert_ordinary_modal_failure(&parser, &ordinary, &ordinary_text);
+    }
 }
 
 #[test]

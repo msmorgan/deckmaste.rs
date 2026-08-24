@@ -313,9 +313,9 @@ mod tests {
         let context = ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant)
             .expect("test context is valid");
         let error = parser()
-            .analyze_oracle_text("You gain X life, a player connives.", &context)
+            .analyze_oracle_text("Destroy one target creatures.", &context)
             .into_parse_result()
-            .expect_err("the WithWhere invariant rejects an Event clause");
+            .expect_err("the fixed-reference invariant rejects a singular count");
 
         assert!(matches!(error, ParseError::BuildRejected { .. }));
         assert_eq!(

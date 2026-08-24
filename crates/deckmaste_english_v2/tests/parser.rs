@@ -478,12 +478,11 @@ fn indefinite(noun: Noun) -> NounPhrase {
 
 fn target_noun(noun: Noun) -> NounPhrase {
     noun_phrase(UnqualifiedReference::OrdinarySingularReference(
-        OrdinarySingularReference::new(SingularSelector::TargetSingularSelector(
-            TargetSingularSelector {
+        OrdinarySingularReference {
+            phrase: DeterminerPhrase::TargetDeterminerPhrase(TargetDeterminerPhrase {
                 nominal: singular_nominal(noun),
-            },
-        ))
-        .expect("a target selector is an ordinary singular reference"),
+            }),
+        },
     ))
 }
 
@@ -494,13 +493,12 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                 reference: ControllerStage::ControllerQualifiedReference(
                     ControllerQualifiedReference {
                         reference: UnqualifiedReference::OrdinaryPluralReference(
-                            OrdinaryPluralReference {
-                                selector: PluralSelector::UnmarkedPluralSelector(
-                                    UnmarkedPluralSelector {
-                                        nominal: plural_nominal(creatures()),
-                                    },
-                                ),
-                            },
+                            OrdinaryPluralReference::new(PluralSelector::UnmarkedPluralSelector(
+                                UnmarkedPluralSelector {
+                                    nominal: plural_nominal(creatures()),
+                                },
+                            ))
+                            .expect("unmarked plural is valid for an ordinary reference"),
                         ),
                         controller_owner: ControllerOwnerQualification::YouControl(
                             YouControl::new(SubjectPronoun::You)
@@ -962,6 +960,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "FiniteCondition",
             "Ability",
             "AbilityBody",
+            "ModalMode",
             "TriggerPrefix",
             "AtPhrase",
             "CostSymbol",
@@ -988,7 +987,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "PluralSelector",
             "UnqualifiedReference",
             "CountReference",
-            "TargetedNounPhrase",
+            "DeterminerPhrase",
             "FullNounPhraseCoordination",
             "MannerReference",
             "ScalarReference",
@@ -1020,6 +1019,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "FiniteConditionValue",
             "Plain",
             "Sentences",
+            "ModalModeValue",
+            "PlainModal",
             "Finite",
             "Temporal",
             "AtPhraseValue",
@@ -1171,8 +1172,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "PossessedSingularReference",
             "PossessedPluralReference",
             "PossessiveAbsoluteReference",
-            "SingularTargetedNounPhrase",
-            "PluralTargetedNounPhrase",
+            "TargetDeterminerPhrase",
+            "TargetCoordinationDeterminerPhrase",
             "FullAndNounPhraseCoordination",
             "FullOrNounPhraseCoordination",
             "FullAndOrNounPhraseCoordination",
@@ -1237,6 +1238,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "ChosenQuality",
             "ControllerNoun",
             "FixedCostSymbol",
+            "ModalChooser",
+            "ModalChoiceBounds",
             "MonocoloredHybridColor",
             "ScalarCharacteristic",
             "Zone",
@@ -1280,6 +1283,10 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
     );
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the generated privacy and accessor inventory is deliberately literal"
+)]
 #[test]
 fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
     use syn::Fields;
@@ -1304,6 +1311,16 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             "Triggered",
             &[("trigger", true), ("intervening_if", true), ("body", true)][..],
             &[][..],
+        ),
+        (
+            "ModalModeValue",
+            &[("sentences", false)][..],
+            &["new", "try_new", "sentences"][..],
+        ),
+        (
+            "PlainModal",
+            &[("chooser", false), ("bounds", false), ("modes", false)][..],
+            &["new", "try_new", "chooser", "bounds", "modes"][..],
         ),
         (
             "WithWhere",
@@ -1409,6 +1426,8 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
 
     for (enumeration, expected_variants) in [
         ("Ability", &["Plain", "Triggered", "Activated"][..]),
+        ("AbilityBody", &["Sentences", "PlainModal"][..]),
+        ("ModalMode", &["ModalMode"][..]),
         ("DocumentBlock", &["Ability"][..]),
     ] {
         let item = file
@@ -1749,7 +1768,7 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "ZoneStageUnqualifiedZoneStage".to_owned(),
             "ControllerStageUnqualifiedControllerStage".to_owned(),
             "UnqualifiedReferenceOrdinarySingularReference".to_owned(),
-            "SingularSelectorTargetSingularSelector".to_owned(),
+            "DeterminerPhraseTargetDeterminerPhrase".to_owned(),
             "SingularNominalBareSingularNominal".to_owned(),
             "SingularHeadTypeSingularHead".to_owned(),
         ]
@@ -2090,7 +2109,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "ZoneStageUnqualifiedZoneStage",
                     "ControllerStageUnqualifiedControllerStage",
                     "UnqualifiedReferenceOrdinarySingularReference",
-                    "SingularSelectorTargetSingularSelector",
+                    "DeterminerPhraseTargetDeterminerPhrase",
                     "SingularNominalBareSingularNominal",
                     "SingularHeadTypeSingularHead",
                 ]
@@ -2229,41 +2248,21 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Nonterminal(NonterminalCategory::PluralCoordinationMember),
                 Expectation::Nonterminal(NonterminalCategory::SingularNominalCoordination),
                 Expectation::Nonterminal(NonterminalCategory::PluralNominalCoordination),
-                Expectation::Nonterminal(NonterminalCategory::ControllerOwnerQualification),
-                Expectation::Nonterminal(NonterminalCategory::SingularController),
-                Expectation::Nonterminal(NonterminalCategory::ZoneQualification),
-                Expectation::Nonterminal(NonterminalCategory::ScalarQualification),
-                Expectation::Terminal(TerminalClass::SubjectPronoun),
                 Expectation::Terminal(TerminalClass::Color),
                 Expectation::Terminal(TerminalClass::Status),
                 Expectation::Terminal(TerminalClass::NonTargetCommonModifier),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(27)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(33)),
-                Expectation::Literal(" and "),
-                Expectation::Literal(" and/or "),
-                Expectation::Literal(" or "),
-                Expectation::Literal(","),
-                Expectation::Literal(", "),
-                Expectation::Literal(", then "),
-                Expectation::Literal("."),
-                Expectation::Literal(": "),
-                Expectation::Literal("a"),
-                Expectation::Literal("an"),
-                Expectation::Literal("from"),
-                Expectation::Literal("if"),
-                Expectation::Literal("in"),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(34)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(35)),
                 Expectation::Literal("non"),
                 Expectation::Literal("non-"),
-                Expectation::Literal("unless"),
-                Expectation::Literal("with"),
             ]),
         })
     );
@@ -2288,14 +2287,14 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Nonterminal(NonterminalCategory::ScalarQualification),
                 Expectation::Terminal(TerminalClass::SubjectPronoun),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(27)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(33)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(34)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(35)),
                 Expectation::Literal(" and "),
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),

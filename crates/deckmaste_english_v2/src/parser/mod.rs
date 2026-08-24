@@ -1210,7 +1210,7 @@ mod structural_trace_tests {
         );
 
         assert!(trace.clone().into_parse_result().is_err());
-        assert_eq!(trace.scanner_matches().total(), 9);
+        assert_eq!(trace.scanner_matches().total(), 6);
         assert_eq!(trace.selected_lexical_claims().total(), 0);
         assert_eq!(trace.ownership(), None);
         assert!(trace.ownership_failures().is_empty());

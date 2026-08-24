@@ -1382,13 +1382,14 @@ mod tests {
             .selected_covered_ids()
             .expect("full production selected-covered IDs are unique");
         assert_eq!(covered_ids.len(), 608);
-        assert_eq!(
-            covered_ids,
-            production_selected_covered_ids
-                .iter()
-                .map(String::as_str)
-                .collect::<BTreeSet<_>>(),
-            "the lock must equal the complete production SelectedCovered set",
+        let production_selected_covered_ids = production_selected_covered_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(production_selected_covered_ids.len(), 726);
+        assert!(
+            covered_ids.is_subset(&production_selected_covered_ids),
+            "the frozen Plan 07 lock must remain covered after Plan 08 growth",
         );
         assert!(baseline_ids.is_subset(&covered_ids));
         assert!(target_ids.is_subset(&covered_ids));
@@ -1525,10 +1526,10 @@ mod tests {
 
         assert_eq!(report.rows().len(), 32_641);
         assert_eq!(report.summary().total_units(), 32_641);
-        assert_eq!(report.summary().selected_units(), 608);
-        assert_eq!(report.summary().covered_units(), 608);
+        assert_eq!(report.summary().selected_units(), 726);
+        assert_eq!(report.summary().covered_units(), 726);
         assert_eq!(report.summary().selected_uncovered_units(), 0);
-        assert_eq!(report.summary().parse_failures(), 32_033);
+        assert_eq!(report.summary().parse_failures(), 31_915);
         assert_eq!(report.summary().unresolved_ties(), 0);
         assert_eq!(report.summary().internal_failures(), 0);
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);

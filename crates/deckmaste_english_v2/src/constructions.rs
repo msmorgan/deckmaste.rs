@@ -135,6 +135,17 @@ constructions! {
         Tap = "T",
         Untap = "Q",
     }
+    vocab ModalChooser {
+        You = "choose",
+        Opponent = "an opponent chooses",
+    }
+    vocab ModalChoiceBounds {
+        ExactlyOne = "one",
+        ExactlyTwo = "two",
+        OneToTwo = "one or both",
+        OneOrMore = "one or more",
+        ZeroToOne = "up to one",
+    }
     vocab MonocoloredHybridColor {
         White = "W",
         Blue = "U",
@@ -188,7 +199,6 @@ constructions! {
         Player = "player",
         Source = "source",
         Spell = "spell",
-        Target = "target",
         Token = "token",
     }
     lexeme VerbLexeme using EnglishVerb {
@@ -335,6 +345,37 @@ constructions! {
         }
         require len(sentences) >= 1;
         form sentences = sentences;
+    }
+    construction modal_mode: ModalMode {
+        element ModalModeValue {
+            sentences: seq Sentence separated by " " terminated by ".",
+        }
+        require len(sentences) >= 1;
+        form modal_mode = sentence_initial("• ") sentences;
+    }
+    construction plain_modal: AbilityBody {
+        element PlainModal {
+            chooser: lex ModalChooser,
+            bounds: lex ModalChoiceBounds,
+            modes: seq ModalMode separated by sentence_initial("\n"),
+        }
+        require len(modes) >= 2;
+        require any(
+            chooser is You,
+            all(chooser is Opponent, bounds is ExactlyOne)
+        );
+        form exactly_one when all(chooser is You, bounds is ExactlyOne) =
+            lex(chooser) lex(bounds) sentence_initial(" —\n") modes;
+        form exactly_two when all(chooser is You, bounds is ExactlyTwo) =
+            lex(chooser) lex(bounds) sentence_initial(" —\n") modes;
+        form one_to_two when all(chooser is You, bounds is OneToTwo) =
+            lex(chooser) lex(bounds) sentence_initial(" —\n") modes;
+        form one_or_more when all(chooser is You, bounds is OneOrMore) =
+            lex(chooser) lex(bounds) sentence_initial(" —\n") modes;
+        form zero_to_one when all(chooser is You, bounds is ZeroToOne) =
+            lex(chooser) lex(bounds) sentence_initial(" —\n") modes;
+        form opponent_exactly_one otherwise =
+            lex(chooser) lex(bounds) sentence_initial(" —\n") modes;
     }
     construction finite: TriggerPrefix {
         element Finite {
@@ -1415,18 +1456,20 @@ constructions! {
         form named_card_reference = "a" "card" "named" identity(name);
     }
     construction ordinary_singular_reference: UnqualifiedReference {
-        element OrdinarySingularReference { selector: SingularSelector, }
-        require any(
-            selector is TargetSingularSelector,
-            selector is TargetSingularCoordinationSelector
-        );
-        derive agreement = selector.agreement;
-        derive number = selector.number;
-        derive onset = selector.onset;
-        form ordinary_singular_reference = selector;
+        element OrdinarySingularReference { phrase: DeterminerPhrase, }
+        derive agreement = phrase.agreement;
+        derive number = phrase.number;
+        derive onset = phrase.onset;
+        form ordinary_singular_reference = phrase;
     }
     construction ordinary_plural_reference: UnqualifiedReference {
         element OrdinaryPluralReference { selector: PluralSelector, }
+        require any(
+            selector is UnmarkedPluralSelector,
+            selector is UnmarkedPluralCoordinationSelector,
+            selector is OtherPluralSelector,
+            selector is OtherTargetPluralSelector
+        );
         derive agreement = selector.agreement;
         derive number = selector.number;
         derive onset = selector.onset;
@@ -1629,23 +1672,25 @@ constructions! {
         derive onset = word.onset;
         form possessive_absolute_reference = lex(word);
     }
-    construction singular_targeted_noun_phrase: TargetedNounPhrase {
-        element SingularTargetedNounPhrase { nominal: SingularNominal, }
+    construction target_determiner_phrase: DeterminerPhrase {
+        element TargetDeterminerPhrase { nominal: SingularNominal, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
-        form singular_targeted_noun_phrase = "target" nominal;
+        form target_determiner_phrase = "target" nominal;
     }
-    construction plural_targeted_noun_phrase: TargetedNounPhrase {
-        element PluralTargetedNounPhrase { nominal: PluralNominal, }
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
+    construction target_coordination_determiner_phrase: DeterminerPhrase {
+        element TargetCoordinationDeterminerPhrase {
+            coordination: SingularNominalCoordination,
+        }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
         derive onset = Values::Consonant;
-        form plural_targeted_noun_phrase = "target" nominal;
+        form target_coordination_determiner_phrase = "target" coordination;
     }
     construction full_and_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullAndNounPhraseCoordination {
-            members: seq TargetedNounPhrase separated by position {
+            members: seq DeterminerPhrase separated by position {
                 pair = " and ";
                 first = ", ";
                 middle = ", ";
@@ -1657,7 +1702,7 @@ constructions! {
     }
     construction full_or_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullOrNounPhraseCoordination {
-            members: seq TargetedNounPhrase separated by position {
+            members: seq DeterminerPhrase separated by position {
                 pair = " or ";
                 first = ", ";
                 middle = ", ";
@@ -1669,7 +1714,7 @@ constructions! {
     }
     construction full_and_or_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullAndOrNounPhraseCoordination {
-            members: seq TargetedNounPhrase separated by position {
+            members: seq DeterminerPhrase separated by position {
                 pair = " and/or ";
                 first = ", ";
                 middle = ", ";
@@ -1983,18 +2028,19 @@ mod task9_feature_tests {
     #[test]
     fn coordination_scopes_derive_exact_number_and_agreement() {
         let singular_shared = noun_phrase(UnqualifiedReference::OrdinarySingularReference(
-            OrdinarySingularReference::new(SingularSelector::TargetSingularCoordinationSelector(
-                TargetSingularCoordinationSelector {
-                    coordination: SingularNominalCoordination::SingularOrNominalCoordination(
-                        SingularOrNominalCoordination::new(vec![
-                            singular_member(CommonNoun::Player),
-                            singular_member(CommonNoun::Opponent),
-                        ])
-                        .expect("binary singular coordination satisfies minimum arity"),
-                    ),
-                },
-            ))
-            .expect("a target coordination selector is an ordinary singular reference"),
+            OrdinarySingularReference {
+                phrase: DeterminerPhrase::TargetCoordinationDeterminerPhrase(
+                    TargetCoordinationDeterminerPhrase {
+                        coordination: SingularNominalCoordination::SingularOrNominalCoordination(
+                            SingularOrNominalCoordination::new(vec![
+                                singular_member(CommonNoun::Player),
+                                singular_member(CommonNoun::Opponent),
+                            ])
+                            .expect("binary singular coordination satisfies minimum arity"),
+                        ),
+                    },
+                ),
+            },
         ));
         let plural_shared = noun_phrase(UnqualifiedReference::OrdinaryPluralReference(
             OrdinaryPluralReference {
@@ -2015,16 +2061,12 @@ mod task9_feature_tests {
             CoordinatedNounPhrase {
                 coordination: FullNounPhraseCoordination::FullAndNounPhraseCoordination(
                     FullAndNounPhraseCoordination::new(vec![
-                        TargetedNounPhrase::SingularTargetedNounPhrase(
-                            SingularTargetedNounPhrase {
-                                nominal: singular_nominal(CommonNoun::Player),
-                            },
-                        ),
-                        TargetedNounPhrase::SingularTargetedNounPhrase(
-                            SingularTargetedNounPhrase {
-                                nominal: singular_nominal(CommonNoun::Opponent),
-                            },
-                        ),
+                        DeterminerPhrase::TargetDeterminerPhrase(TargetDeterminerPhrase {
+                            nominal: singular_nominal(CommonNoun::Player),
+                        }),
+                        DeterminerPhrase::TargetDeterminerPhrase(TargetDeterminerPhrase {
+                            nominal: singular_nominal(CommonNoun::Opponent),
+                        }),
                     ])
                     .expect("binary full-NP coordination satisfies minimum arity"),
                 ),

@@ -1492,7 +1492,7 @@ mod tests {
                 Construction::ZoneStageUnqualifiedZoneStage,
                 Construction::ControllerStageUnqualifiedControllerStage,
                 Construction::UnqualifiedReferenceOrdinarySingularReference,
-                Construction::SingularSelectorTargetSingularSelector,
+                Construction::DeterminerPhraseTargetDeterminerPhrase,
                 Construction::SingularNominalBareSingularNominal,
                 Construction::SingularHeadTypeSingularHead,
             ]
@@ -1515,12 +1515,12 @@ mod tests {
                 RulePosition::Nonterminal(Category::ZoneStage),
                 RulePosition::Nonterminal(Category::ControllerStage),
                 RulePosition::Nonterminal(Category::UnqualifiedReference),
-                RulePosition::Nonterminal(Category::SingularSelector),
+                RulePosition::Nonterminal(Category::DeterminerPhrase),
                 RulePosition::Lexical(Lexical::Literal("target")),
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
-                    26,
+                    28,
                     FeatureConstraint::Exact(Number::Singular),
                 )),
             ]
@@ -1547,7 +1547,7 @@ mod tests {
                 ),
                 (
                     crate::parser::TextSpan { start: 7, end: 14 },
-                    "form:target_singular_selector/target_singular_selector/0",
+                    "form:target_determiner_phrase/target_determiner_phrase/0",
                 ),
                 (
                     crate::parser::TextSpan { start: 14, end: 23 },
@@ -1699,7 +1699,7 @@ mod tests {
             );
             if limit > 0 {
                 let cycle = &trace.materialization_cycles().items()[0];
-                assert_eq!(cycle.node_ordinal(), 41);
+                assert_eq!(cycle.node_ordinal(), 21);
                 assert_eq!(cycle.construction_path().total(), 2);
                 assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
                 assert_eq!(

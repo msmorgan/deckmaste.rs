@@ -633,8 +633,6 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Source", SurfaceFeature::Plural, "sources"),
             ("Spell", SurfaceFeature::Singular, "spell"),
             ("Spell", SurfaceFeature::Plural, "spells"),
-            ("Target", SurfaceFeature::Singular, "target"),
-            ("Target", SurfaceFeature::Plural, "targets"),
             ("Token", SurfaceFeature::Singular, "token"),
             ("Token", SurfaceFeature::Plural, "tokens"),
         ]
@@ -661,8 +659,6 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
         "lexeme:CommonNoun/Source/plural",
         "lexeme:CommonNoun/Spell/singular",
         "lexeme:CommonNoun/Spell/plural",
-        "lexeme:CommonNoun/Target/singular",
-        "lexeme:CommonNoun/Target/plural",
         "lexeme:CommonNoun/Token/singular",
         "lexeme:CommonNoun/Token/plural",
     ] {

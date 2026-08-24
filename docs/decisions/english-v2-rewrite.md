@@ -116,6 +116,19 @@ Nominal-core coordination under one selector and coordination of complete noun
 phrases are distinct generated categories, so their scope and derived number
 cannot be silently rebracketed.
 
+`target` is an English determiner, not a rules-semantic noun-phrase category.
+The generated English AST therefore records its surface syntax through the
+generic `DeterminerPhrase` category; whether that phrase denotes a targeted
+game object is established only by a later rules projection. An unquantified
+`target` determiner selects a singular nominal and derives singular number and
+agreement. Plural target-determiner syntax remains available only beneath an
+explicit higher quantifier (`two`, `X`, `up to three`, `any number of`, and
+their declared peers), and cannot enter the bare-reference path. Complete
+noun-phrase coordination sequences generic determiner phrases, preserving each
+repeated determiner and each singular member. These facts do not depend on noun
+spelling, invariant plural morphology, or declaration-specific lexical-number
+exceptions.
+
 Feature equations may target the construction or a named role. Role-level
 constants and from-role equations let an attributive noun be singular while
 its head inherits the enclosing phrase's number; each feature-consuming atom

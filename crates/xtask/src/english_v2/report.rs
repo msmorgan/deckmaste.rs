@@ -713,6 +713,10 @@ mod tests {
         );
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the complete production report inventory is deliberately literal"
+    )]
     #[test]
     fn production_baseline_has_exact_counted_escape_hatches() {
         let report = build_report_from_source(PRODUCTION_SOURCE)
@@ -778,6 +782,7 @@ mod tests {
                 "ActivationCostComponent",
                 "Predicate",
                 "Clause",
+                "ClauseAttachment",
                 "ConditionClause",
                 "DocumentBlock",
             ]
@@ -794,8 +799,12 @@ mod tests {
             report.sequence_roles,
             [
                 "Sentences.sentences",
+                "ModalModeValue.sentences",
+                "PlainModal.modes",
                 "SymbolRun.symbols",
                 "Activated.costs",
+                "ThenSequence.members",
+                "ThenPredicateSequence.members",
                 "AndPredicateCoordination.members",
                 "OrPredicateCoordination.members",
                 "AndOrPredicateCoordination.members",
@@ -821,6 +830,7 @@ mod tests {
         assert_eq!(
             report.sequence_feature_roles,
             [
+                "ThenPredicateSequence.members.agreement",
                 "AndPredicateCoordination.members.agreement",
                 "OrPredicateCoordination.members.agreement",
                 "AndOrPredicateCoordination.members.agreement",
@@ -830,6 +840,8 @@ mod tests {
             report.uniform_separators,
             [
                 "Sentences.sentences",
+                "ModalModeValue.sentences",
+                "PlainModal.modes",
                 "SymbolRun.symbols",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
@@ -842,6 +854,8 @@ mod tests {
             report.positional_separator_tables,
             [
                 "Activated.costs",
+                "ThenSequence.members",
+                "ThenPredicateSequence.members",
                 "AndPredicateCoordination.members",
                 "OrPredicateCoordination.members",
                 "AndOrPredicateCoordination.members",
@@ -859,7 +873,10 @@ mod tests {
                 "FullAndOrNounPhraseCoordination.members",
             ]
         );
-        assert_eq!(report.terminators, ["Sentences.sentences"]);
+        assert_eq!(
+            report.terminators,
+            ["Sentences.sentences", "ModalModeValue.sentences"]
+        );
         assert!(report.stored_separator_fields.is_empty());
         assert_eq!(
             morphology_rows(&report.morphology_irregulars),
@@ -1031,12 +1048,16 @@ mod tests {
                 }
             ],
             "abstract_products": ["OracleText"],
-            "abstract_sums": ["ActivationCostComponent", "Predicate", "Clause", "ConditionClause", "DocumentBlock"],
+            "abstract_sums": ["ActivationCostComponent", "Predicate", "Clause", "ClauseAttachment", "ConditionClause", "DocumentBlock"],
             "optional_roles": ["AtPhraseValue.specifier", "AtPhraseValue.postmodifier", "Triggered.intervening_if"],
             "sequence_roles": [
                 "Sentences.sentences",
+                "ModalModeValue.sentences",
+                "PlainModal.modes",
                 "SymbolRun.symbols",
                 "Activated.costs",
+                "ThenSequence.members",
+                "ThenPredicateSequence.members",
                 "AndPredicateCoordination.members",
                 "OrPredicateCoordination.members",
                 "AndOrPredicateCoordination.members",
@@ -1059,12 +1080,15 @@ mod tests {
                 "OracleText.blocks"
             ],
             "sequence_feature_roles": [
+                "ThenPredicateSequence.members.agreement",
                 "AndPredicateCoordination.members.agreement",
                 "OrPredicateCoordination.members.agreement",
                 "AndOrPredicateCoordination.members.agreement"
             ],
             "uniform_separators": [
                 "Sentences.sentences",
+                "ModalModeValue.sentences",
+                "PlainModal.modes",
                 "SymbolRun.symbols",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
@@ -1074,6 +1098,8 @@ mod tests {
             ],
             "positional_separator_tables": [
                 "Activated.costs",
+                "ThenSequence.members",
+                "ThenPredicateSequence.members",
                 "AndPredicateCoordination.members",
                 "OrPredicateCoordination.members",
                 "AndOrPredicateCoordination.members",
@@ -1090,7 +1116,7 @@ mod tests {
                 "FullOrNounPhraseCoordination.members",
                 "FullAndOrNounPhraseCoordination.members"
             ],
-            "terminators": ["Sentences.sentences"],
+            "terminators": ["Sentences.sentences", "ModalModeValue.sentences"],
             "stored_separator_fields": []
         });
 
