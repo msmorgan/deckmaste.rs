@@ -1139,6 +1139,14 @@ mod tests {
 
         let terminal = formatted(&crate::emit::terminal::emit(&plan).unwrap().0);
         assert!(terminal.contains("std :: num :: NonZeroU32"), "{terminal}");
+        let rules = formatted(&crate::emit::rules::emit(&plan).unwrap());
+        let expected_nonzero_rule_position = "LexicalTerminal { matcher : Lexical :: NonZeroScalarNumber , owner : LexicalOwnerTemplate :: Static { kind : LexicalProvenanceKind :: Codec , stable_id : \"codec:NonZeroScalarNumber\" , } , right_boundary : LexicalBoundary :: Separated , }";
+        assert_eq!(
+            rules.matches(expected_nonzero_rule_position).count(),
+            1,
+            "the nonzero rule must pair its exact matcher class with its owner: {rules}"
+        );
+
         let outputs = [
             ("runtime", formatted(&crate::emit::runtime::emit(&plan))),
             ("scanner", formatted(&crate::emit::scanner::emit(&plan))),
@@ -1150,10 +1158,7 @@ mod tests {
                 "visitor",
                 formatted(&crate::emit::visit::emit(&plan).unwrap()),
             ),
-            (
-                "rules",
-                formatted(&crate::emit::rules::emit(&plan).unwrap()),
-            ),
+            ("rules", rules),
             (
                 "build",
                 formatted(&crate::emit::build::emit(&plan).unwrap()),

@@ -1,0 +1,5 @@
+error: signed_decimal magnitude must be `u32`
+ --> tests/compile_fail/signed_decimal_nonzero_magnitude.rs:6:25
+  |
+6 |             magnitude = NonZeroU32;
+  |                         ^^^^^^^^^^

@@ -1,0 +1,5 @@
+error: english_cardinal magnitude must be `u32`
+ --> tests/compile_fail/english_cardinal_nonzero_magnitude.rs:6:25
+  |
+6 |             magnitude = NonZeroU32;
+  |                         ^^^^^^^^^^

@@ -1,0 +1,5 @@
+error: duplicate unsigned_decimal field `magnitude`
+ --> tests/compile_fail/unsigned_decimal_duplicate_magnitude.rs:7:13
+  |
+7 |             magnitude = NonZeroU32;
+  |             ^^^^^^^^^
