@@ -10,20 +10,32 @@ error: circumfix atom values must be ordinary declared roles
 14 |             form invalid = circumfix("[", lex(value), "]");
    |                            ^^^^^^^^^
 
-error: circumfix atom values must be ordinary declared roles
-  --> tests/compile_fail/circumfix_forbidden_operands.rs:23:28
+error: lexical field `value` used as a category role
+  --> tests/compile_fail/circumfix_forbidden_operands.rs:30:43
    |
-23 |             form invalid = circumfix("[", verb(Verbs::Act), "]");
+30 |             form invalid = circumfix("[", value, "]");
+   |                                           ^^^^^
+
+error: lexical field `value` used as a category role
+  --> tests/compile_fail/circumfix_forbidden_operands.rs:51:43
+   |
+51 |             form invalid = circumfix("[", value, "]");
+   |                                           ^^^^^
+
+error: circumfix atom values must be ordinary declared roles
+  --> tests/compile_fail/circumfix_forbidden_operands.rs:60:28
+   |
+60 |             form invalid = circumfix("[", verb(Verbs::Act), "]");
    |                            ^^^^^^^^^
 
 error: unknown form atom
-  --> tests/compile_fail/circumfix_forbidden_operands.rs:32:43
+  --> tests/compile_fail/circumfix_forbidden_operands.rs:69:43
    |
-32 |             form invalid = circumfix("[", callback(value), "]");
+69 |             form invalid = circumfix("[", callback(value), "]");
    |                                           ^^^^^^^^
 
 error: circumfix atom values must be ordinary declared roles
-  --> tests/compile_fail/circumfix_forbidden_operands.rs:41:28
+  --> tests/compile_fail/circumfix_forbidden_operands.rs:78:28
    |
-41 |             form invalid = circumfix("[", open_verb(KeywordAction, "act"), "]");
+78 |             form invalid = circumfix("[", open_verb(KeywordAction, "act"), "]");
    |                            ^^^^^^^^^

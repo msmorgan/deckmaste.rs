@@ -16,6 +16,43 @@ mod lexical_atom {
     }
 }
 
+mod identity_role {
+    deckmaste_construction::constructions! {
+        identity CircumfixIdentity {
+            generate context {
+                Full => card_name,
+                Abbreviated => abbreviated_card_name,
+                canonical_on_collision = Full;
+            }
+        }
+        construction invalid: Root {
+            element Invalid { value: identity CircumfixIdentity, }
+            form invalid = circumfix("[", value, "]");
+        }
+    }
+}
+
+mod noun_role {
+    deckmaste_construction::constructions! {
+        codec NounValue {
+            atom = noun;
+            value_type = NounValue;
+            lexical = Lexical::NounValue;
+            render = render_noun_value;
+            build { pattern = BuildValue::NounValue(value); construct = value; }
+            traversal {
+                callback = borrowed;
+                argument = value;
+                call visitor::visit_noun_value(borrowed(value));
+            }
+        }
+        construction invalid: Root {
+            element Invalid { value: lex NounValue, }
+            form invalid = circumfix("[", value, "]");
+        }
+    }
+}
+
 mod fixed_verb {
     deckmaste_construction::constructions! {
         construction invalid: Root {

@@ -10,14 +10,26 @@ error: bound atoms cannot nest
 14 |             form invalid = circumfix("[", prefix("non", value), "]");
    |                                           ^^^^^^
 
-error: circumfix atoms cannot nest
+error: bound atoms cannot nest
   --> tests/compile_fail/circumfix_invalid_shapes.rs:23:43
    |
-23 |             form invalid = circumfix("[", circumfix("{", value, "}"), "]");
+23 |             form invalid = circumfix("[", suffix(value, "less"), "]");
+   |                                           ^^^^^^
+
+error: circumfix atoms cannot nest
+  --> tests/compile_fail/circumfix_invalid_shapes.rs:32:43
+   |
+32 |             form invalid = circumfix("[", circumfix("{", value, "}"), "]");
    |                                           ^^^^^^^^^
 
 error: circumfix atoms cannot nest
-  --> tests/compile_fail/circumfix_invalid_shapes.rs:32:42
+  --> tests/compile_fail/circumfix_invalid_shapes.rs:41:42
    |
-32 |             form invalid = prefix("non", circumfix("[", value, "]"));
+41 |             form invalid = prefix("non", circumfix("[", value, "]"));
    |                                          ^^^^^^^^^
+
+error: circumfix atoms cannot nest
+  --> tests/compile_fail/circumfix_invalid_shapes.rs:50:35
+   |
+50 |             form invalid = suffix(circumfix("[", value, "]"), "less");
+   |                                   ^^^^^^^^^

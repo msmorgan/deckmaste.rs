@@ -16,6 +16,15 @@ mod nested_bound {
     }
 }
 
+mod nested_suffix_bound {
+    deckmaste_construction::constructions! {
+        construction invalid: Root {
+            element Invalid { value: Root, }
+            form invalid = circumfix("[", suffix(value, "less"), "]");
+        }
+    }
+}
+
 mod nested_circumfix {
     deckmaste_construction::constructions! {
         construction invalid: Root {
@@ -30,6 +39,15 @@ mod circumfix_inside_bound {
         construction invalid: Root {
             element Invalid { value: Root, }
             form invalid = prefix("non", circumfix("[", value, "]"));
+        }
+    }
+}
+
+mod circumfix_inside_suffix_bound {
+    deckmaste_construction::constructions! {
+        construction invalid: Root {
+            element Invalid { value: Root, }
+            form invalid = suffix(circumfix("[", value, "]"), "less");
         }
     }
 }

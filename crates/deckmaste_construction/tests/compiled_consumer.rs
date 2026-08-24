@@ -1891,6 +1891,7 @@ pub mod fixture {
         SelfRef(SelfRef),
         StructuralWord(StructuralWord),
         CircumfixWord(CircumfixWord),
+        PlusTwo,
     }
 
     #[derive(Default)]
@@ -1941,6 +1942,10 @@ pub mod fixture {
 
         fn visit_circumfix_word(&mut self, word: CircumfixWord) {
             self.0.push(VisitEvent::CircumfixWord(word));
+        }
+
+        fn visit_plus_two_value(&mut self, _value: &PlusTwoValue) {
+            self.0.push(VisitEvent::PlusTwo);
         }
     }
 
@@ -3558,7 +3563,14 @@ pub mod fixture {
             &context,
         )
         .expect("the singular public rule builds through both fixed boundaries");
-        assert!(matches!(built, BuildValue::CircumfixSingularRoot(_)));
+        let BuildValue::CircumfixSingularRoot(built_singular) = built else {
+            panic!("the singular public build returns its root category")
+        };
+        assert_eq!(
+            render_circumfix_singular_root_with_claims(&built_singular, &context).0,
+            "[+2].",
+            "the singular public build preserves its exact delegated payload",
+        );
         for children in [
             vec![singular_value.clone(), BuildValue::Leaf(Leaf::Literal("]"))],
             vec![
@@ -3649,7 +3661,14 @@ pub mod fixture {
             &context,
         )
         .expect("the sequence public rule builds through both fixed outer boundaries");
-        assert!(matches!(built, BuildValue::CircumfixSequenceRoot(_)));
+        let BuildValue::CircumfixSequenceRoot(built_sequence) = built else {
+            panic!("the sequence public build returns its root category")
+        };
+        assert_eq!(
+            render_circumfix_sequence_root_with_claims(&built_sequence, &context).0,
+            "{2}{W/U}{T}.",
+            "the helper and public builds preserve every delegated payload in source order",
+        );
         for children in [
             vec![
                 sequence_carrier.clone(),
@@ -3723,10 +3742,16 @@ pub mod fixture {
 
         let mut visitor = RecordingVisitor::default();
         walk_circumfix_singular_root(&mut visitor, &singular);
+        assert_eq!(
+            visitor.0,
+            [VisitEvent::PlusTwo],
+            "the singular circumfix walker delegates to its observable payload",
+        );
         walk_circumfix_sequence_root(&mut visitor, &sequence);
         assert_eq!(
             visitor.0,
             [
+                VisitEvent::PlusTwo,
                 VisitEvent::CircumfixWord(CircumfixWord::WhiteBlue),
                 VisitEvent::CircumfixWord(CircumfixWord::Tap),
             ],
