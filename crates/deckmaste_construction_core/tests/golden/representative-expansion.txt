@@ -1057,6 +1057,11 @@ fn render_signed_number(writer: &mut Writer, number: &SignedNumber) {
         Sign::Negative => writer.word(&format!("-{magnitude}")),
     }
 }
+fn agreement_matches_for_action(value: &Action, agreement: Agreement) -> bool {
+    match value {
+        Action::Action(_) => true,
+    }
+}
 pub trait Visitor {
     fn visit_node(&mut self, node: &Node) {
         walk_node(self, node);

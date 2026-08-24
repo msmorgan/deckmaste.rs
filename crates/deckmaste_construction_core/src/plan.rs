@@ -2241,6 +2241,30 @@ mod tests {
         ["Node", "First"].into_iter().map(str::to_owned).collect()
     }
 
+    fn assert_representative_agreement_match(expansion: &crate::Expansion) {
+        let agreement_match = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name,
+                    } if name == "agreement_matches_for_action"
+                )
+            })
+            .expect("the contextual Action Agreement matcher is planned");
+        assert_eq!(
+            agreement_match
+                .origins
+                .iter()
+                .map(|origin| (origin.kind(), origin.name()))
+                .collect::<Vec<_>>(),
+            [(DeclarationKind::Construction, "action")],
+        );
+    }
+
     #[test]
     fn plan_is_unique_repeatable_and_phase_ordered_with_exact_origins() {
         let first = representative_expansion();
@@ -2296,7 +2320,8 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 92);
+        assert_eq!(keys.len(), 93);
+        assert_representative_agreement_match(&first);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,
             name: "GeneratedRoot".into(),

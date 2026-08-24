@@ -1461,8 +1461,20 @@ mod tests {
                 }
             })
             .collect::<Vec<_>>();
+        let agreement_match = super::super::render::emit(&plan)
+            .expect("invariant render fixture emits")
+            .into_iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named { name, .. }
+                        if name == "agreement_matches_for_feature_child"
+                )
+            })
+            .expect("the constructor's category Agreement matcher is generated");
         let runtime = runtime_items.iter().map(|item| &item.tokens);
         let generated = items.iter().map(|item| &item.tokens);
+        let agreement_match = agreement_match.tokens;
         let source = quote::quote! {
             #![allow(dead_code)]
 
@@ -1486,6 +1498,7 @@ mod tests {
 
             #(#runtime)*
             #(#generated)*
+            #agreement_match
 
             fn agreement_for_feature_child(child: &FeatureChild) -> Agreement {
                 match child {

@@ -1503,7 +1503,6 @@ pub mod fixture {
                 all(mode is Many, child is Third)
             );
             derive agreement = Values::Bare;
-            derive child.agreement = Values::Bare;
             form guarded = lex(mode) child;
         }
         construction uniform_children: HomogeneousSequence {

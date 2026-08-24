@@ -1346,6 +1346,7 @@ mod tests {
 
     const PLAN06_COVERED_IDS: &str = include_str!("plan06_covered_ids.txt");
     const PLAN07_TARGETS: &str = include_str!("plan07_targets.tsv");
+    const PLAN08_TARGETS: &str = include_str!("plan08_targets.tsv");
 
     fn sha256_hex(bytes: &[u8]) -> String {
         use std::fmt::Write as _;
@@ -1381,16 +1382,13 @@ mod tests {
         let production_selected_covered_ids = report
             .selected_covered_ids()
             .expect("full production selected-covered IDs are unique");
-        assert_eq!(covered_ids.len(), 608);
+        assert_eq!(covered_ids.len(), 726);
         let production_selected_covered_ids = production_selected_covered_ids
             .iter()
             .map(String::as_str)
             .collect::<BTreeSet<_>>();
         assert_eq!(production_selected_covered_ids.len(), 726);
-        assert!(
-            covered_ids.is_subset(&production_selected_covered_ids),
-            "the frozen Plan 07 lock must remain covered after Plan 08 growth",
-        );
+        assert_eq!(covered_ids, production_selected_covered_ids);
         assert!(baseline_ids.is_subset(&covered_ids));
         assert!(target_ids.is_subset(&covered_ids));
     }
@@ -1535,6 +1533,282 @@ mod tests {
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);
         assert_eq!(report.summary().ownership_failure_units(), 0);
 
+        assert_full_production_selected_covered_lock(&report, &baseline_ids, &target_ids);
+    }
+
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the frozen Plan 08 target and complete-lock verifier is deliberately literal"
+    )]
+    #[test]
+    fn plan08_frozen_manifest_and_full_lock_are_exact_on_production_data() {
+        const EXPECTED_HEADERS: [&str; 10] = [
+            "# English v2 Plan 08 frozen corpus target manifest",
+            "# manifest_schema=1",
+            "# source_fingerprint=e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+            "# candidate_results_sha256=9faa72678ab20320333770710f4f5a9d16a7da5c68a8ca8ad9be70b142b3c42a",
+            "# baseline_covered=608",
+            "# baseline_ids_sha256=35ea73406725742d51b92df60bb07a261ed7570d6767caf59306a88785de87c2",
+            "# baseline_status=parse_failure",
+            "# targets=118",
+            "# family_counts=ability.activated:56,ability.plain-modal:28,ability.triggered:10,clause.coordination:23,finite.auxiliary:1",
+            r"# columns=family\tid\tcard_name_json\tface_name_json\tside_json\tcontext_name_json\tis_legendary\tcontext_onset\toracle_text_json",
+        ];
+        const EXPECTED_FAMILIES: [(&str, usize); 5] = [
+            ("ability.activated", 56),
+            ("ability.plain-modal", 28),
+            ("ability.triggered", 10),
+            ("clause.coordination", 23),
+            ("finite.auxiliary", 1),
+        ];
+        const EXPECTED_OUT_OF_POOL: [(&str, usize); 3] = [
+            ("ability.plain-modal", 28),
+            ("clause.coordination", 23),
+            ("finite.auxiliary", 1),
+        ];
+
+        fn decode(value: &str) -> String {
+            serde_json::from_str(value).expect("manifest JSON string is valid")
+        }
+
+        assert_eq!(
+            sha256_hex(PLAN08_TARGETS.as_bytes()),
+            "bd59a8b37e46090198c5192b22b69eae4b687023c09d46efce3bd24156a3c348",
+        );
+        assert_eq!(
+            PLAN08_TARGETS
+                .lines()
+                .take(EXPECTED_HEADERS.len())
+                .collect::<Vec<_>>(),
+            EXPECTED_HEADERS,
+        );
+        assert!(PLAN08_TARGETS.ends_with('\n'));
+        let manifest_rows = PLAN08_TARGETS
+            .lines()
+            .skip(EXPECTED_HEADERS.len())
+            .map(|line| line.split('\t').collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+        assert_eq!(manifest_rows.len(), 118);
+
+        let mut previous_id = None;
+        let mut family_counts = BTreeMap::new();
+        let target_ids = manifest_rows
+            .iter()
+            .map(|fields| {
+                assert_eq!(fields.len(), 9, "target row has complete metadata");
+                let id = fields[1];
+                assert!(previous_id.is_none_or(|previous| previous < id));
+                previous_id = Some(id);
+                *family_counts.entry(fields[0]).or_insert(0usize) += 1;
+                id
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(target_ids.len(), 118);
+        assert_eq!(
+            family_counts.into_iter().collect::<Vec<_>>(),
+            EXPECTED_FAMILIES,
+        );
+
+        let lock: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../english-v2-coverage.lock"))
+                .expect("production lock parses");
+        let covered_ids = lock["covered"]
+            .as_array()
+            .expect("schema-2 lock has covered IDs")
+            .iter()
+            .map(|id| id.as_str().expect("covered ID is a string"))
+            .collect::<BTreeSet<_>>();
+        let baseline_ids = covered_ids
+            .difference(&target_ids)
+            .copied()
+            .collect::<BTreeSet<_>>();
+        assert_eq!(baseline_ids.len(), 608);
+        let baseline_membership = baseline_ids
+            .iter()
+            .fold(String::new(), |mut membership, id| {
+                membership.push_str(id);
+                membership.push('\n');
+                membership
+            });
+        assert_eq!(
+            sha256_hex(baseline_membership.as_bytes()),
+            "35ea73406725742d51b92df60bb07a261ed7570d6767caf59306a88785de87c2",
+        );
+        assert!(baseline_ids.is_disjoint(&target_ids));
+        assert_eq!(
+            baseline_ids
+                .union(&target_ids)
+                .copied()
+                .collect::<BTreeSet<_>>(),
+            covered_ids,
+        );
+
+        let candidate_pool_ids = include_str!("plan08_candidate_pool.tsv")
+            .lines()
+            .skip(9)
+            .map(|line| line.split('\t').nth(1).expect("candidate ID"))
+            .collect::<BTreeSet<_>>();
+        let candidate_selected_ids = include_str!("plan08_candidate_results.tsv")
+            .lines()
+            .skip(10)
+            .filter_map(|line| {
+                let fields = line.split('\t').collect::<Vec<_>>();
+                (fields[0] == "plan08-selected").then_some(fields[3])
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(candidate_selected_ids.len(), 66);
+        assert_eq!(
+            target_ids
+                .intersection(&candidate_pool_ids)
+                .copied()
+                .collect::<BTreeSet<_>>(),
+            candidate_selected_ids,
+        );
+        let out_of_pool_ids = target_ids
+            .difference(&candidate_pool_ids)
+            .copied()
+            .collect::<BTreeSet<_>>();
+        assert_eq!(out_of_pool_ids.len(), 52);
+        let mut out_of_pool_counts = BTreeMap::new();
+        for fields in &manifest_rows {
+            if out_of_pool_ids.contains(fields[1]) {
+                *out_of_pool_counts.entry(fields[0]).or_insert(0usize) += 1;
+            }
+        }
+        assert_eq!(
+            out_of_pool_counts.into_iter().collect::<Vec<_>>(),
+            EXPECTED_OUT_OF_POOL,
+        );
+
+        let data =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgjson/AtomicCards.json");
+        let corpus = Corpus::load(&data).expect("production MTGJSON corpus loads");
+        assert_eq!(
+            corpus.source_fingerprint(),
+            "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+        );
+        let units = corpus
+            .units()
+            .iter()
+            .map(|unit| (unit.id(), unit))
+            .collect::<BTreeMap<_, _>>();
+        let parser = crate::english_v2::parser_from_builtin_v2()
+            .expect("production English-v2 parser environment loads");
+        let coverage_rows = corpus
+            .units()
+            .iter()
+            .map(|unit| {
+                let context = ParseContext::new(
+                    unit.context_name(),
+                    unit.is_legendary(),
+                    unit.context_onset(),
+                )
+                .unwrap_or_else(|| panic!("production context is valid for {}", unit.id()));
+                let analysis = parser.analyze_oracle_text(unit.text(), &context);
+                super::runtime_analysis_row(unit, &analysis)
+            })
+            .collect::<Vec<_>>();
+        let report = CoverageReport::try_new(corpus.source_fingerprint().to_owned(), coverage_rows)
+            .expect("full production coverage evidence is internally consistent");
+        let rows_by_id = report
+            .rows()
+            .iter()
+            .map(|row| (row.id.as_str(), row))
+            .collect::<BTreeMap<_, _>>();
+
+        for fields in manifest_rows {
+            let [
+                family,
+                id,
+                card_name,
+                face_name,
+                side,
+                context_name,
+                legendary,
+                onset,
+                text,
+            ] = fields.as_slice()
+            else {
+                unreachable!("nine-column assertion already passed")
+            };
+            let unit = units
+                .get(id)
+                .copied()
+                .unwrap_or_else(|| panic!("production corpus contains target {id}"));
+            assert_eq!(unit.card_name(), decode(card_name), "{id}");
+            assert_eq!(
+                unit.face_name().unwrap_or_default(),
+                decode(face_name),
+                "{id}"
+            );
+            assert_eq!(unit.side().unwrap_or_default(), decode(side), "{id}");
+            assert_eq!(unit.context_name(), decode(context_name), "{id}");
+            assert_eq!(unit.is_legendary().to_string(), *legendary, "{id}");
+            assert_eq!(
+                match unit.context_onset() {
+                    Onset::Vowel => "vowel",
+                    Onset::Consonant => "consonant",
+                },
+                *onset,
+                "{id}",
+            );
+            assert_eq!(unit.text(), decode(text), "{id}");
+            let row = rows_by_id
+                .get(id)
+                .copied()
+                .unwrap_or_else(|| panic!("coverage report contains target {id}"));
+            assert_eq!(row.status(), CoverageStatus::SelectedCovered, "{id}");
+            let selected = row.selected().expect("selected target evidence");
+            assert_eq!(selected.rendered_text(), unit.text(), "{id}");
+            assert!(selected.ownership().covered, "{id}");
+            assert!(selected.ownership().failures().is_empty(), "{id}");
+            assert!(selected.roundtrip_failure().is_none(), "{id}");
+
+            let context = ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .expect("target context is valid");
+            let analysis = parser.analyze_oracle_text(unit.text(), &context);
+            let decision = analysis.decision().expect("target selection decision");
+            assert_eq!(
+                decision.resolution(),
+                deckmaste_english_v2::parser::SelectionResolution::Unique,
+                "{id}",
+            );
+            assert!(decision.exception_uses().is_empty(), "{id}");
+            let ordinal = decision.selected().expect("selected target ordinal");
+            let path = decision
+                .candidates()
+                .iter()
+                .find(|candidate| candidate.ordinal() == ordinal)
+                .expect("selected target candidate")
+                .construction_path();
+            let explained = match *family {
+                "ability.activated" => path.iter().any(|name| name == "AbilityActivated"),
+                "ability.triggered" => path.iter().any(|name| name == "AbilityTriggered"),
+                "ability.plain-modal" => path.iter().any(|name| name == "AbilityBodyPlainModal"),
+                "clause.coordination" => path
+                    .iter()
+                    .any(|name| name.starts_with("ClauseCoordination")),
+                "finite.auxiliary" => path
+                    .iter()
+                    .any(|name| name == "FiniteClauseAuxiliaryFiniteClause"),
+                other => panic!("unexplained Plan 08 family {other}: {id}"),
+            };
+            assert!(explained, "target has its named Plan 08 family: {id}");
+        }
+
+        assert_eq!(report.summary().total_units(), 32_641);
+        assert_eq!(report.summary().selected_units(), 726);
+        assert_eq!(report.summary().covered_units(), 726);
+        assert_eq!(report.summary().selected_uncovered_units(), 0);
+        assert_eq!(report.summary().parse_failures(), 31_915);
+        assert_eq!(report.summary().unresolved_ties(), 0);
+        assert_eq!(report.summary().internal_failures(), 0);
+        assert_eq!(report.summary().roundtrip_mismatch_units(), 0);
+        assert_eq!(report.summary().ownership_failure_units(), 0);
         assert_full_production_selected_covered_lock(&report, &baseline_ids, &target_ids);
     }
 

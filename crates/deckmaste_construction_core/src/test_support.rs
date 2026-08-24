@@ -397,7 +397,43 @@ pub(crate) fn vocab_matched_number_with_two_nouns_tokens() -> proc_macro2::Token
 #[test]
 fn synthetic_projection_fixture_generates() {
     let expansion = synthetic_projection_expansion();
-    assert_eq!(expansion.plan().items().len(), 110);
+    assert_eq!(expansion.plan().items().len(), 112);
+    let agreement_matches = expansion
+        .items()
+        .iter()
+        .filter_map(|item| match &item.key {
+            crate::ItemKey::Named {
+                kind: crate::NamedKind::Function,
+                name,
+            } if name.starts_with("agreement_matches_for_") => Some((
+                name.as_str(),
+                item.origins
+                    .iter()
+                    .map(|origin| (origin.kind(), origin.name()))
+                    .collect::<Vec<_>>(),
+            )),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        agreement_matches,
+        [
+            (
+                "agreement_matches_for_expr",
+                vec![
+                    (crate::DeclarationKind::Construction, "leaf"),
+                    (crate::DeclarationKind::Construction, "nested"),
+                ],
+            ),
+            (
+                "agreement_matches_for_predicate",
+                vec![
+                    (crate::DeclarationKind::Construction, "action"),
+                    (crate::DeclarationKind::Construction, "idle"),
+                ],
+            ),
+        ],
+    );
     assert!(expansion.items().iter().any(|item| {
         matches!(
             &item.key,

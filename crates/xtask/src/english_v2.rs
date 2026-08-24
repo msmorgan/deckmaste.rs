@@ -587,6 +587,7 @@ mod tests {
     const PLAN06_COVERED_IDS: &str = include_str!("english_v2/plan06_covered_ids.txt");
     const PLAN07_TARGETS: &str = include_str!("english_v2/plan07_targets.tsv");
     const PLAN08_CANDIDATE_POOL: &str = include_str!("english_v2/plan08_candidate_pool.tsv");
+    const PLAN08_CANDIDATE_RESULTS: &str = include_str!("english_v2/plan08_candidate_results.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
     fn sha256_hex(bytes: &[u8]) -> String {
@@ -770,107 +771,81 @@ mod tests {
 
     #[allow(
         clippy::too_many_lines,
-        reason = "the frozen candidate outcome inventory is deliberately literal"
+        reason = "the frozen 427-row closure inventory is deliberately literal"
     )]
     #[test]
-    fn plan08_candidate_pool_authenticates_the_frozen_preimplementation_search() {
-        const EXPECTED_HEADERS: [&str; 9] = [
-            "# English v2 Plan 08 preimplementation candidate pool",
+    fn plan08_candidate_results_are_a_complete_authenticated_partition() {
+        use deckmaste_english_v2::parser::ParseAnalysisOutcome;
+        use deckmaste_english_v2::parser::ParseError;
+        use deckmaste_english_v2::parser::SelectionResolution;
+        use deckmaste_english_v2::parser::TextSpan;
+
+        const EXPECTED_HEADERS: [&str; 10] = [
+            "# English v2 Plan 08 authenticated candidate results",
             "# classifier_schema=1",
             "# source_fingerprint=e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+            "# candidate_pool_sha256=8b9870dba508681ecc25dc43b21500d82cd941d2408456810ad39f799ffb425f",
             "# baseline_covered=608",
-            "# candidates=427",
             "# baseline_status=parse_failure",
-            "# trigger_probe=capitalizes_only_the_extracted_initial_for_standalone_Sentence_CasePosition",
-            "# probe_context=face_name_or_card_name_with_ASCII_initial_onset_and_no_legendary_shortening",
-            "# columns=family\\tid\\tcard_name\\tface_name\\tcontext_name\\ttext\\textracted_effect",
+            "# candidates=427",
+            "# categories=plan08-selected:66,plan09-predicate:324,plan10-attachment:37,plan08-defect:0",
+            "# selected_families=ability.activated:56,ability.triggered:10",
+            "# columns=category\\tpool_family\\tplan08_family\\tid\\tcard_name_json\\tface_name_json\\tside_json\\tcontext_name_json\\tis_legendary\\tcontext_onset\\toracle_text_json\\textracted_effect_json\\tfailure_start\\tfailure_end\\tboundary",
         ];
-        const EXPECTED_FAMILIES: [(&str, usize); 2] = [
-            ("activated-effect-selects", 191),
-            ("trigger-effect-selects", 236),
+        const EXPECTED_COUNTS: [(&str, usize); 3] = [
+            ("plan08-selected", 66),
+            ("plan09-predicate", 324),
+            ("plan10-attachment", 37),
         ];
-        const IMPLEMENTED_IDS: [&str; 66] = [
-            "0622a57e23abe55630b816462bc0c0fccd6c3d9fd659687356826645bb4867ad",
-            "097459e145a7b331e11dc211e3c3d54d62e32544336fe33f3b73a6847005832e",
-            "0a71d19dda6dc321d1abd30539f05dee8211bcecee0e00b5a7df785ef1510b4b",
-            "0b4c15ad6c86aadb90ed1f9b3fbb6bc71cbf9d3248aeda52577611338371da96",
-            "13af2a55c3d17c49e5ca283de430088f4697f4b79aaa3f44cd024939c16c2089",
-            "148a1b1162505a3aefbe9f94ccfc694e60bec98023798606b141fa605e8d5a28",
-            "17e5a0efb287339fe648a7d7071f0bd332cf72d3d79d3f9a3ca0d13e541c573e",
-            "1d7b57a642cb08e5b159049e42e4f2b9be86e6724b63215b2c725753e8d7f256",
-            "1fbb7280e8659408045e9efb42a4dd4d993ce33bac646fe13240fa1bca767f93",
-            "204ed4a6dc468e98f322823aeb7c6929178970c74b6a579608a4beac7300ac09",
-            "2b6b96d28d5e12a66b4ef97ef585178c00c2283a96314a6acc45a3c6d7f04dca",
-            "2b918ebcd70bdc965966ae551954c4c63c2cfd8de485c0b0d90504ffb5e48ecf",
-            "2f24993f68dd4eb8a897086fe02119497f6941bb8f687326f651cfe5379193ae",
-            "322c949c475dbb378a11aea00e1d3957846c9431adb4dc1926f90b7c6a570441",
-            "38fbfff2534860d6109d88b59e5793ef6d3d3ffb37c6fc462f365622d1254894",
-            "39be5cf99a3019d972fee87c3c19cbe5cebc84fed7481bcf5c0bd7a157cad583",
-            "4627eafb6d2eab3776f4879d6315285c36177256efb02158d039bb3b96f3a370",
-            "4fa1dee7d65441b4e941576a5ec2cd1baed5e015af2c9b0f12c0e4d9f9864ab4",
-            "506de7e90e03cfa60b5bd4342c78c3bd94bea7459e248e5676851e6d6a43c7e1",
-            "5388a219e8dcdad2dc2e3d81410dc5b7ba40e2b8bb8bfc79cddd441b20f07891",
-            "57f38384e202f2da0f77edfd8b495c3c9fae920ca256602de37e0f6c354dbec0",
-            "5c806a3947252f7cc0bd5ba2617aae93538ec0bc1aad0a00af5452af63f39fb8",
-            "631513e76652a97b9c2b83e3ef3137ff4e626232f4aff28d24794cc980050721",
-            "63c2adb313febb7abd96616a3d1f217992b206e0057b9c0261c410019002bb98",
-            "659d6330ae0f8498961a4ee8cee6da4f6509266b03a4c065c5bc15b659b54f3f",
-            "6853348a3600173eb41d08956ce9a6ec69ff288e96c2732758b5f9af59832bf7",
-            "6e89d13306d55ffae752288ce4372da113475064f7d9c78477d0af10f267d256",
-            "6ff921ec10aeebd7db39a445e1c5257ce174a5060e1cefc6a8e5496661c0d905",
-            "75b087a2af3e71d36526e12796c0c5ae550c1a903995ce8142308f14aca9121e",
-            "7f94d87718633f62a2f7c11be3fedfc37b7d8c48c3b4ab4268d41fa3b9e5dd2c",
-            "80d80494f6da83a34623286bf8123052497a9fcb4be793c70296c64581866995",
-            "82713898d17df713d052b00c9a815305bd51bbaed219670c51e02fdd9d9b8974",
-            "83b6dc61239d89e42cc610ff8252265c17dd100dd72b215a0d84dc473fbc6308",
-            "903c44be259cd7b9c3cd1d697878f63ce4333acf265f5d223ac0776847a261bf",
-            "926e14bc0130c2b5dbe215d61aaf00196498dd05dac8b1ffa675ceaf3d6589ee",
-            "9a9bc68c2f59bb2f530f2aac8198e373a7aa79b4e71d6c8e0f7020c1dcb4bcf1",
-            "9efc0f5080a6e94ac34ccd759945c9b9c87bba3a2b9ad7e3fab015a4fe22dfa1",
-            "a0239893a1f8b4d9f7ec809d756a54a48ecc588684ade9e6879e9da4caca43c2",
-            "a84c4687e0cc3632a7d4638c16623092af4610eb0f10a38f5abe43f4eb11702c",
-            "b12f6237f81af096007d8a7183e41c7ce2cf17df570746a38d57b95f9034966b",
-            "b42d968037d609b4540712dcb6673299a6de8fb97b4484d38296d476e029d398",
-            "b85b32c0cc3e0eddf01b8af288884bc88c8e31d22f3aae20959361774af9010d",
-            "b9f3baa2ef7e61bec3ef91c1533f5a620be79f3649511afe3206ced1c52d5088",
-            "bee171d6826cefa72fd7aaf36a110049ecd3fd51ef4c7cf4084a0bd148a2184e",
-            "c3faf5110282113054c59439e2ce25d88a9e04e74447091a59b143df1b027e65",
-            "d4506233dc14bc5c00e075ba86997f3b1930123fde8ed826a858f228f8dd219a",
-            "d4adacdeb87df5637f4215f02d0c9ebada57eb09b22a268b2c205d1687574ed6",
-            "de5a80b1304822d340d23a6e3562c45e3c664c4f00a80b9eb547df186bf34b26",
-            "e3a65bce7d5cb755edeaa688c5f93b4ceb04afc56cd6f2faf7fbb48daffd1079",
-            "ecebc9295a4cf1c9bd568799be6952dcf4060a110a31348f5c12910d78a26b51",
-            "ef595c556365188c626ad01e063ba870ee5c206a65a5a32954faf7d23ae79696",
-            "f6284d9af680a66e0e81b0bfe685466a64554484cf3fd9791c137d2056208227",
-            "f889c45139fe6954046726ccab669163133f914b83e3c9f8dd828ca591647e0c",
-            "f931066ab1e55beee12c748da74a790031cb8d3aaa96a4f5f49c8bfa59b2dc5b",
-            "fa20273378461de2d49e9a952d570113a60af0d154d97c2a12eea3ec92b24d96",
-            "fce74ac4c30b96daee54697c423a78f8bc1b6ab4791d8a3d23f870810f6c9d8c",
-            "10abde43f14cddee9444ba2b55161b782ef6a8a49de636dc50d6f54bc78ee327",
-            "1c782b17eca359e2f6ec02b5a1343a011da1e4dc4a6d606c8ab382fba0862438",
-            "25a5a53b6aac311f27f91671f91efaf603a96087535fa9d5b4fbd039f1214b87",
-            "5edc44909720f6c1d013c00639de3a76896a8ee37f86ac674c4d92f575e09450",
-            "91d3fdec6eb2cb4d00ce26d8d6d79e6873ddd55d6b71d396ac33d8fbacc1a81a",
-            "991deb45831698d319bc8dd82382489b8663586933d2dfc2d1612bc1923fb427",
-            "9ba3938bbce1267be20328fb3a76a240195f637b42046f05b59530ec682b693c",
-            "aee92827fc5a42b6a3835665abdcf9ff61f4884b8ccf4f262f49851da6aeb72d",
-            "cda3da1a670ee12e0edc621c401517af748ca7bda4837101ced2b172e0dbefc7",
-            "ce0ccf054dc65a95fb38e92ce4e42df35b8158914c7f8541b557151a7f5a1310",
-        ];
+        const EXPECTED_SELECTED_FAMILIES: [(&str, usize); 2] =
+            [("ability.activated", 56), ("ability.triggered", 10)];
+
+        fn decode(value: &str) -> String {
+            serde_json::from_str(value).expect("manifest JSON string is valid")
+        }
+
+        fn capitalize_initial(value: &str) -> String {
+            let mut value = value.to_owned();
+            let first = value
+                .as_bytes()
+                .first()
+                .copied()
+                .expect("extracted effect is nonempty");
+            assert!(first.is_ascii_alphabetic());
+            value.replace_range(0..1, &(first as char).to_ascii_uppercase().to_string());
+            value
+        }
 
         assert_eq!(
             sha256_hex(PLAN08_CANDIDATE_POOL.as_bytes()),
             "8b9870dba508681ecc25dc43b21500d82cd941d2408456810ad39f799ffb425f",
         );
         assert_eq!(
-            PLAN08_CANDIDATE_POOL.lines().take(9).collect::<Vec<_>>(),
+            sha256_hex(PLAN08_CANDIDATE_RESULTS.as_bytes()),
+            "9faa72678ab20320333770710f4f5a9d16a7da5c68a8ca8ad9be70b142b3c42a",
+        );
+        assert_eq!(
+            PLAN08_CANDIDATE_RESULTS
+                .lines()
+                .take(EXPECTED_HEADERS.len())
+                .collect::<Vec<_>>(),
             EXPECTED_HEADERS,
         );
-        assert!(PLAN08_CANDIDATE_POOL.ends_with('\n'));
+        assert!(PLAN08_CANDIDATE_RESULTS.ends_with('\n'));
 
-        let rows = PLAN08_CANDIDATE_POOL
+        let pool = PLAN08_CANDIDATE_POOL
             .lines()
             .skip(9)
+            .map(|line| {
+                let fields = line.split('\t').collect::<Vec<_>>();
+                assert_eq!(fields.len(), 7);
+                (fields[1], fields)
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(pool.len(), 427);
+        let rows = PLAN08_CANDIDATE_RESULTS
+            .lines()
+            .skip(EXPECTED_HEADERS.len())
             .map(|line| line.split('\t').collect::<Vec<_>>())
             .collect::<Vec<_>>();
         assert_eq!(rows.len(), 427);
@@ -882,78 +857,188 @@ mod tests {
             corpus.source_fingerprint(),
             "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
         );
-        let parser = parser_from_builtin_v2().expect("production English-v2 parser loads");
-        let lock: serde_json::Value =
-            serde_json::from_str(include_str!("../../../english-v2-coverage.lock"))
-                .expect("coverage lock parses");
-        let covered = lock["covered"]
-            .as_array()
-            .expect("schema-2 lock has covered identities")
+        let units = corpus
+            .units()
             .iter()
-            .map(|id| id.as_str().expect("covered identity is a string"))
-            .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(covered.len(), 608);
+            .map(|unit| (unit.id(), unit))
+            .collect::<BTreeMap<_, _>>();
+        let parser = parser_from_builtin_v2().expect("production English-v2 parser loads");
+        let mut category_counts = BTreeMap::new();
+        let mut selected_families = BTreeMap::new();
+        let mut ids = BTreeSet::new();
+        let mut previous_id = None;
 
-        let mut families = std::collections::BTreeMap::new();
-        let mut ids = std::collections::BTreeSet::new();
-        let mut previous_sort_key = None;
         for fields in rows {
-            let [family, id, card_name, face_name, context_name, text, _] = fields.as_slice()
+            let [
+                category,
+                pool_family,
+                plan08_family,
+                id,
+                card_name_json,
+                face_name_json,
+                side_json,
+                context_name_json,
+                is_legendary,
+                context_onset,
+                oracle_text_json,
+                extracted_effect_json,
+                failure_start,
+                failure_end,
+                boundary,
+            ] = fields.as_slice()
             else {
-                panic!("Plan 08 candidate row has seven columns: {fields:?}");
+                panic!("candidate result row has fifteen columns: {fields:?}");
             };
-            assert!(matches!(
-                *family,
-                "activated-effect-selects" | "trigger-effect-selects"
-            ));
-            assert_eq!(id.len(), 64, "{id}");
             assert!(
-                id.bytes()
-                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)),
-                "{id}"
+                previous_id.is_none_or(|previous| previous < *id),
+                "candidate results are strictly ID-sorted",
             );
-            if let Some(previous) = previous_sort_key {
-                assert!(
-                    previous < (*family, *id),
-                    "candidate rows must be strictly sorted by family then ID"
-                );
-            }
-            previous_sort_key = Some((*family, *id));
-            assert!(ids.insert(*id), "candidate ID must be unique: {id}");
-            assert!(
-                !covered.contains(id),
-                "Plan 08 candidate overlaps the 608-unit lock: {id}"
+            previous_id = Some(*id);
+            assert!(ids.insert(*id), "candidate result ID is unique: {id}");
+            let pool_row = pool.get(id).unwrap_or_else(|| panic!("pool contains {id}"));
+            assert_eq!(pool_row[0], *pool_family, "{id}");
+            assert_eq!(pool_row[2], decode(card_name_json), "{id}");
+            assert_eq!(
+                pool_row[3],
+                if decode(face_name_json).is_empty() {
+                    "<none>".to_owned()
+                } else {
+                    decode(face_name_json)
+                },
+                "{id}",
             );
-            *families.entry(*family).or_insert(0usize) += 1;
+            assert_eq!(pool_row[4], decode(context_name_json), "{id}");
+            assert_eq!(pool_row[5], decode(oracle_text_json), "{id}");
+            assert_eq!(pool_row[6], decode(extracted_effect_json), "{id}");
 
-            let unit = corpus
-                .units()
-                .iter()
-                .find(|unit| unit.id() == *id)
-                .unwrap_or_else(|| panic!("production corpus contains Plan 08 candidate {id}"));
-            assert_eq!(unit.card_name(), *card_name, "{id}");
-            assert_eq!(unit.face_name().unwrap_or("<none>"), *face_name, "{id}");
-            assert_eq!(unit.context_name(), *context_name, "{id}");
-            assert_eq!(unit.text(), *text, "{id}");
+            let unit = units
+                .get(id)
+                .unwrap_or_else(|| panic!("corpus contains {id}"));
+            assert_eq!(unit.card_name(), decode(card_name_json), "{id}");
+            assert_eq!(
+                unit.face_name().unwrap_or_default(),
+                decode(face_name_json),
+                "{id}",
+            );
+            assert_eq!(unit.side().unwrap_or_default(), decode(side_json), "{id}");
+            assert_eq!(unit.context_name(), decode(context_name_json), "{id}");
+            assert_eq!(unit.is_legendary().to_string(), *is_legendary, "{id}");
+            assert_eq!(
+                match unit.context_onset() {
+                    macro_ron::v2::Onset::Vowel => "vowel",
+                    macro_ron::v2::Onset::Consonant => "consonant",
+                },
+                *context_onset,
+                "{id}",
+            );
+            assert_eq!(unit.text(), decode(oracle_text_json), "{id}");
             let context = deckmaste_english_v2::context::ParseContext::new(
                 unit.context_name(),
                 unit.is_legendary(),
                 unit.context_onset(),
             )
-            .unwrap_or_else(|| panic!("candidate has a valid production context: {id}"));
-            let expected_outcome = if IMPLEMENTED_IDS.contains(id) {
-                deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected
-            } else {
-                deckmaste_english_v2::parser::ParseAnalysisOutcome::ParseFailure
-            };
-            assert_eq!(
-                parser.analyze_oracle_text(unit.text(), &context).outcome(),
-                expected_outcome,
-                "candidate retains its exact reviewed Plan 08 outcome: {id}",
-            );
+            .unwrap_or_else(|| panic!("candidate context is valid: {id}"));
+            let analysis = parser.analyze_oracle_text(unit.text(), &context);
+            *category_counts.entry(*category).or_insert(0usize) += 1;
+
+            match *category {
+                "plan08-selected" => {
+                    assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected, "{id}");
+                    assert_eq!(*boundary, "selected", "{id}");
+                    assert!(failure_start.is_empty() && failure_end.is_empty(), "{id}");
+                    assert!(analysis.selected().is_some(), "{id}");
+                    let ownership = analysis.ownership().expect("selected ownership");
+                    assert_eq!(ownership.rendered_text(), unit.text(), "{id}");
+                    assert!(ownership.summary().covered(), "{id}");
+                    assert!(ownership.failures().is_empty(), "{id}");
+                    assert_eq!(ownership.summary().gap_spans(), 0, "{id}");
+                    assert_eq!(ownership.summary().overlap_spans(), 0, "{id}");
+                    assert_eq!(ownership.summary().synthetic_claims(), 0, "{id}");
+                    assert_eq!(ownership.summary().provenance_plan_mismatches(), 0, "{id}");
+
+                    let decision = analysis.decision().expect("selected decision");
+                    assert_eq!(decision.resolution(), SelectionResolution::Unique, "{id}");
+                    assert_eq!(decision.survivors().len(), 1, "{id}");
+                    assert!(decision.exception_uses().is_empty(), "{id}");
+                    let selected_ordinal = decision.selected().expect("selected ordinal");
+                    let path = decision
+                        .candidates()
+                        .iter()
+                        .find(|candidate| candidate.ordinal() == selected_ordinal)
+                        .expect("selected candidate")
+                        .construction_path();
+                    let (expected_family, construction) = match *pool_family {
+                        "activated-effect-selects" => ("ability.activated", "AbilityActivated"),
+                        "trigger-effect-selects" => ("ability.triggered", "AbilityTriggered"),
+                        other => panic!("unknown pool family {other}: {id}"),
+                    };
+                    assert_eq!(*plan08_family, expected_family, "{id}");
+                    assert!(path.iter().any(|name| name == construction), "{id}");
+                    *selected_families.entry(*plan08_family).or_insert(0usize) += 1;
+                }
+                "plan09-predicate" | "plan10-attachment" => {
+                    assert_eq!(
+                        analysis.outcome(),
+                        ParseAnalysisOutcome::ParseFailure,
+                        "{id}"
+                    );
+                    assert!(plan08_family.is_empty(), "{id}");
+                    let expected_span = TextSpan {
+                        start: failure_start.parse().expect("failure start"),
+                        end: failure_end.parse().expect("failure end"),
+                    };
+                    let ParseError::Failure { span, .. } = analysis
+                        .into_parse_result()
+                        .expect_err("deferred row fails")
+                    else {
+                        panic!("deferred candidate has ordinary parse failure: {id}");
+                    };
+                    assert_eq!(span, expected_span, "{id}");
+                    let effect_start = unit
+                        .text()
+                        .rfind(&decode(extracted_effect_json))
+                        .expect("exact effect occurs in its source row");
+                    assert!(span.start < effect_start, "{id}");
+
+                    let extracted = capitalize_initial(&decode(extracted_effect_json));
+                    let extracted_analysis = parser.analyze_oracle_text(&extracted, &context);
+                    assert_eq!(
+                        extracted_analysis.outcome(),
+                        ParseAnalysisOutcome::Selected,
+                        "isolated effect selects for {id}",
+                    );
+                    assert_eq!(
+                        extracted_analysis
+                            .ownership()
+                            .expect("isolated effect ownership")
+                            .rendered_text(),
+                        extracted,
+                        "{id}",
+                    );
+                    let has_attachment_surface =
+                        unit.text().contains(". ") || unit.text().contains(" — ");
+                    if *category == "plan09-predicate" {
+                        assert_eq!(*boundary, "predicate", "{id}");
+                        assert!(!has_attachment_surface, "{id}");
+                    } else {
+                        assert_eq!(*boundary, "attachment", "{id}");
+                        assert!(has_attachment_surface, "{id}");
+                    }
+                }
+                "plan08-defect" => panic!("Plan 08 grammar defect blocks closure: {id}"),
+                other => panic!("unknown candidate result category {other}: {id}"),
+            }
         }
+
         assert_eq!(ids.len(), 427);
-        assert_eq!(families.into_iter().collect::<Vec<_>>(), EXPECTED_FAMILIES);
+        assert_eq!(
+            category_counts.into_iter().collect::<Vec<_>>(),
+            EXPECTED_COUNTS,
+        );
+        assert_eq!(
+            selected_families.into_iter().collect::<Vec<_>>(),
+            EXPECTED_SELECTED_FAMILIES,
+        );
     }
 
     #[test]
