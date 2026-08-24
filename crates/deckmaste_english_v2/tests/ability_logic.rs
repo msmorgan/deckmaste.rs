@@ -1,4 +1,7 @@
+use std::collections::BTreeSet;
+use std::num::NonZeroU32;
 use std::path::Path;
+use std::process::Command;
 
 use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
@@ -175,6 +178,116 @@ impl Visitor for AbilityEnvelopeVisitor {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum CostVisit {
+    Node(&'static str),
+    Fixed(FixedCostSymbol),
+    Generic(u32),
+    LoyaltyMagnitude(NonZeroU32),
+    MonocoloredHybrid(MonocoloredHybridColor),
+}
+
+#[derive(Default)]
+struct CostVisitor(Vec<CostVisit>);
+
+impl Visitor for CostVisitor {
+    fn visit_ability(&mut self, value: &Ability) {
+        self.0.push(CostVisit::Node("Ability"));
+        deckmaste_english_v2::visit::walk_ability(self, value);
+    }
+
+    fn visit_activated(&mut self, value: &Activated) {
+        self.0.push(CostVisit::Node("Activated"));
+        deckmaste_english_v2::visit::walk_activated(self, value);
+    }
+
+    fn visit_activation_cost_component(&mut self, value: &ActivationCostComponent) {
+        self.0.push(CostVisit::Node("ActivationCostComponent"));
+        deckmaste_english_v2::visit::walk_activation_cost_component(self, value);
+    }
+
+    fn visit_symbol_run(&mut self, value: &SymbolRun) {
+        self.0.push(CostVisit::Node("SymbolRun"));
+        deckmaste_english_v2::visit::walk_symbol_run(self, value);
+    }
+
+    fn visit_cost_symbol(&mut self, value: &CostSymbol) {
+        self.0.push(CostVisit::Node("CostSymbol"));
+        deckmaste_english_v2::visit::walk_cost_symbol(self, value);
+    }
+
+    fn visit_generic_cost_symbol(&mut self, value: &GenericCostSymbol) {
+        self.0.push(CostVisit::Node("GenericCostSymbol"));
+        deckmaste_english_v2::visit::walk_generic_cost_symbol(self, value);
+    }
+
+    fn visit_fixed_symbol(&mut self, value: &FixedSymbol) {
+        self.0.push(CostVisit::Node("FixedSymbol"));
+        deckmaste_english_v2::visit::walk_fixed_symbol(self, value);
+    }
+
+    fn visit_fixed_cost_symbol(&mut self, value: FixedCostSymbol) {
+        self.0.push(CostVisit::Fixed(value));
+    }
+
+    fn visit_monocolored_hybrid_symbol(&mut self, value: &MonocoloredHybridSymbol) {
+        self.0.push(CostVisit::Node("MonocoloredHybridSymbol"));
+        deckmaste_english_v2::visit::walk_monocolored_hybrid_symbol(self, value);
+    }
+
+    fn visit_monocolored_hybrid_color(&mut self, value: MonocoloredHybridColor) {
+        self.0.push(CostVisit::MonocoloredHybrid(value));
+    }
+
+    fn visit_scalar_number(&mut self, value: &ScalarNumber) {
+        self.0.push(CostVisit::Generic(value.magnitude));
+    }
+
+    fn visit_loyalty(&mut self, value: &Loyalty) {
+        self.0.push(CostVisit::Node("Loyalty"));
+        deckmaste_english_v2::visit::walk_loyalty(self, value);
+    }
+
+    fn visit_loyalty_value(&mut self, value: &LoyaltyValue) {
+        self.0.push(CostVisit::Node("LoyaltyValue"));
+        deckmaste_english_v2::visit::walk_loyalty_value(self, value);
+    }
+
+    fn visit_positive_loyalty(&mut self, value: &PositiveLoyalty) {
+        self.0.push(CostVisit::Node("PositiveLoyalty"));
+        deckmaste_english_v2::visit::walk_positive_loyalty(self, value);
+    }
+
+    fn visit_zero_loyalty(&mut self, value: &ZeroLoyalty) {
+        self.0.push(CostVisit::Node("ZeroLoyalty"));
+        deckmaste_english_v2::visit::walk_zero_loyalty(self, value);
+    }
+
+    fn visit_negative_loyalty(&mut self, value: &NegativeLoyalty) {
+        self.0.push(CostVisit::Node("NegativeLoyalty"));
+        deckmaste_english_v2::visit::walk_negative_loyalty(self, value);
+    }
+
+    fn visit_loyalty_magnitude(&mut self, value: &LoyaltyMagnitude) {
+        self.0.push(CostVisit::LoyaltyMagnitude(value.magnitude));
+    }
+
+    fn visit_cost_clause(&mut self, value: &CostClause) {
+        self.0.push(CostVisit::Node("CostClause"));
+        deckmaste_english_v2::visit::walk_cost_clause(self, value);
+    }
+
+    fn visit_ability_body(&mut self, value: &AbilityBody) {
+        self.0.push(CostVisit::Node("AbilityBody"));
+        deckmaste_english_v2::visit::walk_ability_body(self, value);
+    }
+
+    fn visit_sentences(&mut self, value: &Sentences) {
+        self.0.push(CostVisit::Node("Sentences"));
+        deckmaste_english_v2::visit::walk_sentences(self, value);
+    }
+}
+
 #[test]
 fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order() {
     let parser = parser();
@@ -276,6 +389,10 @@ fn finite_trigger_predicate_agreement_is_derived_from_its_subject() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the exact generated trigger and temporal inventories are deliberately literal"
+)]
 fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_shapes() {
     let source = include_str!("../src/constructions.rs");
     let invocation = deckmaste_construction_core::invocation_from_source(source)
@@ -973,4 +1090,595 @@ fn ordinary_and_nonshortening_legendary_contexts_reject_an_abbreviated_construct
             format!("Whenever {name} gains 2 life, you gain X life.")
         );
     }
+}
+
+fn assert_selected_activated(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Ability {
+    let analysis = parser.analyze(text, context);
+    let selected = analysis
+        .selected()
+        .unwrap_or_else(|| panic!("closed activated surface must select: {text}: {analysis:?}"));
+    assert_eq!(
+        analysis
+            .decision()
+            .expect("a selected activation has a selection decision")
+            .candidates()
+            .len(),
+        1,
+        "closed activated surface has one semantic candidate: {text}",
+    );
+    assert_eq!(selected.render(context, parser.environment()), text);
+    let ownership = analysis
+        .ownership()
+        .expect("a selected activation has byte ownership");
+    assert!(ownership.failures().is_empty(), "{text}: {ownership:?}");
+    assert!(ownership.summary().covered(), "{text}: {ownership:?}");
+    selected.clone()
+}
+
+#[test]
+fn generated_activation_inventory_is_closed_typed_and_surface_free() {
+    let source = include_str!("../src/constructions.rs");
+    let invocation = deckmaste_construction_core::invocation_from_source(source)
+        .expect("production construction invocation is authentic");
+    let expansion = deckmaste_construction_core::generate(invocation.tokens)
+        .expect("production construction invocation expands");
+    let file = syn::parse2::<syn::File>(expansion.tokens()).expect("generated Rust parses");
+    let variants = |name| {
+        file.items
+            .iter()
+            .find_map(|item| match item {
+                syn::Item::Enum(item) if item.ident == name => Some(
+                    item.variants
+                        .iter()
+                        .map(|variant| variant.ident.to_string())
+                        .collect::<Vec<_>>(),
+                ),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("generated public enum {name} is present"))
+    };
+
+    assert_eq!(variants("Ability"), ["Plain", "Triggered", "Activated"]);
+    assert_eq!(
+        variants("ActivationCostComponent"),
+        ["SymbolRun", "Loyalty", "Clause"],
+    );
+    assert_eq!(
+        variants("CostSymbol"),
+        [
+            "GenericCostSymbol",
+            "FixedCostSymbol",
+            "MonocoloredHybridSymbol",
+        ],
+    );
+    assert_eq!(
+        variants("LoyaltyValue"),
+        ["PositiveLoyalty", "ZeroLoyalty", "NegativeLoyalty"],
+    );
+    assert_eq!(
+        variants("FixedCostSymbol"),
+        [
+            "Variable",
+            "White",
+            "Blue",
+            "Black",
+            "Red",
+            "Green",
+            "Colorless",
+            "Snow",
+            "HybridWhiteBlue",
+            "HybridWhiteBlack",
+            "HybridBlueBlack",
+            "HybridBlueRed",
+            "HybridBlackRed",
+            "HybridBlackGreen",
+            "HybridRedGreen",
+            "HybridRedWhite",
+            "HybridGreenWhite",
+            "HybridGreenBlue",
+            "ColorlessHybridWhite",
+            "ColorlessHybridBlue",
+            "ColorlessHybridBlack",
+            "ColorlessHybridRed",
+            "ColorlessHybridGreen",
+            "PhyrexianWhite",
+            "PhyrexianBlue",
+            "PhyrexianBlack",
+            "PhyrexianRed",
+            "PhyrexianGreen",
+            "HybridPhyrexianWhiteBlue",
+            "HybridPhyrexianWhiteBlack",
+            "HybridPhyrexianBlueBlack",
+            "HybridPhyrexianBlueRed",
+            "HybridPhyrexianBlackRed",
+            "HybridPhyrexianBlackGreen",
+            "HybridPhyrexianRedGreen",
+            "HybridPhyrexianRedWhite",
+            "HybridPhyrexianGreenWhite",
+            "HybridPhyrexianGreenBlue",
+            "Tap",
+            "Untap",
+        ],
+    );
+    assert_eq!(
+        variants("MonocoloredHybridColor"),
+        ["White", "Blue", "Black", "Red", "Green"],
+    );
+
+    for forbidden in [
+        "ManaCost",
+        "EngineCost",
+        "Payment",
+        "CostOpcode",
+        "RawCost",
+        "CostText",
+        "CostForm",
+        "ActivatedForm",
+    ] {
+        assert!(
+            !file.items.iter().any(|item| {
+                matches!(item, syn::Item::Enum(item) if item.ident == forbidden)
+                    || matches!(item, syn::Item::Struct(item) if item.ident == forbidden)
+            }),
+            "the generated public AST has no engine, raw-text, or surface-tag type `{forbidden}`",
+        );
+    }
+}
+
+#[test]
+fn every_fixed_symbol_interior_and_generic_decimal_has_one_typed_ast() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let fixed = [
+        ("X", FixedCostSymbol::Variable),
+        ("W", FixedCostSymbol::White),
+        ("U", FixedCostSymbol::Blue),
+        ("B", FixedCostSymbol::Black),
+        ("R", FixedCostSymbol::Red),
+        ("G", FixedCostSymbol::Green),
+        ("C", FixedCostSymbol::Colorless),
+        ("S", FixedCostSymbol::Snow),
+        ("W/U", FixedCostSymbol::HybridWhiteBlue),
+        ("W/B", FixedCostSymbol::HybridWhiteBlack),
+        ("U/B", FixedCostSymbol::HybridBlueBlack),
+        ("U/R", FixedCostSymbol::HybridBlueRed),
+        ("B/R", FixedCostSymbol::HybridBlackRed),
+        ("B/G", FixedCostSymbol::HybridBlackGreen),
+        ("R/G", FixedCostSymbol::HybridRedGreen),
+        ("R/W", FixedCostSymbol::HybridRedWhite),
+        ("G/W", FixedCostSymbol::HybridGreenWhite),
+        ("G/U", FixedCostSymbol::HybridGreenBlue),
+        ("C/W", FixedCostSymbol::ColorlessHybridWhite),
+        ("C/U", FixedCostSymbol::ColorlessHybridBlue),
+        ("C/B", FixedCostSymbol::ColorlessHybridBlack),
+        ("C/R", FixedCostSymbol::ColorlessHybridRed),
+        ("C/G", FixedCostSymbol::ColorlessHybridGreen),
+        ("W/P", FixedCostSymbol::PhyrexianWhite),
+        ("U/P", FixedCostSymbol::PhyrexianBlue),
+        ("B/P", FixedCostSymbol::PhyrexianBlack),
+        ("R/P", FixedCostSymbol::PhyrexianRed),
+        ("G/P", FixedCostSymbol::PhyrexianGreen),
+        ("W/U/P", FixedCostSymbol::HybridPhyrexianWhiteBlue),
+        ("W/B/P", FixedCostSymbol::HybridPhyrexianWhiteBlack),
+        ("U/B/P", FixedCostSymbol::HybridPhyrexianBlueBlack),
+        ("U/R/P", FixedCostSymbol::HybridPhyrexianBlueRed),
+        ("B/R/P", FixedCostSymbol::HybridPhyrexianBlackRed),
+        ("B/G/P", FixedCostSymbol::HybridPhyrexianBlackGreen),
+        ("R/G/P", FixedCostSymbol::HybridPhyrexianRedGreen),
+        ("R/W/P", FixedCostSymbol::HybridPhyrexianRedWhite),
+        ("G/W/P", FixedCostSymbol::HybridPhyrexianGreenWhite),
+        ("G/U/P", FixedCostSymbol::HybridPhyrexianGreenBlue),
+        ("T", FixedCostSymbol::Tap),
+        ("Q", FixedCostSymbol::Untap),
+    ];
+
+    for (interior, expected) in fixed {
+        let text = format!("{{{interior}}}: You gain X life.");
+        let Ability::Activated(activated) = assert_selected_activated(&parser, &context, &text)
+        else {
+            panic!("a cost-colon surface has the activated envelope: {text}")
+        };
+        let [ActivationCostComponent::SymbolRun(run)] = activated.costs() else {
+            panic!("a single braced token is one symbol-run component: {text}")
+        };
+        assert_eq!(
+            run.symbols(),
+            &[CostSymbol::FixedCostSymbol(FixedSymbol {
+                symbol: expected
+            })],
+            "fixed symbol identity is typed rather than slash text: {text}",
+        );
+    }
+
+    for (interior, expected) in [
+        ("2/W", MonocoloredHybridColor::White),
+        ("2/U", MonocoloredHybridColor::Blue),
+        ("2/B", MonocoloredHybridColor::Black),
+        ("2/R", MonocoloredHybridColor::Red),
+        ("2/G", MonocoloredHybridColor::Green),
+    ] {
+        let text = format!("{{{interior}}}: You gain X life.");
+        let Ability::Activated(activated) = assert_selected_activated(&parser, &context, &text)
+        else {
+            panic!("a monocolored hybrid symbol has the activated envelope: {text}")
+        };
+        let [ActivationCostComponent::SymbolRun(run)] = activated.costs() else {
+            panic!("one monocolored hybrid symbol is one symbol-run component: {text}")
+        };
+        assert_eq!(
+            run.symbols(),
+            &[CostSymbol::MonocoloredHybridSymbol(
+                MonocoloredHybridSymbol { color: expected },
+            )],
+            "the monocolored-hybrid color is typed and slash text is derived: {text}",
+        );
+    }
+
+    for (surface, magnitude) in [
+        ("0", 0),
+        ("2", 2),
+        ("1,000", 1_000),
+        ("4,294,967,295", u32::MAX),
+    ] {
+        let text = format!("{{{surface}}}: You gain X life.");
+        let Ability::Activated(activated) = assert_selected_activated(&parser, &context, &text)
+        else {
+            panic!("a generic symbol has the activated envelope: {text}")
+        };
+        let [ActivationCostComponent::SymbolRun(run)] = activated.costs() else {
+            panic!("one generic symbol is one symbol-run component: {text}")
+        };
+        assert_eq!(
+            run.symbols(),
+            &[CostSymbol::GenericCostSymbol(GenericCostSymbol {
+                magnitude: ScalarNumber { magnitude },
+            })],
+            "generic magnitude remains a typed canonical unsigned value: {text}",
+        );
+    }
+}
+
+#[test]
+fn symbol_interior_and_braced_run_rejection_set_is_closed() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    for interior in [
+        "", "00", "01", "+2", "−2", "P", "H", "E", "TK", "∞", "Y", "Z", "U/W", "B/W", "B/U", "R/U",
+        "R/B", "G/B", "G/R", "W/R", "W/G", "U/G", "W/2", "U/2", "B/2", "R/2", "G/2", "W/C", "U/C",
+        "B/C", "R/C", "G/C", "P/W", "P/U", "P/B", "P/R", "P/G", "U/W/P", "B/W/P", "B/U/P", "R/U/P",
+        "R/B/P", "G/B/P", "G/R/P", "W/R/P", "W/G/P", "U/G/P", "W/P/U", "W/U/B", "W/W", "2/P",
+        "C/P", " W", "W ", "W /U", "W/ U",
+    ] {
+        let text = format!("{{{interior}}}: You gain X life.");
+        assert!(
+            parser.parse(&text, &context).is_err(),
+            "unlicensed symbol interior must reject: {text}",
+        );
+    }
+
+    for text in [
+        "{W} {U}: You gain X life.",
+        "{W},{U}: You gain X life.",
+        "{W}{}{U}: You gain X life.",
+        "{{W}}: You gain X life.",
+        "{W: You gain X life.",
+        "W}: You gain X life.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "a symbol run requires one or more exactly adjacent braced members: {text}",
+        );
+    }
+}
+
+#[test]
+fn loyalty_values_are_bracketed_typed_and_nonzero_away_from_zero() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let one = NonZeroU32::new(1).expect("one is nonzero");
+    let two = NonZeroU32::new(2).expect("two is nonzero");
+
+    for (text, expected) in [
+        (
+            "[+1]: You gain X life.",
+            LoyaltyValue::PositiveLoyalty(PositiveLoyalty {
+                magnitude: LoyaltyMagnitude { magnitude: one },
+            }),
+        ),
+        (
+            "[0]: You gain X life.",
+            LoyaltyValue::ZeroLoyalty(ZeroLoyalty),
+        ),
+        (
+            "[−2]: You gain X life.",
+            LoyaltyValue::NegativeLoyalty(NegativeLoyalty {
+                magnitude: LoyaltyMagnitude { magnitude: two },
+            }),
+        ),
+    ] {
+        let Ability::Activated(activated) = assert_selected_activated(&parser, &context, text)
+        else {
+            panic!("a loyalty-cost surface has the activated envelope: {text}")
+        };
+        let [ActivationCostComponent::Loyalty(Loyalty { value })] = activated.costs() else {
+            panic!("a bracketed value is one loyalty component: {text}")
+        };
+        assert_eq!(
+            value, &expected,
+            "loyalty sign and magnitude are typed: {text}"
+        );
+    }
+
+    for text in [
+        "[-2]: You gain X life.",
+        "[+0]: You gain X life.",
+        "[−0]: You gain X life.",
+        "[1]: You gain X life.",
+        "[01]: You gain X life.",
+        "[+01]: You gain X life.",
+        "[−01]: You gain X life.",
+        "[+1: You gain X life.",
+        "+1]: You gain X life.",
+        "[[+1]]: You gain X life.",
+        "[]: You gain X life.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "malformed or semantically invalid loyalty value must reject: {text}",
+        );
+    }
+}
+
+#[test]
+fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let text =
+        "{2}{W/U}{T}, [−2], Destroy target creature: You gain X life. Destroy target creature.";
+    let analysis = parser.analyze(text, &context);
+    let selected = analysis
+        .selected()
+        .unwrap_or_else(|| panic!("mixed activation must select: {analysis:?}"));
+    assert_eq!(
+        analysis
+            .decision()
+            .expect("selected mixed activation has a decision")
+            .candidates()
+            .len(),
+        1,
+        "the generated build yields one semantic AST",
+    );
+    assert_eq!(selected.render(&context, parser.environment()), text);
+
+    let Ability::Activated(activated) = selected else {
+        panic!("the cost-colon surface builds the generated activated envelope")
+    };
+    let [
+        ActivationCostComponent::SymbolRun(symbols),
+        ActivationCostComponent::Loyalty(Loyalty {
+            value: LoyaltyValue::NegativeLoyalty(NegativeLoyalty { magnitude }),
+        }),
+        ActivationCostComponent::Clause(CostClause {
+            predicate: VerbPhrase::Destroy(_),
+        }),
+    ] = activated.costs()
+    else {
+        panic!("mixed cost builds the positional SymbolRun/Loyalty/Clause AST")
+    };
+    assert_eq!(
+        symbols.symbols(),
+        &[
+            CostSymbol::GenericCostSymbol(GenericCostSymbol {
+                magnitude: ScalarNumber { magnitude: 2 },
+            }),
+            CostSymbol::FixedCostSymbol(FixedSymbol {
+                symbol: FixedCostSymbol::HybridWhiteBlue,
+            }),
+            CostSymbol::FixedCostSymbol(FixedSymbol {
+                symbol: FixedCostSymbol::Tap,
+            }),
+        ],
+    );
+    assert_eq!(magnitude.magnitude, NonZeroU32::new(2).unwrap());
+    let AbilityBody::Sentences(sentences) = &activated.body;
+    assert_eq!(sentences.sentences().len(), 2);
+    assert!(matches!(sentences.sentences()[0], Sentence::Declarative(_)));
+    assert!(matches!(sentences.sentences()[1], Sentence::Imperative(_)));
+
+    let ownership = analysis
+        .ownership()
+        .expect("selected mixed activation owns every byte");
+    assert!(ownership.failures().is_empty(), "{ownership:?}");
+    assert!(ownership.summary().covered(), "{ownership:?}");
+    assert_eq!(
+        ownership
+            .parsed_claims()
+            .iter()
+            .map(|claim| (
+                claim.span().start,
+                claim.span().end,
+                claim.stable_owner_id(),
+            ))
+            .collect::<Vec<_>>(),
+        [
+            (0, 1, "form:symbol_run/symbol_run/0/prefix"),
+            (1, 2, "codec:ScalarNumber"),
+            (2, 4, "structural:SymbolRun/symbols/separator/uniform/0"),
+            (4, 7, "vocab:FixedCostSymbol/HybridWhiteBlue"),
+            (7, 9, "structural:SymbolRun/symbols/separator/uniform/0"),
+            (9, 10, "vocab:FixedCostSymbol/Tap"),
+            (10, 11, "form:symbol_run/symbol_run/0/suffix"),
+            (11, 13, "structural:Activated/costs/separator/first/0"),
+            (13, 14, "form:loyalty/loyalty/0/prefix"),
+            (14, 17, "form:negative_loyalty/negative_loyalty/0/affix"),
+            (17, 18, "codec:LoyaltyMagnitude"),
+            (18, 19, "form:loyalty/loyalty/0/suffix"),
+            (19, 21, "structural:Activated/costs/separator/last/0"),
+            (21, 28, "lexeme:keyword_action/Destroy/bare"),
+            (
+                28,
+                35,
+                "form:target_singular_selector/target_singular_selector/0"
+            ),
+            (35, 44, "lexeme:type/Creature/singular"),
+            (44, 46, "form:activated/activated/1"),
+            (46, 49, "vocab:SubjectPronoun/You"),
+            (49, 54, "lexeme:VerbLexeme/Gain/bare"),
+            (54, 56, "vocab:Variable/X"),
+            (56, 61, "form:gain_life/gain_life/2"),
+            (61, 62, "structural:Sentences/sentences/terminator/0"),
+            (62, 63, "structural:Sentences/sentences/separator/uniform/0"),
+            (63, 70, "lexeme:keyword_action/Destroy/bare"),
+            (
+                70,
+                77,
+                "form:target_singular_selector/target_singular_selector/0"
+            ),
+            (77, 86, "lexeme:type/Creature/singular"),
+            (86, 87, "structural:Sentences/sentences/terminator/0"),
+        ],
+    );
+
+    let mut visitor = CostVisitor::default();
+    visitor.visit_ability(selected);
+    assert_eq!(
+        visitor.0,
+        [
+            CostVisit::Node("Ability"),
+            CostVisit::Node("Activated"),
+            CostVisit::Node("ActivationCostComponent"),
+            CostVisit::Node("SymbolRun"),
+            CostVisit::Node("CostSymbol"),
+            CostVisit::Node("GenericCostSymbol"),
+            CostVisit::Generic(2),
+            CostVisit::Node("CostSymbol"),
+            CostVisit::Node("FixedSymbol"),
+            CostVisit::Fixed(FixedCostSymbol::HybridWhiteBlue),
+            CostVisit::Node("CostSymbol"),
+            CostVisit::Node("FixedSymbol"),
+            CostVisit::Fixed(FixedCostSymbol::Tap),
+            CostVisit::Node("ActivationCostComponent"),
+            CostVisit::Node("Loyalty"),
+            CostVisit::Node("LoyaltyValue"),
+            CostVisit::Node("NegativeLoyalty"),
+            CostVisit::LoyaltyMagnitude(NonZeroU32::new(2).unwrap()),
+            CostVisit::Node("ActivationCostComponent"),
+            CostVisit::Node("CostClause"),
+            CostVisit::Node("AbilityBody"),
+            CostVisit::Node("Sentences"),
+        ],
+    );
+}
+
+#[test]
+fn activation_boundaries_case_and_out_of_scope_costs_reject() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    for text in [
+        ": You gain X life.",
+        "{T} : You gain X life.",
+        "{T}:You gain X life.",
+        "{T}:  You gain X life.",
+        "{T}: you gain X life.",
+        "{2},{T}: You gain X life.",
+        "{2},  {T}: You gain X life.",
+        "{2}, destroy target creature: You gain X life.",
+        "{2}, Destroy target creature,: You gain X life.",
+        "{T}: You gain X life. destroy target creature.",
+        "Channel — {T}: You gain X life.",
+        "Sacrifice a creature: You gain X life.",
+        "Discard a card: You gain X life.",
+        "Exile a card: You gain X life.",
+        "Remove a counter: You gain X life.",
+        "Reveal a card: You gain X life.",
+        "Pay 2 life: You gain X life.",
+        "Tap a creature: You gain X life.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "malformed or later-plan activation surface must reject: {text}",
+        );
+    }
+}
+
+#[test]
+fn activated_body_reuses_legendary_license_and_rejects_ordinary_shortening() {
+    let parser = parser();
+    for (name, legendary, surface, spelling) in [
+        (
+            "Aang, A Lot to Learn",
+            true,
+            "Aang",
+            SelfReferenceSpelling::Abbreviated,
+        ),
+        (
+            "Grizzly Bears",
+            false,
+            "Grizzly Bears",
+            SelfReferenceSpelling::Full,
+        ),
+    ] {
+        let context = context(name, legendary);
+        let text = format!("{{T}}: {surface} gains 2 life.");
+        let selected = assert_selected_activated(&parser, &context, &text);
+        let mut visitor = SelfReferenceVisitor::default();
+        visitor.visit_ability(&selected);
+        assert_eq!(visitor.spellings, [spelling], "{text}");
+        assert_eq!(
+            SourceSelfReference::new(SelfReferenceSpelling::Abbreviated, &context).is_some(),
+            legendary,
+            "the activated envelope uses the same metadata-licensed identity constructor",
+        );
+    }
+
+    let ordinary = context("Grizzly Bears", false);
+    assert!(
+        parser
+            .parse("{T}: Grizzly gains 2 life.", &ordinary)
+            .is_err(),
+        "an activated body cannot manufacture an ordinary-name abbreviation",
+    );
+}
+
+#[test]
+fn english_v2_direct_dependency_set_stays_independent_of_core_features_and_v1() {
+    let output = Command::new(env!("CARGO"))
+        .args([
+            "tree",
+            "--manifest-path",
+            concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml"),
+            "--package",
+            "deckmaste_english_v2",
+            "--depth",
+            "1",
+            "--edges",
+            "normal",
+            "--prefix",
+            "none",
+            "--format",
+            "{p}",
+        ])
+        .output()
+        .expect("Cargo can resolve the English-v2 direct dependency graph");
+    assert!(
+        output.status.success(),
+        "cargo tree failed: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let packages = String::from_utf8(output.stdout)
+        .expect("cargo tree package names are UTF-8")
+        .lines()
+        .filter_map(|line| line.split_whitespace().next().map(str::to_owned))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        packages,
+        BTreeSet::from([
+            "anyhow".to_owned(),
+            "deckmaste_construction".to_owned(),
+            "deckmaste_english_v2".to_owned(),
+            "macro_ron".to_owned(),
+            "thiserror".to_owned(),
+        ]),
+        "the complete direct normal-dependency set remains unchanged and excludes deckmaste_core, deckmaste_features, and deckmaste_english",
+    );
 }

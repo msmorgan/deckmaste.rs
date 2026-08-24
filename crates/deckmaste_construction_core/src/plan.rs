@@ -439,6 +439,38 @@ mod tests {
     }
 
     #[test]
+    fn explicit_sum_owned_category_reuses_construction_products_across_all_emitters() {
+        let expansion = crate::generate(quote::quote! {
+            abstract sum Choice { Left: LeftNode, Renamed: RightNode, }
+            construction left: Choice {
+                element LeftNode {}
+                form left = "left";
+            }
+            construction right: Choice {
+                element RightNode {}
+                form right = "right";
+            }
+            root Choice { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the explicit-sum-owned category generates");
+        let source = expansion.tokens().to_string();
+
+        assert_eq!(source.matches("pub enum Choice").count(), 1, "{source}");
+        for expected in [
+            "Choice :: Renamed (value)",
+            "RuleId :: RightNodeConstruction",
+            "RuleId :: ChoiceRenamed",
+            "BuildValue :: RightNode",
+            "fn render_right_node",
+            "fn walk_choice",
+            "fn visit_right_node",
+        ] {
+            assert!(source.contains(expected), "missing `{expected}`: {source}");
+        }
+        assert_eq!(source.matches("fn visit_right_node").count(), 1, "{source}");
+    }
+
+    #[test]
     fn structural_wrapped_terminal_roles_reach_the_deferred_emission_boundary() {
         let semantic = crate::validate_declarations(
             crate::parse_declarations(quote::quote! {

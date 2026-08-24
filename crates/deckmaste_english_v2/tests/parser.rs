@@ -976,6 +976,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "AbilityBody",
             "TriggerPrefix",
             "AtPhrase",
+            "CostSymbol",
+            "LoyaltyValue",
             "Sentence",
             "Clause",
             "Subject",
@@ -1017,6 +1019,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "VerbPhrase",
             "Amount",
             "CardinalQuantity",
+            "ActivationCostComponent",
             "ConditionClause",
             "DocumentBlock",
             "OracleText",
@@ -1027,6 +1030,16 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Temporal",
             "AtPhraseValue",
             "Triggered",
+            "GenericCostSymbol",
+            "FixedSymbol",
+            "MonocoloredHybridSymbol",
+            "SymbolRun",
+            "PositiveLoyalty",
+            "ZeroLoyalty",
+            "NegativeLoyalty",
+            "Loyalty",
+            "CostClause",
+            "Activated",
             "Imperative",
             "Declarative",
             "WithWhere",
@@ -1202,6 +1215,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Designation",
             "ChosenQuality",
             "ControllerNoun",
+            "FixedCostSymbol",
+            "MonocoloredHybridColor",
             "ScalarCharacteristic",
             "Zone",
             "NonCommonNoun",
@@ -1229,6 +1244,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "CardName",
             "CardinalNumber",
             "ScalarNumber",
+            "LoyaltyMagnitude",
             "CatalogProvider",
             "DeclarationClass",
             "TerminalClass",
@@ -1370,7 +1386,7 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
     }
 
     for (enumeration, expected_variants) in [
-        ("Ability", &["Plain", "Triggered"][..]),
+        ("Ability", &["Plain", "Triggered", "Activated"][..]),
         ("DocumentBlock", &["Ability"][..]),
     ] {
         let item = file
@@ -2087,9 +2103,9 @@ fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_err
                 end: text.len()
             }
         );
-        assert_eq!(failure.expectations().total(), 27);
+        assert_eq!(failure.expectations().total(), 28);
         assert_eq!(failure.expectations().shown(), expected_shown);
-        assert_eq!(failure.expectations().omitted(), 27 - expected_shown);
+        assert_eq!(failure.expectations().omitted(), 28 - expected_shown);
         if limit > 0 {
             assert_eq!(
                 failure.expectations().items()[0],
@@ -2184,17 +2200,18 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Terminal(TerminalClass::NonTargetCommonModifier),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(23)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(24)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(25)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(27)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
                 Expectation::Literal(","),
                 Expectation::Literal(", "),
                 Expectation::Literal("."),
+                Expectation::Literal(": "),
                 Expectation::Literal("a"),
                 Expectation::Literal("an"),
                 Expectation::Literal("from"),
@@ -2226,20 +2243,21 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Nonterminal(NonterminalCategory::ScalarQualification),
                 Expectation::Terminal(TerminalClass::SubjectPronoun),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(23)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(24)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(25)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(27)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
                 Expectation::Literal(" and "),
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),
                 Expectation::Literal(","),
                 Expectation::Literal(", "),
                 Expectation::Literal("."),
+                Expectation::Literal(": "),
                 Expectation::Literal("a"),
                 Expectation::Literal("an"),
                 Expectation::Literal("from"),

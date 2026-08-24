@@ -92,6 +92,55 @@ constructions! {
     vocab Designation { Chosen = "chosen", Exiled = "exiled", }
     vocab ChosenQuality { Color = "color", Name = "name", Type = "type", }
     vocab ControllerNoun { Opponent = "opponent", Player = "player", }
+    vocab FixedCostSymbol {
+        Variable = "X",
+        White = "W",
+        Blue = "U",
+        Black = "B",
+        Red = "R",
+        Green = "G",
+        Colorless = "C",
+        Snow = "S",
+        HybridWhiteBlue = "W/U",
+        HybridWhiteBlack = "W/B",
+        HybridBlueBlack = "U/B",
+        HybridBlueRed = "U/R",
+        HybridBlackRed = "B/R",
+        HybridBlackGreen = "B/G",
+        HybridRedGreen = "R/G",
+        HybridRedWhite = "R/W",
+        HybridGreenWhite = "G/W",
+        HybridGreenBlue = "G/U",
+        ColorlessHybridWhite = "C/W",
+        ColorlessHybridBlue = "C/U",
+        ColorlessHybridBlack = "C/B",
+        ColorlessHybridRed = "C/R",
+        ColorlessHybridGreen = "C/G",
+        PhyrexianWhite = "W/P",
+        PhyrexianBlue = "U/P",
+        PhyrexianBlack = "B/P",
+        PhyrexianRed = "R/P",
+        PhyrexianGreen = "G/P",
+        HybridPhyrexianWhiteBlue = "W/U/P",
+        HybridPhyrexianWhiteBlack = "W/B/P",
+        HybridPhyrexianBlueBlack = "U/B/P",
+        HybridPhyrexianBlueRed = "U/R/P",
+        HybridPhyrexianBlackRed = "B/R/P",
+        HybridPhyrexianBlackGreen = "B/G/P",
+        HybridPhyrexianRedGreen = "R/G/P",
+        HybridPhyrexianRedWhite = "R/W/P",
+        HybridPhyrexianGreenWhite = "G/W/P",
+        HybridPhyrexianGreenBlue = "G/U/P",
+        Tap = "T",
+        Untap = "Q",
+    }
+    vocab MonocoloredHybridColor {
+        White = "W",
+        Blue = "U",
+        Black = "B",
+        Red = "R",
+        Green = "G",
+    }
     vocab ScalarCharacteristic { Power = "power", Toughness = "toughness", }
     vocab Zone {
         Battlefield = "battlefield",
@@ -230,6 +279,16 @@ constructions! {
             magnitude = u32;
         }
     }
+    codec LoyaltyMagnitude {
+        generate unsigned_decimal {
+            magnitude = NonZeroU32;
+        }
+    }
+    abstract sum ActivationCostComponent {
+        SymbolRun,
+        Loyalty,
+        Clause: CostClause,
+    }
     abstract sum ConditionClause { FiniteCondition, }
     construction finite_condition: FiniteCondition {
         element FiniteConditionValue { subject: Subject, predicate: VerbPhrase, }
@@ -322,6 +381,59 @@ constructions! {
             body: AbilityBody,
         }
         form triggered = trigger "," intervening_if body;
+    }
+    construction generic_cost_symbol: CostSymbol {
+        element GenericCostSymbol { magnitude: lex ScalarNumber, }
+        form generic_cost_symbol = lex(magnitude);
+    }
+    construction fixed_cost_symbol: CostSymbol {
+        element FixedSymbol { symbol: lex FixedCostSymbol, }
+        form fixed_cost_symbol = lex(symbol);
+    }
+    construction monocolored_hybrid_symbol: CostSymbol {
+        element MonocoloredHybridSymbol { color: lex MonocoloredHybridColor, }
+        form monocolored_hybrid_symbol = prefix("2/", lex(color));
+    }
+    construction symbol_run: ActivationCostComponent {
+        element SymbolRun {
+            symbols: seq CostSymbol separated by "}{",
+        }
+        require len(symbols) >= 1;
+        form symbol_run = circumfix("{", symbols, "}");
+    }
+    construction positive_loyalty: LoyaltyValue {
+        element PositiveLoyalty { magnitude: lex LoyaltyMagnitude, }
+        form positive_loyalty = prefix("+", lex(magnitude));
+    }
+    construction zero_loyalty: LoyaltyValue {
+        element ZeroLoyalty {}
+        form zero_loyalty = "0";
+    }
+    construction negative_loyalty: LoyaltyValue {
+        element NegativeLoyalty { magnitude: lex LoyaltyMagnitude, }
+        form negative_loyalty = prefix("−", lex(magnitude));
+    }
+    construction loyalty: ActivationCostComponent {
+        element Loyalty { value: LoyaltyValue, }
+        form loyalty = circumfix("[", value, "]");
+    }
+    construction cost_clause: ActivationCostComponent {
+        element CostClause { predicate: VerbPhrase, }
+        derive predicate.agreement = Values::Bare;
+        form cost_clause = predicate;
+    }
+    construction activated: Ability {
+        element Activated {
+            costs: seq ActivationCostComponent separated by position {
+                pair = sentence_initial(", ");
+                first = sentence_initial(", ");
+                middle = sentence_initial(", ");
+                last = sentence_initial(", ");
+            },
+            body: AbilityBody,
+        }
+        require len(costs) >= 1;
+        form activated = costs sentence_initial(": ") body;
     }
     construction imperative: Sentence {
         element Imperative { predicate: VerbPhrase, }

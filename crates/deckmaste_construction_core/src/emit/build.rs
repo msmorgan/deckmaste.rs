@@ -922,6 +922,7 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
+        | AtomPlan::SentenceInitialLiteral(_)
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_)
         | AtomPlan::Bound { .. }
@@ -1004,7 +1005,7 @@ fn lower_atom(
             lower_atom(validated, row, form, value, lowering)?;
             push_fixed_form_literal(lowering, suffix);
         }
-        AtomPlan::Literal(literal) => {
+        AtomPlan::Literal(literal) | AtomPlan::SentenceInitialLiteral(literal) => {
             let literal = syn::LitStr::new(literal, Span::call_site());
             lowering
                 .patterns
@@ -1106,9 +1107,9 @@ fn lower_bound_atom(
         crate::semantic::BoundDirectionPlan::Prefix => {
             push_affix(lowering);
             lower_atom(validated, row, form, value, lowering)?;
-            if let Some(role) = atom_role(value) {
-                let onset = ::macro_ron::v2::normalize_surface_onset(affix_surface, None)
-                    .ok_or_else(|| internal("validated bound prefix has no realized onset"))?;
+            if let Some(role) = atom_role(value)
+                && let Some(onset) = ::macro_ron::v2::normalize_surface_onset(affix_surface, None)
+            {
                 let onset = match onset {
                     ::macro_ron::v2::Onset::Consonant => FeatureValue::Consonant,
                     ::macro_ron::v2::Onset::Vowel => FeatureValue::Vowel,
@@ -1968,6 +1969,9 @@ fn emit_success(
             .collect::<syn::Result<Vec<_>>>()?;
         quote! { #element { #(#fields),* } }
     };
+    if validated.explicit_sum_owns_construction_category(row.category()) {
+        return Ok(quote! { Ok(Some(BuildValue::#element(#element_value))) });
+    }
     let category_value = quote! { #category::#variant(#element_value) };
     let carries_agreement = validated.category_carries_agreement(row.category());
     let carries_cardinality = validated.category_carries_cardinality(row.category());
@@ -2006,6 +2010,10 @@ fn emit_fallible_element_success(
     agreement_override: Option<FeatureValue>,
     number_override: Option<FeatureValue>,
 ) -> syn::Result<TokenStream> {
+    if validated.explicit_sum_owns_construction_category(row.category()) {
+        let element = ident(row.element_type());
+        return Ok(quote! { #result.map(BuildValue::#element).map(Some) });
+    }
     let category = ident(row.category());
     let variant = ident(row.category_variant());
     let mapped = quote! { #category::#variant };
@@ -3628,5 +3636,48 @@ mod tests {
             ),
             "the prefix's consonantal onset overrides `artifact`: {source}"
         );
+    }
+
+    #[test]
+    fn punctuation_only_bound_prefix_forwards_the_realized_payload_onset() {
+        let source = quote::quote! {
+            vocab Modifier { Artifact = "artifact", }
+            construction prefixed_onset: NounPhrase {
+                element PrefixedOnset { modifier: lex Modifier, }
+                derive onset = modifier.onset;
+                form prefixed_onset = prefix("+", lex(modifier));
+            }
+            construction wrapper: Phrase {
+                element Wrapper { head: NounPhrase, }
+                derive onset = head.onset;
+                form an when head.onset is Vowel = "an" head;
+                form a otherwise = "a" head;
+            }
+            root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        };
+        let raw = crate::parse_declarations(source).expect("punctuation prefix fixture parses");
+        let validated =
+            crate::validate_declarations(raw).expect("punctuation prefix fixture validates");
+        crate::emit::ast::emit(validated.semantic()).expect("punctuation-prefix AST emits");
+        crate::emit::terminal::emit(validated.semantic())
+            .expect("punctuation-prefix terminals emit");
+        crate::emit::render::emit(validated.semantic()).expect("punctuation-prefix render emits");
+        crate::emit::visit::emit(validated.semantic()).expect("punctuation-prefix visitor emits");
+        crate::emit::rules::emit(validated.semantic()).expect("punctuation-prefix rules emit");
+        crate::emit::build::emit(validated.semantic()).expect("punctuation-prefix build emits");
+        let expansion = crate::generate_from_semantic(validated.semantic())
+            .expect("a punctuation-only prefix forwards its payload onset");
+        let source = expansion.tokens().to_string();
+
+        for expected in [
+            "Leaf :: Literal (\"+\")",
+            "modifier : * modifier",
+            "match modifier { Modifier :: Artifact => Onset :: Vowel",
+        ] {
+            assert!(
+                source.contains(expected),
+                "the punctuation prefix must preserve `artifact`'s vowel onset; missing `{expected}`: {source}"
+            );
+        }
     }
 }

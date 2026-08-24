@@ -953,6 +953,11 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         kind: LexicalProvenanceKind,
                         stable_id: &'static str,
                     },
+                    TransitionedStatic {
+                        kind: LexicalProvenanceKind,
+                        stable_id: &'static str,
+                        transition: StructuralTransition,
+                    },
                     Vocab {
                         declaration: &'static str,
                     },
@@ -1209,7 +1214,8 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         byte_offset: usize,
                     ) -> ScanPosition {
                         match self.owner {
-                            LexicalOwnerTemplate::Structural { transition, .. } => {
+                            LexicalOwnerTemplate::Structural { transition, .. }
+                            | LexicalOwnerTemplate::TransitionedStatic { transition, .. } => {
                                 transition.position_after(current, byte_offset)
                             }
                             LexicalOwnerTemplate::None => ScanPosition {
@@ -1804,6 +1810,14 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             },
                             (
                                 LexicalOwnerTemplate::Static { kind, stable_id },
+                                _,
+                            ) => Some(LexicalOwner::static_owner(kind, stable_id)),
+                            (
+                                LexicalOwnerTemplate::TransitionedStatic {
+                                    kind,
+                                    stable_id,
+                                    ..
+                                },
                                 _,
                             ) => Some(LexicalOwner::static_owner(kind, stable_id)),
                             #(#vocab_owner_arms)*

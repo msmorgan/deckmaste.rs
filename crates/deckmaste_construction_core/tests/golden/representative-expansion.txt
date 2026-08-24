@@ -183,6 +183,11 @@ pub(crate) enum LexicalOwnerTemplate {
     None,
     Structural { stable_id: &'static str, transition: StructuralTransition },
     Static { kind: LexicalProvenanceKind, stable_id: &'static str },
+    TransitionedStatic {
+        kind: LexicalProvenanceKind,
+        stable_id: &'static str,
+        transition: StructuralTransition,
+    },
     Vocab { declaration: &'static str },
     Lexeme { declaration: &'static str, member: &'static str },
     NounLexeme,
@@ -425,7 +430,8 @@ impl LexicalTerminal {
         byte_offset: usize,
     ) -> ScanPosition {
         match self.owner {
-            LexicalOwnerTemplate::Structural { transition, .. } => {
+            LexicalOwnerTemplate::Structural { transition, .. }
+            | LexicalOwnerTemplate::TransitionedStatic { transition, .. } => {
                 transition.position_after(current, byte_offset)
             }
             LexicalOwnerTemplate::None => {
@@ -660,6 +666,9 @@ impl LexicalOwnerTemplate {
             (LexicalOwnerTemplate::Static { kind, stable_id }, _) => {
                 Some(LexicalOwner::static_owner(kind, stable_id))
             }
+            (LexicalOwnerTemplate::TransitionedStatic { kind, stable_id, .. }, _) => {
+                Some(LexicalOwner::static_owner(kind, stable_id))
+            }
             (
                 LexicalOwnerTemplate::Vocab { declaration: "Words" },
                 Leaf::Words(Words::First),
@@ -750,7 +759,8 @@ pub(crate) fn scan_lexical(
     terminal: LexicalTerminal,
 ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
     let structural_surface = matches!(
-        terminal.owner, LexicalOwnerTemplate::Structural { .. },
+        terminal.owner, LexicalOwnerTemplate::Structural { .. } |
+        LexicalOwnerTemplate::TransitionedStatic { .. },
     );
     let mut matches: Vec<LexicalMatch<Leaf, LexicalOwner>> = match terminal.matcher {
         Lexical::EndOfInput => {

@@ -341,20 +341,8 @@ fn stored_value_uses_separator_terminal(
     matches!(value, ValueKindPlan::Lex(terminal) if separator_terminals.contains(terminal.as_str()))
 }
 
-pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatchReport> {
-    let StructuralReportInventory {
-        abstract_products,
-        abstract_sums,
-        optional_roles,
-        sequence_roles,
-        uniform_separators,
-        positional_separator_tables,
-        terminators,
-        stored_separator_fields,
-    } = structural_report_inventory(plan);
-    let mapping_layers = Vec::new();
-    let generated_form_boundaries = plan
-        .constructions()
+fn generated_form_boundaries(plan: &SemanticPlan) -> Vec<String> {
+    plan.constructions()
         .iter()
         .flat_map(|construction| {
             construction.forms().iter().flat_map(move |form| {
@@ -375,6 +363,14 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
                             ),
                         ]
                         .into_iter(),
+                        crate::semantic::AtomPlan::SentenceInitialLiteral(surface) => {
+                            vec![format!(
+                                "{}.{}[{atom_index}].sentence_initial={surface}",
+                                construction.construction_id(),
+                                form.name(),
+                            )]
+                            .into_iter()
+                        }
                         crate::semantic::AtomPlan::Literal(_)
                         | crate::semantic::AtomPlan::Category { .. }
                         | crate::semantic::AtomPlan::Lex { .. }
@@ -386,7 +382,22 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
                     })
             })
         })
-        .collect();
+        .collect()
+}
+
+pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatchReport> {
+    let StructuralReportInventory {
+        abstract_products,
+        abstract_sums,
+        optional_roles,
+        sequence_roles,
+        uniform_separators,
+        positional_separator_tables,
+        terminators,
+        stored_separator_fields,
+    } = structural_report_inventory(plan);
+    let mapping_layers = Vec::new();
+    let generated_form_boundaries = generated_form_boundaries(plan);
     let stored_form_boundary_fields = Vec::new();
     let mut handwritten_codecs = Vec::new();
     let stored_form_tags = Vec::new();
@@ -627,6 +638,29 @@ mod tests {
         let report = super::escape_hatch_report(&semantic).expect("sealed report");
 
         assert_eq!(report.stored_separator_fields(), ["Holder.separator"]);
+    }
+
+    #[test]
+    fn sentence_initial_form_surface_is_reported_without_a_stored_ast_field() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction item: Root {
+                    element ItemValue {}
+                    form item = "item" sentence_initial(": ") "next";
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("sentence-initial report fixture parses"),
+        )
+        .expect("sentence-initial report fixture validates")
+        .into_semantic();
+        let report = super::escape_hatch_report(&semantic).expect("report seals");
+
+        assert_eq!(
+            report.generated_form_boundaries(),
+            ["item.item[1].sentence_initial=: "],
+        );
+        assert!(report.stored_form_boundary_fields().is_empty());
     }
 
     #[test]

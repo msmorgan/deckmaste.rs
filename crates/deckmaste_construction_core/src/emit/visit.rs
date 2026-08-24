@@ -45,7 +45,10 @@ use crate::semantic::VocabVariantPlan;
 
 pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated.constructions();
-    let categories = category_groups(constructions);
+    let categories = category_groups(constructions)
+        .into_iter()
+        .filter(|(category, _)| !validated.explicit_sum_owns_construction_category(category))
+        .collect::<Vec<_>>();
     let mut vocabs = Vec::new();
     let mut lexemes = Vec::new();
     let mut bindings = Vec::new();
@@ -317,7 +320,10 @@ fn visitor_methods(
         if matches!(
             semantic.kind,
             super::SemanticTypeKind::Product | super::SemanticTypeKind::Sum
-        ) {
+        ) && !constructions
+            .iter()
+            .any(|construction| construction.element_type() == semantic.name)
+        {
             methods.push(default_method(semantic.name, &snake_case(semantic.name)));
         }
     }
@@ -765,6 +771,7 @@ fn emit_construction_walker(
             | AtomPlan::Identity { terminal, .. }
             | AtomPlan::VerbFixed { terminal, .. } => Some(terminal.clone()),
             AtomPlan::Literal(_)
+            | AtomPlan::SentenceInitialLiteral(_)
             | AtomPlan::Category { .. }
             | AtomPlan::Noun { .. }
             | AtomPlan::OpenDeclaration(_) => None,
@@ -947,7 +954,7 @@ fn emit_construction_form_walker_calls(
             continue;
         }
         let call = match atom.value_atom() {
-            AtomPlan::Literal(_) => None,
+            AtomPlan::Literal(_) | AtomPlan::SentenceInitialLiteral(_) => None,
             AtomPlan::Category { role, category } => {
                 let field = fields
                     .get(role)
@@ -1030,7 +1037,10 @@ fn visit_atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Lex { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
-        AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+        AtomPlan::Literal(_)
+        | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::VerbFixed { .. }
+        | AtomPlan::OpenDeclaration(_) => None,
         AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
             unreachable!("value_atom removes form wrappers")
         }

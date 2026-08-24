@@ -141,9 +141,13 @@ The narrow adjacency atoms `prefix(fixed, value)` and
 affix and one ordinary value atom. They suppress only their internal word
 boundary and preserve adjacent, disjoint lexical claims. Nesting, callbacks,
 alternatives, repetition, and two value atoms are rejected. A
-`prefix(fixed, value)` atom gets its onset from the fixed realized prefix, so
-every `non...`/`non-...` form is consonantal rather than inheriting the value's
-onset. The sealed `PossessiveEnding::{EndsInS,Other}` feature derives from the
+`prefix(fixed, value)` atom gets its onset from the fixed realized prefix when
+that prefix has a lexical onset, so every `non...`/`non-...` form is
+consonantal rather than inheriting the value's onset. A punctuation-only
+prefix such as `+`, U+2212, or `2/` is adjacent structural spelling: it need
+not have a lexical onset, and the complete realized form forwards the value's
+onset. A construction that requires onset still rejects when neither affix nor
+value provides one. The sealed `PossessiveEnding::{EndsInS,Other}` feature derives from the
 last actually realized possessor surface. English possessives have exactly
 three guarded forms: singular takes `'s`; plural `EndsInS` takes `'`; the
 plural remainder takes `'s`. Neither affix punctuation nor a possessive form
@@ -175,6 +179,31 @@ same domain. The same presence predicates are available to `require`, where
 they become checked-constructor invariants and may compose with present-value
 membership. This changes no public storage: the field remains `Option<Vocab>`,
 with no sentinel, form tag, or arbitrary Rust predicate.
+
+The fixed-surface annotation `sentence_initial(surface)` applies only to an
+exact form literal or sequence separator. It emits no AST field or form tag;
+the annotated lexical owner and the existing structural-separator owner both
+apply `StructuralTransition::SentenceInitial` through the same scanner and
+renderer state transition. This keeps an activation colon-space distinct from
+an identical continuation literal, and an activation-cost comma-space distinct
+from other comma-space separators, without category-name or punctuation-wide
+inference. Empty, nested, duplicated, nonliteral form targets and sequence
+terminators are rejected. The English lexical boundary inventory admits the
+exact `:`, `]`, and `}` delimiters required by these form and circumfix
+surfaces, without treating arbitrary punctuation as a word boundary.
+
+An `abstract sum` may be the sole generated authority for a construction
+category with the same name when its alternatives map every construction
+element type in that category exactly once. The alternative name authors the
+public enum variant independently of the element type, so `Clause:
+CostClause` produces `Category::Clause(CostClause)`. The construction forms
+still build and render their generated element products; the sum contributes
+the one public category enum and the one wrapping rule family. No inferred
+second enum, wrapper, stored tag, duplicate rule identifier, or duplicate
+render/walk/visitor family is emitted. A missing category member, duplicate
+mapping, foreign element type, or ordinary name collision outside this exact
+ownership relation is a declaration error.
+
 - **Added:** inflected atoms — `verb(lexeme)` and `noun(role)` render their
   inflection from derived feature context; and the terminal declarations
   `vocab`, `lexeme`, `codec` (§Terminals).
@@ -478,7 +507,7 @@ space where present, before passing the stated position to the following node.
 | Trigger → body comma-space | `Triggered` envelope | Sets `CasePosition::Continuation`; the body begins without capitalization. |
 | Trigger → intervening-if comma-space | `Triggered` envelope | Sets `CasePosition::Continuation`; `if` begins without capitalization. |
 | Intervening-if → body comma-space | `Triggered` envelope | Sets `CasePosition::Continuation`; the body begins without capitalization. |
-| Cost-component comma-space | `ActivationCost` sequence | Sets `CasePosition::Continuation`; the next cost component begins without capitalization. |
+| Cost-component comma-space | `ActivationCost` sequence | Sets `CasePosition::SentenceInitial`; the next cost component's first lexical word is capitalized. |
 | Activation colon-space | `Activated` envelope | Sets `CasePosition::SentenceInitial`; the `AbilityBody`'s first lexical word is capitalized. |
 | Modal header ASCII-space + U+2014 + LF | `Modal` header | Sets `CasePosition::SentenceInitial`; the first mode body is capitalized after its bullet. |
 | Mode U+2022 + ASCII-space | `ModalMode` | Preserves `CasePosition::SentenceInitial`; the mode body's first lexical word is capitalized. |

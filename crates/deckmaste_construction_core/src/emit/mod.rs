@@ -116,14 +116,26 @@ pub(super) fn semantic_types(plan: &SemanticPlan) -> Vec<SemanticType<'_>> {
         .constructions()
         .iter()
         .filter_map(|construction| {
-            seen_categories
-                .insert(construction.category())
-                .then_some(SemanticType {
-                    name: construction.category(),
-                    kind: SemanticTypeKind::Category,
-                    source_index: construction.source_index(),
-                })
+            (!plan.explicit_sum_owns_construction_category(construction.category())
+                && seen_categories.insert(construction.category()))
+            .then_some(SemanticType {
+                name: construction.category(),
+                kind: SemanticTypeKind::Category,
+                source_index: construction.source_index(),
+            })
         })
+        .chain(
+            plan.constructions()
+                .iter()
+                .filter(|construction| {
+                    plan.explicit_sum_owns_construction_category(construction.category())
+                })
+                .map(|construction| SemanticType {
+                    name: construction.element_type(),
+                    kind: SemanticTypeKind::Product,
+                    source_index: construction.source_index(),
+                }),
+        )
         .chain(plan.products().iter().map(|product| SemanticType {
             name: product.name(),
             kind: SemanticTypeKind::Product,

@@ -1,0 +1,5 @@
+error: explicit sum `Choice` maps alternative `Other` to foreign construction element `ForeignNode`
+ --> tests/compile_fail/explicit_sum_owned_category_foreign.rs:4:50
+  |
+4 |     abstract sum Choice { Left: LeftNode, Other: ForeignNode, }
+  |                                                  ^^^^^^^^^^^

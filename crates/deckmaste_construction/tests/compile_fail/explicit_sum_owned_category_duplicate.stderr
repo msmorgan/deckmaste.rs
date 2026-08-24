@@ -1,0 +1,5 @@
+error: explicit sum `Choice` maps construction element `LeftNode` more than once
+ --> tests/compile_fail/explicit_sum_owned_category_duplicate.rs:4:50
+  |
+4 |     abstract sum Choice { Left: LeftNode, Again: LeftNode, }
+  |                                                  ^^^^^^^^

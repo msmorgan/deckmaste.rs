@@ -1,0 +1,5 @@
+error: explicit sum `Choice` is missing construction element `RightNode`
+  --> tests/compile_fail/explicit_sum_owned_category_missing.rs:10:17
+   |
+10 |         element RightNode {}
+   |                 ^^^^^^^^^

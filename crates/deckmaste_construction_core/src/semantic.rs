@@ -160,6 +160,7 @@ pub(crate) struct PositionalSeparatorPlan {
 #[derive(Debug, Clone)]
 pub(crate) struct FixedSurfacePlan {
     atoms: Vec<FixedSurfaceAtomPlan>,
+    sentence_initial: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -432,12 +433,19 @@ impl PositionalSeparatorPlan {
     reason = "Tasks 3 through 5 consume fixed-surface accessors"
 )]
 impl FixedSurfacePlan {
-    pub(crate) fn new(atoms: Vec<FixedSurfaceAtomPlan>) -> Self {
-        Self { atoms }
+    pub(crate) fn new(atoms: Vec<FixedSurfaceAtomPlan>, sentence_initial: bool) -> Self {
+        Self {
+            atoms,
+            sentence_initial,
+        }
     }
 
     pub(crate) fn atoms(&self) -> &[FixedSurfaceAtomPlan] {
         &self.atoms
+    }
+
+    pub(crate) const fn sentence_initial(&self) -> bool {
+        self.sentence_initial
     }
 
     pub(crate) fn is_empty(&self) -> bool {
@@ -638,6 +646,7 @@ pub(crate) enum PredicateMemberPlan {
 #[derive(Debug, Clone)]
 pub(crate) enum AtomPlan {
     Literal(String),
+    SentenceInitialLiteral(String),
     Category {
         role: String,
         category: String,
@@ -1526,6 +1535,14 @@ impl SemanticPlan {
 
     pub(crate) fn sums(&self) -> &[SumPlan] {
         &self.sums
+    }
+
+    pub(crate) fn explicit_sum_owns_construction_category(&self, category: &str) -> bool {
+        self.sums.iter().any(|sum| sum.name() == category)
+            && self
+                .constructions
+                .iter()
+                .any(|construction| construction.category() == category)
     }
 
     #[allow(
@@ -3022,7 +3039,7 @@ fn form_atom_is_nullable(
     nullable_types: &HashSet<String>,
 ) -> bool {
     match atom {
-        AtomPlan::Literal(value) => value.is_empty(),
+        AtomPlan::Literal(value) | AtomPlan::SentenceInitialLiteral(value) => value.is_empty(),
         AtomPlan::Category { role, category } => fields
             .iter()
             .find(|field| field.name_key() == *role)
@@ -3996,6 +4013,9 @@ impl AtomPlan {
             (FormAtom::Literal(literal), AtomContribution::Literal) => {
                 Ok(Self::Literal(literal.value()))
             }
+            (FormAtom::SentenceInitial(literal), AtomContribution::Literal) => {
+                Ok(Self::SentenceInitialLiteral(literal.value()))
+            }
             (FormAtom::Role(authored), AtomContribution::Category { role, category }) => {
                 ensure_atom_name(authored, role, "category atom role name")?;
                 Ok(Self::Category {
@@ -4099,6 +4119,7 @@ impl AtomPlan {
     fn snapshot(&self) -> String {
         match self {
             Self::Literal(_) => "literal".to_owned(),
+            Self::SentenceInitialLiteral(_) => "sentence_initial(literal)".to_owned(),
             Self::Category { role, category } => format!("category({role}: {category})"),
             Self::Lex { role, .. } => format!("lex({role})"),
             Self::Identity { role, .. } => format!("identity({role})"),
@@ -4165,7 +4186,7 @@ fn seal_atoms(form: &Form, resolved: &[AtomContribution]) -> syn::Result<Vec<Ato
 
 fn form_atom_span(atom: &FormAtom) -> Span {
     match atom {
-        FormAtom::Literal(literal) => literal.span(),
+        FormAtom::Literal(literal) | FormAtom::SentenceInitial(literal) => literal.span(),
         FormAtom::Role(role)
         | FormAtom::Lex(role)
         | FormAtom::Identity(role)
@@ -4224,6 +4245,7 @@ fn number_carry_categories(
                         category,
                     } if found == &identifier_key(role) => Some(category.clone()),
                     AtomPlan::Literal(_)
+                    | AtomPlan::SentenceInitialLiteral(_)
                     | AtomPlan::Category { .. }
                     | AtomPlan::Lex { .. }
                     | AtomPlan::Identity { .. }
@@ -4394,6 +4416,7 @@ fn validate_onset_provider_capabilities(
                                 Some(format!("open:{:?}:{}", open.kind(), open.name()))
                             }
                             AtomPlan::Literal(_)
+                            | AtomPlan::SentenceInitialLiteral(_)
                             | AtomPlan::Category { .. }
                             | AtomPlan::Lex { .. }
                             | AtomPlan::Identity { .. }

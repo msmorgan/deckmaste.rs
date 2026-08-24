@@ -21,6 +21,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let mut categories = Vec::<CategoryItem>::new();
     let mut category_indices = HashMap::<String, usize>::new();
     for construction in plan.constructions() {
+        if plan.explicit_sum_owns_construction_category(construction.category()) {
+            continue;
+        }
         let category = construction.category().to_owned();
         let index = *category_indices.entry(category.clone()).or_insert_with(|| {
             let index = categories.len();

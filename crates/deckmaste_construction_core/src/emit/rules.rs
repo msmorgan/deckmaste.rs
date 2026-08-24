@@ -593,7 +593,11 @@ pub(super) fn lowered_rows(plan: &SemanticPlan) -> syn::Result<Vec<RuleRowPlan>>
         })
         .collect::<HelperCategoryNames<'_>>();
     for (index, construction) in plan.constructions().iter().enumerate() {
-        rows.extend(lower_construction_rows(index, construction)?);
+        rows.extend(lower_construction_rows(
+            index,
+            construction,
+            plan.explicit_sum_owns_construction_category(construction.category()),
+        )?);
         rows.extend(lower_helper_rows(
             StructuralOwner::Construction(index),
             construction.element_type(),
@@ -660,6 +664,7 @@ fn structural_field_for_atom<'a>(
 fn lower_construction_rows(
     construction_index: usize,
     construction: &ConstructionPlan,
+    explicit_sum_owned: bool,
 ) -> syn::Result<Vec<RuleRowPlan>> {
     let mut rows = Vec::new();
     for (form_index, form) in construction.forms().iter().enumerate() {
@@ -733,8 +738,21 @@ fn lower_construction_rows(
             variants
                 .into_iter()
                 .map(|(sequence_states, rhs)| {
+                    let base_rule_id = if explicit_sum_owned {
+                        let base = format!(
+                            "{}Construction",
+                            crate::identifier::pascal_case(construction.element_type())
+                        );
+                        if construction.forms().len() == 1 {
+                            base
+                        } else {
+                            format!("{base}{}", crate::identifier::pascal_case(form.name()))
+                        }
+                    } else {
+                        form.rule_id().to_owned()
+                    };
                     let (id, role, state) = public_variant_metadata(
-                        form.rule_id(),
+                        &base_rule_id,
                         construction.element_type(),
                         construction.fields().iter().filter_map(|field| {
                             field
@@ -745,7 +763,11 @@ fn lower_construction_rows(
                     )?;
                     Ok(RuleRowPlan {
                         id,
-                        lhs: construction.category().to_owned(),
+                        lhs: if explicit_sum_owned {
+                            construction.element_type().to_owned()
+                        } else {
+                            construction.category().to_owned()
+                        },
                         owner: construction.element_type().to_owned(),
                         role,
                         state,
@@ -1481,10 +1503,11 @@ pub(super) fn structural_surface_transition(
     policy: StructuralSurfacePolicy,
     atom_index: usize,
 ) -> StructuralTransitionPlan {
-    if policy == StructuralSurfacePolicy::Terminator
-        && atom_index.checked_add(1) == Some(surface.atoms().len())
-        && fixed_surface_terminates_sentence(surface)
-    {
+    let final_atom = atom_index.checked_add(1) == Some(surface.atoms().len());
+    let sentence_initial = surface.sentence_initial()
+        || (policy == StructuralSurfacePolicy::Terminator
+            && fixed_surface_terminates_sentence(surface));
+    if final_atom && sentence_initial {
         StructuralTransitionPlan::SentenceInitial
     } else {
         StructuralTransitionPlan::Preserve
@@ -1562,6 +1585,7 @@ fn atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
         AtomPlan::Literal(_)
+        | AtomPlan::SentenceInitialLiteral(_)
         | AtomPlan::VerbFixed { .. }
         | AtomPlan::OpenDeclaration(_)
         | AtomPlan::Bound { .. }
@@ -1577,6 +1601,25 @@ fn value_name(value: &ValueKindPlan) -> &str {
         | ValueKindPlan::Identity(name)
         | ValueKindPlan::Product(name)
         | ValueKindPlan::Sum(name) => name,
+    }
+}
+
+fn form_literal_owner(stable_id: &syn::LitStr, sentence_initial: bool) -> TokenStream {
+    if sentence_initial {
+        quote! {
+            LexicalOwnerTemplate::TransitionedStatic {
+                kind: LexicalProvenanceKind::FormLiteral,
+                stable_id: #stable_id,
+                transition: StructuralTransition::SentenceInitial,
+            }
+        }
+    } else {
+        quote! {
+            LexicalOwnerTemplate::Static {
+                kind: LexicalProvenanceKind::FormLiteral,
+                stable_id: #stable_id,
+            }
+        }
     }
 }
 
@@ -1633,7 +1676,7 @@ fn emit_position(
         }
     }
     match atom {
-        AtomPlan::Literal(literal) => {
+        AtomPlan::Literal(literal) | AtomPlan::SentenceInitialLiteral(literal) => {
             let literal = syn::LitStr::new(literal, Span::call_site());
             let stable_id = syn::LitStr::new(
                 &format!(
@@ -1644,14 +1687,13 @@ fn emit_position(
                 ),
                 Span::call_site(),
             );
+            let owner = form_literal_owner(
+                &stable_id,
+                matches!(atom, AtomPlan::SentenceInitialLiteral(_)),
+            );
             Ok(lexical_terminal_with_boundary(
                 &quote! { Lexical::Literal(#literal) },
-                &quote! {
-                    LexicalOwnerTemplate::Static {
-                        kind: LexicalProvenanceKind::FormLiteral,
-                        stable_id: #stable_id,
-                    }
-                },
+                &owner,
                 &right_boundary,
             ))
         }

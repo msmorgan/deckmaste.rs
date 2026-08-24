@@ -116,6 +116,7 @@ pub struct PositionalSeparatorSource {
 #[derive(Debug)]
 pub struct FixedSurfaceSource {
     pub atoms: Vec<FixedSurfaceAtomSource>,
+    pub sentence_initial: bool,
 }
 
 #[derive(Debug)]
@@ -251,6 +252,7 @@ pub enum FormGuardSource {
 #[derive(Debug)]
 pub enum FormAtom {
     Literal(LitStr),
+    SentenceInitial(LitStr),
     Role(Ident),
     Lex(Ident),
     Identity(Ident),

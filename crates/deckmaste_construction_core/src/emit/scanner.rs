@@ -260,7 +260,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
             let structural_surface = matches!(
                 terminal.owner,
-                LexicalOwnerTemplate::Structural { .. },
+                LexicalOwnerTemplate::Structural { .. }
+                    | LexicalOwnerTemplate::TransitionedStatic { .. },
             );
             let mut matches: Vec<LexicalMatch<Leaf, LexicalOwner>> = match terminal.matcher {
                 Lexical::EndOfInput => (input.position.byte_offset == input.text.len())

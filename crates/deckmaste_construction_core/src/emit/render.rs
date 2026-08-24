@@ -53,7 +53,10 @@ use crate::semantic::VocabPlan;
 pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
     let constructions = validated.constructions();
     let roots = validated.roots().iter().collect::<Vec<_>>();
-    let categories = category_groups(constructions);
+    let categories = category_groups(constructions)
+        .into_iter()
+        .filter(|(category, _)| !validated.explicit_sum_owns_construction_category(category))
+        .collect::<Vec<_>>();
     let nested_categories = constructions
         .iter()
         .flat_map(ConstructionPlan::fields)
@@ -996,11 +999,84 @@ fn emit_structural_renderers(
                 )?);
             }
         }
+        if plan.explicit_sum_owns_construction_category(construction.category()) {
+            items.push(emit_explicit_sum_owned_construction_renderer(
+                plan,
+                construction,
+                root_names,
+            )?);
+        }
     }
     for sum in plan.sums() {
         items.push(emit_sum_renderer(plan, sum, root_names)?);
     }
     Ok(items)
+}
+
+fn emit_explicit_sum_owned_construction_renderer(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    root_names: &HashSet<String>,
+) -> syn::Result<GeneratedItem> {
+    let function_name = crate::identifier::prefixed("render_", construction.element_type());
+    let function = ident(&function_name);
+    let ty = ident(construction.element_type());
+    let mut allocator = LocalAllocator::default();
+    allocator.reserve("writer");
+    allocator.reserve("context");
+    allocator.reserve("environment");
+    let argument = allocator.allocate(&snake_case(construction.element_type()));
+    let locals = RenderLocals {
+        whole: Some(argument.clone()),
+        fields: HashMap::new(),
+        category: quote! { #argument },
+    };
+    let forms = construction
+        .forms()
+        .iter()
+        .enumerate()
+        .map(|(form_index, form)| {
+            let statements = render_atoms(plan, construction, form, &locals, root_names)?;
+            let guard =
+                super::emit_form_guard_expression(construction, form_index, |domain, value| {
+                    render_guard_atom(plan, construction, &locals, domain, value)
+                })?;
+            Ok((guard, statements))
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    let body = if forms.len() == 1 {
+        let (_, statements) = forms
+            .into_iter()
+            .next()
+            .ok_or_else(|| internal("construction has no sealed render form"))?;
+        quote! { #(#statements)* }
+    } else {
+        let branches = forms.iter().map(|(guard, statements)| {
+            let guard = guard.as_ref().expect("multi-form rows are guarded");
+            quote! { if #guard { #(#statements)* } else }
+        });
+        quote! { #(#branches)* { unreachable!("sealed form partition is total") } }
+    };
+    let environment = plan
+        .needs_parser_environment()
+        .then(|| quote! { , environment: &crate::environment::ParserEnvironment });
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! {
+            fn #function(
+                writer: &mut Writer,
+                #argument: &#ty,
+                context: &ParseContext<'_> #environment,
+            ) { #body }
+        },
+        vec![DeclarationKey::new(
+            DeclarationKind::Construction,
+            construction.construction_id(),
+        )],
+    ))
 }
 
 fn emit_product_renderer(
@@ -1537,7 +1613,7 @@ fn render_allocator(
         for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
             let atom = atom.value_atom();
             match atom {
-                AtomPlan::Literal(_) => {}
+                AtomPlan::Literal(_) | AtomPlan::SentenceInitialLiteral(_) => {}
                 AtomPlan::Category { role, .. } => {
                     let field = fields
                         .get(role)
@@ -2220,21 +2296,15 @@ fn render_atom_statement(
     let call_writer = quote! { writer };
     let method_writer = quote! { writer };
     match atom {
-        AtomPlan::Literal(value) => {
-            if value.chars().count() == 1
-                && value
-                    .chars()
-                    .all(|character| character.is_ascii_punctuation())
-            {
-                let mark = value
-                    .chars()
-                    .next()
-                    .ok_or_else(|| internal("one punctuation character is absent"))?;
-                Ok(quote! { #method_writer.punctuation(#mark); })
-            } else {
-                let literal = syn::LitStr::new(value, Span::call_site());
-                Ok(quote! { #method_writer.word(#literal); })
-            }
+        AtomPlan::Literal(value) => Ok(render_fixed_surface_statement(value)),
+        AtomPlan::SentenceInitialLiteral(value) => {
+            let literal = syn::LitStr::new(value, Span::call_site());
+            Ok(quote! {
+                #method_writer.structural_surface(
+                    #literal,
+                    StructuralTransition::SentenceInitial,
+                );
+            })
         }
         AtomPlan::Category { role, .. } => {
             let field = fields
@@ -2403,7 +2473,10 @@ fn render_atom_role(atom: &AtomPlan) -> Option<&str> {
         | AtomPlan::Lex { role, .. }
         | AtomPlan::Identity { role, .. }
         | AtomPlan::Noun { role, .. } => Some(role),
-        AtomPlan::Literal(_) | AtomPlan::VerbFixed { .. } | AtomPlan::OpenDeclaration(_) => None,
+        AtomPlan::Literal(_)
+        | AtomPlan::SentenceInitialLiteral(_)
+        | AtomPlan::VerbFixed { .. }
+        | AtomPlan::OpenDeclaration(_) => None,
         AtomPlan::Bound { .. } | AtomPlan::Circumfix { .. } => {
             unreachable!("value_atom removes form wrappers")
         }
@@ -2439,7 +2512,7 @@ fn render_owner(
 ) -> syn::Result<TokenStream> {
     let atom = atom.value_atom();
     match atom {
-        AtomPlan::Literal(_) => {
+        AtomPlan::Literal(_) | AtomPlan::SentenceInitialLiteral(_) => {
             let stable_id = syn::LitStr::new(
                 &format!(
                     "form:{}/{}/{}",
@@ -3064,6 +3137,7 @@ fn implicit_verb_onset(
             })
         }
         AtomPlan::Literal(_)
+        | AtomPlan::SentenceInitialLiteral(_)
         | AtomPlan::Category { .. }
         | AtomPlan::Lex { .. }
         | AtomPlan::Identity { .. }
@@ -3098,8 +3172,9 @@ fn bound_prefix_onset(
         if !matches_role {
             continue;
         }
-        let onset = ::macro_ron::v2::normalize_surface_onset(affix, None)
-            .ok_or_else(|| internal("validated bound prefix has no realized onset"))?;
+        let Some(onset) = ::macro_ron::v2::normalize_surface_onset(affix, None) else {
+            continue;
+        };
         if realized.is_some_and(|found| found != onset) {
             return Err(internal(
                 "one role has bound prefixes with inconsistent realized onset",
@@ -4058,6 +4133,36 @@ mod tests {
             member < terminator && terminator < separator,
             "each member renders before its terminator and following separator: {body}",
         );
+    }
+
+    #[test]
+    fn authored_sentence_initial_transitions_are_uniform_in_rules_and_rendering() {
+        let expansion = crate::generate(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            construction clause: Clause {
+                element ClauseValue { left: Item, right: Item, }
+                form clause = left sentence_initial(": ") right;
+            }
+            abstract product Pair {
+                values: seq Clause separated by sentence_initial(", "),
+            }
+            require len(Pair.values) >= 1;
+            root Clause { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("annotated form and separator surfaces generate");
+        let source = expansion.tokens().to_string();
+
+        for expected in [
+            "LexicalOwnerTemplate :: TransitionedStatic",
+            "transition : StructuralTransition :: SentenceInitial",
+            "writer . structural_surface (\": \" , StructuralTransition :: SentenceInitial",
+            "structural:Pair/values/separator/uniform/0",
+        ] {
+            assert!(source.contains(expected), "missing `{expected}`: {source}");
+        }
     }
 
     #[test]

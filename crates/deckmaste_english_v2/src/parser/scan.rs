@@ -1014,7 +1014,10 @@ fn project_failure(
 }
 
 fn has_lexical_boundary(text: &str, end: usize) -> bool {
-    matches!(text.as_bytes().get(end), None | Some(b' ' | b',' | b'.'))
+    matches!(
+        text.as_bytes().get(end),
+        None | Some(b' ' | b',' | b'.' | b':' | b']' | b'}')
+    )
 }
 
 fn matches_feature(constraint: FeatureConstraint<SurfaceFeature>, feature: SurfaceFeature) -> bool {
@@ -1736,8 +1739,8 @@ mod tests {
     }
 
     #[test]
-    fn lexical_boundary_is_exactly_eoi_ascii_space_comma_or_period() {
-        for text in ["word", "word ", "word,", "word."] {
+    fn lexical_boundary_is_exactly_eoi_authored_spacing_transition_or_closing_circumfix() {
+        for text in ["word", "word ", "word,", "word.", "word:", "word]", "word}"] {
             assert!(super::has_lexical_boundary(text, "word".len()), "{text:?}");
         }
         for text in ["word?", "word‽", "word_", "word!", "wordx", "wordé"] {
@@ -2209,14 +2212,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            23,
+            25,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            26,
+            28,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2236,14 +2239,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            23,
+            25,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            26,
+            28,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2268,13 +2271,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (24, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (25, "Siege.", "Siege", SubtypeCategory::Battle),
-            (26, "Elf.", "Elf", SubtypeCategory::Creature),
-            (27, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (28, "Forest.", "Forest", SubtypeCategory::Land),
-            (29, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (30, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (26, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (27, "Siege.", "Siege", SubtypeCategory::Battle),
+            (28, "Elf.", "Elf", SubtypeCategory::Creature),
+            (29, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (30, "Forest.", "Forest", SubtypeCategory::Land),
+            (31, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (32, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2292,7 +2295,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (24..=30).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (26..=32).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2308,7 +2311,7 @@ mod tests {
         }
 
         let player = scan(
-            23,
+            25,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2667,6 +2670,22 @@ mod tests {
                 "AbilityTriggered",
                 "TriggeredInterveningIfOptionalAbsent",
                 "TriggeredInterveningIfOptionalPresent",
+                "CostSymbolGenericCostSymbol",
+                "CostSymbolFixedCostSymbol",
+                "CostSymbolMonocoloredHybridSymbol",
+                "SymbolRunConstruction",
+                "SymbolRunSymbolsSequenceSingleton",
+                "SymbolRunSymbolsSequenceRecursive",
+                "LoyaltyValuePositiveLoyalty",
+                "LoyaltyValueZeroLoyalty",
+                "LoyaltyValueNegativeLoyalty",
+                "LoyaltyConstruction",
+                "CostClauseConstruction",
+                "ActivatedCostsSequenceSingleton",
+                "ActivatedCostsSequencePair",
+                "ActivatedCostsSequenceThreePlus",
+                "ActivatedCostsSequenceLast",
+                "ActivatedCostsSequenceMiddle",
                 "SentenceImperative",
                 "SentenceDeclarative",
                 "SentenceWithWhere",
@@ -2869,6 +2888,9 @@ mod tests {
                 "OracleTextBlocksSequenceNonEmpty",
                 "OracleTextBlocksSequenceSingleton",
                 "OracleTextBlocksSequenceRecursive",
+                "ActivationCostComponentSymbolRun",
+                "ActivationCostComponentLoyalty",
+                "ActivationCostComponentClause",
                 "ConditionClauseFiniteCondition",
                 "DocumentBlockAbility"
             ]
@@ -2899,6 +2921,21 @@ mod tests {
                 "Literal(\"s\")",
                 "TurnSpecifier",
                 "TurnOwnerPostmodifier",
+                "ScalarNumber",
+                "FixedCostSymbol",
+                "Literal(\"2/\")",
+                "MonocoloredHybridColor",
+                "Literal(\"{\")",
+                "Literal(\"}\")",
+                "Literal(\"}{\")",
+                "Literal(\"+\")",
+                "LoyaltyMagnitude",
+                "Literal(\"0\")",
+                "Literal(\"−\")",
+                "Literal(\"[\")",
+                "Literal(\"]\")",
+                "Literal(\": \")",
+                "Literal(\", \")",
                 "Literal(\"where\")",
                 "Variable",
                 "Verb(Be, Exact(ThirdPersonSingular))",
@@ -2909,23 +2946,23 @@ mod tests {
                 "ObjectPronoun",
                 "ReflexivePronoun",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(23, Exact(Singular))",
-                "DeclarationNoun(24, Exact(Singular))",
                 "DeclarationNoun(25, Exact(Singular))",
                 "DeclarationNoun(26, Exact(Singular))",
                 "DeclarationNoun(27, Exact(Singular))",
                 "DeclarationNoun(28, Exact(Singular))",
                 "DeclarationNoun(29, Exact(Singular))",
                 "DeclarationNoun(30, Exact(Singular))",
+                "DeclarationNoun(31, Exact(Singular))",
+                "DeclarationNoun(32, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(23, Exact(Plural))",
-                "DeclarationNoun(24, Exact(Plural))",
                 "DeclarationNoun(25, Exact(Plural))",
                 "DeclarationNoun(26, Exact(Plural))",
                 "DeclarationNoun(27, Exact(Plural))",
                 "DeclarationNoun(28, Exact(Plural))",
                 "DeclarationNoun(29, Exact(Plural))",
                 "DeclarationNoun(30, Exact(Plural))",
+                "DeclarationNoun(31, Exact(Plural))",
+                "DeclarationNoun(32, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -2933,7 +2970,6 @@ mod tests {
                 "NonCommonNoun",
                 "Literal(\"non-\")",
                 "NonTargetCommonModifier",
-                "Literal(\", \")",
                 "Literal(\" and \")",
                 "Literal(\", and \")",
                 "Literal(\" or \")",
@@ -2946,7 +2982,7 @@ mod tests {
                 "Literal(\"a\")",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(32)",
+                "CatalogIdentity(34)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -2975,7 +3011,6 @@ mod tests {
                 "Zone",
                 "Literal(\"in\")",
                 "Literal(\"from\")",
-                "ScalarNumber",
                 "ScalarCharacteristic",
                 "Literal(\"mana\")",
                 "Literal(\"value\")",

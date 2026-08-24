@@ -418,7 +418,8 @@ fn validate_structural_semantics(
     raw: &Declarations,
     symbols: &Symbols,
 ) -> syn::Result<StructuralSemantics> {
-    let products = raw
+    let explicit_sum_owned = explicit_sum_owned_category_names(raw);
+    let mut products = raw
         .declarations
         .iter()
         .filter_map(|declaration| match declaration {
@@ -426,6 +427,18 @@ fn validate_structural_semantics(
             _ => None,
         })
         .collect::<HashSet<_>>();
+    products.extend(
+        raw.declarations
+            .iter()
+            .filter_map(|declaration| match declaration {
+                Declaration::Construction(construction)
+                    if explicit_sum_owned.contains(&path_name(&construction.category)) =>
+                {
+                    Some(identifier_key(&construction.element.name))
+                }
+                _ => None,
+            }),
+    );
     let sums = raw
         .declarations
         .iter()
@@ -472,6 +485,8 @@ fn validate_structural_semantics(
             }
             Declaration::Construction(construction) => {
                 let owner = identifier_key(&construction.element.name);
+                let explicit_sum_owned =
+                    explicit_sum_owned.contains(&path_name(&construction.category));
                 let bounds = normalize_length_requirements(
                     &owner,
                     &construction.element.fields,
@@ -491,7 +506,11 @@ fn validate_structural_semantics(
                 bounds_by_owner.insert(owner.clone(), bounds);
                 owners.push(StructuralOwnerDraft {
                     source_index,
-                    node: structural_construction_node(&identifier_key(&construction.name)),
+                    node: if explicit_sum_owned {
+                        structural_product_node(&owner)
+                    } else {
+                        structural_construction_node(&identifier_key(&construction.name))
+                    },
                     name: owner,
                     fields,
                     is_product: false,
@@ -541,7 +560,9 @@ fn validate_structural_semantics(
 
     let mut category_members: HashMap<String, Vec<String>> = HashMap::new();
     for declaration in &raw.declarations {
-        if let Declaration::Construction(construction) = declaration {
+        if let Declaration::Construction(construction) = declaration
+            && !explicit_sum_owned.contains(&path_name(&construction.category))
+        {
             category_members
                 .entry(path_name(&construction.category))
                 .or_default()
@@ -692,7 +713,7 @@ fn construction_has_fixed_width(construction: &crate::Construction) -> bool {
 
 fn form_atom_has_fixed_width(atom: &FormAtom, fields: &HashMap<String, &FieldKind>) -> bool {
     match atom {
-        FormAtom::Literal(value) => !value.value().is_empty(),
+        FormAtom::Literal(value) | FormAtom::SentenceInitial(value) => !value.value().is_empty(),
         FormAtom::Lex(role) | FormAtom::Identity(role) | FormAtom::Noun(role) => {
             fields.get(&identifier_key(role)).is_some_and(|kind| {
                 !matches!(kind, FieldKind::Optional(_) | FieldKind::Sequence { .. })
@@ -1104,6 +1125,25 @@ fn seal_fixed_surface(
     symbols: &Symbols,
     errors: &mut Option<syn::Error>,
 ) -> FixedSurfacePlan {
+    if source.sentence_initial && role == "terminator" {
+        let span =
+            source
+                .atoms
+                .first()
+                .map_or_else(proc_macro2::Span::call_site, |atom| match atom {
+                    crate::model::FixedSurfaceAtomSource::Literal(value) => value.span(),
+                    crate::model::FixedSurfaceAtomSource::Lex(path) => path.span(),
+                });
+        combine(
+            errors,
+            syn::Error::new(
+                span,
+                format!(
+                    "{label}: sentence_initial is supported only on form surfaces and sequence separators"
+                ),
+            ),
+        );
+    }
     let atoms = source
         .atoms
         .iter()
@@ -1149,7 +1189,7 @@ fn seal_fixed_surface(
             }
         })
         .collect();
-    let surface = FixedSurfacePlan::new(atoms);
+    let surface = FixedSurfacePlan::new(atoms, source.sentence_initial);
     if surface.is_empty() {
         let span =
             source
@@ -2721,6 +2761,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
         }
     }
 
+    validate_explicit_sum_owned_categories(raw, &mut errors);
     validate_generated_name_inventory(raw, &mut errors);
     finish(errors)?;
     Ok((
@@ -2781,6 +2822,99 @@ fn reject_raw_keyword_identifier(
                 ),
             ),
         );
+    }
+}
+
+fn explicit_sum_owned_category_names(raw: &Declarations) -> HashSet<String> {
+    let construction_categories = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::Construction(construction) => Some(path_name(&construction.category)),
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
+    raw.declarations
+        .iter()
+        .filter_map(|declaration| match declaration {
+            Declaration::AbstractSum(sum) => {
+                let name = identifier_key(&sum.name);
+                construction_categories.contains(&name).then_some(name)
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn validate_explicit_sum_owned_categories(raw: &Declarations, errors: &mut Option<syn::Error>) {
+    let owned = explicit_sum_owned_category_names(raw);
+    for category in owned {
+        let members = raw
+            .declarations
+            .iter()
+            .filter_map(|declaration| match declaration {
+                Declaration::Construction(construction)
+                    if path_name(&construction.category) == category =>
+                {
+                    Some((
+                        identifier_key(&construction.element.name),
+                        construction.element.name.span(),
+                    ))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let sum = raw
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                Declaration::AbstractSum(sum) if identifier_key(&sum.name) == category => Some(sum),
+                _ => None,
+            })
+            .expect("owned category name comes from an abstract sum");
+        let member_names = members
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<HashSet<_>>();
+        let mut mapped = HashSet::new();
+        for alternative in &sum.alternatives {
+            let value = path_name(&alternative.value_type);
+            if !member_names.contains(value.as_str()) {
+                combine(
+                    errors,
+                    syn::Error::new_spanned(
+                        &alternative.value_type,
+                        format!(
+                            "explicit sum `{category}` maps alternative `{}` to foreign construction element `{value}`",
+                            alternative.name
+                        ),
+                    ),
+                );
+            } else if !mapped.insert(value.clone()) {
+                combine(
+                    errors,
+                    syn::Error::new_spanned(
+                        &alternative.value_type,
+                        format!(
+                            "explicit sum `{category}` maps construction element `{value}` more than once"
+                        ),
+                    ),
+                );
+            }
+        }
+        for (member, span) in members {
+            if !mapped.contains(&member) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        span,
+                        format!(
+                            "explicit sum `{category}` is missing construction element `{member}`"
+                        ),
+                    ),
+                );
+            }
+        }
     }
 }
 
@@ -2922,6 +3056,17 @@ impl GeneratedNameInventory {
         span: proc_macro2::Span,
         errors: &mut Option<syn::Error>,
     ) {
+        self.register_construction_variant(generated, role, span, errors);
+        self.register_rule_id_variant(generated, role, span, errors);
+    }
+
+    fn register_construction_variant(
+        &mut self,
+        generated: &str,
+        role: &str,
+        span: proc_macro2::Span,
+        errors: &mut Option<syn::Error>,
+    ) {
         validate_generated_rust_ident(generated, role, span, errors);
         register_associated_name(
             &mut self.rule_variants,
@@ -2931,6 +3076,16 @@ impl GeneratedNameInventory {
             span,
             errors,
         );
+    }
+
+    fn register_rule_id_variant(
+        &mut self,
+        generated: &str,
+        role: &str,
+        span: proc_macro2::Span,
+        errors: &mut Option<syn::Error>,
+    ) {
+        validate_generated_rust_ident(generated, role, span, errors);
         register_associated_name(
             &mut self.rule_id_items,
             "RuleId associated item",
@@ -3007,6 +3162,7 @@ fn generated_name_inventory(
     errors: &mut Option<syn::Error>,
 ) -> GeneratedNameInventory {
     let mut names = GeneratedNameInventory::default();
+    let explicit_sum_owned = explicit_sum_owned_category_names(raw);
     let fixed_span = proc_macro2::Span::call_site();
     for (name, role) in [
         (VISITOR_TRAIT, "fixed generated visitor trait"),
@@ -3149,7 +3305,9 @@ fn generated_name_inventory(
             Declaration::Construction(construction) => {
                 let construction_name = identifier_key(&construction.name);
                 let category = path_name(&construction.category);
-                if seen_categories.insert(category.clone()) {
+                if !explicit_sum_owned.contains(&category)
+                    && seen_categories.insert(category.clone())
+                {
                     let category_span = construction.category.span();
                     names.register_type(
                         &category,
@@ -3231,20 +3389,38 @@ fn generated_name_inventory(
                 );
 
                 let category_variant = pascal_case(&construction_name);
-                names.register_category_variant(
-                    &category,
-                    &category_variant,
-                    &format!("generated category variants for construction `{construction_name}`"),
-                    construction.name.span(),
-                    errors,
-                );
+                if explicit_sum_owned.contains(&category) {
+                    names.register_construction_variant(
+                        &format!("{}{category_variant}", pascal_case(&category)),
+                        &format!("Construction variant for `{construction_name}`"),
+                        construction.name.span(),
+                        errors,
+                    );
+                } else {
+                    names.register_category_variant(
+                        &category,
+                        &category_variant,
+                        &format!(
+                            "generated category variants for construction `{construction_name}`"
+                        ),
+                        construction.name.span(),
+                        errors,
+                    );
+                }
                 for form in &construction.forms {
                     let rule_span = if construction.forms.len() == 1 {
                         construction.name.span()
                     } else {
                         form.name.span()
                     };
-                    let form_rule = if construction.forms.len() == 1 {
+                    let form_rule = if explicit_sum_owned.contains(&category) {
+                        let base = format!("{}Construction", pascal_case(&element));
+                        if construction.forms.len() == 1 {
+                            base
+                        } else {
+                            format!("{base}{}", pascal_case(&identifier_key(&form.name)))
+                        }
+                    } else if construction.forms.len() == 1 {
                         format!("{}{category_variant}", pascal_case(&category))
                     } else {
                         format!(
@@ -3269,6 +3445,7 @@ fn generated_name_inventory(
                         &construction.requirements,
                         &rule_role,
                         rule_span,
+                        explicit_sum_owned.contains(&category),
                         errors,
                     );
                 }
@@ -3523,6 +3700,7 @@ fn generated_name_inventory(
                     &product.requirements,
                     &format!("generated structural product RuleId for `{owner}`"),
                     product.name.span(),
+                    false,
                     errors,
                 );
             }
@@ -3553,20 +3731,29 @@ fn generated_name_inventory(
                     errors,
                 );
                 for alternative in &sum.alternatives {
-                    names.register_rule_variant(
-                        &format!(
-                            "{}{}",
-                            pascal_case(&owner),
-                            pascal_case(&identifier_key(&alternative.name))
-                        ),
-                        &format!(
-                            "generated structural sum RuleId for `{}.{}`",
-                            owner,
-                            identifier_key(&alternative.name)
-                        ),
-                        alternative.name.span(),
-                        errors,
-                    );
+                    let variant = identifier_key(&alternative.name);
+                    if explicit_sum_owned.contains(&owner) {
+                        names.register_category_variant(
+                            &owner,
+                            &variant,
+                            &format!("generated explicit sum variant for `{owner}.{variant}`"),
+                            alternative.name.span(),
+                            errors,
+                        );
+                        names.register_rule_id_variant(
+                            &format!("{}{}", pascal_case(&owner), pascal_case(&variant)),
+                            &format!("generated structural sum RuleId for `{owner}.{variant}`"),
+                            alternative.name.span(),
+                            errors,
+                        );
+                    } else {
+                        names.register_rule_variant(
+                            &format!("{}{}", pascal_case(&owner), pascal_case(&variant)),
+                            &format!("generated structural sum RuleId for `{owner}.{variant}`"),
+                            alternative.name.span(),
+                            errors,
+                        );
+                    }
                 }
             }
             Declaration::Root(_) | Declaration::Morphology(_) => {}
@@ -3726,6 +3913,7 @@ fn register_structural_owner_rule_names(
     requirements: &[RequireExprSource],
     base_role: &str,
     span: proc_macro2::Span,
+    rule_id_only: bool,
     errors: &mut Option<syn::Error>,
 ) {
     let bounds = inventory_length_bounds(owner, fields, requirements);
@@ -3758,7 +3946,11 @@ fn register_structural_owner_rule_names(
         format!("generated structural owner-state RuleId for `{owner}`")
     };
     for variant in variants {
-        names.register_rule_variant(&variant, &role, span, errors);
+        if rule_id_only {
+            names.register_rule_id_variant(&variant, &role, span, errors);
+        } else {
+            names.register_rule_variant(&variant, &role, span, errors);
+        }
     }
 }
 
@@ -3972,6 +4164,7 @@ fn validate_bound_form_atom<'a>(
         | FormAtom::Noun(role)
         | FormAtom::Verb(VerbOperand::Projected(role)) => Some(role),
         FormAtom::Literal(_)
+        | FormAtom::SentenceInitial(_)
         | FormAtom::Verb(VerbOperand::Fixed(_))
         | FormAtom::OpenVerb(_)
         | FormAtom::Bound(_)
@@ -4163,7 +4356,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                         check_terminal_variant(path, TerminalKind::Lexeme, symbols, &mut errors);
                     }
                     FormAtom::OpenVerb(open) => validate_open_declaration(open, &mut errors),
-                    FormAtom::Literal(_) => {}
+                    FormAtom::Literal(_) | FormAtom::SentenceInitial(_) => {}
                     FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
                     FormAtom::Circumfix(_) => {
                         unreachable!("circumfix atoms were validated before ordinary atoms")
@@ -4331,7 +4524,7 @@ fn validate_feature_guarded_traversal_programs(
                     atom => atom,
                 };
                 match atom {
-                    FormAtom::Literal(_) => None,
+                    FormAtom::Literal(_) | FormAtom::SentenceInitial(_) => None,
                     FormAtom::Role(role) => Some(format!("category:{}", identifier_key(role))),
                     FormAtom::Lex(role) => Some(format!("lex:{}", identifier_key(role))),
                     FormAtom::Identity(role) => Some(format!("identity:{}", identifier_key(role))),
@@ -4613,7 +4806,9 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                 atom => atom,
             };
             let resolved = match atom {
-                FormAtom::Literal(_) => Some(AtomContribution::Literal),
+                FormAtom::Literal(_) | FormAtom::SentenceInitial(_) => {
+                    Some(AtomContribution::Literal)
+                }
                 FormAtom::Role(role) => fields
                     .get(&identifier_key(role))
                     .map(|kind| field_kind_leaf(kind))
@@ -5106,7 +5301,8 @@ fn validate_stored_fields(raw: &Declarations) -> syn::Result<()> {
                     | FormAtom::Verb(VerbOperand::Projected(role)) => Some(role),
                     FormAtom::Verb(VerbOperand::Fixed(_))
                     | FormAtom::OpenVerb(_)
-                    | FormAtom::Literal(_) => None,
+                    | FormAtom::Literal(_)
+                    | FormAtom::SentenceInitial(_) => None,
                     FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
                     FormAtom::Circumfix(circumfix) => Some(&circumfix.role),
                 };
@@ -7076,6 +7272,7 @@ fn seal_category_render_capabilities(
                                 | FieldKind::Sequence { .. } => false,
                             }),
                         FormAtom::Literal(_)
+                        | FormAtom::SentenceInitial(_)
                         | FormAtom::Lex(_)
                         | FormAtom::Verb(_)
                         | FormAtom::OpenVerb(_)
@@ -8048,6 +8245,58 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn explicit_sum_owned_construction_categories_require_one_exact_element_mapping() {
+        validate(quote! {
+            abstract sum Choice { Left: LeftNode, Renamed: RightNode, }
+            construction left: Choice {
+                element LeftNode {}
+                form left = "left";
+            }
+            construction right: Choice {
+                element RightNode {}
+                form right = "right";
+            }
+            root Choice { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the explicit sum is the sole category authority");
+
+        let missing = error(quote! {
+            abstract sum Choice { Left: LeftNode, }
+            construction left: Choice { element LeftNode {} form left = "left"; }
+            construction right: Choice { element RightNode {} form right = "right"; }
+            root Choice { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            missing.contains("explicit sum `Choice` is missing construction element `RightNode`"),
+            "{missing}"
+        );
+
+        let duplicate = error(quote! {
+            abstract sum Choice { Left: LeftNode, Again: LeftNode, }
+            construction left: Choice { element LeftNode {} form left = "left"; }
+            root Choice { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            duplicate.contains(
+                "explicit sum `Choice` maps construction element `LeftNode` more than once"
+            ),
+            "{duplicate}"
+        );
+
+        let foreign = error(quote! {
+            abstract sum Choice { Left: LeftNode, Other: ForeignNode, }
+            construction left: Choice { element LeftNode {} form left = "left"; }
+            root Choice { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            foreign.contains(
+                "explicit sum `Choice` maps alternative `Other` to foreign construction element `ForeignNode`"
+            ),
+            "{foreign}"
+        );
+    }
+
+    #[test]
     fn guarded_forms_reject_category_and_open_domain_subjects() {
         let category = error(quote! {
             vocab Word { One = "one", }
@@ -8544,6 +8793,25 @@ pub(crate) mod tests {
             "{signed_decimal}"
         );
         assert!(!signed_decimal.contains("internal"), "{signed_decimal}");
+    }
+
+    #[test]
+    fn sentence_initial_rejects_sequence_terminators_with_an_exact_diagnostic() {
+        let actual = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            abstract product Items {
+                values: seq Item terminated by sentence_initial("; "),
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+
+        assert_eq!(
+            actual,
+            ":: core :: compile_error ! { \"Items.values: sentence_initial is supported only on form surfaces and sequence separators\" }",
+        );
     }
 
     #[test]

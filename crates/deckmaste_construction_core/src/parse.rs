@@ -114,6 +114,7 @@ mod keyword {
     syn::custom_keyword!(require);
     syn::custom_keyword!(root);
     syn::custom_keyword!(scanner);
+    syn::custom_keyword!(sentence_initial);
     syn::custom_keyword!(standalone_render);
     syn::custom_keyword!(sum);
     syn::custom_keyword!(separated);
@@ -437,6 +438,23 @@ fn parse_separator_source(input: ParseStream<'_>) -> syn::Result<SeparatorSource
 }
 
 fn parse_fixed_surface_source(input: ParseStream<'_>) -> syn::Result<FixedSurfaceSource> {
+    let sentence_initial = if input.peek(keyword::sentence_initial) {
+        input.parse::<keyword::sentence_initial>()?;
+        let content;
+        parenthesized!(content in input);
+        let surface = parse_fixed_surface_source(&content)?;
+        if surface.sentence_initial || !content.is_empty() {
+            return Err(
+                content.error("sentence_initial accepts exactly one unnested fixed surface")
+            );
+        }
+        return Ok(FixedSurfaceSource {
+            atoms: surface.atoms,
+            sentence_initial: true,
+        });
+    } else {
+        false
+    };
     let mut atoms = Vec::new();
     while input.peek(LitStr) || input.peek(keyword::lex) {
         if input.peek(LitStr) {
@@ -455,7 +473,10 @@ fn parse_fixed_surface_source(input: ParseStream<'_>) -> syn::Result<FixedSurfac
     if atoms.is_empty() {
         return Err(input.error("fixed surface requires a literal or lex(path) atom"));
     }
-    Ok(FixedSurfaceSource { atoms })
+    Ok(FixedSurfaceSource {
+        atoms,
+        sentence_initial,
+    })
 }
 
 fn parse_requirement(input: ParseStream<'_>) -> syn::Result<RequireExprSource> {
@@ -746,6 +767,23 @@ fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<For
         let content;
         parenthesized!(content in input);
         match ident.to_string().as_str() {
+            "sentence_initial" if allow_bound => {
+                let literal = content.parse::<LitStr>().map_err(|_| {
+                    content.error("sentence_initial form atoms require exactly one literal")
+                })?;
+                if !content.is_empty() {
+                    return Err(
+                        content.error("sentence_initial form atoms require exactly one literal")
+                    );
+                }
+                FormAtom::SentenceInitial(literal)
+            }
+            "sentence_initial" => {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    "sentence_initial atoms cannot nest",
+                ));
+            }
             "prefix" | "suffix" if allow_bound => {
                 let direction = if ident == "prefix" {
                     crate::model::BoundDirection::Prefix
@@ -2149,7 +2187,7 @@ mod tests {
             );
         }
         assert!(
-            matches!(surface.terminator.as_ref(), Some(crate::FixedSurfaceSource { atoms }) if matches!(atoms.as_slice(), [crate::FixedSurfaceAtomSource::Literal(value)] if value.value() == "."))
+            matches!(surface.terminator.as_ref(), Some(crate::FixedSurfaceSource { atoms, .. }) if matches!(atoms.as_slice(), [crate::FixedSurfaceAtomSource::Literal(value)] if value.value() == "."))
         );
         assert!(matches!(
             holder.requirements.as_slice(),
@@ -2165,9 +2203,9 @@ mod tests {
             [crate::Field { name, kind: crate::FieldKind::Sequence { item, surface } }]
                 if name == "words"
                     && matches!(item.as_ref(), crate::FieldKind::Category(path) if path.is_ident("Sentence"))
-                    && matches!(surface.separator.as_ref(), Some(crate::SeparatorSource::Uniform(crate::FixedSurfaceSource { atoms }))
+                    && matches!(surface.separator.as_ref(), Some(crate::SeparatorSource::Uniform(crate::FixedSurfaceSource { atoms, .. }))
                         if matches!(atoms.as_slice(), [crate::FixedSurfaceAtomSource::Literal(value)] if value.value() == " "))
-                    && matches!(surface.terminator.as_ref(), Some(crate::FixedSurfaceSource { atoms })
+                    && matches!(surface.terminator.as_ref(), Some(crate::FixedSurfaceSource { atoms, .. })
                         if matches!(atoms.as_slice(), [crate::FixedSurfaceAtomSource::Literal(value)] if value.value() == "."))
         ));
 
@@ -2177,7 +2215,7 @@ mod tests {
         let crate::FieldKind::Sequence { surface, .. } = &surface_atoms.fields[0].kind else {
             panic!("SurfaceAtoms.items is a sequence");
         };
-        let Some(crate::SeparatorSource::Uniform(crate::FixedSurfaceSource { atoms })) =
+        let Some(crate::SeparatorSource::Uniform(crate::FixedSurfaceSource { atoms, .. })) =
             &surface.separator
         else {
             panic!("SurfaceAtoms.items has a uniform separator");
@@ -2681,6 +2719,89 @@ mod tests {
         .expect("fixed circumfixes over singular and sequence roles parse");
 
         assert_eq!(declarations.declarations.len(), 4);
+    }
+
+    #[test]
+    fn sentence_initial_fixed_surfaces_parse_for_forms_and_sequence_separators() {
+        let declarations = crate::parse_declarations(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item" sentence_initial(":");
+            }
+            abstract product Items {
+                values: seq Item separated by sentence_initial(", "),
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("sentence-initial transition wrappers parse around exact fixed surfaces");
+
+        let crate::Declaration::Construction(item) = &declarations.declarations[0] else {
+            panic!("first declaration is the construction")
+        };
+        assert!(matches!(
+            item.forms[0].atoms.as_slice(),
+            [
+                crate::FormAtom::Literal(_),
+                crate::FormAtom::SentenceInitial(_)
+            ]
+        ));
+        let crate::Declaration::AbstractProduct(items) = &declarations.declarations[1] else {
+            panic!("second declaration is the product")
+        };
+        let crate::FieldKind::Sequence { surface, .. } = &items.fields[0].kind else {
+            panic!("product field is a sequence")
+        };
+        let Some(crate::SeparatorSource::Uniform(separator)) = &surface.separator else {
+            panic!("sequence has one uniform separator")
+        };
+        assert!(separator.sentence_initial);
+
+        for (malformed, expected) in [
+            (
+                quote::quote! { sentence_initial() },
+                "unexpected end of input, sentence_initial form atoms require exactly one literal",
+            ),
+            (
+                quote::quote! { sentence_initial(value) },
+                "sentence_initial form atoms require exactly one literal",
+            ),
+            (
+                quote::quote! { sentence_initial(sentence_initial(":")) },
+                "sentence_initial form atoms require exactly one literal",
+            ),
+            (
+                quote::quote! { sentence_initial(":", ",") },
+                "sentence_initial form atoms require exactly one literal",
+            ),
+        ] {
+            let source = quote::quote! {
+                construction invalid: Root {
+                    element Invalid { value: Root, }
+                    form invalid = #malformed;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            };
+            let error = crate::parse_declarations(source)
+                .expect_err("invalid transition target, nesting, or duplication rejects")
+                .to_string();
+            assert_eq!(error, expected);
+        }
+
+        let error = crate::parse_declarations(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            abstract product Items {
+                values: seq Item separated by sentence_initial(sentence_initial(", ")),
+            }
+        })
+        .expect_err("a duplicated fixed-surface transition annotation rejects")
+        .to_string();
+        assert_eq!(
+            error,
+            "unexpected end of input, sentence_initial accepts exactly one unnested fixed surface",
+        );
     }
 
     #[test]
