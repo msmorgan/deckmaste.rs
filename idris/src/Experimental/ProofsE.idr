@@ -297,7 +297,7 @@ badNonTokenCreationSubject OneToken impossible
 ||| A batch of one has no size to read back; the article has already spelled the quantity.
 public export
 badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
-  Intercepts (CounterEvent CounterPut Macros.plusOnePlusOne
+  Intercepts (CounterEvent CounterPut (Just Macros.plusOnePlusOne)
                            (Macros.a Macros.creatureYouControl) OneCounter Nothing Nothing)
              (PutCounters (Plus (ThatMuch {ok}) (Lit 1))
                           Macros.plusOnePlusOne It)
@@ -309,7 +309,7 @@ badSingularCounterBatchSize Refl impossible
 ||| One clause names one doer: the causer stands where the player agent would and excludes it.
 public export
 badCausedCounterWithAgent : Unspellable (GameEvent []) (\ok =>
-  CounterEvent CounterPut Macros.plusOnePlusOne
+  CounterEvent CounterPut (Just Macros.plusOnePlusOne)
                (Macros.a Macros.creatureYouControl) ManyCounters (Just You) (Just AnEffect) {cz = ok})
 badCausedCounterWithAgent NotCaused impossible
 badCausedCounterWithAgent CausedByEffect impossible

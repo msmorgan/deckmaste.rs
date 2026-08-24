@@ -316,8 +316,17 @@ badTypelessToken Oh impossible
 public export
 badRemoveCountersDead : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-                RemoveCounters (Lit 1) Macros.plusOnePlusOne It {cm = ok}])
+                RemoveCounters (Lit 1) (Just Macros.plusOnePlusOne) It {cm = ok}])
 badRemoveCountersDead Oh impossible
+
+
+||| "Move a counter from target creature onto it."
+||| [CR#122.5] names the same-object case among the ones that make a move impossible:
+||| the counter would have to be removed from and put onto one object.
+public export
+badMoveCountersSelf : Unspellable (Effect []) (\ok =>
+  MoveCounters (Lit 1) Nothing (Macros.target Macros.creature) It {md = ok})
+badMoveCountersSelf Oh impossible
 
 
 ||| "Create a 1/1 creature creature token."

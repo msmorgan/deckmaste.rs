@@ -1253,21 +1253,51 @@ tokensCreatedByEffectUnder : (n : Noun bs Object) -> (under : Noun bs Player) ->
 tokensCreatedByEffectUnder n under =
   TokensCreated n (Just AnEffect) Nothing (Just under) {tk} {vo}
 
-||| "Whenever one or more counters are put on …": the many-counter reading.
+||| "Whenever one or more [kind] counters are put on …": the many-counter
+||| reading, kind named.
 public export
 manyCounterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
                    (n : Noun bs Object) ->
                    {auto 0 sc : counterScope kind = Object} -> GameEvent bs
 manyCounterEvent dir kind n =
-  CounterEvent dir kind n ManyCounters Nothing Nothing {sc}
+  CounterEvent dir (Just kind) n ManyCounters Nothing Nothing
 
-||| "Whenever a counter is put on …": the one-counter reading.
+||| "Whenever a [kind] counter is put on …": the one-counter reading.
 public export
 singleCounterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
                      (n : Noun bs Object) ->
                      {auto 0 sc : counterScope kind = Object} -> GameEvent bs
 singleCounterEvent dir kind n =
-  CounterEvent dir kind n OneCounter Nothing Nothing {sc}
+  CounterEvent dir (Just kind) n OneCounter Nothing Nothing
+
+||| "Whenever a counter is put on …" / "… removed from …": the kind-blind
+||| single counter.
+public export
+bareCounterEvent : (dir : CounterMove) -> (n : Noun bs Object) -> GameEvent bs
+bareCounterEvent dir n = CounterEvent dir Nothing n OneCounter Nothing Nothing
+
+||| "Whenever one or more counters are put on …" / "if one or more
+||| counters would be put on …": the kind-blind batch.
+public export
+manyBareCounterEvent : (dir : CounterMove) -> (n : Noun bs Object) ->
+                       GameEvent bs
+manyBareCounterEvent dir n =
+  CounterEvent dir Nothing n ManyCounters Nothing Nothing
+
+||| "If an effect would put one or more counters on …": the kind-blind
+||| batch with its cause voiced (Doubling Season).
+public export
+manyCountersPutByEffect : (n : Noun bs Object) -> GameEvent bs
+manyCountersPutByEffect n =
+  CounterEvent CounterPut Nothing n ManyCounters Nothing (Just AnEffect)
+
+||| "If <player> would put one or more counters on …": the kind-blind batch
+||| with its agent voiced (Doc Samson).
+public export
+manyBareCountersPutBy : (who : Noun bs Player) -> (n : Noun bs Object) ->
+                        {auto 0 ag : EventAgent (Just who)} -> GameEvent bs
+manyBareCountersPutBy who n =
+  CounterEvent CounterPut Nothing n ManyCounters (Just who) Nothing {ag}
 
 ||| "When the last <kind> counter is removed from … by <player>."
 public export

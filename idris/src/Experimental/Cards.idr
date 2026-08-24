@@ -262,7 +262,7 @@ crovaxTheCursed : Effect []
 crovaxTheCursed =
   Macros.mayThenElse You (Macros.sacrifice You (Macros.a Macros.creature))
                   (PutCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
-                  (RemoveCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature)
+                  (RemoveCounters (Lit 1) (Just Macros.plusOnePlusOne) Macros.thisCreature)
 
 yawgmothDemon : Effect []
 yawgmothDemon =
@@ -303,7 +303,7 @@ battlegrowth : Effect []
 battlegrowth = PutCounters (Lit 1) Macros.plusOnePlusOne (Macros.target Macros.creature)
 
 chainbreaker : Effect []
-chainbreaker = RemoveCounters (Lit 1) Macros.minusOneMinusOne (Macros.target Macros.creature)
+chainbreaker = RemoveCounters (Lit 1) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature)
 
 kaitoBaneOfNightmares : Effect []
 kaitoBaneOfNightmares = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
@@ -316,7 +316,7 @@ jhoiraOfTheGhitu =
                    (PutCounters (Lit 4) Time (Macros.theVerbed Exile CardW))
 
 alaundoTheSeer : Effect []
-alaundoTheSeer = RemoveCounters (Lit 1) Time (Each (InZone Macros.exileZ))
+alaundoTheSeer = RemoveCounters (Lit 1) (Just Time) (Each (InZone Macros.exileZ))
 
 arcBlade : Effect []
 arcBlade = Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
@@ -665,7 +665,7 @@ bondersEnclave =
 woeleecher : Ability
 woeleecher =
   Macros.activated (Compound [Mana [Macros.pip White], TapSymbol])
-                   (Macros.doThen (RemoveCounters (Lit 1) Macros.minusOneMinusOne (Macros.target Macros.creature))
+                   (Macros.doThen (RemoveCounters (Lit 1) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature))
                     (Macros.gainsLife You (Lit 2)))
 
 moltingHarpy : Effect []
@@ -834,7 +834,7 @@ workhorse =
   Macros.card "Workhorse" (Just [Macros.generic 6]) []
        (MkTypeLine [Horse] [Artifact, Creature])
        [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 4) Macros.plusOnePlusOne)
-       , Macros.activated (Do (RemoveCounters (Lit 1) Macros.plusOnePlusOne Macros.thisCreature))
+       , Macros.activated (Do (RemoveCounters (Lit 1) (Just Macros.plusOnePlusOne) Macros.thisCreature))
                           (AddMana You (Lit 1) (Runs [[Colorless]]) []) ]
        (Just (0, 0))
 
@@ -2113,7 +2113,7 @@ divineIntervention =
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 2) Intervention)
        , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
-                          (RemoveCounters (Lit 1) Intervention Macros.thisEnchantment)
+                          (RemoveCounters (Lit 1) (Just Intervention) Macros.thisEnchantment)
        , Macros.triggered When (Macros.lastCounterRemovedBy Intervention Macros.thisEnchantment You)
                           GameDrawn ]
        Nothing
@@ -2126,7 +2126,7 @@ celestialConvergence =
        [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 7) Omen)
        , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
            (Sequentially
-              [ RemoveCounters (Lit 1) Omen Macros.thisEnchantment
+              [ RemoveCounters (Lit 1) (Just Omen) Macros.thisEnchantment
               , If (CompareAmt (CountersOn Omen Macros.thisEnchantment)
                                AtMost (Lit 0))
                           (Concludes WinGame
@@ -2581,6 +2581,147 @@ branchingEvolution =
                                 Macros.plusOnePlusOne (That (TypeW Creature)))
                    Repeatedly) ]
        Nothing
+
+||| Corpsejack Menace — "If one or more +1/+1 counters would be put on a
+||| creature you control, twice that many +1/+1 counters are put on it
+||| instead." The family's second named whole; the card itself waits on a
+||| `Fungus` creature-subtype row, so the ability alone is benched.
+corpsejackMenace : Ability
+corpsejackMenace =
+  Static (Intercepts
+            (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
+                                     (Macros.a Macros.creatureYouControl))
+            (PutCounters (Times 2 ThatMuch) Macros.plusOnePlusOne It)
+            Repeatedly)
+
+||| Doubling Season, whole: "If an effect would create one or more tokens
+||| under your control, it creates twice that many of those tokens
+||| instead." and "If an effect would put one or more counters on a
+||| permanent you control, it puts twice that many of those counters on
+||| that permanent instead."
+doublingSeason : Card
+doublingSeason =
+  Macros.card "Doubling Season" (Just [Macros.generic 4, Macros.pip Green]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (Intercepts
+                   (Macros.tokensCreatedByEffectUnder
+                      (CountedGroup (Macros.atLeast 1) IsToken) You)
+                   (Create You (Times 2 GroupSize) TokenAsThose [])
+                   Repeatedly)
+       , Static (Intercepts
+                   (Macros.manyCountersPutByEffect
+                      (Macros.a (And [Permanent, ControlledBy You])))
+                   (PutCountersOfThoseKinds (Times 2 ThatMuch) (That PermanentW))
+                   Repeatedly) ]
+       Nothing
+
+||| Doc Samson, Super Psychiatrist — "If you would put one or more counters
+||| on a permanent you control, put that many plus one of each of those
+||| kinds of counters on that permanent instead": the per-kind spelling
+||| with its agent voiced. Pir, Imaginative Rascal writes the same clause
+||| over "a permanent your team controls" and waits on the team form
+||| [CR#102.3] alone.
+docSamsonDistributive : Ability
+docSamsonDistributive =
+  Static (Intercepts
+            (Macros.manyBareCountersPutBy You
+               (Macros.a (And [Permanent, ControlledBy You])))
+            (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1)) (That PermanentW))
+            Repeatedly)
+
+||| Stalwart Successor's header — "Whenever one or more counters are put on
+||| a creature you control": the kind-blind batch on the trigger side,
+||| benched at the event level (precedent: tahngarthAttacksThatJoin); the
+||| intervening-if clause the line goes on to write has no row.
+stalwartSuccessorHeader : GameEvent []
+stalwartSuccessorHeader =
+  Macros.manyBareCounterEvent CounterPut (Macros.a Macros.creatureYouControl)
+
+||| Runadi, Behemoth Caller — "Creatures you control with three or more
+||| +1/+1 counters on them have haste": the Object-scope bound read.
+runadiBehemothCaller : Ability
+runadiBehemothCaller =
+  Static (Gains (AllOf (And [Macros.creature, ControlledBy You,
+                             CounterCompare (Just Macros.plusOnePlusOne)
+                                            AtLeast (Lit 3)]))
+                (Macros.keyword Haste))
+
+||| The corrupted keyword's reading — "each opponent who has three or more
+||| poison counters" (Feed the Infection, Geth's Summons, Ixhel, Phyrexian
+||| Atlas; Glissa's Retriever and Wurmquake write the same bound as
+||| "opponents who have" and "opponent with"): the player-scope bound read
+||| at the kind index [CR#122.1f].
+corruptedOpponents : Noun [] Player
+corruptedOpponents =
+  Each (And [Opponent, CounterCompare (Just Poison) AtLeast (Lit 3)])
+
+||| Boon of Safety — "Put a shield counter on target creature." The line
+||| that pays for the `Shield` row.
+boonOfSafetyPut : Effect []
+boonOfSafetyPut = PutCounters (Lit 1) Shield (Macros.target Macros.creature)
+
+||| Vivien's Talent and Teferi's Talent — "put a loyalty counter on
+||| enchanted planeswalker": the loyalty kind's one-shot put, both cards
+||| writing the phrase identically.
+talentLoyaltyPut : Effect []
+talentLoyaltyPut =
+  PutCounters (Lit 1) LoyaltyCounter
+              (AttachHost Enchanted (TypeW Planeswalker))
+
+||| Simic Fluxmage — "Move a +1/+1 counter from this creature onto target
+||| creature": the transfer verb with its kind named [CR#122.5].
+simicFluxmageMove : Effect []
+simicFluxmageMove =
+  MoveCounters (Lit 1) (Just Macros.plusOnePlusOne) Macros.thisCreature
+               (Macros.target Macros.creature)
+
+||| Rikku, Resourceful Guardian — "Move a counter from target creature an
+||| opponent controls onto target creature you control": the same verb
+||| kind-blind.
+rikkuStealMove : Effect []
+rikkuStealMove =
+  MoveCounters (Lit 1) Nothing
+               (Macros.target (And [Macros.creature,
+                                    ControlledBy Macros.anOpponent]))
+               (Macros.target Macros.creatureYouControl)
+
+||| Littjara Mirrorlake — "Create a token that's a copy of target creature
+||| you control, except it enters with an additional +1/+1 counter on it":
+||| the entry-counter clause on the copy's own carrier.
+littjaraMirrorlakeCopy : Effect []
+littjaraMirrorlakeCopy =
+  Create You (Lit 1)
+         (TokenCopyOf (Macros.target (And [Macros.creature, ControlledBy You]))
+                      [ExceptEntersWithCounters (Lit 1) Macros.plusOnePlusOne
+                                                Additional])
+         []
+
+||| Master Chef's granted quotation — "This creature enters with an
+||| additional +1/+1 counter on it", the entry-counter clause carried by a
+||| grant rather than printed on the entering object.
+masterChefGrantedAbility : Ability
+masterChefGrantedAbility =
+  Static (Macros.entersWithAdditionalCounters Macros.thisCreature (Lit 1)
+                                              Macros.plusOnePlusOne)
+
+||| …and the grant carrier takes it over a described class, which is what
+||| `GrantSubject` has to agree to. The subject is a stand-in: Master
+||| Chef's own "Commander creatures you own" has no row, so the card stays
+||| ledgered while the shape it needs is shown to compose.
+grantedEntryCounterShape : StaticEffect []
+grantedEntryCounterShape =
+  Gains (AllOf Macros.creatureYouControl) masterChefGrantedAbility
+
+||| Hollowmurk Siege's Sultai mode — "Whenever a counter is put on a
+||| creature you control, draw a card": the kind-blind SINGLE counter on
+||| the trigger side. The mode's "This ability triggers only once each
+||| turn" rider has no row yet.
+hollowmurkSiegeSultai : Ability
+hollowmurkSiegeSultai =
+  Macros.triggered Whenever
+    (Macros.bareCounterEvent CounterPut (Macros.a Macros.creatureYouControl))
+    Macros.drawACard
+
 
 shalaiAndHallar : Card
 shalaiAndHallar =
@@ -5045,7 +5186,7 @@ magistratesScepter =
        [ Macros.activated (Compound [Mana [Macros.generic 4], TapSymbol])
                           (PutCounters (Lit 1) Charge Macros.thisArtifact)
        , Macros.activated (Compound [TapSymbol,
-                              Do (RemoveCounters (Lit 3) Charge Macros.thisArtifact)])
+                              Do (RemoveCounters (Lit 3) (Just Charge) Macros.thisArtifact)])
                           (ExtraTurn You (Lit 1)) ] Nothing
 
 public export
@@ -5241,7 +5382,7 @@ sageOfFables =
                                                      (Lit 1)
                                                      Macros.plusOnePlusOne)
        , Macros.activated (Compound [Mana [Macros.generic 2],
-                              Do (RemoveCounters (Lit 1) Macros.plusOnePlusOne
+                              Do (RemoveCounters (Lit 1) (Just Macros.plusOnePlusOne)
                                    (Macros.a (And [Macros.creature, ControlledBy You])))])
                           Macros.drawACard ]
        (Just (2, 2))

@@ -2729,6 +2729,9 @@ data CounterKind : Type where
   Experience : CounterKind
   Lore : CounterKind
   Age : CounterKind
+  ||| [CR#122.1c]'s replacement-and-prevention pair is the engine's
+  ||| machinery, exactly as stun's is; the grammar carries the kind word.
+  Shield : CounterKind
   ||| [CR#122.1] makes every counter a marker on an object; [CR#122.1e]
   ||| only says what the loyalty count indicates, and [CR#606.4] moves
   ||| loyalty counters as a cost. The count-equals-loyalty link
@@ -2751,6 +2754,7 @@ counterScope Rad = Player
 counterScope Experience = Player
 counterScope Lore = Object
 counterScope Age = Object
+counterScope Shield = Object
 counterScope LoyaltyCounter = Object
 
 public export
@@ -2784,6 +2788,8 @@ Eq CounterKind where
   (==) Lore _ = False
   (==) Age Age = True
   (==) Age _ = False
+  (==) Shield Shield = True
+  (==) Shield _ = False
   (==) LoyaltyCounter LoyaltyCounter = True
   (==) LoyaltyCounter _ = False
 

@@ -188,6 +188,18 @@ mutual
                   Predicate bs Object
     Compare : (c : Characteristic) -> (r : Comparator) -> (bound : Amount bs) ->
               Predicate bs Object
+    ||| The bound read of a counter-bearing description: the referent's own
+    ||| count of [kind] counters on a comparison's left. At the kind index —
+    ||| the poison lines are the player cells ([CR#122.1f] states the
+    ||| player-side test in this ranged shape) and no marked player twin
+    ||| exists. Not a quantity slot on `HasCounters`, which stays the bare
+    ||| existence read.
+    ||| -- spelling: at Object, "with [bound] or more/fewer [kind] counters
+    ||| on it/them"; at Player, "who has [bound] or more [kind] counters".
+    CounterCompare : (kind : Maybe CounterKind) -> (r : Comparator) ->
+                     (bound : Amount bs) ->
+                     {auto 0 kn : CounterKindNamed k kind} ->
+                     Predicate bs k
     Superlative : {k : Kind} -> (op : AggregateOp) -> (ax : ProjAxis) ->
                   (dom : Predicate bs k) ->
                   {auto 0 ex : IsExtremal op} ->
@@ -450,6 +462,7 @@ mutual
   hasHead (HasStatus _) = False
   hasHead (HasCounters _) = False
   hasHead (Compare _ _ _) = False
+  hasHead (CounterCompare _ _ _) = False
   hasHead (Superlative _ _ _) = False
   hasHead (InZone _) = True
   hasHead (ExiledWith _) = True
@@ -629,6 +642,11 @@ mutual
   predEq (Compare c r b) (Compare d s e) = c == d && r == s &&
                                            boundEq b e
   predEq (Compare _ _ _) _ = False
+  predEq (CounterCompare Nothing r b) (CounterCompare Nothing s e) =
+    r == s && boundEq b e
+  predEq (CounterCompare (Just a) r b) (CounterCompare (Just c) s e) =
+    a == c && r == s && boundEq b e
+  predEq (CounterCompare _ _ _) _ = False
   predEq (Superlative o a d) (Superlative p b e) =
     o == p && a == b && predEq d e
   predEq (Superlative _ _ _) _ = False
@@ -909,6 +927,7 @@ mutual
   isComparison : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isComparison (Compare _ _ _) = True
   isComparison (Superlative _ _ _) = True
+  isComparison (CounterCompare _ _ _) = True
   isComparison _ = False
 
   public export
@@ -1040,6 +1059,7 @@ mutual
   predSays (HasStatus _) = True
   predSays (HasCounters _) = True
   predSays (Compare _ _ _) = True
+  predSays (CounterCompare _ _ _) = True
   predSays (Superlative _ _ _) = True
   predSays (InZone _) = True
   predSays (And ps) = predSaysAny ps
@@ -1096,6 +1116,7 @@ mutual
   predNegFree (HasStatus _) = True
   predNegFree (HasCounters _) = True
   predNegFree (Compare _ _ _) = True
+  predNegFree (CounterCompare _ _ _) = True
   predNegFree (Superlative _ _ _) = True
   predNegFree (InZone _) = True
   predNegFree (And ps) = predNegFreeAll ps
@@ -1350,6 +1371,7 @@ mutual
   predDelta (Compare _ _ b) = amtDelta b
   predDelta (Superlative _ _ d) = predDelta d
   predDelta (Joined l r) = predDelta l ++ predDelta r
+  predDelta (CounterCompare _ _ b) = amtDelta b
   predDelta _ = []
 
   public export
@@ -2087,12 +2109,12 @@ mutual
               {auto 0 dk : PutDest to} ->
               {auto 0 sk : PutSource from} ->
               {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} -> GameEvent bs
-    CounterEvent : (dir : CounterMove) -> (kind : CounterKind) ->
+    CounterEvent : (dir : CounterMove) -> (kind : Maybe CounterKind) ->
                    (n : Noun bs Object) ->
                    (many : CounterBatch) ->
                    (by : Maybe (Noun bs Player)) ->
                    (cause : Maybe Causer) ->
-                   {auto 0 sc : counterScope kind = Object} ->
+                   {auto 0 kn : CounterKindNamed Object kind} ->
                    {auto 0 ag : EventAgent by} ->
                    {auto 0 cz : CausedBy cause by} -> GameEvent bs
     TokensCreated : (n : Noun bs Object) ->
@@ -3051,6 +3073,13 @@ mutual
     ExceptPt : (pow : Amount bs) -> (tou : Amount (amtIntro pow)) -> CopyExcept bs
     ExceptNonlegendary : CopyExcept bs
     ExceptColor : (c : Chroma.Color) -> CopyExcept bs
+    ||| "…, except it enters with [amt] [kind] counters on it": the
+    ||| entry-counter clause as a copy modification — the copy's carrier,
+    ||| not `EntersWithCounters`', which is a printed static on the
+    ||| entering object itself. Counters are not copiable values
+    ||| [CR#707.2], so the clause has to ride the copy effect.
+    ExceptEntersWithCounters : (amt : Amount bs) -> (kind : CounterKind) ->
+                               (mark : EntryCounterMark) -> CopyExcept bs
 
   public export
   data Repetition : Bindings -> Type where
@@ -3150,10 +3179,43 @@ mutual
                  (among : Noun (amtIntro amt) k) ->
                  {auto 0 gm : GroupMention among} ->
                  {auto 0 tk : DividedTakes (divTag v) among} -> Effect bs
-    RemoveCounters : (amt : Amount bs) -> (kind : CounterKind) ->
+    RemoveCounters : (amt : Amount bs) -> (kind : Maybe CounterKind) ->
                      (from : Noun (amtIntro amt) Object) ->
-                     {auto 0 sc : counterScope kind = Object} ->
+                     {auto 0 kn : CounterKindNamed Object kind} ->
                      {auto 0 cm : CounterMemory from} -> Effect bs
+    ||| "Move [amt] [kind] counter(s) from [src] onto [dst]": the
+    ||| two-holder transfer verb [CR#122.5], which is a remove and a put
+    ||| taken together. The kind is a `Maybe`, as everywhere: the slot
+    ||| says whether the sentence NAMES a kind. The source carries
+    ||| `CounterMemory` (a referent that moved zones has no counters left
+    ||| to give [CR#122.2,400.7]) and the destination distributes like a
+    ||| put, under `MoveDestination` — [CR#122.5] lists the same-object
+    ||| case among the ones that make a move impossible, and a bare
+    ||| readback at `dst` is that case written down. Its other listed
+    ||| cases are engine questions about a particular game state, so no
+    ||| zone gate: the rule bounds the move by whether each half can
+    ||| happen, never by fixing one zone this row could name.
+    ||| -- spelling: "move [amt] [kind] counter(s) from [src] onto [dst]".
+    MoveCounters : (amt : Amount bs) -> (kind : Maybe CounterKind) ->
+                   (src : Noun (amtIntro amt) Object) ->
+                   (dst : Noun (nomIntro src) Object) ->
+                   {auto 0 kn : CounterKindNamed Object kind} ->
+                   {auto 0 cm : CounterMemory src} ->
+                   {auto 0 md : MoveDestination dst} ->
+                   {auto 0 pm : PerMember dst} -> Effect bs
+    ||| The distributive counter-kind anaphor: the replacement body that
+    ||| puts a derived number of counters OF THE ANNOUNCED BATCH'S KINDS on
+    ||| its recipient. Presupposes exactly one announced batch, the same
+    ||| way `PreventedThisWay` presupposes its outcome.
+    ||| -- spelling: "that many plus one of each of those kinds of
+    ||| counters are put on [dst]" (Pir, Doc Samson); with no per-kind
+    ||| wording, "twice that many of those counters" (Doubling Season) —
+    ||| one node, two spellings, since both distribute per kind.
+    PutCountersOfThoseKinds : (amt : Amount bs) ->
+                              (on : Noun (amtIntro amt) Object) ->
+                              {auto 0 pm : PerMember on} ->
+                              {auto 0 ok : countOutcomes CountersPut bs = 1} ->
+                              Effect bs
     GetsCounters : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
                    (kind : CounterKind) ->
                    {auto 0 sc : counterScope kind = Player} -> Effect bs
@@ -3306,6 +3368,8 @@ mutual
   heldUntilOk (GetsEmblem _ _) = False
   heldUntilOk (PutCounters _ _ _) = False
   heldUntilOk (RemoveCounters _ _ _) = False
+  heldUntilOk (MoveCounters _ _ _ _) = False
+  heldUntilOk (PutCountersOfThoseKinds _ _) = False
   heldUntilOk (Composite _ (Move _ _ _)) = True
   heldUntilOk (Composite _ _) = False
   heldUntilOk (Does _ _ _) = False
@@ -3376,6 +3440,8 @@ mutual
   reflexEncloseUse (GetsEmblem _ _) = EncAgentless
   reflexEncloseUse (PutCounters _ _ _) = EncReflexive    -- 8
   reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive -- 7
+  reflexEncloseUse (MoveCounters _ _ _ _) = EncReflexive
+  reflexEncloseUse (PutCountersOfThoseKinds _ _) = EncReflexive
   reflexEncloseUse (Move _ _ _) = EncReflexive       -- 3
   reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
@@ -3461,6 +3527,8 @@ mutual
   thisWayOutcomeOk (GetsEmblem _ _) = True
   thisWayOutcomeOk (PutCounters _ _ _) = True
   thisWayOutcomeOk (RemoveCounters _ _ _) = True
+  thisWayOutcomeOk (MoveCounters _ _ _ _) = True
+  thisWayOutcomeOk (PutCountersOfThoseKinds _ _) = True
   thisWayOutcomeOk (Composite _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
   thisWayOutcomeOk (Pay _ _) = True
@@ -3596,6 +3664,10 @@ mutual
   costActionOk (GetsEmblem _ _) = True
   costActionOk (PutCounters _ _ on) = costNounOk on
   costActionOk (RemoveCounters _ _ from) = costNounOk from
+  costActionOk (MoveCounters _ _ src dst) = costNounOk src && costNounOk dst
+  -- the distributive kind anaphor reads an announced batch; no cost
+  -- announces one, so the clause instructs nothing at payment.
+  costActionOk (PutCountersOfThoseKinds _ _) = False
   costActionOk (Composite _ e) = costActionOk e
   costActionOk (Does _ _ e) = costActionOk e
   costActionOk (Pay _ _) = False
@@ -3705,6 +3777,8 @@ mutual
   effEq (GetsEmblem _ _) _ = False
   effEq (PutCounters _ _ _) _ = False
   effEq (RemoveCounters _ _ _) _ = False
+  effEq (MoveCounters _ _ _ _) _ = False
+  effEq (PutCountersOfThoseKinds _ _) _ = False
   effEq (Composite v e) (Composite w f) = v == w && effEq e f
   effEq (Composite _ _) _ = False
   effEq (Does _ _ _) _ = False
@@ -3797,6 +3871,20 @@ mutual
   public export
   CounterMemory : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Type
   CounterMemory {bs} n = So (counterMemoryOk n)
+
+  ||| [CR#122.5] makes a move impossible when the first and second objects
+  ||| are the same object. A destination that is only the source read back
+  ||| names that case, so it is refused here rather than left to the
+  ||| engine.
+  public export
+  moveDestOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  moveDestOk It = False
+  moveDestOk Them = False
+  moveDestOk _ = True
+
+  public export
+  MoveDestination : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Type
+  MoveDestination {bs} n = So (moveDestOk n)
 
   public export
   data DamageRecipient : Noun bs k -> Type where
@@ -4131,6 +4219,8 @@ mutual
   effIntro (Distribute (DividedDamage _) amt among) = outcomeB DamageDealt :: nomIntro among
   effIntro (Distribute (DistributedCounters _) amt among) = nomIntro among
   effIntro (RemoveCounters amt kind from) = nomIntro from
+  effIntro (MoveCounters amt kind src dst) = nomIntro dst
+  effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   effIntro (Composite v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
   effIntro (Composite _ e) = effIntro e
   effIntro (Does s v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
@@ -4193,6 +4283,8 @@ mutual
   preIntro (GetsEmblem who _) = nomIntro who
   preIntro (PutCounters amt kind on) = nomIntro on
   preIntro (RemoveCounters amt kind from) = nomIntro from
+  preIntro (MoveCounters amt kind src dst) = nomIntro dst
+  preIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   preIntro (Composite v (Move what to _)) = nomIntro what
   preIntro (Composite _ e) = preIntro e
   preIntro (Does s v (Move what to _)) = nomIntro what
@@ -4254,6 +4346,8 @@ mutual
   annIntro (GetsEmblem who _) = nomIntro who
   annIntro (PutCounters amt kind on) = nomIntro on
   annIntro (RemoveCounters amt kind from) = nomIntro from
+  annIntro (MoveCounters amt kind src dst) = nomIntro dst
+  annIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   annIntro (Composite v (Move what to _)) = nomIntro what
   annIntro (Composite _ e) = annIntro e
   annIntro (Does s v (Move what to _)) = nomIntro what
@@ -4358,6 +4452,8 @@ mutual
   deedDelta (GetsEmblem _ _) = []
   deedDelta (PutCounters amt kind on) = []
   deedDelta (RemoveCounters amt kind from) = []
+  deedDelta (MoveCounters amt kind src dst) = []
+  deedDelta (PutCountersOfThoseKinds amt on) = []
   deedDelta (Composite v (Move what to _)) = []
   deedDelta (Composite _ e) = deedDelta e
   deedDelta (Does s v (Move what to _)) = []

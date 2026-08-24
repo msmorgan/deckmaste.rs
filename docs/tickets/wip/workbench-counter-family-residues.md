@@ -264,3 +264,265 @@ reader), `idris/src/Experimental/Events.idr` (`CounterBatch`'s event side),
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## As-landed
+
+Standard constraints applied. `idris/scripts/build` 19/19 PASS on a clean
+rebuild. **One pin added** (`ProofsB.badMoveCountersSelf`), none retired,
+none silently passing (`ProofsB`'s `badRemoveCountersDead` and `ProofsE`'s
+`badSingularCounterBatchSize` / `badCausedCounterWithAgent` were re-elaborated
+against the widened slots and still refuse). `Experimental/Cards.idr` binds no implicits; no `{default`.
+Every count below was re-measured this round with the corpus scripts; the
+ones that came back different are flagged.
+
+### Intercepting counter placement, and the entry-counter row's residues
+
+- **The counter-scaling replacement — RESOLVED BY THE ROUND THAT LANDED IT.**
+  Verified against the current tree before recording: the family already
+  benches on `Intercepts` over the many-counter `CounterEvent`, with the
+  replacement body doing the arithmetic over `ThatMuch` — `hardenedScales`,
+  `branchingEvolution`, `primalVigor`'s counter half, and the token-side
+  siblings. **Acceptance bullet amended:** "reusing `Multiplied` and
+  `Shifted ShiftUp`" is moot as written. `Scales` is not the carrier and
+  `DamageScale` is untouched; the scale vocabulary that landed is `Amount`
+  arithmetic — `Plus ThatMuch (Lit 1)` for "that many plus one",
+  `Times 2 ThatMuch` for "twice that many". No third scale value exists
+  anywhere. The 14/6 split still justifies that, on the values actually used.
+- **Corpsejack Menace** is added as the family's second named whole:
+  `corpsejackMenace`. Oracle line verified (`card`): "If one or more +1/+1
+  counters would be put on a creature you control, twice that many +1/+1
+  counters are put on it instead" — the recipient is "it", so `It`, unlike
+  Branching Evolution's "that creature". Benched at ability level, not whole
+  card: the type line needs a `Fungus` creature-subtype row (Ledger).
+  Hardened Scales already benches whole.
+- **The union-headed neighbours** (Vorinclex ×2, Innkeeper's Talent, Lae'zel)
+  stayed out of this family, as ordered. Nothing here widens `CounterEvent`'s
+  noun past `Object`.
+- **The copy exception — LANDED, with a witness.** New `CopyExcept` row
+  `ExceptEntersWithCounters (amt : Amount bs) (kind : CounterKind)
+  (mark : EntryCounterMark)`, carrying the same triple as the entry rider so
+  "an additional" spellings stay expressible. Its own carrier, not
+  `EntersWithCounters`'. Witness `littjaraMirrorlakeCopy` — Littjara
+  Mirrorlake, "Create a token that's a copy of target creature you control,
+  except it enters with an additional +1/+1 counter on it" (text-verified).
+  Re-measured: 4 copy-exception lines, as the ticket said. Cited [CR#707.2],
+  which lists counters among the values a copy does NOT acquire — so the
+  clause has to ride the copy effect rather than the copied object.
+- **The granted quotation — LANDED, with a witness.** No new structure: the
+  quoted ability is an ordinary `Static (EntersWithCounters …)` and `Gains`
+  already admits it. Witnesses `masterChefGrantedAbility` (Master Chef's
+  quoted line "This creature enters with an additional +1/+1 counter on it")
+  and `grantedEntryCounterShape` — `Gains` over a described class, which is
+  the probe that exercises `GrantSubject`, the only non-trivial half of the
+  claim. (`Grantable (Static _)` is unconditionally `True`, so a `Grantable`
+  term would have proved nothing; the earlier one was dropped.) The subject is
+  a stand-in and says so in its doc comment: Master Chef's own "Commander
+  creatures you own" has no row, so the card is blocked (Ledger).
+  Re-measured: 1 line, as the ticket said.
+
+### A counter read on a comparison's left, kind-blind quantification, and the kind catalog's tail
+
+- **The bound read — LANDED as `Predicate.CounterCompare`**, a comparison row
+  that takes a counter amount, at the kind index: `CounterCompare (kind :
+  Maybe CounterKind) (r : Comparator) (bound : Amount bs)` gated by
+  `CounterKindNamed k kind`, returning `Predicate bs k`. `HasCounters` got no
+  quantity slot and stays Object-fixed with the bare existence read.
+  `Compare`'s `Characteristic` vocabulary is unchanged — the counter read is
+  its own row, not a new axis, so `Loyalty` stays a `Characteristic` AND
+  `LoyaltyCounter` stays a `CounterKind`, with the link left to lowering.
+  Witnesses: `runadiBehemothCaller` (Object scope — "Creatures you control
+  with three or more +1/+1 counters on them have haste", text-verified) and
+  `corruptedOpponents` (Player scope — "each opponent who has three or more
+  poison counters", text-verified as a phrase-level witness).
+- **The player-side zero survives as a recorded measurement, not a pin.**
+  `CounterCompare Nothing` at `Player` admits a bare kind-blind player bound
+  read the corpus does not write. That is tolerated overgeneration: [CR#122.1f]
+  writes the player-side counter test in exactly this ranged shape ("A player
+  is 'poisoned' if they have one or more poison counters"), so the term is
+  rules-meaningful and a count may not refuse it
+  (`docs/memory/rulings/measurements-live-in-pins.md`). No marked player twin
+  was minted, per the kind-index ADR.
+- **Kind-blindness is decided: the `Maybe` at the kind slot, uniformly.** No
+  new `Amount` term and no kind-quantifier sort was minted — "a counter" is a
+  kind left unnamed, not a quantity over kinds. Landed this round:
+  `CounterEvent`'s `kind` and `RemoveCounters`' `kind` both became
+  `Maybe CounterKind` under `CounterKindNamed Object`, replacing the
+  `counterScope kind = Object` gates. Ten call sites (nine in
+  `Experimental/Cards.idr`, one in `ProofsB.idr`, plus two direct
+  `CounterEvent` sites in `ProofsE.idr`) wrapped their kind in `Just`; the two
+  named-kind macros absorb the `Just` and their `sc` gates now discharge
+  `KindNamed` automatically.
+- **`PutCounters` keeps its required kind — and OPEN-5's over-refusal risk is
+  CLOSED, not deferred.** Re-measured with `corpus --match "[Pp]uts? (a|one|
+  two|three|X|that many|another|one or more) counters? on"`: 17 bare lines,
+  and **not one wants a kind-blind `PutCounters`**. Every one is either an
+  event header or intervening-if ("Whenever you put a counter on a creature
+  you control…", "if you put a counter on a creature this turn…"), or a
+  replacement whose derived amount is `ThatMuch`-shaped. The put imperatives
+  among them all name their kind anaphorically ("that many plus one **of each
+  of those kinds** of counters", and Aragorn's "put one of each of those kinds
+  of counters on up to one other target creature"), which wants
+  `PutCountersOfThoseKinds`, not a `Maybe` at `PutCounters`' kind slot. No
+  printed card is left unrepresentable, so no widening is owed.
+- **The move-transfer verb — LANDED with two witnesses.** New `Effect` row
+  `MoveCounters (amt) (kind : Maybe CounterKind) (src) (dst)`: source under
+  `CounterMemory` like `RemoveCounters`, destination under `PerMember` like
+  `PutCounters`, kind a `Maybe`. Cited [CR#122.5], which defines the move as a
+  remove plus a put taken together. No zone gate: [CR#122.5] fails a move
+  whenever either half is impossible — an object having left its zone among
+  the reasons it lists — rather than fixing one zone. Witnesses
+  `simicFluxmageMove` (Simic Fluxmage, "Move a +1/+1 counter from this
+  creature onto target creature") and `rikkuStealMove` (Rikku, Resourceful
+  Guardian, "Move a counter from target creature an opponent controls onto
+  target creature you control") — the second exercises the kind-blind cell.
+  Both text-verified. **Pin:** `badMoveCountersSelf` refuses a destination
+  that is only the source read back — [CR#122.5] lists "the first and second
+  objects are the same object" among the cases that make a move impossible,
+  so the row carries a `MoveDestination` gate and the pin names that rule.
+  The row states no zone gate for the same reason it refuses this one: the
+  rule bounds the move by whether each half can happen, and its other listed
+  cases are engine questions about a particular game state.
+- **Out of scope, and not swept in:** the presence read (`HasCounters
+  Nothing`, already landed), the always-all player removal (`LosesCounters`'
+  unnamed cell, already landed), "those counters" (a different anaphor over an
+  existing set) and "counter of that kind" (a chosen-quality axis). None is
+  touched by anything above.
+- **The catalog's tail: `Shield` minted.** `Shield : CounterKind` with
+  `counterScope Shield = Object` and its `Eq` rows, paid for by
+  `boonOfSafetyPut` — Boon of Safety, "Put a shield counter on target
+  creature" (text-verified). Its row comment cites [CR#122.1c], whose text is
+  the replacement-and-prevention pair itself: engine machinery, exactly as
+  stun's is, with the grammar carrying only the kind word.
+  **Re-measured count differs:** 14 one-shot puts (as the ticket said) but
+  **17** removes, not 1 — most of them the reminder text of [CR#122.1c]'s own
+  effect. Neither number is load-bearing: the mint test is a writable
+  one-shot line, and Boon of Safety is it.
+- **Shield's `CounterKind` comment — RESOLVED BY AN EARLIER ROUND.** Verified
+  against the tree: the `CounterKind` block carries no comment about shield at
+  all, so the refuted "clears neither" claim is already gone. **Acceptance
+  bullet amended:** nothing to correct; the row itself is what this round
+  owed, and it is minted.
+- **The other eight waiting kinds** (oil, quest, level, spore, storage, ki,
+  verse, depletion) stay out — no line of theirs was benched this round.
+  Energy stays cross-linked out.
+
+### Making the counter event kind-blind, and the two waiting counter kinds
+
+- **`CounterEvent` admits a kind-blind batch and the distributive anaphor
+  reads it; the two landed together.** New `Effect` row
+  `PutCountersOfThoseKinds (amt) (on)`, gated by `countOutcomes CountersPut
+  bs = 1` — mirroring `PreventedThisWay`'s idiom, since the anaphor
+  presupposes exactly one announced counter batch. One node carries both
+  surfaces ("that many plus one of each of those kinds of counters" and
+  "twice that many of those counters"): they distribute per kind identically,
+  so the split is spelling and is marked as such on the row.
+- **Doubling Season goes whole** (`doublingSeason`), both lines text-verified:
+  the token line on Anointed Procession's landed shape, and "If an effect
+  would put one or more counters on a permanent you control, it puts twice
+  that many of those counters on that permanent instead" — recipient `That
+  PermanentW`, not `It`.
+- **The kind-blind SINGLE counter is benched too** (`hollowmurkSiegeSultai`):
+  Hollowmurk Siege's Sultai mode, "Whenever a counter is put on a creature you
+  control, draw a card". The mode's "This ability triggers only once each
+  turn" rider has no row anywhere in the grammar and is ledgered.
+- **Stalwart Successor's header carries the trigger side**
+  (`stalwartSuccessorHeader`). Correction to the design: the printed line is
+  "Whenever **one or more** counters are put on **a creature you control**",
+  so the header is the kind-blind BATCH over a described creature, not the
+  single-counter event on `thisCreature`. Benched at the event level
+  (precedent `tahngarthAttacksThatJoin`); the intervening-if clause it goes on
+  to write is not this round's.
+- **The per-kind spelling is benched on Doc Samson, not Pir**
+  (`docSamsonDistributive`): "If you would put one or more counters on a
+  permanent you control, put that many plus one of each of those kinds of
+  counters on that permanent instead" — a whole standalone static, agent
+  voiced through `CounterEvent`'s `by` slot. Pir, Imaginative Rascal writes
+  the same clause over "a permanent your **team** controls", and the team form
+  is deferred at `Predicate.Opponent` ([CR#102.3]); Pir is named in the
+  witness's doc comment and ledgered. The event goes through a new macro,
+  `Macros.manyBareCountersPutBy`, so no bench term constructs `CounterEvent`
+  directly. Re-measured: 9 distinct
+  "of each of those kinds" oracle lines (the ticket said 10; the earlier
+  count was not reproduced).
+- **The four join-recipient lines** (Vorinclex ×2, Innkeeper's Talent,
+  Lae'zel) now wait on the cross-kind event subject alone, as predicted.
+- **Loyalty — RESOLVED BY THE ROUND THAT MINTED IT.** Verified against the
+  tree: `LoyaltyCounter : CounterKind` with `counterScope … = Object` and a
+  docstring citing [CR#122.1,122.1e,606.4,306.5c] that already states the
+  settled ruling — the count-equals-loyalty link is lowering's, not this
+  layer's. Finding 567's refusal was already reversed in source, and
+  `bioessenceHydraTrigger` already benches the event side. **Acceptance
+  bullet amended:** loyalty is minted, not left refused; the 62-line price
+  stands as the recorded reason it was revisited. This round adds the
+  one-shot put witness `talentLoyaltyPut` — Vivien's Talent and Teferi's
+  Talent both print "put a loyalty counter on enchanted planeswalker"
+  verbatim (both text-verified); one term carries both.
+
+### Closure grid
+
+Cells moved, named per the ticket's rule
+(`docs/idris-workbench-closure-tables.md` §2.3 is a demoted snapshot and was
+not rewritten):
+
+- `Experimental.idr:178 HasCounters` — its "player scope refused / routed
+  elsewhere" note is now discharged: the six corrupted lines are the
+  player cells of the NEW row `CounterCompare`, taken at the kind index. The
+  `HasCounters` row itself is unchanged and stays Object-fixed.
+- `Experimental.idr:181 Compare` — unchanged; the counter read did not enter
+  its `Characteristic` vocabulary.
+- `CounterEvent`'s kind cell and `RemoveCounters`' kind cell — both widened
+  from required to `Maybe`, on the named/unnamed evidence, not on a count.
+- New rows with no prior grid cell: `CounterCompare`, `MoveCounters`,
+  `PutCountersOfThoseKinds`, `ExceptEntersWithCounters`, `CounterKind.Shield`.
+
+### Ledger
+
+Named blockers, one line apiece. Nothing here is a refusal; each is a missing
+constructor or a missing quoted line.
+
+| Item | State after this round | Exact missing piece |
+|---|---|---|
+| Corpsejack Menace, whole card | ability benched (`corpsejackMenace`) | a `Fungus` creature-subtype row (the subtype catalog, not this family) |
+| Pir, Imaginative Rascal | clause benched on Doc Samson instead | the team form at `Predicate.Opponent` — "your team controls" ([CR#102.3], deferred in source) |
+| Stalwart Successor, whole card | header benched (`stalwartSuccessorHeader`) | the intervening-if "if it's the first time counters have been put on that creature this turn" |
+| Master Chef, whole card | granted ability + grantability benched | a description for "Commander creatures you own": `CommanderD` is `HeldByCard` with `designationChecked = False`, so `HasDesignation` cannot spell it, and ownership on an object description has no row |
+| Littjara Mirrorlake, whole card | copy-exception effect benched | the activated-ability cost frame (sacrifice-a-land + mana + tap) and the `Land` type line |
+| Master Biomancer | blocked | entry-time type addition coordinated with the counter clause |
+| Renata, Called to the Hunt | blocked | devotion as an `Amount` |
+| Oath of Gideon | loyalty rider now composes (`EntersWithCounters … LoyaltyCounter`, [CR#306.5b]); card blocked | a `Kor` subtype row |
+| Arlinn, Voice of the Pack | blocked | `Wolf` and `Arlinn` subtype rows (`Werewolf` exists) |
+| Tayam | partially unblocked by the kind-`Maybe` removal | "from among" distributive removal over a described group |
+| Tromell | blocked | proliferate |
+| Slinza, the Spiked Stampede | candidate — lines fetched and verified; `CostsToCast`, `Fights` and the `Beast` subtype all exist | the reflexive "you may pay {1}{R/G}. When you do, …" trigger and the "power 4 or greater" entry event; the entry-counter line composes today |
+| Curator Beastie | blocked | manifest dread |
+| Dearly Departed | candidate — line fetched and verified ("As long as this creature is in your graveyard, each Human creature you control enters with an additional +1/+1 counter on it"); `AlsoOffBattlefield`, `Conditionally`, `entersWithAdditionalCounters` and the `Human` subtype all exist | a self-in-your-graveyard condition for the `Conditionally` scope; nothing else |
+| Vampire Socialite | candidate — lines fetched and verified; `Conditionally`, `EntersWithCounters`, `EventName.LifeLoss` with `Lookback ThisTurn`, and the `Vampire` subtype all exist | confirming `HappenedTo LifeLoss ThisTurn` takes a Player subject at the condition position; nothing else named |
+| Winding Constrictor, line 2 | out | "If you would **get** one or more counters" is the player-side distributive — `GetsCounters`' twin of `PutCountersOfThoseKinds`, unbuilt |
+| Aragorn | out | same anaphor as `PutCountersOfThoseKinds`, but the recipient "up to one other target creature" has no row and the clause is a trigger body rather than a replacement |
+| Captain Marvel / Denry Klin | out | "the same number and kind of counters" / "the same number of each kind of counter" are the "counter of that kind" axis, deliberately not swept in |
+
+Reviewer finding F5, recorded: `CounterCompare`'s general-existence cell
+(`CounterCompare Nothing AtLeast (Lit 1)`, "with one or more counters on it")
+overlaps `HasCounters Nothing` ("with a counter on it") in denotation. That is
+**deliberate**: both surfaces are printed, they are different sentences, and
+the corpus writes each. `HasCounters` stays the bare existence read with no
+quantity slot (ticket order) and `CounterCompare` stays the bound read;
+neither refuses the other, and nothing is pinned — the overlap is two
+spellings of a rules-meaningful state, not a contradiction.
+
+Measurements recorded, none of them a refusal:
+
+- The only pin this round: `badMoveCountersSelf` ([CR#122.5], same-object
+  move). No pin is justified by a count.
+- Bare-"a counter" **put imperatives: 0** attested (17 bare put lines, all
+  events, intervening-ifs or derived replacement amounts). `PutCounters` keeps
+  its required kind with no card left unrepresentable.
+- Bare player-scope counter bound read: **0** attested. `CounterCompare
+  Nothing` at `Player` admits it anyway — [CR#122.1f] makes it meaningful.
+- Shield: **14** one-shot puts, **17** removes (the ticket's "1 remove" was
+  short; most removes are [CR#122.1c]'s own reminder text).
+- Distributive "of each of those kinds": **9** distinct oracle lines.
+- Copy exception: **4** lines. Granted quotation: **1** line.
+
+Not written this round, by dispatch scope: the experiment-log chapter prose.
+Chapter and finding numbers were not carried to this round.
