@@ -2996,21 +2996,31 @@ fn feature_expr(
                 ));
                 return Ok(quote! { #function(#role_value) });
             }
-            if *source_feature == Feature::Onset
-                && let Some(onset) = bound_prefix_onset(construction, &role_key)?
-            {
-                return Ok(onset);
-            }
-            if *source_feature == Feature::Onset && field.kind() != ConstructionFieldKind::Category
-            {
-                return lexical_onset_expr(
+            if *source_feature == Feature::Onset {
+                let payload_onset = if field.kind() == ConstructionFieldKind::Category {
+                    let function = ident(&feature_helper("onset", field.terminal()));
+                    let environment = validated
+                        .needs_parser_environment()
+                        .then(|| quote! { , environment });
+                    quote! { #function(#role_value, context #environment) }
+                } else {
+                    lexical_onset_expr(
+                        validated,
+                        construction,
+                        &role_key,
+                        field,
+                        role_value,
+                        locals,
+                    )?
+                };
+                return bound_prefix_onset(
                     validated,
                     construction,
                     &role_key,
-                    field,
-                    role_value,
                     locals,
-                );
+                    &payload_onset,
+                )
+                .map(|realized| realized.unwrap_or(payload_onset));
             }
             if *source_feature == Feature::PossessiveEnding
                 && field.kind() != ConstructionFieldKind::Category
@@ -3148,41 +3158,66 @@ fn implicit_verb_onset(
 }
 
 fn bound_prefix_onset(
+    validated: &SemanticPlan,
     construction: &ConstructionPlan,
     role: &str,
+    locals: &RenderLocals,
+    payload_onset: &TokenStream,
 ) -> syn::Result<Option<TokenStream>> {
-    let mut realized = None;
-    for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
-        let AtomPlan::Bound {
-            direction: crate::semantic::BoundDirectionPlan::Prefix,
-            affix,
-            value,
-        } = atom
-        else {
-            continue;
-        };
-        let matches_role = matches!(
-            value.as_ref(),
-            AtomPlan::Category { role: found, .. }
-                | AtomPlan::Lex { role: found, .. }
-                | AtomPlan::Identity { role: found, .. }
-                | AtomPlan::Noun { role: found, .. }
-                if found == role
-        );
-        if !matches_role {
-            continue;
-        }
-        let Some(onset) = ::macro_ron::v2::normalize_surface_onset(affix, None) else {
-            continue;
-        };
-        if realized.is_some_and(|found| found != onset) {
-            return Err(internal(
-                "one role has bound prefixes with inconsistent realized onset",
-            ));
-        }
-        realized = Some(onset);
+    let mut has_bound_prefix = false;
+    let mut form_onsets = Vec::new();
+    for form in construction.forms() {
+        let affix = form.atoms().iter().find_map(|atom| {
+            let AtomPlan::Bound {
+                direction: crate::semantic::BoundDirectionPlan::Prefix,
+                affix,
+                value,
+            } = atom
+            else {
+                return None;
+            };
+            matches!(
+                value.as_ref(),
+                AtomPlan::Category { role: found, .. }
+                    | AtomPlan::Lex { role: found, .. }
+                    | AtomPlan::Identity { role: found, .. }
+                    | AtomPlan::Noun { role: found, .. }
+                    if found == role
+            )
+            .then_some(affix)
+        });
+        has_bound_prefix |= affix.is_some();
+        form_onsets.push(affix.and_then(|surface| {
+            ::macro_ron::v2::normalize_surface_onset(surface, None).map(super::onset)
+        }));
     }
-    Ok(realized.map(super::onset))
+    if !has_bound_prefix {
+        return Ok(None);
+    }
+    if form_onsets.len() == 1 {
+        return Ok(Some(
+            form_onsets
+                .pop()
+                .flatten()
+                .unwrap_or_else(|| payload_onset.clone()),
+        ));
+    }
+    let branches = form_onsets
+        .into_iter()
+        .enumerate()
+        .map(|(form_index, onset)| {
+            let guard =
+                super::emit_form_guard_expression(construction, form_index, |domain, value| {
+                    render_guard_atom(validated, construction, locals, domain, value)
+                })?
+                .ok_or_else(|| internal("multi-form bound-prefix onset form has no guard"))?;
+            let onset = onset.unwrap_or_else(|| payload_onset.clone());
+            Ok(quote! { if #guard { #onset } else })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
+    Ok(Some(quote! {
+        #(#branches)* { unreachable!("sealed form partition is total") }
+    }))
 }
 
 fn lexical_onset_expr(
@@ -3522,7 +3557,8 @@ fn emit_feature_helper(
                 entries.push((pattern, value.to_string(), value));
             }
         } else {
-            let roles = feature_roles(validated, construction, equation.value())?;
+            let mut roles = feature_roles(validated, construction, equation.value())?;
+            extend_bound_prefix_guard_roles(validated, construction, equation.value(), &mut roles)?;
             let (pattern, locals) = feature_constant_pattern(
                 validated,
                 construction,
@@ -3660,6 +3696,68 @@ fn feature_roles(
         &mut HashSet::new(),
     )?;
     Ok(roles)
+}
+
+fn extend_bound_prefix_guard_roles(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    expression: &FeatureExpr,
+    roles: &mut HashSet<String>,
+) -> syn::Result<()> {
+    let FeatureExpr::FromRole {
+        role,
+        feature: Feature::Onset,
+    } = expression
+    else {
+        return Ok(());
+    };
+    let role = identifier_key(role);
+    let has_bound_prefix = construction.forms().iter().any(|form| {
+        form.atoms().iter().any(|atom| {
+            let AtomPlan::Bound {
+                direction: crate::semantic::BoundDirectionPlan::Prefix,
+                value,
+                ..
+            } = atom
+            else {
+                return false;
+            };
+            matches!(
+                value.as_ref(),
+                AtomPlan::Category { role: found, .. }
+                    | AtomPlan::Lex { role: found, .. }
+                    | AtomPlan::Identity { role: found, .. }
+                    | AtomPlan::Noun { role: found, .. }
+                    if found == &role
+            )
+        })
+    });
+    if !has_bound_prefix {
+        return Ok(());
+    }
+    for domain in construction
+        .forms()
+        .iter()
+        .filter_map(|form| form.guard().predicate())
+        .flat_map(crate::semantic::FinitePredicatePlan::domains)
+    {
+        if !domain.role().starts_with('@') {
+            roles.insert(domain.role().to_owned());
+            continue;
+        }
+        let crate::semantic::FiniteDomainKindPlan::Feature { feature, .. } = domain.kind() else {
+            return Err(internal(
+                "construction-owned form guard domain is not a feature",
+            ));
+        };
+        let equation = validated
+            .feature_equations(construction.construction_id())
+            .iter()
+            .find(|equation| equation.target() == &FeaturePlace::Construction(*feature))
+            .ok_or_else(|| internal("construction feature guard has no equation"))?;
+        roles.extend(feature_roles(validated, construction, equation.value())?);
+    }
+    Ok(())
 }
 
 fn feature_constant_pattern(

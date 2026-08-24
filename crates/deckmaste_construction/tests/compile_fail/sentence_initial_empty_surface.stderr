@@ -1,0 +1,5 @@
+error: sentence_initial target must realize at least one byte
+ --> tests/compile_fail/sentence_initial_empty_surface.rs:6:48
+  |
+6 |         form invalid = "item" sentence_initial("");
+  |                                                ^^

@@ -771,6 +771,12 @@ fn parse_form_atom(input: ParseStream<'_>, allow_bound: bool) -> syn::Result<For
                 let literal = content.parse::<LitStr>().map_err(|_| {
                     content.error("sentence_initial form atoms require exactly one literal")
                 })?;
+                if literal.value().is_empty() {
+                    return Err(syn::Error::new_spanned(
+                        literal,
+                        "sentence_initial target must realize at least one byte",
+                    ));
+                }
                 if !content.is_empty() {
                     return Err(
                         content.error("sentence_initial form atoms require exactly one literal")
@@ -2801,6 +2807,20 @@ mod tests {
         assert_eq!(
             error,
             "unexpected end of input, sentence_initial accepts exactly one unnested fixed surface",
+        );
+
+        let error = crate::parse_declarations(quote::quote! {
+            construction invalid: Root {
+                element Invalid {}
+                form invalid = "item" sentence_initial("");
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("a sentence-initial annotation cannot own zero bytes")
+        .to_string();
+        assert_eq!(
+            error,
+            "sentence_initial target must realize at least one byte",
         );
     }
 

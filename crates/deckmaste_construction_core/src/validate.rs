@@ -1201,7 +1201,14 @@ fn seal_fixed_surface(
                 });
         combine(
             errors,
-            syn::Error::new(span, format!("{label}: empty {role} surface")),
+            syn::Error::new(
+                span,
+                if source.sentence_initial {
+                    format!("{label}: sentence_initial target must realize at least one byte")
+                } else {
+                    format!("{label}: empty {role} surface")
+                },
+            ),
         );
     }
     surface
@@ -8811,6 +8818,21 @@ pub(crate) mod tests {
         assert_eq!(
             actual,
             ":: core :: compile_error ! { \"Items.values: sentence_initial is supported only on form surfaces and sequence separators\" }",
+        );
+
+        let empty = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            abstract product Items {
+                values: seq Item separated by sentence_initial(""),
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert_eq!(
+            empty,
+            ":: core :: compile_error ! { \"Items.values: sentence_initial target must realize at least one byte\" }",
         );
     }
 

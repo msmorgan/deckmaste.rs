@@ -1561,10 +1561,10 @@ pub mod fixture {
             form adjacent_boundary = "target" suffix(value, "'s");
         }
         construction prefixed_onset: PrefixHead {
-            element PrefixedOnset { value: lex BoundWord, }
-            require value is Artifact;
+            element PrefixedOnset { kind: lex Mode, value: lex BoundWord, }
             derive onset = value.onset;
-            form prefixed_onset = prefix("non", lex(value));
+            form lexical when kind is One = lex(kind) prefix("non", lex(value));
+            form punctuation otherwise = lex(kind) prefix("2/", lex(value));
         }
         construction prefixed_article: PrefixArticle {
             element PrefixedArticle { head: PrefixHead, }
@@ -3926,7 +3926,7 @@ pub mod fixture {
         }
     }
 
-    pub(super) fn assert_bound_prefix_owns_realized_onset() {
+    pub(super) fn assert_bound_prefix_onset_is_form_local() {
         let context = ParseContext {
             sentinel: 99,
             card_name: "card",
@@ -3935,8 +3935,9 @@ pub mod fixture {
             abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
         };
         let head = build(
-            RuleId::PrefixHeadPrefixedOnset,
+            RuleId::PrefixHeadPrefixedOnsetLexical,
             &[
+                BuildValue::Leaf(Leaf::Mode(Mode::One)),
                 BuildValue::Leaf(Leaf::Literal("non")),
                 BuildValue::Leaf(Leaf::BoundWord(BoundWord::Artifact)),
             ],
@@ -3966,10 +3967,103 @@ pub mod fixture {
             panic!("the prefixed article builds its declared category")
         };
         assert_eq!(actual_onset, macro_ron::v2::Onset::Consonant);
-        assert_eq!(Render::render(&article, &context), "A nonartifact.");
+        assert_eq!(Render::render(&article, &context), "A one nonartifact.");
 
-        let forest = parse_structural(Category::PrefixArticle, "A nonartifact", &context);
+        let forest = parse_structural(Category::PrefixArticle, "A one nonartifact", &context);
         assert_eq!(forest.accepted_root_ids().count(), 1);
+
+        for (value, article_rule, article_literal, expected_onset, expected_surface) in [
+            (
+                BoundWord::Elf,
+                RuleId::PrefixArticlePrefixedArticleAn,
+                "an",
+                macro_ron::v2::Onset::Vowel,
+                "An many 2/Elf.",
+            ),
+            (
+                BoundWord::Black,
+                RuleId::PrefixArticlePrefixedArticleA,
+                "a",
+                macro_ron::v2::Onset::Consonant,
+                "A many 2/black.",
+            ),
+        ] {
+            let head = build(
+                RuleId::PrefixHeadPrefixedOnsetPunctuation,
+                &[
+                    BuildValue::Leaf(Leaf::Mode(Mode::Many)),
+                    BuildValue::Leaf(Leaf::Literal("2/")),
+                    BuildValue::Leaf(Leaf::BoundWord(value)),
+                ],
+                &context,
+            )
+            .expect("the punctuation form forwards its own payload onset");
+            assert!(matches!(
+                head,
+                BuildValue::PrefixHead(_, actual) if actual == expected_onset
+            ));
+            let article = build(
+                article_rule,
+                &[BuildValue::Leaf(Leaf::Literal(article_literal)), head],
+                &context,
+            )
+            .expect("the article guard consumes the form-local realized onset");
+            let BuildValue::PrefixArticle(article, actual_onset) = article else {
+                panic!("the punctuation-prefixed article builds its category")
+            };
+            assert_eq!(actual_onset, expected_onset);
+            assert_eq!(Render::render(&article, &context), expected_surface);
+
+            let punctuation_rule = RULES
+                .iter()
+                .find(|rule| rule.id == RuleId::PrefixHeadPrefixedOnsetPunctuation)
+                .expect("the punctuation prefix rule is generated");
+            let [L(_kind), L(prefix), L(payload)] = punctuation_rule.rhs else {
+                panic!("the punctuation prefix rule has its selector, prefix, and payload")
+            };
+            let start = expected_surface
+                .find(" 2/")
+                .expect("prefix starts after article")
+                + 1;
+            let prefix_position = ScanPosition {
+                byte_offset: start,
+                case: CasePosition::Continuation,
+                prefix: PrefixPosition::None,
+            };
+            let prefix_matches = scan_lexical(
+                &ScanInput {
+                    text: expected_surface,
+                    position: prefix_position,
+                    context: &context,
+                },
+                *prefix,
+            );
+            assert_eq!(prefix_matches.len(), 1, "the prefix scans exactly once");
+            assert_eq!(prefix_matches[0].end, start + 2);
+            assert_eq!(prefix_matches[0].value, Leaf::Literal("2/"));
+            let payload_position = prefix.position_after(prefix_position, start + 2);
+            assert_eq!(payload_position.prefix, PrefixPosition::SurfaceOwned);
+            let payload_matches = scan_lexical(
+                &ScanInput {
+                    text: expected_surface,
+                    position: payload_position,
+                    context: &context,
+                },
+                *payload,
+            );
+            assert_eq!(payload_matches.len(), 1, "the adjacent payload scans once");
+            assert_eq!(payload_matches[0].end, expected_surface.len() - 1);
+            assert_eq!(payload_matches[0].value, Leaf::BoundWord(value));
+
+            let forest = parse_structural(
+                Category::PrefixArticle,
+                expected_surface
+                    .strip_suffix('.')
+                    .expect("the standalone render owns the final punctuation"),
+                &context,
+            );
+            assert_eq!(forest.accepted_root_ids().count(), 1, "{expected_surface}");
+        }
     }
 
     pub(super) fn assert_possessive_ending_selects_guarded_suffix_forms() {
@@ -4913,8 +5007,8 @@ fn same_origin_nested_category_keeps_separated_and_adjacent_earley_identities_di
 }
 
 #[test]
-fn bound_prefix_realized_onset_selects_the_consonant_article() {
-    fixture::assert_bound_prefix_owns_realized_onset();
+fn bound_prefix_realized_onset_is_selected_per_form() {
+    fixture::assert_bound_prefix_onset_is_form_local();
 }
 
 #[test]

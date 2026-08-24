@@ -286,6 +286,36 @@ impl Visitor for CostVisitor {
         self.0.push(CostVisit::Node("Sentences"));
         deckmaste_english_v2::visit::walk_sentences(self, value);
     }
+
+    fn visit_sentence(&mut self, value: &Sentence) {
+        self.0.push(CostVisit::Node("Sentence"));
+        deckmaste_english_v2::visit::walk_sentence(self, value);
+    }
+
+    fn visit_declarative(&mut self, value: &Declarative) {
+        self.0.push(CostVisit::Node("Declarative"));
+        deckmaste_english_v2::visit::walk_declarative(self, value);
+    }
+
+    fn visit_imperative(&mut self, value: &Imperative) {
+        self.0.push(CostVisit::Node("Imperative"));
+        deckmaste_english_v2::visit::walk_imperative(self, value);
+    }
+
+    fn visit_verb_phrase(&mut self, value: &VerbPhrase) {
+        self.0.push(CostVisit::Node("VerbPhrase"));
+        deckmaste_english_v2::visit::walk_verb_phrase(self, value);
+    }
+
+    fn visit_destroy(&mut self, value: &Destroy) {
+        self.0.push(CostVisit::Node("Destroy"));
+        deckmaste_english_v2::visit::walk_destroy(self, value);
+    }
+
+    fn visit_gain_life(&mut self, value: &GainLife) {
+        self.0.push(CostVisit::Node("GainLife"));
+        deckmaste_english_v2::visit::walk_gain_life(self, value);
+    }
 }
 
 #[test]
@@ -1564,8 +1594,18 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             CostVisit::LoyaltyMagnitude(NonZeroU32::new(2).unwrap()),
             CostVisit::Node("ActivationCostComponent"),
             CostVisit::Node("CostClause"),
+            CostVisit::Node("VerbPhrase"),
+            CostVisit::Node("Destroy"),
             CostVisit::Node("AbilityBody"),
             CostVisit::Node("Sentences"),
+            CostVisit::Node("Sentence"),
+            CostVisit::Node("Declarative"),
+            CostVisit::Node("VerbPhrase"),
+            CostVisit::Node("GainLife"),
+            CostVisit::Node("Sentence"),
+            CostVisit::Node("Imperative"),
+            CostVisit::Node("VerbPhrase"),
+            CostVisit::Node("Destroy"),
         ],
     );
 }
