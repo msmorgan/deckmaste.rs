@@ -3941,7 +3941,7 @@ fn emit_category_agreement_match_helper(
                         Feature::Agreement,
                         &locals,
                     )?;
-                    Ok(quote! { #pattern => #expected == agreement })
+                    Ok(quote! { #pattern => (#expected) == agreement })
                 }
                 AgreementAuthorityPlan::SequenceConstraint { role, target } => {
                     let value = ident("value");
@@ -5250,6 +5250,50 @@ mod tests {
                     }
                 }
             }
+        );
+    }
+
+    #[test]
+    fn implicit_agreement_sum_with_vocab_derived_variants_emits_valid_matcher() {
+        let expansion = crate::generate(quote::quote! {
+            vocab ObjectPronoun { It = "it", Them = "them", }
+            vocab ReflexivePronoun { Itself = "itself", Themselves = "themselves", }
+            construction object_nominal: Object {
+                element NominalObject {}
+                derive agreement = Values::ThirdPersonSingular;
+                form object_nominal = "object";
+            }
+            construction object_pronoun: Object {
+                element PersonalObject { word: lex ObjectPronoun, }
+                derive agreement = match word {
+                    It => Values::ThirdPersonSingular,
+                    Them => Values::Bare,
+                };
+                form object_pronoun = lex(word);
+            }
+            construction reflexive_object: Object {
+                element ReflexiveObject { word: lex ReflexivePronoun, }
+                derive agreement = match word {
+                    Itself => Values::ThirdPersonSingular,
+                    Themselves => Values::Bare,
+                };
+                form reflexive_object = lex(word);
+            }
+            root Object { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("an implicit Agreement-carrying sum emits valid matcher syntax");
+
+        let matcher = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Function, name } if name == "agreement_matches_for_object"))
+            .expect("the implicit sum Agreement matcher is generated")
+            .tokens
+            .to_string();
+        assert_eq!(
+            matcher.matches("(match").count(),
+            2,
+            "both vocabulary-derived Agreement values are grouped before comparison: {matcher}",
         );
     }
 
