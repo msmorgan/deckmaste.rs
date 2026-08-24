@@ -1516,10 +1516,16 @@ pub mod fixture {
             element OptionalGuarded { word: opt lex OptionalWord, mode: lex Mode, }
             require any(
                 all(word.is_none(), mode is One),
-                all(word is That, mode is Many)
+                all(word.is_some(), word is That, mode is Many)
             );
             form that when word is That = lex(word) lex(mode);
             form fallback otherwise = lex(word) lex(mode);
+        }
+        construction optional_visited: OptionalVisitRoot {
+            element OptionalVisited { word: opt lex OptionalWord, mode: lex Mode, }
+            form absent when word.is_none() = lex(mode) lex(word);
+            form that when word is That = lex(word) lex(mode);
+            form fallback otherwise = lex(mode) lex(word);
         }
         construction non_plain: BoundRoot {
             element NonPlain { value: lex BoundWord, }
@@ -1875,6 +1881,7 @@ pub mod fixture {
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root OptionalVisitRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root BoundRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DualBoundaryRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DerivedPossessiveRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -1891,6 +1898,8 @@ pub mod fixture {
 
     #[derive(Debug, PartialEq, Eq)]
     enum VisitEvent {
+        Mode(Mode),
+        OptionalWord(OptionalWord),
         Marker(Marker),
         VisitorLexeme(VisitorLexeme),
         Token(u8),
@@ -1909,6 +1918,14 @@ pub mod fixture {
     struct RecordingVisitor(Vec<VisitEvent>);
 
     impl Visitor for RecordingVisitor {
+        fn visit_mode(&mut self, mode: Mode) {
+            self.0.push(VisitEvent::Mode(mode));
+        }
+
+        fn visit_optional_word(&mut self, word: OptionalWord) {
+            self.0.push(VisitEvent::OptionalWord(word));
+        }
+
         fn visit_marker(&mut self, marker: Marker) {
             self.0.push(VisitEvent::Marker(marker));
         }
@@ -2625,6 +2642,56 @@ pub mod fixture {
             absent_rule.is_some(),
             "the optional structural helper exposes the absent build leaf",
         );
+    }
+
+    pub(super) fn assert_optional_vocab_visitor_guard_selection() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+        };
+        for (root, rendered, expected) in [
+            (
+                OptionalVisitRoot::OptionalVisited(OptionalVisited {
+                    word: None,
+                    mode: Mode::One,
+                }),
+                "One.",
+                vec![VisitEvent::Mode(Mode::One)],
+            ),
+            (
+                OptionalVisitRoot::OptionalVisited(OptionalVisited {
+                    word: Some(OptionalWord::That),
+                    mode: Mode::Many,
+                }),
+                "That many.",
+                vec![
+                    VisitEvent::OptionalWord(OptionalWord::That),
+                    VisitEvent::Mode(Mode::Many),
+                ],
+            ),
+            (
+                OptionalVisitRoot::OptionalVisited(OptionalVisited {
+                    word: Some(OptionalWord::Those),
+                    mode: Mode::Many,
+                }),
+                "Many those.",
+                vec![
+                    VisitEvent::Mode(Mode::Many),
+                    VisitEvent::OptionalWord(OptionalWord::Those),
+                ],
+            ),
+        ] {
+            assert_eq!(Render::render(&root, &context), rendered);
+            let mut visitor = RecordingVisitor::default();
+            visitor.visit_optional_visit_root(&root);
+            assert_eq!(
+                visitor.0, expected,
+                "visitor form selection must use the same absent/member/fallback partition as rendering",
+            );
+        }
     }
 
     pub(super) fn assert_structural_product_public_boundary() {
@@ -4803,6 +4870,11 @@ fn guarded_forms_build_and_render_their_exact_finite_partitions() {
 #[test]
 fn optional_vocab_guards_and_invariants_share_the_closed_runtime_domain() {
     fixture::assert_optional_vocab_guards_and_invariants();
+}
+
+#[test]
+fn optional_vocab_visitor_guards_select_observably_distinct_traversals() {
+    fixture::assert_optional_vocab_visitor_guard_selection();
 }
 
 #[test]

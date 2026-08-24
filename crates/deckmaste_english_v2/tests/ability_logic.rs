@@ -387,24 +387,69 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
         .is_some(),
         "the checked public product admits a plural main-phase combination",
     );
-    for rejected in [
-        AtPhraseValue::new(AtBoundary::End, None, TurnPart::Turn, None),
-        AtPhraseValue::new(
-            AtBoundary::Beginning,
-            Some(TurnSpecifier::EachOfYour),
-            TurnPart::Upkeep,
-            None,
+    for (family, rejected) in [
+        (
+            "End requires combat",
+            AtPhraseValue::new(AtBoundary::End, None, TurnPart::Turn, None),
         ),
-        AtPhraseValue::new(
-            AtBoundary::Beginning,
-            None,
-            TurnPart::DrawStep,
-            Some(TurnOwnerPostmodifier::YourTurn),
+        (
+            "End forbids a specifier",
+            AtPhraseValue::new(
+                AtBoundary::End,
+                Some(TurnSpecifier::Your),
+                TurnPart::Combat,
+                None,
+            ),
+        ),
+        (
+            "End forbids a postmodifier",
+            AtPhraseValue::new(
+                AtBoundary::End,
+                None,
+                TurnPart::Combat,
+                Some(TurnOwnerPostmodifier::YourTurn),
+            ),
+        ),
+        (
+            "EachOfYour requires a pluralizable main phase",
+            AtPhraseValue::new(
+                AtBoundary::Beginning,
+                Some(TurnSpecifier::EachOfYour),
+                TurnPart::Upkeep,
+                None,
+            ),
+        ),
+        (
+            "EachOfYour does not enter the combat-postmodifier family",
+            AtPhraseValue::new(
+                AtBoundary::Beginning,
+                Some(TurnSpecifier::EachOfYour),
+                TurnPart::MainPhase,
+                Some(TurnOwnerPostmodifier::YourTurn),
+            ),
+        ),
+        (
+            "an absent specifier permits a postmodifier only for combat",
+            AtPhraseValue::new(
+                AtBoundary::Beginning,
+                None,
+                TurnPart::DrawStep,
+                Some(TurnOwnerPostmodifier::YourTurn),
+            ),
+        ),
+        (
+            "an ordinary specifier permits a postmodifier only for combat",
+            AtPhraseValue::new(
+                AtBoundary::Beginning,
+                Some(TurnSpecifier::Your),
+                TurnPart::Upkeep,
+                Some(TurnOwnerPostmodifier::YourTurn),
+            ),
         ),
     ] {
         assert!(
             rejected.is_none(),
-            "the checked public product rejects a forbidden temporal cross-product",
+            "the checked public product rejects the forbidden `{family}` cross-product",
         );
     }
 }
@@ -574,6 +619,7 @@ fn at_phrase_accepts_every_closed_vocabulary_member_and_restricted_cross_product
         "At the beginning of each of your upkeeps, you gain X life.",
         "At the beginning of upkeep on your turn, you gain X life.",
         "At the beginning of draw step on each opponent's turn, you gain X life.",
+        "At the beginning of your upkeep on your turn, you gain X life.",
         "At end of combat on your turn, you gain X life.",
         "At the beginning of each of your combat on your turn, you gain X life.",
         "At the beginning of each of your combats on your turn, you gain X life.",
@@ -583,6 +629,18 @@ fn at_phrase_accepts_every_closed_vocabulary_member_and_restricted_cross_product
             "forbidden At-phrase cross-product must not parse: {invalid}"
         );
     }
+}
+
+#[test]
+fn each_of_your_main_phase_requires_plural_morphology() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let singular = "At the beginning of each of your main phase, you gain X life.";
+
+    assert!(
+        parser.parse(singular, &context).is_err(),
+        "EachOfYour must not admit the singular main-phase realization",
+    );
 }
 
 #[test]

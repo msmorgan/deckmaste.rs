@@ -4121,7 +4121,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 ),
             );
         }
-        validate_form_guard_subject_composition(construction, &mut errors);
+        validate_form_guard_subject_composition(construction, &fields, symbols, &mut errors);
         validate_feature_guarded_traversal_programs(construction, &mut errors);
         for field in &construction.element.fields {
             validate_resolved_field_kind(&field.kind, symbols, &mut errors);
@@ -4217,6 +4217,8 @@ enum FiniteGuardSubjectKind {
 
 fn validate_form_guard_subject_composition(
     construction: &crate::model::Construction,
+    fields: &HashMap<String, &FieldKind>,
+    symbols: &Symbols,
     errors: &mut Option<syn::Error>,
 ) {
     fn collect<'a>(
@@ -4256,15 +4258,37 @@ fn validate_form_guard_subject_composition(
             if let Some(existing) = first_by_role.get(&role_key)
                 && existing != &kind
             {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        role.span(),
-                        format!(
-                            "form guards cannot mix finite subjects for role `{role}`; correlation is not modeled"
-                        ),
-                    ),
+                let membership_and_presence = matches!(
+                    (existing, kind),
+                    (
+                        FiniteGuardSubjectKind::Membership,
+                        FiniteGuardSubjectKind::OptionalPresence
+                    ) | (
+                        FiniteGuardSubjectKind::OptionalPresence,
+                        FiniteGuardSubjectKind::Membership
+                    )
                 );
+                let optional_vocab = fields
+                    .get(&role_key)
+                    .and_then(|field| finite_vocab_role(field))
+                    .is_some_and(|(path, optional)| {
+                        optional
+                            && symbols
+                                .terminals
+                                .get(&path_name(path))
+                                .is_some_and(|terminal| terminal.kind == TerminalKind::Vocab)
+                    });
+                if !(membership_and_presence && optional_vocab) {
+                    combine(
+                        errors,
+                        syn::Error::new(
+                            role.span(),
+                            format!(
+                                "form guards cannot mix finite subjects for role `{role}`; correlation is not modeled"
+                            ),
+                        ),
+                    );
+                }
             } else {
                 first_by_role.insert(role_key, kind);
             }
@@ -6153,12 +6177,31 @@ fn normalize_predicate(
         crate::RequireExprSource::OptionalPresence { role, present } => {
             let role_name = identifier_key(role);
             match fields.get(&role_name) {
-                Some(FieldKind::Optional(_)) => Ok(vec![PredicateConjunctionPlan::new(vec![
-                    PredicateAtomPlan::new(
-                        PredicateSubjectPlan::OptionalPresenceRole { role: role.clone() },
-                        vec![PredicateMemberPlan::Presence(*present)],
-                    ),
-                ])]),
+                Some(kind @ FieldKind::Optional(_)) => {
+                    let subject = finite_vocab_role(kind)
+                        .filter(|(_, optional)| *optional)
+                        .and_then(|(path, _)| {
+                            let terminal = path_name(path);
+                            symbols
+                                .terminals
+                                .get(&terminal)
+                                .filter(|info| info.kind == TerminalKind::Vocab)
+                                .map(|_| PredicateSubjectPlan::VocabRole {
+                                    role: role.clone(),
+                                    terminal,
+                                    optional: true,
+                                })
+                        })
+                        .unwrap_or_else(|| PredicateSubjectPlan::OptionalPresenceRole {
+                            role: role.clone(),
+                        });
+                    Ok(vec![PredicateConjunctionPlan::new(vec![
+                        PredicateAtomPlan::new(
+                            subject,
+                            vec![PredicateMemberPlan::Presence(*present)],
+                        ),
+                    ])])
+                }
                 Some(_) => Err(syn::Error::new(
                     role.span(),
                     format!("optional-presence predicate subject `{role_name}` is not optional"),
@@ -6412,17 +6455,7 @@ fn merge_predicate_conjunctions(
             .iter_mut()
             .find(|atom| atom.subject().semantic_key() == subject_key)
         {
-            let right_members = right_atom
-                .allowed()
-                .iter()
-                .map(PredicateMemberPlan::semantic_key)
-                .collect::<HashSet<_>>();
-            let allowed = left_atom
-                .allowed()
-                .iter()
-                .filter(|member| right_members.contains(&member.semantic_key()))
-                .cloned()
-                .collect::<Vec<_>>();
+            let allowed = intersect_predicate_members(left_atom, right_atom);
             if allowed.is_empty() {
                 let subject = right_atom
                     .subject()
@@ -6442,6 +6475,68 @@ fn merge_predicate_conjunctions(
         }
     }
     Ok(PredicateConjunctionPlan::new(atoms))
+}
+
+fn intersect_predicate_members(
+    left: &PredicateAtomPlan,
+    right: &PredicateAtomPlan,
+) -> Vec<PredicateMemberPlan> {
+    if !matches!(
+        left.subject(),
+        PredicateSubjectPlan::VocabRole { optional: true, .. }
+    ) {
+        let right_members = right
+            .allowed()
+            .iter()
+            .map(PredicateMemberPlan::semantic_key)
+            .collect::<HashSet<_>>();
+        return left
+            .allowed()
+            .iter()
+            .filter(|member| right_members.contains(&member.semantic_key()))
+            .cloned()
+            .collect();
+    }
+
+    let mut allowed = Vec::new();
+    for left_member in left.allowed() {
+        for right_member in right.allowed() {
+            let member = match (left_member, right_member) {
+                (PredicateMemberPlan::Variant(left), PredicateMemberPlan::Variant(right))
+                    if same_identifier(left, right) =>
+                {
+                    Some(left_member.clone())
+                }
+                (PredicateMemberPlan::Presence(true), PredicateMemberPlan::Variant(_)) => {
+                    Some(right_member.clone())
+                }
+                (PredicateMemberPlan::Variant(_), PredicateMemberPlan::Presence(true)) => {
+                    Some(left_member.clone())
+                }
+                (PredicateMemberPlan::Presence(left), PredicateMemberPlan::Presence(right))
+                    if left == right =>
+                {
+                    Some(left_member.clone())
+                }
+                (
+                    PredicateMemberPlan::Variant(_)
+                    | PredicateMemberPlan::Presence(_)
+                    | PredicateMemberPlan::Feature(_),
+                    PredicateMemberPlan::Variant(_)
+                    | PredicateMemberPlan::Presence(_)
+                    | PredicateMemberPlan::Feature(_),
+                ) => None,
+            };
+            if let Some(member) = member
+                && !allowed.iter().any(|existing: &PredicateMemberPlan| {
+                    existing.semantic_key() == member.semantic_key()
+                })
+            {
+                allowed.push(member);
+            }
+        }
+    }
+    allowed
 }
 
 fn deduplicate_alternatives(alternatives: &mut Vec<PredicateConjunctionPlan>) {
@@ -8073,6 +8168,70 @@ pub(crate) mod tests {
         assert!(
             sequence_guard.contains("form guard membership requires a vocab role"),
             "{sequence_guard}",
+        );
+    }
+
+    #[test]
+    fn optional_vocab_absence_and_membership_share_one_sealed_predicate_domain() {
+        let nested = error(quote! {
+            vocab Word { That = "that", Those = "those", }
+            construction optional: Cat {
+                element OptionalValue { word: opt lex Word, }
+                require all(word.is_none(), word is That);
+                form optional = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            nested.contains("empty predicate intersection for `word`"),
+            "{nested}",
+        );
+
+        let accumulated = error(quote! {
+            vocab Word { That = "that", Those = "those", }
+            construction optional: Cat {
+                element OptionalValue { word: opt lex Word, }
+                require word.is_none();
+                require word is That;
+                form optional = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            accumulated.contains("empty predicate intersection for `word`"),
+            "{accumulated}",
+        );
+        assert!(
+            accumulated.contains("invariant predicate has no satisfiable alternative"),
+            "{accumulated}",
+        );
+    }
+
+    #[test]
+    fn optional_vocab_presence_intersects_absence_and_present_members() {
+        validate(quote! {
+            vocab Word { That = "that", Those = "those", }
+            construction optional: Cat {
+                element OptionalValue { word: opt lex Word, }
+                require all(word.is_some(), word is That);
+                form optional = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("presence intersected with a member retains that present member");
+
+        let contradiction = error(quote! {
+            vocab Word { That = "that", Those = "those", }
+            construction optional: Cat {
+                element OptionalValue { word: opt lex Word, }
+                require all(word.is_some(), word.is_none());
+                form optional = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            contradiction.contains("empty predicate intersection for `word`"),
+            "{contradiction}",
         );
     }
 

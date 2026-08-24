@@ -379,6 +379,9 @@ fn emit_predicate_atom(
             terminal, optional, ..
         } => {
             let terminal = local_ident(terminal);
+            if *optional && let [PredicateMemberPlan::Presence(present)] = allowed {
+                return Ok(quote! { #expression.is_some() == #present });
+            }
             let variants = allowed
                 .iter()
                 .map(|member| match member {
