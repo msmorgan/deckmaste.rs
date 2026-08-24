@@ -68,7 +68,7 @@ fn linguistic_bodies_enclose_plain_and_triggered_sentence_sequences() {
         panic!("triggered ability stores its finite trigger and linguistic body")
     };
     assert_eq!(finite.marker, TriggerMarker::Whenever);
-    assert!(matches!(finite.clause(), Clause::FiniteClause(_)));
+    assert!(matches!(finite.clause, FiniteClause::PlainFiniteClause(_)));
     assert_eq!(consequences.sentences().len(), 1);
 }
 
@@ -380,10 +380,11 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             "TriggerPrefix",
             "Finite",
             "TriggerMarker",
-            "Clause",
             "FiniteClause",
             "AbilityBody",
             "Sentences",
+            "Clause",
+            "FiniteClause",
         ]
     );
 
@@ -444,7 +445,7 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
             })
             .unwrap_or_else(|| panic!("generated public enum {name} is present"))
     };
-    assert_eq!(variants("Clause"), ["FiniteClause", "Where"]);
+    assert_eq!(variants("Clause"), ["Finite", "Coordination"]);
     assert_eq!(variants("TriggerMarker"), ["When", "Whenever"]);
     assert_eq!(variants("TriggerPrefix"), ["Finite", "Temporal"]);
     assert_eq!(variants("AtPhrase"), ["AtPhrase"]);
@@ -499,22 +500,19 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
     );
 
     let value = Ability::Triggered(Triggered {
-        trigger: TriggerPrefix::Finite(
-            Finite::new(
-                TriggerMarker::Whenever,
-                Clause::FiniteClause(FiniteClause {
-                    subject: Subject::SubjectPronoun(PersonalSubject {
-                        word: SubjectPronoun::You,
-                    }),
-                    predicate: VerbPhrase::Connive(Connive),
+        trigger: TriggerPrefix::Finite(Finite {
+            marker: TriggerMarker::Whenever,
+            clause: FiniteClause::PlainFiniteClause(PlainFiniteClause {
+                subject: Subject::SubjectPronoun(PersonalSubject {
+                    word: SubjectPronoun::You,
                 }),
-            )
-            .expect("finite trigger accepts a finite clause"),
-        ),
+                predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
+            }),
+        }),
         intervening_if: None,
         body: AbilityBody::Sentences(
             Sentences::new(vec![Sentence::Imperative(Imperative {
-                predicate: VerbPhrase::Connive(Connive),
+                predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
             })])
             .expect("linguistic body remains nonempty"),
         ),
@@ -649,7 +647,7 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
             panic!("finite trigger uses the finite generated prefix: {text}")
         };
         assert_eq!(finite.marker, marker);
-        assert!(matches!(finite.clause(), Clause::FiniteClause(_)));
+        assert!(matches!(finite.clause, FiniteClause::PlainFiniteClause(_)));
     }
 
     let temporal_text = "At the beginning of each player's draw step, you gain X life.";
@@ -677,11 +675,14 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
         intervening_if:
             Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(
                 FiniteConditionValue {
-                    subject:
-                        Subject::SubjectPronoun(PersonalSubject {
-                            word: SubjectPronoun::You,
+                    clause:
+                        FiniteClause::PlainFiniteClause(PlainFiniteClause {
+                            subject:
+                                Subject::SubjectPronoun(PersonalSubject {
+                                    word: SubjectPronoun::You,
+                                }),
+                            predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
                         }),
-                    predicate: VerbPhrase::Connive(Connive),
                 },
             ))),
         ..
@@ -791,6 +792,10 @@ fn each_of_your_main_phase_requires_plural_morphology() {
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the boundary ownership and visitor oracle is deliberately literal"
+)]
 fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
     let parser = parser();
     let context = context("Context Card", false);
@@ -841,6 +846,8 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             "TurnPart",
             "AbilityBody",
             "Sentences",
+            "Clause",
+            "FiniteClause",
         ]
     );
 
@@ -877,7 +884,7 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             (27, 30, "form:finite_condition/finite_condition/0"),
             (30, 34, "vocab:SubjectPronoun/You"),
             (34, 42, "lexeme:keyword_action/Connive/bare"),
-            (42, 43, "form:finite_condition/finite_condition/3"),
+            (42, 43, "form:finite_condition/finite_condition/2"),
             (43, 47, "vocab:SubjectPronoun/You"),
             (47, 52, "lexeme:VerbLexeme/Gain/bare"),
             (52, 54, "vocab:Variable/X"),
@@ -896,13 +903,15 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             "TriggerPrefix",
             "Finite",
             "TriggerMarker",
-            "Clause",
             "FiniteClause",
             "ConditionClause",
             "FiniteCondition",
             "FiniteConditionValue",
+            "FiniteClause",
             "AbilityBody",
             "Sentences",
+            "Clause",
+            "FiniteClause",
         ]
     );
 
@@ -927,6 +936,8 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             "TurnOwnerPostmodifier",
             "AbilityBody",
             "Sentences",
+            "Clause",
+            "FiniteClause",
         ]
     );
 
@@ -1677,6 +1688,612 @@ fn activated_body_reuses_legendary_license_and_rejects_ordinary_shortening() {
             .parse("{T}: Grizzly gains 2 life.", &ordinary)
             .is_err(),
         "an activated body cannot manufacture an ordinary-name abbreviation",
+    );
+}
+
+fn gain_life_predicate(magnitude: u32) -> VerbPhrase {
+    VerbPhrase::GainLife(GainLife {
+        amount: Amount::Number(NumberAmount {
+            number: ScalarNumber { magnitude },
+        }),
+    })
+}
+
+fn you_subject() -> Subject {
+    Subject::SubjectPronoun(PersonalSubject {
+        word: SubjectPronoun::You,
+    })
+}
+
+fn plain_finite(subject: Subject, predicate: Predicate) -> FiniteClause {
+    FiniteClause::PlainFiniteClause(PlainFiniteClause { subject, predicate })
+}
+
+fn assert_one_logic_candidate(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Ability {
+    let analysis = parser.analyze(text, context);
+    let selected = analysis
+        .selected()
+        .unwrap_or_else(|| panic!("logic witness must select: {text}: {analysis:?}"));
+    assert_eq!(
+        analysis
+            .decision()
+            .expect("a selected logic witness has a decision")
+            .candidates()
+            .len(),
+        1,
+        "the staged grammar materializes one semantic candidate: {text}",
+    );
+    assert_eq!(selected.render(context, parser.environment()), text);
+    let ownership = analysis
+        .ownership()
+        .expect("selected logic witness has byte ownership");
+    assert!(ownership.failures().is_empty(), "{text}: {ownership:?}");
+    assert!(ownership.summary().covered(), "{text}: {ownership:?}");
+    selected.clone()
+}
+
+#[test]
+fn auxiliaries_are_lexical_clause_structure_with_derived_bare_predicates() {
+    let parser = parser();
+    let context = context("Context Card", false);
+
+    for (surface, auxiliary) in [
+        ("may", Auxiliary::May),
+        ("can", Auxiliary::Can),
+        ("can't", Auxiliary::Cant),
+        ("must", Auxiliary::Must),
+    ] {
+        let text = format!("You {surface} gain 2 life.");
+        let selected = assert_one_logic_candidate(&parser, &context, &text);
+        assert_eq!(
+            selected,
+            Ability::Plain(Plain {
+                body: AbilityBody::Sentences(
+                    Sentences::new(vec![Sentence::Declarative(Declarative {
+                        clause: Clause::Finite(FiniteClause::AuxiliaryFiniteClause(
+                            AuxiliaryFiniteClause {
+                                subject: you_subject(),
+                                auxiliary,
+                                predicate: Predicate::Atomic(gain_life_predicate(2)),
+                            },
+                        )),
+                    })])
+                    .expect("the independently built ability body is nonempty"),
+                ),
+            }),
+            "the generated AST stores only the lexical auxiliary and atomic predicate",
+        );
+    }
+
+    for invalid in [
+        "You may gains 2 life.",
+        "A player can gains 2 life.",
+        "You can't gains 2 life.",
+        "A player must gains 2 life.",
+    ] {
+        assert!(
+            parser.parse(invalid, &context).is_err(),
+            "an auxiliary requires the derived bare predicate form: {invalid}",
+        );
+    }
+    assert!(
+        parser.parse("A player gains 2 life.", &context).is_ok(),
+        "ordinary finite clauses retain subject-derived third-person agreement",
+    );
+    assert!(
+        parser.parse("A player gain 2 life.", &context).is_err(),
+        "ordinary finite clauses do not inherit auxiliary bare agreement",
+    );
+}
+
+#[test]
+fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let text = "You can't gain X life.";
+    let analysis = parser.analyze(text, &context);
+    assert!(analysis.selected().is_some(), "can't witness must select");
+    let claims = analysis
+        .ownership()
+        .expect("can't witness has ownership")
+        .parsed_claims();
+    let claim = claims
+        .iter()
+        .find(|claim| claim.stable_owner_id() == "vocab:Auxiliary/Cant")
+        .expect("the lexical auxiliary owns its realized bytes");
+    assert_eq!((claim.span().start, claim.span().end), (3, 9));
+    assert_eq!(&text[claim.span().start..claim.span().end], " can't");
+
+    let source = include_str!("../src/constructions.rs");
+    let invocation = deckmaste_construction_core::invocation_from_source(source)
+        .expect("production construction invocation is authentic");
+    let expansion = deckmaste_construction_core::generate(invocation.tokens)
+        .expect("production construction invocation expands");
+    let file = syn::parse2::<syn::File>(expansion.tokens()).expect("generated Rust parses");
+    let variants = |name| {
+        file.items
+            .iter()
+            .find_map(|item| match item {
+                syn::Item::Enum(item) if item.ident == name => Some(
+                    item.variants
+                        .iter()
+                        .map(|variant| variant.ident.to_string())
+                        .collect::<Vec<_>>(),
+                ),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("generated public enum {name} is present"))
+    };
+    assert_eq!(variants("Auxiliary"), ["May", "Can", "Cant", "Must"]);
+    assert_eq!(
+        variants("VerbPhrase"),
+        ["Destroy", "Connive", "DealDamage", "GainLife"],
+        "linguistic auxiliaries add no predicate leaf",
+    );
+    for forbidden in [
+        "Permission",
+        "MayPredicate",
+        "CanPredicate",
+        "CantPredicate",
+        "MustPredicate",
+    ] {
+        assert!(
+            !file.items.iter().any(|item| {
+                matches!(item, syn::Item::Enum(item) if item.ident == forbidden)
+                    || matches!(item, syn::Item::Struct(item) if item.ident == forbidden)
+            }),
+            "the surface grammar does not expose engine/predicate type {forbidden}",
+        );
+    }
+}
+
+#[derive(Clone, Copy)]
+enum CoordinationKind {
+    And,
+    Or,
+    AndOr,
+}
+
+fn assert_predicate_coordination(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+    kind: CoordinationKind,
+    expected_members: usize,
+) {
+    let selected = assert_one_logic_candidate(parser, context, text);
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(sentences),
+    }) = selected
+    else {
+        panic!("predicate coordination is a plain sentence body: {text}")
+    };
+    let [
+        Sentence::Declarative(Declarative {
+            clause:
+                Clause::Finite(FiniteClause::PlainFiniteClause(PlainFiniteClause {
+                    predicate: Predicate::Coordination(coordination),
+                    ..
+                })),
+        }),
+    ] = sentences.sentences()
+    else {
+        panic!("predicate coordination has the staged declarative AST: {text}")
+    };
+    let members = match (kind, coordination) {
+        (CoordinationKind::And, PredicateCoordination::AndPredicateCoordination(value)) => {
+            value.members()
+        }
+        (CoordinationKind::Or, PredicateCoordination::OrPredicateCoordination(value)) => {
+            value.members()
+        }
+        (CoordinationKind::AndOr, PredicateCoordination::AndOrPredicateCoordination(value)) => {
+            value.members()
+        }
+        _ => panic!("coordinator meaning is stored independently of punctuation: {text}"),
+    };
+    assert_eq!(members.len(), expected_members, "{text}");
+}
+
+#[test]
+fn predicate_coordination_is_nary_with_exact_pair_serial_and_final_surfaces() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    for (kind, coordinator) in [
+        (CoordinationKind::And, "and"),
+        (CoordinationKind::Or, "or"),
+        (CoordinationKind::AndOr, "and/or"),
+    ] {
+        for (text, members) in [
+            (format!("You gain 1 life {coordinator} connive."), 2),
+            (
+                format!("You gain 1 life, connive, {coordinator} gain 2 life."),
+                3,
+            ),
+            (
+                format!("You gain 1 life, connive, gain 2 life, {coordinator} gain 3 life."),
+                4,
+            ),
+        ] {
+            assert_predicate_coordination(&parser, &context, &text, kind, members);
+        }
+    }
+}
+
+fn assert_clause_coordination(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+    kind: CoordinationKind,
+    expected_members: usize,
+) {
+    let selected = assert_one_logic_candidate(parser, context, text);
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(sentences),
+    }) = selected
+    else {
+        panic!("clause coordination is a plain sentence body: {text}")
+    };
+    let [
+        Sentence::Declarative(Declarative {
+            clause: Clause::Coordination(coordination),
+        }),
+    ] = sentences.sentences()
+    else {
+        panic!("complete clauses coordinate above finite clauses: {text}")
+    };
+    let members = match (kind, coordination) {
+        (CoordinationKind::And, ClauseCoordination::AndClauseCoordination(value)) => {
+            value.members()
+        }
+        (CoordinationKind::Or, ClauseCoordination::OrClauseCoordination(value)) => value.members(),
+        (CoordinationKind::AndOr, ClauseCoordination::AndOrClauseCoordination(value)) => {
+            value.members()
+        }
+        _ => panic!("clause coordinator meaning is stored independently: {text}"),
+    };
+    assert_eq!(members.len(), expected_members, "{text}");
+}
+
+#[test]
+fn complete_finite_clause_coordination_is_nary_and_preserves_member_agreement() {
+    let parser = parser();
+    let context = context("Aang, A Lot to Learn", true);
+    for (kind, coordinator) in [
+        (CoordinationKind::And, "and"),
+        (CoordinationKind::Or, "or"),
+        (CoordinationKind::AndOr, "and/or"),
+    ] {
+        for (text, members) in [
+            (format!("Aang gains 1 life {coordinator} you connive."), 2),
+            (
+                format!("Aang gains 1 life, you connive, {coordinator} a player gains 2 life."),
+                3,
+            ),
+            (
+                format!(
+                    "Aang gains 1 life, you connive, a player gains 2 life, {coordinator} Aang gains 3 life."
+                ),
+                4,
+            ),
+        ] {
+            assert_clause_coordination(&parser, &context, &text, kind, members);
+        }
+    }
+    for invalid in [
+        "Aang gain 1 life and you connive.",
+        "Aang gains 1 life and you connives.",
+    ] {
+        assert!(
+            parser.parse(invalid, &context).is_err(),
+            "each coordinated finite clause derives agreement from its own subject: {invalid}",
+        );
+    }
+}
+
+#[test]
+fn malformed_coordination_and_minimum_arity_are_rejected() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    for invalid in [
+        "You gain 1 life, and connive.",
+        "You gain 1 life, connive and gain 2 life.",
+        "You gain 1 life and and connive.",
+        "You gain 1 life and connive or gain 2 life.",
+        "You gain 1 life and / or connive.",
+        "You gain 1 life,and connive.",
+        "You gain 1 life, you connive and a player gains 2 life.",
+        "You gain 1 life and you connive or a player gains 2 life.",
+    ] {
+        assert!(
+            parser.parse(invalid, &context).is_err(),
+            "malformed punctuation or mixed/duplicated coordinator must reject: {invalid}",
+        );
+    }
+
+    assert!(AndPredicateCoordination::new(vec![gain_life_predicate(1)]).is_none());
+    assert!(
+        AndClauseCoordination::new(vec![plain_finite(
+            you_subject(),
+            Predicate::Atomic(gain_life_predicate(1)),
+        )])
+        .is_none()
+    );
+
+    let selected = assert_one_logic_candidate(&parser, &context, "You gain 1 life.");
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(sentences),
+    }) = selected
+    else {
+        panic!("one atomic clause remains a plain ability")
+    };
+    assert!(matches!(
+        sentences.sentences(),
+        [Sentence::Declarative(Declarative {
+            clause: Clause::Finite(FiniteClause::PlainFiniteClause(PlainFiniteClause {
+                predicate: Predicate::Atomic(_),
+                ..
+            })),
+        })]
+    ));
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum LogicVisit {
+    Predicate,
+    PredicateCoordination,
+    AndPredicateCoordination,
+    VerbPhrase,
+    Clause,
+    ClauseCoordination,
+    AndClauseCoordination,
+    FiniteClause,
+    AuxiliaryFiniteClause,
+    Subject,
+    Auxiliary(Auxiliary),
+}
+
+#[derive(Default)]
+struct LogicVisitor(Vec<LogicVisit>);
+
+impl Visitor for LogicVisitor {
+    fn visit_predicate(&mut self, value: &Predicate) {
+        self.0.push(LogicVisit::Predicate);
+        deckmaste_english_v2::visit::walk_predicate(self, value);
+    }
+
+    fn visit_predicate_coordination(&mut self, value: &PredicateCoordination) {
+        self.0.push(LogicVisit::PredicateCoordination);
+        deckmaste_english_v2::visit::walk_predicate_coordination(self, value);
+    }
+
+    fn visit_and_predicate_coordination(&mut self, value: &AndPredicateCoordination) {
+        self.0.push(LogicVisit::AndPredicateCoordination);
+        deckmaste_english_v2::visit::walk_and_predicate_coordination(self, value);
+    }
+
+    fn visit_verb_phrase(&mut self, _value: &VerbPhrase) {
+        self.0.push(LogicVisit::VerbPhrase);
+    }
+
+    fn visit_clause(&mut self, value: &Clause) {
+        self.0.push(LogicVisit::Clause);
+        deckmaste_english_v2::visit::walk_clause(self, value);
+    }
+
+    fn visit_clause_coordination(&mut self, value: &ClauseCoordination) {
+        self.0.push(LogicVisit::ClauseCoordination);
+        deckmaste_english_v2::visit::walk_clause_coordination(self, value);
+    }
+
+    fn visit_and_clause_coordination(&mut self, value: &AndClauseCoordination) {
+        self.0.push(LogicVisit::AndClauseCoordination);
+        deckmaste_english_v2::visit::walk_and_clause_coordination(self, value);
+    }
+
+    fn visit_finite_clause(&mut self, _value: &FiniteClause) {
+        self.0.push(LogicVisit::FiniteClause);
+    }
+
+    fn visit_auxiliary_finite_clause(&mut self, value: &AuxiliaryFiniteClause) {
+        self.0.push(LogicVisit::AuxiliaryFiniteClause);
+        deckmaste_english_v2::visit::walk_auxiliary_finite_clause(self, value);
+    }
+
+    fn visit_subject(&mut self, _value: &Subject) {
+        self.0.push(LogicVisit::Subject);
+    }
+
+    fn visit_auxiliary(&mut self, value: Auxiliary) {
+        self.0.push(LogicVisit::Auxiliary(value));
+    }
+}
+
+#[test]
+fn logic_visitors_follow_semantic_member_order() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let predicate_ability =
+        assert_one_logic_candidate(&parser, &context, "You gain 1 life and connive.");
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(predicate_sentences),
+    }) = predicate_ability
+    else {
+        unreachable!()
+    };
+    let [
+        Sentence::Declarative(Declarative {
+            clause:
+                Clause::Finite(FiniteClause::PlainFiniteClause(PlainFiniteClause { predicate, .. })),
+        }),
+    ] = predicate_sentences.sentences()
+    else {
+        unreachable!()
+    };
+    let mut visitor = LogicVisitor::default();
+    visitor.visit_predicate(predicate);
+    assert_eq!(
+        visitor.0,
+        [
+            LogicVisit::Predicate,
+            LogicVisit::PredicateCoordination,
+            LogicVisit::AndPredicateCoordination,
+            LogicVisit::VerbPhrase,
+            LogicVisit::VerbPhrase,
+        ],
+    );
+
+    let clause_ability = assert_one_logic_candidate(
+        &parser,
+        &context,
+        "You gain 1 life and a player gains 2 life.",
+    );
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(clause_sentences),
+    }) = clause_ability
+    else {
+        unreachable!()
+    };
+    let [Sentence::Declarative(Declarative { clause })] = clause_sentences.sentences() else {
+        unreachable!()
+    };
+    let mut visitor = LogicVisitor::default();
+    visitor.visit_clause(clause);
+    assert_eq!(
+        visitor.0,
+        [
+            LogicVisit::Clause,
+            LogicVisit::ClauseCoordination,
+            LogicVisit::AndClauseCoordination,
+            LogicVisit::FiniteClause,
+            LogicVisit::FiniteClause,
+        ],
+    );
+
+    let auxiliary = assert_one_logic_candidate(&parser, &context, "You can't connive.");
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(auxiliary_sentences),
+    }) = auxiliary
+    else {
+        unreachable!()
+    };
+    let [
+        Sentence::Declarative(Declarative {
+            clause: Clause::Finite(FiniteClause::AuxiliaryFiniteClause(auxiliary)),
+        }),
+    ] = auxiliary_sentences.sentences()
+    else {
+        unreachable!()
+    };
+    let mut visitor = LogicVisitor::default();
+    visitor.visit_auxiliary_finite_clause(auxiliary);
+    assert_eq!(
+        visitor.0,
+        [
+            LogicVisit::AuxiliaryFiniteClause,
+            LogicVisit::Subject,
+            LogicVisit::Auxiliary(Auxiliary::Cant),
+            LogicVisit::Predicate,
+            LogicVisit::VerbPhrase,
+        ],
+    );
+}
+
+#[test]
+fn coordination_case_transitions_and_self_reference_reuse_existing_envelopes() {
+    let parser = parser();
+    let ordinary = context("Context Card", false);
+    for text in [
+        "You gain 1 life and connive.",
+        "Whenever a player connives, you gain 1 life and connive.",
+        "{T}: You gain 1 life and connive.",
+        "You gain 1 life and connive. Destroy target creature.",
+    ] {
+        assert_one_logic_candidate(&parser, &ordinary, text);
+    }
+    for invalid in [
+        "you gain 1 life and connive.",
+        "Whenever a player connives, You gain 1 life and connive.",
+        "{T}: you gain 1 life and connive.",
+        "You gain 1 life and connive. destroy target creature.",
+    ] {
+        assert!(
+            parser.parse(invalid, &ordinary).is_err(),
+            "structural position derives capitalization: {invalid}",
+        );
+    }
+
+    for (name, legendary, surface, spelling) in [
+        (
+            "Aang, A Lot to Learn",
+            true,
+            "Aang",
+            SelfReferenceSpelling::Abbreviated,
+        ),
+        (
+            "Grizzly Bears",
+            false,
+            "Grizzly Bears",
+            SelfReferenceSpelling::Full,
+        ),
+    ] {
+        let context = context(name, legendary);
+        for text in [
+            format!("{surface} gains 1 life and connives."),
+            format!("{surface} gains 1 life and you connive."),
+        ] {
+            let selected = assert_one_logic_candidate(&parser, &context, &text);
+            let mut visitor = SelfReferenceVisitor::default();
+            visitor.visit_ability(&selected);
+            assert_eq!(visitor.spellings, [spelling], "{text}");
+        }
+    }
+    let context = context("Grizzly Bears", false);
+    for text in [
+        "Grizzly gains 1 life and connives.",
+        "Grizzly gains 1 life and you connive.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "coordination cannot manufacture an ordinary-name abbreviation: {text}",
+        );
+    }
+}
+
+#[test]
+fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
+    let source = include_str!("../src/constructions.rs");
+    let invocation = deckmaste_construction_core::invocation_from_source(source)
+        .expect("production construction invocation is authentic");
+    let expansion = deckmaste_construction_core::generate(invocation.tokens)
+        .expect("production construction invocation expands");
+    let report = expansion.escape_hatches();
+    assert!(report.stored_separator_fields().is_empty());
+    assert!(report.stored_form_tags().is_empty());
+    for role in [
+        "AndPredicateCoordination.members",
+        "OrPredicateCoordination.members",
+        "AndOrPredicateCoordination.members",
+        "AndClauseCoordination.members",
+        "OrClauseCoordination.members",
+        "AndOrClauseCoordination.members",
+    ] {
+        assert!(
+            report
+                .positional_separator_tables()
+                .iter()
+                .any(|actual| actual == role),
+            "generated report contains positional separator authority for {role}",
+        );
+    }
+    assert_eq!(
+        report.sequence_feature_roles(),
+        [
+            "AndPredicateCoordination.members.agreement",
+            "OrPredicateCoordination.members.agreement",
+            "AndOrPredicateCoordination.members.agreement",
+        ],
+        "only predicate coordination relays homogeneous agreement; finite clauses retain independent subjects",
     );
 }
 

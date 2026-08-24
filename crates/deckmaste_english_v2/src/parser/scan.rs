@@ -2212,14 +2212,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            25,
+            26,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            28,
+            29,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2239,14 +2239,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            25,
+            26,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            28,
+            29,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2271,13 +2271,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (26, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (27, "Siege.", "Siege", SubtypeCategory::Battle),
-            (28, "Elf.", "Elf", SubtypeCategory::Creature),
-            (29, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (30, "Forest.", "Forest", SubtypeCategory::Land),
-            (31, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (32, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (27, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (28, "Siege.", "Siege", SubtypeCategory::Battle),
+            (29, "Elf.", "Elf", SubtypeCategory::Creature),
+            (30, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (31, "Forest.", "Forest", SubtypeCategory::Land),
+            (32, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (33, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2295,7 +2295,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (26..=32).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (27..=33).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2311,7 +2311,7 @@ mod tests {
         }
 
         let player = scan(
-            25,
+            26,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2689,8 +2689,33 @@ mod tests {
                 "SentenceImperative",
                 "SentenceDeclarative",
                 "SentenceWithWhere",
-                "ClauseFiniteClause",
-                "ClauseWhere",
+                "AndPredicateCoordinationMembersSequencePair",
+                "AndPredicateCoordinationMembersSequenceThreePlus",
+                "AndPredicateCoordinationMembersSequenceLast",
+                "AndPredicateCoordinationMembersSequenceMiddle",
+                "OrPredicateCoordinationMembersSequencePair",
+                "OrPredicateCoordinationMembersSequenceThreePlus",
+                "OrPredicateCoordinationMembersSequenceLast",
+                "OrPredicateCoordinationMembersSequenceMiddle",
+                "AndOrPredicateCoordinationMembersSequencePair",
+                "AndOrPredicateCoordinationMembersSequenceThreePlus",
+                "AndOrPredicateCoordinationMembersSequenceLast",
+                "AndOrPredicateCoordinationMembersSequenceMiddle",
+                "FiniteClausePlainFiniteClause",
+                "FiniteClauseAuxiliaryFiniteClause",
+                "AndClauseCoordinationMembersSequencePair",
+                "AndClauseCoordinationMembersSequenceThreePlus",
+                "AndClauseCoordinationMembersSequenceLast",
+                "AndClauseCoordinationMembersSequenceMiddle",
+                "OrClauseCoordinationMembersSequencePair",
+                "OrClauseCoordinationMembersSequenceThreePlus",
+                "OrClauseCoordinationMembersSequenceLast",
+                "OrClauseCoordinationMembersSequenceMiddle",
+                "AndOrClauseCoordinationMembersSequencePair",
+                "AndOrClauseCoordinationMembersSequenceThreePlus",
+                "AndOrClauseCoordinationMembersSequenceLast",
+                "AndOrClauseCoordinationMembersSequenceMiddle",
+                "WhereClauseCategoryWhere",
                 "SubjectSubjectNominal",
                 "SubjectSubjectPronoun",
                 "ObjectObjectNominal",
@@ -2891,6 +2916,10 @@ mod tests {
                 "ActivationCostComponentSymbolRun",
                 "ActivationCostComponentLoyalty",
                 "ActivationCostComponentClause",
+                "PredicateAtomic",
+                "PredicateCoordination",
+                "ClauseFinite",
+                "ClauseCoordination",
                 "ConditionClauseFiniteCondition",
                 "DocumentBlockAbility"
             ]
@@ -2936,6 +2965,13 @@ mod tests {
                 "Literal(\"]\")",
                 "Literal(\": \")",
                 "Literal(\", \")",
+                "Literal(\" and \")",
+                "Literal(\", and \")",
+                "Literal(\" or \")",
+                "Literal(\", or \")",
+                "Literal(\" and/or \")",
+                "Literal(\", and/or \")",
+                "Auxiliary",
                 "Literal(\"where\")",
                 "Variable",
                 "Verb(Be, Exact(ThirdPersonSingular))",
@@ -2946,7 +2982,6 @@ mod tests {
                 "ObjectPronoun",
                 "ReflexivePronoun",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(25, Exact(Singular))",
                 "DeclarationNoun(26, Exact(Singular))",
                 "DeclarationNoun(27, Exact(Singular))",
                 "DeclarationNoun(28, Exact(Singular))",
@@ -2954,8 +2989,8 @@ mod tests {
                 "DeclarationNoun(30, Exact(Singular))",
                 "DeclarationNoun(31, Exact(Singular))",
                 "DeclarationNoun(32, Exact(Singular))",
+                "DeclarationNoun(33, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(25, Exact(Plural))",
                 "DeclarationNoun(26, Exact(Plural))",
                 "DeclarationNoun(27, Exact(Plural))",
                 "DeclarationNoun(28, Exact(Plural))",
@@ -2963,6 +2998,7 @@ mod tests {
                 "DeclarationNoun(30, Exact(Plural))",
                 "DeclarationNoun(31, Exact(Plural))",
                 "DeclarationNoun(32, Exact(Plural))",
+                "DeclarationNoun(33, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -2970,19 +3006,13 @@ mod tests {
                 "NonCommonNoun",
                 "Literal(\"non-\")",
                 "NonTargetCommonModifier",
-                "Literal(\" and \")",
-                "Literal(\", and \")",
-                "Literal(\" or \")",
-                "Literal(\", or \")",
-                "Literal(\" and/or \")",
-                "Literal(\", and/or \")",
                 "Literal(\"target\")",
                 "Literal(\"other\")",
                 "Literal(\"an\")",
                 "Literal(\"a\")",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(34)",
+                "CatalogIdentity(35)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -3480,16 +3510,11 @@ mod tests {
     }
 
     #[test]
-    fn chart_completion_retains_an_authored_category_invariant_rejection() {
+    fn chart_rejects_a_finite_clause_in_the_typed_where_clause_slot() {
         let text = "Whenever where X is the number of creatures you control with power 2 or less, you gain X life.";
-        let forest = slice_candidates(text, "Context Card")
-            .expect("the complete surface survives until its authored category invariant");
         assert!(
-            !forest
-                .forest()
-                .accepted_root_ids()
-                .collect::<Vec<_>>()
-                .is_empty()
+            slice_candidates(text, "Context Card").is_err(),
+            "the non-left-recursive staging rejects a Where clause where FiniteClause is required",
         );
     }
 }

@@ -1221,6 +1221,8 @@ pub(crate) struct FeaturePlan {
     equations: HashMap<String, Vec<feature::FeatureEquation>>,
     resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
     category_render: HashMap<String, CategoryRenderCapability>,
+    sequence_features: HashMap<(String, String), Feature>,
+    agreement_carry_sums: HashSet<String>,
     cardinality_carry_categories: HashSet<String>,
     number_carry_categories: HashSet<String>,
     onset_carry_categories: HashSet<String>,
@@ -1326,6 +1328,8 @@ impl SemanticPlan {
         equations: HashMap<String, Vec<feature::FeatureEquation>>,
         resolutions: HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
         category_render: HashMap<String, CategoryRenderCapability>,
+        sequence_features: HashMap<(String, String), Feature>,
+        agreement_carry_sums: HashSet<String>,
         mut atoms_by_construction: HashMap<String, (Span, Vec<AtomContribution>)>,
         mut invariants_by_construction: HashMap<String, (Span, InvariantPlan)>,
     ) -> syn::Result<Self> {
@@ -1505,6 +1509,8 @@ impl SemanticPlan {
                 equations,
                 resolutions,
                 category_render,
+                sequence_features,
+                agreement_carry_sums,
                 cardinality_carry_categories,
                 number_carry_categories,
                 onset_carry_categories,
@@ -1779,6 +1785,18 @@ impl SemanticPlan {
     pub(crate) fn category_carries_agreement(&self, category: &str) -> bool {
         self.category_render_capability(category)
             .carries_agreement()
+            || self.features.agreement_carry_sums.contains(category)
+    }
+
+    pub(crate) fn sum_carries_agreement(&self, sum: &str) -> bool {
+        self.features.agreement_carry_sums.contains(sum)
+    }
+
+    pub(crate) fn sequence_feature(&self, owner: &str, role: &str) -> Option<Feature> {
+        self.features
+            .sequence_features
+            .get(&(owner.to_owned(), role.to_owned()))
+            .copied()
     }
 
     pub(crate) fn category_requires_external_agreement(&self, category: &str) -> bool {

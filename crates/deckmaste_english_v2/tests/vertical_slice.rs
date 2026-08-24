@@ -310,6 +310,29 @@ fn damage(amount: Amount) -> VerbPhrase {
     VerbPhrase::DealDamage(DealDamage { to: it(), amount })
 }
 
+fn atomic(predicate: VerbPhrase) -> Predicate {
+    Predicate::Atomic(predicate)
+}
+
+fn imperative(predicate: VerbPhrase) -> Sentence {
+    Sentence::Imperative(Imperative {
+        predicate: atomic(predicate),
+    })
+}
+
+fn finite_clause(subject: Subject, predicate: VerbPhrase) -> FiniteClause {
+    FiniteClause::PlainFiniteClause(PlainFiniteClause {
+        subject,
+        predicate: atomic(predicate),
+    })
+}
+
+fn declarative(subject: Subject, predicate: VerbPhrase) -> Sentence {
+    Sentence::Declarative(Declarative {
+        clause: Clause::Finite(finite_clause(subject, predicate)),
+    })
+}
+
 fn body(values: Vec<Sentence>) -> AbilityBody {
     AbilityBody::Sentences(Sentences::new(values).expect("one or more sentences construct a body"))
 }
@@ -318,28 +341,28 @@ fn plain(values: Vec<Sentence>) -> Ability {
     Ability::Plain(Plain { body: body(values) })
 }
 
-fn triggered(trigger_clause: Clause, consequences: Vec<Sentence>) -> Triggered {
+fn triggered(trigger_clause: FiniteClause, consequences: Vec<Sentence>) -> Triggered {
     Triggered {
-        trigger: TriggerPrefix::Finite(
-            Finite::new(TriggerMarker::Whenever, trigger_clause)
-                .expect("a finite clause constructs a Whenever trigger"),
-        ),
+        trigger: TriggerPrefix::Finite(Finite {
+            marker: TriggerMarker::Whenever,
+            clause: trigger_clause,
+        }),
         intervening_if: None,
         body: body(consequences),
     }
 }
 
 fn triggered_damage() -> Ability {
-    let event = Clause::FiniteClause(FiniteClause {
-        subject: nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
-        predicate: VerbPhrase::Connive(Connive),
-    });
-    let effect = Sentence::Declarative(Declarative {
-        subject: nominal_subject(that_noun(creature())),
-        predicate: damage(Amount::Variable(VariableAmount {
+    let event = finite_clause(
+        nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
+        VerbPhrase::Connive(Connive),
+    );
+    let effect = declarative(
+        nominal_subject(that_noun(creature())),
+        damage(Amount::Variable(VariableAmount {
             variable: Variable::X,
         })),
-    });
+    );
     Ability::Triggered(triggered(event, vec![effect]))
 }
 
@@ -372,11 +395,9 @@ fn unsigned_decimal_zero_constructs_renders_scans_and_visits() {
     let parser = Parser::new(environment.clone()).expect("required declarations are present");
     let context = context("Context Card");
     let number = ScalarNumber { magnitude: 0 };
-    let ability = plain(vec![Sentence::Imperative(Imperative {
-        predicate: VerbPhrase::GainLife(GainLife {
-            amount: Amount::Number(NumberAmount { number }),
-        }),
-    })]);
+    let ability = plain(vec![imperative(VerbPhrase::GainLife(GainLife {
+        amount: Amount::Number(NumberAmount { number }),
+    }))]);
     assert_eq!(ability.render(&context, &environment), "Gain 0 life.");
     assert_eq!(parser.parse("Gain 0 life.", &context), Ok(ability));
     assert!(parser.parse("Gain -0 life.", &context).is_err());
@@ -434,13 +455,11 @@ fn generated_cardinals_and_unsigned_scalars_round_trip_with_codec_ownership() {
     }
 
     let scalar = ScalarNumber { magnitude: 1_000 };
-    let ability = plain(vec![Sentence::Imperative(Imperative {
-        predicate: VerbPhrase::GainLife(GainLife {
-            amount: Amount::Number(NumberAmount {
-                number: scalar.clone(),
-            }),
+    let ability = plain(vec![imperative(VerbPhrase::GainLife(GainLife {
+        amount: Amount::Number(NumberAmount {
+            number: scalar.clone(),
         }),
-    })]);
+    }))]);
     assert_eq!(ability.render(&context, &environment), "Gain 1,000 life.");
     assert_eq!(parser.parse("Gain 1,000 life.", &context), Ok(ability));
     let scalar_ownership = parser
@@ -458,13 +477,11 @@ fn generated_cardinals_and_unsigned_scalars_round_trip_with_codec_ownership() {
         .parse_cardinal_quantity("One thousand, one", &context)
         .expect("canonical cardinal parses through its generated parent root");
 
-    let y_ability = plain(vec![Sentence::Imperative(Imperative {
-        predicate: VerbPhrase::GainLife(GainLife {
-            amount: Amount::Variable(VariableAmount {
-                variable: Variable::Y,
-            }),
+    let y_ability = plain(vec![imperative(VerbPhrase::GainLife(GainLife {
+        amount: Amount::Variable(VariableAmount {
+            variable: Variable::Y,
         }),
-    })]);
+    }))]);
     assert_eq!(y_ability.render(&context, &environment), "Gain Y life.");
     assert_eq!(
         parser.parse("Gain Y life.", &context),
@@ -484,23 +501,20 @@ fn generated_cardinals_and_unsigned_scalars_round_trip_with_codec_ownership() {
 }
 
 fn gain_life_with_where() -> Sentence {
-    Sentence::WithWhere(
-        WithWhere::new(
-            Box::new(Sentence::Declarative(Declarative {
-                subject: subject_you(),
-                predicate: VerbPhrase::GainLife(GainLife {
-                    amount: Amount::Variable(VariableAmount {
-                        variable: Variable::X,
-                    }),
+    Sentence::WithWhere(WithWhere {
+        body: Box::new(declarative(
+            subject_you(),
+            VerbPhrase::GainLife(GainLife {
+                amount: Amount::Variable(VariableAmount {
+                    variable: Variable::X,
                 }),
-            })),
-            Clause::Where(WhereClause {
-                variable: Variable::X,
-                value: nominal_object(creatures_you_control_with_power_at_most_two()),
             }),
-        )
-        .expect("Where is a valid trailing clause"),
-    )
+        )),
+        clause: WhereClauseCategory::Where(WhereClause {
+            variable: Variable::X,
+            value: nominal_object(creatures_you_control_with_power_at_most_two()),
+        }),
+    })
 }
 
 #[test]
@@ -535,10 +549,10 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         fn visit_sentence(&mut self, sentence: &Sentence) {
             let label = match sentence {
                 Sentence::Imperative(Imperative {
-                    predicate: VerbPhrase::Destroy(_),
+                    predicate: Predicate::Atomic(VerbPhrase::Destroy(_)),
                 }) => "destroy",
                 Sentence::Imperative(Imperative {
-                    predicate: VerbPhrase::Connive(_),
+                    predicate: Predicate::Atomic(VerbPhrase::Connive(_)),
                 }) => "connive",
                 Sentence::Declarative(_) => "gain",
                 Sentence::WithWhere(_) => "where",
@@ -549,22 +563,18 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         }
     }
 
-    let destroy = Sentence::Imperative(Imperative {
-        predicate: VerbPhrase::Destroy(Destroy {
-            object: target_creature(),
-        }),
-    });
-    let gain = Sentence::Declarative(Declarative {
-        subject: subject_you(),
-        predicate: VerbPhrase::GainLife(GainLife {
+    let destroy = imperative(VerbPhrase::Destroy(Destroy {
+        object: target_creature(),
+    }));
+    let gain = declarative(
+        subject_you(),
+        VerbPhrase::GainLife(GainLife {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 2 },
             }),
         }),
-    });
-    let connive = Sentence::Imperative(Imperative {
-        predicate: VerbPhrase::Connive(Connive),
-    });
+    );
+    let connive = imperative(VerbPhrase::Connive(Connive));
 
     assert!(Sentences::new(vec![]).is_none());
     let paragraph_sentences = vec![destroy, gain.clone()];
@@ -572,10 +582,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         .expect("a paragraph accepts one or more sentences");
     assert_eq!(paragraph.sentences(), paragraph_sentences.as_slice());
 
-    let event = Clause::FiniteClause(FiniteClause {
-        subject: subject_you(),
-        predicate: VerbPhrase::Connive(Connive),
-    });
+    let event = finite_clause(subject_you(), VerbPhrase::Connive(Connive));
     assert!(
         Sentences::new(vec![]).is_none(),
         "an ability body is nonempty"
@@ -653,13 +660,8 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
 
 #[test]
 fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_effects() {
-    let event = Clause::FiniteClause(FiniteClause {
-        subject: subject_you(),
-        predicate: VerbPhrase::Connive(Connive),
-    });
-    let effect = Sentence::Imperative(Imperative {
-        predicate: VerbPhrase::Connive(Connive),
-    });
+    let event = finite_clause(subject_you(), VerbPhrase::Connive(Connive));
+    let effect = imperative(VerbPhrase::Connive(Connive));
     let value = triggered(event, vec![effect.clone()]);
     let AbilityBody::Sentences(body) = value.body;
     assert_eq!(body.sentences(), [effect]);
@@ -667,11 +669,9 @@ fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_eff
 
 #[test]
 fn renders_destroy_target_creature_exactly() {
-    let value = plain(vec![Sentence::Imperative(Imperative {
-        predicate: VerbPhrase::Destroy(Destroy {
-            object: target_creature(),
-        }),
-    })]);
+    let value = plain(vec![imperative(VerbPhrase::Destroy(Destroy {
+        object: target_creature(),
+    }))]);
     assert_eq!(
         value.render(&context("Context Card"), &environment()),
         "Destroy target creature."
@@ -698,14 +698,14 @@ fn renders_gain_life_with_a_where_binder_exactly() {
 
 #[test]
 fn renders_a_plural_count_subject_with_a_bare_verb() {
-    let value = Sentence::Declarative(Declarative {
-        subject: nominal_subject(creatures_you_control_with_power_at_most_two()),
-        predicate: VerbPhrase::GainLife(GainLife {
+    let value = declarative(
+        nominal_subject(creatures_you_control_with_power_at_most_two()),
+        VerbPhrase::GainLife(GainLife {
             amount: Amount::Variable(VariableAmount {
                 variable: Variable::X,
             }),
         }),
-    });
+    );
 
     assert_eq!(
         value.render(&context("Context Card"), &environment()),
@@ -719,15 +719,15 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
         SelfReferenceSpelling::Abbreviated,
         "Zacama, Primal Calamity",
     );
-    let value = Sentence::Declarative(Declarative {
-        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(subject))),
-        predicate: VerbPhrase::DealDamage(DealDamage {
+    let value = declarative(
+        nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(subject))),
+        VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
-    });
+    );
     assert_eq!(
         value.render(
             &legendary_context("Zacama, Primal Calamity"),
@@ -739,20 +739,20 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
 
 #[test]
 fn the_same_self_reference_value_renders_from_two_card_contexts() {
-    let value = Sentence::Declarative(Declarative {
-        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+    let value = declarative(
+        nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference(
                 SelfReferenceSpelling::Abbreviated,
                 "Zacama, Primal Calamity",
             ),
         ))),
-        predicate: VerbPhrase::DealDamage(DealDamage {
+        VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
-    });
+    );
 
     let zacama = value.render(
         &legendary_context("Zacama, Primal Calamity"),
@@ -770,12 +770,12 @@ fn the_same_self_reference_value_renders_from_two_card_contexts() {
 
 #[test]
 fn renders_those_with_a_plural_noun_and_bare_verb() {
-    let value = Sentence::Declarative(Declarative {
-        subject: nominal_subject(those_noun(creatures())),
-        predicate: damage(Amount::Number(NumberAmount {
+    let value = declarative(
+        nominal_subject(those_noun(creatures())),
+        damage(Amount::Number(NumberAmount {
             number: ScalarNumber { magnitude: 3 },
         })),
-    });
+    );
     assert_eq!(
         value.render(&context("Context Card"), &environment()),
         "Those creatures deal 3 damage to it."
@@ -823,12 +823,12 @@ fn demonstrative_references_visit_their_distinct_typed_ast_nodes() {
             Event::ThoseReference,
         ),
     ] {
-        let sentence = Sentence::Declarative(Declarative {
-            subject: nominal_subject(value.clone()),
-            predicate: damage(Amount::Number(NumberAmount {
+        let sentence = declarative(
+            nominal_subject(value.clone()),
+            damage(Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             })),
-        });
+        );
         assert_eq!(
             sentence.render(&context("Context Card"), &environment()),
             expected,
@@ -848,12 +848,12 @@ fn demonstrative_references_visit_their_distinct_typed_ast_nodes() {
 
 #[test]
 fn renders_an_with_a_singular_noun_and_third_person_verb() {
-    let value = Sentence::Declarative(Declarative {
-        subject: nominal_subject(indefinite(artifact())),
-        predicate: damage(Amount::Number(NumberAmount {
+    let value = declarative(
+        nominal_subject(indefinite(artifact())),
+        damage(Amount::Number(NumberAmount {
             number: ScalarNumber { magnitude: 3 },
         })),
-    });
+    );
     assert_eq!(
         value.render(&context("Context Card"), &environment()),
         "An artifact deals 3 damage to it."
@@ -862,12 +862,12 @@ fn renders_an_with_a_singular_noun_and_third_person_verb() {
 
 #[test]
 fn renders_a_subtype_with_its_printed_case() {
-    let value = Sentence::Declarative(Declarative {
-        subject: nominal_subject(indefinite(equipment())),
-        predicate: damage(Amount::Number(NumberAmount {
+    let value = declarative(
+        nominal_subject(indefinite(equipment())),
+        damage(Amount::Number(NumberAmount {
             number: ScalarNumber { magnitude: 3 },
         })),
-    });
+    );
     assert_eq!(
         value.render(&context("Context Card"), &environment()),
         "An Equipment deals 3 damage to it."
@@ -876,25 +876,23 @@ fn renders_a_subtype_with_its_printed_case() {
 
 #[test]
 fn visitor_reaches_every_vertical_slice_leaf() {
-    let destroy = plain(vec![Sentence::Imperative(Imperative {
-        predicate: VerbPhrase::Destroy(Destroy {
-            object: target_creature(),
-        }),
-    })]);
-    let self_reference = Sentence::Declarative(Declarative {
-        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+    let destroy = plain(vec![imperative(VerbPhrase::Destroy(Destroy {
+        object: target_creature(),
+    }))]);
+    let self_reference = declarative(
+        nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference(
                 SelfReferenceSpelling::Abbreviated,
                 "Zacama, Primal Calamity",
             ),
         ))),
-        predicate: VerbPhrase::DealDamage(DealDamage {
+        VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
-    });
+    );
 
     let mut visitor = RecordingVisitor::default();
     visitor.visit_ability(&destroy);

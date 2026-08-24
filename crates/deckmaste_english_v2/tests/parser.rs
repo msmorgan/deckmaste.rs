@@ -8,7 +8,6 @@ use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::BoundedParseOutcome;
-use deckmaste_english_v2::parser::BuildViolation;
 use deckmaste_english_v2::parser::Expectation;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::ParseAnalysis;
@@ -93,9 +92,9 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         let [
             Sentence::Imperative(Imperative {
                 predicate:
-                    VerbPhrase::Destroy(Destroy {
+                    Predicate::Atomic(VerbPhrase::Destroy(Destroy {
                         object: Object::ObjectNominal(NominalObject { value }),
-                    }),
+                    })),
             }),
         ] = paragraph.sentences()
         else {
@@ -741,7 +740,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         panic!("the linguistic triggered envelope is preserved")
     };
     assert_eq!(finite.marker, TriggerMarker::Whenever);
-    assert_eq!(finite.clause(), &event);
+    assert_eq!(&finite.clause, &event);
     assert_eq!(body.sentences(), std::slice::from_ref(&effect));
     let triggered_text = triggered.render(&plain_context, &environment);
     assert_eq!(parser.parse(&triggered_text, &plain_context), Ok(triggered));
@@ -754,19 +753,18 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     );
 
     let body = gain_life_sentence();
-    let clause = Clause::Where(WhereClause {
+    let clause = WhereClauseCategory::Where(WhereClause {
         variable: Variable::X,
         value: object_you(),
     });
-    let with_where = WithWhere::new(Box::new(body.clone()), clause.clone())
-        .expect("a Where clause is valid for WithWhere");
+    let with_where = WithWhere {
+        body: Box::new(body.clone()),
+        clause: clause.clone(),
+    };
     let _: &Sentence = &with_where.body;
-    let _: &Clause = with_where.clause();
-    assert_eq!(with_where.clause(), &clause);
-    assert!(
-        WithWhere::new(Box::new(body), connive_event()).is_none(),
-        "a finite subordinate clause is not a valid WithWhere clause",
-    );
+    let _: &WhereClauseCategory = &with_where.clause;
+    assert_eq!(&with_where.clause, &clause);
+    let _ = body;
     let with_where = paragraph(Sentence::WithWhere(with_where));
     let with_where_text = with_where.render(&plain_context, &environment);
     assert_eq!(
@@ -788,12 +786,12 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         YouControl::new(SubjectPronoun::It).is_none(),
         "It is not a valid controller",
     );
-    let count = paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(creatures_you_control_with_power_at_most_two()),
-        predicate: VerbPhrase::GainLife(GainLife {
+    let count = paragraph(declarative(
+        nominal_subject(creatures_you_control_with_power_at_most_two()),
+        VerbPhrase::GainLife(GainLife {
             amount: variable_x(),
         }),
-    }));
+    ));
     let count_text = count.render(&plain_context, &environment);
     assert_eq!(parser.parse(&count_text, &plain_context), Ok(count));
     assert_eq!(
@@ -817,14 +815,14 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         self_reference.spelling(),
         SelfReferenceSpelling::Abbreviated
     );
-    let self_reference = paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+    let self_reference = paragraph(declarative(
+        nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference,
         ))),
-        predicate: VerbPhrase::GainLife(GainLife {
+        VerbPhrase::GainLife(GainLife {
             amount: variable_x(),
         }),
-    }));
+    ));
     let self_reference_text = self_reference.render(&abbreviated_context, &environment);
     assert_eq!(
         parser.parse(&self_reference_text, &abbreviated_context),
@@ -840,35 +838,25 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
 }
 
 #[test]
-fn authored_invariant_rejection_is_typed_parse_failure_not_chart_or_internal_failure() {
+fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
     let parser = parser();
     let context = context("Context Card");
     let denied = "You gain X life, a player connives.";
 
-    let error = parser
-        .parse_sentence(denied, &context)
-        .expect_err("a finite subordinate clause cannot fill WithWhere's Where role");
-    let ParseError::BuildRejected { span, rejection } = error else {
-        panic!("expected typed generated build rejection, got {error:?}");
-    };
     assert_eq!(
-        span,
-        TextSpan {
-            start: 0,
-            end: denied.len()
-        }
-    );
-    assert_eq!(rejection.owner(), "Sentence");
-    assert_eq!(rejection.role(), "with_where");
-    assert_eq!(
-        rejection.violation(),
-        &BuildViolation::Invariant {
-            identity: "clause is Where",
-        }
-    );
-    assert_eq!(
-        rejection.to_string(),
-        "Sentence.with_where: invariant `clause is Where` rejected"
+        parser.parse_sentence(denied, &context),
+        Err(ParseError::Failure {
+            span: TextSpan { start: 34, end: 35 },
+            expectations: BTreeSet::from([
+                Expectation::Literal(" and "),
+                Expectation::Literal(" and/or "),
+                Expectation::Literal(" or "),
+                Expectation::Literal(", "),
+                Expectation::Literal(", and "),
+                Expectation::Literal(", and/or "),
+                Expectation::Literal(", or "),
+            ]),
+        })
     );
 
     let trace = parser.trace_sentence(denied, &context, TraceLimits::new(usize::MAX));
@@ -876,9 +864,9 @@ fn authored_invariant_rejection_is_typed_parse_failure_not_chart_or_internal_fai
         trace.outcome(),
         BoundedParseOutcome::ParseFailure(_)
     ));
-    assert!(!trace.accepted_roots().items().is_empty());
+    assert!(trace.accepted_roots().items().is_empty());
     assert!(trace.materialized_candidates().items().is_empty());
-    assert_eq!(trace.build_rejection(), Some(&rejection));
+    assert!(trace.build_rejection().is_none());
     assert!(trace.checked_completion_rejections().items().is_empty());
 
     let allowed =
@@ -922,15 +910,15 @@ fn demonstrative_references_select_distinct_typed_constructions() {
             "UnqualifiedReferenceThoseReference",
         ),
     ] {
-        let expected = Sentence::Declarative(Declarative {
-            subject: nominal_subject(reference),
-            predicate: VerbPhrase::DealDamage(DealDamage {
+        let expected = declarative(
+            nominal_subject(reference),
+            VerbPhrase::DealDamage(DealDamage {
                 amount: Amount::Number(NumberAmount {
                     number: ScalarNumber { magnitude: 3 },
                 }),
                 to: object_it(),
             }),
-        });
+        );
 
         let trace = parser.trace_sentence(text, &context, TraceLimits::new(usize::MAX));
         assert_eq!(trace.clone().into_parse_result(), Ok(expected.clone()));
@@ -979,7 +967,10 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "CostSymbol",
             "LoyaltyValue",
             "Sentence",
-            "Clause",
+            "PredicateCoordination",
+            "FiniteClause",
+            "ClauseCoordination",
+            "WhereClauseCategory",
             "Subject",
             "Object",
             "SingularHead",
@@ -1020,6 +1011,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Amount",
             "CardinalQuantity",
             "ActivationCostComponent",
+            "Predicate",
+            "Clause",
             "ConditionClause",
             "DocumentBlock",
             "OracleText",
@@ -1043,7 +1036,14 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Imperative",
             "Declarative",
             "WithWhere",
-            "FiniteClause",
+            "AndPredicateCoordination",
+            "OrPredicateCoordination",
+            "AndOrPredicateCoordination",
+            "PlainFiniteClause",
+            "AuxiliaryFiniteClause",
+            "AndClauseCoordination",
+            "OrClauseCoordination",
+            "AndOrClauseCoordination",
             "WhereClause",
             "NominalSubject",
             "PersonalSubject",
@@ -1199,6 +1199,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "VariableAmount",
             "ScalarReferenceAmount",
             "CardinalQuantityValue",
+            "Auxiliary",
             "AtBoundary",
             "TriggerMarker",
             "TurnOwnerPostmodifier",
@@ -1285,8 +1286,8 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
         ),
         (
             "WithWhere",
-            &[("body", true), ("clause", false)][..],
-            &["new", "try_new", "clause"][..],
+            &[("body", true), ("clause", true)][..],
+            &[][..],
         ),
         (
             "UnqualifiedControllerStage",
@@ -1455,6 +1456,23 @@ fn variable_x() -> Amount {
     })
 }
 
+fn atomic(predicate: VerbPhrase) -> Predicate {
+    Predicate::Atomic(predicate)
+}
+
+fn finite_clause(subject: Subject, predicate: VerbPhrase) -> FiniteClause {
+    FiniteClause::PlainFiniteClause(PlainFiniteClause {
+        subject,
+        predicate: atomic(predicate),
+    })
+}
+
+fn declarative(subject: Subject, predicate: VerbPhrase) -> Sentence {
+    Sentence::Declarative(Declarative {
+        clause: Clause::Finite(finite_clause(subject, predicate)),
+    })
+}
+
 fn sentences(values: Vec<Sentence>) -> AbilityBody {
     AbilityBody::Sentences(Sentences::new(values).expect("one or more sentences construct a body"))
 }
@@ -1467,25 +1485,25 @@ fn paragraph(sentence: Sentence) -> Ability {
 
 fn destroy_target_creature() -> Ability {
     paragraph(Sentence::Imperative(Imperative {
-        predicate: VerbPhrase::Destroy(Destroy {
+        predicate: atomic(VerbPhrase::Destroy(Destroy {
             object: target_creature(),
-        }),
+        })),
     }))
 }
 
-fn connive_event() -> Clause {
-    Clause::FiniteClause(FiniteClause {
-        subject: nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
-        predicate: VerbPhrase::Connive(Connive),
-    })
+fn connive_event() -> FiniteClause {
+    finite_clause(
+        nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
+        VerbPhrase::Connive(Connive),
+    )
 }
 
-fn triggered(trigger_clause: Clause, consequences: Vec<Sentence>) -> Ability {
+fn triggered(trigger_clause: FiniteClause, consequences: Vec<Sentence>) -> Ability {
     Ability::Triggered(Triggered {
-        trigger: TriggerPrefix::Finite(
-            Finite::new(TriggerMarker::Whenever, trigger_clause)
-                .expect("a finite clause constructs a Whenever trigger"),
-        ),
+        trigger: TriggerPrefix::Finite(Finite {
+            marker: TriggerMarker::Whenever,
+            clause: trigger_clause,
+        }),
         intervening_if: None,
         body: sentences(consequences),
     })
@@ -1494,53 +1512,50 @@ fn triggered(trigger_clause: Clause, consequences: Vec<Sentence>) -> Ability {
 fn triggered_damage() -> Ability {
     triggered(
         connive_event(),
-        vec![Sentence::Declarative(Declarative {
-            subject: nominal_subject(that_noun(creature())),
-            predicate: VerbPhrase::DealDamage(DealDamage {
+        vec![declarative(
+            nominal_subject(that_noun(creature())),
+            VerbPhrase::DealDamage(DealDamage {
                 amount: variable_x(),
                 to: object_it(),
             }),
-        })],
+        )],
     )
 }
 
 fn gain_life_sentence() -> Sentence {
-    Sentence::Declarative(Declarative {
-        subject: subject_you(),
-        predicate: VerbPhrase::GainLife(GainLife {
+    declarative(
+        subject_you(),
+        VerbPhrase::GainLife(GainLife {
             amount: variable_x(),
         }),
-    })
+    )
 }
 
 fn gain_life_with_where() -> Ability {
-    paragraph(Sentence::WithWhere(
-        WithWhere::new(
-            Box::new(gain_life_sentence()),
-            Clause::Where(WhereClause {
-                variable: Variable::X,
-                value: nominal_object(creatures_you_control_with_power_at_most_two()),
-            }),
-        )
-        .expect("Where is a valid trailing clause"),
-    ))
+    paragraph(Sentence::WithWhere(WithWhere {
+        body: Box::new(gain_life_sentence()),
+        clause: WhereClauseCategory::Where(WhereClause {
+            variable: Variable::X,
+            value: nominal_object(creatures_you_control_with_power_at_most_two()),
+        }),
+    }))
 }
 
 fn zacama_deals_damage() -> Ability {
-    paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+    paragraph(declarative(
+        nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference(
                 SelfReferenceSpelling::Abbreviated,
                 "Zacama, Primal Calamity",
             ),
         ))),
-        predicate: VerbPhrase::DealDamage(DealDamage {
+        VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
-    }))
+    ))
 }
 
 fn triggered_gain_life() -> Ability {
@@ -1815,9 +1830,9 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let [
         Sentence::Imperative(Imperative {
             predicate:
-                VerbPhrase::Destroy(Destroy {
+                Predicate::Atomic(VerbPhrase::Destroy(Destroy {
                     object: Object::ObjectNominal(NominalObject { value }),
-                }),
+                })),
         }),
     ] = paragraph.sentences()
     else {
@@ -1877,8 +1892,11 @@ fn bare_own_card_name_remains_unique_source_self_reference() {
     };
     let [
         Sentence::Declarative(Declarative {
-            subject: Subject::SubjectNominal(NominalSubject { value }),
-            ..
+            clause:
+                Clause::Finite(FiniteClause::PlainFiniteClause(PlainFiniteClause {
+                    subject: Subject::SubjectNominal(NominalSubject { value }),
+                    ..
+                })),
         }),
     ] = paragraph.sentences()
     else {
@@ -2135,17 +2153,17 @@ fn parser_trace_public_loser_reason_spellings_are_stable() {
 fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
     let text = "Context Card deals 3 damage to target creature.";
     let context = context("Context Card");
-    let expected = paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+    let expected = paragraph(declarative(
+        nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference(SelfReferenceSpelling::Full, "Context Card"),
         ))),
-        predicate: VerbPhrase::DealDamage(DealDamage {
+        VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
-    }));
+    ));
 
     assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
     assert_eq!(expected.render(&context, &environment()), text);
@@ -2155,17 +2173,17 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
 fn self_reference_identity_preserves_its_inherent_case() {
     let text = "eBay deals 3 damage to target creature.";
     let context = context("eBay");
-    let expected = paragraph(Sentence::Declarative(Declarative {
-        subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
+    let expected = paragraph(declarative(
+        nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference(SelfReferenceSpelling::Full, "eBay"),
         ))),
-        predicate: VerbPhrase::DealDamage(DealDamage {
+        VerbPhrase::DealDamage(DealDamage {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
             to: target_creature(),
         }),
-    }));
+    ));
 
     assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
     assert_eq!(expected.render(&context, &environment()), text);
@@ -2200,7 +2218,6 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Terminal(TerminalClass::NonTargetCommonModifier),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(25)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(27)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
@@ -2208,6 +2225,10 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(33)),
+                Expectation::Literal(" and "),
+                Expectation::Literal(" and/or "),
+                Expectation::Literal(" or "),
                 Expectation::Literal(","),
                 Expectation::Literal(", "),
                 Expectation::Literal("."),
@@ -2243,7 +2264,6 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Nonterminal(NonterminalCategory::ScalarQualification),
                 Expectation::Terminal(TerminalClass::SubjectPronoun),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(25)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(27)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
@@ -2251,6 +2271,7 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(33)),
                 Expectation::Literal(" and "),
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),
@@ -2275,8 +2296,13 @@ fn agreement_mismatch_reports_a_nonempty_chart_failure() {
     assert_eq!(
         parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
-            span: TextSpan { start: 12, end: 16 },
-            expectations: BTreeSet::from([Expectation::Literal("life")]),
+            span: TextSpan { start: 16, end: 17 },
+            expectations: BTreeSet::from([
+                Expectation::Literal(" and "),
+                Expectation::Literal(" and/or "),
+                Expectation::Literal(" or "),
+                Expectation::Literal(", "),
+            ]),
         })
     );
 }

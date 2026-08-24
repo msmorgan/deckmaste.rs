@@ -521,15 +521,25 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                     .then(|| quote! { , PossessiveEnding });
                 quote! { #name(#name #agreement #cardinality #number #onset #possessive_ending) }
             }
-            super::SemanticTypeKind::Product | super::SemanticTypeKind::Sum => {
+            super::SemanticTypeKind::Product => {
                 quote! { #name(#name) }
+            }
+            super::SemanticTypeKind::Sum => {
+                let agreement = plan
+                    .sum_carries_agreement(item.name)
+                    .then(|| quote! { , Agreement });
+                quote! { #name(#name #agreement) }
             }
         }
     });
     let helper_variants = super::structural_carriers(plan).into_iter().map(|carrier| {
         let name = emitted_ident(&carrier.value_variant(), Span::call_site());
         let ty = super::structural_carrier_type(carrier.field.kind());
-        quote! { #name(#ty) }
+        let feature = plan
+            .sequence_feature(carrier.owner, carrier.field.name())
+            .map(super::feature_type)
+            .map(|ty| quote! { , #ty });
+        quote! { #name(#ty #feature) }
     });
     let nonterminal_variants = semantic_types
         .iter()

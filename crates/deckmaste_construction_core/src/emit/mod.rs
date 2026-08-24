@@ -326,6 +326,16 @@ pub(super) fn structural_carrier_type(kind: &StructuralFieldKindPlan) -> TokenSt
     }
 }
 
+pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
+    match feature {
+        crate::feature::Feature::Agreement => quote! { Agreement },
+        crate::feature::Feature::Cardinality => quote! { Cardinality },
+        crate::feature::Feature::Number => quote! { Number },
+        crate::feature::Feature::Onset => quote! { Onset },
+        crate::feature::Feature::PossessiveEnding => quote! { PossessiveEnding },
+    }
+}
+
 pub(super) fn emit_invariant_expression(
     invariant: &InvariantPlan,
     subjects: &HashMap<String, TokenStream>,

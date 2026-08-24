@@ -12,6 +12,7 @@ use crate::render::Render;
 use crate::render::Writer;
 
 constructions! {
+    vocab Auxiliary { May = "may", Can = "can", Cant = "can't", Must = "must", }
     vocab AtBoundary { Beginning = "the beginning of", End = "end of", }
     vocab TriggerMarker { When = "when", Whenever = "whenever", }
     vocab TurnOwnerPostmodifier {
@@ -289,11 +290,18 @@ constructions! {
         Loyalty,
         Clause: CostClause,
     }
+    abstract sum Predicate {
+        Atomic: VerbPhrase,
+        Coordination: PredicateCoordination,
+    }
+    abstract sum Clause {
+        Finite: FiniteClause,
+        Coordination: ClauseCoordination,
+    }
     abstract sum ConditionClause { FiniteCondition, }
     construction finite_condition: FiniteCondition {
-        element FiniteConditionValue { subject: Subject, predicate: VerbPhrase, }
-        derive predicate.agreement = subject.agreement;
-        form finite_condition = "if" subject predicate ",";
+        element FiniteConditionValue { clause: FiniteClause, }
+        form finite_condition = "if" clause ",";
     }
     construction plain: Ability {
         element Plain {
@@ -311,9 +319,8 @@ constructions! {
     construction finite: TriggerPrefix {
         element Finite {
             marker: lex TriggerMarker,
-            clause: Clause,
+            clause: FiniteClause,
         }
-        require clause is FiniteClause;
         form finite = lex(marker) clause;
     }
     construction temporal: TriggerPrefix {
@@ -436,26 +443,108 @@ constructions! {
         form activated = costs sentence_initial(": ") body;
     }
     construction imperative: Sentence {
-        element Imperative { predicate: VerbPhrase, }
+        element Imperative { predicate: Predicate, }
         derive predicate.agreement = Values::Bare;
         form imperative = predicate;
     }
     construction declarative: Sentence {
-        element Declarative { subject: Subject, predicate: VerbPhrase, }
-        derive predicate.agreement = subject.agreement;
-        form declarative = subject predicate;
+        element Declarative { clause: Clause, }
+        form declarative = clause;
     }
     construction with_where: Sentence {
-        element WithWhere { body: Sentence, clause: Clause, }
-        require clause is Where;
+        element WithWhere { body: Sentence, clause: WhereClauseCategory, }
         form with_where = body "," clause;
     }
-    construction finite_clause: Clause {
-        element FiniteClause { subject: Subject, predicate: VerbPhrase, }
-        derive predicate.agreement = subject.agreement;
-        form finite_clause = subject predicate;
+    construction and_predicate_coordination: PredicateCoordination {
+        element AndPredicateCoordination {
+            members: seq VerbPhrase separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = ", ";
+                last = ", and ";
+            },
+        }
+        require len(members) >= 2;
+        derive agreement = members.agreement;
+        form and_predicate_coordination = members;
     }
-    construction where: Clause {
+    construction or_predicate_coordination: PredicateCoordination {
+        element OrPredicateCoordination {
+            members: seq VerbPhrase separated by position {
+                pair = " or ";
+                first = ", ";
+                middle = ", ";
+                last = ", or ";
+            },
+        }
+        require len(members) >= 2;
+        derive agreement = members.agreement;
+        form or_predicate_coordination = members;
+    }
+    construction and_or_predicate_coordination: PredicateCoordination {
+        element AndOrPredicateCoordination {
+            members: seq VerbPhrase separated by position {
+                pair = " and/or ";
+                first = ", ";
+                middle = ", ";
+                last = ", and/or ";
+            },
+        }
+        require len(members) >= 2;
+        derive agreement = members.agreement;
+        form and_or_predicate_coordination = members;
+    }
+    construction plain_finite_clause: FiniteClause {
+        element PlainFiniteClause { subject: Subject, predicate: Predicate, }
+        derive predicate.agreement = subject.agreement;
+        form plain_finite_clause = subject predicate;
+    }
+    construction auxiliary_finite_clause: FiniteClause {
+        element AuxiliaryFiniteClause {
+            subject: Subject,
+            auxiliary: lex Auxiliary,
+            predicate: Predicate,
+        }
+        derive predicate.agreement = Values::Bare;
+        form auxiliary_finite_clause = subject lex(auxiliary) predicate;
+    }
+    construction and_clause_coordination: ClauseCoordination {
+        element AndClauseCoordination {
+            members: seq FiniteClause separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = ", ";
+                last = ", and ";
+            },
+        }
+        require len(members) >= 2;
+        form and_clause_coordination = members;
+    }
+    construction or_clause_coordination: ClauseCoordination {
+        element OrClauseCoordination {
+            members: seq FiniteClause separated by position {
+                pair = " or ";
+                first = ", ";
+                middle = ", ";
+                last = ", or ";
+            },
+        }
+        require len(members) >= 2;
+        form or_clause_coordination = members;
+    }
+    construction and_or_clause_coordination: ClauseCoordination {
+        element AndOrClauseCoordination {
+            members: seq FiniteClause separated by position {
+                pair = " and/or ";
+                first = ", ";
+                middle = ", ";
+                last = ", and/or ";
+            },
+        }
+        require len(members) >= 2;
+        form and_or_clause_coordination = members;
+    }
+    construction where: WhereClauseCategory {
         element WhereClause { variable: lex Variable, value: Object, }
         derive verb.agreement = Values::ThirdPersonSingular;
         form where = "where" lex(variable) verb(VerbLexeme::Be)

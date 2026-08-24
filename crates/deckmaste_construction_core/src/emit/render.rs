@@ -1124,18 +1124,25 @@ fn emit_sum_renderer(
     let function = ident(&function_name);
     let ty = ident(sum.name());
     let value = ident(&snake_case(sum.name()));
+    let agreement_carry = plan.sum_carries_agreement(sum.name());
     let arms = sum
         .alternatives()
         .iter()
         .map(|alternative| -> syn::Result<TokenStream> {
             let variant = ident(alternative.name());
             let binding = ident("value");
-            let statement = render_structural_value(
-                plan,
-                alternative.value(),
-                quote! { #binding },
-                root_names,
-            )?;
+            let statement = if agreement_carry {
+                render_structural_value_with_feature(
+                    plan,
+                    alternative.value(),
+                    &quote! { #binding },
+                    root_names,
+                    Feature::Agreement,
+                    quote! { agreement },
+                )?
+            } else {
+                render_structural_value(plan, alternative.value(), quote! { #binding }, root_names)?
+            };
             Ok(quote! { #ty::#variant(#binding) => { #statement } })
         })
         .collect::<syn::Result<Vec<_>>>()?;
@@ -1147,6 +1154,7 @@ fn emit_sum_renderer(
     let environment = plan.needs_parser_environment().then(|| {
         quote! { , environment: &crate::environment::ParserEnvironment }
     });
+    let agreement = agreement_carry.then(|| quote! { , agreement: Agreement });
     Ok(GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
@@ -1155,7 +1163,7 @@ fn emit_sum_renderer(
         quote! {
             pub(crate) fn #function(
                 writer: &mut Writer,
-                #value: &#ty,
+                #value: &#ty #agreement,
                 context: &ParseContext<'_> #environment,
             ) { match #match_value { #(#arms),* } }
         },
@@ -1186,7 +1194,23 @@ fn emit_sequence_renderer(
         crate::identifier::pascal_case(owner),
         crate::identifier::pascal_case(field.name()),
     ));
-    let render_value = render_structural_value(plan, item, quote! { value }, root_names)?;
+    let sequence_feature = plan.sequence_feature(owner, field.name());
+    let render_value = if let Some(feature) = sequence_feature {
+        render_structural_value_with_feature(
+            plan,
+            item,
+            &quote! { value },
+            root_names,
+            feature,
+            quote! { sequence_feature },
+        )?
+    } else {
+        render_structural_value(plan, item, quote! { value }, root_names)?
+    };
+    let feature_parameter = sequence_feature.map(|feature| {
+        let ty = super::feature_type(feature);
+        quote! { , sequence_feature: #ty }
+    });
     let context = structural_value_requires_context(plan, item)?
         .then(|| quote! { , context: &ParseContext<'_> });
     let environment = plan.needs_parser_environment().then(|| {
@@ -1200,7 +1224,7 @@ fn emit_sequence_renderer(
         quote! {
             fn #function(
                 writer: &mut Writer,
-                values: &[#item_ty] #context #environment,
+                values: &[#item_ty] #feature_parameter #context #environment,
             ) {
                 for (index, value) in values.iter().enumerate() {
                     #render_value
@@ -1239,6 +1263,49 @@ fn emit_sequence_renderer(
         },
         vec![DeclarationKey::new(kind, owner)],
     ))
+}
+
+fn render_structural_value_with_feature(
+    plan: &SemanticPlan,
+    value: &ValueKindPlan,
+    expression: &TokenStream,
+    root_names: &HashSet<String>,
+    feature: Feature,
+    feature_value: TokenStream,
+) -> syn::Result<TokenStream> {
+    if feature != Feature::Agreement {
+        return Err(internal("unsupported generated sequence feature renderer"));
+    }
+    match value {
+        ValueKindPlan::Category(category) => {
+            let capability = plan.category_render_capability(category);
+            let function = render_category_name(category, root_names.contains(category));
+            let agreement = capability
+                .requires_external_agreement()
+                .then_some(feature_value);
+            let context = capability.requires_context().then(|| quote! { context });
+            let environment = plan
+                .needs_parser_environment()
+                .then(|| quote! { environment });
+            let tail = signature_tail(&[agreement, context, environment]);
+            Ok(quote! { #function(writer, #expression #tail); })
+        }
+        ValueKindPlan::Sum(sum) if plan.sum_carries_agreement(sum) => {
+            let function = ident(&crate::identifier::prefixed("render_", sum));
+            let environment = plan
+                .needs_parser_environment()
+                .then(|| quote! { , environment });
+            Ok(quote! {
+                #function(writer, #expression, #feature_value, context #environment);
+            })
+        }
+        ValueKindPlan::Product(_)
+        | ValueKindPlan::Sum(_)
+        | ValueKindPlan::Lex(_)
+        | ValueKindPlan::Identity(_) => {
+            Err(internal("sequence feature item does not carry agreement"))
+        }
+    }
 }
 
 fn render_structural_field(
@@ -2446,7 +2513,22 @@ fn render_construction_structural_field(
     let value = field_value(construction, role, locals)?;
     match field.kind() {
         StructuralFieldKindPlan::Required(kind) => {
-            render_structural_value(plan, kind, value, root_names)
+            if matches!(kind, ValueKindPlan::Sum(sum) if plan.sum_carries_agreement(sum)) {
+                let agreement =
+                    role_agreement(plan, construction, role, locals)?.ok_or_else(|| {
+                        internal("agreement-bearing sum role lacks an agreement writer")
+                    })?;
+                render_structural_value_with_feature(
+                    plan,
+                    kind,
+                    &value,
+                    root_names,
+                    Feature::Agreement,
+                    agreement,
+                )
+            } else {
+                render_structural_value(plan, kind, value, root_names)
+            }
         }
         StructuralFieldKindPlan::Optional(kind) => {
             let render = render_structural_value(plan, kind, quote! { value }, root_names)?;
@@ -2462,9 +2544,69 @@ fn render_construction_structural_field(
             let environment = plan
                 .needs_parser_environment()
                 .then(|| quote! { , environment });
-            Ok(quote! { #function(writer, #value #context #environment); })
+            let feature = plan
+                .sequence_feature(construction.element_type(), field.name())
+                .map(|feature| {
+                    sequence_role_feature_value(plan, construction, role, locals, item, feature)
+                        .map(|value| quote! { , #value })
+                })
+                .transpose()?;
+            Ok(quote! { #function(writer, #value #feature #context #environment); })
         }
     }
+}
+
+fn sequence_role_feature_value(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    locals: &RenderLocals,
+    item: &ValueKindPlan,
+    feature: Feature,
+) -> syn::Result<TokenStream> {
+    let target = FeaturePlace::Role {
+        field: syn::Ident::new(role, construction.origin_span()),
+        feature,
+    };
+    if let Some(writer) = plan
+        .feature_equations(construction.construction_id())
+        .iter()
+        .find(|equation| equation.target() == &target)
+    {
+        return feature_expr(plan, construction, writer.value(), feature, locals);
+    }
+    if feature == Feature::Agreement
+        && plan.category_requires_external_agreement(construction.category())
+        && plan
+            .feature_equations(construction.construction_id())
+            .iter()
+            .any(|equation| {
+                matches!(
+                    (equation.target(), equation.value()),
+                    (
+                        FeaturePlace::Construction(Feature::Agreement),
+                        FeatureExpr::FromRole {
+                            role: source,
+                            feature: Feature::Agreement,
+                        },
+                    ) if identifier_key(source) == role
+                )
+            })
+    {
+        return Ok(quote! { agreement });
+    }
+    let ValueKindPlan::Category(category) = item else {
+        return Err(internal("sequence feature item is not a category"));
+    };
+    let values = field_value(construction, role, locals)?;
+    let helper = ident(&feature_helper(feature_name(feature), category));
+    Ok(quote! {
+        #helper(
+            #values
+                .first()
+                .expect("validated sequence feature source is statically nonempty")
+        )
+    })
 }
 
 fn render_atom_role(atom: &AtomPlan) -> Option<&str> {
@@ -2914,6 +3056,10 @@ fn verb_agreement(
     Err(internal("verb atom lacks validated agreement flow"))
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the exhaustive sealed feature-expression lowering matrix is kept together"
+)]
 fn feature_expr(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -2985,6 +3131,23 @@ fn feature_expr(
                 );
             }
             let role_value = field_value(construction, &role_key, locals)?;
+            if let Some(structural) = field.structural_plan()
+                && let StructuralFieldKindPlan::Sequence { item, .. } = structural.kind()
+                && validated.sequence_feature(construction.element_type(), &role_key)
+                    == Some(*source_feature)
+            {
+                let ValueKindPlan::Category(category) = item else {
+                    return Err(internal("sequence feature source item is not a category"));
+                };
+                let helper = ident(&feature_helper(feature_name(*source_feature), category));
+                return Ok(quote! {
+                    #helper(
+                        #role_value
+                            .first()
+                            .expect("validated sequence feature source is statically nonempty")
+                    )
+                });
+            }
             if matches!(*source_feature, Feature::Cardinality | Feature::Number)
                 && field.kind() == ConstructionFieldKind::Lex
                 && let Some(codec) = find_unsigned_number(validated, field.terminal())

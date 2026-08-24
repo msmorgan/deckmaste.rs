@@ -1274,12 +1274,12 @@ mod structural_trace_tests {
         let (_, second) = parser.observe_structural(text, &context, TraceLimits::new(1));
         assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
         assert_eq!(first, second);
-        assert_eq!(first.scanner_matches().total(), 12);
+        assert_eq!(first.scanner_matches().total(), 15);
         assert_eq!(first.scanner_matches().shown(), 1);
     }
 
     #[test]
-    fn public_trace_projects_the_terminal_root_rejection_into_both_traces() {
+    fn public_trace_rejects_a_finite_clause_in_the_typed_where_slot_before_materialization() {
         let parser = Parser::new(environment()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
             .expect("valid context");
@@ -1289,38 +1289,33 @@ mod structural_trace_tests {
             &context,
             TraceLimits::new(usize::MAX),
         );
-        let rejection = analysis
-            .build_rejection()
-            .expect("the accepted root is rejected by its authored invariant");
-        assert_eq!(rejection.owner(), "Sentence");
-        assert_eq!(rejection.role(), "with_where");
         assert_eq!(
-            rejection.violation(),
-            &crate::constructions::BuildViolation::Invariant {
-                identity: "clause is Where",
-            }
+            analysis.outcome(),
+            super::ParseAnalysisOutcome::ParseFailure
         );
-        assert_eq!(trace.structural.first_build_rejection(), Some(rejection));
-        assert_eq!(
-            trace.materialization.first_build_rejection(),
-            Some(rejection)
-        );
+        assert!(analysis.build_rejection().is_none());
+        let _rejection = trace
+            .structural
+            .first_build_rejection()
+            .expect("the partial chart retains its first checked-completion rejection");
+        assert!(trace.materialization.first_build_rejection().is_none());
         assert_eq!(
             parser
                 .trace_sentence(text, &context, TraceLimits::new(usize::MAX))
                 .build_rejection(),
-            Some(rejection),
+            None,
         );
     }
 
     #[test]
-    fn terminal_projection_overrides_a_distinct_structural_comparator_winner() {
+    fn synthetic_structural_rejection_is_raw_only_for_a_selected_typed_where_clause() {
         let environment = environment();
         let parser =
             Parser::new(environment.clone()).expect("canonical environment satisfies grammar");
         let context = ParseContext::new("Trace Card", false, macro_ron::v2::Onset::Consonant)
             .expect("valid context");
-        let text = "You gain X life, a player connives.";
+        let text =
+            "You gain X life, where X is the number of creatures you control with power 2 or less.";
         let scan_first = crate::constructions::BuildRejection::new(
             "BInjectedCompletion",
             "injected",
@@ -1328,14 +1323,6 @@ mod structural_trace_tests {
                 identity: "injected completion is rejected",
             },
         );
-        let terminal_root = crate::constructions::BuildRejection::new(
-            "Sentence",
-            "with_where",
-            crate::constructions::BuildViolation::Invariant {
-                identity: "clause is Where",
-            },
-        );
-
         super::scan::with_checked_completion_rejection_for_test(scan_first, || {
             let grammar = super::SliceGrammar {
                 environment: &environment,
@@ -1354,15 +1341,10 @@ mod structural_trace_tests {
                 &context,
                 TraceLimits::new(usize::MAX),
             );
-            assert_eq!(analysis.build_rejection(), Some(&terminal_root));
-            assert_eq!(
-                trace.structural.first_build_rejection(),
-                Some(&terminal_root),
-            );
-            assert_eq!(
-                trace.materialization.first_build_rejection(),
-                Some(&terminal_root),
-            );
+            assert_eq!(analysis.outcome(), super::ParseAnalysisOutcome::Selected);
+            assert!(analysis.build_rejection().is_none());
+            assert!(trace.structural.first_build_rejection().is_none());
+            assert!(trace.materialization.first_build_rejection().is_none());
         });
     }
 

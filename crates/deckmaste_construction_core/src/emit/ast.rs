@@ -550,7 +550,7 @@ fn emit_invariant_checks(
             })
         })
         .collect::<syn::Result<Vec<_>>>()?;
-    let length_checks = construction
+    let mut length_checks = construction
         .fields()
         .iter()
         .filter_map(|field| {
@@ -570,7 +570,106 @@ fn emit_invariant_checks(
             })
         })
         .collect::<syn::Result<Vec<_>>>()?;
+    length_checks.extend(
+        construction
+            .fields()
+            .iter()
+            .filter_map(|field| {
+                let structural = field.structural_plan()?;
+                let feature =
+                    plan.sequence_feature(construction.element_type(), structural.name())?;
+                Some(emit_sequence_feature_check(
+                    plan,
+                    construction,
+                    field,
+                    structural,
+                    feature,
+                    structural_owner,
+                    locals,
+                ))
+            })
+            .collect::<syn::Result<Vec<_>>>()?,
+    );
     Ok((predicate_check, context_checks, length_checks))
+}
+
+fn emit_sequence_feature_check(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    field: &crate::semantic::ConstructionFieldPlan,
+    structural: &crate::semantic::StructuralFieldPlan,
+    feature: crate::feature::Feature,
+    owner: &syn::LitStr,
+    locals: &HashMap<String, syn::Ident>,
+) -> syn::Result<TokenStream> {
+    if feature != crate::feature::Feature::Agreement {
+        return Err(internal("unsupported checked sequence feature"));
+    }
+    let crate::semantic::StructuralFieldKindPlan::Sequence { item, bounds, .. } = structural.kind()
+    else {
+        return Err(internal("checked sequence feature role is not a sequence"));
+    };
+    if bounds.min() == 0 {
+        return Err(internal(
+            "checked sequence feature role is not statically nonempty",
+        ));
+    }
+    let crate::semantic::ValueKindPlan::Category(category) = item else {
+        return Err(internal("checked sequence feature item is not a category"));
+    };
+    if plan.category_requires_external_agreement(category) {
+        return Ok(TokenStream::new());
+    }
+    let role = field.name_key();
+    let values = field_local(locals, field)?;
+    let helper = emitted_ident(
+        &feature_helper(feature.key(), category),
+        proc_macro2::Span::call_site(),
+    );
+    let target = crate::feature::FeaturePlace::Role {
+        field: field.name().clone(),
+        feature,
+    };
+    let writer = plan
+        .feature_equations(construction.construction_id())
+        .iter()
+        .find(|equation| equation.target() == &target);
+    let (predicate, identity) = if writer.is_some() {
+        let expected = resolve_constructor_feature(
+            plan,
+            construction,
+            &target,
+            &mut std::collections::HashSet::new(),
+            locals,
+        )?;
+        (
+            quote! { #values.iter().all(|value| #helper(value) == #expected) },
+            "all members match derived agreement",
+        )
+    } else {
+        (
+            quote! {{
+                let agreement = #helper(
+                    #values
+                        .first()
+                        .expect("validated sequence feature source is statically nonempty")
+                );
+                #values.iter().skip(1).all(|value| #helper(value) == agreement)
+            }},
+            "all members share agreement",
+        )
+    };
+    let role = syn::LitStr::new(&role, field.name().span());
+    let identity = syn::LitStr::new(identity, field.name().span());
+    Ok(quote! {
+        if !(#predicate) {
+            return Err(BuildRejection::new(
+                #owner,
+                #role,
+                BuildViolation::Invariant { identity: #identity },
+            ));
+        }
+    })
 }
 
 fn constructor_subject_expression(

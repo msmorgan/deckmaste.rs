@@ -124,6 +124,23 @@ derived feature only when the compiler can enumerate its domain and include it
 in the same exhaustive/disjoint guard proof as stored features. It is not a
 callback or an open predicate.
 
+**Plan 08 homogeneous-sequence amendment (2026-08-24):** an `Agreement`
+equation may target every member of a sequence (`derive members.agreement =
+...`) or relay one homogeneous member value outward (`derive agreement =
+members.agreement`). This is available only for a statically nonempty sequence
+of direct feature-bearing category values. Generated scanning, build,
+checked-construction, rendering, and feature helpers apply or compare the
+feature across every member, including middle and final positions. The
+compiler carries one transient feature beside its private sequence and
+abstract-sum build carriers; it adds no public AST feature vector, wrapper,
+tag, or spelling field. Possibly empty sequences, lexical or identity items,
+categories without the feature, unsupported feature domains, and mixed
+sequence-feature reads are declaration errors. Contextual categories whose
+feature is chosen only by an enclosing construction remain feature-free in the
+public AST; their generated parser carriers prove homogeneous realized input,
+and their renderer receives the enclosing feature once and applies it to all
+members.
+
 `Onset::{Consonant,Vowel}` is a v2-owned sealed compiler feature, emitted and
 carried through generated feature plans exactly like `Number`. It is a
 property of each realized terminal surface. The v2 normalization path owns a

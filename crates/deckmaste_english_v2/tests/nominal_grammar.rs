@@ -2407,15 +2407,15 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Lightning Bolt",
             text: "Lightning Bolt deals 3 damage to any target.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
-            specificity: "NNNNNNNNNTTNLLNTNNNNNLL",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
+            specificity: "NNNNNNNNNNTTNLLNTNNNNNLL",
             candidates: 1,
         },
         Witness {
             card_name: "Pyroclasm",
             text: "Pyroclasm deals 2 damage to each creature.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNNNNNNNNTTNLLNTNNNNNLNNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNNNNNNNNNTTNLLNTNNNNNLNNNT",
             candidates: 1,
         },
         Witness {
@@ -2491,8 +2491,8 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Anaba Shaman",
             text: "This creature deals 1 damage to any target.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThisReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
-            specificity: "NNNNNNNNNLNNTTNLLNTNNNNNLL",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThisReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
+            specificity: "NNNNNNNNNNLNNTTNLLNTNNNNNLL",
             candidates: 1,
         },
         Witness {
@@ -2519,8 +2519,8 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "They gain 2 life.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNNTTNLT",
             candidates: 1,
         },
         Witness {
@@ -2540,29 +2540,29 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to them.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Asmoranomardicadaistinaculdacar",
             text: "Asmoranomardicadaistinaculdacar deals 2 damage to itself.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectReflexiveObject",
-            specificity: "NNNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectReflexiveObject",
+            specificity: "NNNNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "That creature deals 2 damage to it.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThatReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNLNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThatReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNLNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Those creatures deal 2 damage to it.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThoseReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNLNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThoseReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNLNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
@@ -2575,15 +2575,15 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Each creature gains 2 life.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNNNNNNNLNNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNNNNNNNLNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "All creatures gain 2 life.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNNNNNNNLNNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNNNNNNNLNNNTTNLT",
             candidates: 1,
         },
         Witness {
@@ -2638,29 +2638,29 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "He gains 2 life.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "She gains 2 life.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to him.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to her.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
@@ -2958,8 +2958,8 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
         (
             "Context Card",
             "Creatures you control with power 2 or less gain X life.",
-            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold/VerbPhraseGainLife/AmountVariable",
-            "NNNNNNNNNNNNNNTTTLNNTNLLTTNLT",
+            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold/VerbPhraseGainLife/AmountVariable",
+            "NNNNNNNNNNNNNNNTTTLNNTNLLTTNLT",
         ),
         (
             "Defeat",
@@ -2970,8 +2970,8 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
         (
             "Context Card",
             "Creatures you control gain 2 life.",
-            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/VerbPhraseGainLife/AmountNumber",
-            "NNNNNNNNNNNNNTTTTNLT",
+            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/VerbPhraseGainLife/AmountNumber",
+            "NNNNNNNNNNNNNNTTTTNLT",
         ),
         (
             "Context Card",
@@ -3162,7 +3162,18 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     let [Sentence::Declarative(declarative)] = paragraph.sentences() else {
         panic!("former fixture remains one declarative: {paragraph:?}");
     };
-    let Subject::SubjectNominal(subject) = &declarative.subject else {
+    let deckmaste_english_v2::ast::Clause::Finite(
+        deckmaste_english_v2::ast::FiniteClause::PlainFiniteClause(
+            deckmaste_english_v2::ast::PlainFiniteClause {
+                subject: finite_subject,
+                predicate,
+            },
+        ),
+    ) = &declarative.clause
+    else {
+        panic!("former fixture remains a plain finite clause: {declarative:?}");
+    };
+    let Subject::SubjectNominal(subject) = finite_subject else {
         panic!("former fixture retains a nominal subject: {declarative:?}");
     };
     let NounPhrase::QualifiedNounPhrase(noun_phrase) = &subject.value;
@@ -3208,12 +3219,14 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
         })
     ));
     assert!(matches!(
-        &declarative.predicate,
-        VerbPhrase::GainLife(deckmaste_english_v2::ast::GainLife {
-            amount: Amount::Variable(deckmaste_english_v2::ast::VariableAmount {
-                variable: Variable::X,
-            }),
-        })
+        predicate,
+        deckmaste_english_v2::ast::Predicate::Atomic(VerbPhrase::GainLife(
+            deckmaste_english_v2::ast::GainLife {
+                amount: Amount::Variable(deckmaste_english_v2::ast::VariableAmount {
+                    variable: Variable::X,
+                }),
+            }
+        ))
     ));
 
     let mut visitor = NominalVisitor::default();

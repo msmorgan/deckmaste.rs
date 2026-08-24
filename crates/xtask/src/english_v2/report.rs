@@ -30,6 +30,7 @@ struct CountedReport {
     abstract_sums: Vec<String>,
     optional_roles: Vec<String>,
     sequence_roles: Vec<String>,
+    sequence_feature_roles: Vec<String>,
     uniform_separators: Vec<String>,
     positional_separator_tables: Vec<String>,
     terminators: Vec<String>,
@@ -113,7 +114,7 @@ fn build_report(
         .chain(builtin_nouns.irregulars)
         .collect();
     let mut report = CountedReport {
-        schema_version: 3,
+        schema_version: 4,
         noun_morphology: builtin_nouns.census,
         mapping_layers: plain_entries(escape_hatches.mapping_layers(), None, None),
         handwritten_codecs: plain_entries(
@@ -155,6 +156,7 @@ fn build_report(
         abstract_sums: escape_hatches.abstract_sums().to_vec(),
         optional_roles: escape_hatches.optional_roles().to_vec(),
         sequence_roles: escape_hatches.sequence_roles().to_vec(),
+        sequence_feature_roles: escape_hatches.sequence_feature_roles().to_vec(),
         uniform_separators: escape_hatches.uniform_separators().to_vec(),
         positional_separator_tables: escape_hatches.positional_separator_tables().to_vec(),
         terminators: escape_hatches.terminators().to_vec(),
@@ -393,12 +395,13 @@ fn categories(report: &CountedReport) -> [(&'static str, &[CountedEntry]); 8] {
     ]
 }
 
-fn structural_categories(report: &CountedReport) -> [(&'static str, &[String]); 8] {
+fn structural_categories(report: &CountedReport) -> [(&'static str, &[String]); 9] {
     [
         ("abstract products", &report.abstract_products),
         ("abstract sums", &report.abstract_sums),
         ("optional roles", &report.optional_roles),
         ("sequence roles", &report.sequence_roles),
+        ("sequence feature roles", &report.sequence_feature_roles),
         ("uniform separators", &report.uniform_separators),
         (
             "positional separator tables",
@@ -418,7 +421,7 @@ mod tests {
     const PRODUCTION_SOURCE: &str =
         include_str!("../../../deckmaste_english_v2/src/constructions.rs");
 
-    const SCHEMA3_STRUCTURAL_SOURCE: &str = r#"
+    const SCHEMA4_STRUCTURAL_SOURCE: &str = r#"
         constructions! {
             construction node: Node {
                 element NodeValue {}
@@ -467,13 +470,13 @@ mod tests {
     "#;
 
     #[test]
-    fn schema3_projects_every_sealed_structural_row_in_source_order() {
-        let report = build_report_from_source(SCHEMA3_STRUCTURAL_SOURCE)
+    fn schema4_projects_every_sealed_structural_row_in_source_order() {
+        let report = build_report_from_source(SCHEMA4_STRUCTURAL_SOURCE)
             .expect("structural report fixture builds");
-        let rendered = render_json(&report).expect("schema 3 serializes");
+        let rendered = render_json(&report).expect("schema 4 serializes");
         let json: serde_json::Value = serde_json::from_str(&rendered).unwrap();
 
-        assert_eq!(json["schema_version"], 3);
+        assert_eq!(json["schema_version"], 4);
         assert_eq!(
             json["abstract_products"],
             serde_json::json!(["ZetaHolder", "AlphaHolder", "MuHolder", "BetaHolder"])
@@ -500,6 +503,7 @@ mod tests {
                 "BetaHolder.items_beta"
             ])
         );
+        assert_eq!(json["sequence_feature_roles"], serde_json::json!([]));
         assert_eq!(
             json["uniform_separators"],
             serde_json::json!(["ZetaHolder.items_zeta", "AlphaHolder.items_alpha"])
@@ -521,7 +525,7 @@ mod tests {
     }
 
     #[test]
-    fn schema3_pins_exact_top_level_key_order_and_has_no_schema2_mode() {
+    fn schema4_pins_exact_top_level_key_order_and_has_no_schema3_mode() {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
         let rendered = render_json(&report).expect("production report serializes");
@@ -544,14 +548,15 @@ mod tests {
                 "abstract_sums",
                 "optional_roles",
                 "sequence_roles",
+                "sequence_feature_roles",
                 "uniform_separators",
                 "positional_separator_tables",
                 "terminators",
                 "stored_separator_fields",
             ]
         );
-        assert!(rendered.contains("\"schema_version\": 3"));
-        assert!(!rendered.contains("\"schema_version\": 2"));
+        assert!(rendered.contains("\"schema_version\": 4"));
+        assert!(!rendered.contains("\"schema_version\": 3"));
     }
 
     fn entry(identity: &str) -> CountedEntry {
@@ -564,7 +569,7 @@ mod tests {
 
     fn report() -> CountedReport {
         CountedReport {
-            schema_version: 3,
+            schema_version: 4,
             noun_morphology: NounMorphologyCensus {
                 total: 0,
                 derived_plural: 0,
@@ -584,6 +589,7 @@ mod tests {
             abstract_sums: vec![],
             optional_roles: vec![],
             sequence_roles: vec![],
+            sequence_feature_roles: vec![],
             uniform_separators: vec![],
             positional_separator_tables: vec![],
             terminators: vec![],
@@ -698,6 +704,7 @@ mod tests {
                 "abstract sums (0)\n",
                 "optional roles (0)\n",
                 "sequence roles (0)\n",
+                "sequence feature roles (0)\n",
                 "uniform separators (0)\n",
                 "positional separator tables (0)\n",
                 "terminators (0)\n",
@@ -711,7 +718,7 @@ mod tests {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
 
-        assert_eq!(report.schema_version, 3);
+        assert_eq!(report.schema_version, 4);
         assert_eq!(
             report.noun_morphology,
             NounMorphologyCensus {
@@ -765,12 +772,36 @@ mod tests {
             ]
         );
         assert_eq!(report.abstract_products, ["OracleText"]);
-        assert_eq!(report.abstract_sums, ["ConditionClause", "DocumentBlock"]);
-        assert_eq!(report.optional_roles, ["Triggered.intervening_if"]);
+        assert_eq!(
+            report.abstract_sums,
+            [
+                "ActivationCostComponent",
+                "Predicate",
+                "Clause",
+                "ConditionClause",
+                "DocumentBlock",
+            ]
+        );
+        assert_eq!(
+            report.optional_roles,
+            [
+                "AtPhraseValue.specifier",
+                "AtPhraseValue.postmodifier",
+                "Triggered.intervening_if",
+            ]
+        );
         assert_eq!(
             report.sequence_roles,
             [
                 "Sentences.sentences",
+                "SymbolRun.symbols",
+                "Activated.costs",
+                "AndPredicateCoordination.members",
+                "OrPredicateCoordination.members",
+                "AndOrPredicateCoordination.members",
+                "AndClauseCoordination.members",
+                "OrClauseCoordination.members",
+                "AndOrClauseCoordination.members",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
                 "NegativeModifiedSingularCoordinationMember.modifiers",
@@ -788,9 +819,18 @@ mod tests {
             ]
         );
         assert_eq!(
+            report.sequence_feature_roles,
+            [
+                "AndPredicateCoordination.members.agreement",
+                "OrPredicateCoordination.members.agreement",
+                "AndOrPredicateCoordination.members.agreement",
+            ]
+        );
+        assert_eq!(
             report.uniform_separators,
             [
                 "Sentences.sentences",
+                "SymbolRun.symbols",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
                 "NegativeModifiedSingularCoordinationMember.modifiers",
@@ -801,6 +841,13 @@ mod tests {
         assert_eq!(
             report.positional_separator_tables,
             [
+                "Activated.costs",
+                "AndPredicateCoordination.members",
+                "OrPredicateCoordination.members",
+                "AndOrPredicateCoordination.members",
+                "AndClauseCoordination.members",
+                "OrClauseCoordination.members",
+                "AndOrClauseCoordination.members",
                 "SingularAndNominalCoordination.members",
                 "SingularOrNominalCoordination.members",
                 "SingularAndOrNominalCoordination.members",
@@ -877,6 +924,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the schema's exact literal JSON wire contract is deliberately complete"
+    )]
     fn production_json_has_exact_literal_wire_contract() {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
@@ -884,7 +935,7 @@ mod tests {
         let actual = serde_json::from_str::<serde_json::Value>(&rendered)
             .expect("production report JSON reparses");
         let expected = serde_json::json!({
-            "schema_version": 3,
+            "schema_version": 4,
             "noun_morphology": {
                 "total": 472,
                 "derived_plural": 146,
@@ -980,10 +1031,18 @@ mod tests {
                 }
             ],
             "abstract_products": ["OracleText"],
-            "abstract_sums": ["ConditionClause", "DocumentBlock"],
-            "optional_roles": ["Triggered.intervening_if"],
+            "abstract_sums": ["ActivationCostComponent", "Predicate", "Clause", "ConditionClause", "DocumentBlock"],
+            "optional_roles": ["AtPhraseValue.specifier", "AtPhraseValue.postmodifier", "Triggered.intervening_if"],
             "sequence_roles": [
                 "Sentences.sentences",
+                "SymbolRun.symbols",
+                "Activated.costs",
+                "AndPredicateCoordination.members",
+                "OrPredicateCoordination.members",
+                "AndOrPredicateCoordination.members",
+                "AndClauseCoordination.members",
+                "OrClauseCoordination.members",
+                "AndOrClauseCoordination.members",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
                 "NegativeModifiedSingularCoordinationMember.modifiers",
@@ -999,8 +1058,14 @@ mod tests {
                 "FullAndOrNounPhraseCoordination.members",
                 "OracleText.blocks"
             ],
+            "sequence_feature_roles": [
+                "AndPredicateCoordination.members.agreement",
+                "OrPredicateCoordination.members.agreement",
+                "AndOrPredicateCoordination.members.agreement"
+            ],
             "uniform_separators": [
                 "Sentences.sentences",
+                "SymbolRun.symbols",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
                 "NegativeModifiedSingularCoordinationMember.modifiers",
@@ -1008,6 +1073,13 @@ mod tests {
                 "OracleText.blocks"
             ],
             "positional_separator_tables": [
+                "Activated.costs",
+                "AndPredicateCoordination.members",
+                "OrPredicateCoordination.members",
+                "AndOrPredicateCoordination.members",
+                "AndClauseCoordination.members",
+                "OrClauseCoordination.members",
+                "AndOrClauseCoordination.members",
                 "SingularAndNominalCoordination.members",
                 "SingularOrNominalCoordination.members",
                 "SingularAndOrNominalCoordination.members",
@@ -1027,7 +1099,7 @@ mod tests {
     }
 
     #[test]
-    fn schema3_preserves_legacy_field_order_before_structural_inventory() {
+    fn schema4_preserves_legacy_field_order_before_structural_inventory() {
         let report = build_report_from_source(PRODUCTION_SOURCE)
             .expect("production declaration report builds");
         let rendered = render_json(&report).expect("production report serializes");
@@ -1050,6 +1122,7 @@ mod tests {
                 "abstract_sums",
                 "optional_roles",
                 "sequence_roles",
+                "sequence_feature_roles",
                 "uniform_separators",
                 "positional_separator_tables",
                 "terminators",

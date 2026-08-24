@@ -1,0 +1,5 @@
+error: UnsupportedSequence.members: sequence feature propagation supports agreement only, found number
+  --> tests/compile_fail/sequence_feature_unsupported.rs:12:25
+   |
+12 |         derive number = members.number;
+   |                         ^^^^^^^

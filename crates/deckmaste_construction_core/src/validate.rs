@@ -346,6 +346,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     validate_morphology(&raw)?;
     let (symbols, _) = validate_namespaces(&raw)?;
     let structural = validate_structural_semantics(&raw, &symbols)?;
+    let sequence_features = validate_sequence_feature_roles(&raw, &structural)?;
     validate_generated_owned_paths(&raw)?;
     let resolved = validate_resolution(&raw, &symbols)?;
     validate_stored_fields(&raw)?;
@@ -355,7 +356,8 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     let feature_resolutions = seal_feature_resolutions(&raw, &feature_equations, &invariants);
     fold_unit_invariants(&raw, &mut invariants, &feature_resolutions)?;
     let category_render = seal_category_render_capabilities(&raw, &feature_resolutions);
-    let category_reads = seal_category_feature_reads(&raw);
+    let agreement_carry_sums = agreement_carry_sums(&raw);
+    let category_reads = seal_category_feature_reads(&raw, &category_render);
     validate_contextual_agreement_uses(&raw, &category_render)?;
     let mut boxed_fields = validate_category_graph(&raw);
     boxed_fields.extend(structural.boxed_fields.iter().cloned());
@@ -375,10 +377,161 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             feature_equations,
             feature_resolutions,
             category_render,
+            sequence_features,
+            agreement_carry_sums,
             atoms_by_construction,
             invariants,
         )?,
     })
+}
+
+fn agreement_carry_sums(raw: &Declarations) -> HashSet<String> {
+    let providers = feature_providers(raw);
+    raw.declarations
+        .iter()
+        .filter_map(|declaration| {
+            let Declaration::AbstractSum(sum) = declaration else {
+                return None;
+            };
+            let name = identifier_key(&sum.name);
+            providers
+                .contains(&(name.clone(), ParsedFeature::Agreement))
+                .then_some(name)
+        })
+        .collect()
+}
+
+fn validate_sequence_feature_roles(
+    raw: &Declarations,
+    structural: &StructuralSemantics,
+) -> syn::Result<HashMap<(String, String), Feature>> {
+    let providers = feature_providers(raw);
+    let mut errors = None;
+    let mut result = HashMap::new();
+    for declaration in &raw.declarations {
+        let Declaration::Construction(construction) = declaration else { continue };
+        let construction_id = identifier_key(&construction.name);
+        let element = identifier_key(&construction.element.name);
+        let fields = construction
+            .element
+            .fields
+            .iter()
+            .map(|field| (identifier_key(&field.name), field))
+            .collect::<HashMap<_, _>>();
+        let mut uses: HashMap<String, Vec<(ParsedFeature, proc_macro2::Span)>> = HashMap::new();
+        for equation in &construction.equations {
+            if let ParsedFeaturePlace::Role { field, feature } = &equation.target
+                && matches!(
+                    fields.get(&identifier_key(field)).map(|field| &field.kind),
+                    Some(FieldKind::Sequence { .. })
+                )
+            {
+                uses.entry(identifier_key(field))
+                    .or_default()
+                    .push((*feature, field.span()));
+            }
+            if let ParsedFeatureValue::FromRole(source) = &equation.value
+                && matches!(
+                    fields
+                        .get(&identifier_key(&source.role))
+                        .map(|field| &field.kind),
+                    Some(FieldKind::Sequence { .. })
+                )
+            {
+                uses.entry(identifier_key(&source.role))
+                    .or_default()
+                    .push((source.feature, source.role.span()));
+            }
+        }
+        for (role, uses) in uses {
+            let distinct = uses
+                .iter()
+                .map(|(feature, _)| *feature)
+                .collect::<HashSet<_>>();
+            if distinct.len() > 1 {
+                let mut names = distinct
+                    .iter()
+                    .map(|feature| feature_name(*feature))
+                    .collect::<Vec<_>>();
+                names.sort_unstable();
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        uses[0].1,
+                        format!(
+                            "{element}.{role}: a sequence feature role cannot mix {}",
+                            names.join(" and ")
+                        ),
+                    ),
+                );
+                continue;
+            }
+            let feature = uses[0].0;
+            if feature != ParsedFeature::Agreement {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        uses[0].1,
+                        format!(
+                            "{element}.{role}: sequence feature propagation supports agreement only, found {}",
+                            feature_name(feature)
+                        ),
+                    ),
+                );
+                continue;
+            }
+            let Some(field) = fields.get(&role) else { continue };
+            let FieldKind::Sequence { item, .. } = &field.kind else { continue };
+            let Some(structural_field) = structural
+                .construction_fields
+                .get(&(construction_id.clone(), role.clone()))
+            else {
+                continue;
+            };
+            let StructuralFieldKindPlan::Sequence { bounds, .. } = structural_field.kind() else {
+                continue;
+            };
+            if bounds.min() == 0 {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        uses[0].1,
+                        format!(
+                            "{element}.{role}: sequence feature agreement requires a statically nonempty sequence"
+                        ),
+                    ),
+                );
+            }
+            let FieldKind::Category(category) = item.as_ref() else {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        uses[0].1,
+                        format!(
+                            "{element}.{role}: sequence feature agreement requires feature-bearing category items"
+                        ),
+                    ),
+                );
+                continue;
+            };
+            let category = path_name(category);
+            if !providers.contains(&(category.clone(), feature)) {
+                combine(
+                    &mut errors,
+                    syn::Error::new(
+                        uses[0].1,
+                        format!(
+                            "{element}.{role}: category `{category}` does not provide agreement"
+                        ),
+                    ),
+                );
+                continue;
+            }
+            result.insert((element.clone(), role), Feature::Agreement);
+        }
+    }
+    finish(errors)?;
+    Ok(result)
 }
 
 #[derive(Debug)]
@@ -2352,7 +2505,10 @@ fn valid_negative_sign_spelling(spelling: &crate::model::SignedDecimalSignSpelli
     )
 }
 
-fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Feature>> {
+fn seal_category_feature_reads(
+    raw: &Declarations,
+    category_render: &HashMap<String, CategoryRenderCapability>,
+) -> HashMap<String, HashSet<Feature>> {
     let categories = raw
         .declarations
         .iter()
@@ -2379,7 +2535,15 @@ fn seal_category_feature_reads(raw: &Declarations) -> HashMap<String, HashSet<Fe
                 Feature::PossessiveEnding,
             ]
             .into_iter()
-            .filter(|feature| raw_category_reads_feature(raw, &category, *feature))
+            .filter(|feature| {
+                raw_category_reads_feature(raw, &category, *feature)
+                    || raw_sequence_reads_inherent_category_feature(
+                        raw,
+                        &category,
+                        *feature,
+                        category_render,
+                    )
+            })
             .collect::<HashSet<_>>();
             (!reads.is_empty()).then_some((category, reads))
         })
@@ -4075,6 +4239,56 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
     })
 }
 
+fn raw_sequence_reads_inherent_category_feature(
+    raw: &Declarations,
+    category: &str,
+    feature: Feature,
+    category_render: &HashMap<String, CategoryRenderCapability>,
+) -> bool {
+    if feature == Feature::Agreement
+        && category_render
+            .get(category)
+            .is_some_and(|capability| capability.requires_external_agreement())
+    {
+        return false;
+    }
+    let parsed_feature = match feature {
+        Feature::Agreement => ParsedFeature::Agreement,
+        Feature::Cardinality => ParsedFeature::Cardinality,
+        Feature::Number => ParsedFeature::Number,
+        Feature::Onset => ParsedFeature::Onset,
+        Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
+    };
+    raw.declarations.iter().any(|declaration| {
+        let Declaration::Construction(construction) = declaration else {
+            return false;
+        };
+        construction.equations.iter().any(|equation| {
+            matches!(
+                &equation.value,
+                ParsedFeatureValue::FromRole(source)
+                    if source.feature == parsed_feature
+                        && construction.element.fields.iter().any(|field| {
+                            same_identifier(&field.name, &source.role)
+                                && matches!(
+                                    &field.kind,
+                                    FieldKind::Sequence { item, .. }
+                                        if matches!(item.as_ref(), FieldKind::Category(path) if path_name(path) == category)
+                                )
+                        })
+                        && !construction.equations.iter().any(|writer| {
+                            matches!(
+                                &writer.target,
+                                ParsedFeaturePlace::Role { field, feature }
+                                    if same_identifier(field, &source.role)
+                                        && *feature == parsed_feature
+                            )
+                        })
+            )
+        })
+    })
+}
+
 fn register_terminal_names(
     names: &mut GeneratedNameInventory,
     name: &str,
@@ -5052,6 +5266,11 @@ fn check_feature_role(
                     ),
                 );
             }
+        }
+        Some(FieldKind::Sequence { item, .. })
+            if feature == ParsedFeature::Agreement
+                && matches!(item.as_ref(), FieldKind::Category(path) if providers.contains(&(path_name(path), feature))) =>
+        {
         }
         Some(FieldKind::Lex(_) | FieldKind::Identity(_))
             if matches!(
@@ -6815,6 +7034,7 @@ fn feature_place_is_constructible(
                         )
                             && matches!(kind, FieldKind::Lex(_) | FieldKind::Identity(_)))
                             || matches!(kind, FieldKind::Category(path) | FieldKind::Lex(path) if providers.contains(&(path_name(path), *feature)))
+                            || matches!(kind, FieldKind::Sequence { item, .. } if matches!(item.as_ref(), FieldKind::Category(path) if providers.contains(&(path_name(path), *feature))))
                     }),
                 ParsedFeaturePlace::Construction(_) => false,
             },
@@ -6901,7 +7121,18 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                     feature::FeaturePlace::Construction((*feature).into())
                 }
                 ParsedFeaturePlace::Role { field, feature } => {
-                    if let Some(FieldKind::Category(path)) = fields.get(&identifier_key(field)) {
+                    if let Some(path) =
+                        fields
+                            .get(&identifier_key(field))
+                            .and_then(|kind| match kind {
+                                FieldKind::Category(path) => Some(path),
+                                FieldKind::Sequence { item, .. } => match item.as_ref() {
+                                    FieldKind::Category(path) => Some(path),
+                                    _ => None,
+                                },
+                                _ => None,
+                            })
+                    {
                         let category = path_name(path);
                         if !providers.contains(&(category.clone(), *feature)) {
                             combine(
@@ -6943,7 +7174,17 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                         );
                         continue;
                     }
-                    if let Some(FieldKind::Category(path)) = fields.get(&identifier_key(&slot.role))
+                    if let Some(path) =
+                        fields
+                            .get(&identifier_key(&slot.role))
+                            .and_then(|kind| match kind {
+                                FieldKind::Category(path) => Some(path),
+                                FieldKind::Sequence { item, .. } => match item.as_ref() {
+                                    FieldKind::Category(path) => Some(path),
+                                    _ => None,
+                                },
+                                _ => None,
+                            })
                     {
                         let category = path_name(path);
                         if !providers.contains(&(category.clone(), slot.feature)) {
@@ -7154,6 +7395,10 @@ fn fold_unit_invariants(
     Ok(())
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the category capability fixed point and its closed checks are kept together"
+)]
 fn seal_category_render_capabilities(
     raw: &Declarations,
     resolutions: &HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
@@ -7235,7 +7480,29 @@ fn seal_category_render_capabilities(
                             .and_then(|values| values.get(&place))
                             == Some(&feature::FeatureResolution::External)
                 });
-            if passes_external_to_child {
+            let relays_external_sequence = construction.equations.iter().any(|equation| {
+                let (
+                    ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
+                    ParsedFeatureValue::FromRole(source),
+                ) = (&equation.target, &equation.value)
+                else {
+                    return false;
+                };
+                source.feature == ParsedFeature::Agreement
+                    && construction.element.fields.iter().any(|field| {
+                        same_identifier(&field.name, &source.role)
+                            && matches!(
+                                &field.kind,
+                                FieldKind::Sequence { item, .. }
+                                    if matches!(
+                                        item.as_ref(),
+                                        FieldKind::Category(path)
+                                            if agreement_contextual.contains(&path_name(path))
+                                    )
+                            )
+                    })
+            });
+            if passes_external_to_child || relays_external_sequence {
                 agreement_contextual.insert(path_name(&construction.category));
             }
         }
@@ -7517,6 +7784,31 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             let terminal = identifier_key(&binding.name);
             providers.insert((terminal.clone(), ParsedFeature::Number));
             providers.insert((terminal, ParsedFeature::Cardinality));
+        }
+    }
+    loop {
+        let before = providers.len();
+        for declaration in &raw.declarations {
+            let Declaration::AbstractSum(sum) = declaration else { continue };
+            let sum_name = identifier_key(&sum.name);
+            for feature in [
+                ParsedFeature::Agreement,
+                ParsedFeature::Cardinality,
+                ParsedFeature::Number,
+                ParsedFeature::Onset,
+                ParsedFeature::PossessiveEnding,
+            ] {
+                if !sum.alternatives.is_empty()
+                    && sum.alternatives.iter().all(|alternative| {
+                        providers.contains(&(path_name(&alternative.value_type), feature))
+                    })
+                {
+                    providers.insert((sum_name.clone(), feature));
+                }
+            }
+        }
+        if providers.len() == before {
+            break;
         }
     }
     providers
@@ -8001,7 +8293,7 @@ fn validate_lowerable_feature_compositions(
                 identifier_key(field) == "verb"
                     || matches!(
                         fields.get(&identifier_key(field)),
-                        Some(FieldKind::Category(_))
+                        Some(FieldKind::Category(_) | FieldKind::Sequence { .. })
                     )
             }
             (ParsedFeaturePlace::Role { field, .. }, ParsedFeatureValue::Match { role, .. }) => {
@@ -11615,6 +11907,163 @@ pub(crate) mod tests {
         });
         assert!(atoms.contains("verb atom requires agreement"), "{atoms}");
         assert!(atoms.contains("noun atom requires number"), "{atoms}");
+    }
+
+    #[test]
+    fn homogeneous_nonempty_category_sequences_support_uniform_agreement_flow() {
+        validate(quote! {
+            construction bare: Item {
+                element BareItem {}
+                derive agreement = Values::Bare;
+                form bare = "bare";
+            }
+            construction third: Item {
+                element ThirdItem {}
+                derive agreement = Values::ThirdPersonSingular;
+                form third = "third";
+            }
+            construction inbound: Root {
+                element InboundSequence { source: Item, members: seq Item separated by " ", }
+                require len(members) >= 2;
+                derive members.agreement = source.agreement;
+                form inbound = source members;
+            }
+            construction outward: Coordinated {
+                element OutwardSequence { members: seq Item separated by " ", }
+                require len(members) >= 2;
+                derive agreement = members.agreement;
+                form outward = members;
+            }
+            construction checked: Root {
+                element CheckedSequence { source: Item, coordinated: Coordinated, }
+                derive coordinated.agreement = source.agreement;
+                form checked = source coordinated;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("uniform inbound and homogeneous outward sequence agreement must validate");
+
+        let empty = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                derive agreement = Values::Bare;
+                form item = "item";
+            }
+            construction empty: Root {
+                element EmptySequence { members: seq Item separated by " ", }
+                derive agreement = members.agreement;
+                form empty = members;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            empty.contains(
+                "EmptySequence.members: sequence feature agreement requires a statically nonempty sequence"
+            ),
+            "{empty}"
+        );
+
+        let lexical = error(quote! {
+            vocab Word { One = "one", }
+            construction lexical: Root {
+                element LexicalSequence { members: seq lex Word separated by " ", }
+                require len(members) >= 2;
+                derive agreement = members.agreement;
+                form lexical = lex(members);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            lexical.contains(
+                "LexicalSequence.members: sequence feature agreement requires feature-bearing category items"
+            ),
+            "{lexical}"
+        );
+
+        let identity = error(quote! {
+            identity HandleSpelling {
+                generate context {
+                    Full => card_name,
+                    Abbreviated => abbreviated_card_name,
+                    canonical_on_collision = Full;
+                }
+            }
+            construction identity: Root {
+                element IdentitySequence {
+                    members: seq identity HandleSpelling separated by " ",
+                }
+                require len(members) >= 2;
+                derive agreement = members.agreement;
+                form identity = identity(members);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            identity.contains(
+                "IdentitySequence.members: sequence feature agreement requires feature-bearing category items"
+            ),
+            "{identity}"
+        );
+
+        let non_provider = error(quote! {
+            construction item: Item { element ItemValue {} form item = "item"; }
+            construction missing: Root {
+                element MissingProvider { members: seq Item separated by " ", }
+                require len(members) >= 2;
+                derive agreement = members.agreement;
+                form missing = members;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            non_provider
+                .contains("MissingProvider.members: category `Item` does not provide agreement"),
+            "{non_provider}"
+        );
+
+        let unsupported = error(quote! {
+            construction numbered: Item {
+                element NumberedItem {}
+                derive number = Values::Singular;
+                form numbered = "item";
+            }
+            construction unsupported: Root {
+                element UnsupportedSequence { members: seq Item separated by " ", }
+                require len(members) >= 2;
+                derive number = members.number;
+                form unsupported = members;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            unsupported.contains(
+                "UnsupportedSequence.members: sequence feature propagation supports agreement only, found number"
+            ),
+            "{unsupported}"
+        );
+
+        let mixed = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                derive agreement = Values::Bare;
+                derive number = Values::Singular;
+                form item = "item";
+            }
+            construction mixed: Root {
+                element MixedSequence { members: seq Item separated by " ", }
+                require len(members) >= 2;
+                derive agreement = members.agreement;
+                derive number = members.number;
+                form mixed = members;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            mixed.contains(
+                "MixedSequence.members: a sequence feature role cannot mix agreement and number"
+            ),
+            "{mixed}"
+        );
     }
 
     #[test]

@@ -870,7 +870,6 @@ mod tests {
     use super::materialize_node;
     use super::materialize_observed;
     use crate::ast::BareSingularNominal;
-    use crate::ast::Clause;
     use crate::ast::CommonNoun;
     use crate::ast::CommonSingularHead;
     use crate::ast::Connive;
@@ -878,6 +877,7 @@ mod tests {
     use crate::ast::Object;
     use crate::ast::ObjectPronoun;
     use crate::ast::PersonalObject;
+    use crate::ast::Predicate;
     use crate::ast::ScalarNumber;
     use crate::ast::SelfReferenceSpelling;
     use crate::ast::Sentence;
@@ -887,6 +887,7 @@ mod tests {
     use crate::ast::VerbLexeme;
     use crate::ast::VerbPhrase;
     use crate::ast::WhereClause;
+    use crate::ast::WhereClauseCategory;
     use crate::ast::WithWhere;
     use crate::constructions::Agreement;
     use crate::constructions::DeclarationLeaf;
@@ -968,7 +969,7 @@ mod tests {
             children: vec![
                 Child::Node(body),
                 lexical(Leaf::Literal(",")),
-                Child::Node(NodeId(4)),
+                Child::Node(NodeId(5)),
             ],
         }
     }
@@ -976,7 +977,7 @@ mod tests {
     #[test]
     fn root_adapter_materialization_is_identity_over_one_semantic_child() {
         let value = BuildValue::Sentence(Sentence::Imperative(Imperative {
-            predicate: VerbPhrase::Connive(Connive),
+            predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
         }));
         let adapter_children = [
             value.clone(),
@@ -1126,6 +1127,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the hand-built cyclic forest and its exact provenance oracle stay together"
+    )]
     fn cycle_tainted_results_are_recomputed_for_a_later_clean_root() {
         let forest = Forest::from_test_parts(
             vec![
@@ -1150,6 +1155,14 @@ mod tests {
                     }],
                 },
                 PackedNode {
+                    rule: RuleId::PredicateAtomic,
+                    start: 0,
+                    end: 0,
+                    families: vec![Family {
+                        children: vec![Child::Node(NodeId(4))],
+                    }],
+                },
+                PackedNode {
                     rule: RuleId::VerbPhraseConnive,
                     start: 0,
                     end: 0,
@@ -1162,7 +1175,7 @@ mod tests {
                     }],
                 },
                 PackedNode {
-                    rule: RuleId::ClauseWhere,
+                    rule: RuleId::WhereClauseCategoryWhere,
                     start: 0,
                     end: 0,
                     families: vec![Family {
@@ -1177,7 +1190,7 @@ mod tests {
                             lexical(Leaf::Literal("the")),
                             lexical(Leaf::Literal("number")),
                             lexical(Leaf::Literal("of")),
-                            Child::Node(NodeId(5)),
+                            Child::Node(NodeId(6)),
                         ],
                     }],
                 },
@@ -1195,18 +1208,19 @@ mod tests {
         let context = context("Context Card");
         let mut state =
             MaterializationStateFor::<BuildValue, Construction, Category, Lexical, Leaf>::default();
-        let clause = Clause::Where(WhereClause {
+        let clause = WhereClauseCategory::Where(WhereClause {
             variable: Variable::X,
             value: Object::ObjectPronoun(PersonalObject {
                 word: ObjectPronoun::You,
             }),
         });
         let base = Sentence::Imperative(Imperative {
-            predicate: VerbPhrase::Connive(Connive),
+            predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
         });
-        let once = Sentence::WithWhere(
-            WithWhere::new(Box::new(base), clause.clone()).expect("Where clause is valid"),
-        );
+        let once = Sentence::WithWhere(WithWhere {
+            body: Box::new(base),
+            clause: clause.clone(),
+        });
 
         let first = materialize_node(&forest, NodeId(0), &context, &mut state);
         assert_eq!(first.values.len(), 1);
@@ -1216,9 +1230,10 @@ mod tests {
         assert_eq!(later.values.len(), 1);
         assert_eq!(
             later.values[0].value,
-            BuildValue::Sentence(Sentence::WithWhere(
-                WithWhere::new(Box::new(once), clause).expect("Where clause is valid"),
-            ))
+            BuildValue::Sentence(Sentence::WithWhere(WithWhere {
+                body: Box::new(once),
+                clause,
+            }))
         );
         assert_eq!(
             later.values[0].constructions,
@@ -1227,9 +1242,9 @@ mod tests {
                 Construction::SentenceWithWhere,
                 Construction::SentenceImperative,
                 Construction::VerbPhraseConnive,
-                Construction::ClauseWhere,
+                Construction::WhereClauseCategoryWhere,
                 Construction::ObjectObjectPronoun,
-                Construction::ClauseWhere,
+                Construction::WhereClauseCategoryWhere,
                 Construction::ObjectObjectPronoun,
             ]
         );
@@ -1238,11 +1253,11 @@ mod tests {
             vec![
                 RulePosition::Nonterminal(Category::Sentence),
                 RulePosition::Lexical(Lexical::Literal(",")),
-                RulePosition::Nonterminal(Category::Clause),
+                RulePosition::Nonterminal(Category::WhereClauseCategory),
                 RulePosition::Nonterminal(Category::Sentence),
                 RulePosition::Lexical(Lexical::Literal(",")),
-                RulePosition::Nonterminal(Category::Clause),
-                RulePosition::Nonterminal(Category::VerbPhrase),
+                RulePosition::Nonterminal(Category::WhereClauseCategory),
+                RulePosition::Nonterminal(Category::Predicate),
                 RulePosition::Lexical(Lexical::Declaration(DeclarationMatcher {
                     kind: DeclarationKind::KeywordAction,
                     name: "Connive",
@@ -1487,7 +1502,7 @@ mod tests {
             vec![
                 RulePosition::Nonterminal(Category::AbilityBody),
                 RulePosition::Nonterminal(Category::SentencesSentencesSequenceCategory),
-                RulePosition::Nonterminal(Category::VerbPhrase),
+                RulePosition::Nonterminal(Category::Predicate),
                 RulePosition::Lexical(Lexical::Declaration(DeclarationMatcher {
                     kind: DeclarationKind::KeywordAction,
                     name: "Destroy",
@@ -1505,7 +1520,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
-                    25,
+                    26,
                     FeatureConstraint::Exact(Number::Singular),
                 )),
             ]
@@ -1684,7 +1699,7 @@ mod tests {
             );
             if limit > 0 {
                 let cycle = &trace.materialization_cycles().items()[0];
-                assert_eq!(cycle.node_ordinal(), 39);
+                assert_eq!(cycle.node_ordinal(), 41);
                 assert_eq!(cycle.construction_path().total(), 2);
                 assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
                 assert_eq!(

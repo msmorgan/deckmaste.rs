@@ -90,6 +90,7 @@ pub struct EscapeHatchReport {
     abstract_sums: Vec<String>,
     optional_roles: Vec<String>,
     sequence_roles: Vec<String>,
+    sequence_feature_roles: Vec<String>,
     uniform_separators: Vec<String>,
     positional_separator_tables: Vec<String>,
     terminators: Vec<String>,
@@ -124,6 +125,13 @@ impl EscapeHatchReport {
     #[must_use]
     pub fn sequence_roles(&self) -> &[String] {
         &self.sequence_roles
+    }
+
+    #[must_use]
+    /// Returns statically nonempty homogeneous sequence roles that participate
+    /// in generated feature flow. The feature is derived, never stored.
+    pub fn sequence_feature_roles(&self) -> &[String] {
+        &self.sequence_feature_roles
     }
 
     #[must_use]
@@ -215,6 +223,7 @@ struct StructuralReportInventory {
     abstract_sums: Vec<String>,
     optional_roles: Vec<String>,
     sequence_roles: Vec<String>,
+    sequence_feature_roles: Vec<String>,
     uniform_separators: Vec<String>,
     positional_separator_tables: Vec<String>,
     terminators: Vec<String>,
@@ -234,6 +243,7 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
         .collect();
     let mut optional_roles = Vec::new();
     let mut sequence_roles = Vec::new();
+    let mut sequence_feature_roles = Vec::new();
     let mut uniform_separators = Vec::new();
     let mut positional_separator_tables = Vec::new();
     let mut terminators = Vec::new();
@@ -306,6 +316,9 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
                 }
                 StructuralFieldKindPlan::Sequence { surface, .. } => {
                     sequence_roles.push(role.clone());
+                    if plan.sequence_feature(&owner, &field).is_some() {
+                        sequence_feature_roles.push(format!("{role}.agreement"));
+                    }
                     match surface.separator() {
                         Some(SeparatorPlan::Uniform(_)) => {
                             uniform_separators.push(role.clone());
@@ -327,6 +340,7 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
         abstract_sums,
         optional_roles,
         sequence_roles,
+        sequence_feature_roles,
         uniform_separators,
         positional_separator_tables,
         terminators,
@@ -391,6 +405,7 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
         abstract_sums,
         optional_roles,
         sequence_roles,
+        sequence_feature_roles,
         uniform_separators,
         positional_separator_tables,
         terminators,
@@ -484,6 +499,7 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
         abstract_sums,
         optional_roles,
         sequence_roles,
+        sequence_feature_roles,
         uniform_separators,
         positional_separator_tables,
         terminators,
@@ -574,6 +590,39 @@ mod tests {
         assert_eq!(report.positional_separator_tables(), ["Holder.items"]);
         assert_eq!(report.terminators(), ["Holder.items"]);
         assert!(report.stored_separator_fields().is_empty());
+    }
+
+    #[test]
+    fn homogeneous_sequence_feature_flow_is_reported_without_stored_fields() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction bare: Item {
+                    element BareItem {}
+                    derive agreement = Values::Bare;
+                    form bare = "bare";
+                }
+                construction coordinated: Root {
+                    element Coordinated {
+                        members: seq Item separated by " ",
+                    }
+                    require len(members) >= 2;
+                    derive agreement = members.agreement;
+                    form coordinated = members;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("sequence feature report fixture parses"),
+        )
+        .expect("sequence feature report fixture validates")
+        .into_semantic();
+        let report = super::escape_hatch_report(&semantic).expect("sealed report");
+
+        assert_eq!(
+            report.sequence_feature_roles(),
+            ["Coordinated.members.agreement"]
+        );
+        assert!(report.stored_separator_fields().is_empty());
+        assert!(report.stored_form_tags().is_empty());
     }
 
     #[test]

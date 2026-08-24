@@ -1506,6 +1506,22 @@ pub mod fixture {
             derive child.agreement = Values::Bare;
             form guarded = lex(mode) child;
         }
+        construction uniform_children: HomogeneousSequence {
+            element UniformChildren {
+                members: seq Child separated by " ",
+            }
+            require len(members) >= 2;
+            derive members.agreement = Values::Bare;
+            form uniform_children = members;
+        }
+        construction relayed_children: RelayedSequence {
+            element RelayedChildren {
+                members: seq Child separated by " ",
+            }
+            require len(members) >= 2;
+            derive agreement = members.agreement;
+            form relayed_children = members;
+        }
         construction partitioned: PartitionRoot {
             element Partitioned { word: lex Partition, }
             form first when word is First = "alpha" lex(word);
@@ -1879,6 +1895,8 @@ pub mod fixture {
         }
 
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root HomogeneousSequence { punctuation = "."; eoi = true; standalone_render = true; }
+        root RelayedSequence { punctuation = "."; eoi = true; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalVisitRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -4826,6 +4844,122 @@ pub mod fixture {
         }
     }
 
+    pub(super) fn assert_sequence_agreement_is_uniform_across_every_member() {
+        let bare = || Child::Bare(BareChild);
+        let third = || Child::Third(ThirdChild);
+
+        for length in [2, 3, 4] {
+            let members = (0..length).map(|_| bare()).collect::<Vec<_>>();
+            let inbound = UniformChildren::new(members.clone())
+                .expect("two through four uniformly bare members satisfy the inbound writer");
+            assert_eq!(inbound.members(), members);
+            let outward = RelayedChildren::new(members)
+                .expect("two through four homogeneous members satisfy the outward relay");
+            assert_eq!(outward.members().len(), length);
+        }
+
+        for members in [
+            vec![bare(), third(), bare()],
+            vec![bare(), bare(), third()],
+            vec![bare(), third(), bare(), bare()],
+            vec![bare(), bare(), bare(), third()],
+        ] {
+            let inbound = UniformChildren::try_new(members.clone())
+                .expect_err("a mismatched middle or final member rejects the inbound writer");
+            assert_eq!(inbound.owner(), "UniformChildren");
+            assert_eq!(inbound.role(), "members");
+            assert_eq!(
+                inbound.violation(),
+                &BuildViolation::Invariant {
+                    identity: "all members match derived agreement",
+                },
+            );
+            let outward = RelayedChildren::try_new(members)
+                .expect_err("a mismatched middle or final member rejects the outward relay");
+            assert_eq!(outward.owner(), "RelayedChildren");
+            assert_eq!(outward.role(), "members");
+            assert_eq!(
+                outward.violation(),
+                &BuildViolation::Invariant {
+                    identity: "all members share agreement",
+                },
+            );
+        }
+
+        let context = ParseContext::default();
+        for surface in ["Bare bare", "Bare bare bare", "Bare bare bare bare"] {
+            let forest = parse_structural(Category::HomogeneousSequence, surface, &context);
+            assert_eq!(forest.accepted_root_ids().count(), 1, "{surface}");
+        }
+
+        let child = |agreement| match agreement {
+            Agreement::Bare => BuildValue::Child(bare(), Agreement::Bare),
+            Agreement::ThirdPersonSingular => {
+                BuildValue::Child(third(), Agreement::ThirdPersonSingular)
+            }
+        };
+        let pair = build(
+            RuleId::UniformChildrenMembersSequenceLength2,
+            &[
+                child(Agreement::Bare),
+                BuildValue::Leaf(Leaf::Literal(" ")),
+                child(Agreement::Bare),
+            ],
+            &context,
+        )
+        .expect("the exact pair helper materializes its carried agreement");
+        assert!(matches!(
+            pair,
+            BuildValue::UniformChildrenMembersSequence(_, Agreement::Bare)
+        ));
+        assert!(
+            build(
+                RuleId::UniformChildrenMembersSequenceLength2,
+                &[
+                    child(Agreement::Bare),
+                    BuildValue::Leaf(Leaf::Literal(" ")),
+                    child(Agreement::ThirdPersonSingular),
+                ],
+                &context,
+            )
+            .is_none(),
+            "the exact pair helper rejects a mismatched final member",
+        );
+        assert!(
+            build(
+                RuleId::UniformChildrenMembersSequenceRecursive,
+                &[
+                    child(Agreement::ThirdPersonSingular),
+                    BuildValue::Leaf(Leaf::Literal(" ")),
+                    pair.clone(),
+                ],
+                &context,
+            )
+            .is_none(),
+            "the recursive helper rejects a mismatched middle or final carrier",
+        );
+        let three = build(
+            RuleId::UniformChildrenMembersSequenceRecursive,
+            &[
+                child(Agreement::Bare),
+                BuildValue::Leaf(Leaf::Literal(" ")),
+                pair,
+            ],
+            &context,
+        )
+        .expect("the recursive helper preserves homogeneous agreement");
+        let built = build(
+            RuleId::HomogeneousSequenceUniformChildren,
+            std::slice::from_ref(&three),
+            &context,
+        )
+        .expect("the owner materializes the checked public construction");
+        let BuildValue::HomogeneousSequence(sequence) = built else {
+            panic!("the homogeneous sequence builds its declared category")
+        };
+        assert_eq!(Render::render(&sequence, &context), "Bare bare bare.");
+    }
+
     pub(super) fn assert_nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
         let one = std::num::NonZeroU32::new(1).expect("one is nonzero");
         let maximum = std::num::NonZeroU32::new(u32::MAX).expect("u32::MAX is nonzero");
@@ -5029,4 +5163,9 @@ fn unsigned_numeral_codecs_cover_canonical_surfaces_bounds_and_round_trips() {
 #[test]
 fn nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
     fixture::assert_nonzero_unsigned_decimal_is_typed_canonical_and_exact();
+}
+
+#[test]
+fn sequence_agreement_is_uniform_across_every_member_and_boundary() {
+    fixture::assert_sequence_agreement_is_uniform_across_every_member();
 }
