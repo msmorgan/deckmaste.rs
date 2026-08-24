@@ -1062,6 +1062,11 @@ fn emit_sum_renderer(
             Ok(quote! { #ty::#variant(#binding) => { #statement } })
         })
         .collect::<syn::Result<Vec<_>>>()?;
+    let match_value = if sum.alternatives().is_empty() {
+        quote! { *#value }
+    } else {
+        quote! { #value }
+    };
     let environment = plan.needs_parser_environment().then(|| {
         quote! { , environment: &crate::environment::ParserEnvironment }
     });
@@ -1075,7 +1080,7 @@ fn emit_sum_renderer(
                 writer: &mut Writer,
                 #value: &#ty,
                 context: &ParseContext<'_> #environment,
-            ) { match #value { #(#arms),* } }
+            ) { match #match_value { #(#arms),* } }
         },
         vec![DeclarationKey::new(
             DeclarationKind::AbstractSum,
@@ -3678,20 +3683,24 @@ fn render_category_order(
 ) -> Vec<String> {
     let mut order = Vec::new();
     let mut queued = HashSet::new();
+    let known_categories = categories
+        .iter()
+        .map(|(name, _)| name.clone())
+        .collect::<HashSet<_>>();
     for root in roots {
         let root_name = root.category().to_owned();
         if nested.contains(&root_name) {
             continue;
         }
         if let Some((_, members)) = categories.iter().find(|(name, _)| name == &root_name) {
-            enqueue_role_categories(members, &mut order, &mut queued);
+            enqueue_role_categories(members, &known_categories, &mut order, &mut queued);
         }
     }
     let mut index = 0;
     while index < order.len() {
         let name = order[index].clone();
         if let Some((_, members)) = categories.iter().find(|(category, _)| category == &name) {
-            enqueue_role_categories(members, &mut order, &mut queued);
+            enqueue_role_categories(members, &known_categories, &mut order, &mut queued);
         }
         index += 1;
     }
@@ -3705,13 +3714,14 @@ fn render_category_order(
 
 fn enqueue_role_categories(
     members: &[&ConstructionPlan],
+    known_categories: &HashSet<String>,
     order: &mut Vec<String>,
     queued: &mut HashSet<String>,
 ) {
     for construction in members {
         for atom in construction.forms().iter().flat_map(FormPlan::atoms) {
             let AtomPlan::Category { category, .. } = atom else { continue };
-            if queued.insert(category.clone()) {
+            if known_categories.contains(category) && queued.insert(category.clone()) {
                 order.push(category.clone());
             }
         }
@@ -4130,6 +4140,103 @@ mod tests {
         assert!(
             source.contains("render_qualified (writer , qualified , context"),
             "the parent renderer forwards parse context: {source}",
+        );
+    }
+
+    #[test]
+    fn optional_contextual_category_threads_parse_context_for_some_and_none() {
+        let expansion = crate::generate(quote::quote! {
+            vocab Word { Alpha = "alpha", }
+            construction nominal: Nominal {
+                element NominalValue { word: lex Word, }
+                derive onset = word.onset;
+                form nominal = lex(word);
+            }
+            construction qualified: Clause {
+                element QualifiedValue { nominal: Nominal, }
+                form vowel when nominal.onset is Vowel = "an" nominal;
+                form consonant otherwise = "a" nominal;
+            }
+            construction direct: Direct {
+                element DirectValue { clause: Clause, }
+                form direct = clause;
+            }
+            construction optional: Ability {
+                element OptionalValue { clause: opt Clause, word: opt lex Word, }
+                form optional = clause lex(word);
+            }
+            construction root: Root {
+                element RootValue { ability: Ability, }
+                form root = ability;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("optional contextual category fixture validates");
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for required in [
+            "fn render_direct (writer : & mut Writer , direct : & Direct , context : & ParseContext",
+            "fn render_ability (writer : & mut Writer , ability : & Ability , context : & ParseContext",
+            "if let Some (value) = clause { render_clause (writer , value , context)",
+        ] {
+            assert!(
+                source.contains(required),
+                "optional contextual category must receive parse context: {source}",
+            );
+        }
+        assert!(
+            !source.contains("render_word (writer , value , context"),
+            "non-contextual optional lexemes must not acquire parse context: {source}",
+        );
+    }
+
+    #[test]
+    fn uninhabited_abstract_sum_only_admits_an_absent_optional_field() {
+        let expansion = crate::generate(quote::quote! {
+            abstract sum ConditionClause {}
+            construction triggered: Ability {
+                element TriggeredValue { intervening_if: opt ConditionClause, }
+                form triggered = intervening_if;
+            }
+            root Ability { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("an uninhabited condition sum validates under an optional field");
+
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        for required in [
+            "pub enum ConditionClause { }",
+            "pub intervening_if : Option < ConditionClause >",
+            "TriggeredValueInterveningIfOptionalAbsent",
+            "TriggeredValueInterveningIfOptionalPresent",
+            "RuleId :: TriggeredValueInterveningIfOptionalAbsent => match children",
+            "BuildValue :: TriggeredValueInterveningIfOptional (None)",
+            "match * condition_clause { }",
+        ] {
+            assert!(
+                source.contains(required),
+                "uninhabited optional condition surface is missing `{required}`: {source}",
+            );
+        }
+        for forbidden in ["ConditionClause ::", "lhs : Category :: ConditionClause"] {
+            assert!(
+                !source.contains(forbidden),
+                "uninhabited condition must not admit a Some path `{forbidden}`: {source}",
+            );
+        }
+        assert_eq!(
+            source.matches("match * condition_clause { }").count(),
+            2,
+            "uninhabited sum renderer and walker must both dereference before exhaustive matching: {source}",
         );
     }
 

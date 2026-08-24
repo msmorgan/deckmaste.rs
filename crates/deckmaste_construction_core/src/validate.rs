@@ -10,6 +10,7 @@ use crate::feature::Feature;
 use crate::identifier::BUILD_FUNCTION;
 use crate::identifier::CHECKED_BUILD_FUNCTION;
 use crate::identifier::FIXED_RUNTIME_TYPE_NAMES;
+use crate::identifier::PRIVATE_ROOT_RENDERER_PREFIX;
 use crate::identifier::RULE_CATEGORY_TYPE;
 use crate::identifier::RULE_CONSTRUCTION_TYPE;
 use crate::identifier::RULE_ID_COUNT;
@@ -2758,14 +2759,25 @@ fn reject_raw_keyword_identifier(
     generated_role: &str,
     errors: &mut Option<syn::Error>,
 ) {
+    let semantic_name = identifier_key(authored);
+    if semantic_name.starts_with(PRIVATE_ROOT_RENDERER_PREFIX) {
+        combine(
+            errors,
+            syn::Error::new(
+                authored.span(),
+                format!(
+                    "identifier `{authored}` enters reserved compiler-internal namespace `{PRIVATE_ROOT_RENDERER_PREFIX}` for {generated_role}"
+                ),
+            ),
+        );
+    }
     if is_raw_keyword(authored) {
         combine(
             errors,
             syn::Error::new(
                 authored.span(),
                 format!(
-                    "raw keyword `{authored}` has semantic identity `{}` and is unsupported for {generated_role}",
-                    identifier_key(authored)
+                    "raw keyword `{authored}` has semantic identity `{semantic_name}` and is unsupported for {generated_role}"
                 ),
             ),
         );
@@ -6908,7 +6920,7 @@ fn seal_category_render_capabilities(
                             .iter()
                             .find(|field| same_identifier(&field.name, role))
                             .is_some_and(|field| {
-                                matches!(&field.kind, FieldKind::Category(path) if context_required.contains(&path_name(path)))
+                                matches!(field_kind_leaf(&field.kind), FieldKind::Category(path) if context_required.contains(&path_name(path)))
                             }),
                         FormAtom::Circumfix(circumfix) => construction
                             .element
@@ -10052,23 +10064,8 @@ pub(crate) mod tests {
         "#
         .parse()
         .expect("nested-root collision declaration syntax");
-        let parsed =
-            crate::parse_declarations(nested_source.clone()).expect("collision syntax parses");
-        let Declaration::Construction(foo_body) = &parsed.declarations[2] else {
-            panic!("third declaration is the colliding FooBody construction")
-        };
-        let expected_span = foo_body.category.span();
-        let nested_error = crate::generate(nested_source)
-            .expect_err("a nested standalone root reserves its exact body renderer");
-        assert_same_span(nested_error.span(), expected_span);
-        let nested_root = nested_error.to_string();
-        assert!(
-            nested_root.contains("semantic identity `render_foo_body`")
-                && nested_root.contains("generated nested-root category renderer for `Foo`")
-                && nested_root.contains("generated category renderer for `FooBody`"),
-            "{nested_root}"
-        );
-        assert!(!nested_root.contains("internal"), "{nested_root}");
+        crate::generate(nested_source)
+            .expect("a body category does not collide with its standalone root renderer");
 
         let feature_helper = crate::generate(quote! {
             codec Head {
@@ -10108,6 +10105,47 @@ pub(crate) mod tests {
             "{feature_helper}"
         );
         assert!(!feature_helper.contains("internal"), "{feature_helper}");
+    }
+
+    #[test]
+    fn standalone_root_renderer_does_not_collide_with_a_body_category() {
+        let generated = crate::generate(quote! {
+            construction foo: Foo { element FooNode {} form foo = "foo"; }
+            construction wrapper: Wrapper {
+                element WrapperNode { foo: Foo, }
+                form wrapper = foo;
+            }
+            construction foo_body: FooBody {
+                element FooBodyNode {}
+                form foo_body = "body";
+            }
+            root Foo { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a body category has a distinct renderer from its standalone root");
+        let source = generated.tokens().to_string();
+        assert!(
+            source.contains("fn __deckmaste_construction_internal_render_root_foo"),
+            "{source}"
+        );
+        assert!(source.contains("fn render_foo_body"), "{source}");
+    }
+
+    #[test]
+    fn authored_identifiers_cannot_enter_the_private_root_renderer_namespace() {
+        let error = crate::generate(quote! {
+            construction root: Root {
+                element __deckmaste_construction_internal_render_root_root {}
+                form root = "root";
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("authored elements cannot collide with compiler-private root renderers")
+        .to_string();
+        assert!(
+            error.contains("reserved compiler-internal namespace")
+                && error.contains("__deckmaste_construction_internal_render_root_root"),
+            "{error}"
+        );
     }
 
     #[test]

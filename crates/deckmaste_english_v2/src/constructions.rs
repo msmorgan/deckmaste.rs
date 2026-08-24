@@ -196,22 +196,35 @@ constructions! {
             magnitude = u32;
         }
     }
-    construction paragraph: Ability {
-        element Paragraph {
+    abstract sum ConditionClause {}
+    construction plain: Ability {
+        element Plain {
+            body: AbilityBody,
+        }
+        form plain = body;
+    }
+    construction sentences: AbilityBody {
+        element Sentences {
             sentences: seq Sentence separated by " " terminated by ".",
         }
         require len(sentences) >= 1;
-        form paragraph = sentences;
+        form sentences = sentences;
+    }
+    construction finite: TriggerPrefix {
+        element Finite {
+            marker: lex TriggerWord,
+            clause: Clause,
+        }
+        require clause is FiniteClause;
+        form finite = lex(marker) clause;
     }
     construction triggered: Ability {
         element Triggered {
-            trigger: lex TriggerWord,
-            event: Clause,
-            effects: seq Sentence separated by " " terminated by ".",
+            trigger: TriggerPrefix,
+            intervening_if: opt ConditionClause,
+            body: AbilityBody,
         }
-        require event is Event;
-        require len(effects) >= 1;
-        form triggered = lex(trigger) event "," effects;
+        form triggered = trigger "," intervening_if body;
     }
     construction imperative: Sentence {
         element Imperative { predicate: VerbPhrase, }
@@ -228,10 +241,10 @@ constructions! {
         require clause is Where;
         form with_where = body "," clause;
     }
-    construction event: Clause {
-        element EventClause { subject: Subject, predicate: VerbPhrase, }
+    construction finite_clause: Clause {
+        element FiniteClause { subject: Subject, predicate: VerbPhrase, }
         derive predicate.agreement = subject.agreement;
-        form event = subject predicate;
+        form finite_clause = subject predicate;
     }
     construction where: Clause {
         element WhereClause { variable: lex Variable, value: Object, }

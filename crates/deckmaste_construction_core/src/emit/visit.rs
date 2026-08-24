@@ -505,6 +505,11 @@ fn emit_sum_walker(
             Ok(quote! { #ty::#variant(value) => { #call } })
         })
         .collect::<syn::Result<Vec<_>>>()?;
+    let match_argument = if sum.alternatives().is_empty() {
+        quote! { *#argument }
+    } else {
+        quote! { #argument }
+    };
     Ok(GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
@@ -512,7 +517,7 @@ fn emit_sum_walker(
         },
         quote! {
             pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, #argument: &#ty) {
-                match #argument { #(#arms),* }
+                match #match_argument { #(#arms),* }
             }
         },
         vec![DeclarationKey::new(

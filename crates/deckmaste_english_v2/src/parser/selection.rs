@@ -591,7 +591,7 @@ mod tests {
             .unwrap();
         let candidate = |specificity, owner_id: &'static str| Candidate {
             value: ability.clone(),
-            constructions: vec![Construction::AbilityParagraph],
+            constructions: vec![Construction::AbilityPlain],
             positions: Vec::new(),
             specificity: vec![specificity],
             claims: vec![RawLexicalClaim {
@@ -982,12 +982,14 @@ mod tests {
     }
 
     const EXPECTED_GENERATED_CONSTRUCTION_NAMES: &[&str] = &[
-        "AbilityParagraph",
+        "AbilityPlain",
+        "AbilityBodySentences",
+        "TriggerPrefixFinite",
         "AbilityTriggered",
         "SentenceImperative",
         "SentenceDeclarative",
         "SentenceWithWhere",
-        "ClauseEvent",
+        "ClauseFiniteClause",
         "ClauseWhere",
         "SubjectSubjectNominal",
         "SubjectSubjectPronoun",

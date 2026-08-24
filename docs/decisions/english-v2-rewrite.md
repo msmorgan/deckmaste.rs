@@ -157,7 +157,17 @@ value, suffix)` is one fixed two-sided boundary around one required declared
 role. That role may be a singular category or terminal, or a sequence whose
 own separator and terminator remain authoritative. The circumfix bytes are
 derived and separately owned. Nesting, callbacks, optional roles,
-whitespace-bearing affixes, and literal-only payloads are rejected.
+whitespace-bearing affixes, and literal-only payloads are rejected. A
+standalone-root renderer's private dispatch helper uses the compiler-reserved
+`__deckmaste_construction_internal_render_root_` namespace, which authored
+declaration identifiers cannot enter. This keeps a generated `Ability` root
+and generated `AbilityBody` category distinct without aliases or a public/API
+compatibility surface. Render capability sealing follows every existing role
+wrapper to its category leaf, so an `opt Category` receives the same parse
+context as a direct category while `None` remains a no-byte branch. An empty
+`abstract sum` is a valid generated uninhabited public enum: it has no
+sentinel, tag, alias, or surface, and is useful as an optional structural slot
+that a later finite grammar extension may populate.
 - **Added:** inflected atoms — `verb(lexeme)` and `noun(role)` render their
   inflection from derived feature context; and the terminal declarations
   `vocab`, `lexeme`, `codec` (§Terminals).

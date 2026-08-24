@@ -1467,7 +1467,8 @@ mod tests {
         assert_eq!(
             candidates[0].constructions,
             vec![
-                Construction::AbilityParagraph,
+                Construction::AbilityPlain,
+                Construction::AbilityBodySentences,
                 Construction::SentenceImperative,
                 Construction::VerbPhraseDestroy,
                 Construction::ObjectObjectNominal,
@@ -1484,7 +1485,8 @@ mod tests {
         assert_eq!(
             candidates[0].positions,
             vec![
-                RulePosition::Nonterminal(Category::ParagraphSentencesSequenceCategory),
+                RulePosition::Nonterminal(Category::AbilityBody),
+                RulePosition::Nonterminal(Category::SentencesSentencesSequenceCategory),
                 RulePosition::Nonterminal(Category::VerbPhrase),
                 RulePosition::Lexical(Lexical::Declaration(DeclarationMatcher {
                     kind: DeclarationKind::KeywordAction,
@@ -1538,7 +1540,7 @@ mod tests {
                 ),
                 (
                     crate::parser::TextSpan { start: 23, end: 24 },
-                    "structural:Paragraph/sentences/terminator/0",
+                    "structural:Sentences/sentences/terminator/0",
                 ),
             ]
         );
@@ -1682,7 +1684,7 @@ mod tests {
             );
             if limit > 0 {
                 let cycle = &trace.materialization_cycles().items()[0];
-                assert_eq!(cycle.node_ordinal(), 34);
+                assert_eq!(cycle.node_ordinal(), 35);
                 assert_eq!(cycle.construction_path().total(), 2);
                 assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
                 assert_eq!(
@@ -1702,7 +1704,7 @@ mod tests {
     fn parser_trace_internal_only_cycle_keeps_typed_materialization_failure() {
         let forest = RootForest::from_test_forest(Forest::from_test_parts(
             vec![PackedNode {
-                rule: RootRuleId::Grammar(RuleId::AbilityParagraph),
+                rule: RootRuleId::Grammar(RuleId::AbilityPlain),
                 start: 0,
                 end: 0,
                 families: vec![Family {

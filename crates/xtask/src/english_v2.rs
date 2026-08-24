@@ -2089,12 +2089,14 @@ mod tests {
     ];
 
     const CONSTRUCTION_ORIGINS: &[&str] = &[
-        "construction paragraph",
+        "construction plain",
+        "construction sentences",
+        "construction finite",
         "construction triggered",
         "construction imperative",
         "construction declarative",
         "construction with_where",
-        "construction event",
+        "construction finite_clause",
         "construction where",
         "construction subject_nominal",
         "construction subject_pronoun",
@@ -2400,6 +2402,7 @@ mod tests {
                 "identity CardName",
                 "codec CardinalNumber",
                 "codec ScalarNumber",
+                "abstract sum ConditionClause",
             ]);
             origins.extend(CONSTRUCTION_ORIGINS);
             origins.extend([
@@ -2464,6 +2467,16 @@ mod tests {
     static VISITOR_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
         std::sync::LazyLock::new(|| {
             let mut category_origins = CONSTRUCTION_ORIGINS.to_vec();
+            let ability_forms = category_origins.drain(..4).collect::<Vec<_>>();
+            category_origins.splice(
+                0..0,
+                [
+                    ability_forms[0],
+                    ability_forms[3],
+                    ability_forms[1],
+                    ability_forms[2],
+                ],
+            );
             let first_targeted = category_origins
                 .iter()
                 .position(|origin| *origin == "construction singular_targeted_noun_phrase")
@@ -2532,7 +2545,8 @@ mod tests {
 
     static CATEGORY_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
         std::sync::LazyLock::new(|| {
-            let mut origins = CONSTRUCTION_ORIGINS.to_vec();
+            let mut origins = vec!["abstract sum ConditionClause"];
+            origins.extend(CONSTRUCTION_ORIGINS);
             origins.extend(["abstract sum DocumentBlock", "abstract product OracleText"]);
             origins
         });
@@ -2557,16 +2571,33 @@ mod tests {
     )]
     fn expected_production_origins(item_key: &str) -> Option<&'static [&'static str]> {
         Some(match item_key {
-            "type Ability" | "function walk_ability" => {
-                &["construction paragraph", "construction triggered"]
+            "type Ability"
+            | "function walk_ability"
+            | "function __deckmaste_construction_internal_render_root_ability" => {
+                &["construction plain", "construction triggered"]
             }
-            "type Sentence" | "function render_sentence_body" | "function walk_sentence" => &[
+            "type AbilityBody"
+            | "function render_ability_body"
+            | "function walk_ability_body"
+            | "type Sentences"
+            | "impl Sentences"
+            | "function walk_sentences" => &["construction sentences"],
+            "type TriggerPrefix"
+            | "function render_trigger_prefix"
+            | "function walk_trigger_prefix"
+            | "type Finite"
+            | "impl Finite"
+            | "function walk_finite" => &["construction finite"],
+            "type Sentence"
+            | "function render_sentence_body"
+            | "function walk_sentence"
+            | "function __deckmaste_construction_internal_render_root_sentence" => &[
                 "construction imperative",
                 "construction declarative",
                 "construction with_where",
             ],
             "type Clause" | "function render_clause" | "function walk_clause" => {
-                &["construction event", "construction where"]
+                &["construction finite_clause", "construction where"]
             }
             "type Subject"
             | "function render_subject"
@@ -2665,6 +2696,7 @@ mod tests {
             "type CountReference"
             | "function render_count_reference"
             | "function render_count_reference_body"
+            | "function __deckmaste_construction_internal_render_root_count_reference"
             | "function agreement_for_count_reference"
             | "function number_for_count_reference"
             | "function onset_for_count_reference"
@@ -2693,6 +2725,7 @@ mod tests {
             "type ScalarReference"
             | "function render_scalar_reference"
             | "function render_scalar_reference_body"
+            | "function __deckmaste_construction_internal_render_root_scalar_reference"
             | "function agreement_for_scalar_reference"
             | "function number_for_scalar_reference"
             | "function onset_for_scalar_reference"
@@ -2801,6 +2834,7 @@ mod tests {
             ],
             "type CardinalQuantity"
             | "function render_cardinal_quantity_body"
+            | "function __deckmaste_construction_internal_render_root_cardinal_quantity"
             | "function cardinality_for_cardinal_quantity"
             | "function walk_cardinal_quantity"
             | "type CardinalQuantityValue"
@@ -2808,22 +2842,21 @@ mod tests {
             "type DocumentBlock"
             | "function render_document_block"
             | "function walk_document_block" => &["abstract sum DocumentBlock"],
+            "type ConditionClause"
+            | "function render_condition_clause"
+            | "function walk_condition_clause" => &["abstract sum ConditionClause"],
             "type OracleText"
             | "impl OracleText"
             | "function render_oracle_text_blocks_sequence"
             | "function render_oracle_text"
             | "function walk_oracle_text_blocks_sequence"
             | "function walk_oracle_text" => &["abstract product OracleText"],
-            "type Paragraph" | "impl Paragraph" | "function walk_paragraph" => {
-                &["construction paragraph"]
-            }
+            "type Plain" | "function walk_plain" => &["construction plain"],
             "type Triggered" | "impl Triggered" | "function walk_triggered" => {
                 &["construction triggered"]
             }
-            "function render_paragraph_sentences_sequence"
-            | "function walk_paragraph_sentences_sequence" => &["construction Paragraph"],
-            "function render_triggered_effects_sequence"
-            | "function walk_triggered_effects_sequence" => &["construction Triggered"],
+            "function render_sentences_sentences_sequence"
+            | "function walk_sentences_sentences_sequence" => &["construction Sentences"],
             "function render_negative_modified_singular_nominal_modifiers_sequence"
             | "function walk_negative_modified_singular_nominal_modifiers_sequence" => {
                 &["construction NegativeModifiedSingularNominal"]
@@ -2881,7 +2914,7 @@ mod tests {
             "type WithWhere" | "impl WithWhere" | "function walk_with_where" => {
                 &["construction with_where"]
             }
-            "type EventClause" | "function walk_event_clause" => &["construction event"],
+            "type FiniteClause" | "function walk_finite_clause" => &["construction finite_clause"],
             "type WhereClause" | "function walk_where_clause" => &["construction where"],
             "type NominalSubject" | "function walk_nominal_subject" => {
                 &["construction subject_nominal"]
@@ -3574,7 +3607,6 @@ mod tests {
             "function write_oracle_text_render"
             | "impl Render for OracleText"
             | "function render_oracle_text_with_claims" => &["root OracleText"],
-            "function render_ability_body" => &["construction paragraph", "construction triggered"],
             "trait Visitor" => VISITOR_ORIGINS.as_slice(),
             "function walk_self_reference_spelling" => &["identity SelfReferenceSpelling"],
             "type Category" => CATEGORY_ORIGINS.as_slice(),
@@ -3687,6 +3719,8 @@ mod tests {
 
     const EXPECTED_ITEM_KEYS: &[&str] = &[
         "type Ability",
+        "type AbilityBody",
+        "type TriggerPrefix",
         "type Sentence",
         "type Clause",
         "type Subject",
@@ -3728,17 +3762,20 @@ mod tests {
         "type VerbPhrase",
         "type Amount",
         "type CardinalQuantity",
+        "type ConditionClause",
         "type DocumentBlock",
         "type OracleText",
-        "type Paragraph",
-        "impl Paragraph",
+        "type Plain",
+        "type Sentences",
+        "impl Sentences",
+        "type Finite",
+        "impl Finite",
         "type Triggered",
-        "impl Triggered",
         "type Imperative",
         "type Declarative",
         "type WithWhere",
         "impl WithWhere",
-        "type EventClause",
+        "type FiniteClause",
         "type WhereClause",
         "type NominalSubject",
         "type PersonalSubject",
@@ -4050,8 +4087,7 @@ mod tests {
         "function sequence_terminator",
         "function render_oracle_text_blocks_sequence",
         "function render_oracle_text",
-        "function render_paragraph_sentences_sequence",
-        "function render_triggered_effects_sequence",
+        "function render_sentences_sentences_sequence",
         "function render_negative_modified_singular_nominal_modifiers_sequence",
         "function render_negative_modified_plural_nominal_modifiers_sequence",
         "function render_negative_modified_singular_coordination_member_modifiers_sequence",
@@ -4065,6 +4101,7 @@ mod tests {
         "function render_full_and_noun_phrase_coordination_members_sequence",
         "function render_full_or_noun_phrase_coordination_members_sequence",
         "function render_full_and_or_noun_phrase_coordination_members_sequence",
+        "function render_condition_clause",
         "function render_document_block",
         "impl Ability",
         "impl Render for Ability",
@@ -4090,8 +4127,10 @@ mod tests {
         "function write_oracle_text_render",
         "impl Render for OracleText",
         "function render_oracle_text_with_claims",
+        "function __deckmaste_construction_internal_render_root_ability",
         "function render_ability_body",
-        "function render_sentence_body",
+        "function render_trigger_prefix",
+        "function __deckmaste_construction_internal_render_root_sentence",
         "function render_clause",
         "function render_subject",
         "function render_object",
@@ -4109,10 +4148,10 @@ mod tests {
         "function render_singular_selector",
         "function render_plural_selector",
         "function render_unqualified_reference",
-        "function render_count_reference_body",
+        "function __deckmaste_construction_internal_render_root_count_reference",
         "function render_targeted_noun_phrase",
         "function render_full_noun_phrase_coordination",
-        "function render_scalar_reference_body",
+        "function __deckmaste_construction_internal_render_root_scalar_reference",
         "function render_controller_owner_qualification",
         "function render_singular_controller",
         "function render_zone_reference",
@@ -4129,7 +4168,7 @@ mod tests {
         "function render_possessive_owner",
         "function render_verb_phrase",
         "function render_amount",
-        "function render_cardinal_quantity_body",
+        "function __deckmaste_construction_internal_render_root_cardinal_quantity",
         "function render_trigger_word",
         "function render_subject_pronoun",
         "function render_object_pronoun",
@@ -4207,6 +4246,8 @@ mod tests {
         "function possessive_ending_for_possessive_owner",
         "trait Visitor",
         "function walk_ability",
+        "function walk_ability_body",
+        "function walk_trigger_prefix",
         "function walk_sentence",
         "function walk_clause",
         "function walk_subject",
@@ -4248,8 +4289,8 @@ mod tests {
         "function walk_verb_phrase",
         "function walk_amount",
         "function walk_cardinal_quantity",
-        "function walk_paragraph_sentences_sequence",
-        "function walk_triggered_effects_sequence",
+        "function walk_condition_clause",
+        "function walk_sentences_sentences_sequence",
         "function walk_negative_modified_singular_nominal_modifiers_sequence",
         "function walk_negative_modified_plural_nominal_modifiers_sequence",
         "function walk_negative_modified_singular_coordination_member_modifiers_sequence",
@@ -4266,12 +4307,14 @@ mod tests {
         "function walk_document_block",
         "function walk_oracle_text_blocks_sequence",
         "function walk_oracle_text",
-        "function walk_paragraph",
+        "function walk_plain",
+        "function walk_sentences",
+        "function walk_finite",
         "function walk_triggered",
         "function walk_imperative",
         "function walk_declarative",
         "function walk_with_where",
-        "function walk_event_clause",
+        "function walk_finite_clause",
         "function walk_where_clause",
         "function walk_nominal_subject",
         "function walk_personal_subject",
@@ -5126,8 +5169,24 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 789);
-        assert_eq!(headings, EXPECTED_ITEM_KEYS);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 800);
+        assert!(
+            headings == EXPECTED_ITEM_KEYS,
+            "missing={:#?}; unexpected={:#?}; first mismatch={:?}",
+            headings
+                .iter()
+                .filter(|actual| !EXPECTED_ITEM_KEYS.contains(actual))
+                .collect::<Vec<_>>(),
+            EXPECTED_ITEM_KEYS
+                .iter()
+                .filter(|expected| !headings.contains(expected))
+                .collect::<Vec<_>>(),
+            headings
+                .iter()
+                .zip(EXPECTED_ITEM_KEYS)
+                .enumerate()
+                .find(|(_, (actual, expected))| actual != expected)
+        );
         for expected_key in EXPECTED_ITEM_KEYS {
             let header = format!("// === {expected_key} ===");
             assert_eq!(output.matches(&header).count(), 1, "{expected_key}");
@@ -5182,7 +5241,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 789);
+        assert_eq!(parsed.items.len(), 800);
     }
 
     #[test]

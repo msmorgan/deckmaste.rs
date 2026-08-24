@@ -765,13 +765,12 @@ mod tests {
             ]
         );
         assert_eq!(report.abstract_products, ["OracleText"]);
-        assert_eq!(report.abstract_sums, ["DocumentBlock"]);
-        assert!(report.optional_roles.is_empty());
+        assert_eq!(report.abstract_sums, ["ConditionClause", "DocumentBlock"]);
+        assert_eq!(report.optional_roles, ["Triggered.intervening_if"]);
         assert_eq!(
             report.sequence_roles,
             [
-                "Paragraph.sentences",
-                "Triggered.effects",
+                "Sentences.sentences",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
                 "NegativeModifiedSingularCoordinationMember.modifiers",
@@ -791,8 +790,7 @@ mod tests {
         assert_eq!(
             report.uniform_separators,
             [
-                "Paragraph.sentences",
-                "Triggered.effects",
+                "Sentences.sentences",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
                 "NegativeModifiedSingularCoordinationMember.modifiers",
@@ -814,10 +812,7 @@ mod tests {
                 "FullAndOrNounPhraseCoordination.members",
             ]
         );
-        assert_eq!(
-            report.terminators,
-            ["Paragraph.sentences", "Triggered.effects"]
-        );
+        assert_eq!(report.terminators, ["Sentences.sentences"]);
         assert!(report.stored_separator_fields.is_empty());
         assert_eq!(
             morphology_rows(&report.morphology_irregulars),
@@ -985,11 +980,10 @@ mod tests {
                 }
             ],
             "abstract_products": ["OracleText"],
-            "abstract_sums": ["DocumentBlock"],
-            "optional_roles": [],
+            "abstract_sums": ["ConditionClause", "DocumentBlock"],
+            "optional_roles": ["Triggered.intervening_if"],
             "sequence_roles": [
-                "Paragraph.sentences",
-                "Triggered.effects",
+                "Sentences.sentences",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
                 "NegativeModifiedSingularCoordinationMember.modifiers",
@@ -1006,8 +1000,7 @@ mod tests {
                 "OracleText.blocks"
             ],
             "uniform_separators": [
-                "Paragraph.sentences",
-                "Triggered.effects",
+                "Sentences.sentences",
                 "NegativeModifiedSingularNominal.modifiers",
                 "NegativeModifiedPluralNominal.modifiers",
                 "NegativeModifiedSingularCoordinationMember.modifiers",
@@ -1025,7 +1018,7 @@ mod tests {
                 "FullOrNounPhraseCoordination.members",
                 "FullAndOrNounPhraseCoordination.members"
             ],
-            "terminators": ["Paragraph.sentences", "Triggered.effects"],
+            "terminators": ["Sentences.sentences"],
             "stored_separator_fields": []
         });
 

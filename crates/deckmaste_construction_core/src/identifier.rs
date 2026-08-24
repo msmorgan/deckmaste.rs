@@ -67,6 +67,14 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     BUILD_VIOLATION_TYPE,
 ];
 
+/// Reserved for private standalone-root render dispatch emitted by the
+/// compiler.
+///
+/// Authored declaration identifiers using this prefix are rejected during
+/// namespace validation, so no legal declaration can produce this value name.
+pub(crate) const PRIVATE_ROOT_RENDERER_PREFIX: &str =
+    "__deckmaste_construction_internal_render_root_";
+
 /// Returns the semantic Rust name of an authored identifier.
 ///
 /// Rawness is syntax, not identity: `payload` and `r#payload` occupy the same
@@ -149,12 +157,11 @@ pub(crate) fn prefixed(prefix: &str, semantic_name: &str) -> String {
 }
 
 pub(crate) fn category_renderer(category: &str, standalone_root: bool) -> String {
-    let suffix = if standalone_root {
-        format!("{}_body", snake_case(category))
+    if standalone_root {
+        format!("{PRIVATE_ROOT_RENDERER_PREFIX}{}", snake_case(category))
     } else {
-        snake_case(category)
-    };
-    format!("render_{suffix}")
+        format!("render_{}", snake_case(category))
+    }
 }
 
 pub(crate) fn feature_helper(feature: &str, category: &str) -> String {

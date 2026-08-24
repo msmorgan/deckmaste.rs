@@ -296,12 +296,6 @@ fn subject_you() -> Subject {
     })
 }
 
-fn object_you() -> Object {
-    Object::ObjectPronoun(PersonalObject {
-        word: ObjectPronoun::You,
-    })
-}
-
 fn target_creature() -> Object {
     nominal_object(target_noun(creature()))
 }
@@ -316,8 +310,27 @@ fn damage(amount: Amount) -> VerbPhrase {
     VerbPhrase::DealDamage(DealDamage { to: it(), amount })
 }
 
+fn body(values: Vec<Sentence>) -> AbilityBody {
+    AbilityBody::Sentences(Sentences::new(values).expect("one or more sentences construct a body"))
+}
+
+fn plain(values: Vec<Sentence>) -> Ability {
+    Ability::Plain(Plain { body: body(values) })
+}
+
+fn triggered(trigger_clause: Clause, consequences: Vec<Sentence>) -> Triggered {
+    Triggered {
+        trigger: TriggerPrefix::Finite(
+            Finite::new(TriggerWord::Whenever, trigger_clause)
+                .expect("a finite clause constructs a Whenever trigger"),
+        ),
+        intervening_if: None,
+        body: body(consequences),
+    }
+}
+
 fn triggered_damage() -> Ability {
-    let event = Clause::Event(EventClause {
+    let event = Clause::FiniteClause(FiniteClause {
         subject: nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
         predicate: VerbPhrase::Connive(Connive),
     });
@@ -327,7 +340,7 @@ fn triggered_damage() -> Ability {
             variable: Variable::X,
         })),
     });
-    Ability::Triggered(Triggered::new(TriggerWord::Whenever, event, vec![effect]).unwrap())
+    Ability::Triggered(triggered(event, vec![effect]))
 }
 
 #[test]
@@ -359,14 +372,11 @@ fn unsigned_decimal_zero_constructs_renders_scans_and_visits() {
     let parser = Parser::new(environment.clone()).expect("required declarations are present");
     let context = context("Context Card");
     let number = ScalarNumber { magnitude: 0 };
-    let ability = Ability::Paragraph(
-        Paragraph::new(vec![Sentence::Imperative(Imperative {
-            predicate: VerbPhrase::GainLife(GainLife {
-                amount: Amount::Number(NumberAmount { number }),
-            }),
-        })])
-        .expect("one sentence constructs a paragraph"),
-    );
+    let ability = plain(vec![Sentence::Imperative(Imperative {
+        predicate: VerbPhrase::GainLife(GainLife {
+            amount: Amount::Number(NumberAmount { number }),
+        }),
+    })]);
     assert_eq!(ability.render(&context, &environment), "Gain 0 life.");
     assert_eq!(parser.parse("Gain 0 life.", &context), Ok(ability));
     assert!(parser.parse("Gain -0 life.", &context).is_err());
@@ -424,16 +434,13 @@ fn generated_cardinals_and_unsigned_scalars_round_trip_with_codec_ownership() {
     }
 
     let scalar = ScalarNumber { magnitude: 1_000 };
-    let ability = Ability::Paragraph(
-        Paragraph::new(vec![Sentence::Imperative(Imperative {
-            predicate: VerbPhrase::GainLife(GainLife {
-                amount: Amount::Number(NumberAmount {
-                    number: scalar.clone(),
-                }),
+    let ability = plain(vec![Sentence::Imperative(Imperative {
+        predicate: VerbPhrase::GainLife(GainLife {
+            amount: Amount::Number(NumberAmount {
+                number: scalar.clone(),
             }),
-        })])
-        .expect("one sentence constructs a paragraph"),
-    );
+        }),
+    })]);
     assert_eq!(ability.render(&context, &environment), "Gain 1,000 life.");
     assert_eq!(parser.parse("Gain 1,000 life.", &context), Ok(ability));
     let scalar_ownership = parser
@@ -451,16 +458,13 @@ fn generated_cardinals_and_unsigned_scalars_round_trip_with_codec_ownership() {
         .parse_cardinal_quantity("One thousand, one", &context)
         .expect("canonical cardinal parses through its generated parent root");
 
-    let y_ability = Ability::Paragraph(
-        Paragraph::new(vec![Sentence::Imperative(Imperative {
-            predicate: VerbPhrase::GainLife(GainLife {
-                amount: Amount::Variable(VariableAmount {
-                    variable: Variable::Y,
-                }),
+    let y_ability = plain(vec![Sentence::Imperative(Imperative {
+        predicate: VerbPhrase::GainLife(GainLife {
+            amount: Amount::Variable(VariableAmount {
+                variable: Variable::Y,
             }),
-        })])
-        .expect("one sentence constructs a paragraph"),
-    );
+        }),
+    })]);
     assert_eq!(y_ability.render(&context, &environment), "Gain Y life.");
     assert_eq!(
         parser.parse("Gain Y life.", &context),
@@ -504,7 +508,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
     #[derive(Debug, PartialEq, Eq)]
     enum Event {
         Block,
-        Paragraph,
+        Plain,
         Triggered,
         Sentence(&'static str),
     }
@@ -518,9 +522,9 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
             deckmaste_english_v2::visit::walk_document_block(self, block);
         }
 
-        fn visit_paragraph(&mut self, paragraph: &Paragraph) {
-            self.0.push(Event::Paragraph);
-            deckmaste_english_v2::visit::walk_paragraph(self, paragraph);
+        fn visit_plain(&mut self, plain: &Plain) {
+            self.0.push(Event::Plain);
+            deckmaste_english_v2::visit::walk_plain(self, plain);
         }
 
         fn visit_triggered(&mut self, triggered: &Triggered) {
@@ -562,36 +566,24 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         predicate: VerbPhrase::Connive(Connive),
     });
 
-    assert!(Paragraph::new(vec![]).is_none());
+    assert!(Sentences::new(vec![]).is_none());
     let paragraph_sentences = vec![destroy, gain.clone()];
-    let paragraph = Paragraph::new(paragraph_sentences.clone())
+    let paragraph = Sentences::new(paragraph_sentences.clone())
         .expect("a paragraph accepts one or more sentences");
     assert_eq!(paragraph.sentences(), paragraph_sentences.as_slice());
 
-    let event = Clause::Event(EventClause {
+    let event = Clause::FiniteClause(FiniteClause {
         subject: subject_you(),
         predicate: VerbPhrase::Connive(Connive),
     });
     assert!(
-        Triggered::new(TriggerWord::Whenever, event.clone(), vec![]).is_none(),
-        "the effects length invariant rejects an empty sequence independently",
-    );
-    assert!(
-        Triggered::new(
-            TriggerWord::Whenever,
-            Clause::Where(WhereClause {
-                variable: Variable::X,
-                value: object_you(),
-            }),
-            vec![gain.clone()],
-        )
-        .is_none(),
-        "the event refinement rejects a non-Event with nonempty effects",
+        Sentences::new(vec![]).is_none(),
+        "an ability body is nonempty"
     );
     let triggered_effects = vec![connive, gain];
-    let triggered = Triggered::new(TriggerWord::Whenever, event, triggered_effects.clone())
-        .expect("an Event and nonempty effects construct Triggered");
-    assert_eq!(triggered.effects(), triggered_effects.as_slice());
+    let triggered = triggered(event, triggered_effects.clone());
+    let AbilityBody::Sentences(triggered_body) = &triggered.body;
+    assert_eq!(triggered_body.sentences(), triggered_effects.as_slice());
 
     let empty_oracle_text = OracleText { blocks: vec![] };
     assert_eq!(
@@ -605,7 +597,9 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
     assert!(empty_visitor.0.is_empty());
 
     let blocks = vec![
-        DocumentBlock::Ability(Ability::Paragraph(paragraph)),
+        DocumentBlock::Ability(Ability::Plain(Plain {
+            body: AbilityBody::Sentences(paragraph),
+        })),
         DocumentBlock::Ability(Ability::Triggered(triggered)),
     ];
     let oracle_text = OracleText {
@@ -619,7 +613,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         visitor.0,
         [
             Event::Block,
-            Event::Paragraph,
+            Event::Plain,
             Event::Sentence("destroy"),
             Event::Sentence("gain"),
             Event::Block,
@@ -659,30 +653,25 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
 
 #[test]
 fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_effects() {
-    let constructor: fn(TriggerWord, Clause, Vec<Sentence>) -> Option<Triggered> = Triggered::new;
-    let event = Clause::Event(EventClause {
+    let event = Clause::FiniteClause(FiniteClause {
         subject: subject_you(),
         predicate: VerbPhrase::Connive(Connive),
     });
     let effect = Sentence::Imperative(Imperative {
         predicate: VerbPhrase::Connive(Connive),
     });
-    let value = constructor(TriggerWord::Whenever, event, vec![effect.clone()])
-        .expect("an Event clause and one Sentence construct Triggered");
-    let _: &[Sentence] = value.effects();
-    assert_eq!(value.effects(), [effect]);
+    let value = triggered(event, vec![effect.clone()]);
+    let AbilityBody::Sentences(body) = value.body;
+    assert_eq!(body.sentences(), [effect]);
 }
 
 #[test]
 fn renders_destroy_target_creature_exactly() {
-    let value = Ability::Paragraph(
-        Paragraph::new(vec![Sentence::Imperative(Imperative {
-            predicate: VerbPhrase::Destroy(Destroy {
-                object: target_creature(),
-            }),
-        })])
-        .expect("one sentence constructs a paragraph"),
-    );
+    let value = plain(vec![Sentence::Imperative(Imperative {
+        predicate: VerbPhrase::Destroy(Destroy {
+            object: target_creature(),
+        }),
+    })]);
     assert_eq!(
         value.render(&context("Context Card"), &environment()),
         "Destroy target creature."
@@ -887,14 +876,11 @@ fn renders_a_subtype_with_its_printed_case() {
 
 #[test]
 fn visitor_reaches_every_vertical_slice_leaf() {
-    let destroy = Ability::Paragraph(
-        Paragraph::new(vec![Sentence::Imperative(Imperative {
-            predicate: VerbPhrase::Destroy(Destroy {
-                object: target_creature(),
-            }),
-        })])
-        .expect("one sentence constructs a paragraph"),
-    );
+    let destroy = plain(vec![Sentence::Imperative(Imperative {
+        predicate: VerbPhrase::Destroy(Destroy {
+            object: target_creature(),
+        }),
+    })]);
     let self_reference = Sentence::Declarative(Declarative {
         subject: nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference(

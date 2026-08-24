@@ -901,6 +901,8 @@ enum Expectation {
 #[serde(rename_all = "snake_case")]
 enum NonterminalKind {
     Ability,
+    AbilityBody,
+    TriggerPrefix,
     DocumentBlock,
     OracleText,
     Sentence,
@@ -944,6 +946,7 @@ enum NonterminalKind {
     Possessive,
     Amount,
     CardinalQuantity,
+    ConditionClause,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1359,6 +1362,8 @@ fn expectation(expectation: &RuntimeExpectation) -> Expectation {
 fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
     match kind {
         NonterminalCategory::Ability => NonterminalKind::Ability,
+        NonterminalCategory::AbilityBody => NonterminalKind::AbilityBody,
+        NonterminalCategory::TriggerPrefix => NonterminalKind::TriggerPrefix,
         NonterminalCategory::DocumentBlock => NonterminalKind::DocumentBlock,
         NonterminalCategory::OracleText => NonterminalKind::OracleText,
         NonterminalCategory::Sentence => NonterminalKind::Sentence,
@@ -1414,6 +1419,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::Possessive => NonterminalKind::Possessive,
         NonterminalCategory::Amount => NonterminalKind::Amount,
         NonterminalCategory::CardinalQuantity => NonterminalKind::CardinalQuantity,
+        NonterminalCategory::ConditionClause => NonterminalKind::ConditionClause,
     }
 }
 

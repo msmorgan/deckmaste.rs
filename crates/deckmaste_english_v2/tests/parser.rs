@@ -58,12 +58,16 @@ fn legendary_context(card_name: &str) -> ParseContext<'_> {
         .expect("test legendary card name is a valid parse context")
 }
 
-fn single_paragraph(oracle_text: &OracleText) -> &Paragraph {
-    let [DocumentBlock::Ability(Ability::Paragraph(paragraph))] = oracle_text.blocks.as_slice()
+fn single_paragraph(oracle_text: &OracleText) -> &Sentences {
+    let [
+        DocumentBlock::Ability(Ability::Plain(Plain {
+            body: AbilityBody::Sentences(sentences),
+        })),
+    ] = oracle_text.blocks.as_slice()
     else {
         panic!("expected exactly one paragraph ability block: {oracle_text:?}");
     };
-    paragraph
+    sentences
 }
 
 fn claims_overlap(left: TextSpan, right: TextSpan) -> bool {
@@ -80,7 +84,10 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         let parsed = parser
             .parse(text, &context)
             .unwrap_or_else(|error| panic!("{text} must parse: {error:?}"));
-        let Ability::Paragraph(paragraph) = &parsed else {
+        let Ability::Plain(Plain {
+            body: AbilityBody::Sentences(paragraph),
+        }) = &parsed
+        else {
             panic!("indefinite destroy is a paragraph")
         };
         let [
@@ -327,17 +334,17 @@ fn oracle_text_structural_boundaries_have_exact_generated_claims() {
     assert_one_structural_claim(
         ownership.parsed_claims(),
         TextSpan { start: 23, end: 24 },
-        "structural:Paragraph/sentences/terminator/0",
+        "structural:Sentences/sentences/terminator/0",
     );
     assert_one_structural_claim(
         ownership.parsed_claims(),
         TextSpan { start: 24, end: 25 },
-        "structural:Paragraph/sentences/separator/uniform/0",
+        "structural:Sentences/sentences/separator/uniform/0",
     );
     assert_one_structural_claim(
         ownership.parsed_claims(),
         TextSpan { start: 40, end: 41 },
-        "structural:Paragraph/sentences/terminator/0",
+        "structural:Sentences/sentences/terminator/0",
     );
 }
 
@@ -357,8 +364,12 @@ fn oracle_text_lf_separates_blocks_without_flattening_or_storage() {
 
     assert_ne!(one_block, two_blocks);
     let [
-        DocumentBlock::Ability(Ability::Paragraph(first)),
-        DocumentBlock::Ability(Ability::Paragraph(second)),
+        DocumentBlock::Ability(Ability::Plain(Plain {
+            body: AbilityBody::Sentences(first),
+        })),
+        DocumentBlock::Ability(Ability::Plain(Plain {
+            body: AbilityBody::Sentences(second),
+        })),
     ] = two_blocks.blocks.as_slice()
     else {
         panic!("LF must preserve two paragraph blocks: {two_blocks:?}");
@@ -673,26 +684,18 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
 
     let event = connive_event();
     let effect = gain_life_sentence();
-    let triggered = Triggered::new(TriggerWord::Whenever, event.clone(), vec![effect.clone()])
-        .expect("an Event clause is valid for Triggered");
-    let _: &TriggerWord = &triggered.trigger;
-    let _: &[Sentence] = triggered.effects();
-    let _: &Clause = triggered.event();
-    assert_eq!(triggered.event(), &event);
-    assert_eq!(triggered.effects(), std::slice::from_ref(&effect));
-    assert!(
-        Triggered::new(
-            TriggerWord::Whenever,
-            Clause::Where(WhereClause {
-                variable: Variable::X,
-                value: object_you(),
-            }),
-            vec![effect],
-        )
-        .is_none(),
-        "a Where clause is not a valid Triggered event",
-    );
-    let triggered = Ability::Triggered(triggered);
+    let triggered = triggered(event.clone(), vec![effect.clone()]);
+    let Ability::Triggered(Triggered {
+        trigger: TriggerPrefix::Finite(finite),
+        intervening_if: None,
+        body: AbilityBody::Sentences(body),
+    }) = &triggered
+    else {
+        panic!("the linguistic triggered envelope is preserved")
+    };
+    assert_eq!(finite.marker, TriggerWord::Whenever);
+    assert_eq!(finite.clause(), &event);
+    assert_eq!(body.sentences(), std::slice::from_ref(&effect));
     let triggered_text = triggered.render(&plain_context, &environment);
     assert_eq!(parser.parse(&triggered_text, &plain_context), Ok(triggered));
     assert_eq!(
@@ -715,7 +718,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     assert_eq!(with_where.clause(), &clause);
     assert!(
         WithWhere::new(Box::new(body), connive_event()).is_none(),
-        "an Event clause is not a valid WithWhere clause",
+        "a finite subordinate clause is not a valid WithWhere clause",
     );
     let with_where = paragraph(Sentence::WithWhere(with_where));
     let with_where_text = with_where.render(&plain_context, &environment);
@@ -797,7 +800,7 @@ fn authored_invariant_rejection_is_typed_parse_failure_not_chart_or_internal_fai
 
     let error = parser
         .parse_sentence(denied, &context)
-        .expect_err("an Event clause cannot fill WithWhere's Where role");
+        .expect_err("a finite subordinate clause cannot fill WithWhere's Where role");
     let ParseError::BuildRejected { span, rejection } = error else {
         panic!("expected typed generated build rejection, got {error:?}");
     };
@@ -844,7 +847,7 @@ fn authored_invariant_rejection_is_typed_parse_failure_not_chart_or_internal_fai
     let malformed = "You gain X life, a player.";
     let malformed_error = parser
         .parse_sentence(malformed, &context)
-        .expect_err("incomplete event syntax remains a chart failure");
+        .expect_err("incomplete finite-clause syntax remains a chart failure");
     assert!(matches!(malformed_error, ParseError::Failure { .. }));
     assert!(
         parser
@@ -922,6 +925,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
         public_types,
         [
             "Ability",
+            "AbilityBody",
+            "TriggerPrefix",
             "Sentence",
             "Clause",
             "Subject",
@@ -963,14 +968,17 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "VerbPhrase",
             "Amount",
             "CardinalQuantity",
+            "ConditionClause",
             "DocumentBlock",
             "OracleText",
-            "Paragraph",
+            "Plain",
+            "Sentences",
+            "Finite",
             "Triggered",
             "Imperative",
             "Declarative",
             "WithWhere",
-            "EventClause",
+            "FiniteClause",
             "WhereClause",
             "NominalSubject",
             "PersonalSubject",
@@ -1197,15 +1205,11 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
     assert_complete_public_generated_type_inventory(&file);
 
     for (product, expected_fields, expected_methods) in [
-        (
-            "Paragraph",
-            &[("sentences", false)][..],
-            &["new", "try_new", "sentences"][..],
-        ),
+        ("Plain", &[("body", true)][..], &[][..]),
         (
             "Triggered",
-            &[("trigger", true), ("event", false), ("effects", false)][..],
-            &["new", "try_new", "event", "effects"][..],
+            &[("trigger", true), ("intervening_if", true), ("body", true)][..],
+            &[][..],
         ),
         (
             "WithWhere",
@@ -1310,7 +1314,7 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
     }
 
     for (enumeration, expected_variants) in [
-        ("Ability", &["Paragraph", "Triggered"][..]),
+        ("Ability", &["Plain", "Triggered"][..]),
         ("DocumentBlock", &["Ability"][..]),
     ] {
         let item = file
@@ -1379,8 +1383,14 @@ fn variable_x() -> Amount {
     })
 }
 
+fn sentences(values: Vec<Sentence>) -> AbilityBody {
+    AbilityBody::Sentences(Sentences::new(values).expect("one or more sentences construct a body"))
+}
+
 fn paragraph(sentence: Sentence) -> Ability {
-    Ability::Paragraph(Paragraph::new(vec![sentence]).expect("one sentence constructs a paragraph"))
+    Ability::Plain(Plain {
+        body: sentences(vec![sentence]),
+    })
 }
 
 fn destroy_target_creature() -> Ability {
@@ -1392,26 +1402,33 @@ fn destroy_target_creature() -> Ability {
 }
 
 fn connive_event() -> Clause {
-    Clause::Event(EventClause {
+    Clause::FiniteClause(FiniteClause {
         subject: nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
         predicate: VerbPhrase::Connive(Connive),
     })
 }
 
+fn triggered(trigger_clause: Clause, consequences: Vec<Sentence>) -> Ability {
+    Ability::Triggered(Triggered {
+        trigger: TriggerPrefix::Finite(
+            Finite::new(TriggerWord::Whenever, trigger_clause)
+                .expect("a finite clause constructs a Whenever trigger"),
+        ),
+        intervening_if: None,
+        body: sentences(consequences),
+    })
+}
+
 fn triggered_damage() -> Ability {
-    Ability::Triggered(
-        Triggered::new(
-            TriggerWord::Whenever,
-            connive_event(),
-            vec![Sentence::Declarative(Declarative {
-                subject: nominal_subject(that_noun(creature())),
-                predicate: VerbPhrase::DealDamage(DealDamage {
-                    amount: variable_x(),
-                    to: object_it(),
-                }),
-            })],
-        )
-        .expect("one effect is valid"),
+    triggered(
+        connive_event(),
+        vec![Sentence::Declarative(Declarative {
+            subject: nominal_subject(that_noun(creature())),
+            predicate: VerbPhrase::DealDamage(DealDamage {
+                amount: variable_x(),
+                to: object_it(),
+            }),
+        })],
     )
 }
 
@@ -1455,14 +1472,7 @@ fn zacama_deals_damage() -> Ability {
 }
 
 fn triggered_gain_life() -> Ability {
-    Ability::Triggered(
-        Triggered::new(
-            TriggerWord::Whenever,
-            connive_event(),
-            vec![gain_life_sentence()],
-        )
-        .expect("one effect is valid"),
-    )
+    triggered(connive_event(), vec![gain_life_sentence()])
 }
 
 #[test]
@@ -1476,13 +1486,18 @@ fn generic_root_api_preserves_types_and_sentence_root_metadata() {
     let trace: ParserTrace<Sentence> =
         parser.trace_sentence(text, &context, TraceLimits::new(usize::MAX));
 
-    let Ability::Paragraph(expected) = destroy_target_creature() else {
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(expected),
+    }) = destroy_target_creature()
+    else {
         panic!("the focused fixture is an ordinary paragraph");
     };
     let expected_sentence = expected.sentences()[0].clone();
     assert_eq!(
         ability.into_parse_result(),
-        Ok(Ability::Paragraph(expected.clone()))
+        Ok(Ability::Plain(Plain {
+            body: AbilityBody::Sentences(expected.clone()),
+        }))
     );
     assert_eq!(sentence.into_parse_result(), Ok(expected_sentence.clone()));
     assert_eq!(trace.root_name(), "Sentence");
@@ -1521,7 +1536,10 @@ fn generic_root_adapter_is_only_applied_at_the_outer_recursive_sentence_boundary
     let context = context("Context Card");
     let text =
         "You gain X life, where X is the number of creatures you control with power 2 or less.";
-    let Ability::Paragraph(expected) = gain_life_with_where() else {
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(expected),
+    }) = gain_life_with_where()
+    else {
         panic!("the recursive Sentence fixture is an ordinary paragraph");
     };
     let expected = expected.sentences()[0].clone();
@@ -1613,7 +1631,8 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
     assert_eq!(
         first.decision().unwrap().candidates()[0].construction_path(),
         [
-            "AbilityParagraph".to_owned(),
+            "AbilityPlain".to_owned(),
+            "AbilityBodySentences".to_owned(),
             "SentenceImperative".to_owned(),
             "VerbPhraseDestroy".to_owned(),
             "ObjectObjectNominal".to_owned(),
@@ -1715,7 +1734,10 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let parsed = parser
         .parse(text, &context)
         .expect("explicit card name parses");
-    let Ability::Paragraph(paragraph) = &parsed else {
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(paragraph),
+    }) = &parsed
+    else {
         panic!("named-card sentence is a paragraph: {parsed:?}");
     };
     let [
@@ -1775,7 +1797,10 @@ fn bare_own_card_name_remains_unique_source_self_reference() {
     let text = "Seven Dwarves gains 2 life.";
     let analysis = parser.analyze(text, &context);
     let selected = analysis.selected().expect("source self-reference selects");
-    let Ability::Paragraph(paragraph) = selected else {
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(paragraph),
+    }) = selected
+    else {
         panic!("self-reference sentence is a paragraph: {selected:?}");
     };
     let [
@@ -1927,10 +1952,10 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
 
         if limit > 0 {
             let candidate = &trace.materialized_candidates().items()[0];
-            assert_eq!(candidate.construction_path().total(), 12);
-            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 12));
-            assert_eq!(candidate.specificity().total(), 14);
-            assert_eq!(candidate.specificity().shown(), usize::min(limit, 14));
+            assert_eq!(candidate.construction_path().total(), 13);
+            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 13));
+            assert_eq!(candidate.specificity().total(), 15);
+            assert_eq!(candidate.specificity().shown(), usize::min(limit, 15));
         }
 
         if limit == usize::MAX {
@@ -1944,7 +1969,8 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
             assert_eq!(
                 candidate.construction_path().items(),
                 [
-                    "AbilityParagraph",
+                    "AbilityPlain",
+                    "AbilityBodySentences",
                     "SentenceImperative",
                     "VerbPhraseDestroy",
                     "ObjectObjectNominal",
@@ -1958,7 +1984,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "SingularHeadTypeSingularHead",
                 ]
             );
-            assert_eq!(candidate.specificity().total(), 14);
+            assert_eq!(candidate.specificity().total(), 15);
             assert!(selection.unselected_candidates().items().is_empty());
             assert_eq!(selection.resolution(), complete.resolution());
             assert_eq!(selection.survivors().items(), complete.survivors());

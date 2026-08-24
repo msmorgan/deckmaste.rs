@@ -166,7 +166,7 @@ mod tests {
                     "form:target_singular_selector/target_singular_selector/0",
                 ),
                 (14, 23, "lexeme:type/Creature/singular"),
-                (23, 24, "structural:Paragraph/sentences/terminator/0"),
+                (23, 24, "structural:Sentences/sentences/terminator/0"),
             ]
         );
     }

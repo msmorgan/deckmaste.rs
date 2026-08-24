@@ -226,7 +226,7 @@ impl Visitor for NominalVisitor {
         deckmaste_english_v2::visit::walk_scalar_qualification(self, value);
     }
 
-    record_product!(visit_paragraph, Paragraph, walk_paragraph);
+    record_product!(visit_plain, Plain, walk_plain);
     record_product!(visit_imperative, Imperative, walk_imperative);
     record_product!(visit_declarative, Declarative, walk_declarative);
     record_product!(visit_destroy, Destroy, walk_destroy);
@@ -839,7 +839,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
     match text {
         "Destroy target permanent." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -867,7 +867,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target Spirit." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -895,7 +895,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target Human creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -926,7 +926,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target artifact creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -957,7 +957,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target black creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -988,7 +988,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target tapped creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1019,7 +1019,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target legendary creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1050,7 +1050,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target nonblack creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1081,7 +1081,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target noncreature permanent." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1112,7 +1112,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target non-Elf creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1143,7 +1143,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Lightning Bolt deals 3 damage to any target." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1180,7 +1180,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Pyroclasm deals 2 damage to each creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1224,7 +1224,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy all creatures." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1252,7 +1252,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy all nontoken creatures." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1283,7 +1283,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy all other creatures." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1311,7 +1311,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy X target artifacts." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1340,7 +1340,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy Y target artifacts." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1369,7 +1369,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy two target lands." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1400,7 +1400,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy another target artifact." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1428,7 +1428,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy up to one target artifact." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1459,7 +1459,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy up to one other target artifact." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1490,7 +1490,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy up to three target artifacts." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1521,7 +1521,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "This creature deals 1 damage to any target." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1562,7 +1562,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy the chosen creatures." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1589,7 +1589,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy the exiled card." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1616,7 +1616,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy a card named Magnifying Glass." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1638,7 +1638,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "They gain 2 life." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1653,7 +1653,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy their creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1680,7 +1680,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy yours." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1702,7 +1702,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Context Card deals 2 damage to them." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1730,7 +1730,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Asmoranomardicadaistinaculdacar deals 2 damage to itself." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1758,7 +1758,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "That creature deals 2 damage to it." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1790,7 +1790,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Those creatures deal 2 damage to it." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1822,7 +1822,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy one or more target creatures." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1850,7 +1850,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Each creature gains 2 life." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1881,7 +1881,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "All creatures gain 2 life." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -1912,7 +1912,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target nonbasic land." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1943,7 +1943,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target nonlegendary creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -1974,7 +1974,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target nonsnow creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -2005,7 +2005,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target nonartifact permanent." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -2036,7 +2036,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target non-Human creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -2067,7 +2067,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy target nonattacking creature." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -2098,7 +2098,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy any number of target creatures." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -2126,7 +2126,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "He gains 2 life." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -2141,7 +2141,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "She gains 2 life." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -2156,7 +2156,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Context Card deals 2 damage to him." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -2184,7 +2184,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Context Card deals 2 damage to her." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -2212,7 +2212,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy the chosen color." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -2234,7 +2234,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy the chosen type." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -2256,7 +2256,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
         ],
         "Destroy the chosen name." => &[
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Imperative",
             "VerbPhrase",
@@ -2289,29 +2289,29 @@ struct Shadow {
 fn expected_shadow(text: &str) -> Option<Shadow> {
     match text {
         "Destroy X target artifacts." | "Destroy Y target artifacts." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
-            losing_specificity: "NNTNNNNNNTNNNNTT",
-            decisive_position: 11,
-        }),
-        "Destroy two target lands." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceFixedReference/CardinalQuantityCardinal/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
-            losing_specificity: "NNTNNNNNNNNTNNNTT",
+            losing_path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            losing_specificity: "NNNTNNNNNNTNNNNTT",
             decisive_position: 12,
         }),
+        "Destroy two target lands." => Some(Shadow {
+            losing_path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceFixedReference/CardinalQuantityCardinal/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            losing_specificity: "NNNTNNNNNNNNTNNNTT",
+            decisive_position: 13,
+        }),
         "Destroy another target artifact." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnotherReference/SingularSelectorUnmarkedSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierCommonNounModifier/SingularHeadTypeSingularHead",
-            losing_specificity: "NNTNNNNNNLNNNNTT",
-            decisive_position: 11,
+            losing_path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnotherReference/SingularSelectorUnmarkedSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierCommonNounModifier/SingularHeadTypeSingularHead",
+            losing_specificity: "NNNTNNNNNNLNNNNTT",
+            decisive_position: 12,
         }),
         "Destroy one or more target creatures." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOneOrMoreReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
-            losing_specificity: "NNTNNNNNNLLLNNNNTT",
-            decisive_position: 13,
+            losing_path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOneOrMoreReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            losing_specificity: "NNNTNNNNNNLLLNNNNTT",
+            decisive_position: 14,
         }),
         "Destroy any number of target creatures." => Some(Shadow {
-            losing_path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyNumberReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
-            losing_specificity: "NNTNNNNNNLLLNNNNTT",
-            decisive_position: 13,
+            losing_path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyNumberReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            losing_specificity: "NNNTNNNNNNLLLNNNNTT",
+            decisive_position: 14,
         }),
         _ => None,
     }
@@ -2337,351 +2337,351 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Desert Twister",
             text: "Destroy target permanent.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadCommonSingularHead",
-            specificity: "NNTNNNNNNNLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadCommonSingularHead",
+            specificity: "NNNTNNNNNNNLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Urgent Exorcism",
             text: "Destroy target Spirit.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadCreatureSubtypeSingularHead",
-            specificity: "NNTNNNNNNNLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadCreatureSubtypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Human Frailty",
             text: "Destroy target Human creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierCreatureSubtypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierCreatureSubtypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target artifact creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierTypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierTypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Dark Betrayal",
             text: "Destroy target black creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierColorModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierColorModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Take Vengeance",
             text: "Destroy target tapped creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierStatusModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierStatusModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Hero's Demise",
             text: "Destroy target legendary creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierSupertypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierSupertypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Doom Blade",
             text: "Destroy target nonblack creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonColorModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonColorModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Bramblecrush",
             text: "Destroy target noncreature permanent.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonTypeModifier/SingularHeadCommonSingularHead",
-            specificity: "NNTNNNNNNNLNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonTypeModifier/SingularHeadCommonSingularHead",
+            specificity: "NNNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Eyeblight's Ending",
             text: "Destroy target non-Elf creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonCreatureSubtypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonCreatureSubtypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Lightning Bolt",
             text: "Lightning Bolt deals 3 damage to any target.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
-            specificity: "NNNNNNNNTTNLLNTNNNNNLL",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
+            specificity: "NNNNNNNNNTTNLLNTNNNNNLL",
             candidates: 1,
         },
         Witness {
             card_name: "Pyroclasm",
             text: "Pyroclasm deals 2 damage to each creature.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNNNNNNNTTNLLNTNNNNNLNNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNNNNNNNNTTNLLNTNNNNNLNNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Day of Judgment",
             text: "Destroy all creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNLNNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNLNNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Hour of Reckoning",
             text: "Destroy all nontoken creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierNonCommonNounModifier/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNLNNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalModifiedPluralNominal/NominalModifierNonCommonNounModifier/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNLNNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy all other creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorOtherPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNLNLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorOtherPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNLNLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "By Force",
             text: "Destroy X target artifacts.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNTNLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNTNLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy Y target artifacts.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNTNLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNTNLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Rain of Salt",
             text: "Destroy two target lands.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceFixedReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNNNTLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceFixedReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNNNTLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Aetherjacket",
             text: "Destroy another target artifact.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnotherReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNLNLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnotherReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNLNLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Gearbane Orangutan",
             text: "Destroy up to one target artifact.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToOneReference/CardinalQuantityCardinal/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNLLNNTLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToOneReference/CardinalQuantityCardinal/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNLLNNTLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy up to one other target artifact.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToOneReference/CardinalQuantityCardinal/SingularSelectorOtherTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNLLNNTLLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToOneReference/CardinalQuantityCardinal/SingularSelectorOtherTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNLLNNTLLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy up to three target artifacts.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToManyReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNLLNNTLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToManyReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNLLNNTLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Anaba Shaman",
             text: "This creature deals 1 damage to any target.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThisReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
-            specificity: "NNNNNNNNLNNTTNLLNTNNNNNLL",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThisReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
+            specificity: "NNNNNNNNNLNNTTNLLNTNNNNNLL",
             candidates: 1,
         },
         Witness {
             card_name: "Sadistic Shell Game",
             text: "Destroy the chosen creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDesignatedPluralReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNLTNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDesignatedPluralReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNLTNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Voyager Staff",
             text: "Destroy the exiled card.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDesignatedSingularReference/SingularNominalBareSingularNominal/SingularHeadCommonSingularHead",
-            specificity: "NNTNNNNNNLTNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDesignatedSingularReference/SingularNominalBareSingularNominal/SingularHeadCommonSingularHead",
+            specificity: "NNNTNNNNNNLTNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Agency Outfitter",
             text: "Destroy a card named Magnifying Glass.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceNamedCardReference",
-            specificity: "NNTNNNNNNLLLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceNamedCardReference",
+            specificity: "NNNTNNNNNNLLLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "They gain 2 life.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Adrenaline Jockey",
             text: "Destroy their creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferencePossessedSingularReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNTNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferencePossessedSingularReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNTNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy yours.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferencePossessiveAbsoluteReference",
-            specificity: "NNTNNNNNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferencePossessiveAbsoluteReference",
+            specificity: "NNNTNNNNNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to them.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Asmoranomardicadaistinaculdacar",
             text: "Asmoranomardicadaistinaculdacar deals 2 damage to itself.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectReflexiveObject",
-            specificity: "NNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectReflexiveObject",
+            specificity: "NNNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "That creature deals 2 damage to it.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThatReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNLNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThatReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNLNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Those creatures deal 2 damage to it.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThoseReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNLNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThoseReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNLNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Dwarven Song",
             text: "Destroy one or more target creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOneOrMoreReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNLLLNLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOneOrMoreReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNLLLNLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Context Card",
             text: "Each creature gains 2 life.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNNNNNNLNNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNNNNNNLNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "All creatures gain 2 life.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNNNNNNLNNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAllReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNNNNNNLNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Dust Bowl",
             text: "Destroy target nonbasic land.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target nonlegendary creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target nonsnow creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonSupertypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target nonartifact permanent.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonTypeModifier/SingularHeadCommonSingularHead",
-            specificity: "NNTNNNNNNNLNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonTypeModifier/SingularHeadCommonSingularHead",
+            specificity: "NNNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target non-Human creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonCreatureSubtypeModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonCreatureSubtypeModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy target nonattacking creature.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonStatusModifier/SingularHeadTypeSingularHead",
-            specificity: "NNTNNNNNNNLNNNLTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierNonStatusModifier/SingularHeadTypeSingularHead",
+            specificity: "NNNTNNNNNNNLNNNLTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy any number of target creatures.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyNumberReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            specificity: "NNTNNNNNNLLLNLNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyNumberReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            specificity: "NNNTNNNNNNLLLNLNNT",
             candidates: 2,
         },
         Witness {
             card_name: "Context Card",
             text: "He gains 2 life.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "She gains 2 life.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
-            specificity: "NNNTTNLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectPronoun/VerbPhraseGainLife/AmountNumber",
+            specificity: "NNNNTTNLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to him.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to her.",
-            path: "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNTTNLLNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy the chosen color.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceChosenQualityReference",
-            specificity: "NNTNNNNNNLLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceChosenQualityReference",
+            specificity: "NNNTNNNNNNLLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy the chosen type.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceChosenQualityReference",
-            specificity: "NNTNNNNNNLLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceChosenQualityReference",
+            specificity: "NNNTNNNNNNLLT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy the chosen name.",
-            path: "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceChosenQualityReference",
-            specificity: "NNTNNNNNNLLT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceChosenQualityReference",
+            specificity: "NNNTNNNNNNLLT",
             candidates: 1,
         },
     ] {
@@ -2958,56 +2958,56 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
         (
             "Context Card",
             "Creatures you control with power 2 or less gain X life.",
-            "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold/VerbPhraseGainLife/AmountVariable",
-            "NNNNNNNNNNNNNTTTLNNTNLLTTNLT",
+            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold/VerbPhraseGainLife/AmountVariable",
+            "NNNNNNNNNNNNNNTTTLNNTNLLTTNLT",
         ),
         (
             "Defeat",
             "Destroy target creature with power 2 or less.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold",
-            "NNTNNNNNNNNLNNTLNNTNLLT",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureCharacteristicScalar/ScalarComparisonScalarOrLess/ScalarThresholdFixedScalarThreshold",
+            "NNNTNNNNNNNNLNNTLNNTNLLT",
         ),
         (
             "Context Card",
             "Creatures you control gain 2 life.",
-            "AbilityParagraph/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/VerbPhraseGainLife/AmountNumber",
-            "NNNNNNNNNNNNTTTTNLT",
+            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinaryPluralReference/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/ControllerOwnerQualificationYouControl/VerbPhraseGainLife/AmountNumber",
+            "NNNNNNNNNNNNNTTTTNLT",
         ),
         (
             "Context Card",
             "Destroy a creature an opponent controls.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceIndefiniteReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationOpponentControls/SingularControllerOpponentController",
-            "NNTNNNNNNNLNNTNTLT",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceIndefiniteReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationOpponentControls/SingularControllerOpponentController",
+            "NNNTNNNNNNNLNNTNTLT",
         ),
         (
             "Context Card",
             "Destroy target creature you own.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationYouOwn",
-            "NNTNNNNNNNNLNNTTT",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageControllerQualifiedReference/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ControllerOwnerQualificationYouOwn",
+            "NNNTNNNNNNNNLNNTTT",
         ),
         (
             "Raise Dead",
             "Destroy target creature card from your graveyard.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageZoneQualifiedReference/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierTypeModifier/SingularHeadCommonSingularHead/ZoneQualificationFromZone/ZoneReferencePossessedZone",
-            "NNTNNNNNNNNLNNNTTLNTT",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageZoneQualifiedReference/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalModifiedSingularNominal/NominalModifierTypeModifier/SingularHeadCommonSingularHead/ZoneQualificationFromZone/ZoneReferencePossessedZone",
+            "NNNTNNNNNNNNLNNNTTLNTT",
         ),
         (
             "Context Card",
             "Destroy target creature with mana value X or greater.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureManaValueScalar/ScalarComparisonScalarOrGreater/ScalarThresholdVariableScalarThreshold",
-            "NNTNNNNNNNNLNNTLNNLLNLLT",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageScalarQualifiedReference/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/ScalarQualificationScalarQualification/ScalarMeasureManaValueScalar/ScalarComparisonScalarOrGreater/ScalarThresholdVariableScalarThreshold",
+            "NNNTNNNNNNNNLNNTLNNLLNLLT",
         ),
         (
             "Context Card",
             "Destroy two or more creatures.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrMore/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            "NNTNNNNNNNNNTLLNNT",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrMore/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            "NNNTNNNNNNNNNTLLNNT",
         ),
         (
             "Context Card",
             "Destroy two or fewer creatures.",
-            "AbilityParagraph/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrFewer/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
-            "NNTNNNNNNNNNTLLNNT",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseDestroy/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrFewer/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            "NNNTNNNNNNNNNTLLNNT",
         ),
     ] {
         let context = context(card_name);
@@ -3119,7 +3119,7 @@ fn assert_former_count_fixture_ownership(
             54,
             55,
             LexicalProvenanceKind::FormLiteral,
-            "structural:Paragraph/sentences/terminator/0",
+            "structural:Sentences/sentences/terminator/0",
         ),
     ]
     .map(|(start, end, kind, owner)| (start, end, kind, owner.to_owned()))
@@ -3134,9 +3134,11 @@ fn assert_former_count_fixture_ownership(
 #[test]
 fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     use deckmaste_english_v2::ast::Ability;
+    use deckmaste_english_v2::ast::AbilityBody;
     use deckmaste_english_v2::ast::Amount;
     use deckmaste_english_v2::ast::ControllerOwnerQualification;
     use deckmaste_english_v2::ast::NounPhrase;
+    use deckmaste_english_v2::ast::Plain;
     use deckmaste_english_v2::ast::ScalarComparison;
     use deckmaste_english_v2::ast::ScalarMeasure;
     use deckmaste_english_v2::ast::ScalarQualification;
@@ -3151,7 +3153,10 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     let analysis = parser.analyze(text, &context);
     let selected = analysis.selected().expect("former fixture selects");
 
-    let Ability::Paragraph(paragraph) = selected else {
+    let Ability::Plain(Plain {
+        body: AbilityBody::Sentences(paragraph),
+    }) = selected
+    else {
         panic!("former fixture remains a paragraph: {selected:?}");
     };
     let [Sentence::Declarative(declarative)] = paragraph.sentences() else {
@@ -3217,7 +3222,7 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
         visitor.events,
         [
             "Ability",
-            "Paragraph",
+            "Plain",
             "Sentence",
             "Declarative",
             "Subject",
@@ -4162,7 +4167,8 @@ fn non_target_common_noun_modifiers_compose_under_a_shared_target_selector() {
     assert_eq!(
         decision.candidates()[0].construction_path(),
         [
-            "AbilityParagraph",
+            "AbilityPlain",
+            "AbilityBodySentences",
             "SentenceImperative",
             "VerbPhraseDestroy",
             "ObjectObjectNominal",
@@ -4755,7 +4761,8 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
             "Bedevil",
             "Destroy target artifact, creature, or planeswalker.",
             &[
-                "AbilityParagraph",
+                "AbilityPlain",
+                "AbilityBodySentences",
                 "SentenceImperative",
                 "VerbPhraseDestroy",
                 "ObjectObjectNominal",
@@ -4774,6 +4781,7 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
                 "SingularHeadTypeSingularHead",
             ][..],
             &[
+                SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::TypedLexical,
@@ -4812,7 +4820,8 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
             "Decimate",
             "Destroy target artifact, target creature, target enchantment, and target land.",
             &[
-                "AbilityParagraph",
+                "AbilityPlain",
+                "AbilityBodySentences",
                 "SentenceImperative",
                 "VerbPhraseDestroy",
                 "ObjectObjectNominal",
@@ -4836,6 +4845,7 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
                 "SingularHeadTypeSingularHead",
             ][..],
             &[
+                SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::Nonterminal,
                 SpecificityTier::TypedLexical,
@@ -5115,7 +5125,7 @@ fn coordination_member_and_separator_ownership_claims_are_literal_and_exact() {
                 50,
                 51,
                 LexicalProvenanceKind::FormLiteral,
-                "structural:Paragraph/sentences/terminator/0",
+                "structural:Sentences/sentences/terminator/0",
             ),
         ],
     );
@@ -5199,7 +5209,7 @@ fn coordination_member_and_separator_ownership_claims_are_literal_and_exact() {
                 77,
                 78,
                 LexicalProvenanceKind::FormLiteral,
-                "structural:Paragraph/sentences/terminator/0",
+                "structural:Sentences/sentences/terminator/0",
             ),
         ],
     );
@@ -5254,7 +5264,7 @@ fn coordination_member_and_separator_ownership_claims_are_literal_and_exact() {
                 45,
                 46,
                 LexicalProvenanceKind::FormLiteral,
-                "structural:Paragraph/sentences/terminator/0",
+                "structural:Sentences/sentences/terminator/0",
             ),
         ],
     );
@@ -5309,7 +5319,7 @@ fn coordination_member_and_separator_ownership_claims_are_literal_and_exact() {
                 46,
                 47,
                 LexicalProvenanceKind::FormLiteral,
-                "structural:Paragraph/sentences/terminator/0",
+                "structural:Sentences/sentences/terminator/0",
             ),
         ],
     );
@@ -5323,7 +5333,8 @@ fn singular_and_plural_negative_modifier_sequences_have_exact_ast_scope() {
         (
             "Destroy target nonartifact, nonblack creature.",
             &[
-                "AbilityParagraph",
+                "AbilityPlain",
+                "AbilityBodySentences",
                 "SentenceImperative",
                 "VerbPhraseDestroy",
                 "ObjectObjectNominal",
@@ -5351,7 +5362,8 @@ fn singular_and_plural_negative_modifier_sequences_have_exact_ast_scope() {
         (
             "Destroy target nonartifact, nonblack creatures.",
             &[
-                "AbilityParagraph",
+                "AbilityPlain",
+                "AbilityBodySentences",
                 "SentenceImperative",
                 "VerbPhraseDestroy",
                 "ObjectObjectNominal",

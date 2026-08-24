@@ -1008,7 +1008,7 @@ impl MaterializedCandidateInfo {
             ordinal,
             format!("rendered {ordinal}"),
             format!("debug {ordinal}"),
-            &[Construction::AbilityParagraph],
+            &[Construction::AbilityPlain],
             &[SpecificityTier::Literal],
             usize::MAX,
         )
