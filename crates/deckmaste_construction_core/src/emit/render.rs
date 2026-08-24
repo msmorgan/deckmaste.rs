@@ -2534,11 +2534,21 @@ fn render_construction_structural_field(
     let value = field_value(construction, role, locals)?;
     match field.kind() {
         StructuralFieldKindPlan::Required(kind) => {
-            if matches!(kind, ValueKindPlan::Sum(sum) if plan.sum_carries_agreement(sum)) {
-                let agreement =
-                    role_agreement(plan, construction, role, locals)?.ok_or_else(|| {
-                        internal("agreement-bearing sum role lacks an agreement writer")
-                    })?;
+            if let ValueKindPlan::Sum(sum) = kind
+                && plan.sum_carries_agreement(sum)
+            {
+                let agreement = match role_agreement(plan, construction, role, locals)? {
+                    Some(agreement) => agreement,
+                    None if !plan.sum_requires_external_agreement(sum) => {
+                        let helper = ident(&feature_helper("agreement", sum));
+                        quote! { #helper(#value) }
+                    }
+                    None => {
+                        return Err(internal(
+                            "agreement-bearing sum role lacks an agreement writer",
+                        ));
+                    }
+                };
                 render_structural_value_with_feature(
                     plan,
                     kind,

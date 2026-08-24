@@ -1609,6 +1609,26 @@ pub mod fixture {
             derive choices.agreement = Values::ThirdPersonSingular;
             form third_outer_mixed_relay_envelope = choices;
         }
+        construction bare_direct_outer_mixed_relay_envelope: DirectOuterMixedRelayEnvelopeRoot {
+            element BareDirectOuterMixedRelayEnvelope {
+                choice: OuterRelayedMixedChoice,
+            }
+            derive choice.agreement = Values::Bare;
+            form bare_direct_outer_mixed_relay_envelope = choice;
+        }
+        construction third_direct_outer_mixed_relay_envelope: DirectOuterMixedRelayEnvelopeRoot {
+            element ThirdDirectOuterMixedRelayEnvelope {
+                choice: OuterRelayedMixedChoice,
+            }
+            derive choice.agreement = Values::ThirdPersonSingular;
+            form third_direct_outer_mixed_relay_envelope = choice;
+        }
+        construction direct_intrinsic_choice: DirectIntrinsicChoiceRoot {
+            element DirectIntrinsicChoice {
+                choice: AgreementChild,
+            }
+            form direct_intrinsic_choice = choice;
+        }
         construction partitioned: PartitionRoot {
             element Partitioned { word: lex Partition, }
             form first when word is First = "alpha" lex(word);
@@ -1995,6 +2015,8 @@ pub mod fixture {
         root RelayedOuterMixedChoiceSequence { punctuation = "."; eoi = true; standalone_render = false; }
         root MixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OuterMixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root DirectOuterMixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root DirectIntrinsicChoiceRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalVisitRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -5685,6 +5707,152 @@ pub mod fixture {
         );
     }
 
+    pub(super) fn assert_direct_sum_role_invokes_recursive_selected_agreement_authority() {
+        let outer = |value| OuterRelayedMixedChoice::RelayedMixedChoiceSequence(value);
+        let intrinsic_third =
+            || RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice);
+        let bare = || MixedAgreementChild::Child(Child::Bare(BareChild));
+        let contextual =
+            || MixedAgreementChild::Predicate(Predicate::Contextual(ContextualPredicate));
+
+        let bare_rejection = BareDirectOuterMixedRelayEnvelope::try_new(outer(intrinsic_third()))
+            .expect_err("a Bare direct writer rejects the nested intrinsic Third construction");
+        assert_eq!(bare_rejection.owner(), "BareDirectOuterMixedRelayEnvelope");
+        assert_eq!(bare_rejection.role(), "choice");
+        assert_eq!(
+            bare_rejection.violation(),
+            &BuildViolation::Invariant {
+                identity: "value matches derived agreement",
+            },
+        );
+
+        let third = ThirdDirectOuterMixedRelayEnvelope::try_new(outer(intrinsic_third()))
+            .expect("a Third direct writer accepts the nested intrinsic Third construction");
+        assert_eq!(
+            Render::render(
+                &DirectOuterMixedRelayEnvelopeRoot::ThirdDirectOuterMixedRelayEnvelope(third),
+                &ParseContext::default(),
+            ),
+            "Intrinsic third.",
+        );
+
+        let compatible_relay = RelayedMixedChoiceSequence::RelayedMixedChildChoices(
+            RelayedMixedChildChoices::try_new(vec![bare(), contextual()])
+                .expect("the inner contextual relay is compatible at Bare"),
+        );
+        let compatible = BareDirectOuterMixedRelayEnvelope::try_new(outer(compatible_relay))
+            .expect("a Bare direct writer accepts the compatible contextual relay");
+        assert_eq!(
+            Render::render(
+                &DirectOuterMixedRelayEnvelopeRoot::BareDirectOuterMixedRelayEnvelope(compatible),
+                &ParseContext::default(),
+            ),
+            "Bare act.",
+        );
+
+        let checked = CheckedBareMixedChoice::try_new(Mode::One)
+            .expect("the unrelated checked sibling accepts its legal value");
+        let checked = BareDirectOuterMixedRelayEnvelope::try_new(outer(
+            RelayedMixedChoiceSequence::CheckedBareMixedChoice(checked),
+        ))
+        .expect("the Bare direct writer accepts the unrelated checked sibling");
+        assert_eq!(
+            Render::render(
+                &DirectOuterMixedRelayEnvelopeRoot::BareDirectOuterMixedRelayEnvelope(checked),
+                &ParseContext::default(),
+            ),
+            "One.",
+        );
+
+        let context = ParseContext::default();
+        let built_intrinsic = build_checked(
+            RuleId::RelayedMixedChoiceSequenceIntrinsicThirdMixedChoice,
+            &[BuildValue::Leaf(Leaf::Literal("intrinsic third"))],
+            &context,
+        )
+        .expect("the nested intrinsic construction builds exactly")
+        .expect("the nested intrinsic construction materializes");
+        let built_outer = build(
+            RuleId::OuterRelayedMixedChoiceRelayedMixedChoiceSequence,
+            &[built_intrinsic],
+            &context,
+        )
+        .expect("the outer explicit sum preserves the nested Third carrier");
+        assert!(
+            build(
+                RuleId::DirectOuterMixedRelayEnvelopeRootBareDirectOuterMixedRelayEnvelope,
+                &[built_outer.clone()],
+                &context,
+            )
+            .is_none(),
+            "the exact Bare build rejects the direct sum's Third carrier",
+        );
+        let built_third = build_checked(
+            RuleId::DirectOuterMixedRelayEnvelopeRootThirdDirectOuterMixedRelayEnvelope,
+            &[built_outer],
+            &context,
+        )
+        .expect("the exact Third build has no checked-constructor failure")
+        .expect("the exact Third build materializes");
+        assert!(matches!(
+            built_third,
+            BuildValue::DirectOuterMixedRelayEnvelopeRoot(
+                DirectOuterMixedRelayEnvelopeRoot::ThirdDirectOuterMixedRelayEnvelope(_)
+            )
+        ));
+
+        let fabricated =
+            BuildValue::OuterRelayedMixedChoice(outer(intrinsic_third()), Agreement::Bare);
+        let materialization_rejection = build_checked(
+            RuleId::DirectOuterMixedRelayEnvelopeRootBareDirectOuterMixedRelayEnvelope,
+            &[fabricated],
+            &context,
+        )
+        .expect_err("direct-writer materialization rechecks the selected nested authority");
+        assert_eq!(
+            materialization_rejection.owner(),
+            "BareDirectOuterMixedRelayEnvelope"
+        );
+        assert_eq!(materialization_rejection.role(), "choice");
+
+        let parsed = parse_structural(
+            Category::DirectOuterMixedRelayEnvelopeRoot,
+            "Intrinsic third",
+            &context,
+        );
+        assert_eq!(
+            parsed.accepted_root_ids().count(),
+            2,
+            "the scanner/chart preserves both direct writers before Agreement materialization",
+        );
+    }
+
+    pub(super) fn assert_direct_intrinsic_sum_render_derives_selected_agreement() {
+        let choice = AgreementChild::Child(Child::Third(ThirdChild));
+        let root = DirectIntrinsicChoiceRoot::DirectIntrinsicChoice(DirectIntrinsicChoice {
+            choice: choice.clone(),
+        });
+        assert_eq!(Render::render(&root, &ParseContext::default()), "Third.",);
+
+        let context = ParseContext::default();
+        let built = build(
+            RuleId::DirectIntrinsicChoiceRootDirectIntrinsicChoice,
+            &[BuildValue::AgreementChild(
+                choice,
+                Agreement::ThirdPersonSingular,
+            )],
+            &context,
+        )
+        .expect("the exact direct-sum construction builds");
+        let BuildValue::DirectIntrinsicChoiceRoot(built) = built else {
+            panic!("the direct-sum rule builds its declared category")
+        };
+        assert_eq!(Render::render(&built, &context), "Third.");
+
+        let parsed = parse_structural(Category::DirectIntrinsicChoiceRoot, "Third", &context);
+        assert_eq!(parsed.accepted_root_ids().count(), 1);
+    }
+
     pub(super) fn assert_nonzero_unsigned_decimal_is_typed_canonical_and_exact() {
         let one = std::num::NonZeroU32::new(1).expect("one is nonzero");
         let maximum = std::num::NonZeroU32::new(u32::MAX).expect("u32::MAX is nonzero");
@@ -5918,4 +6086,14 @@ fn mixed_sum_sequence_relay_checks_every_intrinsic_constraint() {
 #[test]
 fn outer_sum_preserves_selected_category_agreement_authority() {
     fixture::assert_outer_sum_preserves_selected_category_agreement_authority();
+}
+
+#[test]
+fn direct_sum_role_invokes_recursive_selected_agreement_authority() {
+    fixture::assert_direct_sum_role_invokes_recursive_selected_agreement_authority();
+}
+
+#[test]
+fn direct_intrinsic_sum_render_derives_selected_agreement_without_writer() {
+    fixture::assert_direct_intrinsic_sum_render_derives_selected_agreement();
 }

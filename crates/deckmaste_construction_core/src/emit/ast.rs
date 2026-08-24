@@ -607,7 +607,13 @@ fn emit_invariant_checks(
                     return None;
                 };
                 if constrained.kind() != crate::semantic::ConstructionFieldKind::Category
-                    || constrained.structural_plan().is_some()
+                    || matches!(
+                        constrained.structural_kind(),
+                        Some(
+                            crate::semantic::StructuralFieldKindPlan::Optional(_)
+                                | crate::semantic::StructuralFieldKindPlan::Sequence { .. }
+                        )
+                    )
                     || !(plan.sum_carries_agreement(constrained.terminal())
                         || plan.category_carries_agreement(constrained.terminal()))
                 {
