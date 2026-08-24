@@ -613,6 +613,19 @@ quantPlur : Quantity -> Plurality
 quantPlur (Range _ (Just (S Z))) = OneOf
 quantPlur (Range _ _) = ManyOf
 
+||| Which way the names inside a counted group line up. Both poles are one
+||| word class: [CR#201.2b] states the negative one over a group -- those
+||| objects have different names only if no two of them have a name in
+||| common -- and [CR#201.2a] the positive one, two or more objects having
+||| at least one name in common. Neither pole carries a relatum, because
+||| the comparison is group-internal: "with the same name as one another"
+||| and the elliptical "with the same name" state the same relation and
+||| differ only in whether English writes the reciprocal out.
+public export
+data NameAgreement : Type where
+  DifferentNames : NameAgreement
+  SameName : NameAgreement
+
 public export
 ||| [CR#700.2]: a mode is chosen from the list printed on the card, so a
 ||| headcount reaching past the list names modes that are not there.

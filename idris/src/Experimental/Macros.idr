@@ -254,6 +254,23 @@ aYourChoice : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
               Noun bs k
 aYourChoice p = Indefinite YourChoice p {ph}
 
+||| "… with different names": the group-level constraint's negative pole on
+||| a counted mention [CR#201.2b].
+public export
+withDifferentNames : (grp : Noun bs Object) ->
+                     {auto 0 cm : CountedMention grp} ->
+                     {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Object
+withDifferentNames grp = NamesAgree DifferentNames grp {cm} {pl}
+
+||| "… with the same name as one another", and the elliptical "… with the
+||| same name" that writes the same relation without the reciprocal: the
+||| positive pole [CR#201.2a].
+public export
+withTheSameName : (grp : Noun bs Object) ->
+                  {auto 0 cm : CountedMention grp} ->
+                  {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Object
+withTheSameName grp = NamesAgree SameName grp {cm} {pl}
+
 public export
 aAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
             Noun bs k

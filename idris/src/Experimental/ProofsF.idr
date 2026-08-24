@@ -300,12 +300,12 @@ badNonCreatureTypeExclusion : Unspellable (ChoiceDomain CreatureType) (\ok =>
 badNonCreatureTypeExclusion Refl impossible
 
 
-||| "… all creatures with the same name as all creatures."
-||| [CR#201.2a] compares an object to an object, and a group has no one name to be measured against.
+||| "… target creature with different names."
+||| [CR#201.2b] states the constraint over two or more objects in a group; one mention of one object has no two members to compare.
 public export
-badGroupNameRelatum : Unspellable (Predicate [] Object) (\ok =>
-  Named (SameNameAs (AllOf Macros.creature) {one = ok}))
-badGroupNameRelatum Refl impossible
+badSingularNameAgreement : Unspellable (Noun [] Object) (\ok =>
+  NamesAgree DifferentNames (Macros.target Macros.creature) {pl = ok})
+badSingularNameAgreement Refl impossible
 
 
 ||| "Creature cards in graveyards can't be countered."

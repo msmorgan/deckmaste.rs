@@ -63,8 +63,13 @@ mutual
   data NameSource : Bindings -> Type where
     PrintedName : (name : String) -> NameSource bs
     ChosenName : {auto 0 ok : countQuality CardName bs = 1} -> NameSource bs
-    SameNameAs : (n : Noun bs Object) ->
-                 {auto 0 one : nounPlur n = OneOf} -> NameSource bs
+    ||| "… with the same name as that creature", "… as those creatures".
+    ||| The relatum is ungated in number: [CR#201.2c] states the comparison
+    ||| against "a second object or group of objects" outright, and
+    ||| [CR#201.2a] states the positive relation over two or more objects,
+    ||| so a plural relatum is a name held in common with them and not a
+    ||| category error.
+    SameNameAs : (n : Noun bs Object) -> NameSource bs
 
   public export
   Eq (NameSource bs) where
@@ -1010,6 +1015,16 @@ mutual
   ||| whose complement is NOT empty; and [CR#120.7] makes a source the
   ||| object that dealt some damage, a position any object may occupy rather
   ||| than a property it lacks. Every other modifier has something outside it.
+  ||| A CONJUNCTION is among those others, and deliberately so. By De
+  ||| Morgan its complement is the disjunction of the conjuncts'
+  ||| complements, and the rules read object properties one at a time --
+  ||| [CR#205.2b] has an object satisfy the criteria for any of its card
+  ||| types, and [CR#205.4c] makes every land without the supertype a
+  ||| nonbasic land -- so "other than a basic land card" leaves nonbasic
+  ||| cards and nonland cards behind. That is a property of the conjunction
+  ||| and not of the modifiers inside it, which is why no arm-by-arm test
+  ||| stands here: an arm whose own complement is empty contributes an empty
+  ||| disjunct and takes nothing away from the others.
   public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable AnyPlayer = False
@@ -1218,6 +1233,20 @@ mutual
              {auto 0 gm : GroupMention grp} ->
              {auto 0 nz : NonZeroQ q} ->
              {auto 0 wf : WellFormedQ q} -> Noun bs Object
+    ||| "three artifact cards with different names", "two or more
+    ||| permanents with the same name as one another": a constraint on the
+    ||| GROUP a counted mention picks out. Every `Predicate` in this
+    ||| vocabulary tests one member, and no test on one member can say that
+    ||| no two of n share a name, so the constraint rides the counted
+    ||| mention and not the mention's description. [CR#201.2b] states the
+    ||| negative pole in exactly that shape, over the group.
+    ||| It wraps rather than binds: the wrapped mention keeps its own
+    ||| count, zone, head type and bindings, so the phrase stays one
+    ||| mention of one referent. The gate is the count, since a group of
+    ||| one has no two members to compare [CR#201.2a].
+    NamesAgree : (agr : NameAgreement) -> (grp : Noun bs Object) ->
+                 {auto 0 cm : CountedMention grp} ->
+                 {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Object
     TheRest : {auto 0 ok : So (theRestOk bs)} -> Noun bs Object
     It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
     They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
@@ -1266,6 +1295,7 @@ mutual
   nounEqRef (Both _ _) _ = False
   nounEqRef (LibrarySlice _ _ _) _ = False
   nounEqRef (SomeOf _ _) _ = False
+  nounEqRef (NamesAgree _ _) _ = False
   nounEqRef TheRest _ = False
   nounEqRef It It = True
   nounEqRef It _ = False
@@ -1323,6 +1353,9 @@ mutual
     MkBinding TheD Object (outputPlur (nounPlur whose) (amtPlur amt))
               (ObjectP Nothing (Just Library) Nothing Nothing)
       :: nounDelta whose
+  -- the constraint is a modifier on the wrapped mention, so the mention
+  -- binds once and the phrase reads back as itself.
+  nounDelta (NamesAgree _ grp) = nounDelta grp
   nounDelta (SomeOf q grp) =
     MkBinding PartD Object (quantPlur q) (ObjectP (nounTy grp) (nounZone grp) Nothing Nothing)
       :: nounDelta grp
@@ -1604,6 +1637,7 @@ mutual
   anchorPhrase (Both _ _) = False
   anchorPhrase (LibrarySlice _ _ _) = False
   anchorPhrase (SomeOf _ _) = False
+  anchorPhrase (NamesAgree _ grp) = anchorPhrase grp
   anchorPhrase TheRest = False
   anchorPhrase It = True
   anchorPhrase They = True
@@ -1646,6 +1680,7 @@ mutual
   choosable (Both _ _) = False
   choosable (LibrarySlice _ _ _) = False
   choosable (SomeOf _ _) = False
+  choosable (NamesAgree _ grp) = choosable grp
   choosable TheRest = False
   choosable It = False
   choosable They = False
@@ -1695,6 +1730,7 @@ mutual
   groupMention (Both _ _) = False
   groupMention (LibrarySlice _ _ _) = True
   groupMention (SomeOf _ _) = False
+  groupMention (NamesAgree _ grp) = groupMention grp
   groupMention TheRest = False
   groupMention It = False
   groupMention They = False
@@ -1709,6 +1745,40 @@ mutual
   public export
   GroupMention : Noun bs k -> Type
   GroupMention {bs} {k} n = So (groupMention n)
+
+  ||| Which mentions write their own headcount: the two that carry a
+  ||| `Quantity` over their own description. A partitive counts a slice of a
+  ||| group some earlier phrase introduced, and every other mention counts
+  ||| nothing, so neither has a written group for a group-level constraint
+  ||| to attach to.
+  public export
+  countedMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  countedMention (CountedGroup _ _) = True
+  countedMention (TargetGroup _ _) = True
+  countedMention _ = False
+
+  public export
+  CountedMention : Noun bs k -> Type
+  CountedMention {bs} {k} n = So (countedMention n)
+
+  ||| The counted mention a condition can quantify over: a counted mention
+  ||| UNDER a group-level name constraint, and nothing else. The bare form
+  ||| is refused twice over. "Three or more artifacts" already has a
+  ||| spelling — a comparison against the described set's headcount — and a
+  ||| second one would say the same thing in a second shape. And a targeted
+  ||| group would be worse than redundant: a comparison's two amounts carry
+  ||| their phrases' bindings out to the clause they govern, where
+  ||| [CR#601.2c] has every target announced, while this condition tests and
+  ||| introduces nothing, so a target written inside it would be announced
+  ||| nowhere.
+  public export
+  countedExistential : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  countedExistential (NamesAgree _ grp) = countedMention grp
+  countedExistential _ = False
+
+  public export
+  CountedExistential : Noun bs k -> Type
+  CountedExistential {bs} {k} n = So (countedExistential n)
 
   public export
   perMemberOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
@@ -1795,6 +1865,19 @@ mutual
   data Condition : Bindings -> Type where
     Exists : {k : Kind} -> (p : Predicate bs k) ->
              Condition bs
+    ||| "if you control two or more nonland, nontoken permanents with the
+    ||| same name as one another", "if you control three or more lands with
+    ||| the same name": the counted existential. `Exists` asks whether ANY
+    ||| object answers a description; this asks whether a group of the
+    ||| written size does, which is the only place a group-level constraint
+    ||| [CR#201.2a] can be tested, since the constraint rides the mention
+    ||| and a description takes no count. That constraint is the whole
+    ||| reason it exists, and its gate admits nothing else: a bare counted
+    ||| mention is the comparison's business, and a targeted one would go
+    ||| unannounced here. It tests and names nothing, so it introduces
+    ||| nothing, like every other described-set condition.
+    ExistsGroup : {k : Kind} -> (n : Noun bs k) ->
+                  {auto 0 ce : CountedExistential n} -> Condition bs
     Happened : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
                (w : Lookback) ->
                (what :
@@ -1852,6 +1935,7 @@ mutual
   public export
   condNegated : {0 bs : Bindings} -> Condition bs -> Bool
   condNegated (Exists _) = False
+  condNegated (ExistsGroup _) = False
   condNegated (Happened _ _ _ _) = False
   condNegated (GameIs _) = False
   -- atomic: the absence is the condition's own content, not a marked
@@ -1882,6 +1966,7 @@ mutual
   public export
   condDelta : {bs : Bindings} -> Condition bs -> List Binding
   condDelta (Exists _) = []
+  condDelta (ExistsGroup _) = []
   condDelta (Happened _ _ _ _) = []
   condDelta (GameIs _) = []
   condDelta (NoHolder _) = []
@@ -3577,6 +3662,7 @@ mutual
   costNounOk (CountedGroup _ _) = True
   costNounOk (AllOf _) = True
   costNounOk (EachOf grp) = costNounOk grp
+  costNounOk (NamesAgree _ grp) = costNounOk grp
   costNounOk (Both _ _) = False
   costNounOk (LibrarySlice _ _ _) = True
   costNounOk (SomeOf _ grp) = costNounOk grp
@@ -3606,6 +3692,7 @@ mutual
   nounIsYou (CountedGroup _ _) = False
   nounIsYou (AllOf _) = False
   nounIsYou (EachOf _) = False
+  nounIsYou (NamesAgree _ _) = False
   nounIsYou (Both _ _) = False
   nounIsYou (LibrarySlice _ _ _) = False
   nounIsYou (SomeOf _ _) = False
@@ -3835,6 +3922,7 @@ mutual
   nounTargeted (Definite _) = False
   nounTargeted (AllOf _) = False
   nounTargeted (EachOf grp) = nounTargeted grp
+  nounTargeted (NamesAgree _ grp) = nounTargeted grp
   nounTargeted (Both l r) = nounTargeted l || nounTargeted r
   nounTargeted (LibrarySlice _ _ _) = False
   nounTargeted (SomeOf _ grp) = nounTargeted grp
@@ -4062,6 +4150,7 @@ mutual
   moveIntro p nn@(CountedGroup q pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(AllOf pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p (EachOf grp) z = moveIntro p grp z
+  moveIntro p (NamesAgree _ grp) z = moveIntro p grp z
   moveIntro p nn@(Both _ _) z = nomIntro nn
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(SomeOf _ _) z = setZoneHead p z (nomIntro nn)
@@ -4095,6 +4184,7 @@ mutual
   nounZone (CountedGroup q p) = phraseZone p
   nounZone (AllOf p) = phraseZone p
   nounZone (EachOf grp) = nounZone grp
+  nounZone (NamesAgree _ grp) = nounZone grp
   nounZone (Both _ _) = Nothing
   nounZone (LibrarySlice _ _ _) = Just Library
   nounZone (SomeOf _ grp) = nounZone grp
@@ -4126,6 +4216,7 @@ mutual
   nounTy (CountedGroup q p) = seedTy p
   nounTy (AllOf p) = seedTy p
   nounTy (EachOf grp) = nounTy grp
+  nounTy (NamesAgree _ grp) = nounTy grp
   nounTy (Both _ _) = Nothing
   nounTy (LibrarySlice _ _ _) = Nothing
   nounTy (SomeOf _ grp) = nounTy grp
@@ -4155,6 +4246,7 @@ mutual
   nounPlur (CountedGroup q p) = quantPlur q
   nounPlur (AllOf p) = ManyOf
   nounPlur (EachOf grp) = ManyOf
+  nounPlur (NamesAgree _ grp) = nounPlur grp
   nounPlur (Both _ _) = ManyOf
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
   nounPlur (SomeOf q _) = quantPlur q
@@ -4826,6 +4918,7 @@ mutual
   nounRegime (Each p) = predRegime p
   nounRegime (TargetGroup _ p) = predRegime p
   nounRegime (CountedGroup _ p) = predRegime p
+  nounRegime (NamesAgree _ grp) = nounRegime grp
   nounRegime _ = Nothing
 
   public export

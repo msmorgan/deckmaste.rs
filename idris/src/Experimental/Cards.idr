@@ -4677,6 +4677,105 @@ nevermore =
                    (AllOf (And [Macros.spell, Named ChosenName]))) ]
        Nothing
 
+||| "Choose a card name other than a basic land card name." The postnominal
+||| exception, written as the negated conjunction the phrase states.
+public export
+necromentiaChoice : Effect []
+necromentiaChoice =
+  Macros.choose (Macros.a (Macros.qualityFrom CardName
+                   (NameOfCard (Not (And [HasSupertype Basic, HasType Land])))))
+
+||| Booby Trap's name half: "As this artifact enters, choose … a card name
+||| other than a basic land card name." The same exception in the as-enters
+||| slot; the opponent chosen alongside it wants a second choice inside one
+||| clause, which the as-enters chooser does not carry.
+public export
+boobyTrapNameChoice : StaticEffect []
+boobyTrapNameChoice =
+  Macros.entersChoosingFrom Macros.thisArtifact
+                            CardName
+                            (NameOfCard (Not (And [HasSupertype Basic,
+                                                   HasType Land])))
+
+||| "Return any number of permanent cards with different names from your
+||| graveyard to the battlefield."
+public export
+eerieUltimatum : Card
+eerieUltimatum =
+  Macros.card "Eerie Ultimatum"
+       (Just [Macros.pip White, Macros.pip White, Macros.pip Black,
+              Macros.pip Black, Macros.pip Black, Macros.pip Green,
+              Macros.pip Green]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Macros.move
+                  (Macros.withDifferentNames
+                     (CountedGroup Macros.anyNumber
+                                   (And [Permanent,
+                                         InZone (Macros.graveyardOf You)])))
+                  Macros.battlefieldZ) ]
+       Nothing
+
+||| "Flying / Discard two nonland cards with the same name: Draw four cards."
+||| The positive pole with no relatum written, in a cost.
+public export
+sphinxOfTheChimes : Card
+sphinxOfTheChimes =
+  Macros.card "Sphinx of the Chimes"
+       (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [Sphinx] [Creature])
+       [ Macros.keyword Flying
+       , Macros.activated
+           (Do (Macros.discards You
+                  (Macros.withTheSameName
+                     (CountedGroup (Macros.exactly 2)
+                                   (And [Not Macros.land,
+                                         InZone Macros.handZ])))))
+           (Macros.drawCards 4) ]
+       (Just (5, 6))
+
+||| "When this creature enters, if you control two or more nonland, nontoken
+||| permanents with the same name as one another, create a 4/4 colorless
+||| Construct artifact creature token."
+public export
+chromeReplicator : Card
+chromeReplicator =
+  Macros.card "Chrome Replicator" (Just [Macros.generic 5]) []
+       (MkTypeLine [Construct] [Artifact, Creature])
+       [ Macros.triggeredIf When (Enters Macros.thisCreature)
+           (ExistsGroup (Macros.withTheSameName
+                           (CountedGroup (Macros.atLeast 2)
+                                         (And [Permanent, Not Macros.land,
+                                               Not IsToken, ControlledBy You]))))
+           (Macros.create (Lit 1)
+              (MkToken (Just (Lit 4 ** Lit 4)) []
+                       (MkTypeLine [Construct] [Artifact, Creature])
+                       [] Nothing)) ]
+       (Just (4, 4))
+
+||| "{2}, {T}: Draw a card. Activate only if you control three or more lands
+||| with the same name." The elliptical positive pole in a guard.
+public export
+endlessAtlas : Card
+endlessAtlas =
+  Macros.card "Endless Atlas" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.activatedOnlyIf (Compound [Mana [Macros.generic 2], TapSymbol])
+                                Macros.drawACard
+                                (ExistsGroup (Macros.withTheSameName
+                                   (CountedGroup (Macros.atLeast 3)
+                                                 (And [Macros.land,
+                                                       ControlledBy You])))) ]
+       Nothing
+
+||| Saheeli Rai's +1. The -2 is `saheelisCopy`; the card stays off the
+||| bench for its last one, whose counted search has no mention to carry a
+||| count.
+public export
+saheeliRaiPlusOne : Effect []
+saheeliRaiPlusOne =
+  Sequentially [ Does You Scry (Macros.lookAt (Macros.topCards 1))
+               , DealDamage This (Lit 1) (Each Opponent) ]
+
 public export
 abruptDecay : Card
 abruptDecay =
