@@ -573,6 +573,53 @@ fn ast_re_exports_keep_the_retired_spell_audit_line_local() {
 }
 
 #[test]
+fn ast_public_surface_excludes_retired_ability_exports_and_aliases() {
+    fn collect_use_names(tree: &syn::UseTree, names: &mut Vec<String>) {
+        match tree {
+            syn::UseTree::Name(name) => names.push(name.ident.to_string()),
+            syn::UseTree::Rename(rename) => names.push(rename.rename.to_string()),
+            syn::UseTree::Path(path) => collect_use_names(&path.tree, names),
+            syn::UseTree::Group(group) => {
+                for item in &group.items {
+                    collect_use_names(item, names);
+                }
+            }
+            syn::UseTree::Glob(_) => {}
+        }
+    }
+
+    let file = syn::parse_file(include_str!("../src/ast.rs")).expect("AST facade parses as Rust");
+    let mut public_names = Vec::new();
+    for item in &file.items {
+        match item {
+            syn::Item::Use(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                collect_use_names(&item.tree, &mut public_names);
+            }
+            syn::Item::Type(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                public_names.push(item.ident.to_string());
+            }
+            syn::Item::Enum(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                public_names.push(item.ident.to_string());
+            }
+            syn::Item::Struct(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                public_names.push(item.ident.to_string());
+            }
+            syn::Item::Union(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
+                public_names.push(item.ident.to_string());
+            }
+            _ => {}
+        }
+    }
+
+    for retired in ["Event", "EventClause", "Paragraph"] {
+        assert!(
+            !public_names.iter().any(|name| name == retired),
+            "retired public AST name remains exported or aliased: {retired}"
+        );
+    }
+}
+
+#[test]
 fn self_reference_spelling_variants_remain_publicly_importable() {
     use deckmaste_english_v2::ast::SelfReferenceSpelling::Abbreviated;
     use deckmaste_english_v2::ast::SelfReferenceSpelling::Full;

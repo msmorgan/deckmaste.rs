@@ -208,6 +208,23 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
 }
 
 #[test]
+fn finite_trigger_predicate_agreement_is_derived_from_its_subject() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let text = "Whenever you connive, you gain X life.";
+    let parsed = parser
+        .parse(text, &context)
+        .expect("second-person trigger subject requires bare predicate agreement");
+    assert_eq!(parsed.render(&context, parser.environment()), text);
+    assert!(
+        parser
+            .parse("Whenever you connives, you gain X life.", &context)
+            .is_err(),
+        "third-person-singular agreement must reject a second-person trigger subject"
+    );
+}
+
+#[test]
 fn generated_clause_and_empty_condition_inventories_exclude_bootstrap_event_shapes() {
     let source = include_str!("../src/constructions.rs");
     let invocation = deckmaste_construction_core::invocation_from_source(source)

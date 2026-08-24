@@ -1319,6 +1319,7 @@ mod tests {
     use deckmaste_english_v2::parser::reset_parser_entry_calls_for_test;
     use deckmaste_english_v2::parser::take_parser_entry_calls_for_test;
     use deckmaste_english_v2::parser::with_forced_ownership_inspection_failure_for_test;
+    use macro_ron::v2::Onset;
 
     use super::CoverageByteMismatchScope;
     use super::CoverageInternalFailureKind;
@@ -2444,6 +2445,46 @@ mod tests {
         assert_eq!(json["rows"][1]["side"], "b");
         assert_eq!(json["rows"][1]["context_name"], "Distinct Parser Context");
         assert_eq!(json["rows"][1]["text"], "Destroy target Spirit.");
+    }
+
+    #[test]
+    fn real_runner_parsing_uses_legendary_face_context_metadata() {
+        let snapshot = br#"{"data":{"Composite Wrong Name":[{
+            "name":"Composite Wrong Name",
+            "faceName":"Aang, A Lot to Learn",
+            "side":"a",
+            "layout":"modal_dfc",
+            "types":["Creature"],
+            "supertypes":["Legendary"],
+            "subtypes":[],
+            "legalities":{"vintage":"Legal"},
+            "text":"Aang gains 2 life."
+        }]}}"#;
+        let onsets = BTreeMap::from([("Aang, A Lot to Learn".to_owned(), Onset::Vowel)]);
+        let corpus = Corpus::from_bytes_with_context_onsets(snapshot, &onsets)
+            .expect("authoritative legendary face fixture loads");
+        assert_eq!(corpus.units()[0].card_name(), "Composite Wrong Name");
+        assert_eq!(corpus.units()[0].context_name(), "Aang, A Lot to Learn");
+        assert!(corpus.units()[0].is_legendary());
+
+        let mut output = Vec::new();
+        run_with_components(
+            &args(true, CoverageLockMode::None),
+            &mut output,
+            &mut Vec::new(),
+            &mut NoopObserver,
+            || Ok(corpus),
+            crate::english_v2::parser_from_builtin_v2,
+            |_, _, _, _| unreachable!("report-only coverage has no gate"),
+        )
+        .expect("real coverage runner selects the abbreviated face self-reference");
+
+        let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(json["rows"][0]["status"], "selected_covered");
+        assert_eq!(
+            json["rows"][0]["selected"]["rendered_text"],
+            "Aang gains 2 life."
+        );
     }
 
     #[test]
