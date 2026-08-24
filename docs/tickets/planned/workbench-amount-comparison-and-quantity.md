@@ -282,6 +282,59 @@ take the whole closure, not one cell.
 
 - `comparableBound` admits a summed bound at all five comparators; the corpus attests it at equality only — of 36 "with <char> equal to …" lines, 15 take "the number of", 0 a summed bound; 24 "equal to the total" corpus-wide, 0 "greater/less than the total". Gate the summed bound to equality.
 
+## From the v1 comparison (2026-08-24)
+
+Two findings from
+[the v1/v2 comparison](../../memory/scratch/experimental-vs-semantics-comparison.md)
+(axis 12, graded **WORSE**, and summary finding 2). Both are shape questions
+this ticket's ledgers touch from the vocabulary side; neither is a row.
+
+**Quantity bounds are literal-only, and widening them is not free.**
+
+> Workbench: `data Quantity : Type where Range : Maybe Nat -> Maybe Nat ->
+> Quantity` (`Words.idr:589`). Crate: `Quantity::Range(Option<Count>,
+> Option<Count>)` (`quantity.rs:22`) — the bounds are full `Count`s. So "up to X
+> target creatures", "choose up to that many", "target up to N creatures where N
+> is …" have no v2 spelling. `Quantity` is threaded into `TargetGroup`,
+> `CountedGroup`, `SomeOf`, `Modal` and `ChooseSpec`, so this is not a corner.
+
+and
+
+> the quantity one is a change to the `Quantity` type's shape and every gate over
+> it (`NonZeroQ`, `WellFormedQ`, `quantPlur`, `modesFit`), which currently
+> pattern-match on `Nat` literals and would have to become runtime-undecidable
+> once bounds are `Amount`s. That interaction is not recorded anywhere.
+
+This lands on the section above: the quantity-by-attestation grid owed across
+`choosable` and `agentChoosable` is a grid over *literal* bounds today. Decide
+whether an amount-valued bound is in scope before the grid is read, because the
+four gates above are the cost, and record the verdict where `Quantity` is
+defined either way.
+
+**No division, halving, averaging or rounding.**
+
+> Workbench `Amount` (`Experimental.idr:1458`) has `Lit`, `Times (per : Nat)`,
+> `Plus`, `Minus`, `TheDifference`, and the readbacks — no rounding operator
+> anywhere except `DamageScale::Halved` on a prevention shield
+> (`Experimental.idr:2903`). Crate `Count` (`count.rs:167`) has
+> `Half(RoundMode, ..)`, `Divide(RoundMode, .., ..)`, `Mod`, `Pow`, `Min`,
+> `Max`, and `Aggregate(AverageOf(RoundMode), Projection)` (`count.rs:129`).
+> `RoundMode` exists in `Words.idr:1538` and is used at exactly one site.
+> "Equal to half your life total, rounded down" is unwritable.
+>
+> Also absent from `Amount` with crate counterparts: `Count::ManaAvailable`,
+> `ManaAvailableKind`, `Damage(Reference)`, `TargetsOf(Reference)`, `TimesPaid`,
+> `Noted`, `Allotment`.
+
+The half already has a ledger entry above (6 lines, Aspect of Wolf). The rest of
+the operator set does not — take `RoundMode`'s single existing site as the shape
+to generalise rather than minting a second rounding vocabulary, and route
+`TimesPaid` to
+[workbench-cost-tags-and-paid-readbacks](workbench-cost-tags-and-paid-readbacks.md)
+and `Noted` to
+[workbench-named-memory-channels](workbench-named-memory-channels.md), which own
+those channels.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (the `Amount` reads, `CountOf`, `PrintedStat`, the

@@ -308,6 +308,26 @@ Declined once on the honest count ([CR#727.1], ONE corpus line) and that decline
 is **overridden**: a small late round, one row. It does not need whole-protocol
 design and should not be held hostage to the bundles above.
 
+## From the v1 comparison (2026-08-24)
+
+Two boundary notes from
+[the v1/v2 comparison](../../memory/scratch/experimental-vs-semantics-comparison.md)
+(axes 18 and 21), so neither bundle above is sliced from outside.
+
+- **Pile partitions.** The crate encodes piles with `Ident` names —
+  `SeparatePiles { group, into: Arc<[Ident]>, by, note, then }` and
+  `ChoosePile { from: PileSource, by, random, then }` (`effect.rs:410,425`) —
+  which runs into the forward-anaphora binder contract. Whether a pile may be
+  *named* is ruled on in
+  [workbench-named-memory-channels](workbench-named-memory-channels.md); the
+  partition procedure stays this bundle's. The two must land compatibly, and the
+  bundle should not be opened before the naming ruling exists.
+- **The secret-choice and voting pair** keeps Menacing Ogre's secret number and
+  every vote. The coin flip, the die roll and the at-random selection mode are
+  *not* part of it and are scheduled separately as
+  [workbench-randomness-vocabulary](workbench-randomness-vocabulary.md); that
+  ticket is fenced off this bundle explicitly.
+
 ## The closure grid this family owns
 
 Ranked below the workbench's fifteen top flip risks — the grid's many zeros are

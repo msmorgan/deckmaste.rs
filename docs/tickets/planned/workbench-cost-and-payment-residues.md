@@ -299,6 +299,8 @@ cannot hold. Take them together or not at all.
 - Zero lines write a scaled non-mana ACTION cost — "as an additional cost … for
   each" returns nothing.
 
+From the v1 comparison (2026-08-24): the cost-tag readback channel (`CostTag`, `PaidCost`, `CastWith`, `TimesPaid`, `WasPaidWith`) is not this ticket's and is scheduled as [workbench-cost-tags-and-paid-readbacks](workbench-cost-tags-and-paid-readbacks.md).
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`AltCost`, `CostsToCast`, `MayPlay`,

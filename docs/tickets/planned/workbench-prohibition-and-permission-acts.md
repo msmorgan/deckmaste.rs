@@ -297,6 +297,54 @@ It carves out **one** state-based cause ([CR#104.3b,104.3c,104.3d]) and leaves
 narrower thing. It wants an SBA-cause vocabulary the grammar has none of; naming
 the causes is the substance of the entry.
 
+## From the v1 comparison (2026-08-24)
+
+[The v1/v2 comparison](../../memory/scratch/experimental-vs-semantics-comparison.md)
+grades deontics (axis 14) **WORSE** against the crate's single modal algebra:
+`Deontic { May, Cant, Must, Gate(_, [CostComponent]), Expanded }`
+(`deontic.rs:325`) over `DeonticAction` (`deontic.rs:186`) with ten deed kinds
+— `Attack`, `Block { count }`, `Target { by: DeedAgent, on }`, `Attach`,
+`Cast { what, by, from, window, cost, tag }`, `Play`, `Activate`, `Regenerate`,
+`Counter`, `Untap` — plus a general counterfactual,
+`AsThough::Counterfactual { premise: Predicate, then: Arc<Deontic> }`
+(`deontic.rs:49`).
+
+**One claim in that report is wrong and is corrected here so it is not
+re-derived.** It says v2 has "no `Must` or `Gate`". Both exist:
+`Compulsion` is `Forbid | Require | GatedBy (c : Cost bs)`
+(`Experimental.idr:2822-2825`), which is Cant/Must/Gate. The real narrowing is
+**reach**, not polarity — `Compulsion` is only available through
+`StaticEffect.Deontic` (`Experimental.idr:2679`), whose `Deed` is
+`Attack | Block` (`Events.idr:285`), so Must and Gate cover two deed kinds of
+ten and the other modal carriers (`PlayerCant` over `PlayerAct`, `ObjectCant`
+over `ObjectAct`) are Cant-only with no Must, Gate or May at all. The permission
+row this ticket already schedules is the May half of that same narrowing.
+
+What the report adds beyond what is scheduled above:
+
+- **The counterfactual is one hardcoded case**, `PlayAsThough = HadFlash`
+  (`Events.idr:386`). The section above already owns deciding whether the
+  negated-keyword payload gets a general counterfactual vocabulary; the report's
+  contribution is that the crate's premise slot is an arbitrary `Predicate`, so
+  "general" has a concrete shape to be argued for or against.
+- **"Can't be the target of" needs a source/spell distinction the act
+  vocabularies have no room for.** `ObjectAct` is
+  `Countered | Cast | Played | Copied | Activated` (`Words.idr:2717`) with no
+  targeting member; the workbench's `CantBe : (e : Effect bs) -> (act :
+  ObjectAct) -> (what : Noun (preIntro e) k)` (`Experimental.idr:3229`) is a
+  rider on an effect, a different construction from a standing prohibition. The
+  crate models it as `DeonticAction::Target { by: DeedAgent { stack_object,
+  source }, on }` (`deontic.rs:212,142`) — the distinction "hexproof from"
+  needs. Take that as the shape to answer when the 39 targeting sentences above
+  are written; the count is this ticket's, the source/spell split is the report's
+  addition to it.
+- **The eight unreached deed kinds** — `Attach`, `Cast`, `Play`, `Activate`,
+  `Regenerate`, `Counter`, `Untap` and the counted `Block` — are where the
+  well-built `Deed`/`Role`/`DeonticPatient` machinery does not reach. Whether
+  they become `Deed` rows or stay distributed across the act vocabularies is a
+  decision this region owes; the qualified-cast and activation-prohibition
+  entries above are two of them arriving one at a time.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`ObjectCant`, `CostsToCast`, `possessorOk`, the

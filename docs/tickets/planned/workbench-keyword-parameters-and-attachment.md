@@ -23,6 +23,8 @@ more accurately (string labels for composites), and Flying and Haste are
 deliberate existing passes. Already-implemented keywords MAY be used where they
 unlock better `Cards.idr` witnesses.
 
+From the v1 comparison (2026-08-24): the closed-enum-vs-declared-atom question this fence defers is the same one [workbench-effect-basis-realign](workbench-effect-basis-realign.md) asks about `VerbName`, and the two should get the same answer or an explicit difference.
+
 ## AFFINITY's typed parameter — 5 lines, every one parameterised
 
 "affinity for artifacts" (Mycosynth Golem; Sami, Wildcat Captain; Tezzeret),

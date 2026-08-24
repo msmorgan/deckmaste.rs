@@ -140,6 +140,16 @@ payload and riders, and the entry row owes a landed row its first witness.
   the type SETTING exception (4, "and it loses all other card types"), starting
   loyalty (1) and RETAIN (1, [CR#707.9c], Vesuvan Doppelganger).
 
+## From the v1 comparison (2026-08-24)
+
+[The v1/v2 comparison](../../memory/scratch/experimental-vs-semantics-comparison.md)
+found no copy-family gap beyond what this ticket already carries. One blocker is
+now named: **Magar of the Magic Strings**, listed above as a one-card rule at
+this family's edge, is blocked on the crate's `Ident`-keyed note channel — its
+text notes a name and reads it back at the copy ("create a copy of the card with
+the noted name"). That channel has no v2 shape and needs a design ruling first:
+[workbench-named-memory-channels](workbench-named-memory-channels.md).
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`CopyStack`, `CopyExcept`, `AnyTarget` and the

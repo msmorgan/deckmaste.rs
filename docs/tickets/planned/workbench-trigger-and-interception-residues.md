@@ -256,6 +256,21 @@ prevention rider. Nothing further is measured for them. Carry the cell here only
 if the rider exists when the round is claimed; otherwise the round records that
 it still waits, at the ledger tag, rather than dropping it.
 
+## From the v1 comparison (2026-08-24)
+
+[The v1/v2 comparison](../../memory/scratch/experimental-vs-semantics-comparison.md)
+(axis 13) grades the event side **WORSE** on a shape this ticket does not own:
+the crate's `EventFilter` composition operators (`Not`/`OneOf`/`AllOf`/`Nth`/
+`When`/`Within`/`Before`, `event.rs:616-655`) and its
+`CausePattern { verb, agency, agent }` channel (`event.rs:251,233`). That is
+[workbench-event-algebra](workbench-event-algebra.md), minted separately.
+
+Two couplings to respect from here: the coordinated header's readback above
+(144 of 364) needs the same decidable `Bindings` comparison a general
+disjunction would, so whichever round goes first settles it for both; and
+`AltEvent` is the one composition operator that already exists, so a general
+disjunction retires that row rather than sitting beside it.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`Predicate`, `InZone`, `headerWindowOk`, the
