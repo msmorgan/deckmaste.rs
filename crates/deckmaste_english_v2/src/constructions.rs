@@ -92,6 +92,8 @@ constructions! {
     }
     vocab Designation { Chosen = "chosen", Exiled = "exiled", }
     vocab ChosenQuality { Color = "color", Name = "name", Type = "type", }
+    vocab IndefiniteArticle { A = "a", An = "an", }
+    vocab SingularDemonstrative { This = "this", That = "that", }
     vocab ControllerNoun { Opponent = "opponent", Player = "player", }
     vocab FixedCostSymbol {
         Variable = "X",
@@ -191,6 +193,9 @@ constructions! {
         recipe = english_noun;
     }
     lexeme CommonNoun using EnglishNoun {
+        Ability = "ability" {
+            Plural = "abilities",
+        },
         Card = "card",
         Controller = "controller",
         Opponent = "opponent",
@@ -1448,6 +1453,16 @@ constructions! {
         form an when nominal.onset is Vowel = "an" nominal;
         form a otherwise = "a" nominal;
     }
+    construction indefinite_coordination_reference: UnqualifiedReference {
+        element IndefiniteCoordinationReference {
+            article: lex IndefiniteArticle,
+            coordination: SingularNominalCoordination,
+        }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form indefinite_coordination_reference = lex(article) coordination;
+    }
     construction named_card_reference: UnqualifiedReference {
         element NamedCardReference { name: identity CardName, }
         derive agreement = Values::ThirdPersonSingular;
@@ -1457,6 +1472,10 @@ constructions! {
     }
     construction ordinary_singular_reference: UnqualifiedReference {
         element OrdinarySingularReference { phrase: DeterminerPhrase, }
+        require any(
+            phrase is TargetDeterminerPhrase,
+            phrase is TargetCoordinationDeterminerPhrase
+        );
         derive agreement = phrase.agreement;
         derive number = phrase.number;
         derive onset = phrase.onset;
@@ -1506,6 +1525,15 @@ constructions! {
         derive number = Values::Singular;
         derive onset = Values::Vowel;
         form another_reference = "another" selector;
+    }
+    construction another_coordination_reference: UnqualifiedReference {
+        element AnotherCoordinationReference {
+            coordination: SingularNominalCoordination,
+        }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Vowel;
+        form another_coordination_reference = "another" coordination;
     }
     construction each_reference: UnqualifiedReference {
         element EachReference { selector: SingularSelector, }
@@ -1607,6 +1635,17 @@ constructions! {
         derive onset = Values::Consonant;
         form that_reference = "that" nominal;
     }
+    construction demonstrative_possessive_reference: UnqualifiedReference {
+        element DemonstrativePossessiveReference {
+            demonstrative: lex SingularDemonstrative,
+            possessor: SingularNominal,
+            possessed: SingularNominal,
+        }
+        derive agreement = possessed.agreement;
+        derive number = possessed.number;
+        derive onset = Values::Consonant;
+        form demonstrative_possessive_reference = lex(demonstrative) suffix(possessor, "'s") possessed;
+    }
     construction those_reference: UnqualifiedReference {
         element ThoseReference { nominal: PluralNominal, }
         derive agreement = nominal.agreement;
@@ -1688,6 +1727,34 @@ constructions! {
         derive onset = Values::Consonant;
         form target_coordination_determiner_phrase = "target" coordination;
     }
+    construction indefinite_determiner_phrase: DeterminerPhrase {
+        element IndefiniteDeterminerPhrase {
+            article: lex IndefiniteArticle,
+            nominal: SingularNominal,
+        }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = nominal.onset;
+        form indefinite_determiner_phrase = lex(article) nominal;
+    }
+    construction this_determiner_phrase: DeterminerPhrase {
+        element ThisDeterminerPhrase { nominal: SingularNominal, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form this_determiner_phrase = "this" nominal;
+    }
+    construction another_determiner_phrase: DeterminerPhrase {
+        element AnotherDeterminerPhrase { selector: SingularSelector, }
+        require any(
+            selector is UnmarkedSingularSelector,
+            selector is TargetSingularSelector
+        );
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Vowel;
+        form another_determiner_phrase = "another" selector;
+    }
     construction full_and_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullAndNounPhraseCoordination {
             members: seq DeterminerPhrase separated by position {
@@ -1698,6 +1765,8 @@ constructions! {
             },
         }
         require len(members) >= 2;
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
         form full_and_noun_phrase_coordination = members;
     }
     construction full_or_noun_phrase_coordination: FullNounPhraseCoordination {
@@ -1710,6 +1779,8 @@ constructions! {
             },
         }
         require len(members) >= 2;
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
         form full_or_noun_phrase_coordination = members;
     }
     construction full_and_or_noun_phrase_coordination: FullNounPhraseCoordination {
@@ -1722,12 +1793,14 @@ constructions! {
             },
         }
         require len(members) >= 2;
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
         form full_and_or_noun_phrase_coordination = members;
     }
     construction coordinated_noun_phrase: UnqualifiedReference {
         element CoordinatedNounPhrase { coordination: FullNounPhraseCoordination, }
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
+        derive agreement = coordination.agreement;
+        derive number = coordination.number;
         derive onset = Values::Consonant;
         form coordinated_noun_phrase = coordination;
     }
@@ -1860,6 +1933,16 @@ constructions! {
         derive number = reference.number;
         derive onset = reference.onset;
         form controller_qualified_reference = reference controller_owner;
+    }
+    construction other_than_qualified_reference: ControllerStage {
+        element OtherThanQualifiedReference {
+            reference: UnqualifiedReference,
+            excluded: UnqualifiedReference,
+        }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        form other_than_qualified_reference = reference "other" "than" excluded;
     }
     construction unqualified_zone_stage: ZoneStage {
         element UnqualifiedZoneStage { reference: ControllerStage, }

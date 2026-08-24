@@ -225,11 +225,12 @@ fn indefinite(noun: Noun) -> NounPhrase {
 
 fn target_noun(noun: Noun) -> NounPhrase {
     noun_phrase(UnqualifiedReference::OrdinarySingularReference(
-        OrdinarySingularReference {
-            phrase: DeterminerPhrase::TargetDeterminerPhrase(TargetDeterminerPhrase {
+        OrdinarySingularReference::new(DeterminerPhrase::TargetDeterminerPhrase(
+            TargetDeterminerPhrase {
                 nominal: singular_nominal(noun),
-            }),
-        },
+            },
+        ))
+        .expect("target determiner is an ordinary singular reference"),
     ))
 }
 

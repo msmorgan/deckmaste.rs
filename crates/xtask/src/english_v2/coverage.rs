@@ -1382,12 +1382,12 @@ mod tests {
         let production_selected_covered_ids = report
             .selected_covered_ids()
             .expect("full production selected-covered IDs are unique");
-        assert_eq!(covered_ids.len(), 726);
+        assert_eq!(covered_ids.len(), 733);
         let production_selected_covered_ids = production_selected_covered_ids
             .iter()
             .map(String::as_str)
             .collect::<BTreeSet<_>>();
-        assert_eq!(production_selected_covered_ids.len(), 726);
+        assert_eq!(production_selected_covered_ids.len(), 733);
         assert_eq!(covered_ids, production_selected_covered_ids);
         assert!(baseline_ids.is_subset(&covered_ids));
         assert!(target_ids.is_subset(&covered_ids));
@@ -1524,10 +1524,10 @@ mod tests {
 
         assert_eq!(report.rows().len(), 32_641);
         assert_eq!(report.summary().total_units(), 32_641);
-        assert_eq!(report.summary().selected_units(), 726);
-        assert_eq!(report.summary().covered_units(), 726);
+        assert_eq!(report.summary().selected_units(), 733);
+        assert_eq!(report.summary().covered_units(), 733);
         assert_eq!(report.summary().selected_uncovered_units(), 0);
-        assert_eq!(report.summary().parse_failures(), 31_915);
+        assert_eq!(report.summary().parse_failures(), 31_908);
         assert_eq!(report.summary().unresolved_ties(), 0);
         assert_eq!(report.summary().internal_failures(), 0);
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);
@@ -1546,25 +1546,27 @@ mod tests {
             "# English v2 Plan 08 frozen corpus target manifest",
             "# manifest_schema=1",
             "# source_fingerprint=e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
-            "# candidate_results_sha256=303e15262ec4ef81dbbba478c41a1fbdcf285b03efec499a9c63d55cca9f014e",
+            "# candidate_results_sha256=cb5f2a5be7829192e5fbc234b394fa5b3121ab1c08e320160ce7292afb9a6048",
             "# baseline_covered=608",
             "# baseline_ids_sha256=35ea73406725742d51b92df60bb07a261ed7570d6767caf59306a88785de87c2",
             "# baseline_status=parse_failure",
-            "# targets=118",
-            "# family_counts=ability.activated:56,ability.plain-modal:28,ability.triggered:10,clause.coordination:23,finite.auxiliary:1",
+            "# targets=125",
+            "# family_counts=ability.activated:56,ability.plain-modal:28,ability.triggered:10,clause.coordination:23,finite.auxiliary:1,nominal.demonstrative-possessive:7",
             r"# columns=family\tid\tcard_name_json\tface_name_json\tside_json\tcontext_name_json\tis_legendary\tcontext_onset\toracle_text_json",
         ];
-        const EXPECTED_FAMILIES: [(&str, usize); 5] = [
+        const EXPECTED_FAMILIES: [(&str, usize); 6] = [
             ("ability.activated", 56),
             ("ability.plain-modal", 28),
             ("ability.triggered", 10),
             ("clause.coordination", 23),
             ("finite.auxiliary", 1),
+            ("nominal.demonstrative-possessive", 7),
         ];
-        const EXPECTED_OUT_OF_POOL: [(&str, usize); 3] = [
+        const EXPECTED_OUT_OF_POOL: [(&str, usize); 4] = [
             ("ability.plain-modal", 28),
             ("clause.coordination", 23),
             ("finite.auxiliary", 1),
+            ("nominal.demonstrative-possessive", 7),
         ];
 
         fn decode(value: &str) -> String {
@@ -1573,7 +1575,7 @@ mod tests {
 
         assert_eq!(
             sha256_hex(PLAN08_TARGETS.as_bytes()),
-            "0f6e8d073a09f5a9039931ed91e88e3a1354280c38f67a3dcd3e94057d2710e7",
+            "01073cbc5cdc3cb2f38d37956ccfd8f48e85b5f932a7aeaceb4afd096570d9e2",
         );
         assert_eq!(
             PLAN08_TARGETS
@@ -1588,7 +1590,7 @@ mod tests {
             .skip(EXPECTED_HEADERS.len())
             .map(|line| line.split('\t').collect::<Vec<_>>())
             .collect::<Vec<_>>();
-        assert_eq!(manifest_rows.len(), 118);
+        assert_eq!(manifest_rows.len(), 125);
 
         let mut previous_id = None;
         let mut family_counts = BTreeMap::new();
@@ -1603,7 +1605,7 @@ mod tests {
                 id
             })
             .collect::<BTreeSet<_>>();
-        assert_eq!(target_ids.len(), 118);
+        assert_eq!(target_ids.len(), 125);
         assert_eq!(
             family_counts.into_iter().collect::<Vec<_>>(),
             EXPECTED_FAMILIES,
@@ -1668,7 +1670,7 @@ mod tests {
             .difference(&candidate_pool_ids)
             .copied()
             .collect::<BTreeSet<_>>();
-        assert_eq!(out_of_pool_ids.len(), 52);
+        assert_eq!(out_of_pool_ids.len(), 59);
         let mut out_of_pool_counts = BTreeMap::new();
         for fields in &manifest_rows {
             if out_of_pool_ids.contains(fields[1]) {
@@ -1795,16 +1797,19 @@ mod tests {
                 "finite.auxiliary" => path
                     .iter()
                     .any(|name| name == "FiniteClauseAuxiliaryFiniteClause"),
+                "nominal.demonstrative-possessive" => path
+                    .iter()
+                    .any(|name| name == "UnqualifiedReferenceDemonstrativePossessiveReference"),
                 other => panic!("unexplained Plan 08 family {other}: {id}"),
             };
             assert!(explained, "target has its named Plan 08 family: {id}");
         }
 
         assert_eq!(report.summary().total_units(), 32_641);
-        assert_eq!(report.summary().selected_units(), 726);
-        assert_eq!(report.summary().covered_units(), 726);
+        assert_eq!(report.summary().selected_units(), 733);
+        assert_eq!(report.summary().covered_units(), 733);
         assert_eq!(report.summary().selected_uncovered_units(), 0);
-        assert_eq!(report.summary().parse_failures(), 31_915);
+        assert_eq!(report.summary().parse_failures(), 31_908);
         assert_eq!(report.summary().unresolved_ties(), 0);
         assert_eq!(report.summary().internal_failures(), 0);
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);

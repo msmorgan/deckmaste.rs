@@ -77,6 +77,185 @@ fn linguistic_bodies_enclose_plain_and_triggered_sentence_sequences() {
 }
 
 #[derive(Default)]
+struct SubjectStructureVisitor(Vec<&'static str>);
+
+impl Visitor for SubjectStructureVisitor {
+    fn visit_indefinite_coordination_reference(&mut self, value: &IndefiniteCoordinationReference) {
+        self.0.push("IndefiniteCoordinationReference");
+        deckmaste_english_v2::visit::walk_indefinite_coordination_reference(self, value);
+    }
+
+    fn visit_full_or_noun_phrase_coordination(&mut self, value: &FullOrNounPhraseCoordination) {
+        self.0.push("FullOrNounPhraseCoordination");
+        deckmaste_english_v2::visit::walk_full_or_noun_phrase_coordination(self, value);
+    }
+
+    fn visit_this_determiner_phrase(&mut self, value: &ThisDeterminerPhrase) {
+        self.0.push("ThisDeterminerPhrase");
+        deckmaste_english_v2::visit::walk_this_determiner_phrase(self, value);
+    }
+
+    fn visit_another_determiner_phrase(&mut self, value: &AnotherDeterminerPhrase) {
+        self.0.push("AnotherDeterminerPhrase");
+        deckmaste_english_v2::visit::walk_another_determiner_phrase(self, value);
+    }
+
+    fn visit_another_coordination_reference(&mut self, value: &AnotherCoordinationReference) {
+        self.0.push("AnotherCoordinationReference");
+        deckmaste_english_v2::visit::walk_another_coordination_reference(self, value);
+    }
+
+    fn visit_other_than_qualified_reference(&mut self, value: &OtherThanQualifiedReference) {
+        self.0.push("OtherThanQualifiedReference");
+        deckmaste_english_v2::visit::walk_other_than_qualified_reference(self, value);
+    }
+
+    fn visit_demonstrative_possessive_reference(
+        &mut self,
+        value: &DemonstrativePossessiveReference,
+    ) {
+        self.0.push("DemonstrativePossessiveReference");
+        deckmaste_english_v2::visit::walk_demonstrative_possessive_reference(self, value);
+    }
+}
+
+#[test]
+fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let witnesses = [
+        (
+            "Whenever a spell or ability deals 1 damage to you, you gain 1 life.",
+            "UnqualifiedReferenceIndefiniteCoordinationReference",
+            &["IndefiniteCoordinationReference"][..],
+            &[
+                "vocab:IndefiniteArticle/A",
+                "structural:SingularOrNominalCoordination/members/separator/pair/0",
+            ][..],
+        ),
+        (
+            "Whenever this creature or another creature you control deals 1 damage to you, you gain 1 life.",
+            "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
+            &[
+                "FullOrNounPhraseCoordination",
+                "ThisDeterminerPhrase",
+                "AnotherDeterminerPhrase",
+            ][..],
+            &[
+                "structural:FullOrNounPhraseCoordination/members/separator/pair/0",
+                "form:this_determiner_phrase/this_determiner_phrase/0",
+                "form:another_determiner_phrase/another_determiner_phrase/0",
+            ][..],
+        ),
+        (
+            "Whenever an artifact or enchantment deals 1 damage to you, you gain 1 life.",
+            "UnqualifiedReferenceIndefiniteCoordinationReference",
+            &["IndefiniteCoordinationReference"][..],
+            &[
+                "vocab:IndefiniteArticle/An",
+                "structural:SingularOrNominalCoordination/members/separator/pair/0",
+            ][..],
+        ),
+        (
+            "Whenever this creature or another creature deals 1 damage to you, you gain 1 life.",
+            "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
+            &[
+                "FullOrNounPhraseCoordination",
+                "ThisDeterminerPhrase",
+                "AnotherDeterminerPhrase",
+            ][..],
+            &["structural:FullOrNounPhraseCoordination/members/separator/pair/0"][..],
+        ),
+        (
+            "Whenever this creature or another Warrior deals 1 damage to you, you gain 1 life.",
+            "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
+            &[
+                "FullOrNounPhraseCoordination",
+                "ThisDeterminerPhrase",
+                "AnotherDeterminerPhrase",
+            ][..],
+            &["structural:FullOrNounPhraseCoordination/members/separator/pair/0"][..],
+        ),
+        (
+            "Whenever another Villain and/or artifact deals 1 damage to you, you gain 1 life.",
+            "UnqualifiedReferenceAnotherCoordinationReference",
+            &["AnotherCoordinationReference"][..],
+            &[
+                "form:another_coordination_reference/another_coordination_reference/0",
+                "structural:SingularAndOrNominalCoordination/members/separator/pair/0",
+            ][..],
+        ),
+        (
+            "Whenever a player other than this creature's owner deals 1 damage to you, you gain 1 life.",
+            "ControllerStageOtherThanQualifiedReference",
+            &[
+                "OtherThanQualifiedReference",
+                "DemonstrativePossessiveReference",
+            ][..],
+            &[
+                "form:other_than_qualified_reference/other_than_qualified_reference/1",
+                "form:other_than_qualified_reference/other_than_qualified_reference/2",
+                "form:demonstrative_possessive_reference/demonstrative_possessive_reference/1/affix",
+            ][..],
+        ),
+    ];
+
+    for (text, subject_path, visitor_events, subject_claims) in witnesses {
+        let analysis = parser.analyze(text, &context);
+        assert_eq!(
+            analysis.outcome(),
+            deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected,
+            "controlled supported-predicate witness must select: {text}: {:?}",
+            parser.parse(text, &context),
+        );
+        let decision = analysis
+            .decision()
+            .expect("controlled supported-predicate witness has a selection decision");
+        assert_eq!(decision.resolution(), SelectionResolution::Unique, "{text}");
+        assert!(
+            decision.candidates()[0]
+                .construction_path()
+                .iter()
+                .any(|construction| construction == subject_path),
+            "controlled witness has its exact subject construction: {text}",
+        );
+        assert!(decision.exception_uses().is_empty(), "{text}");
+        let ownership = analysis
+            .ownership()
+            .expect("controlled supported-predicate witness owns its bytes");
+        assert!(ownership.failures().is_empty(), "{text}: {ownership:?}");
+        assert!(ownership.summary().covered(), "{text}: {ownership:?}");
+        assert_eq!(ownership.rendered_text(), text, "{text}");
+        let claim_ids = ownership
+            .parsed_claims()
+            .iter()
+            .map(deckmaste_english_v2::parser::LexicalClaim::stable_owner_id)
+            .collect::<BTreeSet<_>>();
+        assert!(
+            subject_claims.iter().all(|owner| claim_ids.contains(owner)),
+            "controlled witness has exact subject claims: {text}",
+        );
+        let mut visitor = SubjectStructureVisitor::default();
+        visitor.visit_ability(
+            analysis
+                .selected()
+                .expect("controlled witness selected AST"),
+        );
+        assert_eq!(visitor.0, visitor_events, "{text}");
+    }
+
+    let mutation =
+        "Whenever this creature nor another creature deals 1 damage to you, you gain 1 life.";
+    let ParseError::Failure { span, .. } = parser
+        .parse(mutation, &context)
+        .expect_err("an unsupported coordinator remains outside the grammar")
+    else {
+        panic!("unsupported coordinator has an ordinary parse failure")
+    };
+    assert_eq!(&mutation[span.start..span.end], "nor");
+}
+
+#[derive(Default)]
 struct SelfReferenceVisitor {
     spellings: Vec<SelfReferenceSpelling>,
 }

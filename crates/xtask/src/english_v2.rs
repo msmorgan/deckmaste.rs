@@ -592,7 +592,9 @@ mod tests {
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     enum Plan08DeferredAuthority {
-        Plan09TriggerPredicate,
+        Plan09TriggerPredicate {
+            witness: Plan09TriggerWitness,
+        },
         Plan09ActivatedCostAction,
         Plan10KeywordAbility {
             catalog_entry: &'static str,
@@ -612,10 +614,19 @@ mod tests {
         Plan10AdvancedCost,
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum Plan09TriggerWitness {
+        PredicateRoot,
+        GainAmount,
+        DamageAmount,
+        PredicateRootOrTemporalBody,
+        InterveningCondition,
+    }
+
     impl Plan08DeferredAuthority {
         const fn category(self) -> &'static str {
             match self {
-                Self::Plan09TriggerPredicate | Self::Plan09ActivatedCostAction => {
+                Self::Plan09TriggerPredicate { .. } | Self::Plan09ActivatedCostAction => {
                     "plan09-predicate"
                 }
                 Self::Plan10KeywordAbility { .. }
@@ -634,11 +645,31 @@ mod tests {
         authority: Plan08DeferredAuthority,
     }
 
+    #[derive(Clone, Copy)]
+    struct Plan08BoundaryCatalogs<'a> {
+        keyword_abilities: &'a str,
+        keyword_actions: &'a str,
+        ability_words: &'a str,
+    }
+
     const fn plan09_trigger(failure_surface: &'static str) -> Plan08DeferredRule {
         Plan08DeferredRule {
             pool_family: "trigger-effect-selects",
             failure_surface,
-            authority: Plan08DeferredAuthority::Plan09TriggerPredicate,
+            authority: Plan08DeferredAuthority::Plan09TriggerPredicate {
+                witness: Plan09TriggerWitness::PredicateRoot,
+            },
+        }
+    }
+
+    const fn plan09_trigger_witness(
+        failure_surface: &'static str,
+        witness: Plan09TriggerWitness,
+    ) -> Plan08DeferredRule {
+        Plan08DeferredRule {
+            pool_family: "trigger-effect-selects",
+            failure_surface,
+            authority: Plan08DeferredAuthority::Plan09TriggerPredicate { witness },
         }
     }
 
@@ -650,7 +681,7 @@ mod tests {
         }
     }
 
-    const PLAN08_DEFERRED_RULES: [Plan08DeferredRule; 49] = [
+    const PLAN08_DEFERRED_RULES: [Plan08DeferredRule; 47] = [
         plan09_cost("Discard"),
         plan09_cost("Exile"),
         plan09_cost("Pay"),
@@ -680,39 +711,37 @@ mod tests {
         },
         plan09_trigger("activate"),
         plan09_trigger("activates"),
-        plan09_trigger("and/or"),
         plan09_trigger("are"),
         plan09_trigger("attacks"),
         plan09_trigger("becomes"),
         plan09_trigger("blocks"),
         plan09_trigger("cast"),
         plan09_trigger("casts"),
-        plan09_trigger("combat"),
+        plan09_trigger_witness("combat", Plan09TriggerWitness::DamageAmount),
         plan09_trigger("control"),
         plan09_trigger("controls"),
-        plan09_trigger("create"),
-        plan09_trigger("damage"),
+        plan09_trigger("causes"),
+        plan09_trigger_witness("create", Plan09TriggerWitness::PredicateRootOrTemporalBody),
+        plan09_trigger_witness("damage", Plan09TriggerWitness::DamageAmount),
         plan09_trigger("didn't"),
         plan09_trigger("dies"),
         plan09_trigger("discards"),
-        plan09_trigger("draw"),
-        plan09_trigger("draws"),
+        plan09_trigger_witness("draw", Plan09TriggerWitness::PredicateRootOrTemporalBody),
+        plan09_trigger_witness("draws", Plan09TriggerWitness::PredicateRootOrTemporalBody),
         plan09_trigger("enter"),
         plan09_trigger("enters"),
         plan09_trigger("has"),
         plan09_trigger("have"),
         plan09_trigger("is"),
         plan09_trigger("leave"),
-        plan09_trigger("life"),
+        plan09_trigger_witness("life", Plan09TriggerWitness::GainAmount),
         plan09_trigger("loses"),
-        plan09_trigger("or"),
-        plan09_trigger("other"),
         plan09_trigger("put"),
         plan09_trigger("roll"),
         plan09_trigger("sacrifice"),
         plan09_trigger("sacrifices"),
         plan09_trigger("taps"),
-        plan09_trigger("there"),
+        plan09_trigger_witness("there", Plan09TriggerWitness::InterveningCondition),
         Plan08DeferredRule {
             pool_family: "trigger-effect-selects",
             failure_surface: "cycles",
@@ -811,39 +840,93 @@ mod tests {
 
     fn assert_plan08_deferred_authority(
         rule: Plan08DeferredRule,
+        parser: &deckmaste_english_v2::parser::Parser,
+        context: &deckmaste_english_v2::context::ParseContext<'_>,
+        id: &str,
         text: &str,
         span: deckmaste_english_v2::parser::TextSpan,
-        keyword_abilities: &str,
-        keyword_actions: &str,
-        ability_words: &str,
+        catalogs: Plan08BoundaryCatalogs<'_>,
     ) {
         let has_entry = |catalog: &str, entry: &str| catalog.lines().any(|row| row == entry);
         match rule.authority {
-            Plan08DeferredAuthority::Plan09TriggerPredicate => {
+            Plan08DeferredAuthority::Plan09TriggerPredicate { witness } => {
                 assert_eq!(rule.pool_family, "trigger-effect-selects");
+                let prefix = &text[..span.start];
+                let mut controlled = Vec::new();
+                if matches!(
+                    witness,
+                    Plan09TriggerWitness::PredicateRoot
+                        | Plan09TriggerWitness::PredicateRootOrTemporalBody
+                ) {
+                    controlled.extend(
+                        ["gain", "gains"]
+                            .map(|verb| format!("{prefix}{verb} 1 life, you gain 1 life.")),
+                    );
+                }
+                if matches!(witness, Plan09TriggerWitness::GainAmount) {
+                    controlled.push(format!("{prefix}1 life, you gain 1 life."));
+                }
+                if matches!(witness, Plan09TriggerWitness::DamageAmount) {
+                    controlled.push(format!("{prefix}1 damage to you, you gain 1 life."));
+                }
+                if matches!(witness, Plan09TriggerWitness::PredicateRootOrTemporalBody) {
+                    controlled
+                        .extend(["gain", "gains"].map(|verb| format!("{prefix}{verb} 1 life.")));
+                }
+                if matches!(witness, Plan09TriggerWitness::InterveningCondition) {
+                    controlled.push(format!("{prefix}you gain 1 life, you gain 1 life."));
+                }
+                let selected = controlled
+                    .iter()
+                    .filter(|witness| {
+                        parser.analyze(witness, context).outcome()
+                            == deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(selected.len(), 1, "{id}: {controlled:#?}");
+                let analysis = parser.analyze(selected[0], context);
+                assert_eq!(
+                    analysis
+                        .ownership()
+                        .expect("controlled trigger witness ownership")
+                        .rendered_text(),
+                    selected[0],
+                    "{id}",
+                );
+                let decision = analysis
+                    .decision()
+                    .expect("controlled trigger witness selection");
+                assert_eq!(decision.survivors().len(), 1, "{id}");
+                assert!(decision.exception_uses().is_empty(), "{id}");
             }
             Plan08DeferredAuthority::Plan09ActivatedCostAction => {
                 assert_eq!(rule.pool_family, "activated-effect-selects");
+                let colon = text
+                    .find(": ")
+                    .expect("activated witness has a cost boundary");
+                assert!(span.end <= colon, "{id}");
+                let controlled = format!("{{T}}{}", &text[colon..]);
+                assert_unique_plan08_ability(parser, context, id, &controlled);
             }
             Plan08DeferredAuthority::Plan10KeywordAbility {
                 catalog_entry,
                 boundary_phrase,
             } => {
-                assert!(has_entry(keyword_abilities, catalog_entry));
+                assert!(has_entry(catalogs.keyword_abilities, catalog_entry));
                 assert!(text[span.start..].starts_with(boundary_phrase));
             }
             Plan08DeferredAuthority::Plan10KeywordAction {
                 catalog_entry,
                 boundary_phrase,
             } => {
-                assert!(has_entry(keyword_actions, catalog_entry));
+                assert!(has_entry(catalogs.keyword_actions, catalog_entry));
                 assert!(text[span.start..].starts_with(boundary_phrase));
             }
             Plan08DeferredAuthority::Plan10AbilityWord {
                 catalog_entry,
                 label,
             } => {
-                assert!(has_entry(ability_words, catalog_entry));
+                assert!(has_entry(catalogs.ability_words, catalog_entry));
                 assert!(text.starts_with(&format!("{label} — ")));
             }
             Plan08DeferredAuthority::Plan10FlavorWord { label } => {
@@ -1173,11 +1256,16 @@ mod tests {
             let rule = plan08_deferred_rule(fields[1], failure_surface);
             assert_plan08_deferred_authority(
                 rule,
+                &parser,
+                &context,
+                id,
                 unit.text(),
                 span,
-                &keyword_abilities,
-                &keyword_actions,
-                &ability_words,
+                Plan08BoundaryCatalogs {
+                    keyword_abilities: &keyword_abilities,
+                    keyword_actions: &keyword_actions,
+                    ability_words: &ability_words,
+                },
             );
             used_rules.insert((rule.pool_family, rule.failure_surface));
             let expected_category = rule.authority.category();
@@ -1291,7 +1379,7 @@ mod tests {
         );
         assert_eq!(
             sha256_hex(PLAN08_CANDIDATE_RESULTS.as_bytes()),
-            "303e15262ec4ef81dbbba478c41a1fbdcf285b03efec499a9c63d55cca9f014e",
+            "cb5f2a5be7829192e5fbc234b394fa5b3121ab1c08e320160ce7292afb9a6048",
         );
         assert_eq!(
             PLAN08_CANDIDATE_RESULTS
@@ -1495,11 +1583,16 @@ mod tests {
                     let rule = plan08_deferred_rule(pool_family, failure_surface);
                     assert_plan08_deferred_authority(
                         rule,
+                        &parser,
+                        &context,
+                        id,
                         unit.text(),
                         span,
-                        &keyword_abilities,
-                        &keyword_actions,
-                        &ability_words,
+                        Plan08BoundaryCatalogs {
+                            keyword_abilities: &keyword_abilities,
+                            keyword_actions: &keyword_actions,
+                            ability_words: &ability_words,
+                        },
                     );
                     assert_eq!(*category, rule.authority.category(), "{id}");
                     if *category == "plan09-predicate" {
@@ -1555,9 +1648,9 @@ mod tests {
             "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd"
         );
         assert_eq!(coverage["summary"]["total_units"], 32_641);
-        assert_eq!(coverage["summary"]["selected_units"], 726);
-        assert_eq!(coverage["summary"]["covered_units"], 726);
-        assert_eq!(coverage["summary"]["parse_failures"], 31_915);
+        assert_eq!(coverage["summary"]["selected_units"], 733);
+        assert_eq!(coverage["summary"]["covered_units"], 733);
+        assert_eq!(coverage["summary"]["parse_failures"], 31_908);
         for counter in [
             "selected_uncovered_units",
             "unresolved_ties",
@@ -1580,7 +1673,7 @@ mod tests {
         .expect("production ambiguity baseline renders");
         let ambiguity: serde_json::Value =
             serde_json::from_slice(&ambiguity_json).expect("ambiguity baseline is JSON");
-        assert_eq!(ambiguity["summary"]["unique"], 726);
+        assert_eq!(ambiguity["summary"]["unique"], 733);
         assert_eq!(ambiguity["summary"]["specificity_resolved"], 0);
         for counter in [
             "exception_resolved",
@@ -2986,6 +3079,7 @@ mod tests {
             | "function agreement_matches_for_unqualified_reference"
             | "function walk_unqualified_reference" => &[
                 "construction indefinite_reference",
+                "construction indefinite_coordination_reference",
                 "construction named_card_reference",
                 "construction ordinary_singular_reference",
                 "construction ordinary_plural_reference",
@@ -2993,6 +3087,7 @@ mod tests {
                 "construction definite_plural_reference",
                 "construction any_target_reference",
                 "construction another_reference",
+                "construction another_coordination_reference",
                 "construction each_reference",
                 "construction all_reference",
                 "construction fixed_reference",
@@ -3004,6 +3099,7 @@ mod tests {
                 "construction counted_reference",
                 "construction this_reference",
                 "construction that_reference",
+                "construction demonstrative_possessive_reference",
                 "construction those_reference",
                 "construction designated_singular_reference",
                 "construction designated_plural_reference",
@@ -3033,9 +3129,15 @@ mod tests {
             | "function walk_determiner_phrase" => &[
                 "construction target_determiner_phrase",
                 "construction target_coordination_determiner_phrase",
+                "construction indefinite_determiner_phrase",
+                "construction this_determiner_phrase",
+                "construction another_determiner_phrase",
             ],
             "type FullNounPhraseCoordination"
             | "function render_full_noun_phrase_coordination"
+            | "function agreement_for_full_noun_phrase_coordination"
+            | "function number_for_full_noun_phrase_coordination"
+            | "function agreement_matches_for_full_noun_phrase_coordination"
             | "function walk_full_noun_phrase_coordination" => &[
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
@@ -3115,6 +3217,7 @@ mod tests {
             | "function walk_controller_stage" => &[
                 "construction unqualified_controller_stage",
                 "construction controller_qualified_reference",
+                "construction other_than_qualified_reference",
             ],
             "type ZoneStage"
             | "function render_zone_stage"
@@ -3629,10 +3732,16 @@ mod tests {
             "type IndefiniteReference" | "function walk_indefinite_reference" => {
                 &["construction indefinite_reference"]
             }
+            "type IndefiniteCoordinationReference"
+            | "function walk_indefinite_coordination_reference" => {
+                &["construction indefinite_coordination_reference"]
+            }
             "type NamedCardReference" | "function walk_named_card_reference" => {
                 &["construction named_card_reference"]
             }
-            "type OrdinarySingularReference" | "function walk_ordinary_singular_reference" => {
+            "type OrdinarySingularReference"
+            | "impl OrdinarySingularReference"
+            | "function walk_ordinary_singular_reference" => {
                 &["construction ordinary_singular_reference"]
             }
             "type OrdinaryPluralReference"
@@ -3652,6 +3761,10 @@ mod tests {
             "type AnotherReference"
             | "impl AnotherReference"
             | "function walk_another_reference" => &["construction another_reference"],
+            "type AnotherCoordinationReference"
+            | "function walk_another_coordination_reference" => {
+                &["construction another_coordination_reference"]
+            }
             "type EachReference" | "function walk_each_reference" => {
                 &["construction each_reference"]
             }
@@ -3683,6 +3796,10 @@ mod tests {
             "type ThatReference" | "function walk_that_reference" => {
                 &["construction that_reference"]
             }
+            "type DemonstrativePossessiveReference"
+            | "function walk_demonstrative_possessive_reference" => {
+                &["construction demonstrative_possessive_reference"]
+            }
             "type ThoseReference" | "function walk_those_reference" => {
                 &["construction those_reference"]
             }
@@ -3713,6 +3830,17 @@ mod tests {
             "type TargetCoordinationDeterminerPhrase"
             | "function walk_target_coordination_determiner_phrase" => {
                 &["construction target_coordination_determiner_phrase"]
+            }
+            "type IndefiniteDeterminerPhrase" | "function walk_indefinite_determiner_phrase" => {
+                &["construction indefinite_determiner_phrase"]
+            }
+            "type ThisDeterminerPhrase" | "function walk_this_determiner_phrase" => {
+                &["construction this_determiner_phrase"]
+            }
+            "type AnotherDeterminerPhrase"
+            | "impl AnotherDeterminerPhrase"
+            | "function walk_another_determiner_phrase" => {
+                &["construction another_determiner_phrase"]
             }
             "type FullAndNounPhraseCoordination"
             | "impl FullAndNounPhraseCoordination"
@@ -3787,6 +3915,9 @@ mod tests {
             "type ControllerQualifiedReference"
             | "function walk_controller_qualified_reference" => {
                 &["construction controller_qualified_reference"]
+            }
+            "type OtherThanQualifiedReference" | "function walk_other_than_qualified_reference" => {
+                &["construction other_than_qualified_reference"]
             }
             "type UnqualifiedZoneStage" | "function walk_unqualified_zone_stage" => {
                 &["construction unqualified_zone_stage"]
@@ -3868,6 +3999,12 @@ mod tests {
             "type ChosenQuality"
             | "function render_chosen_quality"
             | "function walk_chosen_quality" => &["vocab ChosenQuality"],
+            "type IndefiniteArticle"
+            | "function render_indefinite_article"
+            | "function walk_indefinite_article" => &["vocab IndefiniteArticle"],
+            "type SingularDemonstrative"
+            | "function render_singular_demonstrative"
+            | "function walk_singular_demonstrative" => &["vocab SingularDemonstrative"],
             "type ControllerNoun"
             | "function render_controller_noun"
             | "function walk_controller_noun" => &["vocab ControllerNoun"],
@@ -4058,6 +4195,8 @@ mod tests {
                 "vocab Status",
                 "vocab Designation",
                 "vocab ChosenQuality",
+                "vocab IndefiniteArticle",
+                "vocab SingularDemonstrative",
                 "vocab ControllerNoun",
                 "vocab FixedCostSymbol",
                 "vocab ModalChooser",
@@ -4220,6 +4359,7 @@ mod tests {
                 "construction other_plural_selector",
                 "construction other_target_plural_selector",
                 "construction indefinite_reference",
+                "construction indefinite_coordination_reference",
                 "construction named_card_reference",
                 "construction ordinary_singular_reference",
                 "construction ordinary_plural_reference",
@@ -4227,6 +4367,7 @@ mod tests {
                 "construction definite_plural_reference",
                 "construction any_target_reference",
                 "construction another_reference",
+                "construction another_coordination_reference",
                 "construction each_reference",
                 "construction all_reference",
                 "construction fixed_reference",
@@ -4239,6 +4380,7 @@ mod tests {
                 "construction counted_reference",
                 "construction this_reference",
                 "construction that_reference",
+                "construction demonstrative_possessive_reference",
                 "construction those_reference",
                 "construction designated_singular_reference",
                 "construction designated_plural_reference",
@@ -4248,6 +4390,9 @@ mod tests {
                 "construction possessive_absolute_reference",
                 "construction target_determiner_phrase",
                 "construction target_coordination_determiner_phrase",
+                "construction indefinite_determiner_phrase",
+                "construction this_determiner_phrase",
+                "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
                 "construction full_and_or_noun_phrase_coordination",
@@ -4277,6 +4422,7 @@ mod tests {
                 "construction scalar_qualification",
                 "construction unqualified_controller_stage",
                 "construction controller_qualified_reference",
+                "construction other_than_qualified_reference",
                 "construction unqualified_zone_stage",
                 "construction zone_qualified_reference",
                 "construction unqualified_numeric_stage",
@@ -4323,6 +4469,8 @@ mod tests {
                 "vocab Status",
                 "vocab Designation",
                 "vocab ChosenQuality",
+                "vocab IndefiniteArticle",
+                "vocab SingularDemonstrative",
                 "vocab ControllerNoun",
                 "vocab FixedCostSymbol",
                 "vocab ModalChooser",
@@ -4601,6 +4749,7 @@ mod tests {
                 "construction other_plural_selector",
                 "construction other_target_plural_selector",
                 "construction indefinite_reference",
+                "construction indefinite_coordination_reference",
                 "construction named_card_reference",
                 "construction ordinary_singular_reference",
                 "construction ordinary_plural_reference",
@@ -4608,6 +4757,7 @@ mod tests {
                 "construction definite_plural_reference",
                 "construction any_target_reference",
                 "construction another_reference",
+                "construction another_coordination_reference",
                 "construction each_reference",
                 "construction all_reference",
                 "construction fixed_reference",
@@ -4619,6 +4769,7 @@ mod tests {
                 "construction counted_reference",
                 "construction this_reference",
                 "construction that_reference",
+                "construction demonstrative_possessive_reference",
                 "construction those_reference",
                 "construction designated_singular_reference",
                 "construction designated_plural_reference",
@@ -4632,6 +4783,9 @@ mod tests {
                 "construction that_many",
                 "construction target_determiner_phrase",
                 "construction target_coordination_determiner_phrase",
+                "construction indefinite_determiner_phrase",
+                "construction this_determiner_phrase",
+                "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
                 "construction full_and_or_noun_phrase_coordination",
@@ -4659,6 +4813,7 @@ mod tests {
                 "construction scalar_qualification",
                 "construction unqualified_controller_stage",
                 "construction controller_qualified_reference",
+                "construction other_than_qualified_reference",
                 "construction unqualified_zone_stage",
                 "construction zone_qualified_reference",
                 "construction unqualified_numeric_stage",
@@ -4816,6 +4971,7 @@ mod tests {
                 "construction other_plural_selector",
                 "construction other_target_plural_selector",
                 "construction indefinite_reference",
+                "construction indefinite_coordination_reference",
                 "construction named_card_reference",
                 "construction ordinary_singular_reference",
                 "construction ordinary_plural_reference",
@@ -4823,6 +4979,7 @@ mod tests {
                 "construction definite_plural_reference",
                 "construction any_target_reference",
                 "construction another_reference",
+                "construction another_coordination_reference",
                 "construction each_reference",
                 "construction all_reference",
                 "construction fixed_reference",
@@ -4835,6 +4992,7 @@ mod tests {
                 "construction counted_reference",
                 "construction this_reference",
                 "construction that_reference",
+                "construction demonstrative_possessive_reference",
                 "construction those_reference",
                 "construction designated_singular_reference",
                 "construction designated_plural_reference",
@@ -4844,6 +5002,9 @@ mod tests {
                 "construction possessive_absolute_reference",
                 "construction target_determiner_phrase",
                 "construction target_coordination_determiner_phrase",
+                "construction indefinite_determiner_phrase",
+                "construction this_determiner_phrase",
+                "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
                 "construction full_and_or_noun_phrase_coordination",
@@ -4873,6 +5034,7 @@ mod tests {
                 "construction scalar_qualification",
                 "construction unqualified_controller_stage",
                 "construction controller_qualified_reference",
+                "construction other_than_qualified_reference",
                 "construction unqualified_zone_stage",
                 "construction zone_qualified_reference",
                 "construction unqualified_numeric_stage",
@@ -4906,6 +5068,8 @@ mod tests {
                 "vocab Status",
                 "vocab Designation",
                 "vocab ChosenQuality",
+                "vocab IndefiniteArticle",
+                "vocab SingularDemonstrative",
                 "vocab ControllerNoun",
                 "vocab FixedCostSymbol",
                 "vocab ModalChooser",
@@ -5057,6 +5221,7 @@ mod tests {
                 "construction other_plural_selector",
                 "construction other_target_plural_selector",
                 "construction indefinite_reference",
+                "construction indefinite_coordination_reference",
                 "construction named_card_reference",
                 "construction ordinary_singular_reference",
                 "construction ordinary_plural_reference",
@@ -5064,6 +5229,7 @@ mod tests {
                 "construction definite_plural_reference",
                 "construction any_target_reference",
                 "construction another_reference",
+                "construction another_coordination_reference",
                 "construction each_reference",
                 "construction all_reference",
                 "construction fixed_reference",
@@ -5076,6 +5242,7 @@ mod tests {
                 "construction counted_reference",
                 "construction this_reference",
                 "construction that_reference",
+                "construction demonstrative_possessive_reference",
                 "construction those_reference",
                 "construction designated_singular_reference",
                 "construction designated_plural_reference",
@@ -5085,6 +5252,9 @@ mod tests {
                 "construction possessive_absolute_reference",
                 "construction target_determiner_phrase",
                 "construction target_coordination_determiner_phrase",
+                "construction indefinite_determiner_phrase",
+                "construction this_determiner_phrase",
+                "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
                 "construction full_and_or_noun_phrase_coordination",
@@ -5114,6 +5284,7 @@ mod tests {
                 "construction scalar_qualification",
                 "construction unqualified_controller_stage",
                 "construction controller_qualified_reference",
+                "construction other_than_qualified_reference",
                 "construction unqualified_zone_stage",
                 "construction zone_qualified_reference",
                 "construction unqualified_numeric_stage",
@@ -5270,6 +5441,7 @@ mod tests {
                 "construction other_plural_selector",
                 "construction other_target_plural_selector",
                 "construction indefinite_reference",
+                "construction indefinite_coordination_reference",
                 "construction named_card_reference",
                 "construction ordinary_singular_reference",
                 "construction ordinary_plural_reference",
@@ -5277,6 +5449,7 @@ mod tests {
                 "construction definite_plural_reference",
                 "construction any_target_reference",
                 "construction another_reference",
+                "construction another_coordination_reference",
                 "construction each_reference",
                 "construction all_reference",
                 "construction fixed_reference",
@@ -5289,6 +5462,7 @@ mod tests {
                 "construction counted_reference",
                 "construction this_reference",
                 "construction that_reference",
+                "construction demonstrative_possessive_reference",
                 "construction those_reference",
                 "construction designated_singular_reference",
                 "construction designated_plural_reference",
@@ -5298,6 +5472,9 @@ mod tests {
                 "construction possessive_absolute_reference",
                 "construction target_determiner_phrase",
                 "construction target_coordination_determiner_phrase",
+                "construction indefinite_determiner_phrase",
+                "construction this_determiner_phrase",
+                "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
                 "construction full_and_or_noun_phrase_coordination",
@@ -5327,6 +5504,7 @@ mod tests {
                 "construction scalar_qualification",
                 "construction unqualified_controller_stage",
                 "construction controller_qualified_reference",
+                "construction other_than_qualified_reference",
                 "construction unqualified_zone_stage",
                 "construction zone_qualified_reference",
                 "construction unqualified_numeric_stage",
@@ -5486,6 +5664,7 @@ mod tests {
                 "construction other_plural_selector",
                 "construction other_target_plural_selector",
                 "construction indefinite_reference",
+                "construction indefinite_coordination_reference",
                 "construction named_card_reference",
                 "construction ordinary_singular_reference",
                 "construction ordinary_plural_reference",
@@ -5493,6 +5672,7 @@ mod tests {
                 "construction definite_plural_reference",
                 "construction any_target_reference",
                 "construction another_reference",
+                "construction another_coordination_reference",
                 "construction each_reference",
                 "construction all_reference",
                 "construction fixed_reference",
@@ -5505,6 +5685,7 @@ mod tests {
                 "construction counted_reference",
                 "construction this_reference",
                 "construction that_reference",
+                "construction demonstrative_possessive_reference",
                 "construction those_reference",
                 "construction designated_singular_reference",
                 "construction designated_plural_reference",
@@ -5514,6 +5695,9 @@ mod tests {
                 "construction possessive_absolute_reference",
                 "construction target_determiner_phrase",
                 "construction target_coordination_determiner_phrase",
+                "construction indefinite_determiner_phrase",
+                "construction this_determiner_phrase",
+                "construction another_determiner_phrase",
                 "construction full_and_noun_phrase_coordination",
                 "construction full_or_noun_phrase_coordination",
                 "construction full_and_or_noun_phrase_coordination",
@@ -5543,6 +5727,7 @@ mod tests {
                 "construction scalar_qualification",
                 "construction unqualified_controller_stage",
                 "construction controller_qualified_reference",
+                "construction other_than_qualified_reference",
                 "construction unqualified_zone_stage",
                 "construction zone_qualified_reference",
                 "construction unqualified_numeric_stage",
@@ -5886,8 +6071,10 @@ mod tests {
         "type OtherPluralSelector",
         "type OtherTargetPluralSelector",
         "type IndefiniteReference",
+        "type IndefiniteCoordinationReference",
         "type NamedCardReference",
         "type OrdinarySingularReference",
+        "impl OrdinarySingularReference",
         "type OrdinaryPluralReference",
         "impl OrdinaryPluralReference",
         "type DefiniteSingularReference",
@@ -5895,6 +6082,7 @@ mod tests {
         "type AnyTargetReference",
         "type AnotherReference",
         "impl AnotherReference",
+        "type AnotherCoordinationReference",
         "type EachReference",
         "type AllReference",
         "type FixedReference",
@@ -5910,6 +6098,7 @@ mod tests {
         "type CountedReference",
         "type ThisReference",
         "type ThatReference",
+        "type DemonstrativePossessiveReference",
         "type ThoseReference",
         "type DesignatedSingularReference",
         "type DesignatedPluralReference",
@@ -5919,6 +6108,10 @@ mod tests {
         "type PossessiveAbsoluteReference",
         "type TargetDeterminerPhrase",
         "type TargetCoordinationDeterminerPhrase",
+        "type IndefiniteDeterminerPhrase",
+        "type ThisDeterminerPhrase",
+        "type AnotherDeterminerPhrase",
+        "impl AnotherDeterminerPhrase",
         "type FullAndNounPhraseCoordination",
         "impl FullAndNounPhraseCoordination",
         "type FullOrNounPhraseCoordination",
@@ -5956,6 +6149,7 @@ mod tests {
         "type ScalarQualificationValue",
         "type UnqualifiedControllerStage",
         "type ControllerQualifiedReference",
+        "type OtherThanQualifiedReference",
         "type UnqualifiedZoneStage",
         "type ZoneQualifiedReference",
         "type UnqualifiedNumericStage",
@@ -5991,6 +6185,8 @@ mod tests {
         "type Status",
         "type Designation",
         "type ChosenQuality",
+        "type IndefiniteArticle",
+        "type SingularDemonstrative",
         "type ControllerNoun",
         "type FixedCostSymbol",
         "type ModalChooser",
@@ -6258,6 +6454,8 @@ mod tests {
         "function render_status",
         "function render_designation",
         "function render_chosen_quality",
+        "function render_indefinite_article",
+        "function render_singular_demonstrative",
         "function render_controller_noun",
         "function render_fixed_cost_symbol",
         "function render_modal_chooser",
@@ -6296,6 +6494,7 @@ mod tests {
         "function agreement_for_unqualified_reference",
         "function agreement_for_count_reference",
         "function agreement_for_determiner_phrase",
+        "function agreement_for_full_noun_phrase_coordination",
         "function agreement_for_controller_stage",
         "function agreement_for_zone_stage",
         "function agreement_for_numeric_stage",
@@ -6311,6 +6510,7 @@ mod tests {
         "function number_for_unqualified_reference",
         "function number_for_count_reference",
         "function number_for_determiner_phrase",
+        "function number_for_full_noun_phrase_coordination",
         "function number_for_controller_stage",
         "function number_for_zone_stage",
         "function number_for_numeric_stage",
@@ -6347,6 +6547,7 @@ mod tests {
         "function agreement_matches_for_unqualified_reference",
         "function agreement_matches_for_count_reference",
         "function agreement_matches_for_determiner_phrase",
+        "function agreement_matches_for_full_noun_phrase_coordination",
         "function agreement_matches_for_scalar_reference",
         "function agreement_matches_for_controller_stage",
         "function agreement_matches_for_zone_stage",
@@ -6571,6 +6772,7 @@ mod tests {
         "function walk_other_plural_selector",
         "function walk_other_target_plural_selector",
         "function walk_indefinite_reference",
+        "function walk_indefinite_coordination_reference",
         "function walk_named_card_reference",
         "function walk_ordinary_singular_reference",
         "function walk_ordinary_plural_reference",
@@ -6578,6 +6780,7 @@ mod tests {
         "function walk_definite_plural_reference",
         "function walk_any_target_reference",
         "function walk_another_reference",
+        "function walk_another_coordination_reference",
         "function walk_each_reference",
         "function walk_all_reference",
         "function walk_fixed_reference",
@@ -6590,6 +6793,7 @@ mod tests {
         "function walk_counted_reference",
         "function walk_this_reference",
         "function walk_that_reference",
+        "function walk_demonstrative_possessive_reference",
         "function walk_those_reference",
         "function walk_designated_singular_reference",
         "function walk_designated_plural_reference",
@@ -6599,6 +6803,9 @@ mod tests {
         "function walk_possessive_absolute_reference",
         "function walk_target_determiner_phrase",
         "function walk_target_coordination_determiner_phrase",
+        "function walk_indefinite_determiner_phrase",
+        "function walk_this_determiner_phrase",
+        "function walk_another_determiner_phrase",
         "function walk_full_and_noun_phrase_coordination",
         "function walk_full_or_noun_phrase_coordination",
         "function walk_full_and_or_noun_phrase_coordination",
@@ -6628,6 +6835,7 @@ mod tests {
         "function walk_scalar_qualification_value",
         "function walk_unqualified_controller_stage",
         "function walk_controller_qualified_reference",
+        "function walk_other_than_qualified_reference",
         "function walk_unqualified_zone_stage",
         "function walk_zone_qualified_reference",
         "function walk_unqualified_numeric_stage",
@@ -6661,6 +6869,8 @@ mod tests {
         "function walk_status",
         "function walk_designation",
         "function walk_chosen_quality",
+        "function walk_indefinite_article",
+        "function walk_singular_demonstrative",
         "function walk_controller_noun",
         "function walk_fixed_cost_symbol",
         "function walk_modal_chooser",
@@ -7355,7 +7565,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 1045);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 1070);
         assert!(
             headings == EXPECTED_ITEM_KEYS,
             "missing={:#?}; unexpected={:#?}; first mismatch={:?}",
@@ -7403,7 +7613,9 @@ mod tests {
             .1;
         assert_eq!(
             report,
-            "// morphology irregulars (1)\n\
+            "// morphology irregulars (2)\n\
+             // - lexeme:CommonNoun/Ability\n\
+             //   - plural = \"abilities\"\n\
              // - lexeme:VerbLexeme/Be\n\
              //   - bare = \"are\"\n\
              //   - third_person_singular = \"is\"\n\
@@ -7427,7 +7639,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 1045);
+        assert_eq!(parsed.items.len(), 1070);
     }
 
     #[test]

@@ -478,11 +478,12 @@ fn indefinite(noun: Noun) -> NounPhrase {
 
 fn target_noun(noun: Noun) -> NounPhrase {
     noun_phrase(UnqualifiedReference::OrdinarySingularReference(
-        OrdinarySingularReference {
-            phrase: DeterminerPhrase::TargetDeterminerPhrase(TargetDeterminerPhrase {
+        OrdinarySingularReference::new(DeterminerPhrase::TargetDeterminerPhrase(
+            TargetDeterminerPhrase {
                 nominal: singular_nominal(noun),
-            }),
-        },
+            },
+        ))
+        .expect("target determiner is an ordinary singular reference"),
     ))
 }
 
@@ -1146,6 +1147,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "OtherPluralSelector",
             "OtherTargetPluralSelector",
             "IndefiniteReference",
+            "IndefiniteCoordinationReference",
             "NamedCardReference",
             "OrdinarySingularReference",
             "OrdinaryPluralReference",
@@ -1153,6 +1155,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "DefinitePluralReference",
             "AnyTargetReference",
             "AnotherReference",
+            "AnotherCoordinationReference",
             "EachReference",
             "AllReference",
             "FixedReference",
@@ -1165,6 +1168,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "CountedReference",
             "ThisReference",
             "ThatReference",
+            "DemonstrativePossessiveReference",
             "ThoseReference",
             "DesignatedSingularReference",
             "DesignatedPluralReference",
@@ -1174,6 +1178,9 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "PossessiveAbsoluteReference",
             "TargetDeterminerPhrase",
             "TargetCoordinationDeterminerPhrase",
+            "IndefiniteDeterminerPhrase",
+            "ThisDeterminerPhrase",
+            "AnotherDeterminerPhrase",
             "FullAndNounPhraseCoordination",
             "FullOrNounPhraseCoordination",
             "FullAndOrNounPhraseCoordination",
@@ -1203,6 +1210,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "ScalarQualificationValue",
             "UnqualifiedControllerStage",
             "ControllerQualifiedReference",
+            "OtherThanQualifiedReference",
             "UnqualifiedZoneStage",
             "ZoneQualifiedReference",
             "UnqualifiedNumericStage",
@@ -1236,6 +1244,8 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Status",
             "Designation",
             "ChosenQuality",
+            "IndefiniteArticle",
+            "SingularDemonstrative",
             "ControllerNoun",
             "FixedCostSymbol",
             "ModalChooser",
@@ -2161,9 +2171,9 @@ fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_err
                 end: text.len()
             }
         );
-        assert_eq!(failure.expectations().total(), 31);
+        assert_eq!(failure.expectations().total(), 32);
         assert_eq!(failure.expectations().shown(), expected_shown);
-        assert_eq!(failure.expectations().omitted(), 31 - expected_shown);
+        assert_eq!(failure.expectations().omitted(), 32 - expected_shown);
         if limit > 0 {
             assert_eq!(
                 failure.expectations().items()[0],
@@ -2253,14 +2263,14 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Terminal(TerminalClass::NonTargetCommonModifier),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(33)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(34)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(35)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(36)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(37)),
                 Expectation::Literal("non"),
                 Expectation::Literal("non-"),
             ]),
@@ -2287,14 +2297,14 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Nonterminal(NonterminalCategory::ScalarQualification),
                 Expectation::Terminal(TerminalClass::SubjectPronoun),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(33)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(34)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(35)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(36)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(37)),
                 Expectation::Literal(" and "),
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),
@@ -2308,6 +2318,7 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Literal("from"),
                 Expectation::Literal("if"),
                 Expectation::Literal("in"),
+                Expectation::Literal("other"),
                 Expectation::Literal("unless"),
                 Expectation::Literal("with"),
             ]),

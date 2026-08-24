@@ -744,7 +744,7 @@ mod tests {
                 report.checked_constructor_bindings.len(),
                 report.roots.len(),
             ],
-            [0, 0, 0, 1, 27, 0, 0, 0, 8],
+            [0, 0, 0, 1, 28, 0, 0, 0, 8],
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
@@ -934,7 +934,12 @@ mod tests {
             actual,
             expected_irregulars()
                 .into_iter()
-                .skip(1)
+                .filter(|(identity, _)| {
+                    !matches!(
+                        *identity,
+                        "lexeme:CommonNoun/Ability" | "lexeme:VerbLexeme/Be"
+                    )
+                })
                 .map(|(identity, rows)| (identity.to_owned(), rows[0].1.to_owned()))
                 .collect::<Vec<_>>()
         );
@@ -968,6 +973,12 @@ mod tests {
                 "removal_target": null
             }],
             "morphology_irregulars": [
+                {
+                    "identity": "lexeme:CommonNoun/Ability",
+                    "overrides": [
+                        { "feature": "plural", "surface": "abilities" }
+                    ]
+                },
                 {
                     "identity": "lexeme:VerbLexeme/Be",
                     "overrides": [
@@ -1293,6 +1304,7 @@ mod tests {
 
     fn expected_irregulars() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
         vec![
+            ("lexeme:CommonNoun/Ability", vec![("plural", "abilities")]),
             (
                 "lexeme:VerbLexeme/Be",
                 vec![("bare", "are"), ("third_person_singular", "is")],

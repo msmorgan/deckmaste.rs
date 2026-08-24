@@ -2212,14 +2212,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            28,
+            30,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            31,
+            33,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2239,14 +2239,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            28,
+            30,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            31,
+            33,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2271,13 +2271,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (29, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (30, "Siege.", "Siege", SubtypeCategory::Battle),
-            (31, "Elf.", "Elf", SubtypeCategory::Creature),
-            (32, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (33, "Forest.", "Forest", SubtypeCategory::Land),
-            (34, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (35, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (31, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (32, "Siege.", "Siege", SubtypeCategory::Battle),
+            (33, "Elf.", "Elf", SubtypeCategory::Creature),
+            (34, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (35, "Forest.", "Forest", SubtypeCategory::Land),
+            (36, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (37, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2295,7 +2295,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (29..=35).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (31..=37).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2311,7 +2311,7 @@ mod tests {
         }
 
         let player = scan(
-            28,
+            30,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2859,6 +2859,7 @@ mod tests {
                 "PluralSelectorOtherTargetPluralSelector",
                 "UnqualifiedReferenceIndefiniteReference [form an]",
                 "UnqualifiedReferenceIndefiniteReference [form a]",
+                "UnqualifiedReferenceIndefiniteCoordinationReference",
                 "UnqualifiedReferenceNamedCardReference",
                 "UnqualifiedReferenceOrdinarySingularReference",
                 "UnqualifiedReferenceOrdinaryPluralReference",
@@ -2866,6 +2867,7 @@ mod tests {
                 "UnqualifiedReferenceDefinitePluralReference",
                 "UnqualifiedReferenceAnyTargetReference",
                 "UnqualifiedReferenceAnotherReference",
+                "UnqualifiedReferenceAnotherCoordinationReference",
                 "UnqualifiedReferenceEachReference",
                 "UnqualifiedReferenceAllReference",
                 "UnqualifiedReferenceFixedReference",
@@ -2878,6 +2880,7 @@ mod tests {
                 "UnqualifiedReferenceCountedReference",
                 "UnqualifiedReferenceThisReference",
                 "UnqualifiedReferenceThatReference",
+                "UnqualifiedReferenceDemonstrativePossessiveReference",
                 "UnqualifiedReferenceThoseReference",
                 "UnqualifiedReferenceDesignatedSingularReference",
                 "UnqualifiedReferenceDesignatedPluralReference",
@@ -2887,6 +2890,9 @@ mod tests {
                 "UnqualifiedReferencePossessiveAbsoluteReference",
                 "DeterminerPhraseTargetDeterminerPhrase",
                 "DeterminerPhraseTargetCoordinationDeterminerPhrase",
+                "DeterminerPhraseIndefiniteDeterminerPhrase",
+                "DeterminerPhraseThisDeterminerPhrase",
+                "DeterminerPhraseAnotherDeterminerPhrase",
                 "FullAndNounPhraseCoordinationMembersSequencePair",
                 "FullAndNounPhraseCoordinationMembersSequenceThreePlus",
                 "FullAndNounPhraseCoordinationMembersSequenceLast",
@@ -2926,6 +2932,7 @@ mod tests {
                 "ScalarQualificationScalarQualification",
                 "ControllerStageUnqualifiedControllerStage",
                 "ControllerStageControllerQualifiedReference",
+                "ControllerStageOtherThanQualifiedReference",
                 "ZoneStageUnqualifiedZoneStage",
                 "ZoneStageZoneQualifiedReference",
                 "NumericStageUnqualifiedNumericStage",
@@ -3049,23 +3056,23 @@ mod tests {
                 "ObjectPronoun",
                 "ReflexivePronoun",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(28, Exact(Singular))",
-                "DeclarationNoun(29, Exact(Singular))",
                 "DeclarationNoun(30, Exact(Singular))",
                 "DeclarationNoun(31, Exact(Singular))",
                 "DeclarationNoun(32, Exact(Singular))",
                 "DeclarationNoun(33, Exact(Singular))",
                 "DeclarationNoun(34, Exact(Singular))",
                 "DeclarationNoun(35, Exact(Singular))",
+                "DeclarationNoun(36, Exact(Singular))",
+                "DeclarationNoun(37, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(28, Exact(Plural))",
-                "DeclarationNoun(29, Exact(Plural))",
                 "DeclarationNoun(30, Exact(Plural))",
                 "DeclarationNoun(31, Exact(Plural))",
                 "DeclarationNoun(32, Exact(Plural))",
                 "DeclarationNoun(33, Exact(Plural))",
                 "DeclarationNoun(34, Exact(Plural))",
                 "DeclarationNoun(35, Exact(Plural))",
+                "DeclarationNoun(36, Exact(Plural))",
+                "DeclarationNoun(37, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -3077,9 +3084,10 @@ mod tests {
                 "Literal(\"other\")",
                 "Literal(\"an\")",
                 "Literal(\"a\")",
+                "IndefiniteArticle",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(37)",
+                "CatalogIdentity(39)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -3092,6 +3100,8 @@ mod tests {
                 "Literal(\"that\")",
                 "Literal(\"many\")",
                 "Literal(\"this\")",
+                "SingularDemonstrative",
+                "Literal(\"'s\")",
                 "Literal(\"those\")",
                 "Designation",
                 "Literal(\"chosen\")",
@@ -3117,7 +3127,6 @@ mod tests {
                 "Literal(\"equal\")",
                 "Literal(\"fewer\")",
                 "Literal(\"with\")",
-                "Literal(\"'s\")",
                 "Literal(\"'\")",
                 "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Destroy\", position: Verb, feature: Any })",
                 "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Connive\", position: Verb, feature: Any })",

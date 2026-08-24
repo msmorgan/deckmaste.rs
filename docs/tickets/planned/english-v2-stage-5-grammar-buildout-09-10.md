@@ -24,11 +24,11 @@ scope. `target` remains a linguistic determiner in English syntax; later
 semantic targeting projection must not be encoded as a targeted-noun-phrase
 grammar category.
 
-The locked Plan 08 corpus baseline is 32,641 normalized units: 726 are
-selected, covered, unique, byte-exact, and totally owned, while 31,915 are
+The locked Plan 08 corpus baseline is 32,641 normalized units: 733 are
+selected, covered, unique, byte-exact, and totally owned, while 31,908 are
 ordinary parse failures. The schema-2 lock preserves all 608 Plan 07 IDs and
-adds exactly the frozen 118 Plan 08 targets. Its SHA-256 is
-`c79c684025df3ed8efc5b34537758788cdfb2b88f0755b5d3f378820924a51a6`;
+adds exactly the frozen 125 Plan 08 targets. Its SHA-256 is
+`ae6aedbef1574a884c5c822ae0c9f074b71754bf8d80cb07d59a28e896e7cdae`;
 the corpus source fingerprint remains
 `e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd`.
 
@@ -36,13 +36,13 @@ The elapsed-time hard ceiling remains 16.26 seconds for each of the seven
 corpus-scale gates. Derived at exactly 1.5× the fresh Plan 08 samples, Plan 09
 WARNING thresholds are:
 
-- expand: 2.0072775930s;
-- report: 1.3607821950s;
-- parse: 21.1099162575s;
-- roundtrip: 19.0428902895s;
-- ambiguity: 18.5659546665s;
-- coverage: 21.3578964510s;
-- require-complete: 19.3413890325s.
+- expand: 1.7581478250s;
+- report: 1.1388438960s;
+- parse: 20.3375552040s;
+- roundtrip: 18.7153397520s;
+- ambiguity: 20.1380457720s;
+- coverage: 20.9106194250s;
+- require-complete: 19.2568443945s.
 
 The warning thresholds do not relax the 16.26-second hard ceiling. Before
 implementing either remaining plan, author and obtain approval of its detailed

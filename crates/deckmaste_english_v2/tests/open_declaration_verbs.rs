@@ -617,6 +617,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             .map(|row| (row.member(), row.feature(), row.surface()))
             .collect::<Vec<_>>(),
         [
+            ("Ability", SurfaceFeature::Singular, "ability"),
+            ("Ability", SurfaceFeature::Plural, "abilities"),
             ("Card", SurfaceFeature::Singular, "card"),
             ("Card", SurfaceFeature::Plural, "cards"),
             ("Controller", SurfaceFeature::Singular, "controller"),
