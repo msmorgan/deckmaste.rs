@@ -3233,7 +3233,9 @@ impl Visitor for AttachmentEnvelopeVisitor {
                     other => panic!("unexpected trigger subject payload: {other:?}"),
                 }
             }
-            other => panic!("unexpected attachment subject payload: {other:?}"),
+            other @ Subject::SubjectPronoun(_) => {
+                panic!("unexpected attachment subject payload: {other:?}")
+            }
         }
     }
 
@@ -3277,15 +3279,45 @@ fn literal_claims(
         .collect()
 }
 
+fn assert_attachment_parse_rejected(parser: &Parser, context: &ParseContext<'_>, text: &str) {
+    assert!(
+        parser.parse(text, context).is_err(),
+        "attachment punctuation, spacing, capitalization, and order stay local: {text}",
+    );
+}
+
+fn assert_attachment_has_no_selection(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+    expected_span: TextSpan,
+) {
+    let analysis = parser.analyze(text, context);
+    assert!(
+        analysis.selected().is_none(),
+        "the nonrecursive intermediate stage cannot select a composed/reordered attachment: {text}",
+    );
+    let error = parser
+        .parse(text, context)
+        .expect_err("the composed/reordered attachment remains a parse failure");
+    let ParseError::Failure { span, .. } = error else {
+        panic!("the attachment negative must be an ordinary parse failure: {text}")
+    };
+    assert_eq!(
+        span, expected_span,
+        "the rejection boundary is exact: {text}"
+    );
+}
+
 #[test]
-fn conditional_attachment_stage_has_exact_root_trigger_and_activation_evidence() {
+fn conditional_attachment_root_scope_matrix_is_exact() {
     let parser = parser();
     let context = context("Context Card", false);
     let condition = connive_clause();
     let gain = Predicate::Atomic(gain_life_predicate(2));
-
     let root_text = "If you connive, gain 2 life.";
     let root = assert_one_logic_candidate(&parser, &context, root_text);
+
     assert_eq!(
         root,
         Ability::Plain(Plain {
@@ -3301,84 +3333,15 @@ fn conditional_attachment_stage_has_exact_root_trigger_and_activation_evidence()
         }),
     );
 
-    let trigger_text = "Whenever a player connives, gain 2 life if you connive.";
-    let trigger = assert_one_logic_candidate(&parser, &context, trigger_text);
     assert_eq!(
-        trigger,
-        Ability::Triggered(Triggered {
-            trigger: TriggerPrefix::Finite(Finite {
-                marker: TriggerMarker::Whenever,
-                clause: player_connive_clause(),
-            }),
-            intervening_if: None,
-            body: AbilityBody::Sentences(
-                Sentences::new(vec![Sentence::Attached(Attached {
-                    attachment: ClauseAttachment::PostposedIfPredicate(PostposedIfPredicate {
-                        body: gain.clone(),
-                        condition: condition.clone(),
-                    }),
-                })])
-                .expect("one trigger-body sentence"),
-            ),
-        }),
-        "the complete trigger envelope retains its prefix, absent intervening condition, and body",
+        literal_claims(&parser, &context, root_text, &[",", ": "]),
+        vec![(
+            14,
+            15,
+            "form:preposed_if_predicate/preposed_if_predicate/2".to_owned(),
+        )],
+        "the root attachment comma has an exact owner",
     );
-
-    let activation_text = "{T}: If you connive, gain 2 life.";
-    let activation = assert_one_logic_candidate(&parser, &context, activation_text);
-    let Ability::Activated(activated) = &activation else {
-        panic!("the post-colon surface has the activated envelope")
-    };
-    assert_eq!(
-        activated.costs(),
-        &[tap_cost()],
-        "the complete activation envelope retains its typed tap cost",
-    );
-    assert_eq!(
-        activated.body,
-        AbilityBody::Sentences(
-            Sentences::new(vec![Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
-                    condition: condition.clone(),
-                    body: gain.clone(),
-                }),
-            })])
-            .expect("one post-colon sentence"),
-        ),
-        "the complete activation envelope retains its attachment body",
-    );
-
-    for (text, expected) in [
-        (
-            root_text,
-            vec![(
-                14,
-                15,
-                "form:preposed_if_predicate/preposed_if_predicate/2".to_owned(),
-            )],
-        ),
-        (
-            trigger_text,
-            vec![(26, 27, "form:triggered/triggered/1".to_owned())],
-        ),
-        (
-            activation_text,
-            vec![
-                (3, 5, "form:activated/activated/1".to_owned()),
-                (
-                    19,
-                    20,
-                    "form:preposed_if_predicate/preposed_if_predicate/2".to_owned(),
-                ),
-            ],
-        ),
-    ] {
-        assert_eq!(
-            literal_claims(&parser, &context, text, &[",", ": "]),
-            expected,
-            "attachment punctuation has exact spans and owners at its enclosing scope: {text}",
-        );
-    }
 
     let mut visitor = AttachmentEnvelopeVisitor::default();
     visitor.visit_ability(&root);
@@ -3399,6 +3362,47 @@ fn conditional_attachment_stage_has_exact_root_trigger_and_activation_evidence()
             "Predicate:Gain2",
         ],
         "the condition is visited before the attached imperative predicate",
+    );
+
+    assert_attachment_parse_rejected(&parser, &context, "If you connive gain 2 life.");
+    assert_attachment_parse_rejected(&parser, &context, "If you connive,  gain 2 life.");
+    assert_attachment_parse_rejected(&parser, &context, "if you connive, gain 2 life.");
+    assert_attachment_parse_rejected(&parser, &context, "Gain 2 life if you connive,.");
+}
+
+#[test]
+fn conditional_attachment_trigger_scope_matrix_is_exact() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let condition = connive_clause();
+    let gain = Predicate::Atomic(gain_life_predicate(2));
+    let trigger_text = "Whenever a player connives, gain 2 life if you connive.";
+    let trigger = assert_one_logic_candidate(&parser, &context, trigger_text);
+
+    assert_eq!(
+        trigger,
+        Ability::Triggered(Triggered {
+            trigger: TriggerPrefix::Finite(Finite {
+                marker: TriggerMarker::Whenever,
+                clause: player_connive_clause(),
+            }),
+            intervening_if: None,
+            body: AbilityBody::Sentences(
+                Sentences::new(vec![Sentence::Attached(Attached {
+                    attachment: ClauseAttachment::PostposedIfPredicate(PostposedIfPredicate {
+                        body: gain,
+                        condition,
+                    }),
+                })])
+                .expect("one trigger-body sentence"),
+            ),
+        }),
+        "the complete trigger envelope retains its prefix, absent intervening condition, and body",
+    );
+    assert_eq!(
+        literal_claims(&parser, &context, trigger_text, &[",", ": "]),
+        vec![(26, 27, "form:triggered/triggered/1".to_owned())],
+        "the trigger-body attachment comma has an exact owner",
     );
 
     let mut trigger_visitor = AttachmentEnvelopeVisitor::default();
@@ -3428,6 +3432,61 @@ fn conditional_attachment_stage_has_exact_root_trigger_and_activation_evidence()
         "the trigger envelope delegates prefix before its attached body payload",
     );
 
+    assert_attachment_parse_rejected(
+        &parser,
+        &context,
+        "Whenever a player connives, Gain 2 life if you connive.",
+    );
+    assert_attachment_parse_rejected(
+        &parser,
+        &context,
+        "Whenever a player connives, gain 2 life if you connive,.",
+    );
+}
+
+#[test]
+fn conditional_attachment_activation_scope_matrix_is_exact() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let condition = connive_clause();
+    let gain = Predicate::Atomic(gain_life_predicate(2));
+    let activation_text = "{T}: If you connive, gain 2 life.";
+    let activation = assert_one_logic_candidate(&parser, &context, activation_text);
+    let Ability::Activated(activated) = &activation else {
+        panic!("the post-colon surface has the activated envelope")
+    };
+
+    assert_eq!(
+        activated.costs(),
+        &[tap_cost()],
+        "the complete activation envelope retains its typed tap cost",
+    );
+    assert_eq!(
+        activated.body,
+        AbilityBody::Sentences(
+            Sentences::new(vec![Sentence::Attached(Attached {
+                attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
+                    condition,
+                    body: gain,
+                }),
+            })])
+            .expect("one post-colon sentence"),
+        ),
+        "the complete activation envelope retains its attachment body",
+    );
+    assert_eq!(
+        literal_claims(&parser, &context, activation_text, &[",", ": "]),
+        vec![
+            (3, 5, "form:activated/activated/1".to_owned()),
+            (
+                19,
+                20,
+                "form:preposed_if_predicate/preposed_if_predicate/2".to_owned(),
+            ),
+        ],
+        "the post-colon attachment punctuation has exact owners",
+    );
+
     let mut activation_visitor = AttachmentEnvelopeVisitor::default();
     activation_visitor.visit_ability(&activation);
     assert_eq!(
@@ -3454,57 +3513,39 @@ fn conditional_attachment_stage_has_exact_root_trigger_and_activation_evidence()
         "the activation envelope delegates cost before its post-colon attached body",
     );
 
-    for invalid in [
-        "If you connive gain 2 life.",
-        "If you connive,  gain 2 life.",
-        "if you connive, gain 2 life.",
-        "Gain 2 life if you connive,.",
-        "Whenever a player connives, Gain 2 life if you connive.",
-        "Whenever a player connives, gain 2 life if you connive,.",
-        "{T}: If you connive gain 2 life.",
-        "{T}:  If you connive, gain 2 life.",
-        "{T}: if you connive, gain 2 life.",
-    ] {
-        assert!(
-            parser.parse(invalid, &context).is_err(),
-            "attachment punctuation, spacing, capitalization, and order stay local: {invalid}",
-        );
-    }
+    assert_attachment_parse_rejected(&parser, &context, "{T}: If you connive gain 2 life.");
+    assert_attachment_parse_rejected(&parser, &context, "{T}:  If you connive, gain 2 life.");
+    assert_attachment_parse_rejected(&parser, &context, "{T}: if you connive, gain 2 life.");
+}
 
-    for (text, expected_span) in [
-        (
-            "If you connive, gain 2 life if you connive.",
-            TextSpan { start: 28, end: 30 },
-        ),
-        (
-            "Gain 2 life if you connive unless you connive.",
-            TextSpan { start: 27, end: 33 },
-        ),
-        (
-            "Gain 2 life, if you connive.",
-            TextSpan { start: 13, end: 15 },
-        ),
-        (
-            "{T}: If you connive, gain 2 life if you connive.",
-            TextSpan { start: 33, end: 35 },
-        ),
-    ] {
-        let analysis = parser.analyze(text, &context);
-        assert!(
-            analysis.selected().is_none(),
-            "the nonrecursive intermediate stage cannot select a composed/reordered attachment: {text}",
-        );
-        let error = parser
-            .parse(text, &context)
-            .expect_err("the composed/reordered attachment remains a parse failure");
-        let ParseError::Failure { span, .. } = error else {
-            panic!("the attachment negative must be an ordinary parse failure: {text}")
-        };
-        assert_eq!(
-            span, expected_span,
-            "the rejection boundary is exact: {text}"
-        );
-    }
+#[test]
+fn conditional_attachment_rejects_composed_and_reordered_surfaces() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    assert_attachment_has_no_selection(
+        &parser,
+        &context,
+        "If you connive, gain 2 life if you connive.",
+        TextSpan { start: 28, end: 30 },
+    );
+    assert_attachment_has_no_selection(
+        &parser,
+        &context,
+        "Gain 2 life if you connive unless you connive.",
+        TextSpan { start: 27, end: 33 },
+    );
+    assert_attachment_has_no_selection(
+        &parser,
+        &context,
+        "Gain 2 life, if you connive.",
+        TextSpan { start: 13, end: 15 },
+    );
+    assert_attachment_has_no_selection(
+        &parser,
+        &context,
+        "{T}: If you connive, gain 2 life if you connive.",
+        TextSpan { start: 33, end: 35 },
+    );
 }
 
 #[test]
