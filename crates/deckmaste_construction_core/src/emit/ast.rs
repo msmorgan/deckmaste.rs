@@ -586,7 +586,7 @@ fn constructor_subject_expression(
             }
             borrowed_field_expression(plan, construction, field, locals)
         }
-        PredicateSubjectPlan::VocabRole { role, terminal } => {
+        PredicateSubjectPlan::VocabRole { role, terminal, .. } => {
             let field = construction.field(&identifier_key(role))?;
             if field.kind() != ConstructionFieldKind::Lex || field.terminal() != terminal {
                 return Err(internal(
@@ -595,6 +595,19 @@ fn constructor_subject_expression(
             }
             let name = field_local(locals, field)?;
             Ok(quote! { #name })
+        }
+        PredicateSubjectPlan::OptionalPresenceRole { role } => {
+            let field = construction.field(&identifier_key(role))?;
+            if !matches!(
+                field.structural_kind(),
+                Some(crate::semantic::StructuralFieldKindPlan::Optional(_))
+            ) {
+                return Err(internal(
+                    "optional-presence predicate subject is inconsistent with its field",
+                ));
+            }
+            let name = field_local(locals, field)?;
+            Ok(quote! { #name.is_some() })
         }
         PredicateSubjectPlan::RoleFeature { role, feature } => resolve_constructor_feature(
             plan,

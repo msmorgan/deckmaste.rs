@@ -740,7 +740,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     else {
         panic!("the linguistic triggered envelope is preserved")
     };
-    assert_eq!(finite.marker, TriggerWord::Whenever);
+    assert_eq!(finite.marker, TriggerMarker::Whenever);
     assert_eq!(finite.clause(), &event);
     assert_eq!(body.sentences(), std::slice::from_ref(&effect));
     let triggered_text = triggered.render(&plain_context, &environment);
@@ -971,9 +971,11 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
     assert_eq!(
         public_types,
         [
+            "FiniteCondition",
             "Ability",
             "AbilityBody",
             "TriggerPrefix",
+            "AtPhrase",
             "Sentence",
             "Clause",
             "Subject",
@@ -1018,9 +1020,12 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "ConditionClause",
             "DocumentBlock",
             "OracleText",
+            "FiniteConditionValue",
             "Plain",
             "Sentences",
             "Finite",
+            "Temporal",
+            "AtPhraseValue",
             "Triggered",
             "Imperative",
             "Declarative",
@@ -1181,7 +1186,11 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "VariableAmount",
             "ScalarReferenceAmount",
             "CardinalQuantityValue",
-            "TriggerWord",
+            "AtBoundary",
+            "TriggerMarker",
+            "TurnOwnerPostmodifier",
+            "TurnPart",
+            "TurnSpecifier",
             "SubjectPronoun",
             "ObjectPronoun",
             "PossessiveDeterminerPronoun",
@@ -1458,7 +1467,7 @@ fn connive_event() -> Clause {
 fn triggered(trigger_clause: Clause, consequences: Vec<Sentence>) -> Ability {
     Ability::Triggered(Triggered {
         trigger: TriggerPrefix::Finite(
-            Finite::new(TriggerWord::Whenever, trigger_clause)
+            Finite::new(TriggerMarker::Whenever, trigger_clause)
                 .expect("a finite clause constructs a Whenever trigger"),
         ),
         intervening_if: None,
@@ -2175,14 +2184,14 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Terminal(TerminalClass::NonTargetCommonModifier),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(19)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(20)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(21)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(22)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(23)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(24)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(25)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(27)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
                 Expectation::Literal(","),
                 Expectation::Literal(", "),
                 Expectation::Literal("."),
@@ -2217,14 +2226,14 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Nonterminal(NonterminalCategory::ScalarQualification),
                 Expectation::Terminal(TerminalClass::SubjectPronoun),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(19)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(20)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(21)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(22)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(23)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(24)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(25)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(26)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(27)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(28)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
                 Expectation::Literal(" and "),
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),

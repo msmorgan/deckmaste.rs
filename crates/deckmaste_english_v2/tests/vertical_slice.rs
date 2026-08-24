@@ -26,7 +26,7 @@ struct RecordingVisitor {
     variables: Vec<Variable>,
     scalar_numbers: Vec<u32>,
     self_reference_spellings: Vec<SelfReferenceSpelling>,
-    trigger_words: Vec<TriggerWord>,
+    trigger_markers: Vec<TriggerMarker>,
     nouns: Vec<CommonNoun>,
     verbs: Vec<VerbLexeme>,
     declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
@@ -52,8 +52,8 @@ impl Visitor for RecordingVisitor {
         self.self_reference_spellings.push(spelling);
     }
 
-    fn visit_trigger_word(&mut self, word: TriggerWord) {
-        self.trigger_words.push(word);
+    fn visit_trigger_marker(&mut self, marker: TriggerMarker) {
+        self.trigger_markers.push(marker);
     }
 
     fn visit_common_noun(&mut self, noun: CommonNoun) {
@@ -321,7 +321,7 @@ fn plain(values: Vec<Sentence>) -> Ability {
 fn triggered(trigger_clause: Clause, consequences: Vec<Sentence>) -> Triggered {
     Triggered {
         trigger: TriggerPrefix::Finite(
-            Finite::new(TriggerWord::Whenever, trigger_clause)
+            Finite::new(TriggerMarker::Whenever, trigger_clause)
                 .expect("a finite clause constructs a Whenever trigger"),
         ),
         intervening_if: None,
@@ -934,7 +934,7 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         visitor.self_reference_spellings,
         vec![SelfReferenceSpelling::Abbreviated]
     );
-    assert_eq!(visitor.trigger_words, vec![TriggerWord::Whenever]);
+    assert_eq!(visitor.trigger_markers, vec![TriggerMarker::Whenever]);
     assert_eq!(visitor.nouns, vec![CommonNoun::Player]);
     assert_eq!(
         visitor.declarations,

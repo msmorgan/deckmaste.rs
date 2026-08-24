@@ -1505,7 +1505,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
-                    19,
+                    23,
                     FeatureConstraint::Exact(Number::Singular),
                 )),
             ]

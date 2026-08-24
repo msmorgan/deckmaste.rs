@@ -867,6 +867,19 @@ fn emit_construction_walker(
                             Ok(quote! { matches!(#value, #terminal::#variant) })
                         }
                         (
+                            FiniteDomainKindPlan::OptionalVocab { terminal, .. },
+                            FiniteValuePlan::OptionalVocab(variant),
+                        ) => {
+                            if let Some(variant) = variant {
+                                let terminal = ident(terminal);
+                                let variant = ident(variant);
+                                let value = copy_value(field, field_value);
+                                Ok(quote! { matches!(#value, Some(#terminal::#variant)) })
+                            } else {
+                                Ok(quote! { #field_value.is_none() })
+                            }
+                        }
+                        (
                             FiniteDomainKindPlan::OptionalPresence,
                             FiniteValuePlan::OptionalPresence(present),
                         ) => Ok(quote! { #field_value.is_some() == #present }),

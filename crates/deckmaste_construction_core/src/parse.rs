@@ -488,6 +488,17 @@ fn parse_require_expr(input: ParseStream<'_>) -> syn::Result<RequireExprSource> 
     } else if input.peek(Token![.]) {
         input.parse::<Token![.]>()?;
         let feature_ident = input.call(Ident::parse_any)?;
+        if feature_ident == "is_some" || feature_ident == "is_none" {
+            let content;
+            parenthesized!(content in input);
+            if !content.is_empty() {
+                return Err(content.error("optional-presence requirements accept no arguments"));
+            }
+            return Ok(RequireExprSource::OptionalPresence {
+                role: first,
+                present: feature_ident == "is_some",
+            });
+        }
         if input.peek(syn::token::Paren) {
             return Err(deferred(
                 feature_ident.span(),
@@ -2258,6 +2269,8 @@ mod tests {
             "require controller in [You];",
             "require all(mode in [One, Two], agreement is Bare);",
             "require any(subject.number is Singular, subject.number is Plural);",
+            "require optional.is_some();",
+            "require optional.is_none();",
         ];
 
         for requirement in cases {
@@ -2276,6 +2289,8 @@ mod tests {
                     require controller in [You];
                     require all(mode in [One, Two], agreement is Bare);
                     require any(subject.number is Singular, subject.number is Plural);
+                    require optional.is_some();
+                    require optional.is_none();
                     form predicate = subject;
                 }
             ",
@@ -2285,7 +2300,7 @@ mod tests {
             panic!("fixture contains one construction");
         };
 
-        assert_eq!(construction.requirements.len(), 4);
+        assert_eq!(construction.requirements.len(), 6);
         assert!(matches!(
             &construction.requirements[0],
             RequireExprSource::In { subject: RequireSubjectSource::Role(role), members }
@@ -2322,6 +2337,16 @@ mod tests {
                     _ => String::new(),
                 }).collect::<Vec<_>>() == ["Singular", "Plural"]
         ));
+        assert!(matches!(
+            &construction.requirements[4],
+            RequireExprSource::OptionalPresence { role, present: true }
+                if role == "optional"
+        ));
+        assert!(matches!(
+            &construction.requirements[5],
+            RequireExprSource::OptionalPresence { role, present: false }
+                if role == "optional"
+        ));
     }
 
     #[test]
@@ -2348,8 +2373,8 @@ mod tests {
                 "Plan 05 structural declarations",
             ),
             (
-                "require optional.is_some() is Present;",
-                "Plan 05 structural declarations",
+                "require optional.is_some(Present);",
+                "optional-presence requirements accept no arguments",
             ),
             ("require mode == One;", "Plan 05 structural declarations"),
             (

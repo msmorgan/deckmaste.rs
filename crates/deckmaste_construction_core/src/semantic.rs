@@ -539,6 +539,10 @@ pub(crate) enum FiniteDomainKindPlan {
         terminal: String,
         variants: Vec<String>,
     },
+    OptionalVocab {
+        terminal: String,
+        variants: Vec<String>,
+    },
     OptionalPresence,
     Feature {
         feature: Feature,
@@ -554,6 +558,7 @@ pub(crate) struct FiniteAssignmentPlan {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FiniteValuePlan {
     Vocab(String),
+    OptionalVocab(Option<String>),
     OptionalPresence(bool),
     Feature(FeatureValue),
 }
@@ -611,6 +616,10 @@ pub(crate) enum PredicateSubjectPlan {
     VocabRole {
         role: syn::Ident,
         terminal: String,
+        optional: bool,
+    },
+    OptionalPresenceRole {
+        role: syn::Ident,
     },
     RoleFeature {
         role: syn::Ident,
@@ -622,6 +631,7 @@ pub(crate) enum PredicateSubjectPlan {
 #[derive(Debug, Clone)]
 pub(crate) enum PredicateMemberPlan {
     Variant(syn::Ident),
+    Presence(bool),
     Feature(feature::Spanned<feature::FeatureValue>),
 }
 
@@ -2593,9 +2603,9 @@ fn invariant_feature_dependencies(
             PredicateSubjectPlan::ConstructionFeature(feature) => {
                 feature::FeaturePlace::Construction(*feature)
             }
-            PredicateSubjectPlan::CategoryRole { .. } | PredicateSubjectPlan::VocabRole { .. } => {
-                continue;
-            }
+            PredicateSubjectPlan::CategoryRole { .. }
+            | PredicateSubjectPlan::VocabRole { .. }
+            | PredicateSubjectPlan::OptionalPresenceRole { .. } => continue,
         };
         collect_invariant_feature_dependencies(
             construction,
@@ -3156,27 +3166,43 @@ fn finite_domain(
     let optional = predicate_uses_optional_presence(predicate, &role);
     let membership = predicate_uses_membership(predicate, &role);
     let feature = predicate_feature(predicate, &role);
+    let structurally_optional = matches!(
+        field.structural_kind(),
+        Some(StructuralFieldKindPlan::Optional(_))
+    );
+    let vocab = terminals.iter().find_map(|terminal| match terminal {
+        TerminalPlan::Vocab(vocab) if vocab.name() == field.terminal() => Some(vocab),
+        _ => None,
+    });
     let kind = if let Some(feature) = feature {
         let feature = Feature::from(feature);
         FiniteDomainKindPlan::Feature {
             feature,
             values: feature.domain().to_vec(),
         }
-    } else if optional {
-        FiniteDomainKindPlan::OptionalPresence
-    } else if membership {
-        let vocab = terminals
+    } else if structurally_optional
+        && (membership || optional)
+        && let Some(vocab) = vocab
+    {
+        let variants = vocab
+            .variants()
             .iter()
-            .find_map(|terminal| match terminal {
-                TerminalPlan::Vocab(vocab) if vocab.name() == field.terminal() => Some(vocab),
-                _ => None,
-            })
-            .ok_or_else(|| {
-                syn::Error::new(
-                    field.name().span(),
-                    "form guard membership requires a vocab role",
-                )
-            })?;
+            .map(|variant| identifier_key(variant.name()))
+            .collect::<Vec<_>>();
+        if membership {
+            validate_predicate_members(predicate, &role, &variants)?;
+        }
+        FiniteDomainKindPlan::OptionalVocab {
+            terminal: field.terminal().to_owned(),
+            variants,
+        }
+    } else if membership {
+        let vocab = vocab.ok_or_else(|| {
+            syn::Error::new(
+                field.name().span(),
+                "form guard membership requires a vocab role",
+            )
+        })?;
         let variants = vocab
             .variants()
             .iter()
@@ -3187,6 +3213,8 @@ fn finite_domain(
             terminal: field.terminal().to_owned(),
             variants,
         }
+    } else if optional {
+        FiniteDomainKindPlan::OptionalPresence
     } else {
         return Err(syn::Error::new(
             field.name().span(),
@@ -3289,6 +3317,12 @@ fn enumerate_assignments(domains: &[FiniteDomainPlan]) -> Vec<FiniteAssignmentPl
                 .cloned()
                 .map(FiniteValuePlan::Vocab)
                 .collect::<Vec<_>>(),
+            FiniteDomainKindPlan::OptionalVocab { variants, .. } => variants
+                .iter()
+                .cloned()
+                .map(|variant| FiniteValuePlan::OptionalVocab(Some(variant)))
+                .chain(std::iter::once(FiniteValuePlan::OptionalVocab(None)))
+                .collect::<Vec<_>>(),
             FiniteDomainKindPlan::OptionalPresence => vec![
                 FiniteValuePlan::OptionalPresence(false),
                 FiniteValuePlan::OptionalPresence(true),
@@ -3320,14 +3354,20 @@ fn evaluate_guard(
 ) -> bool {
     match source {
         crate::model::RequireExprSource::OptionalPresence { role, present } => {
-            assignment_value(domains, assignment, &identifier_key(role))
-                == Some(&FiniteValuePlan::OptionalPresence(*present))
+            match assignment_value(domains, assignment, &identifier_key(role)) {
+                Some(FiniteValuePlan::OptionalPresence(actual)) => actual == present,
+                Some(FiniteValuePlan::OptionalVocab(value)) => value.is_some() == *present,
+                _ => false,
+            }
         }
         crate::model::RequireExprSource::In {
             subject: crate::model::RequireSubjectSource::Role(role),
             members,
         } => match assignment_value(domains, assignment, &identifier_key(role)) {
             Some(FiniteValuePlan::Vocab(value)) => members
+                .iter()
+                .any(|member| identifier_key(member) == *value),
+            Some(FiniteValuePlan::OptionalVocab(Some(value))) => members
                 .iter()
                 .any(|member| identifier_key(member) == *value),
             _ => false,
@@ -3490,13 +3530,19 @@ fn assignment_witness(domains: &[FiniteDomainPlan], assignment: &FiniteAssignmen
         .iter()
         .zip(&assignment.values)
         .map(|(domain, value)| match value {
-            FiniteValuePlan::Vocab(value) => format!("{}={value}", domain.role),
+            FiniteValuePlan::Vocab(value) | FiniteValuePlan::OptionalVocab(Some(value)) => {
+                format!("{}={value}", domain.role)
+            }
+            FiniteValuePlan::OptionalVocab(None) | FiniteValuePlan::OptionalPresence(false) => {
+                format!("{}=absent", domain.role)
+            }
             FiniteValuePlan::OptionalPresence(true) => format!("{}=present", domain.role),
-            FiniteValuePlan::OptionalPresence(false) => format!("{}=absent", domain.role),
             FiniteValuePlan::Feature(value) => {
                 let feature = match domain.kind {
                     FiniteDomainKindPlan::Feature { feature, .. } => feature,
-                    FiniteDomainKindPlan::Vocab { .. } | FiniteDomainKindPlan::OptionalPresence => {
+                    FiniteDomainKindPlan::Vocab { .. }
+                    | FiniteDomainKindPlan::OptionalVocab { .. }
+                    | FiniteDomainKindPlan::OptionalPresence => {
                         unreachable!("feature assignment has a feature domain")
                     }
                 };
@@ -3851,6 +3897,7 @@ impl PredicateSubjectPlan {
         match self {
             Self::CategoryRole { role, .. }
             | Self::VocabRole { role, .. }
+            | Self::OptionalPresenceRole { role }
             | Self::RoleFeature { role, .. } => Some(role),
             Self::ConstructionFeature(_) => None,
         }
@@ -3861,8 +3908,15 @@ impl PredicateSubjectPlan {
             Self::CategoryRole { role, category } => {
                 format!("category:{}:{category}", identifier_key(role))
             }
-            Self::VocabRole { role, terminal } => {
-                format!("vocab:{}:{terminal}", identifier_key(role))
+            Self::VocabRole {
+                role,
+                terminal,
+                optional,
+            } => {
+                format!("vocab:{}:{terminal}:{optional}", identifier_key(role))
+            }
+            Self::OptionalPresenceRole { role } => {
+                format!("optional-presence:{}", identifier_key(role))
             }
             Self::RoleFeature { role, feature } => {
                 format!("feature:{}.{}", identifier_key(role), feature.key())
@@ -3873,7 +3927,9 @@ impl PredicateSubjectPlan {
 
     fn diagnostic_identity(&self) -> String {
         match self {
-            Self::CategoryRole { role, .. } | Self::VocabRole { role, .. } => identifier_key(role),
+            Self::CategoryRole { role, .. }
+            | Self::VocabRole { role, .. }
+            | Self::OptionalPresenceRole { role } => identifier_key(role),
             Self::RoleFeature { role, feature } => {
                 format!("{}.{}", identifier_key(role), feature.key())
             }
@@ -3884,7 +3940,9 @@ impl PredicateSubjectPlan {
     #[cfg(test)]
     fn snapshot(&self) -> String {
         match self {
-            Self::CategoryRole { role, .. } | Self::VocabRole { role, .. } => role.to_string(),
+            Self::CategoryRole { role, .. }
+            | Self::VocabRole { role, .. }
+            | Self::OptionalPresenceRole { role } => role.to_string(),
             Self::RoleFeature { role, feature } => format!("{role}.{}", feature.key()),
             Self::ConstructionFeature(feature) => feature.key().to_owned(),
         }
@@ -3895,6 +3953,8 @@ impl PredicateMemberPlan {
     pub(crate) fn semantic_key(&self) -> String {
         match self {
             Self::Variant(member) => identifier_key(member),
+            Self::Presence(true) => "present".to_owned(),
+            Self::Presence(false) => "absent".to_owned(),
             Self::Feature(member) => member.value().key().to_owned(),
         }
     }
@@ -6006,7 +6066,7 @@ mod tests {
     #[test]
     fn optional_presence_guards_seal_both_assignments() {
         let semantic = guarded_form_result(quote::quote! {
-            vocab Word { That = "that", }
+            vocab Word { That = "that", Those = "those", }
             construction optional: NounPhrase {
                 element OptionalWord { word: opt lex Word, }
                 form present when word.is_some() = lex(word);
@@ -6024,8 +6084,35 @@ mod tests {
                 .map(|form| form.guard().test_accepting_witnesses(construction.forms()))
                 .collect::<Vec<_>>(),
             [
-                vec!["word=present".to_owned()],
+                vec!["word=That".to_owned(), "word=Those".to_owned()],
                 vec!["word=absent".to_owned()],
+            ]
+        );
+    }
+
+    #[test]
+    fn optional_vocab_guards_partition_absence_and_every_vocab_member() {
+        let semantic = guarded_form_result(quote::quote! {
+            vocab Word { That = "that", Those = "those", }
+            construction optional: NounPhrase {
+                element OptionalWord { word: opt lex Word, }
+                form that when word is That = lex(word);
+                form fallback otherwise = lex(word);
+            }
+            root NounPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("optional vocab membership remains a finite guarded domain");
+        let construction = &semantic.constructions()[0];
+
+        assert_eq!(
+            construction
+                .forms()
+                .iter()
+                .map(|form| form.guard().test_accepting_witnesses(construction.forms()))
+                .collect::<Vec<_>>(),
+            [
+                vec!["word=That".to_owned()],
+                vec!["word=Those".to_owned(), "word=absent".to_owned()],
             ]
         );
     }

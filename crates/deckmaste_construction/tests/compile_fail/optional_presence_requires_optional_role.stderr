@@ -1,0 +1,5 @@
+error: optional-presence predicate subject `word` is not optional
+ --> tests/compile_fail/optional_presence_requires_optional_role.rs:7:17
+  |
+7 |         require word.is_none();
+  |                 ^^^^

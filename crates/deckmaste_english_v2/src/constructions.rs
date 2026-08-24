@@ -12,7 +12,41 @@ use crate::render::Render;
 use crate::render::Writer;
 
 constructions! {
-    vocab TriggerWord { Whenever = "whenever", }
+    vocab AtBoundary { Beginning = "the beginning of", End = "end of", }
+    vocab TriggerMarker { When = "when", Whenever = "whenever", }
+    vocab TurnOwnerPostmodifier {
+        YourTurn = "on your turn",
+        EachOpponentsTurn = "on each opponent's turn",
+    }
+    vocab TurnPart {
+        Turn = "turn",
+        BeginningPhase = "beginning phase",
+        FirstMainPhase = "first main phase",
+        SecondMainPhase = "second main phase",
+        PrecombatMainPhase = "precombat main phase",
+        PostcombatMainPhase = "postcombat main phase",
+        MainPhase = "main phase",
+        Combat = "combat",
+        CombatPhase = "combat phase",
+        EndingPhase = "ending phase",
+        UntapStep = "untap step",
+        Upkeep = "upkeep",
+        DrawStep = "draw step",
+        DeclareAttackersStep = "declare attackers step",
+        DeclareBlockersStep = "declare blockers step",
+        CombatDamageStep = "combat damage step",
+        EndStep = "end step",
+        CleanupStep = "cleanup step",
+    }
+    vocab TurnSpecifier {
+        Your = "your",
+        Each = "each",
+        EachPlayer = "each player's",
+        EachOpponent = "each opponent's",
+        EachOfYour = "each of your",
+        The = "the",
+        TheNext = "the next",
+    }
     vocab SubjectPronoun { He = "he", It = "it", She = "she", They = "they", You = "you", }
     vocab ObjectPronoun { Her = "her", Him = "him", It = "it", Them = "them", You = "you", }
     vocab PossessiveDeterminerPronoun {
@@ -196,7 +230,12 @@ constructions! {
             magnitude = u32;
         }
     }
-    abstract sum ConditionClause {}
+    abstract sum ConditionClause { FiniteCondition, }
+    construction finite_condition: FiniteCondition {
+        element FiniteConditionValue { subject: Subject, predicate: VerbPhrase, }
+        derive predicate.agreement = subject.agreement;
+        form finite_condition = "if" subject predicate ",";
+    }
     construction plain: Ability {
         element Plain {
             body: AbilityBody,
@@ -212,11 +251,69 @@ constructions! {
     }
     construction finite: TriggerPrefix {
         element Finite {
-            marker: lex TriggerWord,
+            marker: lex TriggerMarker,
             clause: Clause,
         }
         require clause is FiniteClause;
         form finite = lex(marker) clause;
+    }
+    construction temporal: TriggerPrefix {
+        element Temporal { phrase: AtPhrase, }
+        form temporal = "at" phrase;
+    }
+    construction at_phrase: AtPhrase {
+        element AtPhraseValue {
+            boundary: lex AtBoundary,
+            specifier: opt lex TurnSpecifier,
+            part: lex TurnPart,
+            postmodifier: opt lex TurnOwnerPostmodifier,
+        }
+        require any(
+            all(
+                boundary is End,
+                specifier.is_none(),
+                part is Combat,
+                postmodifier.is_none()
+            ),
+            all(
+                boundary is Beginning,
+                specifier is EachOfYour,
+                part in [
+                    FirstMainPhase,
+                    SecondMainPhase,
+                    PrecombatMainPhase,
+                    PostcombatMainPhase,
+                    MainPhase
+                ],
+                postmodifier.is_none()
+            ),
+            all(
+                boundary is Beginning,
+                specifier.is_none(),
+                postmodifier.is_none()
+            ),
+            all(
+                boundary is Beginning,
+                specifier in [Your, Each, EachPlayer, EachOpponent, The, TheNext],
+                postmodifier.is_none()
+            ),
+            all(
+                boundary is Beginning,
+                specifier.is_none(),
+                part is Combat,
+                postmodifier.is_some()
+            ),
+            all(
+                boundary is Beginning,
+                specifier in [Your, Each, EachPlayer, EachOpponent, The, TheNext],
+                part is Combat,
+                postmodifier.is_some()
+            )
+        );
+        form plural_main_phase when specifier is EachOfYour =
+            lex(boundary) lex(specifier) suffix(lex(part), "s") lex(postmodifier);
+        form singular otherwise =
+            lex(boundary) lex(specifier) lex(part) lex(postmodifier);
     }
     construction triggered: Ability {
         element Triggered {

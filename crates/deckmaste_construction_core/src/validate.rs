@@ -4471,17 +4471,20 @@ fn validate_form_guard_expr(
             subject: crate::model::RequireSubjectSource::Role(role),
             ..
         } => match fields.get(&identifier_key(role)) {
-            Some(FieldKind::Lex(path)) => match symbols.terminals.get(&path_name(path)) {
-                Some(info) if info.kind == TerminalKind::Vocab => {}
-                Some(_) => combine(
-                    errors,
-                    syn::Error::new(role.span(), "form guard membership requires a vocab role"),
-                ),
-                None => combine(
-                    errors,
-                    syn::Error::new(role.span(), format!("unknown form-guard role `{role}`")),
-                ),
-            },
+            Some(kind) if finite_vocab_role(kind).is_some() => {
+                let (path, _) = finite_vocab_role(kind).expect("guarded above");
+                match symbols.terminals.get(&path_name(path)) {
+                    Some(info) if info.kind == TerminalKind::Vocab => {}
+                    Some(_) => combine(
+                        errors,
+                        syn::Error::new(role.span(), "form guard membership requires a vocab role"),
+                    ),
+                    None => combine(
+                        errors,
+                        syn::Error::new(role.span(), format!("unknown form-guard role `{role}`")),
+                    ),
+                }
+            }
             Some(_) => combine(
                 errors,
                 syn::Error::new(role.span(), "form guard membership requires a vocab role"),
@@ -4950,6 +4953,20 @@ fn field_kind_leaf(kind: &FieldKind) -> &FieldKind {
         FieldKind::Optional(value) => field_kind_leaf(value),
         FieldKind::Sequence { item, .. } => field_kind_leaf(item),
         FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => kind,
+    }
+}
+
+fn finite_vocab_role(kind: &FieldKind) -> Option<(&syn::Path, bool)> {
+    match kind {
+        FieldKind::Lex(path) => Some((path, false)),
+        FieldKind::Optional(inner) => match inner.as_ref() {
+            FieldKind::Lex(path) => Some((path, true)),
+            FieldKind::Category(_) | FieldKind::Identity(_) => None,
+            FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
+                unreachable!("nested cardinalities are rejected while parsing")
+            }
+        },
+        FieldKind::Category(_) | FieldKind::Identity(_) | FieldKind::Sequence { .. } => None,
     }
 }
 
@@ -6133,8 +6150,26 @@ fn normalize_predicate(
             deduplicate_alternatives(&mut alternatives);
             errors.map_or(Ok(alternatives), Err)
         }
-        crate::RequireExprSource::Length { .. }
-        | crate::RequireExprSource::OptionalPresence { .. } => Ok(Vec::new()),
+        crate::RequireExprSource::OptionalPresence { role, present } => {
+            let role_name = identifier_key(role);
+            match fields.get(&role_name) {
+                Some(FieldKind::Optional(_)) => Ok(vec![PredicateConjunctionPlan::new(vec![
+                    PredicateAtomPlan::new(
+                        PredicateSubjectPlan::OptionalPresenceRole { role: role.clone() },
+                        vec![PredicateMemberPlan::Presence(*present)],
+                    ),
+                ])]),
+                Some(_) => Err(syn::Error::new(
+                    role.span(),
+                    format!("optional-presence predicate subject `{role_name}` is not optional"),
+                )),
+                None => Err(syn::Error::new(
+                    role.span(),
+                    format!("unknown predicate subject `{role_name}`"),
+                )),
+            }
+        }
+        crate::RequireExprSource::Length { .. } => Ok(Vec::new()),
     }
 }
 
@@ -6165,13 +6200,15 @@ fn resolve_predicate_atom(
                         PredicateDomain::Variants(domain),
                     )
                 }
-                Some(FieldKind::Lex(path)) => {
+                Some(kind) if finite_vocab_role(kind).is_some() => {
+                    let (path, optional) = finite_vocab_role(kind).expect("guarded above");
                     let terminal = path_name(path);
                     match symbols.terminals.get(&terminal) {
                         Some(info) if info.kind == TerminalKind::Vocab => (
                             PredicateSubjectPlan::VocabRole {
                                 role: role.clone(),
                                 terminal,
+                                optional,
                             },
                             PredicateDomain::Variants(info.variant_order.clone()),
                         ),
@@ -6186,7 +6223,10 @@ fn resolve_predicate_atom(
                     }
                 }
                 Some(
-                    FieldKind::Identity(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. },
+                    FieldKind::Identity(_)
+                    | FieldKind::Optional(_)
+                    | FieldKind::Sequence { .. }
+                    | FieldKind::Lex(_),
                 ) => {
                     return Err(syn::Error::new(
                         role.span(),
@@ -6260,7 +6300,11 @@ fn resolve_predicate_atom(
         }
     };
     let allowed = resolve_predicate_members(&domain, members)?;
-    if allowed.len() == domain.len() {
+    let optional_vocab = matches!(
+        subject,
+        PredicateSubjectPlan::VocabRole { optional: true, .. }
+    );
+    if !optional_vocab && allowed.len() == domain.len() {
         return Ok(None);
     }
     Ok(Some(PredicateAtomPlan::new(subject, allowed)))
@@ -7937,6 +7981,98 @@ pub(crate) mod tests {
         assert!(
             open_domain.contains("form guard membership requires a vocab role"),
             "{open_domain}"
+        );
+    }
+
+    #[test]
+    fn optional_vocab_and_presence_requirements_seal_checked_cross_products() {
+        validate(quote! {
+            vocab Word { That = "that", Those = "those", }
+            vocab Mode { One = "one", Two = "two", }
+            construction optional: Cat {
+                element OptionalValue { word: opt lex Word, mode: lex Mode, }
+                require any(
+                    all(word.is_none(), mode is One),
+                    all(word is That, mode is Two)
+                );
+                form optional = lex(word) lex(mode);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("optional absence and optional vocab membership are decidable invariants");
+    }
+
+    #[test]
+    fn optional_presence_and_vocab_requirements_reject_domain_misuse() {
+        let required = error(quote! {
+            vocab Word { That = "that", }
+            construction required: Cat {
+                element RequiredValue { word: lex Word, }
+                require word.is_none();
+                form required = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            required.contains("optional-presence predicate subject `word` is not optional"),
+            "{required}",
+        );
+
+        let unknown_member = error(quote! {
+            vocab Word { That = "that", }
+            construction optional: Cat {
+                element OptionalValue { word: opt lex Word, }
+                require word is Those;
+                form optional = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            unknown_member.contains("unknown predicate member `Those`"),
+            "{unknown_member}",
+        );
+
+        let guard_required = error(quote! {
+            vocab Word { That = "that", }
+            construction required: Cat {
+                element RequiredValue { word: lex Word, }
+                form absent when word.is_none() = lex(word);
+                form present otherwise = lex(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            guard_required.contains("optional-presence guard requires an optional role"),
+            "{guard_required}",
+        );
+
+        let sequence_requirement = error(quote! {
+            vocab Word { That = "that", }
+            construction sequence: Cat {
+                element SequenceValue { words: seq lex Word separated by " ", }
+                require words is That;
+                form sequence = lex(words);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            sequence_requirement
+                .contains("predicate subject `words` is not a category or vocab predicate domain"),
+            "{sequence_requirement}",
+        );
+
+        let sequence_guard = error(quote! {
+            vocab Word { That = "that", }
+            construction sequence: Cat {
+                element SequenceValue { words: seq lex Word separated by " ", }
+                form selected when words is That = lex(words);
+                form fallback otherwise = lex(words);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            sequence_guard.contains("form guard membership requires a vocab role"),
+            "{sequence_guard}",
         );
     }
 

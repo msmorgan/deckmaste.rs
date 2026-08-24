@@ -1329,6 +1329,7 @@ pub mod fixture {
 
     constructions! {
         vocab Mode { One = "one", Many = "many", }
+        vocab OptionalWord { That = "that", Those = "those", }
         vocab Partition { First = "first", Second = "second", Other = "other", }
         vocab r#Marker { One = "marker", }
         vocab WriterWord { One = "writer", }
@@ -1510,6 +1511,15 @@ pub mod fixture {
             form first when word is First = "alpha" lex(word);
             form second when word is Second = "beta" lex(word);
             form fallback otherwise = "omega" lex(word);
+        }
+        construction optional_guarded: OptionalGuardRoot {
+            element OptionalGuarded { word: opt lex OptionalWord, mode: lex Mode, }
+            require any(
+                all(word.is_none(), mode is One),
+                all(word is That, mode is Many)
+            );
+            form that when word is That = lex(word) lex(mode);
+            form fallback otherwise = lex(word) lex(mode);
         }
         construction non_plain: BoundRoot {
             element NonPlain { value: lex BoundWord, }
@@ -1864,6 +1874,7 @@ pub mod fixture {
 
         root Phrase { punctuation = "."; eoi = true; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root BoundRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DualBoundaryRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DerivedPossessiveRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -2550,6 +2561,70 @@ pub mod fixture {
                 }
             }
         }
+    }
+
+    pub(super) fn assert_optional_vocab_guards_and_invariants() {
+        let context = ParseContext {
+            sentinel: 99,
+            card_name: "card",
+            abbreviated_card_name: "card",
+            card_name_onset: macro_ron::v2::Onset::Consonant,
+            abbreviated_card_name_onset: macro_ron::v2::Onset::Consonant,
+        };
+        let absent =
+            OptionalGuarded::new(None, Mode::One).expect("the explicit absent branch constructs");
+        assert_eq!(
+            Render::render(&OptionalGuardRoot::OptionalGuarded(absent), &context),
+            "One.",
+        );
+        let present = OptionalGuarded::new(Some(OptionalWord::That), Mode::Many)
+            .expect("the allowed present vocabulary member constructs");
+        assert_eq!(
+            Render::render(&OptionalGuardRoot::OptionalGuarded(present), &context),
+            "That many.",
+        );
+        for (word, mode) in [
+            (None, Mode::Many),
+            (Some(OptionalWord::That), Mode::One),
+            (Some(OptionalWord::Those), Mode::One),
+            (Some(OptionalWord::Those), Mode::Many),
+        ] {
+            assert!(
+                OptionalGuarded::new(word, mode).is_none(),
+                "the closed checked product rejects an unlisted optional-vocabulary cross-product",
+            );
+        }
+
+        let present_helper = build(
+            RuleId::OptionalGuardedWordOptionalPresent,
+            &[BuildValue::Leaf(Leaf::OptionalWord(OptionalWord::That))],
+            &context,
+        )
+        .expect("the optional structural helper folds the present vocab value");
+        let that_rule = build(
+            RuleId::OptionalGuardRootOptionalGuardedThat,
+            &[
+                present_helper.clone(),
+                BuildValue::Leaf(Leaf::Mode(Mode::Many)),
+            ],
+            &context,
+        )
+        .expect("the membership-guarded scanner rule accepts its present value");
+        assert!(matches!(that_rule, BuildValue::OptionalGuardRoot(_)));
+        assert!(
+            build(
+                RuleId::OptionalGuardRootOptionalGuardedFallback,
+                &[present_helper, BuildValue::Leaf(Leaf::Mode(Mode::Many)),],
+                &context,
+            )
+            .is_none(),
+            "the scanner fallback uses the same sealed guard and rejects the guarded member",
+        );
+        let absent_rule = build(RuleId::OptionalGuardedWordOptionalAbsent, &[], &context);
+        assert!(
+            absent_rule.is_some(),
+            "the optional structural helper exposes the absent build leaf",
+        );
     }
 
     pub(super) fn assert_structural_product_public_boundary() {
@@ -4723,6 +4798,11 @@ fn invariant_constructors_enforce_the_compiled_public_boundary() {
 #[test]
 fn guarded_forms_build_and_render_their_exact_finite_partitions() {
     fixture::assert_guarded_form_partition_boundaries();
+}
+
+#[test]
+fn optional_vocab_guards_and_invariants_share_the_closed_runtime_domain() {
+    fixture::assert_optional_vocab_guards_and_invariants();
 }
 
 #[test]

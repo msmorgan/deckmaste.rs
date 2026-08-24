@@ -2069,7 +2069,11 @@ mod tests {
     }
 
     const VOCAB_ORIGINS: &[&str] = &[
-        "vocab TriggerWord",
+        "vocab AtBoundary",
+        "vocab TriggerMarker",
+        "vocab TurnOwnerPostmodifier",
+        "vocab TurnPart",
+        "vocab TurnSpecifier",
         "vocab SubjectPronoun",
         "vocab ObjectPronoun",
         "vocab PossessiveDeterminerPronoun",
@@ -2089,9 +2093,12 @@ mod tests {
     ];
 
     const CONSTRUCTION_ORIGINS: &[&str] = &[
+        "construction finite_condition",
         "construction plain",
         "construction sentences",
         "construction finite",
+        "construction temporal",
+        "construction at_phrase",
         "construction triggered",
         "construction imperative",
         "construction declarative",
@@ -2421,7 +2428,11 @@ mod tests {
         });
 
     const SCANNER_ORIGINS: &[&str] = &[
-        "vocab TriggerWord",
+        "vocab AtBoundary",
+        "vocab TriggerMarker",
+        "vocab TurnOwnerPostmodifier",
+        "vocab TurnPart",
+        "vocab TurnSpecifier",
         "vocab SubjectPronoun",
         "vocab ObjectPronoun",
         "vocab PossessiveDeterminerPronoun",
@@ -2452,6 +2463,7 @@ mod tests {
         "identity CardName",
         "codec CardinalNumber",
         "codec ScalarNumber",
+        "construction finite_condition",
         "construction triggered",
         "construction with_where",
         "root Ability",
@@ -2467,14 +2479,17 @@ mod tests {
     static VISITOR_ORIGINS: std::sync::LazyLock<Vec<&'static str>> =
         std::sync::LazyLock::new(|| {
             let mut category_origins = CONSTRUCTION_ORIGINS.to_vec();
-            let ability_forms = category_origins.drain(..4).collect::<Vec<_>>();
+            let ability_forms = category_origins.drain(..7).collect::<Vec<_>>();
             category_origins.splice(
                 0..0,
                 [
                     ability_forms[0],
-                    ability_forms[3],
                     ability_forms[1],
+                    ability_forms[6],
                     ability_forms[2],
+                    ability_forms[3],
+                    ability_forms[4],
+                    ability_forms[5],
                 ],
             );
             let first_targeted = category_origins
@@ -2584,10 +2599,15 @@ mod tests {
             | "function walk_sentences" => &["construction sentences"],
             "type TriggerPrefix"
             | "function render_trigger_prefix"
-            | "function walk_trigger_prefix"
-            | "type Finite"
-            | "impl Finite"
-            | "function walk_finite" => &["construction finite"],
+            | "function walk_trigger_prefix" => &["construction finite", "construction temporal"],
+            "type AtPhrase"
+            | "function render_at_phrase"
+            | "function walk_at_phrase"
+            | "type AtPhraseValue"
+            | "impl AtPhraseValue"
+            | "function walk_at_phrase_value" => &["construction at_phrase"],
+            "type Finite" | "impl Finite" | "function walk_finite" => &["construction finite"],
+            "type Temporal" | "function walk_temporal" => &["construction temporal"],
             "type Sentence"
             | "function render_sentence_body"
             | "function walk_sentence"
@@ -2845,6 +2865,11 @@ mod tests {
             "type ConditionClause"
             | "function render_condition_clause"
             | "function walk_condition_clause" => &["abstract sum ConditionClause"],
+            "type FiniteCondition"
+            | "function render_finite_condition"
+            | "function walk_finite_condition"
+            | "type FiniteConditionValue"
+            | "function walk_finite_condition_value" => &["construction finite_condition"],
             "type OracleText"
             | "impl OracleText"
             | "function render_oracle_text_blocks_sequence"
@@ -3393,9 +3418,21 @@ mod tests {
             "type ScalarReferenceAmount" | "function walk_scalar_reference_amount" => {
                 &["construction scalar_reference_amount"]
             }
-            "type TriggerWord" | "function render_trigger_word" | "function walk_trigger_word" => {
-                &["vocab TriggerWord"]
+            "type AtBoundary" | "function render_at_boundary" | "function walk_at_boundary" => {
+                &["vocab AtBoundary"]
             }
+            "type TriggerMarker"
+            | "function render_trigger_marker"
+            | "function walk_trigger_marker" => &["vocab TriggerMarker"],
+            "type TurnOwnerPostmodifier"
+            | "function render_turn_owner_postmodifier"
+            | "function walk_turn_owner_postmodifier" => &["vocab TurnOwnerPostmodifier"],
+            "type TurnPart" | "function render_turn_part" | "function walk_turn_part" => {
+                &["vocab TurnPart"]
+            }
+            "type TurnSpecifier"
+            | "function render_turn_specifier"
+            | "function walk_turn_specifier" => &["vocab TurnSpecifier"],
             "type SubjectPronoun"
             | "function render_subject_pronoun"
             | "function walk_subject_pronoun" => &["vocab SubjectPronoun"],
@@ -3718,9 +3755,11 @@ mod tests {
     }
 
     const EXPECTED_ITEM_KEYS: &[&str] = &[
+        "type FiniteCondition",
         "type Ability",
         "type AbilityBody",
         "type TriggerPrefix",
+        "type AtPhrase",
         "type Sentence",
         "type Clause",
         "type Subject",
@@ -3765,11 +3804,15 @@ mod tests {
         "type ConditionClause",
         "type DocumentBlock",
         "type OracleText",
+        "type FiniteConditionValue",
         "type Plain",
         "type Sentences",
         "impl Sentences",
         "type Finite",
         "impl Finite",
+        "type Temporal",
+        "type AtPhraseValue",
+        "impl AtPhraseValue",
         "type Triggered",
         "type Imperative",
         "type Declarative",
@@ -3958,7 +4001,11 @@ mod tests {
         "type VariableAmount",
         "type ScalarReferenceAmount",
         "type CardinalQuantityValue",
-        "type TriggerWord",
+        "type AtBoundary",
+        "type TriggerMarker",
+        "type TurnOwnerPostmodifier",
+        "type TurnPart",
+        "type TurnSpecifier",
         "type SubjectPronoun",
         "type ObjectPronoun",
         "type PossessiveDeterminerPronoun",
@@ -4127,9 +4174,11 @@ mod tests {
         "function write_oracle_text_render",
         "impl Render for OracleText",
         "function render_oracle_text_with_claims",
+        "function render_finite_condition",
         "function __deckmaste_construction_internal_render_root_ability",
         "function render_ability_body",
         "function render_trigger_prefix",
+        "function render_at_phrase",
         "function __deckmaste_construction_internal_render_root_sentence",
         "function render_clause",
         "function render_subject",
@@ -4169,7 +4218,11 @@ mod tests {
         "function render_verb_phrase",
         "function render_amount",
         "function __deckmaste_construction_internal_render_root_cardinal_quantity",
-        "function render_trigger_word",
+        "function render_at_boundary",
+        "function render_trigger_marker",
+        "function render_turn_owner_postmodifier",
+        "function render_turn_part",
+        "function render_turn_specifier",
         "function render_subject_pronoun",
         "function render_object_pronoun",
         "function render_possessive_determiner_pronoun",
@@ -4245,9 +4298,11 @@ mod tests {
         "function possessive_ending_for_plural_head",
         "function possessive_ending_for_possessive_owner",
         "trait Visitor",
+        "function walk_finite_condition",
         "function walk_ability",
         "function walk_ability_body",
         "function walk_trigger_prefix",
+        "function walk_at_phrase",
         "function walk_sentence",
         "function walk_clause",
         "function walk_subject",
@@ -4307,9 +4362,12 @@ mod tests {
         "function walk_document_block",
         "function walk_oracle_text_blocks_sequence",
         "function walk_oracle_text",
+        "function walk_finite_condition_value",
         "function walk_plain",
         "function walk_sentences",
         "function walk_finite",
+        "function walk_temporal",
+        "function walk_at_phrase_value",
         "function walk_triggered",
         "function walk_imperative",
         "function walk_declarative",
@@ -4470,7 +4528,11 @@ mod tests {
         "function walk_variable_amount",
         "function walk_scalar_reference_amount",
         "function walk_cardinal_quantity_value",
-        "function walk_trigger_word",
+        "function walk_at_boundary",
+        "function walk_trigger_marker",
+        "function walk_turn_owner_postmodifier",
+        "function walk_turn_part",
+        "function walk_turn_specifier",
         "function walk_subject_pronoun",
         "function walk_object_pronoun",
         "function walk_possessive_determiner_pronoun",
@@ -5081,7 +5143,7 @@ mod tests {
         assert!(
             expected
                 .iter()
-                .any(|contribution| contribution.origin == "vocab TriggerWord"),
+                .any(|contribution| contribution.origin == "vocab TriggerMarker"),
             "the plan-derived audit must include vocab terminals",
         );
         assert!(
@@ -5169,7 +5231,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 800);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 825);
         assert!(
             headings == EXPECTED_ITEM_KEYS,
             "missing={:#?}; unexpected={:#?}; first mismatch={:?}",

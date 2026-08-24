@@ -31,6 +31,7 @@ use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::FiniteDomainKindPlan;
+use crate::semantic::FiniteDomainPlan;
 use crate::semantic::FiniteValuePlan;
 use crate::semantic::FormPlan;
 use crate::semantic::LexemePlan;
@@ -1770,6 +1771,62 @@ struct RenderLocals {
     category: TokenStream,
 }
 
+fn render_guard_atom(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    locals: &RenderLocals,
+    domain: &FiniteDomainPlan,
+    value: &FiniteValuePlan,
+) -> syn::Result<TokenStream> {
+    match (domain.kind(), value) {
+        (FiniteDomainKindPlan::Vocab { terminal, .. }, FiniteValuePlan::Vocab(variant)) => {
+            let field_value = field_value(construction, domain.role(), locals)?;
+            let terminal = ident(terminal);
+            let variant = ident(variant);
+            let value = copy_value(construction, domain.role(), field_value)?;
+            Ok(quote! { matches!(#value, #terminal::#variant) })
+        }
+        (
+            FiniteDomainKindPlan::OptionalVocab { terminal, .. },
+            FiniteValuePlan::OptionalVocab(variant),
+        ) => {
+            let field_value = field_value(construction, domain.role(), locals)?;
+            if let Some(variant) = variant {
+                let terminal = ident(terminal);
+                let variant = ident(variant);
+                let value = copy_value(construction, domain.role(), field_value)?;
+                Ok(quote! { matches!(#value, Some(#terminal::#variant)) })
+            } else {
+                Ok(quote! { #field_value.is_none() })
+            }
+        }
+        (FiniteDomainKindPlan::OptionalPresence, FiniteValuePlan::OptionalPresence(present)) => {
+            let field_value = field_value(construction, domain.role(), locals)?;
+            Ok(quote! { #field_value.is_some() == #present })
+        }
+        (FiniteDomainKindPlan::Feature { feature, .. }, FiniteValuePlan::Feature(value)) => {
+            let actual = if domain.role().starts_with('@') {
+                let equation = validated
+                    .feature_equations(construction.construction_id())
+                    .iter()
+                    .find(|equation| equation.target() == &FeaturePlace::Construction(*feature))
+                    .ok_or_else(|| internal("construction feature guard has no equation"))?;
+                feature_expr(validated, construction, equation.value(), *feature, locals)?
+            } else {
+                let role = syn::Ident::new(domain.role(), construction.origin_span());
+                let expression = FeatureExpr::FromRole {
+                    role,
+                    feature: *feature,
+                };
+                feature_expr(validated, construction, &expression, *feature, locals)?
+            };
+            let expected = feature_value(*value);
+            Ok(quote! { #actual == #expected })
+        }
+        _ => Err(internal("form guard domain and assignment value disagree")),
+    }
+}
+
 fn render_arm_requires_block(construction: &ConstructionPlan, root_impl: bool) -> bool {
     matches!(
         construction.forms()[0].atoms(),
@@ -1836,67 +1893,8 @@ fn render_arms(
                     let guard = super::emit_form_guard_expression(
                         construction,
                         form_index,
-                        |domain, value| match (domain.kind(), value) {
-                            (
-                                FiniteDomainKindPlan::Vocab { terminal, .. },
-                                FiniteValuePlan::Vocab(variant),
-                            ) => {
-                                let field_value =
-                                    field_value(construction, domain.role(), &locals)?;
-                                let terminal = ident(terminal);
-                                let variant = ident(variant);
-                                let value = copy_value(construction, domain.role(), field_value)?;
-                                Ok(quote! { matches!(#value, #terminal::#variant) })
-                            }
-                            (
-                                FiniteDomainKindPlan::OptionalPresence,
-                                FiniteValuePlan::OptionalPresence(present),
-                            ) => {
-                                let field_value =
-                                    field_value(construction, domain.role(), &locals)?;
-                                Ok(quote! { #field_value.is_some() == #present })
-                            }
-                            (
-                                FiniteDomainKindPlan::Feature { feature, .. },
-                                FiniteValuePlan::Feature(value),
-                            ) => {
-                                let actual = if domain.role().starts_with('@') {
-                                    let equation = validated
-                                        .feature_equations(construction.construction_id())
-                                        .iter()
-                                        .find(|equation| {
-                                            equation.target()
-                                                == &FeaturePlace::Construction(*feature)
-                                        })
-                                        .ok_or_else(|| {
-                                            internal("construction feature guard has no equation")
-                                        })?;
-                                    feature_expr(
-                                        validated,
-                                        construction,
-                                        equation.value(),
-                                        *feature,
-                                        &locals,
-                                    )?
-                                } else {
-                                    let role =
-                                        syn::Ident::new(domain.role(), construction.origin_span());
-                                    let expression = FeatureExpr::FromRole {
-                                        role,
-                                        feature: *feature,
-                                    };
-                                    feature_expr(
-                                        validated,
-                                        construction,
-                                        &expression,
-                                        *feature,
-                                        &locals,
-                                    )?
-                                };
-                                let expected = feature_value(*value);
-                                Ok(quote! { #actual == #expected })
-                            }
-                            _ => Err(internal("form guard domain and assignment value disagree")),
+                        |domain, value| {
+                            render_guard_atom(validated, construction, &locals, domain, value)
                         },
                     )?;
                     Ok((guard, statements))

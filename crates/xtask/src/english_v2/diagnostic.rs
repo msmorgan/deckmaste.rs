@@ -902,6 +902,7 @@ enum Expectation {
 enum NonterminalKind {
     Ability,
     AbilityBody,
+    AtPhrase,
     TriggerPrefix,
     DocumentBlock,
     OracleText,
@@ -947,6 +948,7 @@ enum NonterminalKind {
     Amount,
     CardinalQuantity,
     ConditionClause,
+    FiniteCondition,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1363,6 +1365,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
     match kind {
         NonterminalCategory::Ability => NonterminalKind::Ability,
         NonterminalCategory::AbilityBody => NonterminalKind::AbilityBody,
+        NonterminalCategory::AtPhrase => NonterminalKind::AtPhrase,
         NonterminalCategory::TriggerPrefix => NonterminalKind::TriggerPrefix,
         NonterminalCategory::DocumentBlock => NonterminalKind::DocumentBlock,
         NonterminalCategory::OracleText => NonterminalKind::OracleText,
@@ -1420,6 +1423,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::Amount => NonterminalKind::Amount,
         NonterminalCategory::CardinalQuantity => NonterminalKind::CardinalQuantity,
         NonterminalCategory::ConditionClause => NonterminalKind::ConditionClause,
+        NonterminalCategory::FiniteCondition => NonterminalKind::FiniteCondition,
     }
 }
 

@@ -1073,7 +1073,7 @@ mod tests {
     use crate::ast::SelfReferenceSpelling;
     use crate::ast::SpellSubtypeNoun;
     use crate::ast::SubjectPronoun;
-    use crate::ast::TriggerWord;
+    use crate::ast::TriggerMarker;
     use crate::ast::TypeNoun;
     use crate::ast::Variable;
     use crate::ast::VerbLexeme;
@@ -1530,10 +1530,10 @@ mod tests {
         let context = context("Context Card");
         let cases = [
             (
-                Lexical::TriggerWord,
-                Leaf::TriggerWord(TriggerWord::Whenever),
+                Lexical::TriggerMarker,
+                Leaf::TriggerMarker(TriggerMarker::Whenever),
                 "whenever",
-                "vocab:TriggerWord/Whenever",
+                "vocab:TriggerMarker/Whenever",
             ),
             (
                 Lexical::SubjectPronoun,
@@ -1557,8 +1557,8 @@ mod tests {
 
         for (matcher, expected_leaf, running, expected_owner) in cases {
             let owner = match matcher {
-                Lexical::TriggerWord => LexicalOwnerTemplate::Vocab {
-                    declaration: "TriggerWord",
+                Lexical::TriggerMarker => LexicalOwnerTemplate::Vocab {
+                    declaration: "TriggerMarker",
                 },
                 Lexical::SubjectPronoun => LexicalOwnerTemplate::Vocab {
                     declaration: "SubjectPronoun",
@@ -2209,14 +2209,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            19,
+            23,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            22,
+            26,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2236,14 +2236,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            19,
+            23,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            22,
+            26,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2268,13 +2268,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (20, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (21, "Siege.", "Siege", SubtypeCategory::Battle),
-            (22, "Elf.", "Elf", SubtypeCategory::Creature),
-            (23, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (24, "Forest.", "Forest", SubtypeCategory::Land),
-            (25, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (26, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (24, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (25, "Siege.", "Siege", SubtypeCategory::Battle),
+            (26, "Elf.", "Elf", SubtypeCategory::Creature),
+            (27, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (28, "Forest.", "Forest", SubtypeCategory::Land),
+            (29, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (30, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2292,7 +2292,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (20..=26).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (24..=30).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2308,7 +2308,7 @@ mod tests {
         }
 
         let player = scan(
-            19,
+            23,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2651,11 +2651,19 @@ mod tests {
         assert_eq!(
             rules,
             [
+                "FiniteConditionFiniteCondition",
                 "AbilityPlain",
                 "AbilityBodySentences",
                 "SentencesSentencesSequenceSingleton",
                 "SentencesSentencesSequenceRecursive",
                 "TriggerPrefixFinite",
+                "TriggerPrefixTemporal",
+                "AtPhraseAtPhrase [form plural_main_phase]",
+                "AtPhraseAtPhrase [form singular]",
+                "AtPhraseValueSpecifierOptionalAbsent",
+                "AtPhraseValueSpecifierOptionalPresent",
+                "AtPhraseValuePostmodifierOptionalAbsent",
+                "AtPhraseValuePostmodifierOptionalPresent",
                 "AbilityTriggered",
                 "TriggeredInterveningIfOptionalAbsent",
                 "TriggeredInterveningIfOptionalPresent",
@@ -2861,6 +2869,7 @@ mod tests {
                 "OracleTextBlocksSequenceNonEmpty",
                 "OracleTextBlocksSequenceSingleton",
                 "OracleTextBlocksSequenceRecursive",
+                "ConditionClauseFiniteCondition",
                 "DocumentBlockAbility"
             ]
         );
@@ -2879,10 +2888,17 @@ mod tests {
         assert_eq!(
             terminals,
             [
+                "Literal(\"if\")",
+                "Literal(\",\")",
                 "Literal(\".\")",
                 "Literal(\" \")",
-                "TriggerWord",
-                "Literal(\",\")",
+                "TriggerMarker",
+                "Literal(\"at\")",
+                "AtBoundary",
+                "TurnPart",
+                "Literal(\"s\")",
+                "TurnSpecifier",
+                "TurnOwnerPostmodifier",
                 "Literal(\"where\")",
                 "Variable",
                 "Verb(Be, Exact(ThirdPersonSingular))",
@@ -2893,23 +2909,23 @@ mod tests {
                 "ObjectPronoun",
                 "ReflexivePronoun",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(19, Exact(Singular))",
-                "DeclarationNoun(20, Exact(Singular))",
-                "DeclarationNoun(21, Exact(Singular))",
-                "DeclarationNoun(22, Exact(Singular))",
                 "DeclarationNoun(23, Exact(Singular))",
                 "DeclarationNoun(24, Exact(Singular))",
                 "DeclarationNoun(25, Exact(Singular))",
                 "DeclarationNoun(26, Exact(Singular))",
+                "DeclarationNoun(27, Exact(Singular))",
+                "DeclarationNoun(28, Exact(Singular))",
+                "DeclarationNoun(29, Exact(Singular))",
+                "DeclarationNoun(30, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(19, Exact(Plural))",
-                "DeclarationNoun(20, Exact(Plural))",
-                "DeclarationNoun(21, Exact(Plural))",
-                "DeclarationNoun(22, Exact(Plural))",
                 "DeclarationNoun(23, Exact(Plural))",
                 "DeclarationNoun(24, Exact(Plural))",
                 "DeclarationNoun(25, Exact(Plural))",
                 "DeclarationNoun(26, Exact(Plural))",
+                "DeclarationNoun(27, Exact(Plural))",
+                "DeclarationNoun(28, Exact(Plural))",
+                "DeclarationNoun(29, Exact(Plural))",
+                "DeclarationNoun(30, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -2930,7 +2946,7 @@ mod tests {
                 "Literal(\"a\")",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(28)",
+                "CatalogIdentity(32)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -2989,8 +3005,8 @@ mod tests {
             (Leaf::Literal("where"), "Literal(\"where\")"),
             (Leaf::EndOfInput, "EndOfInput"),
             (
-                Leaf::TriggerWord(TriggerWord::Whenever),
-                "TriggerWord(Whenever)",
+                Leaf::TriggerMarker(TriggerMarker::Whenever),
+                "TriggerMarker(Whenever)",
             ),
             (
                 Leaf::SubjectPronoun(SubjectPronoun::They),

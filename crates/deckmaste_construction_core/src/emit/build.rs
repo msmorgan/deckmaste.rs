@@ -229,6 +229,23 @@ fn emit_arm_from_plan(
                 Ok(quote! { matches!(#field_value, #terminal::#variant) })
             }
             (
+                FiniteDomainKindPlan::OptionalVocab { terminal, .. },
+                FiniteValuePlan::OptionalVocab(variant),
+            ) => {
+                let field_value = lowering
+                    .field_values
+                    .get(guard_role)
+                    .cloned()
+                    .ok_or_else(|| internal("form guard role has no lowered build value"))?;
+                if let Some(variant) = variant {
+                    let terminal = ident(terminal);
+                    let variant = ident(variant);
+                    Ok(quote! { matches!(#field_value, Some(#terminal::#variant)) })
+                } else {
+                    Ok(quote! { #field_value.is_none() })
+                }
+            }
+            (
                 FiniteDomainKindPlan::OptionalPresence,
                 FiniteValuePlan::OptionalPresence(present),
             ) => {

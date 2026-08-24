@@ -368,25 +368,39 @@ fn emit_predicate_atom(
                 .iter()
                 .map(|member| match member {
                     PredicateMemberPlan::Variant(variant) => Ok(variant),
-                    PredicateMemberPlan::Feature(_) => Err(internal_invariant_expression(
-                        "category subject has a feature member",
-                    )),
+                    PredicateMemberPlan::Presence(_) | PredicateMemberPlan::Feature(_) => Err(
+                        internal_invariant_expression("category subject has a feature member"),
+                    ),
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
             Ok(quote! { matches!(#expression, #(#category::#variants(_))|*) })
         }
-        PredicateSubjectPlan::VocabRole { terminal, .. } => {
+        PredicateSubjectPlan::VocabRole {
+            terminal, optional, ..
+        } => {
             let terminal = local_ident(terminal);
             let variants = allowed
                 .iter()
                 .map(|member| match member {
                     PredicateMemberPlan::Variant(variant) => Ok(variant),
-                    PredicateMemberPlan::Feature(_) => Err(internal_invariant_expression(
-                        "vocabulary subject has a feature member",
-                    )),
+                    PredicateMemberPlan::Presence(_) | PredicateMemberPlan::Feature(_) => Err(
+                        internal_invariant_expression("vocabulary subject has a feature member"),
+                    ),
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
-            Ok(quote! { matches!(#expression, #(#terminal::#variants)|*) })
+            if *optional {
+                Ok(quote! { matches!(#expression, Some(#(#terminal::#variants)|*)) })
+            } else {
+                Ok(quote! { matches!(#expression, #(#terminal::#variants)|*) })
+            }
+        }
+        PredicateSubjectPlan::OptionalPresenceRole { .. } => {
+            let [PredicateMemberPlan::Presence(present)] = allowed else {
+                return Err(internal_invariant_expression(
+                    "optional-presence subject has a non-presence member",
+                ));
+            };
+            Ok(quote! { #expression == #present })
         }
         PredicateSubjectPlan::RoleFeature { feature, .. }
         | PredicateSubjectPlan::ConstructionFeature(feature) => {

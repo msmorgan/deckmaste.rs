@@ -167,7 +167,14 @@ wrapper to its category leaf, so an `opt Category` receives the same parse
 context as a direct category while `None` remains a no-byte branch. An empty
 `abstract sum` is a valid generated uninhabited public enum: it has no
 sentinel, tag, alias, or surface, and is useful as an optional structural slot
-that a later finite grammar extension may populate.
+that a later finite grammar extension may populate. An optional `vocab` role
+used by a finite form guard has the sealed domain `{Absent}` plus every
+declared present vocabulary variant. Membership accepts only matching present
+variants; `.is_some()` and `.is_none()` select presence and absence across the
+same domain. The same presence predicates are available to `require`, where
+they become checked-constructor invariants and may compose with present-value
+membership. This changes no public storage: the field remains `Option<Vocab>`,
+with no sentinel, form tag, or arbitrary Rust predicate.
 - **Added:** inflected atoms — `verb(lexeme)` and `noun(role)` render their
   inflection from derived feature context; and the terminal declarations
   `vocab`, `lexeme`, `codec` (§Terminals).

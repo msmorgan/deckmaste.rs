@@ -982,9 +982,12 @@ mod tests {
     }
 
     const EXPECTED_GENERATED_CONSTRUCTION_NAMES: &[&str] = &[
+        "FiniteConditionFiniteCondition",
         "AbilityPlain",
         "AbilityBodySentences",
         "TriggerPrefixFinite",
+        "TriggerPrefixTemporal",
+        "AtPhraseAtPhrase",
         "AbilityTriggered",
         "SentenceImperative",
         "SentenceDeclarative",
