@@ -150,6 +150,18 @@ The contribution vocabulary is not a plugin-extensible grammar DSL. New
 lexemes and their inflections are open data; new grammatical recipes remain
 reviewed compiler work.
 
+Attachment participles are a `grammar` contribution class (ruling
+2026-08-24): `equipped`, `enchanted`, and `fortified` occupy the determiner
+slot and license a bare noun ("equipped creature", never "*the equipped
+creature") [CR#301.5f,303.4m]. They form an open determiner family in the
+parser environment, contributed by the attach mechanic's keyword-ability
+macro (Equip, Enchant, Fortify — a custom "Enthrall" contributes
+"enthralled" the same way), consumed by ONE generic reference-NP core
+construction — never one construction per mechanic. The participle surfaces
+are declared whole and attested (equipped doubles the p, fortified mutates
+the y; only enchanted is regular append-ed), and the referent (the attached
+object) is frame-layer context resolution, not parser knowledge.
+
 ## One normalized parser boundary
 
 All declaration sources normalize into one immutable grammar inventory before
