@@ -305,8 +305,15 @@ fn it() -> Object {
     })
 }
 
+fn damage_recipient(object: Object) -> DamageRecipient {
+    DamageRecipient::DamageRecipient(DamageRecipientValue { object })
+}
+
 fn damage(amount: Amount) -> VerbPhrase {
-    VerbPhrase::DealDamage(DealDamage { to: it(), amount })
+    VerbPhrase::DealDamage(DealDamage {
+        recipient: damage_recipient(it()),
+        amount,
+    })
 }
 
 fn atomic(predicate: VerbPhrase) -> Predicate {
@@ -763,7 +770,7 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to: target_creature(),
+            recipient: damage_recipient(target_creature()),
         }),
     );
     assert_eq!(
@@ -788,7 +795,7 @@ fn the_same_self_reference_value_renders_from_two_card_contexts() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to: target_creature(),
+            recipient: damage_recipient(target_creature()),
         }),
     );
 
@@ -926,7 +933,7 @@ fn visitor_reaches_every_vertical_slice_leaf() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to: target_creature(),
+            recipient: damage_recipient(target_creature()),
         }),
     );
 

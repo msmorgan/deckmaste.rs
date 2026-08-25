@@ -42,6 +42,14 @@ fn environment() -> ParserEnvironment {
             r#"KeywordAction(name:"Create",spelling:"create",grammar:Verb(bare:"create",valence:Transitive))"#,
         ),
         (
+            "/synthetic/actions/Search.ron",
+            r#"KeywordAction(name:"Search",spelling:"search",grammar:Verb(bare:"search",third_person:"searches",valence:Custom(shapes:[[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase],[ObjectNounPhrase,Literal("for"),ObjectNounPhrase]])))"#,
+        ),
+        (
+            "/synthetic/actions/Reveal.ron",
+            r#"KeywordAction(name:"Reveal",spelling:"reveal",grammar:Verb(bare:"reveal",valence:Transitive))"#,
+        ),
+        (
             "/synthetic/types/Creature.ron",
             r#"Type(name:"Creature",spelling:"creature",grammar:Noun(singular:"creature"))"#,
         ),
@@ -83,6 +91,22 @@ fn imperative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) ->
     };
     let Predicate::Atomic(predicate) = imperative.predicate() else {
         panic!("one predicate has an atomic envelope: {text:?}")
+    };
+    predicate.clone()
+}
+
+fn declarative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) -> VerbPhrase {
+    let Sentence::Declarative(declarative) = parser
+        .parse_sentence(text, context)
+        .unwrap_or_else(|error| panic!("declarative product must parse {text:?}: {error:?}"))
+    else {
+        panic!("finite predicate has a declarative envelope: {text:?}")
+    };
+    let Clause::Finite(FiniteClause::PlainFiniteClause(clause)) = &declarative.clause else {
+        panic!("one finite predicate has a plain finite clause: {text:?}")
+    };
+    let Predicate::Atomic(predicate) = clause.predicate() else {
+        panic!("one finite predicate has an atomic envelope: {text:?}")
     };
     predicate.clone()
 }
@@ -386,8 +410,10 @@ fn typed_scalar_measure_counter_and_object_complements_select_exact_products() {
     ));
     assert!(matches!(
         &predicate.recipient,
-        Object::ObjectPronoun(PersonalObject {
-            word: ObjectPronoun::It,
+        CounterRecipient::CounterRecipient(CounterRecipientValue {
+            object: Object::ObjectPronoun(PersonalObject {
+                word: ObjectPronoun::It,
+            }),
         })
     ));
 
@@ -794,6 +820,199 @@ impl Visitor for ComplementVisitor {
     }
 }
 
+#[derive(Default)]
+struct MovementVisitor(Vec<String>);
+
+impl Visitor for MovementVisitor {
+    trace_product!(
+        visit_compared_card_quantity,
+        ComparedCardQuantity,
+        walk_compared_card_quantity,
+        "ComparedCardQuantity"
+    );
+    trace_product!(
+        visit_damage_recipient_value,
+        DamageRecipientValue,
+        walk_damage_recipient_value,
+        "DamageRecipientValue"
+    );
+    trace_product!(
+        visit_counter_recipient_value,
+        CounterRecipientValue,
+        walk_counter_recipient_value,
+        "CounterRecipientValue"
+    );
+    trace_product!(
+        visit_counter_source_value,
+        CounterSourceValue,
+        walk_counter_source_value,
+        "CounterSourceValue"
+    );
+    trace_product!(
+        visit_singular_owner_possessor,
+        SingularOwnerPossessor,
+        walk_singular_owner_possessor,
+        "SingularOwnerPossessor"
+    );
+    trace_product!(
+        visit_plural_owner_possessor,
+        PluralOwnerPossessor,
+        walk_plural_owner_possessor,
+        "PluralOwnerPossessor"
+    );
+    trace_product!(
+        visit_owner_possessed_zone,
+        OwnerPossessedZone,
+        walk_owner_possessed_zone,
+        "OwnerPossessedZone"
+    );
+    trace_product!(
+        visit_definite_zone,
+        DefiniteZone,
+        walk_definite_zone,
+        "DefiniteZone"
+    );
+    trace_product!(
+        visit_possessed_library,
+        PossessedLibrary,
+        walk_possessed_library,
+        "PossessedLibrary"
+    );
+    trace_product!(
+        visit_owner_possessed_library,
+        OwnerPossessedLibrary,
+        walk_owner_possessed_library,
+        "OwnerPossessedLibrary"
+    );
+    trace_product!(
+        visit_singular_library_card_quantity,
+        SingularLibraryCardQuantity,
+        walk_singular_library_card_quantity,
+        "SingularLibraryCardQuantity"
+    );
+    trace_product!(
+        visit_fixed_library_card_quantity,
+        FixedLibraryCardQuantity,
+        walk_fixed_library_card_quantity,
+        "FixedLibraryCardQuantity"
+    );
+    trace_product!(
+        visit_library_slice,
+        LibrarySlice,
+        walk_library_slice,
+        "LibrarySlice"
+    );
+    trace_product!(
+        visit_from_source_value,
+        FromSourceValue,
+        walk_from_source_value,
+        "FromSourceValue"
+    );
+    trace_product!(
+        visit_into_destination_value,
+        IntoDestinationValue,
+        walk_into_destination_value,
+        "IntoDestinationValue"
+    );
+    trace_product!(
+        visit_onto_battlefield_destination,
+        OntoBattlefieldDestination,
+        walk_onto_battlefield_destination,
+        "OntoBattlefieldDestination"
+    );
+    trace_product!(
+        visit_on_library_destination,
+        OnLibraryDestination,
+        walk_on_library_destination,
+        "OnLibraryDestination"
+    );
+    trace_product!(
+        visit_to_destination_value,
+        ToDestinationValue,
+        walk_to_destination_value,
+        "ToDestinationValue"
+    );
+    trace_product!(
+        visit_tapped_post_state,
+        TappedPostState,
+        walk_tapped_post_state,
+        "TappedPostState"
+    );
+    trace_product!(
+        visit_direct_control_postmodifier,
+        DirectControlPostmodifier,
+        walk_direct_control_postmodifier,
+        "DirectControlPostmodifier"
+    );
+    trace_product!(
+        visit_owner_control_postmodifier,
+        OwnerControlPostmodifier,
+        walk_owner_control_postmodifier,
+        "OwnerControlPostmodifier"
+    );
+    trace_product!(
+        visit_zone_location_value,
+        ZoneLocationValue,
+        walk_zone_location_value,
+        "ZoneLocationValue"
+    );
+    trace_product!(
+        visit_at_location_value,
+        AtLocationValue,
+        walk_at_location_value,
+        "AtLocationValue"
+    );
+    trace_product!(visit_put_into, PutInto, walk_put_into, "PutInto");
+    trace_product!(visit_put_onto, PutOnto, walk_put_onto, "PutOnto");
+    trace_product!(visit_put_on, PutOn, walk_put_on, "PutOn");
+    trace_product!(visit_return_to, ReturnTo, walk_return_to, "ReturnTo");
+    trace_product!(
+        visit_enter_post_state,
+        EnterPostState,
+        walk_enter_post_state,
+        "EnterPostState"
+    );
+    trace_product!(
+        visit_enter_location,
+        EnterLocation,
+        walk_enter_location,
+        "EnterLocation"
+    );
+    trace_product!(
+        visit_enter_control,
+        EnterControl,
+        walk_enter_control,
+        "EnterControl"
+    );
+    trace_product!(
+        visit_leave_location,
+        LeaveLocation,
+        walk_leave_location,
+        "LeaveLocation"
+    );
+    trace_product!(visit_look_at, LookAt, walk_look_at, "LookAt");
+    trace_product!(visit_search_for, SearchFor, walk_search_for, "SearchFor");
+    trace_product!(
+        visit_have_cards_in_hand,
+        HaveCardsInHand,
+        walk_have_cards_in_hand,
+        "HaveCardsInHand"
+    );
+    trace_product!(visit_have_life, HaveLife, walk_have_life, "HaveLife");
+    trace_product!(
+        visit_have_no_maximum_hand_size,
+        HaveNoMaximumHandSize,
+        walk_have_no_maximum_hand_size,
+        "HaveNoMaximumHandSize"
+    );
+    trace_product!(
+        visit_have_object_control,
+        HaveObjectControl,
+        walk_have_object_control,
+        "HaveObjectControl"
+    );
+}
+
 #[test]
 fn typed_complements_visit_payloads_in_surface_order_with_exact_claims() {
     let parser = parser();
@@ -875,7 +1094,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             ("Deal", "lexeme:VerbLexeme/Deal/bare"),
             (" X", "vocab:Variable/X"),
             (" damage", "form:deal_damage/deal_damage/2"),
-            (" to", "form:deal_damage/deal_damage/3"),
+            (" to", "form:damage_recipient/damage_recipient/0"),
             (" any", "form:any_target_reference/any_target_reference/0"),
             (
                 " target",
@@ -902,7 +1121,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" to", "form:scalar_equality/scalar_equality/1"),
             (" its", "vocab:PossessiveDeterminerPronoun/Its"),
             (" power", "vocab:ScalarCharacteristic/Power"),
-            (" to", "form:deal_damage_equal_to/deal_damage_equal_to/3"),
+            (" to", "form:damage_recipient/damage_recipient/0"),
             (" any", "form:any_target_reference/any_target_reference/0"),
             (
                 " target",
@@ -1166,7 +1385,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
                 " counter",
                 "form:singular_counter_quantity/singular_counter_quantity/2"
             ),
-            (" on", "form:put_counters/put_counters/2"),
+            (" on", "form:counter_recipient/counter_recipient/0"),
             (
                 " target",
                 "form:target_determiner_phrase/target_determiner_phrase/0"
@@ -1210,7 +1429,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
                 " counter",
                 "form:singular_counter_quantity/singular_counter_quantity/2"
             ),
-            (" on", "form:put_counters/put_counters/2"),
+            (" on", "form:counter_recipient/counter_recipient/0"),
             (
                 " target",
                 "form:target_determiner_phrase/target_determiner_phrase/0"
@@ -1239,7 +1458,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
                 " counter",
                 "form:singular_counter_quantity/singular_counter_quantity/2"
             ),
-            (" on", "form:put_counters/put_counters/2"),
+            (" on", "form:counter_recipient/counter_recipient/0"),
             (
                 " target",
                 "form:target_determiner_phrase/target_determiner_phrase/0"
@@ -1265,7 +1484,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
                 " counters",
                 "form:fixed_counter_quantity/fixed_counter_quantity/2"
             ),
-            (" on", "form:put_counters/put_counters/2"),
+            (" on", "form:counter_recipient/counter_recipient/0"),
             (" it", "vocab:ObjectPronoun/It"),
             (".", TERMINATOR),
         ]
@@ -1288,7 +1507,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
                 " counters",
                 "form:variable_counter_quantity/variable_counter_quantity/2"
             ),
-            (" on", "form:put_counters/put_counters/2"),
+            (" on", "form:counter_recipient/counter_recipient/0"),
             (
                 " target",
                 "form:target_determiner_phrase/target_determiner_phrase/0"
@@ -1315,7 +1534,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
                 " counters",
                 "form:anaphoric_counter_quantity/anaphoric_counter_quantity/2"
             ),
-            (" on", "form:put_counters/put_counters/2"),
+            (" on", "form:counter_recipient/counter_recipient/0"),
             (
                 " target",
                 "form:target_determiner_phrase/target_determiner_phrase/0"
@@ -1342,7 +1561,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
                 " counters",
                 "form:variable_counter_quantity/variable_counter_quantity/2"
             ),
-            (" from", "form:remove_counters/remove_counters/2"),
+            (" from", "form:counter_source/counter_source/0"),
             (" this", "form:this_reference/this_reference/0"),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (".", TERMINATOR),
@@ -1542,4 +1761,677 @@ fn typed_complements_reject_reciprocal_agreement_amount_number_and_determiners()
             "malformed reciprocal must reject {text:?}",
         );
     }
+}
+
+#[test]
+fn movement_frames_select_exact_source_destination_state_and_control_roles() {
+    let parser = parser();
+    let context = context();
+    for (text, permits_specificity) in [
+        ("Put that card into your hand.", false),
+        (
+            "Put target creature card from your graveyard onto the battlefield tapped under your control.",
+            true,
+        ),
+        ("Put target creature on top of its owner's library.", false),
+        ("Return target creature to its owner's hand.", false),
+        (
+            "Return target creature card from your graveyard to the battlefield tapped under its owner's control.",
+            true,
+        ),
+        ("This creature enters tapped.", false),
+        (
+            "This creature enters the battlefield under your control.",
+            false,
+        ),
+        ("This creature enters under your control.", false),
+        ("This creature leaves the battlefield.", false),
+        ("One or more cards leave your graveyard.", false),
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, permits_specificity);
+    }
+
+    // The parser owns grammatical form, not zone or controller legality.
+    for text in [
+        "Return target spell to the battlefield under your control.",
+        "Put target player onto the battlefield tapped under their control.",
+    ] {
+        assert_selected(&parser, &context, text);
+    }
+}
+
+#[test]
+fn location_state_and_object_control_frames_select_exact_products() {
+    let parser = parser();
+    let context = context();
+    for text in [
+        "Search your library for a creature card.",
+        "Look at the top two cards of your library.",
+        "Reveal the top card of your library.",
+        "Each player reveals their hand.",
+        "You have three or fewer cards in hand.",
+        "You have 10 or less life.",
+        "You have no maximum hand size.",
+        "Have her deal 2 damage to you.",
+    ] {
+        assert_selected(&parser, &context, text);
+    }
+}
+
+#[test]
+fn movement_location_and_control_builds_retain_every_typed_role() {
+    let parser = parser();
+    let context = context();
+
+    assert!(matches!(
+        imperative_atomic(&parser, &context, "Put that card into your hand."),
+        VerbPhrase::PutInto(PutInto {
+            source: None,
+            destination: IntoDestination::IntoDestination(_),
+            ..
+        })
+    ));
+    assert!(matches!(
+        imperative_atomic(
+            &parser,
+            &context,
+            "Put target creature card from your graveyard onto the battlefield tapped under your control."
+        ),
+        VerbPhrase::PutOnto(PutOnto {
+            source: Some(FromSource::FromSource(_)),
+            destination: OntoDestination::OntoBattlefieldDestination(_),
+            post_state: Some(PostState::TappedPostState(_)),
+            control: Some(ControlPostmodifier::DirectControlPostmodifier(_)),
+            ..
+        })
+    ));
+    assert!(matches!(
+        imperative_atomic(
+            &parser,
+            &context,
+            "Put target creature on top of its owner's library."
+        ),
+        VerbPhrase::PutOn(PutOn {
+            destination: OnDestination::OnLibraryDestination(OnLibraryDestination {
+                library: LibraryReference::OwnerPossessedLibrary(OwnerPossessedLibrary {
+                    owner: OwnerPossessor::SingularOwnerPossessor(_),
+                }),
+                ..
+            }),
+            ..
+        })
+    ));
+    assert!(matches!(
+        imperative_atomic(
+            &parser,
+            &context,
+            "Return target creature card from your graveyard to the battlefield tapped under its owner's control."
+        ),
+        VerbPhrase::ReturnTo(ReturnTo {
+            source: Some(FromSource::FromSource(_)),
+            destination: ToDestination::ToDestination(_),
+            post_state: Some(PostState::TappedPostState(_)),
+            control: Some(ControlPostmodifier::OwnerControlPostmodifier(_)),
+            ..
+        })
+    ));
+    assert!(matches!(
+        imperative_atomic(
+            &parser,
+            &context,
+            "Look at the top two cards of your library."
+        ),
+        VerbPhrase::LookAt(LookAt {
+            location: AtLocation::AtLocation(AtLocationValue {
+                object: Object::ObjectNominal(NominalObject {
+                    value: NounPhrase::LibrarySlice(LibrarySlice {
+                        cards: LibraryCardQuantity::FixedLibraryCardQuantity(_),
+                        library: LibraryReference::PossessedLibrary(_),
+                        ..
+                    }),
+                }),
+            }),
+        })
+    ));
+    assert!(matches!(
+        imperative_atomic(
+            &parser,
+            &context,
+            "Search your library for a creature card."
+        ),
+        VerbPhrase::SearchFor(SearchFor {
+            location: LibraryReference::PossessedLibrary(_),
+            sought: Object::ObjectNominal(_),
+            ..
+        })
+    ));
+    let VerbPhrase::HaveObjectControl(control) =
+        imperative_atomic(&parser, &context, "Have her deal 2 damage to you.")
+    else {
+        panic!("object control keeps its exact predicate product")
+    };
+    assert!(matches!(control.object, Object::ObjectPronoun(_)));
+    assert!(matches!(
+        control.predicate(),
+        VerbPhrase::DealDamage(DealDamage {
+            recipient: DamageRecipient::DamageRecipient(_),
+            ..
+        })
+    ));
+
+    assert!(matches!(
+        declarative_atomic(&parser, &context, "This creature enters tapped."),
+        VerbPhrase::EnterPostState(EnterPostState {
+            post_state: PostState::TappedPostState(_),
+        })
+    ));
+    assert!(matches!(
+        declarative_atomic(
+            &parser,
+            &context,
+            "This creature enters the battlefield under your control."
+        ),
+        VerbPhrase::EnterLocation(EnterLocation {
+            location: ZoneLocation::ZoneLocation(_),
+            control: Some(ControlPostmodifier::DirectControlPostmodifier(_)),
+            ..
+        })
+    ));
+    assert!(matches!(
+        declarative_atomic(
+            &parser,
+            &context,
+            "This creature enters under your control."
+        ),
+        VerbPhrase::EnterControl(EnterControl {
+            control: ControlPostmodifier::DirectControlPostmodifier(_),
+        })
+    ));
+    assert!(matches!(
+        declarative_atomic(&parser, &context, "This creature leaves the battlefield."),
+        VerbPhrase::LeaveLocation(LeaveLocation {
+            location: ZoneLocation::ZoneLocation(_),
+        })
+    ));
+    assert!(matches!(
+        declarative_atomic(&parser, &context, "You have three or fewer cards in hand."),
+        VerbPhrase::HaveCardsInHand(HaveCardsInHand {
+            cards: CardQuantity::ComparedCardQuantity(_),
+        })
+    ));
+    assert!(matches!(
+        declarative_atomic(&parser, &context, "You have 10 or less life."),
+        VerbPhrase::HaveLife(HaveLife {
+            comparison: ScalarComparison::ScalarOrLess(_),
+        })
+    ));
+    assert!(matches!(
+        declarative_atomic(&parser, &context, "You have no maximum hand size."),
+        VerbPhrase::HaveNoMaximumHandSize(_)
+    ));
+}
+
+#[test]
+fn movement_location_and_control_frames_reject_reciprocal_heads_prepositions_and_tails() {
+    let parser = parser();
+    let context = context();
+    for text in [
+        "Return that card into your hand.",
+        "Put that card to your hand.",
+        "Put that card on your hand.",
+        "Put that card onto your hand.",
+        "Put that card into the battlefield.",
+        "Search your library from a creature card.",
+        "Search a creature card for your library.",
+        "Reveal your library for a creature card.",
+        "Remove a time counter to this card.",
+        "This creature leaves to the battlefield.",
+        "This creature enters from your graveyard.",
+        "Look into the top two cards of your library.",
+        "Reveal at the top card of your library.",
+        "You have three or fewer cards on hand.",
+        "Put that card under your control onto the battlefield.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "wrong head, preposition, or tail must reject {text:?}",
+        );
+    }
+}
+
+#[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the literal per-family visitor and claim matrix is intentionally complete"
+)]
+fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
+    const TERMINATOR: &str = "structural:Sentences/sentences/terminator/0";
+
+    let parser = parser();
+    let context = context();
+
+    macro_rules! assert_family {
+        ($text:literal, $specificity:literal, [$($visit:literal),+ $(,)?], [$(($surface:literal, $owner:expr)),+ $(,)?]) => {{
+        let ability = assert_selected_with_specificity(&parser, &context, $text, $specificity);
+        let mut visitor = MovementVisitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(visitor.0, [$($visit),+], "exact visitor trace for {:?}", $text);
+        assert_eq!(
+            exact_claim_trace(&parser, &context, $text),
+            [$(($surface.to_owned(), $owner.to_owned())),+],
+            "exact complete ordered ownership for {:?}",
+            $text,
+        );
+        }};
+    }
+
+    assert_family!(
+        "Put that card into your hand.",
+        false,
+        ["product:PutInto", "product:IntoDestinationValue"],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (" that", "form:that_reference/that_reference/0"),
+            (" card", "lexeme:CommonNoun/Card/singular"),
+            (" into", "form:into_destination/into_destination/0"),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (" hand", "vocab:Zone/Hand"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Put target creature card from your graveyard onto the battlefield tapped under your control.",
+        true,
+        [
+            "product:PutOnto",
+            "product:FromSourceValue",
+            "product:OntoBattlefieldDestination",
+            "product:DefiniteZone",
+            "product:TappedPostState",
+            "product:DirectControlPostmodifier"
+        ],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" card", "lexeme:CommonNoun/Card/singular"),
+            (" from", "form:from_source/from_source/0"),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (" graveyard", "vocab:Zone/Graveyard"),
+            (
+                " onto",
+                "form:onto_battlefield_destination/onto_battlefield_destination/0"
+            ),
+            (" the", "form:definite_zone/definite_zone/0"),
+            (" battlefield", "vocab:Zone/Battlefield"),
+            (" tapped", "form:tapped_post_state/tapped_post_state/0"),
+            (
+                " under",
+                "form:direct_control_postmodifier/direct_control_postmodifier/0"
+            ),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (
+                " control",
+                "form:direct_control_postmodifier/direct_control_postmodifier/2"
+            ),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Put target creature on top of its owner's library.",
+        false,
+        [
+            "product:PutOn",
+            "product:OnLibraryDestination",
+            "product:OwnerPossessedLibrary",
+            "product:SingularOwnerPossessor"
+        ],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" on", "form:on_library_destination/top/0"),
+            (" top", "vocab:LibraryPosition/Top"),
+            (" of", "form:on_library_destination/top/2"),
+            (" its", "vocab:PossessiveDeterminerPronoun/Its"),
+            (
+                " owner's",
+                "form:singular_owner_possessor/singular_owner_possessor/1"
+            ),
+            (
+                " library",
+                "form:owner_possessed_library/owner_possessed_library/1"
+            ),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Put target creature on the bottom of their owners' library.",
+        false,
+        [
+            "product:PutOn",
+            "product:OnLibraryDestination",
+            "product:OwnerPossessedLibrary",
+            "product:PluralOwnerPossessor"
+        ],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" on", "form:on_library_destination/bottom/0"),
+            (" the", "form:on_library_destination/bottom/1"),
+            (" bottom", "vocab:LibraryPosition/Bottom"),
+            (" of", "form:on_library_destination/bottom/3"),
+            (" their", "vocab:PossessiveDeterminerPronoun/Their"),
+            (
+                " owners'",
+                "form:plural_owner_possessor/plural_owner_possessor/1"
+            ),
+            (
+                " library",
+                "form:owner_possessed_library/owner_possessed_library/1"
+            ),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Return target creature card from your graveyard to the battlefield tapped under its owner's control.",
+        true,
+        [
+            "product:ReturnTo",
+            "product:FromSourceValue",
+            "product:ToDestinationValue",
+            "product:DefiniteZone",
+            "product:TappedPostState",
+            "product:OwnerControlPostmodifier",
+            "product:SingularOwnerPossessor"
+        ],
+        [
+            ("Return", "lexeme:VerbLexeme/Return/bare"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" card", "lexeme:CommonNoun/Card/singular"),
+            (" from", "form:from_source/from_source/0"),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (" graveyard", "vocab:Zone/Graveyard"),
+            (" to", "form:to_destination/to_destination/0"),
+            (" the", "form:definite_zone/definite_zone/0"),
+            (" battlefield", "vocab:Zone/Battlefield"),
+            (" tapped", "form:tapped_post_state/tapped_post_state/0"),
+            (
+                " under",
+                "form:owner_control_postmodifier/owner_control_postmodifier/0"
+            ),
+            (" its", "vocab:PossessiveDeterminerPronoun/Its"),
+            (
+                " owner's",
+                "form:singular_owner_possessor/singular_owner_possessor/1"
+            ),
+            (
+                " control",
+                "form:owner_control_postmodifier/owner_control_postmodifier/2"
+            ),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "This creature enters tapped.",
+        false,
+        ["product:EnterPostState", "product:TappedPostState"],
+        [
+            ("This", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
+            (" tapped", "form:tapped_post_state/tapped_post_state/0"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "This creature enters the battlefield under your control.",
+        false,
+        [
+            "product:EnterLocation",
+            "product:ZoneLocationValue",
+            "product:DefiniteZone",
+            "product:DirectControlPostmodifier"
+        ],
+        [
+            ("This", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
+            (" the", "form:definite_zone/definite_zone/0"),
+            (" battlefield", "vocab:Zone/Battlefield"),
+            (
+                " under",
+                "form:direct_control_postmodifier/direct_control_postmodifier/0"
+            ),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (
+                " control",
+                "form:direct_control_postmodifier/direct_control_postmodifier/2"
+            ),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "This creature enters under your control.",
+        false,
+        ["product:EnterControl", "product:DirectControlPostmodifier"],
+        [
+            ("This", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
+            (
+                " under",
+                "form:direct_control_postmodifier/direct_control_postmodifier/0"
+            ),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (
+                " control",
+                "form:direct_control_postmodifier/direct_control_postmodifier/2"
+            ),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "This creature leaves the battlefield.",
+        false,
+        [
+            "product:LeaveLocation",
+            "product:ZoneLocationValue",
+            "product:DefiniteZone"
+        ],
+        [
+            ("This", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" leaves", "lexeme:VerbLexeme/Leave/third_person_singular"),
+            (" the", "form:definite_zone/definite_zone/0"),
+            (" battlefield", "vocab:Zone/Battlefield"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Look at the top two cards of your library.",
+        false,
+        [
+            "product:LookAt",
+            "product:AtLocationValue",
+            "product:LibrarySlice",
+            "product:FixedLibraryCardQuantity",
+            "product:PossessedLibrary"
+        ],
+        [
+            ("Look", "lexeme:VerbLexeme/Look/bare"),
+            (" at", "form:at_location/at_location/0"),
+            (" the", "form:library_slice/library_slice/0"),
+            (" top", "vocab:LibraryPosition/Top"),
+            (" two", "codec:CardinalNumber"),
+            (
+                " cards",
+                "form:fixed_library_card_quantity/fixed_library_card_quantity/1"
+            ),
+            (" of", "form:library_slice/library_slice/3"),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (" library", "form:possessed_library/possessed_library/1"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Reveal the top card of your library.",
+        false,
+        [
+            "product:LibrarySlice",
+            "product:SingularLibraryCardQuantity",
+            "product:PossessedLibrary"
+        ],
+        [
+            ("Reveal", "lexeme:keyword_action/Reveal/bare"),
+            (" the", "form:library_slice/library_slice/0"),
+            (" top", "vocab:LibraryPosition/Top"),
+            (
+                " card",
+                "form:singular_library_card_quantity/singular_library_card_quantity/0"
+            ),
+            (" of", "form:library_slice/library_slice/3"),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (" library", "form:possessed_library/possessed_library/1"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Search your library for a creature card.",
+        false,
+        ["product:SearchFor", "product:PossessedLibrary"],
+        [
+            ("Search", "lexeme:keyword_action/Search/bare"),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (" library", "form:possessed_library/possessed_library/1"),
+            (" for", "form:search_for/search_for/2"),
+            (" a", "form:indefinite_reference/a/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" card", "lexeme:CommonNoun/Card/singular"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "You have three or fewer cards in hand.",
+        false,
+        ["product:HaveCardsInHand", "product:ComparedCardQuantity"],
+        [
+            ("You", "vocab:SubjectPronoun/You"),
+            (" have", "lexeme:VerbLexeme/Have/bare"),
+            (" three", "codec:CardinalNumber"),
+            (" or", "form:count_or_fewer/count_or_fewer/0"),
+            (" fewer", "form:count_or_fewer/count_or_fewer/1"),
+            (
+                " cards",
+                "form:compared_card_quantity/compared_card_quantity/2"
+            ),
+            (" in", "form:have_cards_in_hand/have_cards_in_hand/2"),
+            (" hand", "form:have_cards_in_hand/have_cards_in_hand/3"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "You have 10 or less life.",
+        false,
+        ["product:HaveLife"],
+        [
+            ("You", "vocab:SubjectPronoun/You"),
+            (" have", "lexeme:VerbLexeme/Have/bare"),
+            (" 10", "codec:ScalarNumber"),
+            (" or", "form:scalar_or_less/scalar_or_less/1"),
+            (" less", "form:scalar_or_less/scalar_or_less/2"),
+            (" life", "form:have_life/have_life/2"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "You have no maximum hand size.",
+        false,
+        ["product:HaveNoMaximumHandSize"],
+        [
+            ("You", "vocab:SubjectPronoun/You"),
+            (" have", "lexeme:VerbLexeme/Have/bare"),
+            (
+                " no",
+                "form:have_no_maximum_hand_size/have_no_maximum_hand_size/1"
+            ),
+            (
+                " maximum",
+                "form:have_no_maximum_hand_size/have_no_maximum_hand_size/2"
+            ),
+            (
+                " hand",
+                "form:have_no_maximum_hand_size/have_no_maximum_hand_size/3"
+            ),
+            (
+                " size",
+                "form:have_no_maximum_hand_size/have_no_maximum_hand_size/4"
+            ),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Have her deal 2 damage to you.",
+        false,
+        ["product:HaveObjectControl", "product:DamageRecipientValue"],
+        [
+            ("Have", "lexeme:VerbLexeme/Have/bare"),
+            (" her", "vocab:ObjectPronoun/Her"),
+            (" deal", "lexeme:VerbLexeme/Deal/bare"),
+            (" 2", "codec:ScalarNumber"),
+            (" damage", "form:deal_damage/deal_damage/2"),
+            (" to", "form:damage_recipient/damage_recipient/0"),
+            (" you", "vocab:ObjectPronoun/You"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Put two stun counters on it.",
+        false,
+        ["product:CounterRecipientValue"],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (" two", "codec:CardinalNumber"),
+            (" stun", "vocab:CounterName/Stun"),
+            (
+                " counters",
+                "form:fixed_counter_quantity/fixed_counter_quantity/2"
+            ),
+            (" on", "form:counter_recipient/counter_recipient/0"),
+            (" it", "vocab:ObjectPronoun/It"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Remove X time counters from this card.",
+        false,
+        ["product:CounterSourceValue"],
+        [
+            ("Remove", "lexeme:VerbLexeme/Remove/bare"),
+            (" X", "vocab:Variable/X"),
+            (" time", "vocab:CounterName/Time"),
+            (
+                " counters",
+                "form:variable_counter_quantity/variable_counter_quantity/2"
+            ),
+            (" from", "form:counter_source/counter_source/0"),
+            (" this", "form:this_reference/this_reference/0"),
+            (" card", "lexeme:CommonNoun/Card/singular"),
+            (".", TERMINATOR)
+        ]
+    );
 }

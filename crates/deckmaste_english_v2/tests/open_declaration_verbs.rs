@@ -683,6 +683,10 @@ fn source_census_visits_production_macro_token_groups() {
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the literal closed morphology authority is intentionally exhaustive"
+)]
 fn generated_morphology_is_the_only_closed_spelling_authority() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let constructions = fs::read_to_string(root.join("constructions.rs")).unwrap();
@@ -715,8 +719,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             .map(deckmaste_construction_core::TerminalVariantContribution::name)
             .collect::<Vec<_>>(),
         [
-            "Add", "Deal", "Draw", "Gain", "Lose", "Pay", "Put", "Remove", "Roll", "Control",
-            "Own", "Be"
+            "Add", "Deal", "Draw", "Enter", "Gain", "Lose", "Pay", "Put", "Remove", "Roll", "Have",
+            "Look", "Leave", "Control", "Own", "Return", "Be"
         ]
     );
     assert_eq!(
@@ -732,6 +736,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Deal", SurfaceFeature::ThirdPersonSingular, "deals"),
             ("Draw", SurfaceFeature::Bare, "draw"),
             ("Draw", SurfaceFeature::ThirdPersonSingular, "draws"),
+            ("Enter", SurfaceFeature::Bare, "enter"),
+            ("Enter", SurfaceFeature::ThirdPersonSingular, "enters"),
             ("Gain", SurfaceFeature::Bare, "gain"),
             ("Gain", SurfaceFeature::ThirdPersonSingular, "gains"),
             ("Lose", SurfaceFeature::Bare, "lose"),
@@ -744,10 +750,18 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Remove", SurfaceFeature::ThirdPersonSingular, "removes"),
             ("Roll", SurfaceFeature::Bare, "roll"),
             ("Roll", SurfaceFeature::ThirdPersonSingular, "rolls"),
+            ("Have", SurfaceFeature::Bare, "have"),
+            ("Have", SurfaceFeature::ThirdPersonSingular, "has"),
+            ("Look", SurfaceFeature::Bare, "look"),
+            ("Look", SurfaceFeature::ThirdPersonSingular, "looks"),
+            ("Leave", SurfaceFeature::Bare, "leave"),
+            ("Leave", SurfaceFeature::ThirdPersonSingular, "leaves"),
             ("Control", SurfaceFeature::Bare, "control"),
             ("Control", SurfaceFeature::ThirdPersonSingular, "controls"),
             ("Own", SurfaceFeature::Bare, "own"),
             ("Own", SurfaceFeature::ThirdPersonSingular, "owns"),
+            ("Return", SurfaceFeature::Bare, "return"),
+            ("Return", SurfaceFeature::ThirdPersonSingular, "returns"),
             ("Be", SurfaceFeature::Bare, "are"),
             ("Be", SurfaceFeature::ThirdPersonSingular, "is"),
         ]
@@ -786,6 +800,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Spell", SurfaceFeature::Plural, "spells"),
             ("Token", SurfaceFeature::Singular, "token"),
             ("Token", SurfaceFeature::Plural, "tokens"),
+            ("Hand", SurfaceFeature::Singular, "hand"),
+            ("Hand", SurfaceFeature::Plural, "hands"),
             ("Die", SurfaceFeature::Singular, "die"),
             ("Die", SurfaceFeature::Plural, "dice"),
         ]
@@ -814,6 +830,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
         "lexeme:CommonNoun/Spell/plural",
         "lexeme:CommonNoun/Token/singular",
         "lexeme:CommonNoun/Token/plural",
+        "lexeme:CommonNoun/Hand/singular",
+        "lexeme:CommonNoun/Hand/plural",
     ] {
         assert!(
             generated.contains(owner),

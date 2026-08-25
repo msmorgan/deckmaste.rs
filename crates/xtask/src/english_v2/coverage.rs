@@ -1387,7 +1387,7 @@ mod tests {
             .iter()
             .map(String::as_str)
             .collect::<BTreeSet<_>>();
-        assert_eq!(production_selected_covered_ids.len(), 2_587);
+        assert_eq!(production_selected_covered_ids.len(), 3_204);
         assert!(covered_ids.is_subset(&production_selected_covered_ids));
         assert!(baseline_ids.is_subset(&covered_ids));
         assert!(target_ids.is_subset(&covered_ids));
@@ -1524,10 +1524,10 @@ mod tests {
 
         assert_eq!(report.rows().len(), 32_641);
         assert_eq!(report.summary().total_units(), 32_641);
-        assert_eq!(report.summary().selected_units(), 2_587);
-        assert_eq!(report.summary().covered_units(), 2_587);
+        assert_eq!(report.summary().selected_units(), 3_204);
+        assert_eq!(report.summary().covered_units(), 3_204);
         assert_eq!(report.summary().selected_uncovered_units(), 0);
-        assert_eq!(report.summary().parse_failures(), 30_054);
+        assert_eq!(report.summary().parse_failures(), 29_437);
         assert_eq!(report.summary().unresolved_ties(), 0);
         assert_eq!(report.summary().internal_failures(), 0);
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);
@@ -1807,10 +1807,10 @@ mod tests {
         }
 
         assert_eq!(report.summary().total_units(), 32_641);
-        assert_eq!(report.summary().selected_units(), 2_587);
-        assert_eq!(report.summary().covered_units(), 2_587);
+        assert_eq!(report.summary().selected_units(), 3_204);
+        assert_eq!(report.summary().covered_units(), 3_204);
         assert_eq!(report.summary().selected_uncovered_units(), 0);
-        assert_eq!(report.summary().parse_failures(), 30_054);
+        assert_eq!(report.summary().parse_failures(), 29_437);
         assert_eq!(report.summary().unresolved_ties(), 0);
         assert_eq!(report.summary().internal_failures(), 0);
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);

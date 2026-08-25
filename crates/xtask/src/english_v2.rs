@@ -1714,9 +1714,9 @@ mod tests {
             "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd"
         );
         assert_eq!(coverage["summary"]["total_units"], 32_641);
-        assert_eq!(coverage["summary"]["selected_units"], 2_587);
-        assert_eq!(coverage["summary"]["covered_units"], 2_587);
-        assert_eq!(coverage["summary"]["parse_failures"], 30_054);
+        assert_eq!(coverage["summary"]["selected_units"], 3_204);
+        assert_eq!(coverage["summary"]["covered_units"], 3_204);
+        assert_eq!(coverage["summary"]["parse_failures"], 29_437);
         for counter in [
             "selected_uncovered_units",
             "unresolved_ties",
@@ -1744,7 +1744,7 @@ mod tests {
                 + ambiguity["summary"]["specificity_resolved"]
                     .as_u64()
                     .unwrap(),
-            2_587,
+            3_204,
         );
         for counter in [
             "exception_resolved",
@@ -4143,6 +4143,9 @@ mod tests {
             "type DieShape" | "function render_die_shape" | "function walk_die_shape" => {
                 &["vocab DieShape"]
             }
+            "type LibraryPosition"
+            | "function render_library_position"
+            | "function walk_library_position" => &["vocab LibraryPosition"],
             "type TurnOwnerPostmodifier"
             | "function render_turn_owner_postmodifier"
             | "function walk_turn_owner_postmodifier" => &["vocab TurnOwnerPostmodifier"],
@@ -7714,8 +7717,8 @@ mod tests {
         assert_eq!(
             verbs,
             [
-                "Add", "Deal", "Draw", "Gain", "Lose", "Pay", "Put", "Remove", "Roll", "Control",
-                "Own", "Be"
+                "Add", "Deal", "Draw", "Enter", "Gain", "Lose", "Pay", "Put", "Remove", "Roll",
+                "Have", "Look", "Leave", "Control", "Own", "Return", "Be"
             ]
         );
 
@@ -8080,7 +8083,7 @@ mod tests {
             .iter()
             .map(|(item, origins)| (item.clone(), sha256_hex(origins.join("\0").as_bytes())))
             .collect::<Vec<_>>();
-        assert_eq!(fixture.len(), 1_271);
+        assert_eq!(fixture.len(), 1_408);
         assert_eq!(live_digests, fixture);
 
         let retained_headings = headings
@@ -8097,7 +8100,7 @@ mod tests {
                 .enumerate()
                 .find(|(_, (actual, expected))| actual != expected)
         );
-        assert_eq!(headings.len() - retained_headings.len(), 109);
+        assert_eq!(headings.len() - retained_headings.len(), 246);
         for expected_key in headings {
             let header = format!("// === {expected_key} ===");
             assert_eq!(output.matches(&header).count(), 1, "{expected_key}");
@@ -8136,11 +8139,13 @@ mod tests {
             .1;
         assert_eq!(
             report,
-            "// morphology irregulars (4)\n\
+            "// morphology irregulars (5)\n\
              // - lexeme:CommonNoun/Ability\n\
              //   - plural = \"abilities\"\n\
              // - lexeme:CommonNoun/Die\n\
              //   - plural = \"dice\"\n\
+             // - lexeme:VerbLexeme/Have\n\
+             //   - third_person_singular = \"has\"\n\
              // - lexeme:VerbLexeme/Be\n\
              //   - bare = \"are\"\n\
              //   - third_person_singular = \"is\"\n\
@@ -8166,7 +8171,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 1_271);
+        assert_eq!(parsed.items.len(), 1_408);
     }
 
     #[test]

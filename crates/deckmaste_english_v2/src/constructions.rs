@@ -157,6 +157,7 @@ constructions! {
     vocab ScalarCharacteristic { Power = "power", Toughness = "toughness", }
     vocab CounterName { Charge = "charge", Lore = "lore", Stun = "stun", Time = "time", }
     vocab DieShape { SixSided = "six-sided", }
+    vocab LibraryPosition { Top = "top", Bottom = "bottom", }
     vocab Zone {
         Battlefield = "battlefield",
         Exile = "exile",
@@ -207,6 +208,7 @@ constructions! {
         Source = "source",
         Spell = "spell",
         Token = "token",
+        Hand = "hand",
         Die = "die" {
             Plural = "dice",
         },
@@ -215,14 +217,21 @@ constructions! {
         Add = "add",
         Deal = "deal",
         Draw = "draw",
+        Enter = "enter",
         Gain = "gain",
         Lose = "lose",
         Pay = "pay",
         Put = "put",
         Remove = "remove",
         Roll = "roll",
+        Have = "have" {
+            ThirdPersonSingular = "has",
+        },
+        Look = "look",
+        Leave = "leave",
         Control = "control",
         Own = "own",
+        Return = "return",
         Be = "be" {
             Bare = "are",
             ThirdPersonSingular = "is",
@@ -271,6 +280,18 @@ constructions! {
             position = Verb;
             kinds = [KeywordAction];
             tail = [Amount];
+            feature = Agreement;
+        }
+    }
+    codec SearchForVerb {
+        generate declaration_verb {
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = [
+                location: ObjectNounPhrase,
+                "for",
+                sought: ObjectNounPhrase,
+            ];
             feature = Agreement;
         }
     }
@@ -2061,6 +2082,102 @@ constructions! {
         require zone is Exile;
         form unpossessed_zone = lex(zone);
     }
+    construction singular_owner_possessor: OwnerPossessor {
+        element SingularOwnerPossessor { possessor: lex PossessiveDeterminerPronoun, }
+        form singular_owner_possessor = lex(possessor) "owner's";
+    }
+    construction plural_owner_possessor: OwnerPossessor {
+        element PluralOwnerPossessor { possessor: lex PossessiveDeterminerPronoun, }
+        require possessor is Their;
+        form plural_owner_possessor = lex(possessor) "owners'";
+    }
+    construction owner_possessed_zone: ZoneReference {
+        element OwnerPossessedZone {
+            owner: OwnerPossessor,
+            zone: lex Zone,
+        }
+        form owner_possessed_zone = owner lex(zone);
+    }
+    construction definite_zone: ZoneReference {
+        element DefiniteZone { zone: lex Zone, }
+        require zone is Battlefield;
+        form definite_zone = "the" lex(zone);
+    }
+    construction possessed_library: LibraryReference {
+        element PossessedLibrary {
+            possessor: lex PossessiveDeterminerPronoun,
+        }
+        form possessed_library = lex(possessor) "library";
+    }
+    construction owner_possessed_library: LibraryReference {
+        element OwnerPossessedLibrary { owner: OwnerPossessor, }
+        form owner_possessed_library = owner "library";
+    }
+    construction singular_library_card_quantity: LibraryCardQuantity {
+        element SingularLibraryCardQuantity {}
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        form singular_library_card_quantity = "card";
+    }
+    construction fixed_library_card_quantity: LibraryCardQuantity {
+        element FixedLibraryCardQuantity { count: CardinalQuantity, }
+        require count.cardinality is TwoPlus;
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        form fixed_library_card_quantity = count "cards";
+    }
+    construction from_source: FromSource {
+        element FromSourceValue { zone: ZoneReference, }
+        form from_source = "from" zone;
+    }
+    construction into_destination: IntoDestination {
+        element IntoDestinationValue { zone: ZoneReference, }
+        require any(
+            zone is PossessedZone,
+            zone is OwnerPossessedZone,
+            zone is UnpossessedZone
+        );
+        form into_destination = "into" zone;
+    }
+    construction onto_battlefield_destination: OntoDestination {
+        element OntoBattlefieldDestination { battlefield: ZoneReference, }
+        require battlefield is DefiniteZone;
+        form onto_battlefield_destination = "onto" battlefield;
+    }
+    construction on_library_destination: OnDestination {
+        element OnLibraryDestination {
+            position: lex LibraryPosition,
+            library: LibraryReference,
+        }
+        form top when position is Top = "on" lex(position) "of" library;
+        form bottom otherwise = "on" "the" lex(position) "of" library;
+    }
+    construction to_destination: ToDestination {
+        element ToDestinationValue { zone: ZoneReference, }
+        form to_destination = "to" zone;
+    }
+    construction tapped_post_state: PostState {
+        element TappedPostState {}
+        form tapped_post_state = "tapped";
+    }
+    construction direct_control_postmodifier: ControlPostmodifier {
+        element DirectControlPostmodifier {
+            controller: lex PossessiveDeterminerPronoun,
+        }
+        form direct_control_postmodifier = "under" lex(controller) "control";
+    }
+    construction owner_control_postmodifier: ControlPostmodifier {
+        element OwnerControlPostmodifier { owner: OwnerPossessor, }
+        form owner_control_postmodifier = "under" owner "control";
+    }
+    construction zone_location: ZoneLocation {
+        element ZoneLocationValue { zone: ZoneReference, }
+        form zone_location = zone;
+    }
+    construction at_location: AtLocation {
+        element AtLocationValue { object: Object, }
+        form at_location = "at" object;
+    }
     construction in_zone: ZoneQualification {
         element InZone { zone: ZoneReference, }
         form in_zone = "in" zone;
@@ -2211,6 +2328,17 @@ constructions! {
         derive onset = reference.onset;
         form qualified_noun_phrase = reference;
     }
+    construction library_slice: NounPhrase {
+        element LibrarySlice {
+            position: lex LibraryPosition,
+            cards: LibraryCardQuantity,
+            library: LibraryReference,
+        }
+        derive agreement = cards.agreement;
+        derive number = cards.number;
+        derive onset = Values::Consonant;
+        form library_slice = "the" lex(position) cards "of" library;
+    }
     construction possessive_self_reference: PossessiveOwner {
         element PossessiveSelfReference { spelling: identity SelfReferenceSpelling, }
         derive number = Values::Singular;
@@ -2249,6 +2377,14 @@ constructions! {
     construction anaphoric_card_quantity: CardQuantity {
         element AnaphoricCardQuantity { count: CountReference, }
         form anaphoric_card_quantity = count "cards";
+    }
+    construction compared_card_quantity: CardQuantity {
+        element ComparedCardQuantity {
+            count: CardinalQuantity,
+            comparison: CountComparison,
+        }
+        require count.cardinality is TwoPlus;
+        form compared_card_quantity = count comparison "cards";
     }
     construction positive_power_toughness_counter: CounterKind {
         element PositivePowerToughnessCounter {
@@ -2333,10 +2469,22 @@ constructions! {
         derive agreement = head.agreement;
         form numerative_predicate = verb(head) amount;
     }
+    construction damage_recipient: DamageRecipient {
+        element DamageRecipientValue { object: Object, }
+        form damage_recipient = "to" object;
+    }
+    construction counter_recipient: CounterRecipient {
+        element CounterRecipientValue { object: Object, }
+        form counter_recipient = "on" object;
+    }
+    construction counter_source: CounterSource {
+        element CounterSourceValue { object: Object, }
+        form counter_source = "from" object;
+    }
     construction deal_damage: VerbPhrase {
-        element DealDamage { amount: Amount, to: Object, }
+        element DealDamage { amount: Amount, recipient: DamageRecipient, }
         derive agreement = verb.agreement;
-        form deal_damage = verb(VerbLexeme::Deal) amount "damage" "to" to;
+        form deal_damage = verb(VerbLexeme::Deal) amount "damage" recipient;
     }
     construction gain_life: VerbPhrase {
         element GainLife { amount: Amount, }
@@ -2344,9 +2492,12 @@ constructions! {
         form gain_life = verb(VerbLexeme::Gain) amount "life";
     }
     construction deal_damage_equal_to: VerbPhrase {
-        element DealDamageEqualTo { equality: ScalarEquality, to: Object, }
+        element DealDamageEqualTo {
+            equality: ScalarEquality,
+            recipient: DamageRecipient,
+        }
         derive agreement = verb.agreement;
-        form deal_damage_equal_to = verb(VerbLexeme::Deal) "damage" equality "to" to;
+        form deal_damage_equal_to = verb(VerbLexeme::Deal) "damage" equality recipient;
     }
     construction gain_life_equal_to: VerbPhrase {
         element GainLifeEqualTo { equality: ScalarEquality, }
@@ -2394,14 +2545,123 @@ constructions! {
         form roll_dice = verb(VerbLexeme::Roll) dice;
     }
     construction put_counters: VerbPhrase {
-        element PutCounters { counters: CounterQuantity, recipient: Object, }
+        element PutCounters {
+            counters: CounterQuantity,
+            recipient: CounterRecipient,
+        }
         derive agreement = verb.agreement;
-        form put_counters = verb(VerbLexeme::Put) counters "on" recipient;
+        form put_counters = verb(VerbLexeme::Put) counters recipient;
     }
     construction remove_counters: VerbPhrase {
-        element RemoveCounters { counters: CounterQuantity, source: Object, }
+        element RemoveCounters {
+            counters: CounterQuantity,
+            source: CounterSource,
+        }
         derive agreement = verb.agreement;
-        form remove_counters = verb(VerbLexeme::Remove) counters "from" source;
+        form remove_counters = verb(VerbLexeme::Remove) counters source;
+    }
+    construction put_into: VerbPhrase {
+        element PutInto {
+            object: Object,
+            source: opt FromSource,
+            destination: IntoDestination,
+        }
+        derive agreement = verb.agreement;
+        form put_into = verb(VerbLexeme::Put) object source destination;
+    }
+    construction put_onto: VerbPhrase {
+        element PutOnto {
+            object: Object,
+            source: opt FromSource,
+            destination: OntoDestination,
+            post_state: opt PostState,
+            control: opt ControlPostmodifier,
+        }
+        derive agreement = verb.agreement;
+        form put_onto = verb(VerbLexeme::Put) object source destination post_state control;
+    }
+    construction put_on: VerbPhrase {
+        element PutOn {
+            object: Object,
+            source: opt FromSource,
+            destination: OnDestination,
+        }
+        derive agreement = verb.agreement;
+        form put_on = verb(VerbLexeme::Put) object source destination;
+    }
+    construction return_to: VerbPhrase {
+        element ReturnTo {
+            object: Object,
+            source: opt FromSource,
+            destination: ToDestination,
+            post_state: opt PostState,
+            control: opt ControlPostmodifier,
+        }
+        derive agreement = verb.agreement;
+        form return_to = verb(VerbLexeme::Return) object source destination post_state control;
+    }
+    construction enter_post_state: VerbPhrase {
+        element EnterPostState { post_state: PostState, }
+        derive agreement = verb.agreement;
+        form enter_post_state = verb(VerbLexeme::Enter) post_state;
+    }
+    construction enter_location: VerbPhrase {
+        element EnterLocation {
+            location: ZoneLocation,
+            post_state: opt PostState,
+            control: opt ControlPostmodifier,
+        }
+        derive agreement = verb.agreement;
+        form enter_location = verb(VerbLexeme::Enter) location post_state control;
+    }
+    construction enter_control: VerbPhrase {
+        element EnterControl { control: ControlPostmodifier, }
+        derive agreement = verb.agreement;
+        form enter_control = verb(VerbLexeme::Enter) control;
+    }
+    construction leave_location: VerbPhrase {
+        element LeaveLocation { location: ZoneLocation, }
+        derive agreement = verb.agreement;
+        form leave_location = verb(VerbLexeme::Leave) location;
+    }
+    construction look_at: VerbPhrase {
+        element LookAt { location: AtLocation, }
+        derive agreement = verb.agreement;
+        form look_at = verb(VerbLexeme::Look) location;
+    }
+    construction search_for: VerbPhrase {
+        element SearchFor {
+            head: lex SearchForVerb,
+            location: LibraryReference,
+            sought: Object,
+        }
+        derive agreement = head.agreement;
+        form search_for = verb(head) location "for" sought;
+    }
+    construction have_cards_in_hand: VerbPhrase {
+        element HaveCardsInHand { cards: CardQuantity, }
+        derive agreement = verb.agreement;
+        form have_cards_in_hand = verb(VerbLexeme::Have) cards "in" "hand";
+    }
+    construction have_life: VerbPhrase {
+        element HaveLife { comparison: ScalarComparison, }
+        derive agreement = verb.agreement;
+        form have_life = verb(VerbLexeme::Have) comparison "life";
+    }
+    construction have_no_maximum_hand_size: VerbPhrase {
+        element HaveNoMaximumHandSize {}
+        derive agreement = verb.agreement;
+        form have_no_maximum_hand_size = verb(VerbLexeme::Have)
+            "no" "maximum" "hand" "size";
+    }
+    construction have_object_control: VerbPhrase {
+        element HaveObjectControl {
+            object: Object,
+            predicate: VerbPhrase,
+        }
+        derive agreement = verb.agreement;
+        derive predicate.agreement = Values::Bare;
+        form have_object_control = verb(VerbLexeme::Have) object predicate;
     }
     construction mana_amount: ManaAmount {
         element ManaAmountValue { run: ActivationCostComponent, }

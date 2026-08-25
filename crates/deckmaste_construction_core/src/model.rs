@@ -401,7 +401,13 @@ pub struct DeclarationVerbTailSource {
 }
 
 #[derive(Debug)]
-pub enum DeclarationVerbTailAtomSource {
+pub struct DeclarationVerbTailAtomSource {
+    pub label: Option<Ident>,
+    pub kind: DeclarationVerbTailAtomKindSource,
+}
+
+#[derive(Debug)]
+pub enum DeclarationVerbTailAtomKindSource {
     Literal(LitStr),
     Amount(Ident),
     ObjectNounPhrase(Ident),

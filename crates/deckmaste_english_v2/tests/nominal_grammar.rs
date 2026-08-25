@@ -2395,15 +2395,15 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Lightning Bolt",
             text: "Lightning Bolt deals 3 damage to any target.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
-            specificity: "NNNNNNNNNNTTNLLNTNNNNNLL",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/DamageRecipientDamageRecipient/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
+            specificity: "NNNNNNNNNNTTNLNTLNNNNNNLL",
             candidates: 1,
         },
         Witness {
             card_name: "Pyroclasm",
             text: "Pyroclasm deals 2 damage to each creature.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
-            specificity: "NNNNNNNNNNTTNLLNTNNNNNLNNNT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/DamageRecipientDamageRecipient/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceEachReference/SingularSelectorUnmarkedSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            specificity: "NNNNNNNNNNTTNLNTLNNNNNNLNNNT",
             candidates: 1,
         },
         Witness {
@@ -2479,8 +2479,8 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Anaba Shaman",
             text: "This creature deals 1 damage to any target.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThisReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
-            specificity: "NNNNNNNNNNLNNTTNLLNTNNNNNLL",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThisReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/DamageRecipientDamageRecipient/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyTargetReference",
+            specificity: "NNNNNNNNNNLNNTTNLNTLNNNNNNLL",
             candidates: 1,
         },
         Witness {
@@ -2528,29 +2528,29 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to them.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/DamageRecipientDamageRecipient/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNTTNLNTLNT",
             candidates: 1,
         },
         Witness {
             card_name: "Asmoranomardicadaistinaculdacar",
             text: "Asmoranomardicadaistinaculdacar deals 2 damage to itself.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectReflexiveObject",
-            specificity: "NNNNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/DamageRecipientDamageRecipient/ObjectReflexiveObject",
+            specificity: "NNNNNNNNNNTTNLNTLNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "That creature deals 2 damage to it.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThatReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNNLNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThatReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/DamageRecipientDamageRecipient/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNLNNTTNLNTLNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Those creatures deal 2 damage to it.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThoseReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNNLNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThoseReference/PluralNominalBarePluralNominal/PluralHeadTypePluralHead/VerbPhraseDealDamage/AmountNumber/DamageRecipientDamageRecipient/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNLNNTTNLNTLNT",
             candidates: 1,
         },
         Witness {
@@ -2640,15 +2640,15 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to him.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/DamageRecipientDamageRecipient/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNTTNLNTLNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Context Card deals 2 damage to her.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ObjectObjectPronoun",
-            specificity: "NNNNNNNNNNTTNLLNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/ZoneStageUnqualifiedZoneStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/DamageRecipientDamageRecipient/ObjectObjectPronoun",
+            specificity: "NNNNNNNNNNTTNLNTLNT",
             candidates: 1,
         },
         Witness {
@@ -3161,7 +3161,9 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     let Subject::SubjectNominal(subject) = finite_subject else {
         panic!("former fixture retains a nominal subject: {declarative:?}");
     };
-    let NounPhrase::QualifiedNounPhrase(noun_phrase) = &subject.value;
+    let NounPhrase::QualifiedNounPhrase(noun_phrase) = &subject.value else {
+        panic!("former fixture remains an ordinary qualified noun phrase: {subject:?}");
+    };
     let deckmaste_english_v2::ast::NumericStage::ScalarQualifiedReference(reference) =
         &noun_phrase.reference
     else {

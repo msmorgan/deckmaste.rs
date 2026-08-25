@@ -1047,6 +1047,32 @@ mod tests {
         assert!(amount.frame_key().matches_valence(&VerbValence::Numerative));
         assert!(!amount.frame_key().matches_valence(&VerbValence::Transitive));
 
+        let search_plan = plan_for(quote::quote! {
+            location: ObjectNounPhrase,
+            "for",
+            sought: ObjectNounPhrase
+        });
+        let (_, search) = search_plan
+            .runtime_declaration_verbs()
+            .next()
+            .expect("labeled Search tail remains one recipe");
+        assert_eq!(
+            search.frame_key().atoms(),
+            [
+                crate::semantic::VerbFrameAtom::ObjectNounPhrase,
+                crate::semantic::VerbFrameAtom::Literal("for".to_owned()),
+                crate::semantic::VerbFrameAtom::ObjectNounPhrase,
+            ]
+        );
+        assert!(search.frame_key().matches_valence(&VerbValence::Custom {
+            shapes: vec![vec![
+                CustomTailAtom::ObjectNounPhrase,
+                CustomTailAtom::Literal("for".to_owned()),
+                CustomTailAtom::ObjectNounPhrase,
+            ]],
+        }));
+        assert!(!search.frame_key().matches_valence(&VerbValence::Transitive));
+
         let empty_plan = plan_for(quote::quote! {});
         let (_, empty) = empty_plan
             .runtime_declaration_verbs()

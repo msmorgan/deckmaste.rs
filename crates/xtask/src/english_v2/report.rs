@@ -744,7 +744,7 @@ mod tests {
                 report.checked_constructor_bindings.len(),
                 report.roots.len(),
             ],
-            [0, 0, 0, 1, 30, 0, 0, 0, 8],
+            [0, 0, 0, 1, 31, 0, 0, 0, 8],
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
@@ -797,6 +797,16 @@ mod tests {
                 "Triggered.intervening_if",
                 "SingularDieObject.shape",
                 "FixedDiceObject.shape",
+                "PutInto.source",
+                "PutOnto.source",
+                "PutOnto.post_state",
+                "PutOnto.control",
+                "PutOn.source",
+                "ReturnTo.source",
+                "ReturnTo.post_state",
+                "ReturnTo.control",
+                "EnterLocation.post_state",
+                "EnterLocation.control",
             ]
         );
         assert_eq!(
@@ -957,6 +967,7 @@ mod tests {
                         *identity,
                         "lexeme:CommonNoun/Ability"
                             | "lexeme:CommonNoun/Die"
+                            | "lexeme:VerbLexeme/Have"
                             | "lexeme:VerbLexeme/Be"
                             | "lexeme:CoreIntransitiveVerb/Die"
                     )
@@ -1004,6 +1015,12 @@ mod tests {
                     "identity": "lexeme:CommonNoun/Die",
                     "overrides": [
                         { "feature": "plural", "surface": "dice" }
+                    ]
+                },
+                {
+                    "identity": "lexeme:VerbLexeme/Have",
+                    "overrides": [
+                        { "feature": "third_person_singular", "surface": "has" }
                     ]
                 },
                 {
@@ -1093,7 +1110,7 @@ mod tests {
             ],
             "abstract_products": ["OracleText"],
             "abstract_sums": ["ActivationCostComponent", "Predicate", "Clause", "ClauseAttachment", "ConditionClause", "DocumentBlock"],
-            "optional_roles": ["SingularExistentialClause.domain", "PluralExistentialClause.domain", "AtPhraseValue.specifier", "AtPhraseValue.postmodifier", "Triggered.intervening_if", "SingularDieObject.shape", "FixedDiceObject.shape"],
+            "optional_roles": ["SingularExistentialClause.domain", "PluralExistentialClause.domain", "AtPhraseValue.specifier", "AtPhraseValue.postmodifier", "Triggered.intervening_if", "SingularDieObject.shape", "FixedDiceObject.shape", "PutInto.source", "PutOnto.source", "PutOnto.post_state", "PutOnto.control", "PutOn.source", "ReturnTo.source", "ReturnTo.post_state", "ReturnTo.control", "EnterLocation.post_state", "EnterLocation.control"],
             "sequence_roles": [
                 "Sentences.sentences",
                 "ModalModeValue.sentences",
@@ -1353,6 +1370,10 @@ mod tests {
         vec![
             ("lexeme:CommonNoun/Ability", vec![("plural", "abilities")]),
             ("lexeme:CommonNoun/Die", vec![("plural", "dice")]),
+            (
+                "lexeme:VerbLexeme/Have",
+                vec![("third_person_singular", "has")],
+            ),
             (
                 "lexeme:VerbLexeme/Be",
                 vec![("bare", "are"), ("third_person_singular", "is")],

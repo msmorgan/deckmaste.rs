@@ -2404,12 +2404,12 @@ fn declaration_verb_domain(
     let tail = tail
         .atoms
         .iter()
-        .map(|atom| match atom {
-            crate::model::DeclarationVerbTailAtomSource::Literal(literal) => {
+        .map(|atom| match &atom.kind {
+            crate::model::DeclarationVerbTailAtomKindSource::Literal(literal) => {
                 format!("Literal({:?})", literal.value())
             }
-            crate::model::DeclarationVerbTailAtomSource::Amount(_) => "Amount".to_owned(),
-            crate::model::DeclarationVerbTailAtomSource::ObjectNounPhrase(_) => {
+            crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => "Amount".to_owned(),
+            crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
                 "ObjectNounPhrase".to_owned()
             }
         })
@@ -2702,10 +2702,25 @@ fn validate_declaration_verb_tail(
             slot
         }
     };
-    let mut seen = HashSet::new();
+    let mut seen_labels = HashSet::new();
+    let mut nonliteral_occurrences =
+        HashMap::<String, Vec<&crate::model::DeclarationVerbTailAtomSource>>::new();
+    let mut seen_literals = HashSet::new();
     for atom in &tail.atoms {
-        let (key, span) = match atom {
-            crate::model::DeclarationVerbTailAtomSource::Literal(literal) => {
+        if let Some(label) = &atom.label {
+            let key = identifier_key(label);
+            if !seen_labels.insert(key.clone()) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        label.span(),
+                        format!("duplicate declaration_verb tail label `{key}`"),
+                    ),
+                );
+            }
+        }
+        match &atom.kind {
+            crate::model::DeclarationVerbTailAtomKindSource::Literal(literal) => {
                 if literal.value().is_empty() {
                     combine(
                         errors,
@@ -2715,24 +2730,59 @@ fn validate_declaration_verb_tail(
                         ),
                     );
                 }
-                (format!("Literal({:?})", literal.value()), literal.span())
+                if atom.label.is_some() {
+                    combine(
+                        errors,
+                        syn::Error::new(
+                            literal.span(),
+                            "declaration_verb tail labels cannot prefix literals",
+                        ),
+                    );
+                }
+                let key = format!("Literal({:?})", literal.value());
+                if !seen_literals.insert(key.clone()) {
+                    combine(
+                        errors,
+                        syn::Error::new(
+                            literal.span(),
+                            format!("duplicate declaration_verb tail atom `{key}`"),
+                        ),
+                    );
+                }
             }
-            crate::model::DeclarationVerbTailAtomSource::Amount(atom) => {
-                ("Amount".to_owned(), atom.span())
+            crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => {
+                nonliteral_occurrences
+                    .entry("Amount".to_owned())
+                    .or_default()
+                    .push(atom);
             }
-            crate::model::DeclarationVerbTailAtomSource::ObjectNounPhrase(atom) => {
-                ("ObjectNounPhrase".to_owned(), atom.span())
+            crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
+                nonliteral_occurrences
+                    .entry("ObjectNounPhrase".to_owned())
+                    .or_default()
+                    .push(atom);
+            }
+        }
+    }
+    for (key, occurrences) in nonliteral_occurrences {
+        if occurrences.len() <= 1 || occurrences.iter().all(|atom| atom.label.is_some()) {
+            continue;
+        }
+        let span = match &occurrences[1].kind {
+            crate::model::DeclarationVerbTailAtomKindSource::Amount(atom)
+            | crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom) => {
+                atom.span()
+            }
+            crate::model::DeclarationVerbTailAtomKindSource::Literal(_) => {
+                unreachable!("only nonliteral occurrences are grouped")
             }
         };
-        if !seen.insert(key.clone()) {
-            combine(
-                errors,
-                syn::Error::new(
-                    span,
-                    format!("duplicate declaration_verb tail atom `{key}`"),
-                ),
-            );
-        }
+        let message = if occurrences.iter().all(|atom| atom.label.is_none()) {
+            format!("duplicate declaration_verb tail atom `{key}`")
+        } else {
+            format!("repeated declaration_verb tail atom `{key}` must label every occurrence")
+        };
+        combine(errors, syn::Error::new(span, message));
     }
 }
 
@@ -10193,6 +10243,24 @@ pub(crate) mod tests {
         super::validate_generated_codecs(&raw)
             .expect("the exact declaration_verb source validates");
 
+        let labeled_repetition = crate::parse_declarations(quote! {
+            codec SearchForVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [
+                        location: ObjectNounPhrase,
+                        "for",
+                        sought: ObjectNounPhrase,
+                    ];
+                    feature = Agreement;
+                }
+            }
+        })
+        .expect("the labeled repeated-tail syntax parses");
+        super::validate_generated_codecs(&labeled_repetition)
+            .expect("distinct labels authorize the repeated nonliteral kind");
+
         for (body, expected) in [
             (
                 quote! {
@@ -10364,6 +10432,33 @@ pub(crate) mod tests {
                 quote! {
                     position = Verb;
                     kinds = [KeywordAction];
+                    tail = [location: ObjectNounPhrase, ObjectNounPhrase];
+                    feature = Agreement;
+                },
+                "repeated declaration_verb tail atom `ObjectNounPhrase` must label every occurrence",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [location: ObjectNounPhrase, location: ObjectNounPhrase];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb tail label `location`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [preposition: "for"];
+                    feature = Agreement;
+                },
+                "declaration_verb tail labels cannot prefix literals",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
                     tail = [];
                     tail = [Amount];
                     feature = Agreement;
@@ -10434,6 +10529,35 @@ pub(crate) mod tests {
         assert!(
             error.contains(
                 "declaration_verb domains `FirstVerb` and `LaterVerb` overlap at `KeywordAction/Verb/[Amount]`"
+            ),
+            "{error}"
+        );
+
+        let label_only_distinct = crate::parse_declarations(quote! {
+            codec FirstSearchVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [location: ObjectNounPhrase, "for", sought: ObjectNounPhrase];
+                    feature = Agreement;
+                }
+            }
+            codec LaterSearchVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [source: ObjectNounPhrase, "for", object: ObjectNounPhrase];
+                    feature = Agreement;
+                }
+            }
+        })
+        .expect("label-only-distinct declaration_verb recipes parse");
+        let error = super::validate_generated_codecs(&label_only_distinct)
+            .expect_err("labels must not distinguish normalized verb-frame domains")
+            .to_string();
+        assert!(
+            error.contains(
+                "declaration_verb domains `FirstSearchVerb` and `LaterSearchVerb` overlap at `KeywordAction/Verb/[ObjectNounPhrase, Literal(\"for\"), ObjectNounPhrase]`"
             ),
             "{error}"
         );

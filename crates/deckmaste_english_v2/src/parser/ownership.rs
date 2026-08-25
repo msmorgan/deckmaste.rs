@@ -209,6 +209,10 @@ impl SelectedOwnership {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct OwnershipInspectionError;
 
+#[allow(
+    clippy::unnecessary_wraps,
+    reason = "the test-support fault injection authenticates this uniform inspection error boundary"
+)]
 pub(crate) fn validate_ownership(
     text: &str,
     parsed: &[RawLexicalClaim],

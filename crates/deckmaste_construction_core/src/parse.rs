@@ -1590,24 +1590,29 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                         crate::model::DeclarationVerbTailAtomSource,
                         Token![,],
                     >::parse_terminated_with(&tail_content, |input| {
-                        if input.peek(LitStr) {
-                            return input
-                                .parse()
-                                .map(crate::model::DeclarationVerbTailAtomSource::Literal);
-                        }
-                        let atom = input.call(Ident::parse_any)?;
-                        match atom.to_string().as_str() {
-                            "Amount" => Ok(
-                                crate::model::DeclarationVerbTailAtomSource::Amount(atom),
-                            ),
-                            "ObjectNounPhrase" => Ok(
-                                crate::model::DeclarationVerbTailAtomSource::ObjectNounPhrase(atom),
-                            ),
-                            _ => Err(syn::Error::new(
-                                atom.span(),
-                                "declaration_verb tail atoms must be string literals, `Amount`, or `ObjectNounPhrase`",
-                            )),
-                        }
+                        let label = if input.peek(Ident) && input.peek2(Token![:]) {
+                            let label = input.call(Ident::parse_any)?;
+                            input.parse::<Token![:]>()?;
+                            Some(label)
+                        } else {
+                            None
+                        };
+                        let kind = if input.peek(LitStr) {
+                            crate::model::DeclarationVerbTailAtomKindSource::Literal(input.parse()?)
+                        } else {
+                            let atom = input.call(Ident::parse_any)?;
+                            match atom.to_string().as_str() {
+                                "Amount" => {
+                                    crate::model::DeclarationVerbTailAtomKindSource::Amount(atom)
+                                }
+                                "ObjectNounPhrase" => crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom),
+                                _ => Err(syn::Error::new(
+                                    atom.span(),
+                                    "declaration_verb tail atoms must be string literals, `Amount`, or `ObjectNounPhrase`",
+                                ))?,
+                            }
+                        };
+                        Ok(crate::model::DeclarationVerbTailAtomSource { label, kind })
                     })?
                     .into_iter()
                     .collect();
@@ -3577,12 +3582,73 @@ mod tests {
         assert!(matches!(
             source.tail_slots[0].atoms.as_slice(),
             [
-                crate::DeclarationVerbTailAtomSource::Literal(literal),
-                crate::DeclarationVerbTailAtomSource::Amount(_),
-                crate::DeclarationVerbTailAtomSource::ObjectNounPhrase(_),
+                crate::DeclarationVerbTailAtomSource {
+                    label: None,
+                    kind: crate::DeclarationVerbTailAtomKindSource::Literal(literal),
+                },
+                crate::DeclarationVerbTailAtomSource {
+                    label: None,
+                    kind: crate::DeclarationVerbTailAtomKindSource::Amount(_),
+                },
+                crate::DeclarationVerbTailAtomSource {
+                    label: None,
+                    kind: crate::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_),
+                },
             ] if literal.value() == "with"
         ));
         assert_eq!(source.feature_slots[0].value, "Agreement");
+    }
+
+    #[test]
+    fn parses_declaration_verb_labels_and_preserves_their_source_roles() {
+        let declarations = parse(
+            r#"
+                codec SearchForVerb {
+                    generate declaration_verb {
+                        position = Verb;
+                        kinds = [KeywordAction];
+                        tail = [
+                            location: ObjectNounPhrase,
+                            "for",
+                            sought: ObjectNounPhrase,
+                        ];
+                        feature = Agreement;
+                    }
+                }
+            "#,
+        )
+        .expect("labeled declaration_verb tail atoms parse");
+
+        let Declaration::Codec(binding) = &declarations.declarations[0] else {
+            panic!("the declaration is a generated codec")
+        };
+        let Some(crate::GeneratedCodecRecipe::DeclarationVerb(source)) = &binding.generated else {
+            panic!("the codec retains a typed declaration_verb recipe")
+        };
+        let [location, literal, sought] = source.tail_slots[0].atoms.as_slice() else {
+            panic!("the exact labeled Search tail is preserved")
+        };
+        assert_eq!(
+            location.label.as_ref().map(ToString::to_string).as_deref(),
+            Some("location")
+        );
+        assert!(matches!(
+            location.kind,
+            crate::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_)
+        ));
+        assert!(literal.label.is_none());
+        assert!(matches!(
+            &literal.kind,
+            crate::DeclarationVerbTailAtomKindSource::Literal(value) if value.value() == "for"
+        ));
+        assert_eq!(
+            sought.label.as_ref().map(ToString::to_string).as_deref(),
+            Some("sought")
+        );
+        assert!(matches!(
+            sought.kind,
+            crate::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_)
+        ));
     }
 
     #[test]

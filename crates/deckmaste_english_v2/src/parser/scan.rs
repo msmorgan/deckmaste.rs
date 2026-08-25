@@ -1444,12 +1444,17 @@ mod tests {
                         VerbLexeme::Deal => "Deal",
                         VerbLexeme::Be => "Be",
                         VerbLexeme::Add
+                        | VerbLexeme::Enter
                         | VerbLexeme::Draw
                         | VerbLexeme::Gain
+                        | VerbLexeme::Have
+                        | VerbLexeme::Leave
+                        | VerbLexeme::Look
                         | VerbLexeme::Lose
                         | VerbLexeme::Pay
                         | VerbLexeme::Put
                         | VerbLexeme::Remove
+                        | VerbLexeme::Return
                         | VerbLexeme::Roll
                         | VerbLexeme::Control
                         | VerbLexeme::Own => unreachable!(),
@@ -2353,14 +2358,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            37,
+            39,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            40,
+            42,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2380,14 +2385,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            37,
+            39,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            40,
+            42,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2412,13 +2417,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (38, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (39, "Siege.", "Siege", SubtypeCategory::Battle),
-            (40, "Elf.", "Elf", SubtypeCategory::Creature),
-            (41, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (42, "Forest.", "Forest", SubtypeCategory::Land),
-            (43, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (44, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (40, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (41, "Siege.", "Siege", SubtypeCategory::Battle),
+            (42, "Elf.", "Elf", SubtypeCategory::Creature),
+            (43, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (44, "Forest.", "Forest", SubtypeCategory::Land),
+            (45, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (46, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2436,7 +2441,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (38..=44).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (40..=46).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2452,7 +2457,7 @@ mod tests {
         }
 
         let player = scan(
-            37,
+            39,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -3090,6 +3095,25 @@ mod tests {
                 "ControllerOwnerQualificationYouOwn",
                 "ZoneReferencePossessedZone",
                 "ZoneReferenceUnpossessedZone",
+                "OwnerPossessorSingularOwnerPossessor",
+                "OwnerPossessorPluralOwnerPossessor",
+                "ZoneReferenceOwnerPossessedZone",
+                "ZoneReferenceDefiniteZone",
+                "LibraryReferencePossessedLibrary",
+                "LibraryReferenceOwnerPossessedLibrary",
+                "LibraryCardQuantitySingularLibraryCardQuantity",
+                "LibraryCardQuantityFixedLibraryCardQuantity",
+                "FromSourceFromSource",
+                "IntoDestinationIntoDestination",
+                "OntoDestinationOntoBattlefieldDestination",
+                "OnDestinationOnLibraryDestination [form top]",
+                "OnDestinationOnLibraryDestination [form bottom]",
+                "ToDestinationToDestination",
+                "PostStateTappedPostState",
+                "ControlPostmodifierDirectControlPostmodifier",
+                "ControlPostmodifierOwnerControlPostmodifier",
+                "ZoneLocationZoneLocation",
+                "AtLocationAtLocation",
                 "ZoneQualificationInZone",
                 "ZoneQualificationFromZone",
                 "ScalarThresholdFixedScalarThreshold",
@@ -3115,6 +3139,7 @@ mod tests {
                 "NumericStageScalarQualifiedReference",
                 "UnqualifiedReferenceCountComparisonReference",
                 "NounPhraseQualifiedNounPhrase",
+                "NounPhraseLibrarySlice",
                 "PossessiveOwnerPossessiveSelfReference",
                 "PossessiveOwnerPossessivePluralNoun",
                 "PossessivePossessive [form singular]",
@@ -3124,6 +3149,7 @@ mod tests {
                 "CardQuantityFixedCardQuantity",
                 "CardQuantityVariableCardQuantity",
                 "CardQuantityAnaphoricCardQuantity",
+                "CardQuantityComparedCardQuantity",
                 "PositivePowerToughnessCounterMagnitudesSequenceNonEmpty",
                 "PositivePowerToughnessCounterMagnitudesSequenceCount1Continue",
                 "PositivePowerToughnessCounterMagnitudesSequenceCount2Final",
@@ -3147,6 +3173,9 @@ mod tests {
                 "VerbPhraseIntransitivePredicate",
                 "VerbPhraseTransitivePredicate",
                 "VerbPhraseNumerativePredicate",
+                "DamageRecipientDamageRecipient",
+                "CounterRecipientCounterRecipient",
+                "CounterSourceCounterSource",
                 "VerbPhraseDealDamage",
                 "VerbPhraseGainLife",
                 "VerbPhraseDealDamageEqualTo",
@@ -3161,6 +3190,40 @@ mod tests {
                 "VerbPhraseRollDice",
                 "VerbPhrasePutCounters",
                 "VerbPhraseRemoveCounters",
+                "VerbPhrasePutInto",
+                "PutIntoSourceOptionalAbsent",
+                "PutIntoSourceOptionalPresent",
+                "VerbPhrasePutOnto",
+                "PutOntoSourceOptionalAbsent",
+                "PutOntoSourceOptionalPresent",
+                "PutOntoPostStateOptionalAbsent",
+                "PutOntoPostStateOptionalPresent",
+                "PutOntoControlOptionalAbsent",
+                "PutOntoControlOptionalPresent",
+                "VerbPhrasePutOn",
+                "PutOnSourceOptionalAbsent",
+                "PutOnSourceOptionalPresent",
+                "VerbPhraseReturnTo",
+                "ReturnToSourceOptionalAbsent",
+                "ReturnToSourceOptionalPresent",
+                "ReturnToPostStateOptionalAbsent",
+                "ReturnToPostStateOptionalPresent",
+                "ReturnToControlOptionalAbsent",
+                "ReturnToControlOptionalPresent",
+                "VerbPhraseEnterPostState",
+                "VerbPhraseEnterLocation",
+                "EnterLocationPostStateOptionalAbsent",
+                "EnterLocationPostStateOptionalPresent",
+                "EnterLocationControlOptionalAbsent",
+                "EnterLocationControlOptionalPresent",
+                "VerbPhraseEnterControl",
+                "VerbPhraseLeaveLocation",
+                "VerbPhraseLookAt",
+                "VerbPhraseSearchFor",
+                "VerbPhraseHaveCardsInHand",
+                "VerbPhraseHaveLife",
+                "VerbPhraseHaveNoMaximumHandSize",
+                "VerbPhraseHaveObjectControl",
                 "ManaAmountManaAmount",
                 "AmountNumber",
                 "AmountVariable",
@@ -3277,23 +3340,23 @@ mod tests {
                 "Literal(\"choice\")",
                 "Literal(\"random\")",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(37, Exact(Singular))",
-                "DeclarationNoun(38, Exact(Singular))",
                 "DeclarationNoun(39, Exact(Singular))",
                 "DeclarationNoun(40, Exact(Singular))",
                 "DeclarationNoun(41, Exact(Singular))",
                 "DeclarationNoun(42, Exact(Singular))",
                 "DeclarationNoun(43, Exact(Singular))",
                 "DeclarationNoun(44, Exact(Singular))",
+                "DeclarationNoun(45, Exact(Singular))",
+                "DeclarationNoun(46, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(37, Exact(Plural))",
-                "DeclarationNoun(38, Exact(Plural))",
                 "DeclarationNoun(39, Exact(Plural))",
                 "DeclarationNoun(40, Exact(Plural))",
                 "DeclarationNoun(41, Exact(Plural))",
                 "DeclarationNoun(42, Exact(Plural))",
                 "DeclarationNoun(43, Exact(Plural))",
                 "DeclarationNoun(44, Exact(Plural))",
+                "DeclarationNoun(45, Exact(Plural))",
+                "DeclarationNoun(46, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -3312,7 +3375,7 @@ mod tests {
                 "Literal(\"a\")",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(46)",
+                "CatalogIdentity(48)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -3340,8 +3403,19 @@ mod tests {
                 "Verb(Control, Exact(ThirdPersonSingular))",
                 "Verb(Own, Exact(Bare))",
                 "Zone",
-                "Literal(\"in\")",
+                "Literal(\"owner's\")",
+                "Literal(\"owners'\")",
+                "Literal(\"library\")",
+                "Literal(\"cards\")",
                 "Literal(\"from\")",
+                "Literal(\"into\")",
+                "Literal(\"onto\")",
+                "Literal(\"on\")",
+                "LibraryPosition",
+                "Literal(\"tapped\")",
+                "Literal(\"under\")",
+                "Literal(\"control\")",
+                "Literal(\"in\")",
                 "ScalarCharacteristic",
                 "Literal(\"mana\")",
                 "Literal(\"value\")",
@@ -3352,7 +3426,6 @@ mod tests {
                 "Literal(\"fewer\")",
                 "Literal(\"with\")",
                 "Literal(\"'\")",
-                "Literal(\"cards\")",
                 "Literal(\"/\")",
                 "Literal(\"-\")",
                 "CounterName",
@@ -3362,9 +3435,9 @@ mod tests {
                 "DieShape",
                 "Literal(\"dice\")",
                 "Literal(\"d20\")",
-                "DeclarationVerb(34, Any)",
                 "DeclarationVerb(35, Any)",
                 "DeclarationVerb(36, Any)",
+                "DeclarationVerb(37, Any)",
                 "Verb(Deal, Any)",
                 "Literal(\"damage\")",
                 "Verb(Gain, Any)",
@@ -3375,8 +3448,18 @@ mod tests {
                 "Verb(Draw, Any)",
                 "Verb(Roll, Any)",
                 "Verb(Put, Any)",
-                "Literal(\"on\")",
                 "Verb(Remove, Any)",
+                "Verb(Return, Any)",
+                "Verb(Enter, Any)",
+                "Verb(Leave, Any)",
+                "Verb(Look, Any)",
+                "DeclarationVerb(38, Any)",
+                "Literal(\"for\")",
+                "Verb(Have, Any)",
+                "Literal(\"hand\")",
+                "Literal(\"no\")",
+                "Literal(\"maximum\")",
+                "Literal(\"size\")",
                 "CardinalNumber",
             ]
         );

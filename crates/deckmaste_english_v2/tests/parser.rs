@@ -52,6 +52,10 @@ fn context(card_name: &str) -> ParseContext<'_> {
         .expect("test card name is a valid parse context")
 }
 
+fn damage_recipient(object: Object) -> DamageRecipient {
+    DamageRecipient::DamageRecipient(DamageRecipientValue { object })
+}
+
 fn legendary_context(card_name: &str) -> ParseContext<'_> {
     ParseContext::new(card_name, true, Onset::Consonant)
         .expect("test legendary card name is a valid parse context")
@@ -919,7 +923,7 @@ fn demonstrative_references_select_distinct_typed_constructions() {
                 amount: Amount::Number(NumberAmount {
                     number: ScalarNumber { magnitude: 3 },
                 }),
-                to: object_it(),
+                recipient: damage_recipient(object_it()),
             }),
         );
 
@@ -1004,6 +1008,18 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "ControllerOwnerQualification",
             "SingularController",
             "ZoneReference",
+            "OwnerPossessor",
+            "LibraryReference",
+            "LibraryCardQuantity",
+            "FromSource",
+            "IntoDestination",
+            "OntoDestination",
+            "OnDestination",
+            "ToDestination",
+            "PostState",
+            "ControlPostmodifier",
+            "ZoneLocation",
+            "AtLocation",
             "ZoneQualification",
             "ScalarThreshold",
             "ScalarMeasure",
@@ -1025,6 +1041,9 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "CounterQuantity",
             "DieObject",
             "VerbPhrase",
+            "DamageRecipient",
+            "CounterRecipient",
+            "CounterSource",
             "ManaAmount",
             "Amount",
             "CardinalQuantity",
@@ -1229,6 +1248,24 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "YouOwn",
             "PossessedZone",
             "UnpossessedZone",
+            "SingularOwnerPossessor",
+            "PluralOwnerPossessor",
+            "OwnerPossessedZone",
+            "DefiniteZone",
+            "PossessedLibrary",
+            "OwnerPossessedLibrary",
+            "SingularLibraryCardQuantity",
+            "FixedLibraryCardQuantity",
+            "FromSourceValue",
+            "IntoDestinationValue",
+            "OntoBattlefieldDestination",
+            "OnLibraryDestination",
+            "ToDestinationValue",
+            "TappedPostState",
+            "DirectControlPostmodifier",
+            "OwnerControlPostmodifier",
+            "ZoneLocationValue",
+            "AtLocationValue",
             "InZone",
             "FromZone",
             "FixedScalarThreshold",
@@ -1254,6 +1291,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "ScalarQualifiedReference",
             "CountComparisonReference",
             "QualifiedNounPhrase",
+            "LibrarySlice",
             "PossessiveSelfReference",
             "PossessiveNoun",
             "PossessiveValue",
@@ -1261,6 +1299,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "FixedCardQuantity",
             "VariableCardQuantity",
             "AnaphoricCardQuantity",
+            "ComparedCardQuantity",
             "PositivePowerToughnessCounter",
             "NegativePowerToughnessCounter",
             "PositiveCounterMagnitudeValue",
@@ -1276,6 +1315,9 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "IntransitivePredicate",
             "TransitivePredicate",
             "NumerativePredicate",
+            "DamageRecipientValue",
+            "CounterRecipientValue",
+            "CounterSourceValue",
             "DealDamage",
             "GainLife",
             "DealDamageEqualTo",
@@ -1290,6 +1332,20 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "RollDice",
             "PutCounters",
             "RemoveCounters",
+            "PutInto",
+            "PutOnto",
+            "PutOn",
+            "ReturnTo",
+            "EnterPostState",
+            "EnterLocation",
+            "EnterControl",
+            "LeaveLocation",
+            "LookAt",
+            "SearchFor",
+            "HaveCardsInHand",
+            "HaveLife",
+            "HaveNoMaximumHandSize",
+            "HaveObjectControl",
             "ManaAmountValue",
             "NumberAmount",
             "VariableAmount",
@@ -1320,6 +1376,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "ScalarCharacteristic",
             "CounterName",
             "DieShape",
+            "LibraryPosition",
             "Zone",
             "NonCommonNoun",
             "NonTargetCommonModifier",
@@ -1335,6 +1392,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "TransitiveVerb",
             "DeclarationNumerativeVerb",
             "NumerativeVerb",
+            "DeclarationSearchForVerb",
             "DeclarationTypeNoun",
             "TypeNoun",
             "DeclarationArtifactSubtypeNoun",
@@ -1667,7 +1725,7 @@ fn triggered_damage() -> Ability {
             nominal_subject(that_noun(creature())),
             VerbPhrase::DealDamage(DealDamage {
                 amount: variable_x(),
-                to: object_it(),
+                recipient: damage_recipient(object_it()),
             }),
         )],
     )
@@ -1704,7 +1762,7 @@ fn zacama_deals_damage() -> Ability {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to: target_creature(),
+            recipient: damage_recipient(target_creature()),
         }),
     ))
 }
@@ -2310,7 +2368,7 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to: target_creature(),
+            recipient: damage_recipient(target_creature()),
         }),
     ));
 
@@ -2330,7 +2388,7 @@ fn self_reference_identity_preserves_its_inherent_case() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            to: target_creature(),
+            recipient: damage_recipient(target_creature()),
         }),
     ));
 
@@ -2363,14 +2421,14 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Terminal(TerminalClass::NonTargetCommonModifier),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(37)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(38)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(39)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(40)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(41)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(42)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(43)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(44)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(45)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(46)),
                 Expectation::Literal("non"),
                 Expectation::Literal("non-"),
             ]),
@@ -2405,14 +2463,14 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Terminal(TerminalClass::Status),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(37)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(38)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(39)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(40)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(41)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(42)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(43)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(44)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(45)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(46)),
                 Expectation::Literal(" and "),
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),
@@ -2468,8 +2526,8 @@ fn count_controller_mismatch_reports_a_nonempty_chart_failure() {
     assert_eq!(
         parser().parse(text, &context("Context Card")),
         Err(ParseError::Failure {
-            span: TextSpan { start: 55, end: 63 },
-            expectations: BTreeSet::from([Expectation::Terminal(TerminalClass::VerbLexeme)]),
+            span: TextSpan { start: 62, end: 63 },
+            expectations: BTreeSet::from([Expectation::Literal(".")]),
         })
     );
 }
@@ -2490,7 +2548,7 @@ fn lexical_matches_reject_prefixes_of_longer_lexemes() {
         (
             "Destroy target creaturex.",
             "Context Card",
-            TextSpan { start: 15, end: 24 },
+            TextSpan { start: 23, end: 24 },
         ),
         (
             "Zacamaé deals 3 damage to target creature.",

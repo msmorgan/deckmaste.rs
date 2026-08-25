@@ -5724,12 +5724,14 @@ impl DeclarationVerbPlan {
                 .expect("validated declaration_verb has one tail")
                 .atoms
                 .iter()
-                .map(|atom| match atom {
-                    crate::model::DeclarationVerbTailAtomSource::Literal(literal) => {
+                .map(|atom| match &atom.kind {
+                    crate::model::DeclarationVerbTailAtomKindSource::Literal(literal) => {
                         VerbFrameAtom::Literal(literal.value())
                     }
-                    crate::model::DeclarationVerbTailAtomSource::Amount(_) => VerbFrameAtom::Amount,
-                    crate::model::DeclarationVerbTailAtomSource::ObjectNounPhrase(_) => {
+                    crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => {
+                        VerbFrameAtom::Amount
+                    }
+                    crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
                         VerbFrameAtom::ObjectNounPhrase
                     }
                 })

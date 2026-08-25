@@ -1276,7 +1276,7 @@ mod tests {
                 RulePosition::Lexical(Lexical::Literal(",")),
                 RulePosition::Nonterminal(Category::WhereClauseCategory),
                 RulePosition::Nonterminal(Category::Predicate),
-                RulePosition::Lexical(Lexical::DeclarationVerb(34, FeatureConstraint::Any,)),
+                RulePosition::Lexical(Lexical::DeclarationVerb(35, FeatureConstraint::Any,)),
                 RulePosition::Lexical(Lexical::Literal("where")),
                 RulePosition::Lexical(Lexical::Variable),
                 RulePosition::Lexical(Lexical::Verb(
@@ -1516,7 +1516,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::AbilityBody),
                 RulePosition::Nonterminal(Category::SentencesSentencesSequenceCategory),
                 RulePosition::Nonterminal(Category::Predicate),
-                RulePosition::Lexical(Lexical::DeclarationVerb(35, FeatureConstraint::Any,)),
+                RulePosition::Lexical(Lexical::DeclarationVerb(36, FeatureConstraint::Any,)),
                 RulePosition::Nonterminal(Category::Object),
                 RulePosition::Nonterminal(Category::NounPhrase),
                 RulePosition::Nonterminal(Category::NumericStage),
@@ -1528,7 +1528,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
-                    37,
+                    39,
                     FeatureConstraint::Exact(Number::Singular),
                 )),
             ]
