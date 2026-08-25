@@ -360,6 +360,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     let sequence_features = validate_sequence_feature_roles(&raw, &structural)?;
     validate_generated_owned_paths(&raw)?;
     let resolved = validate_resolution(&raw, &symbols)?;
+    validate_owned_english_verb_lexemes(&raw, &resolved)?;
     validate_stored_fields(&raw)?;
     validate_bindings(&raw)?;
     let mut invariants = validate_invariants(&raw, &symbols)?;
@@ -400,6 +401,55 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             verb_lexeme_provider.as_deref(),
         )?,
     })
+}
+
+fn validate_owned_english_verb_lexemes(
+    raw: &Declarations,
+    resolved: &ResolvedGrammar,
+) -> syn::Result<()> {
+    let mut owned = resolved
+        .verb_lexeme_provider
+        .iter()
+        .cloned()
+        .collect::<HashSet<_>>();
+    for declaration in &raw.declarations {
+        let Declaration::Codec(binding) = declaration else {
+            continue;
+        };
+        let Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe)) = &binding.generated
+        else {
+            continue;
+        };
+        owned.extend(
+            recipe
+                .closed_slots
+                .iter()
+                .map(|slot| identifier_key(&slot.value)),
+        );
+    }
+
+    let mut errors = None;
+    for declaration in &raw.declarations {
+        let Declaration::Lexeme(lexeme) = declaration else {
+            continue;
+        };
+        if lexeme_recipe(raw, lexeme) != Some(crate::morphology::MorphologyRecipe::EnglishVerb) {
+            continue;
+        }
+        let name = identifier_key(&lexeme.name);
+        if !owned.contains(&name) {
+            combine(
+                &mut errors,
+                syn::Error::new(
+                    lexeme.name.span(),
+                    format!(
+                        "EnglishVerb lexeme `{name}` is unowned; it must provide a fixed verb atom or a declaration_verb closed branch"
+                    ),
+                ),
+            );
+        }
+    }
+    finish(errors)
 }
 
 fn agreement_carry_sums(raw: &Declarations) -> HashSet<String> {
@@ -12440,6 +12490,28 @@ pub(crate) mod tests {
                 && direct_second_provider.contains("VerbLexeme")
                 && direct_second_provider.contains("CoreIntransitiveVerb"),
             "{direct_second_provider}"
+        );
+    }
+
+    #[test]
+    fn english_verb_lexicons_must_be_owned_by_a_fixed_atom_or_declaration_frame() {
+        let unowned = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb { Be = "be", }
+            lexeme UnownedVerb using EnglishVerb { Drift = "drift", }
+            construction be: Cat {
+                element Be {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form be = verb(VerbLexeme::Be);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            unowned.contains("EnglishVerb lexeme `UnownedVerb` is unowned")
+                && unowned.contains("fixed verb atom")
+                && unowned.contains("declaration_verb closed branch"),
+            "{unowned}",
         );
     }
 

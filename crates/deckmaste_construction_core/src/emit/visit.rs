@@ -1928,6 +1928,12 @@ mod tests {
                 element VisitNode { visitor: lex Marker, }
                 form visit_node = lex(visitor);
             }
+            construction visitor_verb: VerbRoot {
+                element VisitorVerb {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form visitor_verb = verb(VisitorLexeme::Act);
+            }
             construction visitor_category: VISITOR {
                 element VisitorNode {}
                 form visitor_category = "visitor";
