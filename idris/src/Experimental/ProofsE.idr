@@ -33,8 +33,8 @@ badStarlessDefinedPt : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature])
        [Static (DefinesPt Macros.thisCreature BothEach
                           (CountOf Macros.creatureYouControl))]
-       (Just (2, 2)) {pts = ok})
-badStarlessDefinedPt MkCardPt impossible
+       (Just (2, 2)) {bx = ok})
+badStarlessDefinedPt MkCardBox impossible
 
 
 ||| "This creature's power and toughness are each equal to the number of creatures you control" established as a clause by a resolving spell.

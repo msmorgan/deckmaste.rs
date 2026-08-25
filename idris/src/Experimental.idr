@@ -5452,6 +5452,25 @@ starred (PrintedNum _) = False
 starred PrintedStar = True
 starred (PrintedStarPlus _) = True
 
+||| The one box in a face's lower right corner. [CR#208.1] prints a creature
+||| card's power and toughness there, [CR#209.1] a planeswalker card's
+||| starting loyalty, and [CR#210.1] a battle card's defense. [CR#200.1]
+||| lists the three as separate parts of a card and all three rules name the
+||| same corner, so a face prints at most one of them and its type line
+||| decides which.
+public export
+data PrintedBox : Type where
+  PtBox : (pow : PrintedStat) -> (tou : PrintedStat) -> PrintedBox
+  LoyaltyBox : (start : PrintedStat) -> PrintedBox
+  DefenseBox : (def : PrintedStat) -> PrintedBox
+
+||| The power/toughness pair a corner box writes, if that is what it writes.
+||| Only [CR#208.1]'s box has slots a characteristic-defining line can star.
+public export
+boxPt : Maybe PrintedBox -> Maybe (PrintedStat, PrintedStat)
+boxPt (Just (PtBox p t)) = Just (p, t)
+boxPt _ = Nothing
+
 public export
 staticDefinesPt : {0 bs : Bindings} -> StaticEffect bs -> Maybe DefinedSlots
 staticDefinesPt (DefinesPt _ sl _) = Just sl
@@ -5482,13 +5501,34 @@ definedSlotsStarred Nothing dp dt = not dp && not dt
 definedSlotsStarred (Just (p, t)) dp dt =
   (not dp || starred p) && (not dt || starred t)
 
+||| Which corner box a card type demands. [CR#208.1] has a creature card
+||| write its two numbers, [CR#209.1] a planeswalker card its loyalty number,
+||| and [CR#210.1] a battle card its defense number; a type that writes no
+||| number in that corner leaves the box to the rest of the line. A line that
+||| names two of the three demands two numbers in one corner and so has no
+||| box that fits it.
 public export
-cardPtOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs ->
-           Maybe (PrintedStat, PrintedStat) -> Bool
-cardPtOk tys text pt =
-  (not (elem Creature tys) || isJust pt) &&
-  definedSlotsStarred pt (textDefines definesPower text)
-                         (textDefines definesToughness text)
+boxSuitsType : CardType -> Maybe PrintedBox -> Bool
+boxSuitsType Creature (Just (PtBox _ _)) = True
+boxSuitsType Creature _ = False
+boxSuitsType Planeswalker (Just (LoyaltyBox _)) = True
+boxSuitsType Planeswalker _ = False
+boxSuitsType Battle (Just (DefenseBox _)) = True
+boxSuitsType Battle _ = False
+boxSuitsType _ _ = True
+
+public export
+boxFitsLine : List CardType -> Maybe PrintedBox -> Bool
+boxFitsLine [] box = True
+boxFitsLine (t :: ts) box = boxSuitsType t box && boxFitsLine ts box
+
+public export
+cardBoxOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs ->
+            Maybe PrintedBox -> Bool
+cardBoxOk tys text box =
+  boxFitsLine tys box &&
+  definedSlotsStarred (boxPt box) (textDefines definesPower text)
+                                  (textDefines definesToughness text)
 
 public export
 cardCostOk : List CardType -> Maybe ManaCost -> Bool
@@ -5512,21 +5552,214 @@ CardChapters : TypeLine -> AbilitySeq [] -> Type
 CardChapters l as = So (chapterFrameOk l.subs as)
 
 public export
-data CardPt : TypeLine -> AbilitySeq [] -> Maybe (PrintedStat, PrintedStat) -> Type where
-  MkCardPt : {0 stats : Maybe (PrintedStat, PrintedStat)} ->
-             {auto 0 ok : So (cardPtOk l.tys as stats)} -> CardPt l as stats
+data CardBox : TypeLine -> AbilitySeq [] -> Maybe PrintedBox -> Type where
+  MkCardBox : {0 box : Maybe PrintedBox} ->
+              {auto 0 ok : So (cardBoxOk l.tys as box)} -> CardBox l as box
+
+||| Which corner box a card type demands at a face that is not a card of its
+||| own. The creature demand stands: [CR#710.1b] lists power and toughness
+||| among what a flip card's alternative half prints, and a nonmodal creature
+||| back face prints them too. The loyalty demand does not: [CR#209.1] puts the
+||| number on each planeswalker *card*, and [CR#712.8a] reads a double-faced
+||| card's characteristics off its front face in every zone but the battlefield
+||| and the stack, so a planeswalker back face has a loyalty to read without
+||| printing one. Both spellings are printed, so the box stays optional there.
+public export
+altBoxSuitsType : CardType -> Maybe PrintedBox -> Bool
+altBoxSuitsType Creature (Just (PtBox _ _)) = True
+altBoxSuitsType Creature _ = False
+altBoxSuitsType Planeswalker (Just (LoyaltyBox _)) = True
+altBoxSuitsType Planeswalker Nothing = True
+altBoxSuitsType Planeswalker _ = False
+altBoxSuitsType Battle (Just (DefenseBox _)) = True
+altBoxSuitsType Battle _ = False
+altBoxSuitsType _ _ = True
+
+public export
+altBoxFitsLine : List CardType -> Maybe PrintedBox -> Bool
+altBoxFitsLine [] box = True
+altBoxFitsLine (t :: ts) box = altBoxSuitsType t box && altBoxFitsLine ts box
+
+public export
+altBoxOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs ->
+           Maybe PrintedBox -> Bool
+altBoxOk tys text box =
+  altBoxFitsLine tys box &&
+  definedSlotsStarred (boxPt box) (textDefines definesPower text)
+                                  (textDefines definesToughness text)
+
+public export
+data AltCardBox : TypeLine -> AbilitySeq [] -> Maybe PrintedBox -> Type where
+  MkAltCardBox : {0 box : Maybe PrintedBox} ->
+                 {auto 0 ok : So (altBoxOk l.tys as box)} -> AltCardBox l as box
 
 public export
 CardCost : TypeLine -> Maybe ManaCost -> Type
 CardCost l c = So (cardCostOk l.tys c)
 
+||| A printed face whose mana cost, where it prints one, is its own rather
+||| than another face's. Four layouts print such a face: the single face of a
+||| one-faced card, either face of a modal double-faced card [CR#712.3],
+||| either half of a split card [CR#709.4b], and both parts of an adventurer
+||| card's frame [CR#715.2]. The cost stays a `Maybe` because a land face
+||| writes none; what separates these faces from `AltFace` is having a cost
+||| slot at all.
+|||
+||| Its text is its own `AbilitySeq []`, so no face's words read a binding
+||| another face introduced. That is not a convenience: a face's
+||| characteristics exist only while that face is the one in play
+||| [CR#712.8f,709.3b,715.3b], so there is no moment at which one face's
+||| clause could resolve against the other's antecedent.
 public export
-record Card where
-  constructor MkCard
+record CardFace where
+  constructor MkFace
   name : String
   cost : Maybe ManaCost
   supers : List Supertype
   line : TypeLine
   text : AbilitySeq []
-  pt : Maybe (PrintedStat, PrintedStat)
+  box : Maybe PrintedBox
+
+||| A printed face that writes no mana cost at all. Two layouts print one:
+||| the back face of a nonmodal double-faced card, whose mana value is read
+||| off the front face precisely because the back has no cost of its own
+||| [CR#202.3a,202.3b], and a flip card's upside-down half, which shares the
+||| card's single printed cost [CR#710.1c]. [CR#710.1b] lists what such a half
+||| does print — a name, a text box, a type line, and its power and toughness
+||| — and a mana cost is not among them, so this record has no field for one
+||| rather than a law refusing one.
+public export
+record AltFace where
+  constructor MkAltFace
+  name : String
+  supers : List Supertype
+  line : TypeLine
+  text : AbilitySeq []
+  box : Maybe PrintedBox
+
+||| Every card-level law, re-stated at one full printed face. [CR#712.8] gives
+||| each face of a double-faced card its own set of characteristics, [CR#709.4c]
+||| reads each split half's types and text on its own, and [CR#715.2] does the
+||| same for an adventurer card's two frames: the line, supertype, text,
+||| chapter, corner-box and cost laws are all face laws, and not one of them is
+||| a whole-card law that a second face could escape.
+public export
+data FaceLaws : CardFace -> Type where
+  MkFaceLaws : {0 f : CardFace} ->
+               {auto 0 ln : CardLine f.line} ->
+               {auto 0 sp : CardSupers f.supers} ->
+               {auto 0 tx : CardText f.line f.text} ->
+               {auto 0 ch : CardChapters f.line f.text} ->
+               {auto 0 bx : CardBox f.line f.text f.box} ->
+               {auto 0 mc : CardCost f.line f.cost} ->
+               FaceLaws f
+
+||| The same laws at a costless face, with two of them restated for it.
+||| `CardCost` is the one card-level law with nothing left to say: [CR#202.3a]
+||| and [CR#710.1c] leave the face without a mana cost, so the land-cost gate
+||| has no cost to read. The corner-box law is `AltCardBox`, not `CardBox`,
+||| because a face is not a card and [CR#209.1] speaks of cards.
+public export
+data AltFaceLaws : AltFace -> Type where
+  MkAltFaceLaws : {0 f : AltFace} ->
+                  {auto 0 ln : CardLine f.line} ->
+                  {auto 0 sp : CardSupers f.supers} ->
+                  {auto 0 tx : CardText f.line f.text} ->
+                  {auto 0 ch : CardChapters f.line f.text} ->
+                  {auto 0 bx : AltCardBox f.line f.text f.box} ->
+                  AltFaceLaws f
+
+||| An adventurer card's inset frame [CR#715.1]. A player chooses to play the
+||| card "as an Adventure" [CR#715.3], and Adventure is a spell type
+||| [CR#205.3k], so the inset names that spell type. That its line is then an
+||| instant or a sorcery is not restated here: `CardLine`'s `subsFitLine`
+||| already fits a spell type to no other card type, and a second conjunct
+||| saying so would be unreachable.
+public export
+adventureInsetOk : TypeLine -> Bool
+adventureInsetOk l = elem Adventure l.subs
+
+public export
+AdventureInset : TypeLine -> Type
+AdventureInset l = So (adventureInsetOk l)
+
+||| Either half of a flip card [CR#710.1]. [CR#710.2] applies the alternative
+||| characteristics only once the permanent is flipped, and only on the
+||| battlefield, so each half names a permanent type — the six [CR#110.4]
+||| lists, which is what `anyPermanentType` reads. Excluding spell types is
+||| not restated here: `CardLine`'s `typesCombinable` already refuses a line
+||| mixing the two.
+public export
+flipHalfOk : TypeLine -> Bool
+flipHalfOk l = anyPermanentType l.tys
+
+public export
+FlipHalf : TypeLine -> Type
+FlipHalf l = So (flipHalfOk l)
+
+||| One card: its faces, and the rule its layout answers.
+|||
+||| Five layouts, five constructors — not one record with a layout tag. The
+||| layouts disagree about which boxes a face prints, and a uniform face record
+||| would state that disagreement away: it would let a flip card's upside-down
+||| half [CR#710.1c] or a nonmodal back face [CR#202.3a] carry a mana cost
+||| neither prints, and would give a costed face to a layout that has none to
+||| give. What the layouts do share — a full face with a cost of its own — is
+||| `CardFace`; a costless half is `AltFace`; and every card-level law is
+||| re-stated at each face by `FaceLaws` and `AltFaceLaws`, so no law silently
+||| applies to one face of two.
+|||
+||| Meld [CR#712.4] is not among them. A meld pair's combined back face belongs
+||| to two cards at once [CR#712.4b], so it is not a second face of one card
+||| and does not fit this shape.
+public export
+data Card : Type where
+  ||| A card with a single face; the other side is the normal Magic card back.
+  SingleFaced : (face : CardFace) ->
+                {auto 0 fl : FaceLaws face} -> Card
+
+  ||| A nonmodal double-faced card [CR#712.2]: abilities on one or both faces
+  ||| turn it over. [CR#712.8] gives each face its own characteristics, and
+  ||| [CR#202.3a,202.3b] leave the back face costless, reading its mana value
+  ||| off the front — so the back is an `AltFace`.
+  Transforming : (front : CardFace) -> (back : AltFace) ->
+                 {auto 0 ff : FaceLaws front} ->
+                 {auto 0 bf : AltFaceLaws back} -> Card
+
+  ||| A modal double-faced card [CR#712.3]: two Magic card faces whose
+  ||| characteristics are usually independent of one another. Each is a full
+  ||| face — [CR#712.11b] has the caster choose which of them they are casting
+  ||| and [CR#712.12] which land face enters — so each face's cost is its own,
+  ||| never read off the other the way a nonmodal back face's is [CR#202.3b].
+  ||| Two land faces write no cost at all.
+  ModalDfc : (front : CardFace) -> (back : CardFace) ->
+             {auto 0 ff : FaceLaws front} ->
+             {auto 0 bf : FaceLaws back} -> Card
+
+  ||| A split card [CR#709.1]: two faces on one card whose other side is the
+  ||| normal card back. [CR#709.4b] gives each half its own mana cost and
+  ||| [CR#709.4c] its own card types and text box.
+  SplitCard : (left : CardFace) -> (right : CardFace) ->
+              {auto 0 lf : FaceLaws left} ->
+              {auto 0 rf : FaceLaws right} -> Card
+
+  ||| An adventurer card [CR#715.1]: the normal face, printed as usual, and the
+  ||| inset frame whose alternative characteristics the object has while it is
+  ||| a spell [CR#715.2].
+  Adventurer : (normal : CardFace) -> (inset : CardFace) ->
+               {auto 0 nf : FaceLaws normal} ->
+               {auto 0 sf : FaceLaws inset} ->
+               {auto 0 ai : AdventureInset inset.line} -> Card
+
+  ||| A flip card [CR#710.1]: the right-side-up half writes the card's normal
+  ||| characteristics and the upside-down half the alternative ones. [CR#710.1c]
+  ||| leaves the one printed mana cost with the card however it is turned, so
+  ||| the alternative half is an `AltFace`. The transition itself is the landed
+  ||| `Flipped` status, one-way by [CR#710.4]; this constructor adds no second
+  ||| verb for it.
+  FlipCard : (normal : CardFace) -> (alternative : AltFace) ->
+             {auto 0 nf : FaceLaws normal} ->
+             {auto 0 af : AltFaceLaws alternative} ->
+             {auto 0 nh : FlipHalf normal.line} ->
+             {auto 0 ah : FlipHalf alternative.line} -> Card
 

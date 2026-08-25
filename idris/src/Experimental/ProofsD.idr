@@ -58,8 +58,8 @@ badTapSorcery Oh impossible
 ||| A creature card writes its two numbers [CR#208.1].
 public export
 badCreatureCardNoPt : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) [] Nothing {pts = ok})
-badCreatureCardNoPt MkCardPt impossible
+  Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) [] Nothing {bx = ok})
+badCreatureCardNoPt MkCardBox impossible
 
 
 ||| a land card printed with "{1}"

@@ -1972,7 +1972,7 @@ maro =
        (MkTypeLine [Elemental] [Creature])
        [ Static (DefinesPt Macros.thisCreature BothEach
                            (CountOf (InZone (Macros.handOf You)))) ]
-       (Just (PrintedStar, PrintedStar))
+       (Just (PtBox PrintedStar PrintedStar))
 
 battleSquadron : Card
 battleSquadron =
@@ -1981,7 +1981,7 @@ battleSquadron =
        [ Macros.keyword Flying
        , Static (DefinesPt Macros.thisCreature BothEach
                            (CountOf Macros.creatureYouControl)) ]
-       (Just (PrintedStar, PrintedStar))
+       (Just (PtBox PrintedStar PrintedStar))
 
 peopleOfTheWoods : Card
 peopleOfTheWoods =
@@ -1989,7 +1989,7 @@ peopleOfTheWoods =
        (MkTypeLine [Human] [Creature])
        [ Static (DefinesPt Macros.thisCreature ToughnessAlone
                            (CountOf (And [HasSubtype Forest, ControlledBy You]))) ]
-       (Just (PrintedNum 1, PrintedStar))
+       (Just (PtBox (PrintedNum 1) PrintedStar))
 
 scourgeOfTheSkyclaves : Ability
 scourgeOfTheSkyclaves =
@@ -2986,14 +2986,23 @@ lignify =
                          , LosesAllAbilities It ]) ]
        Nothing
 
+||| Invasion of Dominaria // Serra Faithkeeper, a nonmodal double-faced card
+||| [CR#712.2]. Nothing here spells the turning over: [CR#310.12b] gives every
+||| Siege the intrinsic ability that exiles it and casts it transformed, so the
+||| printed text is only what each face says for itself. The back face writes
+||| no mana cost of its own [CR#202.3a].
 invasionOfDominaria : Card
 invasionOfDominaria =
-  Macros.card "Invasion of Dominaria" (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [Siege] [Battle])
-       [ Macros.triggered When (Enters Macros.thisSiege)
-                          (Sequentially [ ChangeLife You (Up (Lit 4))
-                                 , Draw You (Lit 1) ]) ]
-       Nothing
+  Transforming
+    (MkFace "Invasion of Dominaria" (Just [Macros.generic 2, Macros.pip White]) []
+            (MkTypeLine [Siege] [Battle])
+            [ Macros.triggered When (Enters Macros.thisSiege)
+                               (Sequentially [ ChangeLife You (Up (Lit 4))
+                                             , Draw You (Lit 1) ]) ]
+            (Macros.defenseBox 5))
+    (MkAltFace "Serra Faithkeeper" [] (MkTypeLine [Angel] [Creature])
+               [ Macros.keyword Flying, Macros.keyword Vigilance ]
+               (Macros.printedBox (Just (4, 4))))
 
 
 causticTar : Card
@@ -3050,18 +3059,18 @@ saheelisEmblem =
 
 jaceBeleren : Card
 jaceBeleren =
-  Macros.card "Jace Beleren" (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue])
+  Macros.cardOf "Jace Beleren" (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue])
        [Legendary] (MkTypeLine [Jace] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 2)) (Draw (Each AnyPlayer) (Lit 1))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 1))
                           (Macros.drawsACard (Macros.target AnyPlayer))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 10))
                           (Macros.mills (Macros.target AnyPlayer) (Lit 20) They) ]
-       Nothing
+       (Macros.loyaltyBox 3)
 
 elspethSunsChampion : Card
 elspethSunsChampion =
-  Macros.card "Elspeth, Sun's Champion"
+  Macros.cardOf "Elspeth, Sun's Champion"
        (Just [Macros.generic 4, Macros.pip White, Macros.pip White])
        [Legendary] (MkTypeLine [Elspeth] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
@@ -3074,7 +3083,7 @@ elspethSunsChampion =
                       [ Static (AndAlso [ Gets (AllOf Macros.creatureYouControl)
                                                (PtUp (Lit 2)) (PtUp (Lit 2))
                                         , Gains Them (Macros.keyword Flying) ]) ]) ]
-       Nothing
+       (Macros.loyaltyBox 4)
 
 ||| Chandra Nalaar
 chandraNalaarsX : Ability
@@ -3131,7 +3140,7 @@ nefariousImp =
 
 saheeliFiligreeMaster : Card
 saheeliFiligreeMaster =
-  Macros.card "Saheeli, Filigree Master"
+  Macros.cardOf "Saheeli, Filigree Master"
        (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Red])
        [Legendary] (MkTypeLine [Saheeli] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
@@ -3157,7 +3166,7 @@ saheeliFiligreeMaster =
                       , Static (CostsToCast (AllOf (And [Macros.artifact, Macros.spell,
                                                          CastBy You]))
                                             (CostLess (Lit 1))) ]) ]
-       Nothing
+       (Macros.loyaltyBox 3)
 
 
 
@@ -3393,7 +3402,7 @@ thunderstaff =
 public export
 gideonAllyOfZendikar : Card
 gideonAllyOfZendikar =
-  Macros.card "Gideon, Ally of Zendikar"
+  Macros.cardOf "Gideon, Ally of Zendikar"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) [Legendary]
        (MkTypeLine [Gideon] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
@@ -3412,7 +3421,7 @@ gideonAllyOfZendikar =
        , Macros.activated (LoyaltySymbol (LoyaltyDown 4))
                           (GetsEmblem You [Static (Gets (AllOf Macros.creatureYouControl)
                                                  (PtUp (Lit 1)) (PtUp (Lit 1)))]) ]
-       Nothing
+       (Macros.loyaltyBox 4)
 
 public export
 turnTheTables : Card
@@ -7139,7 +7148,7 @@ cultivatorColossus =
               (Macros.putOntoBattlefieldTapped
                  (Macros.a (And [Macros.land, InZone (Macros.handOf You)])))
               (Sequentially [Macros.drawACard, Repeat Again])) ]
-       (Just (PrintedStar, PrintedStar))
+       (Just (PtBox PrintedStar PrintedStar))
 
 public export
 zimoneAndDina : Ability
@@ -7792,3 +7801,93 @@ contrabandLivestock =
 ||| `DealsCombatDamage`. The at-random half is what this round owed.
 hypnoticSpecterDiscard : Effect [MkBinding TheD Player OneOf PlayerP]
 hypnoticSpecterDiscard = Macros.discardsACardAtRandom They
+
+
+||| Wax // Wane, a split card [CR#709.1]: two faces on one card, each with its
+||| own mana cost [CR#709.4b] and its own type line and text box [CR#709.4c].
+waxWane : Card
+waxWane =
+  SplitCard
+    (MkFace "Wax" (Just [Macros.pip Green]) [] (MkTypeLine [] [Instant])
+            [ Spell (Macros.gets (Macros.target Macros.creature)
+                                 (PtUp (Lit 2)) (PtUp (Lit 2))
+                                 (Just Macros.untilEndOfTurn)) ]
+            Nothing)
+    (MkFace "Wane" (Just [Macros.pip White]) [] (MkTypeLine [] [Instant])
+            [ Spell (Macros.destroy (Macros.target Macros.enchantment)) ]
+            Nothing)
+
+||| Branchloft Pathway // Boulderloft Pathway, a modal double-faced card
+||| [CR#712.3]: the two faces are independent, and a player playing it as a
+||| land chooses which of them enters [CR#712.12].
+branchloftPathway : Card
+branchloftPathway =
+  ModalDfc
+    (MkFace "Branchloft Pathway" Nothing [] (MkTypeLine [] [Land])
+            [ Macros.activated TapSymbol
+                               (AddMana You (Lit 1) (Runs [[OfColor Green]]) []) ]
+            Nothing)
+    (MkFace "Boulderloft Pathway" Nothing [] (MkTypeLine [] [Land])
+            [ Macros.activated TapSymbol
+                               (AddMana You (Lit 1) (Runs [[OfColor White]]) []) ]
+            Nothing)
+
+||| Merfolk Secretkeeper // Venture Deeper, an adventurer card [CR#715.1]: the
+||| normal face, and the inset frame whose alternative characteristics the
+||| object has while it's a spell [CR#715.2].
+merfolkSecretkeeper : Card
+merfolkSecretkeeper =
+  Adventurer
+    (MkFace "Merfolk Secretkeeper" (Just [Macros.pip Blue]) []
+            (MkTypeLine [Merfolk, Wizard] [Creature]) []
+            (Macros.printedBox (Just (0, 4))))
+    (MkFace "Venture Deeper" (Just [Macros.pip Blue]) []
+            (MkTypeLine [Adventure] [Sorcery])
+            [ Spell (Macros.mills (Macros.target AnyPlayer) (Lit 4) They) ]
+            Nothing)
+
+||| Orochi Eggwatcher // Shidako, Broodmistress, a flip card [CR#710.1]. The
+||| activated ability's own words turn it over, spelled with the landed
+||| `Flipped` status; the alternative half writes no mana cost of its own
+||| [CR#710.1c].
+orochiEggwatcher : Card
+orochiEggwatcher =
+  FlipCard
+    (MkFace "Orochi Eggwatcher" (Just [Macros.generic 2, Macros.pip Green]) []
+            (MkTypeLine [Snake, Shaman] [Creature])
+            [ Macros.activated
+                (Compound [Mana [Macros.generic 2, Macros.pip Green], TapSymbol])
+                (Sequentially
+                   [ Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Snake])
+                   , Macros.ifThen (CompareAmt (CountOf Macros.creatureYouControl)
+                                               AtLeast (Lit 10))
+                                   (SetStatus Flipped Macros.thisCreature) ]) ]
+            (Macros.printedBox (Just (1, 1))))
+    (MkAltFace "Shidako, Broodmistress" [Legendary]
+               (MkTypeLine [Snake, Shaman] [Creature])
+               [ Macros.activated
+                   (Compound [ Mana [Macros.pip Green]
+                             , Do (Macros.sacrifice You (Macros.a Macros.creature)) ])
+                   (Macros.gets (Macros.target Macros.creature)
+                                (PtUp (Lit 3)) (PtUp (Lit 3))
+                                (Just Macros.untilEndOfTurn)) ]
+               (Macros.printedBox (Just (3, 3))))
+
+
+||| A planeswalker back face with no loyalty number, probed at the law rather
+||| than benched as a card. Arlinn, Embraced by the Moon and Garruk, the
+||| Veil-Cursed both print a legendary planeswalker back with the box empty,
+||| while Jace, Telepath Unbound prints one on the same kind of face: [CR#209.1]
+||| puts the number on each planeswalker *card*, and [CR#712.8a] reads a
+||| double-faced card's characteristics off its front face off the battlefield,
+||| so the back's box is optional and `AltCardBox` — not `CardBox` — is what a
+||| costless face answers. Both whole cards wait on a transform verb (Ledger),
+||| so the evidence is the law, not an entry.
+public export
+planeswalkerBackWithoutLoyalty : AltFace
+planeswalkerBackWithoutLoyalty =
+  MkAltFace "" [Legendary] (MkTypeLine [Arlinn] [Planeswalker]) [] Nothing
+
+public export
+planeswalkerBackWithoutLoyaltyOk : AltFaceLaws Cards.planeswalkerBackWithoutLoyalty
+planeswalkerBackWithoutLoyaltyOk = MkAltFaceLaws

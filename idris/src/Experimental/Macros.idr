@@ -94,23 +94,38 @@ public export
 spell : Predicate bs Object
 spell = InZone stackZ
 
+||| A one-faced card, spelled as its face's six printed parts.
 public export
 cardOf : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
          (line : TypeLine) -> (text : AbilitySeq []) ->
-         (stats : Maybe (PrintedStat, PrintedStat)) ->
+         (box : Maybe PrintedBox) ->
          {auto 0 ln : CardLine line} ->
          {auto 0 sp : CardSupers supers} ->
          {auto 0 tx : CardText line text} ->
          {auto 0 ch : CardChapters line text} ->
-         {auto 0 pts : CardPt line text stats} ->
+         {auto 0 bx : CardBox line text box} ->
          {auto 0 mc : CardCost line cost} ->
          Card
-cardOf name cost supers line text stats = MkCard name cost supers line text stats
+cardOf name cost supers line text box =
+  SingleFaced (MkFace name cost supers line text box)
+              {fl = MkFaceLaws {ln} {sp} {tx} {ch} {bx} {mc}}
 
+||| The lower-right box a creature card writes [CR#208.1], from its two plain
+||| numbers.
 public export
-printedBox : Maybe (Integer, Integer) -> Maybe (PrintedStat, PrintedStat)
+printedBox : Maybe (Integer, Integer) -> Maybe PrintedBox
 printedBox Nothing = Nothing
-printedBox (Just (p, t)) = Just (PrintedNum p, PrintedNum t)
+printedBox (Just (p, t)) = Just (PtBox (PrintedNum p) (PrintedNum t))
+
+||| The lower-right box a planeswalker card writes [CR#209.1].
+public export
+loyaltyBox : Integer -> Maybe PrintedBox
+loyaltyBox n = Just (LoyaltyBox (PrintedNum n))
+
+||| The lower-right box a battle card writes [CR#210.1].
+public export
+defenseBox : Integer -> Maybe PrintedBox
+defenseBox n = Just (DefenseBox (PrintedNum n))
 
 public export
 card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
@@ -120,11 +135,11 @@ card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) -
        {auto 0 sp : CardSupers supers} ->
        {auto 0 tx : CardText line text} ->
        {auto 0 ch : CardChapters line text} ->
-       {auto 0 pts : CardPt line text (printedBox stats)} ->
+       {auto 0 bx : CardBox line text (printedBox stats)} ->
        {auto 0 mc : CardCost line cost} ->
        Card
 card name cost supers line text stats =
-  cardOf name cost supers line text (printedBox stats) {ln} {sp} {tx} {ch} {pts} {mc}
+  cardOf name cost supers line text (printedBox stats) {ln} {sp} {tx} {ch} {bx} {mc}
 
 public export
 counterSpell : (n : Noun bs Object) ->

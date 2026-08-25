@@ -2008,6 +2008,9 @@ data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
              | Town | Desert
              | Pegasus
              | Faerie
+             | Snake
+             | Adventure
+             | Arlinn
              | Kraken | Sphinx
              | Werewolf | Eldrazi
 
@@ -2043,6 +2046,12 @@ Eq Subtype where
   (==) Pegasus _ = False
   (==) Faerie Faerie = True
   (==) Faerie _ = False
+  (==) Snake Snake = True
+  (==) Snake _ = False
+  (==) Adventure Adventure = True
+  (==) Adventure _ = False
+  (==) Arlinn Arlinn = True
+  (==) Arlinn _ = False
   (==) Kraken Kraken = True
   (==) Kraken _ = False
   (==) Sphinx Sphinx = True
@@ -2297,7 +2306,10 @@ subtypeType Horse = Creature
 subtypeType Bird = Creature
 subtypeType Ally = Creature
 subtypeType Gideon = Planeswalker
+subtypeType Snake = Creature
 subtypeType Arcane = Instant
+subtypeType Adventure = Instant
+subtypeType Arlinn = Planeswalker
 
 public export
 data BasicLandType : Subtype -> Type where
@@ -2931,6 +2943,13 @@ lineNonEmpty (MkTypeLine [] []) = False
 lineNonEmpty (MkTypeLine _ _) = True
 
 
+||| The spell types [CR#205.3k]: one list that instants and sorceries share.
+||| `subtypeType` answers with a single card type and so under-reports these;
+||| a spell type fits either of the two.
+public export
+spellSubtype : Subtype -> Bool
+spellSubtype s = subtypeType s == Instant
+
 public export
 subsFitLine : List Subtype -> List CardType -> Bool
 subsFitLine [] tys = True
@@ -2938,7 +2957,10 @@ subsFitLine (s :: ss) tys =
   -- [CR#308.2]: kindred subtypes are the same set as creature subtypes,
   -- so a creature subtype fits a Kindred-typed line too.
   (elem (subtypeType s) tys
-     || (subtypeType s == Creature && elem Kindred tys))
+     || (subtypeType s == Creature && elem Kindred tys)
+     -- [CR#205.3k]: instants and sorceries share their subtype list, so
+     -- either card type carries a spell type.
+     || (spellSubtype s && (elem Instant tys || elem Sorcery tys)))
   && subsFitLine ss tys
 
 

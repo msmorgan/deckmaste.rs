@@ -433,3 +433,49 @@ public export
 badNoughtSidedDie : Unspellable (Effect []) (\ok =>
   RollDice You (Lit 1) 0 {nz = ok})
 badNoughtSidedDie ItIsSucc impossible
+
+||| a planeswalker card printed with no starting loyalty
+||| [CR#209.1] has each planeswalker card print a loyalty number in its lower right corner.
+public export
+badPlaneswalkerNoLoyalty : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [Jace] [Planeswalker])
+       [] Nothing {bx = ok})
+badPlaneswalkerNoLoyalty MkCardBox impossible
+
+||| a planeswalker card printing "3/3" where its loyalty number goes
+||| [CR#209.1] and [CR#208.1] name the same lower right corner, so one face writes one of the two.
+public export
+badPlaneswalkerPtBox : Unspellable Card (\ok =>
+  Macros.cardOf "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [Jace] [Planeswalker])
+       [] (Macros.printedBox (Just (3, 3))) {bx = ok})
+badPlaneswalkerPtBox MkCardBox impossible
+
+||| a battle card printed with no defense
+||| [CR#210.1] has each battle card print a defense number in its lower right corner.
+public export
+badBattleNoDefense : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [Siege] [Battle]) [] Nothing {bx = ok})
+badBattleNoDefense MkCardBox impossible
+
+||| an adventurer card whose inset frame is a plain instant, naming no Adventure
+||| A player plays the card "as an Adventure" [CR#715.3], and [CR#205.3k] makes
+||| Adventure the spell type that names it; without it the frame is nothing to play as.
+public export
+badUnnamedAdventure : Unspellable Card (\ok =>
+  Adventurer (MkFace "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Creature]) []
+                     (Macros.printedBox (Just (1, 1))))
+             (MkFace "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant]) [] Nothing)
+             {ai = ok})
+badUnnamedAdventure Oh impossible
+
+||| a flip card whose upside-down half is an instant
+||| [CR#710.2] reads the alternative characteristics only on the battlefield, and
+||| [CR#110.4] keeps an instant off it.
+public export
+badSpellFlipHalf : Unspellable Card (\ok =>
+  FlipCard (MkFace "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Creature]) []
+                   (Macros.printedBox (Just (1, 1))))
+           (MkAltFace "" [] (MkTypeLine [] [Instant]) [] Nothing)
+           {ah = ok})
+badSpellFlipHalf Oh impossible
