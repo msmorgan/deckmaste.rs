@@ -345,6 +345,15 @@ What the report adds beyond what is scheduled above:
   decision this region owes; the qualified-cast and activation-prohibition
   entries above are two of them arriving one at a time.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **The cast-timing restriction node.** `Timing` attaches to `Activated` only,
+  so Necrologia's cast-window restriction has no carrier (consolidated open gap
+  4) — `docs/tickets/done/workbench-pins-refuse-rules-impossibility-only.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`ObjectCant`, `CostsToCast`, `possessorOk`, the

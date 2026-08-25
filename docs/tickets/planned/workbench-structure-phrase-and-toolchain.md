@@ -187,6 +187,32 @@ The lifted-scan generator and the `OneOrMore` emit arm moved to
 `workbench-lifted-scans-and-oneormore-emit` (2026-08-22); this ticket is the
 grammar merges only.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **`Aggregate` is now a special case of `AggregateOver`.** `Aggregate op ax p`
+  folds `ax` over the members of `p`; `AggregateOver op p body` folds `body`
+  over the same members with one bound, so writing the axis read as the body
+  recovers the older row exactly. Two spellings for one meaning; a future round
+  should collapse the pair rather than grow both —
+  `docs/tickets/done/workbench-amount-comparison-and-quantity.md`.
+- **`writtenBound` has no consumer** anywhere in the repo — signature and rows
+  only, likely residue of a removed bound gate; the merge of `XVal = True` with
+  `DefinedLetter = False` is inert. Conductor decides deletion —
+  `docs/tickets/done/workbench-amount-comparison-and-quantity.md`,
+  `docs/tickets/done/workbench-letters-introduce-then-define.md`.
+- **`grantableAb (Spell _) = False` is narrower than [CR#113.3a]** for one
+  subject: `Gains` takes a `Noun bs Object`, which can name a spell. 0 corpus
+  lines grant a quoted ability to a spell, so the cell refuses nothing printed,
+  and the docstring's argument holds for a permanent subject only. Belongs with
+  the three quotation cells above —
+  `docs/tickets/done/workbench-closure-flip-risks.md`.
+- **The `Rider`-family unification stays deferred**, per the 2026-08-24
+  decision: it waits on a second trailing-rider construction existing —
+  `docs/tickets/done/workbench-one-define-spelling.md`.
+
 ## Consumption boundary
 
 For the two sweep sub-areas and the lifted scans: `idris/src/Experimental.idr`,

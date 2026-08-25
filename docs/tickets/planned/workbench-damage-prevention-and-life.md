@@ -262,6 +262,18 @@ be one row over a suppressed EVENT rather than several.
   scheduling a row: "Players can't draw cards", "Players can't search libraries".
   If one suppressed-event row covers them, the life-gain lines ride it.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **Hypnotic Specter's header is the source-side non-combat damage event.**
+  "This creature deals damage to an opponent" — `GameEvent` carries only
+  recipient-side `IsDealtDamage` and combat-only `DealsCombatDamage`. Same row
+  as "The active damage event with its source written" above; the card's body
+  is already benched (`hypnoticSpecterDiscard`) —
+  `docs/tickets/done/workbench-randomness-vocabulary.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`Redirects`, `RedirectsFrom`, `Intercepts`,

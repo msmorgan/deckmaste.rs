@@ -271,6 +271,15 @@ disjunction would, so whichever round goes first settles it for both; and
 `AltEvent` is the one composition operator that already exists, so a general
 disjunction retires that row rather than sitting beside it.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **The agentless "this way" reflexive node** — [CR#603.12]'s second form;
+  Inferno of the Star Mounts and the regenerate lines (consolidated open gap 2)
+  — `docs/tickets/done/workbench-pins-refuse-rules-impossibility-only.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`Predicate`, `InZone`, `headerWindowOk`, the

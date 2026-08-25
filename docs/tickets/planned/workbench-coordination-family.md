@@ -246,6 +246,28 @@ not counted here (the docstring-audit ticket was deleted 2026-08-21).
   as long as` lines are independent statements), but the gate is asserted by
   nothing.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **The non-`You` player half.** `kindJoin` takes a `Predicate bs Player` and
+  the only two are `AnyPlayer` and `Opponent`, while "you" is a `Noun`, so the
+  attested "attacks you or a planeswalker you control" has no player predicate
+  (`docs/tickets/done/workbench-attackable-defender-join.md`). Its distributive
+  twin is measured: 14 printed lines coordinate a non-"you" player half with a
+  distributive object half ("deals N damage to target player and each creature
+  that player controls"), which a declaration hard-wiring "you" refuses —
+  `docs/tickets/done/workbench-union-gate-spelling-rehome.md`.
+- **The reciprocal fight node** — [CR#701.14a]'s "two creatures fight each
+  other", eleven printed lines (consolidated open gap 6) —
+  `docs/tickets/done/workbench-pins-refuse-rules-impossibility-only.md`.
+- **Static re-orientation, left by round 1.** desperateCastaways, bombur,
+  brightspearZealot, deepwayNavigator, urborgScavengers, thunderstaff and
+  martyrsOfKorlis are untouched; the last two are visibly fronted authorings of
+  postposed print ("… as long as it's untapped") —
+  `docs/tickets/done/workbench-conditional-and-coordination.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`Effect.If`, `Conditionally`, `condIntro`,

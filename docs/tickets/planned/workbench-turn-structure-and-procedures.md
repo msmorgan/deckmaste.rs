@@ -340,6 +340,16 @@ says whether a rule or a count is closing it. Rows, evidence and widening costs:
 `spanUse`'s ~90-cell duration grid (`Experimental.idr:2509`): only four cells
 are Unclaimed, the rest Unattested.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **Tainted Pact's loop control.** "You exile two cards with the same name" is
+  the terminating condition of a `Repeat`-until carrying a "whichever comes
+  first" disjunction; the name construction itself is landed —
+  `docs/tickets/done/workbench-name-match-family.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`Effect.AdditionalPart`, `TurnPart`, `ExtraTurn`,

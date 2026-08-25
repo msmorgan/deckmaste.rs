@@ -326,6 +326,36 @@ writes no stamp, so nothing reads a returned card back by participle. If a
 witness ever wants "the returned card", it wants a STAMP WITHOUT A TAG — decide
 that only against such a witness.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **`It` has no antecedent after a discard cost.** Twinshot Sniper's `Channel —
+  {1}{R}, Discard this card: It deals 2 damage to any target.` cannot be written:
+  `Do (discards You This)` introduces no object binding, so `It`'s
+  `countOnes Object bs = 1` fails and a `Channel` witness waits on it —
+  `docs/tickets/done/workbench-ability-word-primitive.md`.
+- **The plural read-back mention.** "Each player scries N" is unspellable: the
+  anaphor needs a single `Player` mention and `Each` introduces a plural one.
+  Same gap `MillB` has —
+  `docs/tickets/done/workbench-closure-flip-risks.md`.
+- **Replacement-event anaphora.** `eventIntro` mints no subject binding for the
+  event's own noun, so Clergy's printed "it" has no antecedent (consolidated
+  open gap 7) —
+  `docs/tickets/done/workbench-pins-refuse-rules-impossibility-only.md`.
+- **`Effect.Search` takes no `Quantity` and mints no mention**, so neither a
+  counted search nor a group constraint on its object has anywhere to attach;
+  13 of the 24 "with different names" lines write the constraint there —
+  `docs/tickets/done/workbench-name-match-family.md`.
+- **The card's mana cost is unthreaded.** `Spell` effects are typed at `[]`, so
+  Prosperity's `{X}` and its text X are one variable only in prose; the fix is
+  `Card.text : AbilitySeq (costLetters cost)` —
+  `docs/tickets/done/workbench-letters-introduce-then-define.md`.
+- **Tayam's "from among" distributive removal** over a described group belongs
+  with the mill's AMONG-restriction above —
+  `docs/tickets/done/workbench-counter-family-residues.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`effIntro`, `preIntro`, `condIntro`, `Effect.If`,

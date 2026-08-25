@@ -301,6 +301,28 @@ cannot hold. Take them together or not at all.
 
 From the v1 comparison (2026-08-24): the cost-tag readback channel (`CostTag`, `PaidCost`, `CastWith`, `TimesPaid`, `WasPaidWith`) is not this ticket's and is scheduled as [workbench-cost-tags-and-paid-readbacks](workbench-cost-tags-and-paid-readbacks.md).
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **`costActionOk`'s remaining ~40 `False` rows.** Five structural ones were
+  pinned on [CR#118.1] (`Continuously`, `InsteadOf`, `Delayed`, `HeldUntil`,
+  `Reflexively`); the rest — `DealDamage`, `Fights`, `Distribute`, the
+  turn-structure rows, the non-tap `SetStatus` rows, `GetsCounters`,
+  `LosesAllCounters`, `RemoveFromCombat`, `Regenerate`, `CantBe`,
+  `GainsDesignation`, `GameBecomes`, `GameDrawn`, `CopyStack`,
+  `ChooseNewTargets`, `Choose`, `AddMana`, `Expose LookAt`, `Search`, `Shuffle`,
+  `Create` and the remaining labeled-action tags — are attestation and wait for
+  this round (consolidated open gap 10) —
+  `docs/tickets/done/workbench-pins-refuse-rules-impossibility-only.md`.
+- **The "As an additional cost to cast this spell" frame** has no construction;
+  it is Burn at the Stake's remaining blocker —
+  `docs/tickets/done/workbench-verb-labels-open.md`.
+- **Cavern-Hoard Dragon's `{X} less` cost-reduction rider.** The phrase itself
+  is landed and benched; the whole card needs the rider —
+  `docs/tickets/done/workbench-amount-comparison-and-quantity.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`AltCost`, `CostsToCast`, `MayPlay`,

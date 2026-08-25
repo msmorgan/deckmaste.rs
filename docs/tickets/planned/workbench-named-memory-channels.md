@@ -128,6 +128,19 @@ Checked against oracle text and corrected, so the list is not re-derived wrong:
   is a ninth `Ident` key and depends on this ruling; do not design a second
   keyed channel before this one is settled.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **Garth One-Eye's not-yet-chosen name memory.** The literal-name LIST needs
+  nothing new (`NameOfCard (Or [Named (PrintedName "Disenchant"), …])`
+  elaborates today over all six names); what is missing is "a card name that
+  hasn't been chosen" — a per-permanent record of which names this ability's
+  earlier activations chose, where quality bindings are per-clause rather than
+  persistent across activations —
+  `docs/tickets/done/workbench-name-match-family.md`.
+
 ## Consumption boundary
 
 The Idris workbench only: `idris/src/Experimental.idr` (`ExiledWith`,

@@ -222,6 +222,27 @@ says whether a rule or a count is closing it. Rows, evidence and widening costs:
 The `eventUse` / `eventSpan` / `ReplUse` triple over 26 `EventName` rows
 (`Events.idr:107`–`659`).
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **`lookbackComplementOk` refuses every joined complement, on a corpus zero.**
+  Under `kindOfW JoinW = Object \/ Player` a joined complement is now writable,
+  so the refusal is live rather than unreachable; 34 distinct "dealt damage by"
+  lines, five carrying "or", none writing a cross-kind union complement, so the
+  clause was not widened and the fact was recorded rather than gated —
+  `docs/tickets/done/workbench-union-family-macros.md`.
+- **Once Upon a Time's history identity read** ("if this spell is the first
+  spell you've cast this game") — neither built nor pinned; no rule makes it
+  meaningless and no buildable card pays it —
+  `docs/tickets/done/workbench-amount-comparison-and-quantity.md`.
+- **The per-member event count inside `AggregateOver`'s binder body** — Thought
+  Sponge's "the greatest number of cards an opponent has drawn this turn" and
+  the Windfall / Jace's Archivist cycle's "cards a player discarded this way";
+  the body admits an `Amount` but no per-member event subject exists —
+  `docs/tickets/done/workbench-amount-comparison-and-quantity.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`PutInto`, `putDestZoneOk`, `Zone`, `ZoneExpr`,

@@ -294,6 +294,20 @@ says whether a rule or a count is closing it. Rows, evidence and widening costs:
 "equipped permanent" — is a live discrepancy carried by
 the `Measured cell` ledger on `workbench-static-frame-and-ability-values` (the docstring-audit ticket was deleted 2026-08-21); settle it there, not here.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **`attachHeadOk Enchanted _ = True` now covers the six command-zone types**,
+  so "enchanted conspiracy" is admitted. The pre-existing catch-all already
+  admitted "enchanted instant"; a rule tightening it belongs with the attachment
+  relation — `docs/tickets/done/workbench-closure-flip-risks.md`.
+- **Ward with a cost.** Iymrith, Desert Doom's "has ward {4} as long as it's
+  untapped" was benched at Dragonlord Ojutai's cost-free spelling of the same
+  sentence because the parameterised ward row is unbuilt —
+  `docs/tickets/done/workbench-conditional-and-coordination.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental/Words.idr` (`Keyword`, `KeywordParamShape`, the keyword

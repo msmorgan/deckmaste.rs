@@ -363,6 +363,41 @@ Two grids. The `Subtype` catalog's ~130 rows (`Words.idr:1501`), grown one
 witnessed card at a time; and `ascribesAsSubtype`'s nine-self-naming-words census
 against every creature type (`Words.idr:1866`).
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **`CountedGroup` carries no `ChoiceMode` at all.** That blocks ~30
+  counted-plural at-random lines ("discards two cards at random", "discard X
+  cards at random") and the same slot unblocks 35 plural "… of their choice"
+  lines; `SomeOf` (7 lines) and the modal list (5) want it too. 51 call sites —
+  `docs/tickets/done/workbench-randomness-vocabulary.md`.
+- **The plural chosen-quality read.** `Static.EntersChoice` takes a bare
+  `QualitySort` with no `Quantity`, and `countQuality` counts only `OneOf`
+  bindings, so a `ManyOf` quality binding is invisible to every chosen-quality
+  read (Seal of the Guildpact, Tablet of the Guilds) —
+  `docs/tickets/done/workbench-name-match-family.md`.
+- **Aisling Leprechaun's "that creature becomes green".** `ColorIs` exists as a
+  predicate only and the `Becomes*` effect rows set types or copy; this is the
+  colour-only "becomes [color]" section's carrier —
+  `docs/tickets/done/workbench-event-algebra.md`.
+- **Devotion's chosen-colour read.** Nykthos, Shrine to Nyx and Nyx Lotus write
+  "your devotion to that color" over a chosen quality while `Devotion`'s slot is
+  a literal `Chroma.Color`; Altar of the Pantheon modifies devotion across every
+  colour combination at once —
+  `docs/tickets/done/workbench-amount-comparison-and-quantity.md`.
+- **Subtype rows named by closed rounds and still unrowed:** `Fungus`, `Kor`,
+  `Wolf`, `Arlinn`
+  (`docs/tickets/done/workbench-counter-family-residues.md`), `Drake`
+  (`docs/tickets/done/workbench-event-algebra.md`), `Garruk`
+  (`docs/tickets/done/workbench-multiface-cards.md`).
+- **The joint-typing container for cross-line choices** (consolidated open gap
+  15) would move the five [CR#608.2c] pins together —
+  `docs/tickets/done/workbench-pins-refuse-rules-impossibility-only.md`.
+- **Master Biomancer's entry-time type addition** coordinated with its counter
+  clause — `docs/tickets/done/workbench-counter-family-residues.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (`EntersChoice`, `Choose`, `ZoneFits`/`nounZone`,

@@ -30,6 +30,13 @@ during the 2026-08-02 semantics-program recon; none block anything.
 
 Line numbers are as of 2026-08-02 — re-grep at claim time.
 
+## Routed ledger items
+
+- `idris/src/Bridge.idr`'s illustrative v1/v2 comparison pseudo-code still names
+  `AnyTarget`, which left the core for `Macros.anyTarget`. Already stale before
+  that round and out of its consumption boundary —
+  `docs/tickets/done/workbench-union-family-macros.md`.
+
 ## Gates
 
 Standard constraints apply; comment-only/rename-only, so the suites are

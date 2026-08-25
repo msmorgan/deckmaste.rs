@@ -264,6 +264,32 @@ A two-player effect whose operand is the set operation this grammar already has
 arithmetic. It is also what blocks two of the six supported "difference between"
 lines, which otherwise wait on their own surface.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **Re-measure the eleven-card Adventure-face reading** against the landed
+  `Adventurer` and `Transforming` constructors; the two Sieges it also counts
+  are likewise unblocked at the card shape —
+  `docs/tickets/done/workbench-multiface-cards.md`.
+- **"Commander creatures you own/control" has no description.**
+  `designationScope CommanderD = HeldByCard` with `designationChecked CommanderD
+  = False`, so `HasDesignation` cannot spell it, and ownership on an object
+  description has no row. Carriers: Master Chef
+  (`docs/tickets/done/workbench-counter-family-residues.md`) and Astarion's
+  Thirst (`docs/tickets/done/workbench-letters-introduce-then-define.md`).
+- **The team form at `Predicate.Opponent`** — "your team controls" [CR#102.3],
+  deferred in source; Pir, Imaginative Rascal —
+  `docs/tickets/done/workbench-counter-family-residues.md`.
+- **`negatable (QualityNoun _)` over-reaches** — [CR#105.1] empties the
+  complement only for the domainless quality noun (consolidated open gap 9) —
+  `docs/tickets/done/workbench-pins-refuse-rules-impossibility-only.md`.
+- **The all-graveyards possessor**, written by five of the asymmetric
+  definition's twelve lines; the Lhurgoyf witness spells the bare graveyard zone
+  with a spelling note and the possessor question is untouched —
+  `docs/tickets/done/workbench-amount-comparison-and-quantity.md`.
+
 ## Consumption boundary
 
 `idris/src/Experimental/Words.idr` (`OtherThan`, `Other`, the subset complement

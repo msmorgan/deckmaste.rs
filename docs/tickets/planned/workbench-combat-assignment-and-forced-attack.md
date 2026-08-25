@@ -45,6 +45,23 @@ What refused was the planeswalker ascription at `DamageableTy`, one row, now
 landed, and the [0] writes whole on Gideon, Ally of Zendikar. The prevention
 machinery was never the blocker.
 
+## Routed ledger items
+
+Items from closed round tickets that this ticket owns. One line each, citing
+the done ticket that recorded them.
+
+- **No attack-declaration event with a PLAYER subject.** "Whenever an opponent
+  attacks with one or more creatures" — `Attacks`'s subject is `Noun bs Object`,
+  so Tahngarth, First Mate's opponent is never bound and its second clause has
+  no antecedent either —
+  `docs/tickets/done/workbench-attackable-defender-join.md`.
+- **No `Predicate` describes a player or planeswalker by what is attacking it.**
+  "a player or planeswalker that opponent is attacking"; `Attacking` is
+  `Predicate bs Object` and describes the attacker — same ticket.
+- **No `Effect` row makes an on-battlefield permanent an attacking creature.**
+  `EntersAttacking` is a `TokenRider` on entry carrying no defender, and
+  `RemoveFromCombat` is only its inverse — same ticket.
+
 ## Consumption boundary
 
 `idris/src/Experimental.idr` (the condition and effect rows, `Duration`,
