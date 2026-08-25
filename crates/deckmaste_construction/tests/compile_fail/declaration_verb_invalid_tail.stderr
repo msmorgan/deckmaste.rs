@@ -1,0 +1,5 @@
+error: declaration_verb tail atoms must be string literals, `Amount`, or `ObjectNounPhrase`
+ --> tests/compile_fail/declaration_verb_invalid_tail.rs:8:21
+  |
+8 |             tail = [Clause];
+  |                     ^^^^^^

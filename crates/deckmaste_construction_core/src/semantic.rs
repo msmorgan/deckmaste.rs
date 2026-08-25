@@ -756,6 +756,64 @@ pub(crate) struct DeclarationNounPlan {
     feature_axis: Feature,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum VerbFrameAtom {
+    Literal(String),
+    Amount,
+    ObjectNounPhrase,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct VerbFrameKey(Vec<VerbFrameAtom>);
+
+#[allow(dead_code, reason = "Task 3 consumes declaration verb frame keys")]
+impl VerbFrameKey {
+    pub(crate) fn atoms(&self) -> &[VerbFrameAtom] {
+        &self.0
+    }
+
+    pub(crate) fn matches_valence(&self, valence: &macro_ron::v2::VerbValence) -> bool {
+        use macro_ron::v2::VerbValence;
+
+        match valence {
+            VerbValence::Intransitive => self.0.is_empty(),
+            VerbValence::Transitive => self.0 == [VerbFrameAtom::ObjectNounPhrase],
+            VerbValence::Numerative => self.0 == [VerbFrameAtom::Amount],
+            VerbValence::Custom { shapes } => shapes.iter().any(|shape| {
+                shape.len() == self.0.len()
+                    && shape
+                        .iter()
+                        .zip(&self.0)
+                        .all(|(source, planned)| match (source, planned) {
+                            (
+                                macro_ron::v2::CustomTailAtom::Literal(source),
+                                VerbFrameAtom::Literal(planned),
+                            ) => source == planned,
+                            (macro_ron::v2::CustomTailAtom::Amount, VerbFrameAtom::Amount)
+                            | (
+                                macro_ron::v2::CustomTailAtom::ObjectNounPhrase,
+                                VerbFrameAtom::ObjectNounPhrase,
+                            ) => true,
+                            _ => false,
+                        })
+            }),
+        }
+    }
+}
+
+#[derive(Debug)]
+#[allow(dead_code, reason = "Task 3 consumes sealed declaration verb recipes")]
+pub(crate) struct DeclarationVerbPlan {
+    source_index: usize,
+    codec_ident: syn::Ident,
+    declaration_value_ident: syn::Ident,
+    closed_lexeme: Option<syn::Ident>,
+    position: macro_ron::v2::GrammarPosition,
+    kinds: Vec<macro_ron::v2::DeclarationKind>,
+    frame_key: VerbFrameKey,
+    feature_axis: Feature,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UnsignedPrimitive {
     U32,
@@ -838,6 +896,7 @@ struct RuntimeEmissionPlan {
     signed_decimal_index: Option<usize>,
     unsigned_number_indices: Vec<usize>,
     declaration_noun_indices: Vec<usize>,
+    declaration_verb_indices: Vec<usize>,
     punctuation_literals: Vec<String>,
     scanner_origin_indices: Vec<usize>,
 }
@@ -860,6 +919,7 @@ impl RuntimeEmissionPlan {
             signed_decimal_index: None,
             unsigned_number_indices: Vec::new(),
             declaration_noun_indices: Vec::new(),
+            declaration_verb_indices: Vec::new(),
             punctuation_literals: Vec::new(),
             scanner_origin_indices: Vec::new(),
         };
@@ -881,6 +941,9 @@ impl RuntimeEmissionPlan {
                             "sealed runtime inventory has multiple noun lexeme providers",
                         ));
                     }
+                }
+                TerminalPlan::Binding(binding) if binding.declaration_verb().is_some() => {
+                    plan.declaration_verb_indices.push(index);
                 }
                 TerminalPlan::Binding(binding)
                     if binding.codec_atom() == Some(crate::model::CodecAtomClass::Noun)
@@ -974,6 +1037,7 @@ impl RuntimeEmissionPlan {
             .chain(plan.signed_decimal_index.iter())
             .chain(&plan.unsigned_number_indices)
             .chain(&plan.declaration_noun_indices)
+            .chain(&plan.declaration_verb_indices)
             .map(|&index| terminals[index].source_index())
             .collect::<BTreeSet<_>>();
         scanner_origin_indices.extend(roots.iter().map(RootPlan::source_index));
@@ -1106,6 +1170,7 @@ pub(crate) struct BindingPlan {
     build: Option<BindingBuildPlan>,
     traversal: BindingTraversalPlan,
     stored_spelling: bool,
+    declaration_verb: Option<DeclarationVerbPlan>,
 }
 
 #[derive(Debug)]
@@ -1270,6 +1335,12 @@ fn seal_terminals(
                     }
                     crate::model::GeneratedCodecRecipe::DeclarationNoun(_) => {
                         TerminalPlan::DeclarationNoun(DeclarationNounPlan::from_source(
+                            source_index,
+                            binding,
+                        ))
+                    }
+                    crate::model::GeneratedCodecRecipe::DeclarationVerb(_) => {
+                        TerminalPlan::Binding(BindingPlan::from_declaration_verb(
                             source_index,
                             binding,
                         ))
@@ -1591,6 +1662,7 @@ impl SemanticPlan {
     pub(crate) fn needs_parser_environment(&self) -> bool {
         self.has_open_declarations()
             || !self.runtime.declaration_noun_indices.is_empty()
+            || !self.runtime.declaration_verb_indices.is_empty()
             || !self.runtime.catalog_identity_indices.is_empty()
     }
 
@@ -1681,6 +1753,21 @@ impl SemanticPlan {
     ) -> Option<(usize, &DeclarationNounPlan)> {
         self.runtime_declaration_nouns()
             .find(|(_, codec)| codec.codec_name() == value_type)
+    }
+
+    #[allow(dead_code, reason = "Task 3 consumes declaration verb runtime rows")]
+    pub(crate) fn runtime_declaration_verbs(
+        &self,
+    ) -> impl Iterator<Item = (usize, &DeclarationVerbPlan)> {
+        self.runtime.declaration_verb_indices.iter().map(|&index| {
+            let TerminalPlan::Binding(binding) = &self.terminals[index] else {
+                unreachable!("sealed runtime declaration-verb index changed terminal kind")
+            };
+            let plan = binding
+                .declaration_verb()
+                .expect("sealed runtime declaration-verb binding retains its recipe");
+            (index, plan)
+        })
     }
 
     pub(crate) fn runtime_direct_bindings(&self) -> impl Iterator<Item = &BindingPlan> {
@@ -4281,6 +4368,16 @@ impl AtomPlan {
                     path: path.clone(),
                 })
             }
+            (
+                FormAtom::Verb(VerbOperand::Projected(authored)),
+                AtomContribution::VerbProjected { role, terminal },
+            ) => {
+                ensure_atom_name(authored, role, "projected verb role name")?;
+                Ok(Self::Lex {
+                    role: role.clone(),
+                    terminal: terminal.clone(),
+                })
+            }
             (FormAtom::OpenVerb(authored), AtomContribution::OpenDeclaration { kind, name }) => {
                 if authored.name.value() != *name {
                     return Err(syn::Error::new(
@@ -4889,6 +4986,7 @@ impl TerminalPlan {
 
     pub(crate) fn supports_verb_atom(&self) -> bool {
         matches!(self, Self::Lexeme(lexeme) if lexeme.is_verb_provider())
+            || matches!(self, Self::Binding(binding) if binding.declaration_verb().is_some())
     }
 
     pub(crate) fn has_direct_render(&self) -> bool {
@@ -5444,6 +5542,7 @@ impl UnsignedNumberPlan {
             }
             crate::model::GeneratedCodecRecipe::SignedDecimal(_)
             | crate::model::GeneratedCodecRecipe::DeclarationNoun(_)
+            | crate::model::GeneratedCodecRecipe::DeclarationVerb(_)
             | crate::model::GeneratedCodecRecipe::Unsupported { .. } => {
                 unreachable!("validated unsigned numeral has its closed recipe")
             }
@@ -5577,6 +5676,93 @@ impl DeclarationNounPlan {
     }
 }
 
+#[allow(
+    dead_code,
+    reason = "Task 3 consumes sealed declaration verb accessors"
+)]
+impl DeclarationVerbPlan {
+    fn from_source(source_index: usize, source: &crate::TerminalBinding) -> Self {
+        let Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe)) = &source.generated
+        else {
+            unreachable!("validated generated codec has the declaration_verb recipe")
+        };
+        let frame_key = VerbFrameKey(
+            recipe
+                .tail_slots
+                .first()
+                .expect("validated declaration_verb has one tail")
+                .atoms
+                .iter()
+                .map(|atom| match atom {
+                    crate::model::DeclarationVerbTailAtomSource::Literal(literal) => {
+                        VerbFrameAtom::Literal(literal.value())
+                    }
+                    crate::model::DeclarationVerbTailAtomSource::Amount(_) => VerbFrameAtom::Amount,
+                    crate::model::DeclarationVerbTailAtomSource::ObjectNounPhrase(_) => {
+                        VerbFrameAtom::ObjectNounPhrase
+                    }
+                })
+                .collect(),
+        );
+        let kinds = recipe
+            .kind_slots
+            .first()
+            .expect("validated declaration_verb has one kind set")
+            .kinds
+            .iter()
+            .map(|kind| match identifier_key(kind).as_str() {
+                "KeywordAction" => macro_ron::v2::DeclarationKind::KeywordAction,
+                _ => unreachable!("validated declaration_verb kind is closed"),
+            })
+            .collect();
+        Self {
+            source_index,
+            codec_ident: source.name.clone(),
+            declaration_value_ident: syn::Ident::new(
+                &format!("Declaration{}", identifier_key(&source.name)),
+                source.name.span(),
+            ),
+            closed_lexeme: recipe.closed_slots.first().map(|slot| slot.value.clone()),
+            position: macro_ron::v2::GrammarPosition::Verb,
+            kinds,
+            frame_key,
+            feature_axis: Feature::Agreement,
+        }
+    }
+
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
+    }
+
+    pub(crate) fn codec_ident(&self) -> &syn::Ident {
+        &self.codec_ident
+    }
+
+    pub(crate) fn declaration_value_ident(&self) -> &syn::Ident {
+        &self.declaration_value_ident
+    }
+
+    pub(crate) fn closed_lexeme(&self) -> Option<&syn::Ident> {
+        self.closed_lexeme.as_ref()
+    }
+
+    pub(crate) fn position(&self) -> macro_ron::v2::GrammarPosition {
+        self.position
+    }
+
+    pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] {
+        &self.kinds
+    }
+
+    pub(crate) fn frame_key(&self) -> &VerbFrameKey {
+        &self.frame_key
+    }
+
+    pub(crate) fn feature_axis(&self) -> Feature {
+        self.feature_axis
+    }
+}
+
 impl BindingPlan {
     fn from_source(source_index: usize, source: &crate::TerminalBinding) -> syn::Result<Self> {
         let render = source.render.as_ref().map(|render| match render {
@@ -5673,7 +5859,33 @@ impl BindingPlan {
                 recipe,
                 leaf_callbacks,
             },
+            declaration_verb: None,
         })
+    }
+
+    fn from_declaration_verb(source_index: usize, source: &crate::TerminalBinding) -> Self {
+        Self {
+            source_index,
+            origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
+            origin_span: source.name.span(),
+            name: source.name.clone(),
+            name_key: identifier_key(&source.name),
+            kind: source.kind,
+            codec_atom: source.codec_atom,
+            value_type_name: source.name.clone(),
+            lexical_variant: source.lexical_variant.clone(),
+            render: None,
+            build: None,
+            traversal: BindingTraversalPlan {
+                mode: crate::model::VisitMode::Borrowed,
+                argument: default_leaf_argument(&identifier_key(&source.name)),
+                fields: Vec::new(),
+                recipe: BindingTraversalRecipe::Calls(Vec::new()),
+                leaf_callbacks: Vec::new(),
+            },
+            stored_spelling: false,
+            declaration_verb: Some(DeclarationVerbPlan::from_source(source_index, source)),
+        }
     }
 
     pub(crate) fn name(&self) -> &str {
@@ -5710,6 +5922,10 @@ impl BindingPlan {
 
     pub(crate) fn has_stored_spelling(&self) -> bool {
         self.stored_spelling
+    }
+
+    pub(crate) fn declaration_verb(&self) -> Option<&DeclarationVerbPlan> {
+        self.declaration_verb.as_ref()
     }
 
     pub(crate) fn origin(&self) -> &DeclarationKey {

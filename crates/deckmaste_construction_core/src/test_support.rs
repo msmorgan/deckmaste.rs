@@ -338,6 +338,27 @@ pub(crate) fn role_derived_noun_tokens() -> proc_macro2::TokenStream {
     }
 }
 
+pub(crate) fn declaration_verb_tokens(tail: &proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    quote! {
+        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        lexeme CoreVerb using EnglishVerb { Destroy = "destroy", }
+        codec TransitiveVerb {
+            generate declaration_verb {
+                closed = CoreVerb;
+                position = Verb;
+                kinds = [KeywordAction];
+                tail = [#tail];
+                feature = Agreement;
+            }
+        }
+        construction only: Root {
+            element Only {}
+            form only = "only";
+        }
+        root Root { punctuation = "."; eoi = true; standalone_render = true; }
+    }
+}
+
 pub(crate) fn vocab_matched_number_without_noun_tokens() -> proc_macro2::TokenStream {
     quote! {
         vocab Count { One = "one", Many = "many", }

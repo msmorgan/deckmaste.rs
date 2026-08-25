@@ -126,6 +126,10 @@ pub(crate) enum AtomContribution {
         terminal: String,
         variant: String,
     },
+    VerbProjected {
+        role: String,
+        terminal: String,
+    },
     OpenDeclaration {
         kind: macro_ron::v2::DeclarationKind,
         name: String,
@@ -158,7 +162,8 @@ impl AtomContribution {
             Self::Lex { terminal, .. }
             | Self::Identity { terminal, .. }
             | Self::Noun { terminal, .. }
-            | Self::VerbFixed { terminal, .. } => Some(terminal),
+            | Self::VerbFixed { terminal, .. }
+            | Self::VerbProjected { terminal, .. } => Some(terminal),
             Self::Literal | Self::Category { .. } | Self::OpenDeclaration { .. } => None,
         }
     }
@@ -169,7 +174,8 @@ impl AtomContribution {
             Self::Category { role, category } => !role.is_empty() && !category.is_empty(),
             Self::Lex { role, terminal }
             | Self::Identity { role, terminal }
-            | Self::Noun { role, terminal } => !role.is_empty() && !terminal.is_empty(),
+            | Self::Noun { role, terminal }
+            | Self::VerbProjected { role, terminal } => !role.is_empty() && !terminal.is_empty(),
             Self::VerbFixed { terminal, variant } => !terminal.is_empty() && !variant.is_empty(),
             Self::OpenDeclaration { name, .. } => !name.is_empty(),
         }
@@ -192,6 +198,9 @@ impl AtomContribution {
             Self::VerbFixed { terminal, .. } => terminals
                 .get(terminal.as_str())
                 .is_some_and(|info| info.supports_verb_atom() && info.has_traversal()),
+            Self::VerbProjected { terminal, .. } => terminals
+                .get(terminal.as_str())
+                .is_some_and(|info| info.supports_verb_atom() && info.has_traversal()),
         }
     }
 
@@ -204,6 +213,7 @@ impl AtomContribution {
             Self::Identity { role, .. } => format!("identity({role})"),
             Self::Noun { role, .. } => format!("noun({role})"),
             Self::VerbFixed { terminal, variant } => format!("verb({terminal}::{variant})"),
+            Self::VerbProjected { role, .. } => format!("verb({role})"),
             Self::OpenDeclaration { kind, name } => {
                 format!("open_verb({kind:?}, {name}, Verb)")
             }
@@ -318,6 +328,7 @@ enum TerminalKind {
 struct TerminalInfo {
     kind: TerminalKind,
     codec_atom: Option<CodecAtomClass>,
+    agreement_verb: bool,
     variants: HashSet<String>,
     variant_order: Vec<String>,
 }
@@ -2195,6 +2206,9 @@ fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
             crate::model::GeneratedCodecRecipe::DeclarationNoun(source) => {
                 validate_declaration_noun_source(raw, source, &mut errors);
             }
+            crate::model::GeneratedCodecRecipe::DeclarationVerb(source) => {
+                validate_declaration_verb_source(raw, source, &mut errors);
+            }
             crate::model::GeneratedCodecRecipe::EnglishCardinal(source)
             | crate::model::GeneratedCodecRecipe::UnsignedDecimal(source) => {
                 validate_unsigned_number_source(source, &mut errors);
@@ -2258,7 +2272,112 @@ fn finish_generated_codec_validation(
     mut errors: Option<syn::Error>,
 ) -> syn::Result<()> {
     validate_declaration_noun_domains_are_pairwise_intentional(raw, &mut errors);
+    validate_declaration_verb_domains_are_pairwise_intentional(raw, &mut errors);
     finish(errors)
+}
+
+fn validate_declaration_verb_domains_are_pairwise_intentional(
+    raw: &Declarations,
+    errors: &mut Option<syn::Error>,
+) {
+    let verbs = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| {
+            let Declaration::Codec(binding) = declaration else {
+                return None;
+            };
+            let Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(source)) =
+                &binding.generated
+            else {
+                return None;
+            };
+            declaration_verb_domain(source).map(|domain| (binding, domain))
+        })
+        .collect::<Vec<_>>();
+    for (index, (left, left_domain)) in verbs.iter().enumerate() {
+        for (right, right_domain) in &verbs[index + 1..] {
+            if left_domain.position != right_domain.position
+                || left_domain.tail != right_domain.tail
+            {
+                continue;
+            }
+            let kind_overlap = left_domain
+                .kinds
+                .intersection(&right_domain.kinds)
+                .next()
+                .cloned();
+            let closed_overlap = left_domain
+                .closed
+                .as_ref()
+                .is_some_and(|left_closed| right_domain.closed.as_ref() == Some(left_closed));
+            if let Some(kind) = kind_overlap {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        right.name.span(),
+                        format!(
+                            "declaration_verb domains `{}` and `{}` overlap at `{kind}/{}/{}`",
+                            left.name, right.name, left_domain.position, left_domain.tail
+                        ),
+                    ),
+                );
+            } else if closed_overlap {
+                let closed = left_domain
+                    .closed
+                    .as_deref()
+                    .expect("closed overlap has a lexeme");
+                combine(
+                    errors,
+                    syn::Error::new(
+                        right.name.span(),
+                        format!(
+                            "declaration_verb domains `{}` and `{}` overlap at closed `{closed}`/{}/{}",
+                            left.name, right.name, left_domain.position, left_domain.tail
+                        ),
+                    ),
+                );
+            }
+        }
+    }
+}
+
+struct DeclarationVerbDomain {
+    closed: Option<String>,
+    position: String,
+    kinds: BTreeSet<String>,
+    tail: String,
+}
+
+fn declaration_verb_domain(
+    source: &crate::model::DeclarationVerbSource,
+) -> Option<DeclarationVerbDomain> {
+    let position = source.position_slots.first()?;
+    let kinds = source.kind_slots.first()?;
+    let tail = source.tail_slots.first()?;
+    let tail = tail
+        .atoms
+        .iter()
+        .map(|atom| match atom {
+            crate::model::DeclarationVerbTailAtomSource::Literal(literal) => {
+                format!("Literal({:?})", literal.value())
+            }
+            crate::model::DeclarationVerbTailAtomSource::Amount(_) => "Amount".to_owned(),
+            crate::model::DeclarationVerbTailAtomSource::ObjectNounPhrase(_) => {
+                "ObjectNounPhrase".to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    Some(DeclarationVerbDomain {
+        closed: source
+            .closed_slots
+            .first()
+            .map(|slot| identifier_key(&slot.value)),
+        position: identifier_key(&position.value),
+        kinds: kinds.kinds.iter().map(identifier_key).collect(),
+        tail: format!("[{tail}]"),
+    })
 }
 
 fn validate_declaration_noun_domains_are_pairwise_intentional(
@@ -2338,6 +2457,237 @@ fn declaration_subtype_families() -> &'static [&'static str] {
         "Planeswalker",
         "Spell",
     ]
+}
+
+fn validate_declaration_verb_source(
+    raw: &Declarations,
+    source: &crate::model::DeclarationVerbSource,
+    errors: &mut Option<syn::Error>,
+) {
+    let closed = match source.closed_slots.as_slice() {
+        [] => None,
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate declaration_verb field `closed`",
+                    ),
+                );
+            }
+            Some(&slot.value)
+        }
+    };
+    let position = validate_single_ident_slot(
+        &source.position_slots,
+        &source.recipe,
+        "position",
+        "declaration_verb",
+        errors,
+    );
+    let feature = validate_single_ident_slot(
+        &source.feature_slots,
+        &source.recipe,
+        "feature",
+        "declaration_verb",
+        errors,
+    );
+    let kinds = validate_declaration_verb_kinds(source, errors);
+    validate_declaration_verb_tail(source, errors);
+
+    if let Some(position) = position
+        && position != "Verb"
+    {
+        combine(
+            errors,
+            syn::Error::new(position.span(), "declaration_verb position must be `Verb`"),
+        );
+    }
+    if let Some(feature) = feature
+        && feature != "Agreement"
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                feature.span(),
+                "declaration_verb feature must be `Agreement`",
+            ),
+        );
+    }
+    if let Some(closed) = closed {
+        let closed_name = identifier_key(closed);
+        let matching = raw
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                Declaration::Lexeme(lexeme) if identifier_key(&lexeme.name) == closed_name => {
+                    Some(lexeme)
+                }
+                Declaration::Construction(_)
+                | Declaration::AbstractProduct(_)
+                | Declaration::AbstractSum(_)
+                | Declaration::Vocab(_)
+                | Declaration::Morphology(_)
+                | Declaration::Lexeme(_)
+                | Declaration::Codec(_)
+                | Declaration::Identity(_)
+                | Declaration::Root(_) => None,
+            });
+        match matching {
+            Some(lexeme) if lexeme.members.is_empty() => combine(
+                errors,
+                syn::Error::new(
+                    closed.span(),
+                    "declaration_verb closed branch must have at least one lexeme member",
+                ),
+            ),
+            Some(lexeme)
+                if lexeme_recipe(raw, lexeme)
+                    != Some(crate::morphology::MorphologyRecipe::EnglishVerb) =>
+            {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        closed.span(),
+                        "declaration_verb closed branch must use Agreement-aware verb morphology",
+                    ),
+                );
+            }
+            Some(_) => {}
+            None => combine(
+                errors,
+                syn::Error::new(
+                    closed.span(),
+                    "declaration_verb closed branch must name a lexeme declaration",
+                ),
+            ),
+        }
+    }
+    let _ = kinds;
+}
+
+fn validate_declaration_verb_kinds<'a>(
+    source: &'a crate::model::DeclarationVerbSource,
+    errors: &mut Option<syn::Error>,
+) -> Option<&'a crate::model::DeclarationVerbKindsSource> {
+    let kinds = match source.kind_slots.as_slice() {
+        [] => {
+            combine(
+                errors,
+                syn::Error::new(
+                    source.recipe.span(),
+                    "declaration_verb requires one `kinds` field",
+                ),
+            );
+            return None;
+        }
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate declaration_verb field `kinds`",
+                    ),
+                );
+            }
+            slot
+        }
+    };
+    if kinds.kinds.is_empty() {
+        combine(
+            errors,
+            syn::Error::new(
+                kinds.slot.span(),
+                "declaration_verb kind set cannot be empty",
+            ),
+        );
+    }
+    let mut seen = HashSet::new();
+    for kind in &kinds.kinds {
+        let name = identifier_key(kind);
+        if name != "KeywordAction" {
+            combine(
+                errors,
+                syn::Error::new(
+                    kind.span(),
+                    "declaration_verb kinds must be `KeywordAction`",
+                ),
+            );
+        } else if !seen.insert(name.clone()) {
+            combine(
+                errors,
+                syn::Error::new(
+                    kind.span(),
+                    format!("duplicate declaration_verb kind `{name}`"),
+                ),
+            );
+        }
+    }
+    Some(kinds)
+}
+
+fn validate_declaration_verb_tail(
+    source: &crate::model::DeclarationVerbSource,
+    errors: &mut Option<syn::Error>,
+) {
+    let tail = match source.tail_slots.as_slice() {
+        [] => {
+            combine(
+                errors,
+                syn::Error::new(
+                    source.recipe.span(),
+                    "declaration_verb requires one `tail` field",
+                ),
+            );
+            return;
+        }
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate declaration_verb field `tail`",
+                    ),
+                );
+            }
+            slot
+        }
+    };
+    let mut seen = HashSet::new();
+    for atom in &tail.atoms {
+        let (key, span) = match atom {
+            crate::model::DeclarationVerbTailAtomSource::Literal(literal) => {
+                if literal.value().is_empty() {
+                    combine(
+                        errors,
+                        syn::Error::new(
+                            literal.span(),
+                            "declaration_verb tail literals cannot be empty",
+                        ),
+                    );
+                }
+                (format!("Literal({:?})", literal.value()), literal.span())
+            }
+            crate::model::DeclarationVerbTailAtomSource::Amount(atom) => {
+                ("Amount".to_owned(), atom.span())
+            }
+            crate::model::DeclarationVerbTailAtomSource::ObjectNounPhrase(atom) => {
+                ("ObjectNounPhrase".to_owned(), atom.span())
+            }
+        };
+        if !seen.insert(key.clone()) {
+            combine(
+                errors,
+                syn::Error::new(
+                    span,
+                    format!("duplicate declaration_verb tail atom `{key}`"),
+                ),
+            );
+        }
+    }
 }
 
 fn validate_declaration_noun_source(
@@ -2769,7 +3119,6 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
             _ => None,
         })
         .collect::<HashSet<_>>();
-
     for declaration in &raw.declarations {
         match declaration {
             Declaration::Construction(construction) => {
@@ -2891,6 +3240,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 terminals.entry(name).or_insert(TerminalInfo {
                     kind: TerminalKind::Vocab,
                     codec_atom: None,
+                    agreement_verb: false,
                     variants,
                     variant_order,
                 });
@@ -2934,6 +3284,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     codec_atom: noun_morphologies
                         .contains(&identifier_key(&lexeme.morphology))
                         .then_some(CodecAtomClass::Noun),
+                    agreement_verb: false,
                     variants,
                     variant_order,
                 });
@@ -2967,6 +3318,10 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                 terminals.entry(name).or_insert(TerminalInfo {
                     kind,
                     codec_atom: binding.codec_atom,
+                    agreement_verb: matches!(
+                        binding.generated,
+                        Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(_))
+                    ),
                     variants: HashSet::new(),
                     variant_order: Vec::new(),
                 });
@@ -3837,15 +4192,26 @@ fn generated_name_inventory(
                         );
                     }
                 }
-                if matches!(
-                    binding.generated,
-                    Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(_))
-                ) {
+                if let Some(family) = match binding.generated {
+                    Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(_)) => {
+                        Some("declaration_noun")
+                    }
+                    Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(_)) => {
+                        Some("declaration_verb")
+                    }
+                    Some(
+                        crate::model::GeneratedCodecRecipe::SignedDecimal(_)
+                        | crate::model::GeneratedCodecRecipe::EnglishCardinal(_)
+                        | crate::model::GeneratedCodecRecipe::UnsignedDecimal(_)
+                        | crate::model::GeneratedCodecRecipe::Unsupported { .. },
+                    )
+                    | None => None,
+                } {
                     let open_value = format!("Declaration{}", identifier_key(&binding.name));
                     register_terminal_names(
                         &mut names,
                         &open_value,
-                        "declaration_noun open value",
+                        &format!("{family} open value"),
                         binding.name.span(),
                         false,
                         errors,
@@ -4660,7 +5026,6 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     FormAtom::Noun(role) => check_noun_role(role, &fields, symbols, &mut errors),
                     FormAtom::Verb(VerbOperand::Projected(role)) => {
                         check_verb_role(role, &fields, symbols, &mut errors);
-                        reject_projected_verb_role(role, &mut errors);
                     }
                     FormAtom::Verb(VerbOperand::Fixed(path)) => {
                         check_terminal_variant(path, TerminalKind::Lexeme, symbols, &mut errors);
@@ -5051,16 +5416,6 @@ fn validate_form_guard_expr(
     }
 }
 
-fn reject_projected_verb_role(role: &syn::Ident, errors: &mut Option<syn::Error>) {
-    combine(
-        errors,
-        syn::Error::new(
-            role.span(),
-            "unimplemented in MVP: `projected verb role`; use a fixed verb path",
-        ),
-    );
-}
-
 fn open_declaration_kind(kind: &syn::Ident) -> Option<macro_ron::v2::DeclarationKind> {
     use macro_ron::v2::DeclarationKind;
 
@@ -5170,7 +5525,16 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
                         name: open.name.value(),
                     }
                 }),
-                FormAtom::Verb(VerbOperand::Projected(_)) => None,
+                FormAtom::Verb(VerbOperand::Projected(role)) => match fields
+                    .get(&identifier_key(role))
+                    .map(|kind| field_kind_leaf(kind))
+                {
+                    Some(FieldKind::Lex(path)) => Some(AtomContribution::VerbProjected {
+                        role: identifier_key(role),
+                        terminal: path_name(path),
+                    }),
+                    _ => None,
+                },
                 FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
                 FormAtom::Circumfix(_) => {
                     unreachable!("circumfix atoms resolve before ordinary atoms")
@@ -5376,7 +5740,7 @@ fn check_feature_role(
             ) && symbols
                 .terminals
                 .get(&path_name(path))
-                .is_some_and(|terminal| terminal.kind == TerminalKind::Lexeme) =>
+                .is_some_and(|terminal| terminal.agreement_verb) =>
         {
             if !matches!(feature, ParsedFeature::Agreement | ParsedFeature::Onset) {
                 combine(
@@ -5515,7 +5879,7 @@ fn check_verb_role(
         Some(FieldKind::Lex(path)) => symbols
             .terminals
             .get(&path_name(path))
-            .is_some_and(|info| info.kind == TerminalKind::Lexeme),
+            .is_some_and(|info| info.agreement_verb),
         Some(FieldKind::Identity(_)) => false,
         Some(FieldKind::Category(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
         | None => return,
@@ -5525,7 +5889,7 @@ fn check_verb_role(
             errors,
             syn::Error::new(
                 role.span(),
-                format!("verb role `{role}` must use a declared lexeme"),
+                format!("verb role `{role}` must use an Agreement-aware declaration_verb terminal"),
             ),
         );
     }
@@ -7918,6 +8282,12 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             providers.insert((terminal.clone(), ParsedFeature::Number));
             providers.insert((terminal, ParsedFeature::Cardinality));
         }
+        if matches!(
+            binding.generated,
+            Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(_))
+        ) {
+            providers.insert((identifier_key(&binding.name), ParsedFeature::Agreement));
+        }
     }
     loop {
         let before = providers.len();
@@ -8186,7 +8556,10 @@ fn validate_backend_completeness(
                 lex_atom: binding.codec_atom == Some(CodecAtomClass::Lex),
                 identity_atom: false,
                 noun_atom: binding.codec_atom == Some(CodecAtomClass::Noun),
-                verb_atom: false,
+                verb_atom: matches!(
+                    binding.generated,
+                    Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(_))
+                ),
                 direct_render: binding.generated.is_some() || binding.render.is_some(),
                 direct_build: binding.generated.is_some() || binding.build.is_some(),
                 traversal: binding.generated.is_some() || closed_traversal_is_lowerable(binding),
@@ -8267,17 +8640,6 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
     for declaration in &raw.declarations {
         match declaration {
             Declaration::Construction(construction) => {
-                for atom in construction.forms.iter().flat_map(|form| &form.atoms) {
-                    if let FormAtom::Verb(VerbOperand::Projected(role)) = atom {
-                        combine(
-                            &mut errors,
-                            syn::Error::new(
-                                role.span(),
-                                "unimplemented in MVP: `projected verb role`; backend closure requires a fixed verb path",
-                            ),
-                        );
-                    }
-                }
                 validate_lowerable_feature_compositions(raw, construction, &mut errors);
             }
             Declaration::Codec(binding) | Declaration::Identity(binding) => {
@@ -9673,6 +10035,310 @@ pub(crate) mod tests {
             construction only: Cat { element Only {} form only = "only"; }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         })
+    }
+
+    fn declaration_verb_source_error(body: &proc_macro2::TokenStream) -> String {
+        let raw = crate::parse_declarations(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            morphology EnglishNoun { feature = Number; recipe = english_noun; }
+            lexeme CoreVerb using EnglishVerb { Destroy = "destroy", }
+            lexeme EmptyVerb using EnglishVerb {}
+            lexeme Nouns using EnglishNoun { Object = "object", }
+            codec Verb {
+                generate declaration_verb { #body }
+            }
+        });
+        match raw.and_then(|raw| super::validate_generated_codecs(&raw)) {
+            Ok(()) => panic!("fixture must be invalid"),
+            Err(error) => error.into_compile_error().to_string(),
+        }
+    }
+
+    #[test]
+    fn declaration_verb_recipe_validation_is_closed_and_structural() {
+        let raw = crate::parse_declarations(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme CoreVerb using EnglishVerb { Destroy = "destroy", }
+            codec Verb {
+                generate declaration_verb {
+                    closed = CoreVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = ["with", Amount, ObjectNounPhrase];
+                    feature = Agreement;
+                }
+            }
+        })
+        .expect("the exact declaration_verb syntax parses");
+        super::validate_generated_codecs(&raw)
+            .expect("the exact declaration_verb source validates");
+
+        for (body, expected) in [
+            (
+                quote! {
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "declaration_verb requires one `position` field",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb field `position`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                },
+                "declaration_verb requires one `kinds` field",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb field `kinds`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    feature = Agreement;
+                },
+                "declaration_verb requires one `tail` field",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                },
+                "declaration_verb requires one `feature` field",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb field `feature`",
+            ),
+            (
+                quote! {
+                    closed = CoreVerb;
+                    closed = CoreVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb field `closed`",
+            ),
+            (
+                quote! {
+                    closed = Missing;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "closed branch must name a lexeme declaration",
+            ),
+            (
+                quote! {
+                    closed = EmptyVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "closed branch must have at least one lexeme member",
+            ),
+            (
+                quote! {
+                    closed = Nouns;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "closed branch must use Agreement-aware verb morphology",
+            ),
+            (
+                quote! {
+                    position = Noun;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "position must be `Verb`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "kind set cannot be empty",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction, KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb kind `KeywordAction`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAbility];
+                    tail = [];
+                    feature = Agreement;
+                },
+                "kinds must be `KeywordAction`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [""];
+                    feature = Agreement;
+                },
+                "tail literals cannot be empty",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [Amount, Amount];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb tail atom `Amount`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = ["with", "with"];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb tail atom",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    tail = [Amount];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb field `tail`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Number;
+                },
+                "feature must be `Agreement`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [Clause];
+                    feature = Agreement;
+                },
+                "tail atoms must be string literals, `Amount`, or `ObjectNounPhrase`",
+            ),
+            (
+                quote! {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                    valence = Transitive;
+                },
+                "recipe accepts only `closed`, `position`, `kinds`, `tail`, and `feature` fields",
+            ),
+        ] {
+            let message = declaration_verb_source_error(&body);
+            assert!(
+                message.contains(expected),
+                "expected {expected:?} in {message}"
+            );
+        }
+    }
+
+    #[test]
+    fn declaration_verb_domains_reject_exact_overlap_without_source_order_priority() {
+        let overlapping = crate::parse_declarations(quote! {
+            codec FirstVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [Amount];
+                    feature = Agreement;
+                }
+            }
+            codec LaterVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [Amount];
+                    feature = Agreement;
+                }
+            }
+        })
+        .expect("overlapping declaration_verb recipes parse");
+        let error = super::validate_generated_codecs(&overlapping)
+            .expect_err("source order must not resolve an overlapping verb frame")
+            .to_string();
+        assert!(
+            error.contains(
+                "declaration_verb domains `FirstVerb` and `LaterVerb` overlap at `KeywordAction/Verb/[Amount]`"
+            ),
+            "{error}"
+        );
+
+        let disjoint = crate::parse_declarations(quote! {
+            codec IntransitiveVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                }
+            }
+            codec NumerativeVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [Amount];
+                    feature = Agreement;
+                }
+            }
+        })
+        .expect("disjoint declaration_verb recipes parse");
+        super::validate_generated_codecs(&disjoint)
+            .expect("different exact tails are structurally disjoint");
     }
 
     #[test]
@@ -12522,7 +13188,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn rejects_number_reads_from_fixed_and_projected_verb_slots() {
+    fn rejects_number_reads_from_fixed_verbs_and_unproven_projected_verbs() {
         let fixed = error(quote! {
             morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
@@ -12551,7 +13217,11 @@ pub(crate) mod tests {
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
         });
         assert!(
-            projected.contains("verb slot `word` does not provide number"),
+            projected
+                .contains("verb role `word` must use an Agreement-aware declaration_verb terminal")
+                && projected.contains(
+                    "lexical role `word` does not have an exhaustive local number writer"
+                ),
             "{projected}"
         );
     }
@@ -12611,8 +13281,8 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn projected_verb_is_rejected_before_backend_planning() {
-        let generated = crate::generate(quote! {
+    fn projected_english_verb_lexeme_remains_rejected() {
+        let message = error(quote! {
             morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
             lexeme Verbs using EnglishVerb { Be = "be", }
             construction projected: Cat {
@@ -12621,16 +13291,57 @@ pub(crate) mod tests {
                 form projected = verb(word);
             }
             root Cat { punctuation = "."; eoi = true; standalone_render = true; }
-        })
-        .expect_err("projected verb roles are outside the fixed-path MVP");
-        let message = generated.to_string();
+        });
         assert!(
-            message.contains("unimplemented in MVP: `projected verb role`"),
+            message
+                .contains("verb role `word` must use an Agreement-aware declaration_verb terminal"),
             "{message}"
         );
+    }
+
+    #[test]
+    fn projected_verb_accepts_only_declaration_backed_agreement_terminals() {
+        let validated = validate(quote! {
+            codec TransitiveVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [ObjectNounPhrase];
+                    feature = Agreement;
+                }
+            }
+            construction transitive: VerbPhrase {
+                element Transitive {
+                    head: lex TransitiveVerb,
+                    object: Object,
+                }
+                derive agreement = head.agreement;
+                form active = verb(head) object;
+            }
+            construction object: Object { element ObjectValue {} form object = "object"; }
+            root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("Agreement-aware declaration verbs permit projected verb roles");
+        let terminal = validated
+            .semantic()
+            .terminals()
+            .iter()
+            .find(|terminal| terminal.name() == "TransitiveVerb")
+            .expect("the declaration verb terminal is sealed");
+        assert!(terminal.supports_verb_atom());
+
+        let non_verb = error(quote! {
+            vocab Words { Act = "act", }
+            construction projected: Cat {
+                element Projected { word: lex Words, }
+                form projected = verb(word);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
         assert!(
-            !message.contains("internal"),
-            "validation must own this diagnostic: {message}"
+            non_verb
+                .contains("verb role `word` must use an Agreement-aware declaration_verb terminal"),
+            "{non_verb}"
         );
     }
 

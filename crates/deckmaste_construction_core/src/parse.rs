@@ -1384,6 +1384,7 @@ fn generated_terminal_binding(
     let lexical_variant: syn::Path = syn::parse_quote_spanned!(name.span()=> Lexical::#name);
     let codec_atom = match generated.as_ref() {
         Some(GeneratedCodecRecipe::DeclarationNoun(_)) => Some(CodecAtomClass::Noun),
+        Some(GeneratedCodecRecipe::DeclarationVerb(_)) => None,
         Some(
             GeneratedCodecRecipe::SignedDecimal(_)
             | GeneratedCodecRecipe::EnglishCardinal(_)
@@ -1556,6 +1557,88 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 closed_slots,
                 position_slots,
                 kind_slots,
+                feature_slots,
+            },
+        ));
+    }
+    if recipe == "declaration_verb" {
+        let mut closed_slots = Vec::new();
+        let mut position_slots = Vec::new();
+        let mut kind_slots = Vec::new();
+        let mut tail_slots = Vec::new();
+        let mut feature_slots = Vec::new();
+        while !content.is_empty() {
+            reject_doc_comment(&content)?;
+            let slot = content.call(Ident::parse_any)?;
+            content.parse::<Token![=]>()?;
+            match slot.to_string().as_str() {
+                "kinds" => {
+                    let kinds_content;
+                    bracketed!(kinds_content in content);
+                    let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
+                        &kinds_content,
+                        Ident::parse_any,
+                    )?
+                    .into_iter()
+                    .collect();
+                    kind_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
+                }
+                "tail" => {
+                    let tail_content;
+                    bracketed!(tail_content in content);
+                    let atoms = Punctuated::<
+                        crate::model::DeclarationVerbTailAtomSource,
+                        Token![,],
+                    >::parse_terminated_with(&tail_content, |input| {
+                        if input.peek(LitStr) {
+                            return input
+                                .parse()
+                                .map(crate::model::DeclarationVerbTailAtomSource::Literal);
+                        }
+                        let atom = input.call(Ident::parse_any)?;
+                        match atom.to_string().as_str() {
+                            "Amount" => Ok(
+                                crate::model::DeclarationVerbTailAtomSource::Amount(atom),
+                            ),
+                            "ObjectNounPhrase" => Ok(
+                                crate::model::DeclarationVerbTailAtomSource::ObjectNounPhrase(atom),
+                            ),
+                            _ => Err(syn::Error::new(
+                                atom.span(),
+                                "declaration_verb tail atoms must be string literals, `Amount`, or `ObjectNounPhrase`",
+                            )),
+                        }
+                    })?
+                    .into_iter()
+                    .collect();
+                    tail_slots.push(crate::model::DeclarationVerbTailSource { slot, atoms });
+                }
+                "closed" | "position" | "feature" => {
+                    let value = content.call(Ident::parse_any)?;
+                    let row = crate::model::GeneratedIdentSlot { slot, value };
+                    match row.slot.to_string().as_str() {
+                        "closed" => closed_slots.push(row),
+                        "position" => position_slots.push(row),
+                        "feature" => feature_slots.push(row),
+                        _ => unreachable!("matched declaration_verb identifier slot"),
+                    }
+                }
+                _ => {
+                    return Err(syn::Error::new(
+                        slot.span(),
+                        "declaration_verb recipe accepts only `closed`, `position`, `kinds`, `tail`, and `feature` fields",
+                    ));
+                }
+            }
+            content.parse::<Token![;]>()?;
+        }
+        return Ok(GeneratedCodecRecipe::DeclarationVerb(
+            crate::model::DeclarationVerbSource {
+                recipe,
+                closed_slots,
+                position_slots,
+                kind_slots,
+                tail_slots,
                 feature_slots,
             },
         ));
@@ -3462,6 +3545,44 @@ mod tests {
             declarations.declarations[1],
             Declaration::Codec(_)
         ));
+    }
+
+    #[test]
+    fn parses_declaration_verb_generated_codec_into_typed_tail_atoms() {
+        let declarations = parse(
+            r#"
+                lexeme CoreTransitiveVerb using EnglishVerb { Destroy = "destroy", }
+                codec TransitiveVerb {
+                    generate declaration_verb {
+                        closed = CoreTransitiveVerb;
+                        position = Verb;
+                        kinds = [KeywordAction];
+                        tail = ["with", Amount, ObjectNounPhrase];
+                        feature = Agreement;
+                    }
+                }
+            "#,
+        )
+        .expect("the finite declaration_verb source syntax parses");
+
+        let Declaration::Codec(binding) = &declarations.declarations[1] else {
+            panic!("the second declaration is the generated codec")
+        };
+        let Some(crate::GeneratedCodecRecipe::DeclarationVerb(source)) = &binding.generated else {
+            panic!("the codec retains a typed declaration_verb recipe")
+        };
+        assert_eq!(source.closed_slots[0].value, "CoreTransitiveVerb");
+        assert_eq!(source.position_slots[0].value, "Verb");
+        assert_eq!(source.kind_slots[0].kinds[0], "KeywordAction");
+        assert!(matches!(
+            source.tail_slots[0].atoms.as_slice(),
+            [
+                crate::DeclarationVerbTailAtomSource::Literal(literal),
+                crate::DeclarationVerbTailAtomSource::Amount(_),
+                crate::DeclarationVerbTailAtomSource::ObjectNounPhrase(_),
+            ] if literal.value() == "with"
+        ));
+        assert_eq!(source.feature_slots[0].value, "Agreement");
     }
 
     #[test]

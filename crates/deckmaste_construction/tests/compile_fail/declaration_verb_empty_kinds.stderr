@@ -1,0 +1,5 @@
+error: declaration_verb kind set cannot be empty
+ --> tests/compile_fail/declaration_verb_empty_kinds.rs:7:13
+  |
+7 |             kinds = [];
+  |             ^^^^^

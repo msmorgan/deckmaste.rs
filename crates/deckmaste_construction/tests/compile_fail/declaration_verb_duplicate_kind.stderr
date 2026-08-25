@@ -1,0 +1,5 @@
+error: duplicate declaration_verb kind `KeywordAction`
+ --> tests/compile_fail/declaration_verb_duplicate_kind.rs:7:37
+  |
+7 |             kinds = [KeywordAction, KeywordAction];
+  |                                     ^^^^^^^^^^^^^

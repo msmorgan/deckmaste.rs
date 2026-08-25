@@ -1,0 +1,17 @@
+error: generated Rust type name `DeclarationVerb` collides: semantic identity `DeclarationVerb` is shared by generated lexeme type for `DeclarationVerb` and generated declaration_verb open value type for `DeclarationVerb`
+ --> tests/compile_fail/declaration_verb_name_collision.rs:6:11
+  |
+6 |     codec Verb {
+  |           ^^^^
+
+error: generated Rust value name `walk_declaration_verb` collides: semantic identity `walk_declaration_verb` is shared by generated lexeme walker for `DeclarationVerb` and generated declaration_verb open value walker for `DeclarationVerb`
+ --> tests/compile_fail/declaration_verb_name_collision.rs:6:11
+  |
+6 |     codec Verb {
+  |           ^^^^
+
+error: generated Rust Visitor item name `visit_declaration_verb` collides: semantic identity `visit_declaration_verb` is shared by generated lexeme callback for `DeclarationVerb` and generated declaration_verb open value callback for `DeclarationVerb`
+ --> tests/compile_fail/declaration_verb_name_collision.rs:6:11
+  |
+6 |     codec Verb {
+  |           ^^^^

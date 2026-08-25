@@ -1,0 +1,5 @@
+error: declaration_verb feature must be `Agreement`
+ --> tests/compile_fail/declaration_verb_wrong_feature.rs:9:23
+  |
+9 |             feature = Number;
+  |                       ^^^^^^

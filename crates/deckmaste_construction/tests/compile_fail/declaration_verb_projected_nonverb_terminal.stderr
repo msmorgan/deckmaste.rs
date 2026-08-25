@@ -1,0 +1,5 @@
+error: verb role `word` must use an Agreement-aware declaration_verb terminal
+ --> tests/compile_fail/declaration_verb_projected_nonverb_terminal.rs:7:31
+  |
+7 |         form projected = verb(word);
+  |                               ^^^^

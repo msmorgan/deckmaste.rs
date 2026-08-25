@@ -993,6 +993,107 @@ mod tests {
     }
 
     #[test]
+    fn declaration_verb_tail_is_a_normalized_semantic_frame_key() {
+        use macro_ron::v2::CustomTailAtom;
+        use macro_ron::v2::VerbValence;
+
+        let plan_for = |tail| {
+            crate::validate_declarations(
+                crate::parse_declarations(crate::test_support::declaration_verb_tokens(&tail))
+                    .expect("declaration_verb syntax parses"),
+            )
+            .expect("the exact declaration_verb recipe validates")
+            .into_semantic()
+        };
+
+        let object_plan = plan_for(quote::quote! { ObjectNounPhrase });
+        let object_recipes = object_plan.runtime_declaration_verbs().collect::<Vec<_>>();
+        let [(terminal_index, object)] = object_recipes.as_slice() else {
+            panic!("one declaration_verb recipe is sealed")
+        };
+        assert_eq!(*terminal_index, 1);
+        assert_eq!(object.source_index(), 2);
+        assert_eq!(object.codec_ident(), "TransitiveVerb");
+        assert_eq!(
+            object.declaration_value_ident(),
+            "DeclarationTransitiveVerb"
+        );
+        assert_eq!(object.closed_lexeme().expect("closed branch"), "CoreVerb");
+        assert_eq!(object.position(), macro_ron::v2::GrammarPosition::Verb);
+        assert_eq!(
+            object.kinds(),
+            [macro_ron::v2::DeclarationKind::KeywordAction]
+        );
+        assert_eq!(object.feature_axis(), crate::feature::Feature::Agreement);
+        assert_eq!(
+            object.frame_key().atoms(),
+            [crate::semantic::VerbFrameAtom::ObjectNounPhrase]
+        );
+        assert!(object.frame_key().matches_valence(&VerbValence::Transitive));
+        assert!(!object.frame_key().matches_valence(&VerbValence::Numerative));
+        assert!(object.frame_key().matches_valence(&VerbValence::Custom {
+            shapes: vec![vec![CustomTailAtom::ObjectNounPhrase]],
+        }));
+
+        let amount_plan = plan_for(quote::quote! { Amount });
+        let (_, amount) = amount_plan
+            .runtime_declaration_verbs()
+            .next()
+            .expect("mutated declaration_verb remains one recipe");
+        assert_eq!(
+            amount.frame_key().atoms(),
+            [crate::semantic::VerbFrameAtom::Amount]
+        );
+        assert!(amount.frame_key().matches_valence(&VerbValence::Numerative));
+        assert!(!amount.frame_key().matches_valence(&VerbValence::Transitive));
+
+        let empty_plan = plan_for(quote::quote! {});
+        let (_, empty) = empty_plan
+            .runtime_declaration_verbs()
+            .next()
+            .expect("empty tail remains one recipe");
+        assert!(
+            empty
+                .frame_key()
+                .matches_valence(&VerbValence::Intransitive)
+        );
+        assert!(empty.frame_key().matches_valence(&VerbValence::Custom {
+            shapes: vec![vec![], vec![CustomTailAtom::Amount]],
+        }));
+        assert!(!empty.frame_key().matches_valence(&VerbValence::Transitive));
+
+        let custom_plan = plan_for(quote::quote! { "with", ObjectNounPhrase });
+        let (_, custom) = custom_plan
+            .runtime_declaration_verbs()
+            .next()
+            .expect("custom tail remains one recipe");
+        assert_eq!(
+            custom.frame_key().atoms(),
+            [
+                crate::semantic::VerbFrameAtom::Literal("with".to_owned()),
+                crate::semantic::VerbFrameAtom::ObjectNounPhrase,
+            ]
+        );
+        assert!(custom.frame_key().matches_valence(&VerbValence::Custom {
+            shapes: vec![vec![
+                CustomTailAtom::Literal("with".to_owned()),
+                CustomTailAtom::ObjectNounPhrase,
+            ]],
+        }));
+        assert!(!custom.frame_key().matches_valence(&VerbValence::Custom {
+            shapes: vec![vec![
+                CustomTailAtom::Literal("with".to_owned()),
+                CustomTailAtom::Amount,
+            ]],
+        }));
+        assert!(
+            !custom
+                .frame_key()
+                .matches_valence(&VerbValence::Intransitive)
+        );
+    }
+
+    #[test]
     fn sealed_open_identity_mutation_changes_emitters_without_changing_source() {
         let authored = crate::test_support::open_verb_tokens().to_string();
         let mut plan = crate::validate_declarations(

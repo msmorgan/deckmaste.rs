@@ -347,6 +347,7 @@ pub enum GeneratedCodecRecipe {
     EnglishCardinal(UnsignedNumberSource),
     UnsignedDecimal(UnsignedNumberSource),
     DeclarationNoun(DeclarationNounSource),
+    DeclarationVerb(DeclarationVerbSource),
     Unsupported { name: Ident },
 }
 
@@ -375,6 +376,35 @@ pub struct DeclarationNounKindsSource {
 pub struct DeclarationNounKindSource {
     pub kind: Ident,
     pub subtype_family: Option<Ident>,
+}
+
+#[derive(Debug)]
+pub struct DeclarationVerbSource {
+    pub recipe: Ident,
+    pub closed_slots: Vec<GeneratedIdentSlot>,
+    pub position_slots: Vec<GeneratedIdentSlot>,
+    pub kind_slots: Vec<DeclarationVerbKindsSource>,
+    pub tail_slots: Vec<DeclarationVerbTailSource>,
+    pub feature_slots: Vec<GeneratedIdentSlot>,
+}
+
+#[derive(Debug)]
+pub struct DeclarationVerbKindsSource {
+    pub slot: Ident,
+    pub kinds: Vec<Ident>,
+}
+
+#[derive(Debug)]
+pub struct DeclarationVerbTailSource {
+    pub slot: Ident,
+    pub atoms: Vec<DeclarationVerbTailAtomSource>,
+}
+
+#[derive(Debug)]
+pub enum DeclarationVerbTailAtomSource {
+    Literal(LitStr),
+    Amount(Ident),
+    ObjectNounPhrase(Ident),
 }
 
 #[derive(Debug)]
