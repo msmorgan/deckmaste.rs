@@ -232,6 +232,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let declaration_noun_arms = declaration_noun_arms(plan);
     let unknown_declaration_noun_arm = (!declaration_noun_arms.is_empty())
         .then(|| quote! { Lexical::DeclarationNoun(_, _) => Vec::new(), });
+    let declaration_verb_arms = declaration_verb_arms(plan);
+    let unknown_declaration_verb_arm = (!declaration_verb_arms.is_empty())
+        .then(|| quote! { Lexical::DeclarationVerb(_, _) => Vec::new(), });
     let noun_lexeme_arm = noun_lexeme_arm(plan);
     let punctuation_literals = plan.runtime_punctuation_literals();
     let punctuation_arm = (!punctuation_literals.is_empty()).then(|| {
@@ -294,6 +297,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 #verb_lexeme_arm
                 #(#declaration_noun_arms,)*
                 #unknown_declaration_noun_arm
+                #(#declaration_verb_arms,)*
+                #unknown_declaration_verb_arm
                 #noun_lexeme_arm
                 #bound_arm
                 Lexical::Declaration(matcher) => input
@@ -520,6 +525,112 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             }
         }
     }).collect()
+}
+
+fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
+    plan.runtime_declaration_verbs()
+        .map(|(terminal_index, codec)| {
+            let verb = codec.codec_ident();
+            let declaration = codec.declaration_value_ident();
+            let kinds = codec
+                .kinds()
+                .iter()
+                .map(|kind| crate::emit::declaration_kind(*kind))
+                .collect::<Vec<_>>();
+            let frame_atoms = codec
+                .frame_key()
+                .atoms()
+                .iter()
+                .map(|atom| match atom {
+                    crate::semantic::VerbFrameAtom::Literal(literal) => {
+                        let literal = syn::LitStr::new(literal, Span::call_site());
+                        quote! { VerbFrameAtom::Literal(#literal) }
+                    }
+                    crate::semantic::VerbFrameAtom::Amount => quote! { VerbFrameAtom::Amount },
+                    crate::semantic::VerbFrameAtom::ObjectNounPhrase => {
+                        quote! { VerbFrameAtom::ObjectNounPhrase }
+                    }
+                })
+                .collect::<Vec<_>>();
+            let closed_scan = codec.closed_lexeme().map(|closed| {
+                let closed_plan = plan
+                    .runtime_verb_lexeme()
+                    .expect("validated declaration_verb closed branch is the verb lexeme");
+                assert_eq!(closed, closed_plan.name());
+                let closed_candidates = closed_plan.surfaces().iter().map(|row| {
+                    let member = emitted_ident(row.member(), Span::call_site());
+                    let agreement = match row.feature() {
+                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                            quote! { Agreement::ThirdPersonSingular }
+                        }
+                        macro_ron::v2::SurfaceFeature::Singular
+                        | macro_ron::v2::SurfaceFeature::Plural
+                        | macro_ron::v2::SurfaceFeature::Fixed => {
+                            unreachable!("validated verb lexeme has the Agreement feature axis")
+                        }
+                    };
+                    let surface = syn::LitStr::new(row.surface(), Span::call_site());
+                    quote! { (#closed::#member, #agreement, #surface) }
+                });
+                quote! {
+                    for (lexeme, agreement, surface) in [#(#closed_candidates),*] {
+                        if (matches!(wanted, FeatureConstraint::Any)
+                            || matches!(wanted, FeatureConstraint::Exact(expected) if expected == agreement))
+                            && let Some(end) = input.word_end(surface, terminal.right_boundary)
+                        {
+                            matches.push(LexicalMatch {
+                                end,
+                                value: Leaf::#verb {
+                                    verb: #verb::Lexeme(lexeme),
+                                    agreement,
+                                },
+                                owner: None,
+                            });
+                        }
+                    }
+                }
+            });
+            let open_value = if codec.closed_lexeme().is_some() {
+                quote! { #verb::Declaration(declaration) }
+            } else {
+                quote! { declaration }
+            };
+            quote! {
+                Lexical::DeclarationVerb(#terminal_index, wanted) => {
+                    let mut matches = Vec::new();
+                    #closed_scan
+                    let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
+                    for agreement in [Agreement::Bare, Agreement::ThirdPersonSingular] {
+                        if !matches!(wanted, FeatureConstraint::Any)
+                            && !matches!(wanted, FeatureConstraint::Exact(expected) if expected == agreement)
+                        {
+                            continue;
+                        }
+                        for (end, id) in input.declaration_verb_readings(
+                            input.position.byte_offset,
+                            &[#(#kinds),*],
+                            &frame,
+                            agreement,
+                        ) {
+                            let Some(declaration) = #declaration::from_reading(id) else {
+                                continue;
+                            };
+                            matches.push(LexicalMatch {
+                                end,
+                                value: Leaf::#verb {
+                                    verb: #open_value,
+                                    agreement,
+                                },
+                                owner: None,
+                            });
+                        }
+                    }
+                    matches
+                }
+            }
+        })
+        .collect()
 }
 
 fn bound_arms(plan: &SemanticPlan) -> Vec<TokenStream> {

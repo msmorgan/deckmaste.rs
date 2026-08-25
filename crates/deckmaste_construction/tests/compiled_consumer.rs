@@ -39,6 +39,18 @@ pub mod environment {
                 .map(macro_ron::v2::RealizedSurface::text)
         }
 
+        pub(crate) fn grammar_recipe(&self, id: &DeclarationIdentity) -> Option<&GrammarRecipe> {
+            self.declarations
+                .iter()
+                .find(|declaration| declaration.identity() == id)
+                .and_then(NormalizedDeclaration::grammar)
+                .map(macro_ron::v2::GrammarRow::recipe)
+        }
+
+        pub(crate) fn declarations(&self) -> &[NormalizedDeclaration] {
+            &self.declarations
+        }
+
         pub(crate) fn onset(
             &self,
             id: &DeclarationIdentity,
@@ -982,6 +994,733 @@ mod declaration_noun_fixture {
             .is_some(),
             "construction Number derives from output_source without constraining either noun role",
         );
+    }
+}
+
+pub mod declaration_verb_fixture {
+    use RulePosition::Lexical as L;
+
+    use super::constructions;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum RulePosition<Category, Lexical> {
+        Nonterminal(Category),
+        Lexical(Lexical),
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct Rule<Category: 'static, Lexical: 'static, RuleId> {
+        id: RuleId,
+        lhs: Category,
+        rhs: &'static [RulePosition<Category, Lexical>],
+    }
+
+    #[derive(Default)]
+    struct ParseContext<'a> {
+        marker: std::marker::PhantomData<&'a ()>,
+    }
+
+    trait Render {
+        fn render(
+            &self,
+            context: &ParseContext<'_>,
+            environment: &crate::environment::ParserEnvironment,
+        ) -> String;
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct RawRenderedClaim {
+        start: usize,
+        end: usize,
+        owner: LexicalOwner,
+    }
+
+    enum ClaimSink<'a> {
+        Noop,
+        Collect(&'a mut Vec<RawRenderedClaim>),
+    }
+
+    struct Writer<'a> {
+        output: String,
+        case: CasePosition,
+        prefix: PrefixPosition,
+        claims: ClaimSink<'a>,
+    }
+
+    impl Writer<'_> {
+        fn new() -> Self {
+            Self {
+                output: String::new(),
+                case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
+                claims: ClaimSink::Noop,
+            }
+        }
+
+        fn collecting(claims: &mut Vec<RawRenderedClaim>) -> Writer<'_> {
+            Writer {
+                output: String::new(),
+                case: CasePosition::DocumentInitial,
+                prefix: PrefixPosition::None,
+                claims: ClaimSink::Collect(claims),
+            }
+        }
+
+        fn claim(&mut self, owner: impl FnOnce() -> LexicalOwner, render: impl FnOnce(&mut Self)) {
+            let start = self.output.len();
+            render(self);
+            let end = self.output.len();
+            if let ClaimSink::Collect(claims) = &mut self.claims {
+                claims.push(RawRenderedClaim {
+                    start,
+                    end,
+                    owner: owner(),
+                });
+            }
+        }
+
+        fn word(&mut self, word: &str) {
+            if self.prefix == PrefixPosition::WordOwnedSpace {
+                self.output.push(' ');
+            }
+            if matches!(
+                self.case,
+                CasePosition::DocumentInitial | CasePosition::SentenceInitial
+            ) {
+                let mut characters = word.chars();
+                if let Some(first) = characters.next() {
+                    self.output.extend(first.to_uppercase());
+                    self.output.push_str(characters.as_str());
+                }
+            } else {
+                self.output.push_str(word);
+            }
+            self.case = CasePosition::Continuation;
+            self.prefix = PrefixPosition::WordOwnedSpace;
+        }
+
+        fn punctuation(&mut self, punctuation: char) {
+            self.output.push(punctuation);
+            self.case = if punctuation == '.' {
+                CasePosition::SentenceInitial
+            } else {
+                CasePosition::Continuation
+            };
+            self.prefix = PrefixPosition::WordOwnedSpace;
+        }
+
+        fn suppress_next_space(&mut self) {
+            self.prefix = PrefixPosition::SurfaceOwned;
+        }
+
+        fn structural_surface(&mut self, surface: &str, transition: StructuralTransition) {
+            self.output.push_str(surface);
+            self.case = transition.case_after(self.case);
+            self.prefix = PrefixPosition::SurfaceOwned;
+        }
+
+        fn finish(self) -> String {
+            self.output
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct LexicalMatch<T, O = ()> {
+        end: usize,
+        value: T,
+        owner: Option<O>,
+    }
+
+    struct ScanInput<'a> {
+        text: &'a str,
+        position: ScanPosition,
+        environment: &'a crate::environment::ParserEnvironment,
+        context: &'a ParseContext<'a>,
+    }
+
+    impl ScanInput<'_> {
+        fn word_end(&self, running_text: &str, right_boundary: LexicalBoundary) -> Option<usize> {
+            let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
+            let remainder = self.text.get(self.position.byte_offset..)?;
+            let remainder = (prefix == 0)
+                .then_some(remainder)
+                .or_else(|| remainder.strip_prefix(' '))?;
+            let rendered = if matches!(
+                self.position.case,
+                CasePosition::DocumentInitial | CasePosition::SentenceInitial
+            ) {
+                let mut characters = running_text.chars();
+                characters
+                    .next()
+                    .into_iter()
+                    .flat_map(char::to_uppercase)
+                    .chain(characters)
+                    .collect::<String>()
+            } else {
+                running_text.to_owned()
+            };
+            let end = self.position.byte_offset + prefix + rendered.len();
+            let has_boundary = matches!(
+                right_boundary,
+                LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent
+            ) || matches!(
+                self.text.as_bytes().get(end),
+                None | Some(b' ' | b',' | b'.')
+            );
+            (remainder.starts_with(&rendered) && has_boundary).then_some(end)
+        }
+
+        fn punctuation_end(&self, punctuation: &str) -> Option<usize> {
+            self.text[self.position.byte_offset..]
+                .starts_with(punctuation)
+                .then_some(self.position.byte_offset + punctuation.len())
+        }
+
+        fn structural_surface_end(&self, surface: &str) -> Option<usize> {
+            self.text[self.position.byte_offset..]
+                .starts_with(surface)
+                .then_some(self.position.byte_offset + surface.len())
+        }
+
+        fn declaration_verb_readings(
+            &self,
+            start: usize,
+            kinds: &[macro_ron::v2::DeclarationKind],
+            frame: &VerbFrameKey,
+            agreement: Agreement,
+        ) -> Vec<(usize, macro_ron::v2::DeclarationIdentity)> {
+            assert_eq!(start, self.position.byte_offset);
+            let feature = match agreement {
+                Agreement::Bare => macro_ron::v2::SurfaceFeature::Bare,
+                Agreement::ThirdPersonSingular => {
+                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                }
+            };
+            self.environment
+                .declarations()
+                .iter()
+                .filter(|declaration| kinds.contains(&declaration.identity().kind()))
+                .filter_map(|declaration| {
+                    let grammar = declaration.grammar()?;
+                    (grammar.recipe().position() == macro_ron::v2::GrammarPosition::Verb)
+                        .then_some((declaration, grammar))
+                })
+                .filter(|(_, grammar)| {
+                    let macro_ron::v2::GrammarRecipe::Verb { valence } = grammar.recipe() else {
+                        return false;
+                    };
+                    frame_matches(frame.atoms(), valence)
+                })
+                .filter_map(|(declaration, grammar)| {
+                    grammar
+                        .surfaces()
+                        .iter()
+                        .find(|surface| surface.feature() == feature)
+                        .and_then(|surface| {
+                            self.word_end(surface.text(), LexicalBoundary::Separated)
+                                .map(|end| (end, declaration.identity().clone()))
+                        })
+                })
+                .collect()
+        }
+
+        fn declaration_readings(
+            &self,
+            _matcher: DeclarationMatcher,
+            _right_boundary: LexicalBoundary,
+        ) -> Vec<(
+            usize,
+            macro_ron::v2::DeclarationIdentity,
+            macro_ron::v2::SurfaceFeature,
+            macro_ron::v2::Onset,
+        )> {
+            debug_assert_eq!(self.context.marker, std::marker::PhantomData);
+            Vec::new()
+        }
+    }
+
+    fn frame_matches(frame: &[VerbFrameAtom], valence: &macro_ron::v2::VerbValence) -> bool {
+        use macro_ron::v2::CustomTailAtom;
+        use macro_ron::v2::VerbValence;
+
+        match valence {
+            VerbValence::Intransitive => frame.is_empty(),
+            VerbValence::Transitive => frame == [VerbFrameAtom::ObjectNounPhrase],
+            VerbValence::Numerative => frame == [VerbFrameAtom::Amount],
+            VerbValence::Custom { shapes } => shapes.iter().any(|shape| {
+                shape.len() == frame.len()
+                    && shape
+                        .iter()
+                        .zip(frame)
+                        .all(|(source, planned)| match (source, planned) {
+                            (
+                                CustomTailAtom::Literal(source),
+                                VerbFrameAtom::Literal(planned),
+                            ) => source == planned,
+                            (CustomTailAtom::Amount, VerbFrameAtom::Amount)
+                            | (
+                                CustomTailAtom::ObjectNounPhrase,
+                                VerbFrameAtom::ObjectNounPhrase,
+                            ) => true,
+                            _ => false,
+                        })
+            }),
+        }
+    }
+
+    constructions! {
+        morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        lexeme CoreVerb using EnglishVerb { Act = "act", }
+        vocab ObjectWord { Object = "object", }
+        vocab AmountWord { One = "one", }
+        codec TransitiveVerb {
+            generate declaration_verb {
+                closed = CoreVerb;
+                position = Verb;
+                kinds = [KeywordAction];
+                tail = [ObjectNounPhrase];
+                feature = Agreement;
+            }
+        }
+        codec NumerativeVerb {
+            generate declaration_verb {
+                position = Verb;
+                kinds = [KeywordAction];
+                tail = [Amount];
+                feature = Agreement;
+            }
+        }
+        codec IntransitiveVerb {
+            generate declaration_verb {
+                position = Verb;
+                kinds = [KeywordAction];
+                tail = [];
+                feature = Agreement;
+            }
+        }
+        construction transitive: VerbPhrase {
+            element Transitive {
+                head: lex TransitiveVerb,
+                object: lex ObjectWord,
+            }
+            derive head.agreement = Values::Bare;
+            form transitive = verb(head) lex(object);
+        }
+        construction numerative: NumerativePhrase {
+            element Numerative {
+                head: lex NumerativeVerb,
+                amount: lex AmountWord,
+            }
+            derive head.agreement = Values::Bare;
+            form numerative = verb(head) lex(amount);
+        }
+        construction intransitive: IntransitivePhrase {
+            element Intransitive { head: lex IntransitiveVerb, }
+            derive head.agreement = Values::Bare;
+            form intransitive = verb(head);
+        }
+        root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root NumerativePhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root IntransitivePhrase { punctuation = "."; eoi = true; standalone_render = true; }
+    }
+
+    fn declaration(path: &str, source: &str) -> macro_ron::v2::DeclarationSource {
+        macro_ron::v2::DeclarationSource::new(path, source)
+    }
+
+    fn sources() -> Vec<macro_ron::v2::DeclarationSource> {
+        vec![
+            declaration(
+                "/synthetic/actions/FirstAct.ron",
+                r#"KeywordAction(name:"FirstAct",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+            ),
+            declaration(
+                "/synthetic/actions/SecondAct.ron",
+                r#"KeywordAction(name:"SecondAct",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+            ),
+            declaration(
+                "/synthetic/actions/Count.ron",
+                r#"KeywordAction(name:"Count",spelling:"count",grammar:Verb(bare:"count",valence:Numerative))"#,
+            ),
+            declaration(
+                "/synthetic/actions/Shape.ron",
+                r#"KeywordAction(name:"Shape",spelling:"shape",grammar:Verb(bare:"shape",valence:Custom(shapes:[[],[Amount]])))"#,
+            ),
+            declaration(
+                "/synthetic/actions/Crossed.ron",
+                r#"KeywordAction(name:"Crossed",spelling:"cross",grammar:Verb(bare:"cross",valence:Custom(shapes:[[ObjectNounPhrase,Amount]])))"#,
+            ),
+            declaration(
+                "/synthetic/actions/DuplicatedTail.ron",
+                r#"KeywordAction(name:"DuplicatedTail",spelling:"double",grammar:Verb(bare:"double",valence:Custom(shapes:[[Amount,Amount]])))"#,
+            ),
+            declaration(
+                "/synthetic/actions/Extra.ron",
+                r#"KeywordAction(name:"Extra",spelling:"extend",grammar:Verb(bare:"extend",valence:Custom(shapes:[[Amount,Literal("extra")]])))"#,
+            ),
+            declaration(
+                "/synthetic/actions/WrongKind.ron",
+                r#"KeywordAbility(name:"WrongKind",spelling:"mimic",grammar:Verb(bare:"mimic",valence:Transitive))"#,
+            ),
+            declaration(
+                "/synthetic/actions/WrongPosition.ron",
+                r#"KeywordAction(name:"WrongPosition",spelling:"static",grammar:FixedTerm(surface:"static"))"#,
+            ),
+            declaration(
+                "/synthetic/actions/MissingAgreement.ron",
+                r#"KeywordAction(name:"MissingAgreement",spelling:"wane",grammar:Verb(bare:"wane",third_person:Unavailable,valence:Transitive))"#,
+            ),
+        ]
+    }
+
+    fn environment_from_sources(
+        sources: Vec<macro_ron::v2::DeclarationSource>,
+    ) -> crate::environment::ParserEnvironment {
+        let declarations =
+            macro_ron::v2::read_sources(sources).expect("synthetic declaration verbs normalize");
+        crate::environment::ParserEnvironment::new(declarations)
+    }
+
+    fn environment() -> crate::environment::ParserEnvironment {
+        environment_from_sources(sources())
+    }
+
+    fn id(
+        environment: &crate::environment::ParserEnvironment,
+        name: &str,
+    ) -> macro_ron::v2::DeclarationIdentity {
+        environment
+            .declarations()
+            .iter()
+            .find(|declaration| declaration.identity().name() == name)
+            .unwrap_or_else(|| panic!("synthetic declaration `{name}` exists"))
+            .identity()
+            .clone()
+    }
+
+    fn scan<'a>(
+        environment: &'a crate::environment::ParserEnvironment,
+        context: &'a ParseContext<'a>,
+        text: &'a str,
+        terminal: LexicalTerminal,
+    ) -> Vec<LexicalMatch<Leaf, LexicalOwner>> {
+        scan_lexical(
+            &ScanInput {
+                text,
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
+                },
+                environment,
+                context,
+            },
+            terminal,
+        )
+    }
+
+    fn rule_terminals(rule_id: RuleId) -> (LexicalTerminal, LexicalTerminal) {
+        let rule = RULES
+            .iter()
+            .find(|rule| rule.id == rule_id)
+            .expect("the generated declaration verb rule is present");
+        let [L(verb), L(tail)] = rule.rhs else {
+            panic!("the declaration verb rule has a verb head and one tail")
+        };
+        (*verb, *tail)
+    }
+
+    fn first_terminal(rule_id: RuleId) -> LexicalTerminal {
+        let rule = RULES
+            .iter()
+            .find(|rule| rule.id == rule_id)
+            .expect("the generated declaration verb rule is present");
+        let Some(L(terminal)) = rule.rhs.first() else {
+            panic!("the declaration verb rule begins with its projected verb")
+        };
+        *terminal
+    }
+
+    fn scanned_declaration_names(
+        environment: &crate::environment::ParserEnvironment,
+        text: &str,
+        terminal: LexicalTerminal,
+    ) -> Vec<String> {
+        let context = ParseContext::default();
+        scan(environment, &context, text, terminal)
+            .into_iter()
+            .filter_map(|candidate| match candidate.value {
+                Leaf::TransitiveVerb {
+                    verb: TransitiveVerb::Declaration(value),
+                    ..
+                } => Some(value.id().name().to_owned()),
+                Leaf::NumerativeVerb { verb, .. } => Some(verb.id().name().to_owned()),
+                Leaf::IntransitiveVerb { verb, .. } => Some(verb.id().name().to_owned()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    struct Recorder(Vec<String>);
+
+    impl Visitor for Recorder {
+        fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
+            self.0.push(format!("head:{declaration}"));
+        }
+
+        fn visit_core_verb(&mut self, verb: CoreVerb) {
+            self.0.push(format!("head:core:{verb:?}"));
+        }
+
+        fn visit_object_word(&mut self, object: ObjectWord) {
+            self.0.push(format!("object:{object:?}"));
+        }
+    }
+
+    pub(crate) fn run() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let (verb_terminal, object_terminal) = rule_terminals(RuleId::VerbPhraseTransitive);
+        assert!(matches!(
+            verb_terminal,
+            LexicalTerminal {
+                matcher: Lexical::DeclarationVerb(3, FeatureConstraint::Exact(Agreement::Bare)),
+                owner: LexicalOwnerTemplate::DeclarationVerb(3),
+                ..
+            }
+        ));
+
+        let verbs = scan(&environment, &context, "Act object.", verb_terminal);
+        assert_eq!(
+            verbs.len(),
+            3,
+            "one closed and two open homonyms survive scanning"
+        );
+        assert!(matches!(
+            &verbs[0].value,
+            Leaf::TransitiveVerb {
+                verb: TransitiveVerb::Lexeme(CoreVerb::Act),
+                agreement: Agreement::Bare,
+            }
+        ));
+        let open_ids = verbs[1..]
+            .iter()
+            .map(|candidate| match &candidate.value {
+                Leaf::TransitiveVerb {
+                    verb: TransitiveVerb::Declaration(declaration),
+                    agreement: Agreement::Bare,
+                } => declaration.id().name(),
+                other => panic!("unexpected declaration verb candidate: {other:?}"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(open_ids, ["FirstAct", "SecondAct"]);
+        assert_eq!(
+            verb_terminal
+                .owner
+                .instantiate(&verbs[1].value)
+                .expect("the declaration verb leaf materializes its lexical owner")
+                .stable_id(),
+            "lexeme:keyword_action/FirstAct/bare",
+        );
+
+        let objects = scan(&environment, &context, "Object.", object_terminal);
+        assert!(matches!(
+            objects.as_slice(),
+            [LexicalMatch {
+                value: Leaf::ObjectWord(ObjectWord::Object),
+                ..
+            }]
+        ));
+
+        let mut built = Vec::new();
+        for candidate in &verbs {
+            let value = build(
+                RuleId::VerbPhraseTransitive,
+                &[
+                    BuildValue::Leaf(candidate.value.clone()),
+                    BuildValue::Leaf(objects[0].value.clone()),
+                ],
+                &context,
+            )
+            .expect("every preserved homonym materializes through the same rule");
+            let BuildValue::VerbPhrase(phrase) = value else {
+                panic!("the transitive rule builds its declared category")
+            };
+            assert!(matches!(phrase, VerbPhrase::Transitive(_)));
+            built.push(phrase);
+        }
+
+        for (index, phrase) in built.iter().enumerate() {
+            assert_eq!(
+                Render::render(phrase, &context, &environment),
+                "Act object."
+            );
+            let mut recorder = Recorder(Vec::new());
+            walk_verb_phrase(&mut recorder, phrase);
+            let expected_head = match index {
+                0 => "head:core:Act".to_owned(),
+                1 => "head:keyword action `FirstAct`".to_owned(),
+                2 => "head:keyword action `SecondAct`".to_owned(),
+                _ => unreachable!(),
+            };
+            assert_eq!(
+                recorder.0,
+                [expected_head, "object:Object".to_owned()],
+                "the generated traversal visits the verb head before its object",
+            );
+        }
+
+        let (rendered, claims) = render_verb_phrase_with_claims(&built[1], &context, &environment);
+        assert_eq!(rendered, "Act object.");
+        let claims = claims
+            .iter()
+            .map(|claim| (claim.start, claim.end, claim.owner.stable_id()))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            claims,
+            [
+                (0, 3, "lexeme:keyword_action/FirstAct/bare"),
+                (3, 10, "vocab:ObjectWord/Object"),
+                (10, 11, "root:VerbPhrase/punctuation"),
+            ],
+            "rendering emits a gap-free, overlap-free lexical ownership partition",
+        );
+    }
+
+    pub(crate) fn run_checked_constructors() {
+        let environment = environment();
+        assert!(
+            DeclarationTransitiveVerb::new(&environment, id(&environment, "FirstAct")).is_some()
+        );
+        assert!(DeclarationNumerativeVerb::new(&environment, id(&environment, "Count")).is_some());
+        assert!(DeclarationTransitiveVerb::new(&environment, id(&environment, "Count")).is_none());
+        assert!(
+            DeclarationNumerativeVerb::new(&environment, id(&environment, "FirstAct")).is_none()
+        );
+        assert!(
+            DeclarationTransitiveVerb::new(&environment, id(&environment, "WrongKind")).is_none()
+        );
+        assert!(
+            DeclarationTransitiveVerb::new(&environment, id(&environment, "WrongPosition"))
+                .is_none()
+        );
+        assert!(
+            DeclarationTransitiveVerb::new(&environment, id(&environment, "MissingAgreement"))
+                .is_none()
+        );
+
+        let absent = environment_from_sources(vec![declaration(
+            "/disposable/Absent.ron",
+            r#"KeywordAction(name:"Absent",spelling:"absent",grammar:Verb(bare:"absent",valence:Transitive))"#,
+        )]);
+        assert!(DeclarationTransitiveVerb::new(&environment, id(&absent, "Absent")).is_none());
+    }
+
+    pub(crate) fn run_custom_shapes() {
+        let environment = environment();
+        let transitive = first_terminal(RuleId::VerbPhraseTransitive);
+        let numerative = first_terminal(RuleId::NumerativePhraseNumerative);
+        let intransitive = first_terminal(RuleId::IntransitivePhraseIntransitive);
+
+        assert_eq!(
+            scanned_declaration_names(&environment, "Shape.", intransitive),
+            ["Shape"]
+        );
+        assert_eq!(
+            scanned_declaration_names(&environment, "Shape one.", numerative),
+            ["Shape"]
+        );
+        assert!(scanned_declaration_names(&environment, "Shape object.", transitive).is_empty());
+        assert!(
+            DeclarationIntransitiveVerb::new(&environment, id(&environment, "Shape")).is_some()
+        );
+        assert!(DeclarationNumerativeVerb::new(&environment, id(&environment, "Shape")).is_some());
+        assert!(DeclarationTransitiveVerb::new(&environment, id(&environment, "Shape")).is_none());
+
+        for (name, surface) in [
+            ("Crossed", "Cross"),
+            ("DuplicatedTail", "Double"),
+            ("Extra", "Extend"),
+        ] {
+            for terminal in [intransitive, numerative, transitive] {
+                assert!(
+                    scanned_declaration_names(&environment, surface, terminal).is_empty(),
+                    "{name} must not enter a construction with a merely similar tail",
+                );
+            }
+            let declaration = id(&environment, name);
+            assert!(DeclarationIntransitiveVerb::new(&environment, declaration.clone()).is_none());
+            assert!(DeclarationNumerativeVerb::new(&environment, declaration.clone()).is_none());
+            assert!(DeclarationTransitiveVerb::new(&environment, declaration).is_none());
+        }
+
+        let unsupported = macro_ron::v2::read_sources(vec![declaration(
+            "/disposable/Unsupported.ron",
+            r#"KeywordAction(name:"Unsupported",spelling:"unsupported",grammar:Verb(bare:"unsupported",valence:Custom(shapes:[[Clause]])))"#,
+        )]);
+        assert!(
+            unsupported.is_err(),
+            "unsupported tail atoms fail before runtime construction"
+        );
+    }
+
+    pub(crate) fn run_valence_perturbation() {
+        let baseline_sources = sources();
+        let baseline_bytes = baseline_sources
+            .iter()
+            .find(|source| source.path.ends_with("FirstAct.ron"))
+            .expect("the perturbed declaration exists")
+            .source
+            .clone();
+        assert_eq!(baseline_bytes.matches("valence:Transitive").count(), 1);
+
+        let baseline = environment_from_sources(baseline_sources.clone());
+        let transitive = first_terminal(RuleId::VerbPhraseTransitive);
+        let numerative = first_terminal(RuleId::NumerativePhraseNumerative);
+        assert_eq!(
+            scanned_declaration_names(&baseline, "Act object.", transitive),
+            ["FirstAct", "SecondAct"]
+        );
+        assert!(scanned_declaration_names(&baseline, "Act one.", numerative).is_empty());
+
+        let mut perturbed_sources = baseline_sources.clone();
+        let perturbed = perturbed_sources
+            .iter_mut()
+            .find(|source| source.path.ends_with("FirstAct.ron"))
+            .expect("the disposable declaration copy exists");
+        perturbed.source = perturbed
+            .source
+            .replacen("valence:Transitive", "valence:Numerative", 1);
+        let perturbed_environment = environment_from_sources(perturbed_sources.clone());
+        assert_eq!(
+            scanned_declaration_names(&perturbed_environment, "Act object.", transitive),
+            ["SecondAct"]
+        );
+        assert_eq!(
+            scanned_declaration_names(&perturbed_environment, "Act one.", numerative),
+            ["FirstAct"]
+        );
+
+        perturbed_sources
+            .iter_mut()
+            .find(|source| source.path.ends_with("FirstAct.ron"))
+            .expect("the disposable declaration copy still exists")
+            .source
+            .clone_from(&baseline_bytes);
+        assert_eq!(
+            perturbed_sources
+                .iter()
+                .find(|source| source.path.ends_with("FirstAct.ron"))
+                .expect("the restored declaration exists")
+                .source,
+            baseline_bytes,
+        );
+        let restored = environment_from_sources(perturbed_sources);
+        assert_eq!(
+            scanned_declaration_names(&restored, "Act object.", transitive),
+            ["FirstAct", "SecondAct"]
+        );
+        assert!(scanned_declaration_names(&restored, "Act one.", numerative).is_empty());
     }
 }
 
@@ -6024,6 +6763,26 @@ pub mod fixture {
 fn generated_morphology_output_is_type_correct_and_executes_every_boundary_case() {
     declaration_noun_fixture::run();
     fixture::run();
+}
+
+#[test]
+fn declaration_verbs_preserve_identity_through_every_generated_boundary() {
+    declaration_verb_fixture::run();
+}
+
+#[test]
+fn declaration_verb_constructors_fail_closed() {
+    declaration_verb_fixture::run_checked_constructors();
+}
+
+#[test]
+fn declaration_verb_custom_shapes_match_only_exact_authored_tails() {
+    declaration_verb_fixture::run_custom_shapes();
+}
+
+#[test]
+fn declaration_verb_valence_perturbation_moves_frame_availability() {
+    declaration_verb_fixture::run_valence_perturbation();
 }
 
 #[test]

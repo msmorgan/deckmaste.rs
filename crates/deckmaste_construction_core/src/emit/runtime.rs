@@ -36,6 +36,7 @@ use crate::semantic::BindingPlan;
 use crate::semantic::CatalogIdentityPlan;
 use crate::semantic::ContextIdentityPlan;
 use crate::semantic::DeclarationNounPlan;
+use crate::semantic::DeclarationVerbPlan;
 use crate::semantic::LexemePlan;
 use crate::semantic::SemanticPlan;
 use crate::semantic::SignedDecimalPlan;
@@ -55,6 +56,7 @@ struct RuntimeInventory<'a> {
     signed_decimal: Option<&'a SignedDecimalPlan>,
     unsigned_numbers: Vec<&'a UnsignedNumberPlan>,
     declaration_nouns: Vec<(usize, &'a DeclarationNounPlan)>,
+    declaration_verbs: Vec<(usize, &'a DeclarationVerbPlan)>,
 }
 
 impl<'a> RuntimeInventory<'a> {
@@ -89,6 +91,7 @@ impl<'a> RuntimeInventory<'a> {
             signed_decimal: plan.runtime_signed_decimal(),
             unsigned_numbers: plan.runtime_unsigned_numbers().collect(),
             declaration_nouns: plan.runtime_declaration_nouns().collect(),
+            declaration_verbs: plan.runtime_declaration_verbs().collect(),
         }
     }
 
@@ -222,6 +225,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         ),
     ];
 
+    if !inventory.declaration_verbs.is_empty() {
+        items.extend(emit_declaration_verb_frame_types());
+    }
     items.extend(emit_lexical_types(&inventory));
     items.extend(emit_owner_types(&inventory));
     items.extend(emit_semantic_runtime_types(plan));
@@ -235,6 +241,81 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         item.origins.clone_from(&origins);
     }
     items
+}
+
+fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
+    vec![
+        named_type(
+            "VerbFrameAtom",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+                pub(crate) enum VerbFrameAtom {
+                    Literal(&'static str),
+                    Amount,
+                    ObjectNounPhrase,
+                }
+            },
+        ),
+        named_type(
+            "VerbFrameKey",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+                pub(crate) struct VerbFrameKey {
+                    atoms: &'static [VerbFrameAtom],
+                }
+            },
+        ),
+        impl_item(
+            None,
+            "VerbFrameKey",
+            quote! {
+                impl VerbFrameKey {
+                    pub(crate) const fn new(atoms: &'static [VerbFrameAtom]) -> Self {
+                        Self { atoms }
+                    }
+
+                    pub(crate) const fn atoms(self) -> &'static [VerbFrameAtom] {
+                        self.atoms
+                    }
+
+                    pub(crate) fn matches_valence(
+                        self,
+                        valence: &::macro_ron::v2::VerbValence,
+                    ) -> bool {
+                        use ::macro_ron::v2::CustomTailAtom;
+                        use ::macro_ron::v2::VerbValence;
+
+                        match valence {
+                            VerbValence::Intransitive => self.atoms.is_empty(),
+                            VerbValence::Transitive => {
+                                self.atoms == [VerbFrameAtom::ObjectNounPhrase]
+                            }
+                            VerbValence::Numerative => {
+                                self.atoms == [VerbFrameAtom::Amount]
+                            }
+                            VerbValence::Custom { shapes } => shapes.iter().any(|shape| {
+                                shape.len() == self.atoms.len()
+                                    && shape.iter().zip(self.atoms).all(
+                                        |(source, planned)| match (source, planned) {
+                                            (
+                                                CustomTailAtom::Literal(source),
+                                                VerbFrameAtom::Literal(planned),
+                                            ) => source == planned,
+                                            (CustomTailAtom::Amount, VerbFrameAtom::Amount)
+                                            | (
+                                                CustomTailAtom::ObjectNounPhrase,
+                                                VerbFrameAtom::ObjectNounPhrase,
+                                            ) => true,
+                                            _ => false,
+                                        },
+                                    )
+                            }),
+                        }
+                    }
+                }
+            },
+        ),
+    ]
 }
 
 fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
@@ -766,6 +847,42 @@ fn unsigned_lexical_variants(
     (lexical, leaf, class)
 }
 
+fn declaration_verb_lexical_variants(
+    inventory: &RuntimeInventory<'_>,
+) -> (Option<TokenStream>, Vec<TokenStream>, Option<TokenStream>) {
+    let lexical = (!inventory.declaration_verbs.is_empty())
+        .then(|| quote! { DeclarationVerb(usize, FeatureConstraint<Agreement>), });
+    let leaf = inventory
+        .declaration_verbs
+        .iter()
+        .map(|(_, codec)| {
+            let verb = codec.codec_ident();
+            quote! { #verb { verb: #verb, agreement: Agreement }, }
+        })
+        .collect();
+    let class =
+        (!inventory.declaration_verbs.is_empty()).then(|| quote! { DeclarationVerb(usize), });
+    (lexical, leaf, class)
+}
+
+fn declaration_noun_lexical_variants(
+    inventory: &RuntimeInventory<'_>,
+) -> (Option<TokenStream>, Vec<TokenStream>, Option<TokenStream>) {
+    let lexical = (!inventory.declaration_nouns.is_empty())
+        .then(|| quote! { DeclarationNoun(usize, FeatureConstraint<Number>), });
+    let leaf = inventory
+        .declaration_nouns
+        .iter()
+        .map(|(_, codec)| {
+            let noun = codec.codec_ident();
+            quote! { #noun { noun: #noun, number: Number, onset: Onset, possessive_ending: PossessiveEnding }, }
+        })
+        .collect();
+    let class =
+        (!inventory.declaration_nouns.is_empty()).then(|| quote! { DeclarationNoun(usize), });
+    (lexical, leaf, class)
+}
+
 fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let vocab_variants = vocab_lexical_variants(inventory);
     let vocab_leaf_variants = inventory.vocabs.iter().map(|vocab| {
@@ -781,14 +898,10 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         quote! { Noun { noun: #noun_type, number: Number, onset: Onset, possessive_ending: PossessiveEnding }, }
     });
     let noun_class = inventory.noun_type().map(|_| quote! { Noun, });
-    let declaration_noun_lexical = (!inventory.declaration_nouns.is_empty())
-        .then(|| quote! { DeclarationNoun(usize, FeatureConstraint<Number>), });
-    let declaration_noun_leaf_variants = inventory.declaration_nouns.iter().map(|(_, codec)| {
-        let noun = codec.codec_ident();
-        quote! { #noun { noun: #noun, number: Number, onset: Onset, possessive_ending: PossessiveEnding }, }
-    });
-    let declaration_noun_class =
-        (!inventory.declaration_nouns.is_empty()).then(|| quote! { DeclarationNoun(usize), });
+    let (declaration_noun_lexical, declaration_noun_leaf_variants, declaration_noun_class) =
+        declaration_noun_lexical_variants(inventory);
+    let (declaration_verb_lexical, declaration_verb_leaf_variants, declaration_verb_class) =
+        declaration_verb_lexical_variants(inventory);
 
     let verb_lexical = inventory.verb_lexeme.map(|lexeme| {
         let ident = lexeme.name_ident();
@@ -854,6 +967,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #(#vocab_variants,)*
                     #noun_lexical
                     #declaration_noun_lexical
+                    #declaration_verb_lexical
                     #verb_lexical
                     #(#direct_lexical_variants)*
                     #(#opaque_lexical_variants)*
@@ -875,6 +989,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #(#vocab_leaf_variants,)*
                     #noun_leaf
                     #(#declaration_noun_leaf_variants)*
+                    #(#declaration_verb_leaf_variants)*
                     #verb_leaf
                     #(#direct_leaf_variants)*
                     #(#opaque_leaf_variants)*
@@ -895,6 +1010,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     #(#vocab_class_variants,)*
                     #noun_class
                     #declaration_noun_class
+                    #declaration_verb_class
                     #verb_class
                     #(#direct_class_variants,)*
                     #(#opaque_class_variants,)*
@@ -924,6 +1040,8 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let noun_lexeme = inventory.noun_lexeme.map(|_| quote! { NounLexeme, });
     let declaration_noun =
         (!inventory.declaration_nouns.is_empty()).then(|| quote! { DeclarationNoun(usize), });
+    let declaration_verb =
+        (!inventory.declaration_verbs.is_empty()).then(|| quote! { DeclarationVerb(usize), });
     let catalog_identity =
         (!inventory.catalog_identities.is_empty()).then(|| quote! { CatalogIdentity(usize), });
     let catalog_owner_identity = (!inventory.catalog_identities.is_empty()).then(|| {
@@ -981,6 +1099,7 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     },
                     #catalog_identity
                     #declaration_noun
+                    #declaration_verb
                     Declaration {
                         kind: ::macro_ron::v2::DeclarationKind,
                         name: &'static str,
@@ -1038,6 +1157,9 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let declaration_noun_class_arm = (!inventory.declaration_nouns.is_empty()).then(|| {
         quote! { Lexical::DeclarationNoun(terminal_index, _) => TerminalClass::DeclarationNoun(terminal_index), }
     });
+    let declaration_verb_class_arm = (!inventory.declaration_verbs.is_empty()).then(|| {
+        quote! { Lexical::DeclarationVerb(terminal_index, _) => TerminalClass::DeclarationVerb(terminal_index), }
+    });
     let verb_class_arm = inventory
         .verb_lexeme
         .map(|_| quote! { Lexical::Verb(_, _) => TerminalClass::VerbLexeme, });
@@ -1080,6 +1202,8 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .map(|_| quote! { TerminalClass::Noun => "noun", });
     let declaration_noun_label = (!inventory.declaration_nouns.is_empty())
         .then(|| quote! { TerminalClass::DeclarationNoun(_) => "declaration noun", });
+    let declaration_verb_label = (!inventory.declaration_verbs.is_empty())
+        .then(|| quote! { TerminalClass::DeclarationVerb(_) => "declaration verb", });
     let verb_label = inventory
         .verb_lexeme
         .map(|_| quote! { TerminalClass::VerbLexeme => "verb lexeme", });
@@ -1164,6 +1288,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #(#vocab_class_arms)*
                             #noun_class_arm
                             #declaration_noun_class_arm
+                            #declaration_verb_class_arm
                             #verb_class_arm
                             #(#direct_class_arms)*
                             #(#opaque_class_arms)*
@@ -1259,6 +1384,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #(#vocab_labels)*
                             #noun_label
                             #declaration_noun_label
+                            #declaration_verb_label
                             #verb_label
                             #(#direct_labels)*
                             #(#opaque_labels)*
@@ -1570,6 +1696,79 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     )),
                 }
             });
+    let declaration_verb_owner =
+        inventory
+            .declaration_verbs
+            .iter()
+            .map(|(terminal_index, codec)| {
+                let verb = codec.codec_ident();
+                let closed_owner_arms = if let Some(closed) = codec.closed_lexeme() {
+                    inventory
+                        .verb_lexeme
+                        .expect("validated declaration verb has its closed lexeme provider")
+                        .surfaces()
+                        .iter()
+                        .map(|row| {
+                            let member = emitted_ident(row.member(), Span::call_site());
+                            let agreement = match row.feature() {
+                                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                                    quote! { Agreement::ThirdPersonSingular }
+                                }
+                                macro_ron::v2::SurfaceFeature::Singular
+                                | macro_ron::v2::SurfaceFeature::Plural
+                                | macro_ron::v2::SurfaceFeature::Fixed => {
+                                    unreachable!(
+                                        "validated verb lexeme has the Agreement feature axis"
+                                    )
+                                }
+                            };
+                            let stable_id = crate::emit::closed_lexeme_owner_id(
+                                &closed.to_string(),
+                                row.member(),
+                                row.feature(),
+                            );
+                            quote! {
+                                (
+                                    LexicalOwnerTemplate::DeclarationVerb(#terminal_index),
+                                    Leaf::#verb {
+                                        verb: #verb::Lexeme(#closed::#member),
+                                        agreement: #agreement,
+                                    },
+                                ) => Some(LexicalOwner::static_owner(
+                                    LexicalProvenanceKind::Lexeme,
+                                    #stable_id,
+                                )),
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                };
+                let declaration_pattern = if codec.closed_lexeme().is_some() {
+                    quote! { #verb::Declaration(declaration) }
+                } else {
+                    quote! { declaration }
+                };
+                quote! {
+                    #(#closed_owner_arms)*
+                    (
+                        LexicalOwnerTemplate::DeclarationVerb(#terminal_index),
+                        Leaf::#verb {
+                            verb: #declaration_pattern,
+                            agreement,
+                        },
+                    ) => Some(LexicalOwner::declaration_owner(
+                        declaration.id().clone(),
+                        match agreement {
+                            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                            Agreement::ThirdPersonSingular => {
+                                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                            }
+                        },
+                    )),
+                }
+            });
 
     vec![
         GeneratedItem::new(
@@ -1845,6 +2044,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 ))
                             },
                             #(#declaration_noun_owner)*
+                            #(#declaration_verb_owner)*
                             _ => None,
                         }
                     }

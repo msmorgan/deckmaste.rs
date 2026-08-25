@@ -1,0 +1,5 @@
+error[E0451]: field `id` of struct `DeclarationTransitiveVerb` is private
+  --> tests/compile_fail/declaration_verb_private_identity.rs:12:86
+   |
+12 |     let _ = compiled_consumer::declaration_verb_fixture::DeclarationTransitiveVerb { id };
+   |                                                                                      ^^ private field

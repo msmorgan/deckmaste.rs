@@ -670,6 +670,14 @@ fn lower_terminal_value(
                 expression: quote! { #binding.clone() },
             })
         }
+        AtomTerminal::DeclarationVerb { plan, .. } => {
+            let leaf = plan.codec_ident();
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { verb: #binding, agreement: _ }) },
+                expression: quote! { #binding.clone() },
+            })
+        }
         AtomTerminal::Binding(binding) => {
             let build = binding
                 .build()
@@ -1721,8 +1729,39 @@ fn lower_terminal_role(
                 .insert(identifier_key(&role), quote! { #value.clone() });
             return Ok(());
         }
+        AtomTerminal::DeclarationVerb { plan, .. } => {
+            lower_declaration_verb_role(validated, row, &role, plan, lowering)?;
+            return Ok(());
+        }
     };
     lower_binding_terminal_role(binding, validated, row, form, &role, noun, lowering)
+}
+
+fn lower_declaration_verb_role(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    role: &syn::Ident,
+    plan: &crate::semantic::DeclarationVerbPlan,
+    lowering: &mut Lowering,
+) -> syn::Result<()> {
+    let leaf = plan.codec_ident();
+    let value = lowering.binders.allocate(&identifier_key(role));
+    let agreement = role_agreement_pattern(validated, row, role, plan.codec_name(), lowering)?;
+    let agreement_field = if agreement.to_string() == "agreement" {
+        quote! { agreement }
+    } else {
+        quote! { agreement: #agreement }
+    };
+    lowering.patterns.push(quote! {
+        BuildValue::Leaf(Leaf::#leaf {
+            verb: #value,
+            #agreement_field,
+        })
+    });
+    lowering
+        .field_values
+        .insert(identifier_key(role), quote! { #value.clone() });
+    Ok(())
 }
 
 fn lower_binding_terminal_role(

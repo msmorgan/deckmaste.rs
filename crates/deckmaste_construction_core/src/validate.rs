@@ -8777,13 +8777,7 @@ fn validate_lowerable_feature_compositions(
                     feature: ParsedFeature::Agreement,
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
-            ) => {
-                identifier_key(field) == "verb"
-                    || matches!(
-                        fields.get(&identifier_key(field)),
-                        Some(FieldKind::Category(_) | FieldKind::Sequence { .. })
-                    )
-            }
+            ) => identifier_key(field) == "verb" || role_provides_agreement(raw, &fields, field),
             (ParsedFeaturePlace::Role { field, .. }, ParsedFeatureValue::Match { role, .. }) => {
                 same_identifier(field, role)
                     && matches!(fields.get(&identifier_key(field)), Some(FieldKind::Lex(_)))
@@ -8826,6 +8820,39 @@ fn validate_lowerable_feature_compositions(
                 ),
             );
         }
+    }
+}
+
+fn role_provides_agreement(
+    raw: &Declarations,
+    fields: &HashMap<String, &FieldKind>,
+    role: &syn::Ident,
+) -> bool {
+    match fields.get(&identifier_key(role)) {
+        Some(FieldKind::Category(_) | FieldKind::Sequence { .. }) => true,
+        Some(FieldKind::Lex(path)) => {
+            raw.declarations
+                .iter()
+                .any(|declaration| match declaration {
+                    Declaration::Codec(binding)
+                        if identifier_key(&binding.name) == path_name(path)
+                            && matches!(
+                                binding.generated,
+                                Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(_))
+                            ) =>
+                    {
+                        true
+                    }
+                    Declaration::Lexeme(lexeme)
+                        if identifier_key(&lexeme.name) == path_name(path) =>
+                    {
+                        lexeme_recipe(raw, lexeme)
+                            == Some(crate::morphology::MorphologyRecipe::EnglishVerb)
+                    }
+                    _ => false,
+                })
+        }
+        Some(FieldKind::Identity(_) | FieldKind::Optional(_)) | None => false,
     }
 }
 

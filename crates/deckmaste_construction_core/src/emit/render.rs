@@ -1746,7 +1746,30 @@ fn render_allocator(
                         .get(role)
                         .ok_or_else(|| internal("resolved lexical role is absent"))?;
                     let terminal = field.terminal();
-                    if let Some(vocab) = find_vocab(validated, terminal) {
+                    if let Some((_, codec)) = validated.runtime_declaration_verb_for(terminal) {
+                        if codec.closed_lexeme().is_some() {
+                            let lexeme = validated.runtime_verb_lexeme().ok_or_else(|| {
+                                internal("declaration verb lacks its sealed lexeme plan")
+                            })?;
+                            allocator.reserve(lexeme_surface_helper(lexeme.name()));
+                        }
+                        let target = FeaturePlace::Role {
+                            field: syn::Ident::new(role, construction.origin_span()),
+                            feature: Feature::Agreement,
+                        };
+                        if let Some(equation) = validated
+                            .feature_equations(construction.construction_id())
+                            .iter()
+                            .find(|equation| equation.target() == &target)
+                        {
+                            reserve_feature_callees(
+                                validated,
+                                construction,
+                                equation.value(),
+                                &mut allocator,
+                            )?;
+                        }
+                    } else if let Some(vocab) = find_vocab(validated, terminal) {
                         allocator.reserve(format!("render_{}", snake_case(vocab.name())));
                     } else if let Some(codec) = find_signed_decimal(validated, terminal) {
                         allocator.reserve(format!("render_{}", snake_case(codec.codec_name())));
@@ -2435,7 +2458,17 @@ fn render_atom_statement(
                 .ok_or_else(|| internal("resolved lexical role is absent"))?;
             let terminal = field.terminal();
             let value = field_value(construction, role, locals)?;
-            if let Some(vocab) = find_vocab(validated, terminal) {
+            if let Some((_, codec)) = validated.runtime_declaration_verb_for(terminal) {
+                render_declaration_verb_atom(
+                    validated,
+                    construction,
+                    codec,
+                    role,
+                    &value,
+                    locals,
+                    &method_writer,
+                )
+            } else if let Some(vocab) = find_vocab(validated, terminal) {
                 let function = ident(&format!("render_{}", snake_case(vocab.name())));
                 let value = copy_value(construction, role, value)?;
                 Ok(quote! { #function(#call_writer, #value); })
@@ -2727,6 +2760,16 @@ fn render_owner(
             let field = construction.field(role)?;
             let terminal = field.terminal();
             let value = field_value(construction, role, locals)?;
+            if let Some((_, codec)) = validated.runtime_declaration_verb_for(terminal) {
+                return declaration_verb_owner(
+                    validated,
+                    construction,
+                    codec,
+                    role,
+                    &value,
+                    locals,
+                );
+            }
             if let Some(vocab) = find_vocab(validated, terminal) {
                 let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
                 let value = copy_value(construction, role, value)?;
@@ -3001,6 +3044,121 @@ fn render_noun_atom(
     })
 }
 
+fn render_declaration_verb_atom(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    codec: &crate::semantic::DeclarationVerbPlan,
+    role: &str,
+    value: &TokenStream,
+    locals: &RenderLocals,
+    method_writer: &TokenStream,
+) -> syn::Result<TokenStream> {
+    let agreement = projected_verb_agreement(validated, construction, role, locals)?;
+    let feature = quote! {
+        match #agreement {
+            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+            Agreement::ThirdPersonSingular => {
+                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+            }
+        }
+    };
+    if let Some(closed) = codec.closed_lexeme() {
+        let verb = codec.codec_ident();
+        let lexeme = validated
+            .runtime_verb_lexeme()
+            .ok_or_else(|| internal("validated declaration verb lacks a closed lexeme plan"))?;
+        if closed != lexeme.name() {
+            return Err(internal(
+                "declaration verb closed lexeme plan is inconsistent",
+            ));
+        }
+        let surface = ident(&lexeme_surface_helper(lexeme.name()));
+        return Ok(quote! {
+            match #value {
+                #verb::Lexeme(lexeme) => {
+                    #method_writer.word(#surface(*lexeme, #agreement));
+                }
+                #verb::Declaration(declaration) => {
+                    #method_writer.word(
+                        environment
+                            .surface(declaration.id(), #feature)
+                            .expect("stored declaration verb remains in its parser environment"),
+                    );
+                }
+            }
+        });
+    }
+    Ok(quote! {
+        #method_writer.word(
+            environment
+                .surface((#value).id(), #feature)
+                .expect("stored declaration verb remains in its parser environment"),
+        );
+    })
+}
+
+fn declaration_verb_owner(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    codec: &crate::semantic::DeclarationVerbPlan,
+    role: &str,
+    value: &TokenStream,
+    locals: &RenderLocals,
+) -> syn::Result<TokenStream> {
+    let agreement = projected_verb_agreement(validated, construction, role, locals)?;
+    let feature = quote! {
+        match #agreement {
+            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+            Agreement::ThirdPersonSingular => {
+                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+            }
+        }
+    };
+    if let Some(closed) = codec.closed_lexeme() {
+        let verb = codec.codec_ident();
+        let lexeme = validated
+            .runtime_verb_lexeme()
+            .ok_or_else(|| internal("validated declaration verb lacks a closed lexeme plan"))?;
+        let arms = lexeme.surfaces().iter().map(|row| {
+            let member = emitted_ident(row.member(), Span::call_site());
+            let agreement = match row.feature() {
+                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                    quote! { Agreement::ThirdPersonSingular }
+                }
+                macro_ron::v2::SurfaceFeature::Singular
+                | macro_ron::v2::SurfaceFeature::Plural
+                | macro_ron::v2::SurfaceFeature::Fixed => {
+                    unreachable!("validated verb lexeme has the Agreement feature axis")
+                }
+            };
+            let stable_id = crate::emit::closed_lexeme_owner_id(
+                &closed.to_string(),
+                row.member(),
+                row.feature(),
+            );
+            quote! {
+                (#verb::Lexeme(#closed::#member), #agreement) => LexicalOwner::static_owner(
+                    LexicalProvenanceKind::Lexeme,
+                    #stable_id,
+                )
+            }
+        });
+        return Ok(quote! {
+            match (#value, #agreement) {
+                #(#arms,)*
+                (#verb::Declaration(declaration), _) => LexicalOwner::declaration_owner(
+                    declaration.id().clone(),
+                    #feature,
+                ),
+            }
+        });
+    }
+    Ok(quote! {
+        LexicalOwner::declaration_owner((#value).id().clone(), #feature)
+    })
+}
+
 fn noun_role_number(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -3079,6 +3237,49 @@ fn role_agreement(
             )
         })
         .transpose()
+}
+
+fn projected_verb_agreement(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    locals: &RenderLocals,
+) -> syn::Result<TokenStream> {
+    let equations = validated.feature_equations(construction.construction_id());
+    if let Some(equation) = equations.iter().find(|equation| {
+        matches!(
+            equation.target(),
+            FeaturePlace::Role {
+                field,
+                feature: Feature::Agreement,
+            } if identifier_key(field) == role
+        )
+    }) {
+        return feature_expr(
+            validated,
+            construction,
+            equation.value(),
+            Feature::Agreement,
+            locals,
+        );
+    }
+    if equations.iter().any(|equation| {
+        matches!(
+            equation.target(),
+            FeaturePlace::Construction(Feature::Agreement)
+        ) && matches!(
+            equation.value(),
+            FeatureExpr::FromRole {
+                role: source,
+                feature: Feature::Agreement,
+            } if identifier_key(source) == role
+        )
+    }) {
+        return Ok(quote! { agreement });
+    }
+    Err(internal(
+        "projected declaration verb atom lacks validated Agreement flow",
+    ))
 }
 
 fn verb_agreement(

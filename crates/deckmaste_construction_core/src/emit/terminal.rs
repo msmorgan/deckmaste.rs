@@ -115,7 +115,110 @@ pub(crate) fn emit(
                     verb_provider,
                 ));
             }
-            TerminalPlan::Binding(_) => {}
+            TerminalPlan::Binding(binding) => {
+                let Some(row) = binding.declaration_verb() else {
+                    continue;
+                };
+                debug_assert_eq!(row.source_index(), binding.source_index());
+                debug_assert_eq!(row.feature_axis(), crate::feature::Feature::Agreement);
+                let origin = row.origin().clone();
+                let verb = row.codec_ident();
+                let declaration = row.declaration_value_ident();
+                let allowed = row
+                    .kinds()
+                    .iter()
+                    .map(|kind| crate::emit::declaration_kind(*kind))
+                    .collect::<Vec<_>>();
+                let position = crate::emit::grammar_position(row.position());
+                let frame_atoms = row
+                    .frame_key()
+                    .atoms()
+                    .iter()
+                    .map(|atom| match atom {
+                        crate::semantic::VerbFrameAtom::Literal(literal) => {
+                            let literal = syn::LitStr::new(literal, Span::call_site());
+                            quote! { VerbFrameAtom::Literal(#literal) }
+                        }
+                        crate::semantic::VerbFrameAtom::Amount => quote! { VerbFrameAtom::Amount },
+                        crate::semantic::VerbFrameAtom::ObjectNounPhrase => {
+                            quote! { VerbFrameAtom::ObjectNounPhrase }
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(row.declaration_value_ident().to_string()),
+                    quote! {
+                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        pub struct #declaration {
+                            id: ::macro_ron::v2::DeclarationIdentity,
+                        }
+                    },
+                    vec![origin.clone()],
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty: row.declaration_value_ident().to_string(),
+                    },
+                    quote! {
+                        impl #declaration {
+                            pub fn new(
+                                environment: &crate::environment::ParserEnvironment,
+                                id: ::macro_ron::v2::DeclarationIdentity,
+                            ) -> Option<Self> {
+                                if !matches!(id.kind(), #(#allowed)|*) {
+                                    return None;
+                                }
+                                let recipe = environment.grammar_recipe(&id)?;
+                                if recipe.position() != #position {
+                                    return None;
+                                }
+                                let ::macro_ron::v2::GrammarRecipe::Verb { valence } = recipe else {
+                                    return None;
+                                };
+                                let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
+                                if !frame.matches_valence(valence) {
+                                    return None;
+                                }
+                                [
+                                    ::macro_ron::v2::SurfaceFeature::Bare,
+                                    ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                                ]
+                                .into_iter()
+                                .all(|feature| environment.surface(&id, feature).is_some())
+                                .then_some(Self { id })
+                            }
+
+                            pub(crate) fn from_reading(
+                                id: ::macro_ron::v2::DeclarationIdentity,
+                            ) -> Option<Self> {
+                                matches!(id.kind(), #(#allowed)|*).then_some(Self { id })
+                            }
+
+                            pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
+                                &self.id
+                            }
+                        }
+                    },
+                    vec![origin.clone()],
+                ));
+                let tokens = if let Some(closed) = row.closed_lexeme() {
+                    quote! {
+                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        pub enum #verb {
+                            Lexeme(#closed),
+                            Declaration(#declaration),
+                        }
+                    }
+                } else {
+                    quote! { pub type #verb = #declaration; }
+                };
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(row.codec_name()),
+                    tokens,
+                    vec![origin],
+                ));
+            }
             TerminalPlan::ContextIdentity(row) => {
                 let origin = row.origin().clone();
                 let ty = row.ident();

@@ -1,0 +1,46 @@
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeclarationTransitiveVerb {
+    id: ::macro_ron::v2::DeclarationIdentity,
+}
+impl DeclarationTransitiveVerb {
+    pub fn new(
+        environment: &crate::environment::ParserEnvironment,
+        id: ::macro_ron::v2::DeclarationIdentity,
+    ) -> Option<Self> {
+        if !matches!(id.kind(), ::macro_ron::v2::DeclarationKind::KeywordAction) {
+            return None;
+        }
+        let recipe = environment.grammar_recipe(&id)?;
+        if recipe.position() != ::macro_ron::v2::GrammarPosition::Verb {
+            return None;
+        }
+        let ::macro_ron::v2::GrammarRecipe::Verb { valence } = recipe else {
+            return None;
+        };
+        let frame = VerbFrameKey::new(&[VerbFrameAtom::ObjectNounPhrase]);
+        if !frame.matches_valence(valence) {
+            return None;
+        }
+        [
+            ::macro_ron::v2::SurfaceFeature::Bare,
+            ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+        ]
+            .into_iter()
+            .all(|feature| environment.surface(&id, feature).is_some())
+            .then_some(Self { id })
+    }
+    pub(crate) fn from_reading(
+        id: ::macro_ron::v2::DeclarationIdentity,
+    ) -> Option<Self> {
+        matches!(id.kind(), ::macro_ron::v2::DeclarationKind::KeywordAction)
+            .then_some(Self { id })
+    }
+    pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
+        &self.id
+    }
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TransitiveVerb {
+    Lexeme(CoreVerb),
+    Declaration(DeclarationTransitiveVerb),
+}

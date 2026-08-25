@@ -992,6 +992,65 @@ mod tests {
     use crate::test_support::representative_expansion;
 
     #[test]
+    fn declaration_verb_ast_stores_only_the_category_safe_value() {
+        let expansion = crate::generate(quote::quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme CoreVerb using EnglishVerb { Act = "act", }
+            vocab ObjectWord { Object = "object", }
+            codec TransitiveVerb {
+                generate declaration_verb {
+                    closed = CoreVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [ObjectNounPhrase];
+                    feature = Agreement;
+                }
+            }
+            construction transitive: VerbPhrase {
+                element Transitive { head: lex TransitiveVerb, object: lex ObjectWord, }
+                derive head.agreement = Values::Bare;
+                form transitive = verb(head) lex(object);
+            }
+            root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("declaration verb AST fixture generates");
+        let generated = expansion
+            .items()
+            .iter()
+            .find(|item| item.key == ItemKey::named_type("Transitive"))
+            .expect("the generated construction product exists");
+        let Item::Struct(product) = syn::parse2::<Item>(generated.tokens.clone())
+            .expect("the generated construction product parses")
+        else {
+            panic!("Transitive is a struct")
+        };
+        let Fields::Named(fields) = product.fields else {
+            panic!("Transitive has named fields")
+        };
+        assert_eq!(
+            fields
+                .named
+                .iter()
+                .map(|field| {
+                    (
+                        field
+                            .ident
+                            .as_ref()
+                            .expect("stored field has a name")
+                            .to_string(),
+                        exact_simple_type(&field.ty),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            [
+                ("head".to_owned(), "TransitiveVerb".to_owned()),
+                ("object".to_owned(), "ObjectWord".to_owned()),
+            ],
+            "the AST stores declaration identity through its codec sum, never frame or valence tags",
+        );
+    }
+
+    #[test]
     fn structural_products_sums_bounds_accessors_and_recursive_edges_are_exact() {
         let plan = structural_semantic_plan();
         let items = super::emit(&plan).expect("structural AST fixture emits");

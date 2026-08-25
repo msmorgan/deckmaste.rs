@@ -1913,6 +1913,81 @@ mod tests {
         );
     }
 
+    fn declaration_verb_expansion() -> crate::Expansion {
+        crate::generate(quote::quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme CoreVerb using EnglishVerb { Act = "act", }
+            vocab ObjectWord { Object = "object", }
+            codec TransitiveVerb {
+                generate declaration_verb {
+                    closed = CoreVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [ObjectNounPhrase];
+                    feature = Agreement;
+                }
+            }
+            construction transitive: VerbPhrase {
+                element Transitive { head: lex TransitiveVerb, object: lex ObjectWord, }
+                derive head.agreement = Values::Bare;
+                form transitive = verb(head) lex(object);
+            }
+            root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("representative declaration verb generates")
+    }
+
+    #[test]
+    fn declaration_verb_expansion_is_deterministic() {
+        let first = declaration_verb_expansion();
+        let second = declaration_verb_expansion();
+        let snapshot = |expansion: &crate::Expansion| {
+            expansion
+                .items()
+                .iter()
+                .map(|item| {
+                    (
+                        item.key.clone(),
+                        item.tokens.to_string(),
+                        item.origins.clone(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(snapshot(&first), snapshot(&second));
+    }
+
+    #[test]
+    fn declaration_verb_generated_body_is_pinned() {
+        let expansion = declaration_verb_expansion();
+        let actual = expansion
+            .items()
+            .iter()
+            .filter(|item| {
+                matches!(
+                    &item.key,
+                    ItemKey::Named {
+                        kind: NamedKind::Type,
+                        name,
+                    } if matches!(name.as_str(), "DeclarationTransitiveVerb" | "TransitiveVerb")
+                ) || matches!(
+                    &item.key,
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty,
+                    } if self_ty == "DeclarationTransitiveVerb"
+                )
+            })
+            .map(crate::format_generated_item)
+            .collect::<syn::Result<Vec<_>>>()
+            .expect("representative declaration verb items format")
+            .join("");
+        assert_eq!(
+            actual,
+            include_str!("../tests/golden/declaration-verb-expansion.txt")
+        );
+    }
+
     #[test]
     fn generated_terminal_abi_is_derived_from_the_semantic_inventory() {
         let expansion = representative_expansion();

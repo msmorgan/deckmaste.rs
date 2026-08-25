@@ -766,12 +766,12 @@ pub(crate) enum VerbFrameAtom {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct VerbFrameKey(Vec<VerbFrameAtom>);
 
-#[allow(dead_code, reason = "Task 3 consumes declaration verb frame keys")]
 impl VerbFrameKey {
     pub(crate) fn atoms(&self) -> &[VerbFrameAtom] {
         &self.0
     }
 
+    #[cfg(test)]
     pub(crate) fn matches_valence(&self, valence: &macro_ron::v2::VerbValence) -> bool {
         use macro_ron::v2::VerbValence;
 
@@ -802,9 +802,9 @@ impl VerbFrameKey {
 }
 
 #[derive(Debug)]
-#[allow(dead_code, reason = "Task 3 consumes sealed declaration verb recipes")]
 pub(crate) struct DeclarationVerbPlan {
     source_index: usize,
+    origin: DeclarationKey,
     codec_ident: syn::Ident,
     declaration_value_ident: syn::Ident,
     closed_lexeme: Option<syn::Ident>,
@@ -1077,6 +1077,10 @@ pub(crate) enum AtomTerminal<'a> {
     DeclarationNoun {
         terminal_index: usize,
         plan: &'a DeclarationNounPlan,
+    },
+    DeclarationVerb {
+        terminal_index: usize,
+        plan: &'a DeclarationVerbPlan,
     },
 }
 
@@ -1755,7 +1759,6 @@ impl SemanticPlan {
             .find(|(_, codec)| codec.codec_name() == value_type)
     }
 
-    #[allow(dead_code, reason = "Task 3 consumes declaration verb runtime rows")]
     pub(crate) fn runtime_declaration_verbs(
         &self,
     ) -> impl Iterator<Item = (usize, &DeclarationVerbPlan)> {
@@ -1768,6 +1771,14 @@ impl SemanticPlan {
                 .expect("sealed runtime declaration-verb binding retains its recipe");
             (index, plan)
         })
+    }
+
+    pub(crate) fn runtime_declaration_verb_for(
+        &self,
+        value_type: &str,
+    ) -> Option<(usize, &DeclarationVerbPlan)> {
+        self.runtime_declaration_verbs()
+            .find(|(_, codec)| codec.codec_name() == value_type)
     }
 
     pub(crate) fn runtime_direct_bindings(&self) -> impl Iterator<Item = &BindingPlan> {
@@ -2522,6 +2533,12 @@ impl SemanticPlan {
                     return Ok(AtomTerminal::Lexeme);
                 }
                 TerminalPlan::Binding(row) if row.name() == name => {
+                    if let Some(plan) = row.declaration_verb() {
+                        return Ok(AtomTerminal::DeclarationVerb {
+                            terminal_index,
+                            plan,
+                        });
+                    }
                     return Ok(AtomTerminal::Binding(row));
                 }
                 TerminalPlan::ContextIdentity(row) if row.name() == name => {
@@ -5676,10 +5693,6 @@ impl DeclarationNounPlan {
     }
 }
 
-#[allow(
-    dead_code,
-    reason = "Task 3 consumes sealed declaration verb accessors"
-)]
 impl DeclarationVerbPlan {
     fn from_source(source_index: usize, source: &crate::TerminalBinding) -> Self {
         let Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe)) = &source.generated
@@ -5717,6 +5730,7 @@ impl DeclarationVerbPlan {
             .collect();
         Self {
             source_index,
+            origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
             codec_ident: source.name.clone(),
             declaration_value_ident: syn::Ident::new(
                 &format!("Declaration{}", identifier_key(&source.name)),
@@ -5732,6 +5746,14 @@ impl DeclarationVerbPlan {
 
     pub(crate) fn source_index(&self) -> usize {
         self.source_index
+    }
+
+    pub(crate) fn origin(&self) -> &DeclarationKey {
+        &self.origin
+    }
+
+    pub(crate) fn codec_name(&self) -> &str {
+        self.origin.name()
     }
 
     pub(crate) fn codec_ident(&self) -> &syn::Ident {

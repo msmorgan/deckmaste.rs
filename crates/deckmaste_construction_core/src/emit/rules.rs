@@ -1623,6 +1623,30 @@ fn form_literal_owner(stable_id: &syn::LitStr, sentence_initial: bool) -> TokenS
     }
 }
 
+fn lex_position(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+    terminal: &str,
+    right_boundary: &TokenStream,
+) -> syn::Result<TokenStream> {
+    if let AtomTerminal::DeclarationVerb { terminal_index, .. } = plan.atom_terminal(terminal)? {
+        let agreement = declaration_verb_feature(plan, construction, role)?;
+        return Ok(lexical_terminal_with_boundary(
+            &quote! { Lexical::DeclarationVerb(#terminal_index, #agreement) },
+            &quote! { LexicalOwnerTemplate::DeclarationVerb(#terminal_index) },
+            right_boundary,
+        ));
+    }
+    let lexical = lexical_variant(plan, terminal)?;
+    let owner = owner_template(plan, terminal)?;
+    Ok(lexical_terminal_with_boundary(
+        &lexical,
+        &owner,
+        right_boundary,
+    ))
+}
+
 fn emit_position(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -1705,7 +1729,10 @@ fn emit_position(
                 Ok(quote! { N(Category::#category) })
             }
         }
-        AtomPlan::Lex { terminal, .. } | AtomPlan::Identity { terminal, .. } => {
+        AtomPlan::Lex { role, terminal } => {
+            lex_position(plan, construction, role, terminal, &right_boundary)
+        }
+        AtomPlan::Identity { terminal, .. } => {
             let lexical = lexical_variant(plan, terminal)?;
             let owner = owner_template(plan, terminal)?;
             Ok(lexical_terminal_with_boundary(
@@ -1883,6 +1910,43 @@ fn closed_verb_feature(
     }
 }
 
+fn declaration_verb_feature(
+    plan: &SemanticPlan,
+    construction: &ConstructionPlan,
+    role: &str,
+) -> syn::Result<TokenStream> {
+    let target = FeaturePlace::Role {
+        field: syn::Ident::new(role, construction.origin_span()),
+        feature: Feature::Agreement,
+    };
+    match plan.feature_resolution(construction.construction_id(), &target) {
+        Some(crate::feature::FeatureResolution::Known(value)) => match value {
+            FeatureValue::Bare => Ok(quote! { FeatureConstraint::Exact(Agreement::Bare) }),
+            FeatureValue::ThirdPersonSingular => {
+                Ok(quote! { FeatureConstraint::Exact(Agreement::ThirdPersonSingular) })
+            }
+            FeatureValue::Singular
+            | FeatureValue::Plural
+            | FeatureValue::Consonant
+            | FeatureValue::Vowel
+            | FeatureValue::EndsInS
+            | FeatureValue::Other
+            | FeatureValue::Zero
+            | FeatureValue::One
+            | FeatureValue::TwoPlus => Err(internal(
+                "declaration verb agreement has a non-agreement value",
+            )),
+        },
+        Some(
+            crate::feature::FeatureResolution::External
+            | crate::feature::FeatureResolution::Runtime,
+        ) => Ok(quote! { FeatureConstraint::Any }),
+        None => Err(internal(
+            "declaration verb has no sealed Agreement resolution",
+        )),
+    }
+}
+
 pub(crate) fn open_verb_feature(
     plan: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -1978,6 +2042,9 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
             debug_assert_eq!(plan.position(), ::macro_ron::v2::GrammarPosition::Noun);
             Ok(quote! { LexicalOwnerTemplate::DeclarationNoun(#terminal_index) })
         }
+        AtomTerminal::DeclarationVerb { terminal_index, .. } => {
+            Ok(quote! { LexicalOwnerTemplate::DeclarationVerb(#terminal_index) })
+        }
     }
 }
 
@@ -2014,6 +2081,9 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
         }
         AtomTerminal::DeclarationNoun { .. } => Err(internal(
             "declaration noun lexical matcher requires its sealed index",
+        )),
+        AtomTerminal::DeclarationVerb { .. } => Err(internal(
+            "declaration verb lexical matcher requires its sealed index and Agreement",
         )),
     }
 }
