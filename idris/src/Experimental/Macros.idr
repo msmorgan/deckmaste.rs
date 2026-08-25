@@ -358,19 +358,18 @@ move what to = Move what to noRiders {ok} {arr} {pl}
 public export
 destroy : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
           Effect bs
-destroy n = Composite Destroy (Move n graveyardZ noRiders) {ok = DestroyB {z = ok}}
+destroy n = Enact "Destroy" (Move n graveyardZ noRiders)
 
 public export
 exile : (n : Noun bs Object) -> Effect bs
-exile n = Composite Exile (Move n exileZ noRiders) {ok = ExileB}
+exile n = Enact "Exile" (Move n exileZ noRiders)
 
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                     (kind : CounterKind) -> Effect bs
 exileWithCounters n amt kind =
-  Composite Exile
-            (Move n exileZ (MkMoveRiders [] Nothing (Just (MkCounterRider amt kind))))
-            {ok = ExileWithCountersB}
+  Enact "Exile"
+        (Move n exileZ (MkMoveRiders [] Nothing (Just (MkCounterRider amt kind))))
 
 public export
 returnToBattlefieldWithCounters :
@@ -420,13 +419,13 @@ public export
 sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
             {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
 sacrifice agent n =
-  Does agent Sacrifice (Move n graveyardZ noRiders) {tb = SacrificeB {z = ok}}
+  Does agent "Sacrifice" (Move n graveyardZ noRiders)
 
 public export
 discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
            {auto 0 dk : DiscardOk n} -> Effect bs
 discards agent n =
-  Does agent Discard (Move n graveyardZ noRiders) {tb = DiscardB {d = dk}}
+  Does agent "Discard" (Move n graveyardZ noRiders)
 
 public export
 discardsACard : (agent : Noun bs Player) -> Effect bs
@@ -439,6 +438,23 @@ discardsACard agent = discards agent (a (InZone handZ))
 public export
 discardsACardAtRandom : (agent : Noun bs Player) -> Effect bs
 discardsACardAtRandom agent = discards agent (aAtRandom (InZone handZ))
+
+||| "Discard [n]": the ATOM -- the labeled action over a referent the
+||| sentence has already named, and nothing else. Every counted or
+||| choosing spelling of a keyword action is built from its atom, never
+||| beside it: the atom says what discarding IS [CR#701.9a], and the
+||| wrapper says how many times, and who picks [CR#701.9b].
+public export
+discard : (n : Noun bs Object) -> {auto 0 dk : DiscardOk n} -> Effect bs
+discard n = Enact "Discard" (Move n graveyardZ noRiders)
+
+||| "Tap [n]": [CR#701.26a] turns the permanent sideways, which is the
+||| status change the body already writes -- so the keyword action is
+||| that body plus its name, and adding it costs no row in any table.
+public export
+tap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
+      Effect bs
+tap n = Enact "Tap" (SetStatus Tapped n)
 
 
 public export
@@ -854,7 +870,7 @@ puts : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
        {auto 0 arr : ArrangementOk (nounPlur n) to} ->
        {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
        Effect bs
-puts agent n to = Does agent Put (Move n to noRiders {ok} {arr} {pl}) {tb = PutB}
+puts agent n to = Does agent "Put" (Move n to noRiders {ok} {arr} {pl})
 
 public export
 shuffle : Effect bs
@@ -999,9 +1015,8 @@ mills : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
         {auto 0 sp : SlicePossessor whose} ->
         Effect bs
 mills agent amt whose =
-  Does agent Mill
+  Does agent "Mill"
        (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ noRiders)
-       {tb = MillB {sp}}
 
 ||| "Target player scries N." / "Target player surveils N."
 ||| [CR#701.22a] and [CR#701.25a] name one player and read that player's
@@ -1012,7 +1027,7 @@ playerScries : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
                {auto 0 an : countOnes Player (nomIntro agent) = 1} ->
                Effect bs
 playerScries agent amt =
-  Does agent Scry
+  Does agent "Scry"
        (Expose LookAt (They {ok = an})
                (ExposedCards (LibrarySlice OnTop amt (They {ok = an}))))
 
@@ -1021,7 +1036,7 @@ playerSurveils : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
                  {auto 0 an : countOnes Player (nomIntro agent) = 1} ->
                  Effect bs
 playerSurveils agent amt =
-  Does agent Surveil
+  Does agent "Surveil"
        (Expose LookAt (They {ok = an})
                (ExposedCards (LibrarySlice OnTop amt (They {ok = an}))))
 
@@ -1360,23 +1375,49 @@ chooses : {k : Kind} -> (who : Noun bs Player) -> (n : Noun bs k) ->
           {auto 0 ch : ChoiceClause (Just who) n} -> Effect bs
 chooses who n = Choose n (Just who) {ch}
 
+||| "Discard [amt] cards": the counted wrapper over `discard`, in the
+||| canonical iterated-singular form -- one pass per card, each choosing
+||| from the hand and discarding what it chose. A shortfall needs no
+||| special arm: a pass whose choice finds nothing does nothing, which is
+||| what [CR#609.3] asks for.
+-- sort-only, as `discardsACard`: an owned-hand expansion needs a
+-- subject-read noun the vocabulary doesn't have yet.
+public export
+aCardInHand : Noun bs Object
+aCardInHand = a (InZone handZ)
+
+||| The context one pass of `discardN` reads: the card that pass chose.
+public export
+handPick : (bs : Bindings) -> Bindings
+handPick bs = nomIntro {bs} (aCardInHand {bs})
+
+public export
+discardN : (amt : Amount bs) ->
+           {auto 0 pk : countWord CardW (handPick (amtIntro amt)) = 1} ->
+           {auto 0 dz : zoneOfThat CardW (handPick (amtIntro amt)) = Just Hand} ->
+           Effect bs
+discardN amt =
+  Repeated amt (Sequentially [ choose (aCardInHand)
+                             , discard (That CardW {ok = pk})
+                                       {dk = DiscardTracked {z = dz}} ])
+
 ||| "the exiled card": the attributive singular participle anaphor.
 public export
-theVerbed : (v : VerbName) -> (w : NounWord) ->
+theVerbed : (v : VerbLabel) -> (w : NounWord) ->
             {auto 0 ok : countVerbed v w bs = 1} ->
             {auto 0 mk : VerbedMarkingOk v Attributive} -> Noun bs (kindOfW w)
 theVerbed v w = TheVerbed v w Attributive {ok} {mk}
 
 ||| "those exiled cards": the attributive plural participle anaphor.
 public export
-thoseVerbed : (v : VerbName) -> (w : NounWord) ->
+thoseVerbed : (v : VerbLabel) -> (w : NounWord) ->
               {auto 0 ok : countManyVerbed v w bs = 1} ->
               {auto 0 mk : VerbedMarkingOk v Attributive} -> Noun bs (kindOfW w)
 thoseVerbed v w = ThoseVerbed v w Attributive {ok} {mk}
 
 ||| "those cards destroyed this way": the marked plural anaphor.
 public export
-thoseVerbedThisWay : (v : VerbName) -> (w : NounWord) ->
+thoseVerbedThisWay : (v : VerbLabel) -> (w : NounWord) ->
                      {auto 0 ok : countManyVerbed v w bs = 1} ->
                      {auto 0 mk : VerbedMarkingOk v ThisWay} -> Noun bs (kindOfW w)
 thoseVerbedThisWay v w = ThoseVerbed v w ThisWay {ok} {mk}

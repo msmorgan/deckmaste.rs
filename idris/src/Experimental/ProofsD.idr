@@ -204,11 +204,10 @@ badUntapNextAmbiguousIt Refl impossible
 ||| "Exile target creature tapped."
 ||| Status words are the battlefield's alone [CR#110.5,110.5b]; an exile writes the counter rider only.
 public export
-badExileTapped : Dependent.Unspellable (Effect []) (\x, y =>
-  Composite Exile (Move (Macros.target Macros.creature) Macros.exileZ (MkMoveRiders [EntersTapped] Nothing Nothing)
-                        {rf = x})
-                  {ok = y})
-badExileTapped (Oh ** _) impossible
+badExileTapped : Unspellable (Effect []) (\ok =>
+  Enact "Exile" (Move (Macros.target Macros.creature) Macros.exileZ
+                      (MkMoveRiders [EntersTapped] Nothing Nothing) {rf = ok}))
+badExileTapped Oh impossible
 
 
 ||| "Turn target creature card in your graveyard face down."

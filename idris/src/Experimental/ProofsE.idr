@@ -164,14 +164,6 @@ badUnflipInstruction : Unspellable (Effect []) (\ok =>
 badUnflipInstruction Oh impossible
 
 
-||| "Mill a card." spelled off the BOTTOM of the library
-||| [CR#701.17a] mills from the top of the library, so a bottom slice is no mill.
-public export
-badBottomMill : Unspellable (Effect []) (\ok =>
-  Does You Mill (Move (LibrarySlice OnBottom (Lit 1) You) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {tb = ok})
-badBottomMill MillB impossible
-
-
 ||| "Ward" printed as a bare keyword line
 ||| A parameterized keyword may not shed its parameter: [CR#702.21a] writes the ability as "Ward [cost]".
 public export
@@ -505,30 +497,6 @@ badLoyaltySorcery : Unspellable Card (\ok =>
        (MkTypeLine [] [Sorcery])
        [Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard Nothing Nothing Nothing] Nothing {tx = ok})
 badLoyaltySorcery Oh impossible
-
-
-||| "Scry 1." with no one scrying
-||| [CR#701.22a] states the action of a player and whose library at once, so the tag needs a doer.
-public export
-badAgentlessScry : Unspellable (Effect []) (\ok =>
-  Composite Scry (Macros.lookAt (Macros.topCards 1)) {na = ok})
-badAgentlessScry Oh impossible
-
-
-||| "You scry 1", spelled over the bottom card of your library
-||| [CR#701.22a] fixes the slice at the top N cards of the library.
-public export
-badScryBottom : Unspellable (Effect []) (\ok =>
-  Does You Scry (Macros.lookAt Macros.bottomCard) {tb = ok})
-badScryBottom ScryB impossible
-
-
-||| "You scry 2", spelled with a reveal
-||| [CR#701.22a] says "look at", and a reveal shows the cards to every player [CR#701.20a].
-public export
-badScryReveals : Unspellable (Effect []) (\ok =>
-  Does You Scry (Macros.revealCards (Macros.topCards 2)) {tb = ok})
-badScryReveals ScryB impossible
 
 
 ||| "Add." — a production that names no mana at all.

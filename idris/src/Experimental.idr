@@ -1257,11 +1257,11 @@ mutual
     That : (w : NounWord) -> {auto 0 ok : countWord w bs = 1} -> Noun bs (kindOfW w)
     AttachHost : (w : AttachWord) -> (h : NounWord) ->
                  {auto 0 ok : AttachHeadOk w h} -> Noun bs (kindOfW h)
-    TheVerbed : (v : VerbName) -> (w : NounWord) ->
+    TheVerbed : (v : VerbLabel) -> (w : NounWord) ->
                 (marking : VerbedMarking) ->
                 {auto 0 ok : countVerbed v w bs = 1} ->
                 {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
-    ThoseVerbed : (v : VerbName) -> (w : NounWord) ->
+    ThoseVerbed : (v : VerbLabel) -> (w : NounWord) ->
                   (marking : VerbedMarking) ->
                   {auto 0 ok : countManyVerbed v w bs = 1} ->
                   {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
@@ -3516,12 +3516,13 @@ mutual
   ||| than an exception to it, and the single-type basis is settled by the
   ||| ADR's scope, not owed a boundary by it.
   |||
-  ||| One obligation the ADR does own, at lowering. `Composite` and `Does`
-  ||| tag a body with the verb that names it, and the atom emitted has to be
-  ||| the BODY -- never an atom that reads its tag to learn what it does,
-  ||| which is the parent-inference the ADR forbids. `TagBody` makes that
-  ||| free: the body is already the rule's whole expansion, so the tag is
-  ||| discardable and the wrapper buys nothing.
+  ||| One obligation the ADR does own, at lowering. `Enact` and `Does`
+  ||| LABEL a body with the keyword action it performs, and the atom
+  ||| emitted has to be the BODY -- never an atom that reads its label to
+  ||| learn what it does, which is the parent-inference the ADR forbids.
+  ||| The open-label shape makes that free: the macro expands the keyword
+  ||| action in full ([CR#701.9a] defines discarding AS the move), so the
+  ||| label is data a lowering may drop and the wrapper buys nothing.
   public export
   data Effect : Bindings -> Type where
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
@@ -3701,11 +3702,27 @@ mutual
     LosesCounters : (who : Noun bs Player) -> (kind : Maybe CounterKind) ->
                     (amt : Maybe (Amount (nomIntro who))) ->
                     {auto 0 pk : CounterKindNamed Player kind} -> Effect bs
-    Composite : (v : VerbName) -> (e : Effect bs) ->
-                {auto 0 ok : TagBody v e} -> {auto 0 na : NonAgentive v} -> Effect bs
-    Does : (subj : Noun bs Player) -> (v : VerbName) ->
+    ||| The keyword-action carrier: an action, plus the label naming
+    ||| which keyword action performing it amounts to. The label rides
+    ||| the INNERMOST action rather than the whole expansion --
+    ||| [CR#701.9a] defines the discard as the move, and choosing which
+    ||| card is the surrounding instruction's business [CR#701.9b] -- so
+    ||| an iterated batch is n labeled actions, which is what makes it
+    ||| one event with n occurrences [CR#603.2c], and what a
+    ||| would-replacement or an "at random" attaches to.
+    ||| No gate relates label to body: the body IS the meaning and the
+    ||| label only names it, so a mislabel is a spelling defect and not a
+    ||| rules impossibility. The gates a keyword action really imposes
+    ||| ride its macro, where the expansion is built.
+    ||| -- spelling: the keyword action's own verb, imperative.
+    Enact : (v : VerbLabel) -> (e : Effect bs) ->
+            {auto 0 kn : KnownVerb v} -> Effect bs
+    ||| `Enact`'s agentive surface: the same labeled action with the
+    ||| player performing it written as its subject.
+    ||| -- spelling: "[subj] [verb]s [body]".
+    Does : (subj : Noun bs Player) -> (v : VerbLabel) ->
            (e : Effect (nomIntro subj)) ->
-           {auto 0 tb : TagBody v e} -> Effect bs
+           {auto 0 kn : KnownVerb v} -> Effect bs
     Pay : (who : Noun bs Player) -> (c : Cost (nomIntro who)) ->
           {auto 0 pb : Payable c} ->
           {auto 0 ag : PayAgrees who c} -> Effect bs
@@ -3753,6 +3770,21 @@ mutual
                 {auto 0 pl : nounPlur grp = ManyOf} ->
                 Effect bs
     Repeat : (rep : Repetition bs) -> Effect bs
+    ||| "[body] [n] times": the counted iteration, and the canonical
+    ||| expansion of every counted keyword action -- "discard three
+    ||| cards" is three passes of choose-one-and-discard-it. The iterated
+    ||| singular is what makes a shortfall structural: each pass's choice
+    ||| finds what it finds, which is [CR#609.3]'s do-as-much-as-possible
+    ||| written into the term instead of asserted beside it. A batch
+    ||| spelling belongs to the cards whose printed English carries the
+    ||| cardinality itself ("choose two colors").
+    ||| What it exports is the body's OWN delta pluralized -- one summary
+    ||| mention per mention the body introduced, same payload and same
+    ||| stamp -- so "the discarded cards" and "that many" read the whole
+    ||| batch, beside the count the text wrote, which a shortfall can
+    ||| leave larger than the batch [CR#609.3].
+    ||| -- spelling: the body's, with the count written on it.
+    Repeated : (n : Amount bs) -> (body : Effect (amtIntro n)) -> Effect bs
     ||| A coordination of one member denotes that member, so only the
     ||| empty list is refused: it instructs nothing.
     Sequentially : {0 n : Nat} -> Effects n bs ->
@@ -3846,8 +3878,8 @@ mutual
   heldUntilOk (RemoveCounters _ _ _) = False
   heldUntilOk (MoveCounters _ _ _ _) = False
   heldUntilOk (PutCountersOfThoseKinds _ _) = False
-  heldUntilOk (Composite _ (Move _ _ _)) = True
-  heldUntilOk (Composite _ _) = False
+  heldUntilOk (Enact _ (Move _ _ _)) = True
+  heldUntilOk (Enact _ _) = False
   heldUntilOk (Does _ _ _) = False
   heldUntilOk (Pay _ _) = False
   heldUntilOk (May _ _ _ _) = False
@@ -3857,6 +3889,7 @@ mutual
   heldUntilOk (Define _ _) = False
   heldUntilOk (ForEachOf _ _) = False
   heldUntilOk (Repeat _) = False
+  heldUntilOk (Repeated _ _) = False
   heldUntilOk (Sequentially _) = False
   heldUntilOk (Simultaneously _) = False
   heldUntilOk (Modal _ _) = False
@@ -3896,7 +3929,7 @@ mutual
   reflexEncloseUse (Continuously _ _) = EncAgentless
   reflexEncloseUse (Does _ _ _) = EncReflexive
   reflexEncloseUse (Pay _ _) = EncReflexive        -- 66, all of them offered
-  reflexEncloseUse (Composite _ _) = EncReflexive  -- 51, every one an exile
+  reflexEncloseUse (Enact _ _) = EncReflexive
   -- a status change is the effect's, not a player's: [CR#603.12]'s
   -- agent form has no subject to inflect.
   reflexEncloseUse (SetStatus _ _) = EncAgentless
@@ -3938,6 +3971,7 @@ mutual
   reflexEncloseUse (Define _ _) = EncAgentless
   reflexEncloseUse (ForEachOf _ _) = EncNotOneAction
   reflexEncloseUse (Repeat _) = EncNotOneAction
+  reflexEncloseUse (Repeated _ _) = EncNotOneAction
   reflexEncloseUse (Sequentially _) = EncNotOneAction
   reflexEncloseUse (Simultaneously _) = EncNotOneAction
   reflexEncloseUse (Modal _ _) = EncNotOneAction
@@ -4011,7 +4045,7 @@ mutual
   thisWayOutcomeOk (RemoveCounters _ _ _) = True
   thisWayOutcomeOk (MoveCounters _ _ _ _) = True
   thisWayOutcomeOk (PutCountersOfThoseKinds _ _) = True
-  thisWayOutcomeOk (Composite _ _) = True
+  thisWayOutcomeOk (Enact _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
   thisWayOutcomeOk (Pay _ _) = True
   thisWayOutcomeOk (OnlyIf _ _ _) = True
@@ -4020,6 +4054,7 @@ mutual
   thisWayOutcomeOk (Define _ _) = True
   thisWayOutcomeOk (ForEachOf _ _) = True
   thisWayOutcomeOk (Repeat _) = True
+  thisWayOutcomeOk (Repeated _ _) = True
   thisWayOutcomeOk (Sequentially _) = True
   thisWayOutcomeOk (Simultaneously _) = True
   thisWayOutcomeOk (Modal _ _) = True
@@ -4155,7 +4190,7 @@ mutual
   -- the distributive kind anaphor reads an announced batch; no cost
   -- announces one, so the clause instructs nothing at payment.
   costActionOk (PutCountersOfThoseKinds _ _) = False
-  costActionOk (Composite _ e) = costActionOk e
+  costActionOk (Enact _ e) = costActionOk e
   costActionOk (Does _ _ e) = costActionOk e
   costActionOk (Pay _ _) = False
   costActionOk (May _ body ifDid ifNot) =
@@ -4169,6 +4204,7 @@ mutual
   costActionOk (Define _ _) = True
   costActionOk (ForEachOf _ body) = costActionOk body
   costActionOk (Repeat _) = False
+  costActionOk (Repeated _ body) = costRepeatedOk body
   costActionOk (Sequentially _) = False
   costActionOk (Simultaneously _) = False
   costActionOk (Modal _ modes) = costActionsOk modes
@@ -4269,8 +4305,8 @@ mutual
   effEq (RemoveCounters _ _ _) _ = False
   effEq (MoveCounters _ _ _ _) _ = False
   effEq (PutCountersOfThoseKinds _ _) _ = False
-  effEq (Composite v e) (Composite w f) = v == w && effEq e f
-  effEq (Composite _ _) _ = False
+  effEq (Enact v e) (Enact w f) = v == w && effEq e f
+  effEq (Enact _ _) _ = False
   effEq (Does _ _ _) _ = False
   effEq (Pay _ _) _ = False
   effEq (May _ _ _ _) _ = False
@@ -4280,6 +4316,7 @@ mutual
   effEq (Define _ _) _ = False
   effEq (ForEachOf _ _) _ = False
   effEq (Repeat _) _ = False
+  effEq (Repeated _ _) _ = False
   effEq (Sequentially _) _ = False
   effEq (Simultaneously _) _ = False
   effEq (Modal _ _) _ = False
@@ -4355,8 +4392,10 @@ mutual
   counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   counterMemoryOk It = not (stampMoves (provOfIt bs))
   counterMemoryOk Them = not (stampMoves (provOfThem bs))
-  counterMemoryOk (TheVerbed v _ _) = not (verbMoves v)
-  counterMemoryOk (ThoseVerbed v _ _) = not (verbMoves v)
+  -- a participle read names a referent some labeled action MOVED, so
+  -- the counters it had are gone by the same rules.
+  counterMemoryOk (TheVerbed _ _ _) = False
+  counterMemoryOk (ThoseVerbed _ _ _) = False
   counterMemoryOk _ = True
 
   public export
@@ -4411,71 +4450,7 @@ mutual
     AscribeThis : Ascribable This
 
   public export
-  data TagBody : VerbName -> Effect bs -> Type where
-    DestroyB : {auto 0 z : OnBattlefield (nounZone n)} ->
-               TagBody Destroy (Move n (ZoneAt Graveyard Bare) (MkMoveRiders [] Nothing Nothing))
-    SacrificeB : {auto 0 z : OnBattlefield (nounZone n)} ->
-                 TagBody Sacrifice (Move n (ZoneAt Graveyard Bare) (MkMoveRiders [] Nothing Nothing))
-    ExileB : TagBody Exile (Move n (ZoneAt Exile Bare) (MkMoveRiders [] Nothing Nothing))
-    ExileWithCountersB : {0 amt : Amount (nomIntro n)} ->
-                         {0 kind : CounterKind} ->
-                         TagBody Exile
-                                 (Move n (ZoneAt Exile Bare) (MkMoveRiders [] Nothing (Just (MkCounterRider amt kind))))
-    DiscardB : {auto 0 d : DiscardOk n} ->
-               TagBody Discard (Move n (ZoneAt Graveyard Bare) (MkMoveRiders [] Nothing Nothing))
-    MillB : {0 amt : Amount bs} -> {0 whose : Noun bs Player} ->
-            {auto 0 sp : SlicePossessor whose} ->
-            TagBody Mill (Move (LibrarySlice OnTop amt whose {sp})
-                               (ZoneAt Graveyard Bare) (MkMoveRiders [] Nothing Nothing))
-    ||| [CR#701.22a] states one player twice over — the looker and the
-    ||| owner of the library looked at are the same person — and says
-    ||| nothing about WHICH player that is, so "target player scries 3"
-    ||| (Bumi, King of Three Trials) is as much a scry as "you scry 3".
-    ||| The looker is therefore a two-row table over how the clause
-    ||| writes that one person rather than a value fixed at `You`: second
-    ||| person writes itself, and any other subject is read back by the
-    ||| anaphor, whose own gate checks the mention is there to read. Both
-    ||| rows repeat the same mention in both positions, which is the rule
-    ||| doing the tying.
-    ScryB : {0 amt : Amount bs} ->
-            {auto 0 sp : SlicePossessor {bs} You} ->
-            TagBody Scry
-                    (Expose LookAt You
-                            (ExposedCards (LibrarySlice OnTop amt You {sp})))
-    ScryTheyB : {0 amt : Amount bs} ->
-                {auto 0 an : countOnes Player bs = 1} ->
-                {auto 0 sp : SlicePossessor (They {bs} {ok = an})} ->
-                TagBody Scry
-                        (Expose LookAt (They {ok = an})
-                                (ExposedCards
-                                   (LibrarySlice OnTop amt (They {ok = an}) {sp})))
-    ||| [CR#701.25a] words surveil the same way, over the same two rows.
-    SurveilB : {0 amt : Amount bs} ->
-               {auto 0 sp : SlicePossessor {bs} You} ->
-               TagBody Surveil
-                       (Expose LookAt You
-                               (ExposedCards (LibrarySlice OnTop amt You {sp})))
-    SurveilTheyB : {0 amt : Amount bs} ->
-                   {auto 0 an : countOnes Player bs = 1} ->
-                   {auto 0 sp : SlicePossessor (They {bs} {ok = an})} ->
-                   TagBody Surveil
-                           (Expose LookAt (They {ok = an})
-                                   (ExposedCards
-                                      (LibrarySlice OnTop amt (They {ok = an}) {sp})))
-    ||| The agentive placement clause: the imperative and "<player> puts it
-    ||| into/onto <zone>" spell one event, so the tag rides the same Move.
-    ||| Every Move admits: its own gates already bound the destination, and
-    ||| the destination's possessive is rendering's business [CR#400.3].
-    PutB :
-           TagBody Put (Move n to riders {ok} {arr} {pl} {rf})
-
-  public export
-  NonAgentive : VerbName -> Type
-  NonAgentive v = So (not (verbAgentive v))
-
-
-  public export
-  setZone : Maybe VerbName -> Maybe Zone -> Binding -> Binding
+  setZone : Maybe VerbLabel -> Maybe Zone -> Binding -> Binding
   setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og)) =
     MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn) og)
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
@@ -4490,7 +4465,7 @@ mutual
   setZone p z (MkBinding det (a \/ b) plur (JoinP l r)) = MkBinding det (a \/ b) plur (JoinP l r)
 
   public export
-  setZoneHead : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
+  setZoneHead : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
   setZoneHead p z [] = []
   setZoneHead p z (b :: bs) = setZone p z b :: bs
 
@@ -4500,19 +4475,19 @@ mutual
   ||| is the identity, because moving an object says nothing about the half
   ||| of the reference that was never an object [CR#400.1].
   public export
-  setZoneIt : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
+  setZoneIt : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
   setZoneIt p z [] = []
   setZoneIt p z (b :: bs) =
     if itReaches OneOf b then setZone p z b :: bs else b :: setZoneIt p z bs
 
   public export
-  setZoneThem : Maybe VerbName -> Maybe Zone -> Bindings -> Bindings
+  setZoneThem : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
   setZoneThem p z [] = []
   setZoneThem p z (b :: bs) =
     if itReaches ManyOf b then setZone p z b :: bs else b :: setZoneThem p z bs
 
   public export
-  setZoneThose : Maybe VerbName -> NounWord -> Maybe Zone -> Bindings -> Bindings
+  setZoneThose : Maybe VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
   setZoneThose p w z [] = []
   setZoneThose p w z (b :: bs) =
     case (b.plur, wordNow w b) of
@@ -4520,7 +4495,7 @@ mutual
       _ => b :: setZoneThose p w z bs
 
   public export
-  setZoneThat : Maybe VerbName -> NounWord -> Maybe Zone -> Bindings -> Bindings
+  setZoneThat : Maybe VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
   setZoneThat p w z [] = []
   setZoneThat p w z (b :: bs) =
     case (b.plur, wordNow w b) of
@@ -4528,13 +4503,13 @@ mutual
       _ => b :: setZoneThat p w z bs
 
   public export
-  setZoneVerbed : Maybe VerbName -> VerbName -> NounWord -> Maybe Zone -> Bindings -> Bindings
+  setZoneVerbed : Maybe VerbLabel -> VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
   setZoneVerbed p v w z [] = []
   setZoneVerbed p v w z (b :: bs) =
     if verbedMatch v w b then setZone p z b :: bs else b :: setZoneVerbed p v w z bs
 
   public export
-  setZoneManyVerbed : Maybe VerbName -> VerbName -> NounWord -> Maybe Zone -> Bindings -> Bindings
+  setZoneManyVerbed : Maybe VerbLabel -> VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
   setZoneManyVerbed p v w z [] = []
   setZoneManyVerbed p v w z (b :: bs) =
     if verbedMatchMany v w b then setZone p z b :: bs
@@ -4544,8 +4519,16 @@ mutual
   ||| self [CR#400.7]. The leading verb stamps the binding so a later
   ||| participle read (`TheVerbed`/`ThoseVerbed`) can find it as "the
   ||| destroyed creature"/"the exiled card" [CR#701.17c].
+  ||| The stamp a labeled action leaves when it changes its patient's
+  ||| STATE rather than its zone -- "each creature tapped this way"
+  ||| [CR#701.26a] reads exactly the mention the tap acted on. The same
+  ||| write as `moveIntro`, with the zone left where it was.
   public export
-  moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbName -> Noun bs k -> Maybe Zone -> Bindings
+  stampIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbLabel -> Noun bs k -> Bindings
+  stampIntro p n = moveIntro p n (nounZone n)
+
+  public export
+  moveIntro : {bs : Bindings} -> {k : Kind} -> Maybe VerbLabel -> Noun bs k -> Maybe Zone -> Bindings
   moveIntro p nn@(Each pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(Indefinite m pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(Definite pr) z = setZoneHead p z (nomIntro nn)
@@ -4666,6 +4649,15 @@ mutual
   nounPlur (OwnerOf n) = OneOf
   nounPlur (Designated _ _) = OneOf
 
+  ||| The mentions a clause adds ON TOP of the context it was read in:
+  ||| `effIntro` less that context. Every row of `effIntro` answers
+  ||| `<new> ++ bs` or rewrites a binding already in `bs` in place, so the
+  ||| length difference is exactly the clause's own introductions and a
+  ||| clause that only re-zoned an outer mention has a delta of none.
+  public export
+  effDelta : {bs : Bindings} -> Effect bs -> Bindings
+  effDelta e = take (length (effIntro e) `minus` length bs) (effIntro e)
+
   ||| What a clause contributes to the discourse that follows it.
   public export
   effIntro : {bs : Bindings} -> Effect bs -> Bindings
@@ -4719,9 +4711,11 @@ mutual
   effIntro (RemoveCounters amt kind from) = nomIntro from
   effIntro (MoveCounters amt kind src dst) = nomIntro dst
   effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
-  effIntro (Composite v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
-  effIntro (Composite _ e) = effIntro e
+  effIntro (Enact v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
+  effIntro (Enact v (SetStatus _ n)) = stampIntro (Just v) n
+  effIntro (Enact _ e) = effIntro e
   effIntro (Does s v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
+  effIntro (Does s v (SetStatus _ n)) = stampIntro (Just v) n
   effIntro (Does s v e) = effIntro e
   effIntro (Pay who c) = costIntro c
   effIntro (May d body did notd) = mayIntro body did notd
@@ -4732,6 +4726,8 @@ mutual
   effIntro (Define l amt) = defineLetter l (amtIntro amt)
   effIntro (ForEachOf _ _) = bs
   effIntro (Repeat _) = bs
+  effIntro (Repeated n body) =
+    outcomeB RepeatCount :: (pluralizeDelta (effDelta body) ++ amtIntro n)
   effIntro (Sequentially es) = effsIntro es
   effIntro (Simultaneously es) = simIntro es
   effIntro (Modal q modes) = quantDelta q ++ bs
@@ -4786,8 +4782,8 @@ mutual
   preIntro (RemoveCounters amt kind from) = nomIntro from
   preIntro (MoveCounters amt kind src dst) = nomIntro dst
   preIntro (PutCountersOfThoseKinds amt on) = nomIntro on
-  preIntro (Composite v (Move what to _)) = nomIntro what
-  preIntro (Composite _ e) = preIntro e
+  preIntro (Enact v (Move what to _)) = nomIntro what
+  preIntro (Enact _ e) = preIntro e
   preIntro (Does s v (Move what to _)) = nomIntro what
   preIntro (Does s v e) = preIntro e
   preIntro (Pay who c) = nomIntro who
@@ -4798,6 +4794,7 @@ mutual
   preIntro (Define l amt) = defineLetter l (amtIntro amt)
   preIntro (ForEachOf _ _) = bs
   preIntro (Repeat _) = bs
+  preIntro (Repeated n _) = amtIntro n
   preIntro (Sequentially es) = preIntros es
   preIntro (Simultaneously es) = simPres es
   preIntro (Modal q modes) = quantDelta q ++ bs
@@ -4852,8 +4849,8 @@ mutual
   annIntro (RemoveCounters amt kind from) = nomIntro from
   annIntro (MoveCounters amt kind src dst) = nomIntro dst
   annIntro (PutCountersOfThoseKinds amt on) = nomIntro on
-  annIntro (Composite v (Move what to _)) = nomIntro what
-  annIntro (Composite _ e) = annIntro e
+  annIntro (Enact v (Move what to _)) = nomIntro what
+  annIntro (Enact _ e) = annIntro e
   annIntro (Does s v (Move what to _)) = nomIntro what
   annIntro (Does s v e) = annIntro e
   annIntro (Pay who c) = nomIntro who
@@ -4864,6 +4861,7 @@ mutual
   annIntro (Define l amt) = defineLetter l (amtIntro amt)
   annIntro (ForEachOf _ _) = bs
   annIntro (Repeat _) = bs
+  annIntro (Repeated n _) = amtIntro n
   annIntro (Sequentially es) = bs
   annIntro (Simultaneously es) = annSims es
   annIntro (Modal q modes) = quantDelta q ++ bs
@@ -4961,8 +4959,8 @@ mutual
   deedDelta (RemoveCounters amt kind from) = []
   deedDelta (MoveCounters amt kind src dst) = []
   deedDelta (PutCountersOfThoseKinds amt on) = []
-  deedDelta (Composite v (Move what to _)) = []
-  deedDelta (Composite _ e) = deedDelta e
+  deedDelta (Enact v (Move what to _)) = []
+  deedDelta (Enact _ e) = deedDelta e
   deedDelta (Does s v (Move what to _)) = []
   deedDelta (Does s v e) = deedDelta e
   deedDelta (Pay who c) = []
@@ -4973,6 +4971,7 @@ mutual
   deedDelta (Define _ _) = []
   deedDelta (ForEachOf _ _) = []
   deedDelta (Repeat _) = []
+  deedDelta (Repeated _ _) = []
   deedDelta (Sequentially es) = []
   deedDelta (Simultaneously es) = []
   deedDelta (Modal q modes) = []
@@ -5023,6 +5022,25 @@ mutual
   effsIntro : {bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bindings
   effsIntro [] = bs
   effsIntro (e :: es) = effsIntro es
+
+  ||| A repetition writes ONE instruction and a count, so a cost that
+  ||| spells one is judged by that instruction. The `Sequentially`
+  ||| refusal above targets a cost written as a COORDINATION -- "do A,
+  ||| then B", whose components [CR#601.2h] may be paid in any order --
+  ||| and "do A n times" is not one: every pass is the same instruction,
+  ||| and the canonical iterated-singular expansion writes the choice and
+  ||| the act as two steps of that one action. So the body's own sequence
+  ||| is looked through and each step judged, which is what lets
+  ||| "Discard two cards:" be a cost cards print.
+  public export
+  costRepeatedOk : {0 bs : Bindings} -> Effect bs -> Bool
+  costRepeatedOk (Sequentially es) = costStepsOk es
+  costRepeatedOk e = costActionOk e
+
+  public export
+  costStepsOk : {0 bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bool
+  costStepsOk [] = True
+  costStepsOk (e :: es) = costActionOk e && costStepsOk es
 
   public export
   simIntro : {bs : Bindings} -> {0 n : Nat} -> SimEffects n bs -> Bindings

@@ -224,15 +224,6 @@ badNounPossessorYou : Unspellable Ability (\ok =>
 badNounPossessorYou AttachedPossessor impossible
 
 
-||| "Put target creature into its owner's hand." tagged as a placement.
-||| The imperative spells the bare move and the agentive names its subject;
-||| one event, so the tag has no subjectless frame.
-public export
-badSubjectlessPut : Unspellable (Effect []) (\ok =>
-  Composite Put (Move (Macros.target Macros.creature) Macros.handZ (MkMoveRiders [] Nothing Nothing)) {na = ok})
-badSubjectlessPut Oh impossible
-
-
 ||| "Put those cards on the top or bottom of your library in any order."
 ||| [CR#401.4] arranges cards sharing one position; a disjunction names two
 ||| ends, so there is no single pile to order.

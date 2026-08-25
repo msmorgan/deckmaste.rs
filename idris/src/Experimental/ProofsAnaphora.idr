@@ -262,7 +262,7 @@ countManyWordIsFold w (MkBinding d j OneOf p :: bs) = countManyWordIsFold w bs
 ||| The definite participle read ("the exiled card") already folds a
 ||| per-binding test, so its identity is the fold at that very test.
 public export
-countVerbedIsFold : (v : VerbName) -> (w : NounWord) -> (bs : Bindings) ->
+countVerbedIsFold : (v : VerbLabel) -> (w : NounWord) -> (bs : Bindings) ->
                     countVerbed v w bs = countBy (verbedMatch v w) bs
 countVerbedIsFold v w [] = Refl
 countVerbedIsFold v w (b :: bs) with (verbedMatch v w b)
@@ -270,7 +270,7 @@ countVerbedIsFold v w (b :: bs) with (verbedMatch v w b)
   _ | False = countVerbedIsFold v w bs
 
 public export
-countManyVerbedIsFold : (v : VerbName) -> (w : NounWord) -> (bs : Bindings) ->
+countManyVerbedIsFold : (v : VerbLabel) -> (w : NounWord) -> (bs : Bindings) ->
                         countManyVerbed v w bs = countBy (verbedMatchMany v w) bs
 countManyVerbedIsFold v w [] = Refl
 countManyVerbedIsFold v w (b :: bs) with (verbedMatchMany v w b)
@@ -458,13 +458,13 @@ thoseResolvesInPrefix bs w ok =
 ||| at all. Separating the two arguments here is the point: only the
 ||| first is a context read, and it is a read of the prefix.
 public export
-theVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbName) -> (w : NounWord) ->
+theVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
                            (m : VerbedMarking) -> countVerbed v w bs = 1 ->
                            VerbedMarkingOk v m -> Noun bs (kindOfW w)
 theVerbedReadsOnlyPrefix bs v w m ok mk = TheVerbed v w m {bs} {ok} {mk}
 
 public export
-theVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbName) -> (w : NounWord) ->
+theVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
                             countVerbed v w bs = 1 ->
                             (b : Binding ** (Elem b bs, So (verbedMatch v w b)))
 theVerbedResolvesInPrefix bs v w ok =
@@ -474,14 +474,14 @@ theVerbedResolvesInPrefix bs v w ok =
 -- "the <verb>ed <noun word>s": the plural participle read.
 
 public export
-thoseVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbName) -> (w : NounWord) ->
+thoseVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
                              (m : VerbedMarking) -> countManyVerbed v w bs = 1 ->
                              VerbedMarkingOk v m -> Noun bs (kindOfW w)
 thoseVerbedReadsOnlyPrefix bs v w m ok mk =
   ThoseVerbed v w m {bs} {ok} {mk}
 
 public export
-thoseVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbName) -> (w : NounWord) ->
+thoseVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) -> (w : NounWord) ->
                               countManyVerbed v w bs = 1 ->
                               (b : Binding ** (Elem b bs, So (verbedMatchMany v w b)))
 thoseVerbedResolvesInPrefix bs v w ok =

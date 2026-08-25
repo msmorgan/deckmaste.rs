@@ -563,6 +563,13 @@ public export
 data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  | DamagePrevented | RollResult | CoinFlipped
                  | NamedNumber
+                 -- `RepeatCount` is the number of iterations a repetition
+                 -- WROTE, not the size of the batch it produced:
+                 -- [CR#609.3] has an effect do only as much as possible,
+                 -- so a player told to discard three cards holding two
+                 -- discards two. The batch's own size is read off its
+                 -- summary mention (`GroupSize`).
+                 | RepeatCount
 
 ||| Which reading of a flipped coin a clause takes. [CR#705.2] gives a
 ||| flip two and only two: the face it came up, and -- when the flipper
@@ -671,79 +678,95 @@ public export
 LibOrdinal : Type
 LibOrdinal = Ordinal
 
-namespace Verb
-  ||| The verb a clause NAMES instead of spelling out its effect. [CR#701] is
-  ||| the CR's own closed enumeration of the specialized verbs, and it bounds
-  ||| this sum: every member but one is a keyword action the rule defines
-  ||| [CR#701.8,701.9,701.13,701.17,701.21,701.22,701.25]. `Put` is the
-  ||| exception and a deliberate one -- [CR#701.1] holds that a verb the rules
-  ||| do not keyword "use[s] the standard English definition", which is why
-  ||| `PutB` is the one `TagBody` arm that constrains nothing.
-  |||
-  ||| Bounded by that rule, not ported from it. [CR#205.2a] and [CR#207.2c]
-  ||| carry names only, so those catalogs take the whole list at once; a
-  ||| keyword action carries its expansion, and `TagBody` states that
-  ||| expansion as a type. A member therefore cannot arrive as data -- the
-  ||| rule's expansion is rules content and is not derivable -- so the
-  ||| vocabulary is minted from [CR#701]'s list as the body each tag needs
-  ||| lands. That is the closing rule, and the reason this stays an enum where
-  ||| the crate's `VerbName` is an open atom behind a membership gate: the
-  ||| atom buys "a new verb is a data row", which this side can never have,
-  ||| and it would spend `Eq`-based `TagBody` dispatch and the coverage the
-  ||| compiler checks on `verbAgentive`, `verbMoves`, `verbedMarkingOk` and
-  ||| `Eq`. Extension is one arm plus the rows those four tables demand by
-  ||| name.
-  public export
-  data VerbName = Destroy | Sacrifice | Exile | Discard | Mill | Scry | Surveil
-                | Put
+||| The NAME a clause writes instead of spelling its effect out: "discard",
+||| "exile", "scry". [CR#701.1] holds that a verb the rules do not keyword
+||| "use[s] the standard English definition", and the rules that do keyword
+||| one state its expansion -- [CR#701.9a] defines discarding AS moving a
+||| card from its owner's hand to that player's graveyard. So the MEANING
+||| lives in the expansion a macro builds, and the label only names which
+||| keyword action that expansion performs.
+|||
+||| That makes the vocabulary OPEN. A label needs no row in a total table
+||| and no rules entry of its own: a new keyword action is a new macro
+||| plus a new label, never a core enum row plus a coverage re-decide. The
+||| label is still typo-checked, at every gate that writes one, by
+||| `KnownVerb` against `verbFacts` -- and `verbFacts` is DATA, one row per
+||| label, carrying only what the expansion cannot say for itself.
+|||
+||| What the label buys downstream is granularity and provenance, both of
+||| which are the engine's to apply and neither of which the term shape
+||| encodes: draws are individual events [CR#121.2] while a multi-card
+||| discard is one event with several occurrences [CR#603.2c], and the
+||| stamp a labeled action leaves is what the participle anaphors read
+||| back.
+public export
+VerbLabel : Type
+VerbLabel = String
+
+||| What a keyword action's label records beyond its expansion. Both
+||| fields are SPELLING: the expansion answers every rules question, so
+||| nothing here may decide one.
+public export
+record VerbFacts where
+  constructor MkVerbFacts
+  ||| the label as a clause writes it
+  label : VerbLabel
+  ||| the participle a verbed anaphor spells ("the exiled card", "those
+  ||| cards destroyed this way"), when the keyword action leaves a
+  ||| patient a later clause can name that way; the two markings share
+  ||| it, since both spell the same participle and differ only in where
+  ||| the phrase puts it. `Nothing` where the action leaves no such
+  ||| patient (scry and surveil name none) or where the marking would
+  ||| have to name the destination too ("put onto the battlefield this
+  ||| way"), never merely because a participle exists.
+  participle : Maybe String
+
+||| The label vocabulary, open by construction: a row is a name and its
+||| participle, and adding one adds no obligation anywhere else.
+public export
+verbFacts : List VerbFacts
+verbFacts =
+  [ MkVerbFacts "Destroy" (Just "destroyed")
+  , MkVerbFacts "Sacrifice" (Just "sacrificed")
+  , MkVerbFacts "Exile" (Just "exiled")
+  , MkVerbFacts "Discard" (Just "discarded")
+  , MkVerbFacts "Mill" (Just "milled")
+  , MkVerbFacts "Scry" Nothing
+  , MkVerbFacts "Surveil" Nothing
+  , MkVerbFacts "Tap" (Just "tapped")
+  -- "Put" is no [CR#701] keyword action, and under labels that is
+  -- unremarkable: a label needs no rules entry of its own, because its
+  -- body speaks for it [CR#701.1].
+  , MkVerbFacts "Put" Nothing
+  ]
 
 public export
-verbAgentive : VerbName -> Bool
-verbAgentive Destroy = False
-verbAgentive Sacrifice = True
-verbAgentive Exile = False
-verbAgentive Discard = True
-verbAgentive Mill = True
-verbAgentive Scry = True
-verbAgentive Surveil = True
-verbAgentive Put = True
-
-||| [CR#400.7]: which verbs move their patient to another zone, so the
-||| object the next clause reads is a new one.
-public export
-verbMoves : VerbName -> Bool
-verbMoves Destroy = True
-verbMoves Sacrifice = True
-verbMoves Exile = True
-verbMoves Discard = True
-verbMoves Mill = True
-verbMoves Surveil = True
-verbMoves Put = True
-verbMoves Scry = False
+factsIn : VerbLabel -> List VerbFacts -> Maybe VerbFacts
+factsIn v [] = Nothing
+factsIn v (f :: fs) = if label f == v then Just f else factsIn v fs
 
 public export
-Eq VerbName where
-  (==) Scry Scry = True
-  (==) Scry _ = False
-  (==) Surveil Surveil = True
-  (==) Surveil _ = False
-  (==) Destroy Destroy = True
-  (==) Destroy _ = False
-  (==) Sacrifice Sacrifice = True
-  (==) Sacrifice _ = False
-  (==) Exile Exile = True
-  (==) Exile _ = False
-  (==) Discard Discard = True
-  (==) Discard _ = False
-  (==) Mill Mill = True
-  (==) Mill _ = False
-  (==) Put Put = True
-  (==) Put _ = False
+verbFactsFor : VerbLabel -> Maybe VerbFacts
+verbFactsFor v = factsIn v verbFacts
+
+||| The membership gate: typo-safety without a per-label type.
+public export
+knownVerb : VerbLabel -> Bool
+knownVerb v = isJust (verbFactsFor v)
+
+public export
+KnownVerb : VerbLabel -> Type
+KnownVerb v = So (knownVerb v)
+
+||| The participle a verbed anaphor spells, when the label has one.
+public export
+participleOf : VerbLabel -> Maybe String
+participleOf v = verbFactsFor v >>= participle
 
 public export
 record Stamp where
   constructor MkStamp
-  verb : VerbName
+  verb : VerbLabel
   wasField : Bool
 
 public export
@@ -844,6 +867,8 @@ Eq OutcomeSort where
   (==) CoinFlipped _ = False
   (==) NamedNumber NamedNumber = True
   (==) NamedNumber _ = False
+  (==) RepeatCount RepeatCount = True
+  (==) RepeatCount _ = False
 
 public export
 outcomeB : OutcomeSort -> Binding
@@ -962,6 +987,8 @@ outcomeIsQuantity CoinFlipped = False
 -- a defining sentence names a number outright [CR#604.3,208.1], so the
 -- anaphor that reads a quantity back ("that number") has one to name.
 outcomeIsQuantity NamedNumber = True
+-- so does a repetition: the text wrote how many times.
+outcomeIsQuantity RepeatCount = True
 
 ||| What "that much" folds: the outcome mentions that carry a number.
 public export
@@ -1268,13 +1295,41 @@ publicOnly [] = []
 publicOnly (b :: bs) = if pubB b then b :: publicOnly bs else publicOnly bs
 
 
+||| One mention, read as the BATCH of everything an iterated body did to
+||| its kind: same determiner, same kind, same payload -- so the same
+||| stamp, the same zone and the same head type -- differing only in
+||| naming many where the single pass named one.
+|||
+||| Identity on the deictic self: a clause repeated over "this permanent"
+||| acts on one and the same permanent every pass, so its batch has one
+||| member and the mention stays singular.
+public export
+pluralizeBinding : Binding -> Binding
+pluralizeBinding (MkBinding SelfD k pl p) = MkBinding SelfD k pl p
+pluralizeBinding (MkBinding TargetD k pl p) = MkBinding TargetD k ManyOf p
+pluralizeBinding (MkBinding AD k pl p) = MkBinding AD k ManyOf p
+pluralizeBinding (MkBinding EachD k pl p) = MkBinding EachD k ManyOf p
+pluralizeBinding (MkBinding AllD k pl p) = MkBinding AllD k ManyOf p
+pluralizeBinding (MkBinding TheD k pl p) = MkBinding TheD k ManyOf p
+pluralizeBinding (MkBinding PartD k pl p) = MkBinding PartD k ManyOf p
+pluralizeBinding (MkBinding CountD k pl p) = MkBinding CountD k ManyOf p
+
+public export
+pluralizeDelta : Bindings -> Bindings
+pluralizeDelta [] = []
+pluralizeDelta (b :: bs) = pluralizeBinding b :: pluralizeDelta bs
+
+
 ||| [CR#122.2]: counters on an object cease to exist when it moves from
 ||| one zone to another, so a clause that reads counters off a referent an
-||| earlier clause moved names none [CR#400.7].
+||| earlier clause moved names none [CR#400.7]. No table over labels is
+||| consulted, and none could be: a stamp is written only where a labeled
+||| action MOVED its patient (`moveIntro`), so carrying one is already the
+||| evidence that the referent changed zones.
 public export
 stampMoves : Maybe Stamp -> Bool
 stampMoves Nothing = False
-stampMoves (Just (MkStamp v _)) = verbMoves v
+stampMoves (Just _) = True
 
 ||| The stamp a payload was left with, read like `payloadZone`.
 public export
@@ -1327,29 +1382,15 @@ data NounWord = TypeW CardType | CardW | SpellW | PlayerW
 public export
 data VerbedMarking = Attributive | ThisWay
 
+||| Whether the participle read is spellable at all: it is exactly when
+||| the label's data carries a participle to spell, and both markings
+||| stand or fall together because both spell that one word.
 public export
-verbedMarkingOk : VerbName -> VerbedMarking -> Bool
-verbedMarkingOk Destroy Attributive = True
-verbedMarkingOk Destroy ThisWay = True
-verbedMarkingOk Sacrifice Attributive = True
-verbedMarkingOk Sacrifice ThisWay = True
-verbedMarkingOk Exile Attributive = True
-verbedMarkingOk Exile ThisWay = True
-verbedMarkingOk Discard Attributive = True
-verbedMarkingOk Discard ThisWay = True
-verbedMarkingOk Mill Attributive = True
-verbedMarkingOk Mill ThisWay = True
-verbedMarkingOk Scry Attributive = False
-verbedMarkingOk Scry ThisWay = False
-verbedMarkingOk Surveil Attributive = False
-verbedMarkingOk Surveil ThisWay = False
--- No line marks a placement patient by the bare participle; the marking
--- names the destination too ("put onto the battlefield this way").
-verbedMarkingOk Put Attributive = False
-verbedMarkingOk Put ThisWay = False
+verbedMarkingOk : VerbLabel -> VerbedMarking -> Bool
+verbedMarkingOk v _ = isJust (participleOf v)
 
 public export
-VerbedMarkingOk : VerbName -> VerbedMarking -> Type
+VerbedMarkingOk : VerbLabel -> VerbedMarking -> Type
 VerbedMarkingOk v m = So (verbedMarkingOk v m)
 
 public export
@@ -1387,8 +1428,15 @@ onStackZone (Just Hand) = False
 onStackZone (Just Library) = False
 onStackZone (Just Stack) = True
 
+||| The provenance a LABELED action leaves on the mention it acted on,
+||| whatever the action did to it: a move writes one ("the exiled card"),
+||| and so does a status change ("each creature tapped this way"). What
+||| the stamp records is that this label acted on this referent, plus
+||| whether it found it on the battlefield -- never which kind of body
+||| the label rode. Body shapes past those two get a row when a printed
+||| line needs one.
 public export
-mkStamp : Maybe VerbName -> Maybe Zone -> Maybe Stamp
+mkStamp : Maybe VerbLabel -> Maybe Zone -> Maybe Stamp
 mkStamp Nothing oldZn = Nothing
 mkStamp (Just v) oldZn = Just (MkStamp v (onFieldZone oldZn))
 
@@ -1491,7 +1539,7 @@ kindOfW CopyW = Object
 kindOfW JoinW = Object \/ Player
 
 public export
-stampedBy : VerbName -> Stamp -> Bool
+stampedBy : VerbLabel -> Stamp -> Bool
 stampedBy v (MkStamp v' _) = v == v'
 
 public export
@@ -1506,11 +1554,11 @@ verbedWordOk CopyW st ty zn = False
 verbedWordOk JoinW st ty zn = False
 
 public export
-stampWordOk : VerbName -> NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
+stampWordOk : VerbLabel -> NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
 stampWordOk v w st ty zn = stampedBy v st && verbedWordOk w st ty zn
 
 public export
-verbedMatch : VerbName -> NounWord -> Binding -> Bool
+verbedMatch : VerbLabel -> NounWord -> Binding -> Bool
 verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just st) _)) = stampWordOk v w st ty zn
 verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing _)) = False
 verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _ _)) = False
@@ -1524,7 +1572,7 @@ verbedMatch v w (MkBinding _ _ _ AbilityP) = False
 verbedMatch v w (MkBinding _ _ _ (JoinP _ _)) = False
 
 public export
-verbedMatchMany : VerbName -> NounWord -> Binding -> Bool
+verbedMatchMany : VerbLabel -> NounWord -> Binding -> Bool
 verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st) _)) = stampWordOk v w st ty zn
 verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing _)) = False
 verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _ _)) = False
@@ -1538,31 +1586,31 @@ verbedMatchMany v w (MkBinding _ _ _ AbilityP) = False
 verbedMatchMany v w (MkBinding _ _ _ (JoinP _ _)) = False
 
 public export
-countVerbed : VerbName -> NounWord -> Bindings -> Nat
+countVerbed : VerbLabel -> NounWord -> Bindings -> Nat
 countVerbed v w [] = Z
 countVerbed v w (b :: bs) =
   if verbedMatch v w b then S (countVerbed v w bs) else countVerbed v w bs
 
 public export
-countManyVerbed : VerbName -> NounWord -> Bindings -> Nat
+countManyVerbed : VerbLabel -> NounWord -> Bindings -> Nat
 countManyVerbed v w [] = Z
 countManyVerbed v w (b :: bs) =
   if verbedMatchMany v w b then S (countManyVerbed v w bs) else countManyVerbed v w bs
 
 public export
-zoneOfManyVerbed : VerbName -> NounWord -> Bindings -> Maybe Zone
+zoneOfManyVerbed : VerbLabel -> NounWord -> Bindings -> Maybe Zone
 zoneOfManyVerbed v w [] = Nothing
 zoneOfManyVerbed v w (b :: bs) =
   if verbedMatchMany v w b then bindingZone b else zoneOfManyVerbed v w bs
 
 public export
-tyOfManyVerbed : VerbName -> NounWord -> Bindings -> Maybe CardType
+tyOfManyVerbed : VerbLabel -> NounWord -> Bindings -> Maybe CardType
 tyOfManyVerbed v w [] = Nothing
 tyOfManyVerbed v w (b :: bs) =
   if verbedMatchMany v w b then bindingTy b else tyOfManyVerbed v w bs
 
 public export
-zoneOfVerbed : VerbName -> NounWord -> Bindings -> Maybe Zone
+zoneOfVerbed : VerbLabel -> NounWord -> Bindings -> Maybe Zone
 zoneOfVerbed v w [] = Nothing
 zoneOfVerbed v w (b :: bs) =
   if verbedMatch v w b then bindingZone b else zoneOfVerbed v w bs
@@ -1639,7 +1687,7 @@ tyOfThose w (b :: bs) =
     _ => tyOfThose w bs
 
 public export
-tyOfVerbed : VerbName -> NounWord -> Bindings -> Maybe CardType
+tyOfVerbed : VerbLabel -> NounWord -> Bindings -> Maybe CardType
 tyOfVerbed v w [] = Nothing
 tyOfVerbed v w (b :: bs) =
   if verbedMatch v w b then bindingTy b else tyOfVerbed v w bs

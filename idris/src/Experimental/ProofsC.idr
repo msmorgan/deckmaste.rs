@@ -175,9 +175,8 @@ badSearchZonedDescription Refl impossible
 ||| [CR#701.17a] mills each player from their own library, so a distributed mill leaves a plural group.
 public export
 badDistributedMillSingular : Unspellable (Effect []) (\ok =>
-  Sequentially [ Does (Each AnyPlayer) Mill
+  Sequentially [ Does (Each AnyPlayer) "Mill"
                       (Move (LibrarySlice OnTop (Lit 1) (Each AnyPlayer)) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing))
-                      {tb = MillB {whose = Each AnyPlayer}}
                , Macros.exile (It {ok}) ])
 badDistributedMillSingular Refl impossible
 
@@ -253,7 +252,7 @@ badNestedInstead Oh impossible
 public export
 badCostReadsSiblingDeed : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
-                       Do (Macros.exile (TheVerbed Sacrifice CardW Attributive)) {ok}])
+                       Do (Macros.exile (TheVerbed "Sacrifice" CardW Attributive)) {ok}])
             Macros.drawACard Nothing Nothing Nothing)
 badCostReadsSiblingDeed Oh impossible
 
@@ -557,8 +556,8 @@ badReflexiveOnBranchedMay Oh impossible
 ||| [CR#603.3] stacks a triggered ability only at the next priority, after the resolution finishes.
 public export
 badAfterReflexiveReadsTrigger : Unspellable (Effect []) (\ok =>
-  Sequentially [Reflexively (Does You Mill (Move (LibrarySlice OnTop (Lit 4) You)
-                                                 Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {tb = MillB {whose = You}})
+  Sequentially [Reflexively (Does You "Mill" (Move (LibrarySlice OnTop (Lit 4) You)
+                                                 Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)))
                             (Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                                      (MkTypeLine [Soldier] [Creature])
                                                      [] Nothing)),

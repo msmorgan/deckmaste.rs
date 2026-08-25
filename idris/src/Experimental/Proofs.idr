@@ -244,7 +244,7 @@ badInnerAmbig Refl impossible
 public export
 badVerbedWrongVerb : Unspellable Ability (\ok =>
   Activated (Do (Macros.discardsACard You))
-            (Move (TheVerbed Sacrifice CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
+            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
 badVerbedWrongVerb Refl impossible
 
 
@@ -253,7 +253,7 @@ badVerbedWrongVerb Refl impossible
 public export
 badVerbedWrongNoun : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a (HasType Artifact))))
-            (Move (TheVerbed Sacrifice (TypeW Creature) Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
+            (Move (TheVerbed "Sacrifice" (TypeW Creature) Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
 badVerbedWrongNoun Refl impossible
 
 
@@ -263,7 +263,7 @@ public export
 badVerbedAmbig : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Move (TheVerbed Sacrifice CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
+            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
 badVerbedAmbig Refl impossible
 
 
@@ -488,36 +488,23 @@ badDiscardBattlefield : Unspellable (Effect []) (\ok =>
 badDiscardBattlefield DiscardTracked impossible
 
 
-||| "Destroy target creature." spelled over an exile body
-||| Tag and body must agree, or indestructible would cant an exile [CR#701.8b,702.12b].
+||| "Destroy target creature card in a graveyard."
+||| Destroying moves a permanent OFF the battlefield [CR#701.8a], and only a
+||| card there is one [CR#110.1]; the demand now rides the macro that expands it.
 public export
-badDestroyTaggedExile : Unspellable (Effect []) (\ok =>
-  Composite Destroy (Move (Macros.target Macros.creature) Macros.exileZ (MkMoveRiders [] Nothing Nothing)) {ok})
-badDestroyTaggedExile DestroyB impossible
+badDestroyGraveyardCard : Unspellable (Effect []) (\ok =>
+  Macros.destroy (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) {ok})
+badDestroyGraveyardCard OnField impossible
 
 
-||| "Destroy target creature card in a graveyard." spelled raw
-||| The zone demand lives on the tag-body relation, so the raw spelling proves it too [CR#701.8a].
+||| A move labeled with a word outside the label catalog
+||| A SPELLING pin, not a rules one: [CR#701.1] gives an unkeyworded verb its
+||| standard English meaning, so "Descry" over this body is rules-meaningful and
+||| the gate refuses it only as a mis-spelling of a catalogued label.
 public export
-badCompositeDestroyGraveyard : Unspellable (Effect []) (\ok =>
-  Composite Destroy (Move (Macros.target (And [Macros.creature, InZone Macros.graveyardZ])) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {ok = DestroyB {z = ok}})
-badCompositeDestroyGraveyard OnField impossible
-
-
-||| "Sacrifice a creature." with no actor
-||| An agentive tag cannot shed its actor [CR#701.21a].
-public export
-badAgentlessSacrifice : Unspellable (Effect []) (\ok =>
-  Composite Sacrifice (Move (Macros.a Macros.creature) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {ok = SacrificeB} {na = ok})
-badAgentlessSacrifice Oh impossible
-
-
-||| "You discard a creature." spelled under Does
-||| Discarding moves a hand card [CR#701.9a], and the demand rides the tag relation.
-public export
-badDoesDiscardBattlefield : Unspellable (Effect []) (\ok =>
-  Does You Discard (Move (Macros.a Macros.creature) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {tb = DiscardB {d = ok}})
-badDoesDiscardBattlefield DiscardTracked impossible
+badUnknownVerbLabel : Unspellable (Effect []) (\ok =>
+  Enact "Descry" (Move (Macros.a Macros.creature) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)) {kn = ok})
+badUnknownVerbLabel Oh impossible
 
 
 ||| "Choose zero target creatures."
@@ -542,7 +529,7 @@ public export
 badDiscardedCreatureWord : Unspellable Ability (\ok =>
   Activated (Do (Macros.discards You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
             (DealDamage This
-                          (Macros.manaValueOf (TheVerbed Discard (TypeW Creature) Attributive {ok}))
+                          (Macros.manaValueOf (TheVerbed "Discard" (TypeW Creature) Attributive {ok}))
                           (Macros.target Macros.anyTarget)) Nothing Nothing Nothing)
 badDiscardedCreatureWord Refl impossible
 
