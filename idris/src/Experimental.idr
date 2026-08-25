@@ -2414,6 +2414,20 @@ mutual
   PutSource : {0 bs : Bindings} -> Maybe (EventSource bs) -> Type
   PutSource {bs} s = So (putSourceOk s)
 
+  ||| The event algebra's shape, decided once: composition is carried by
+  ||| the slots this vocabulary already has, not by operator constructors.
+  ||| The one operator row is `NthOccurrence`. Disjunction lives at the
+  ||| trigger header (`AltEvent`), where `headerCtx` reads back the
+  ||| announcement the two arms share; the header's `alt` slot is the one
+  ||| seat that never consults `eventName`, and a general row would leave
+  ||| that classifier naming one of two events. Negation is the subject
+  ||| predicate's `Not`, or `NotCond` over `Happened`; a conditioned event
+  ||| is the header's intervening slot [CR#603.4]; a window is the
+  ||| reader's `Lookback` or the header's `TriggerWindow`. Cause is never
+  ||| an agency channel: a printed cause is a different VERB (its own row
+  ||| here or its own `EventName`), a per-row causer slot (`CounterEvent`,
+  ||| `TokensCreated`), or the by-source agent phrase, which waits at its
+  ||| ledger tag.
   public export
   data GameEvent : Bindings -> Type where
     Dies : (n : Noun bs Object) ->
@@ -5054,10 +5068,21 @@ mutual
     OneAlt : {0 e : GameEvent bs} ->
              {auto 0 hn : HeaderNontarget e} -> AltEvent w (Just e)
 
+  ||| The discourse a header's intervening clause and effect read. A lone
+  ||| event hands its whole after-discourse (`eventAfter`). A coordination
+  ||| fires on EITHER arm, so its tail may read only what the arms say
+  ||| alike: where the two after-discourses agree outright — the "blocks
+  ||| or becomes blocked" pair announces the one partner phrase from both
+  ||| sides — that common announcement is the context, and where they
+  ||| differ the sentence cannot say which arm happened, so the tail reads
+  ||| the outer discourse bare. Whole agreement (`sameBindings`), not a
+  ||| meet: under partial agreement the sentence still cannot say which
+  ||| arm happened, so the shared prefix names nothing determinate.
   public export
   headerCtx : {bs : Bindings} -> Maybe (GameEvent bs) -> GameEvent bs -> Bindings
   headerCtx Nothing ev = eventAfter ev
-  headerCtx (Just _) _ = bs
+  headerCtx (Just alt) ev =
+    if sameBindings (eventAfter ev) (eventAfter alt) then eventAfter ev else bs
 
   public export
   chapterDefaultsOk : {bs : Bindings} -> (ev : GameEvent bs) ->

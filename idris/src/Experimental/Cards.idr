@@ -2557,6 +2557,40 @@ colossalGraveReaver =
                           (Macros.putOntoBattlefield (Macros.oneOf Them)) ]
        (Just (7, 6))
 
+||| Chub Toad — the coordinated header whose two arms announce the same
+||| thing. Both bare-partner arms announce the self (`selfSubjIntro`), so
+||| `headerCtx` hands that common announcement on and the tail's "it"
+||| finds its referent.
+chubToad : Card
+chubToad =
+  Macros.card "Chub Toad"
+       (Just [Macros.generic 2, Macros.pip Green]) []
+       (MkTypeLine [Frog] [Creature])
+       [ Macros.triggeredOr Whenever
+                            (Blocks Macros.thisCreature Nothing)
+                            (BecomesBlocked Macros.thisCreature Nothing)
+                            (Macros.gets It (PtUp (Lit 2)) (PtUp (Lit 2))
+                                         (Just Macros.untilEndOfTurn)) ]
+       (Just (1, 1))
+
+||| Inferno Elemental — the coordinated header's common announcement in
+||| its partner-phrase form. Both arms announce the one creature the
+||| block pairs this creature with, so `headerCtx` hands that common
+||| announcement on and the tail's "that creature" reads it back. The
+||| whole card: its printed text is this trigger and nothing else.
+infernoElemental : Card
+infernoElemental =
+  Macros.card "Inferno Elemental"
+       (Just [Macros.generic 4, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [Elemental] [Creature])
+       [ Macros.triggeredOr Whenever
+                            (Blocks Macros.thisCreature (Just (Macros.a Macros.creature)))
+                            (BecomesBlocked Macros.thisCreature
+                                            (Just (Macros.a Macros.creature)))
+                            (DealDamage Macros.thisCreature (Lit 3)
+                                        (That (TypeW Creature))) ]
+       (Just (4, 4))
+
 hardenedScales : Card
 hardenedScales =
   Macros.card "Hardened Scales" (Just [Macros.pip Green]) []

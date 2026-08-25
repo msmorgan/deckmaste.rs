@@ -644,3 +644,19 @@ public export
 badAttackingNoncreature : Unspellable (Predicate [] Object) (\ok =>
   And [Attacking, Not Macros.creature] {cf = ok})
 badAttackingNoncreature Oh impossible
+
+
+||| "Whenever this creature blocks or becomes blocked by a creature, that
+||| creature gets -1/-1 until end of turn."
+||| The two arms announce different things — the self against the partner
+||| — so the sentence cannot say which arm happened; the demonstrative's
+||| uniqueness rule then finds no referent, as for badIt.
+public export
+badAltHeaderMixedReadback : Unspellable Ability (\ok =>
+  Triggered Whenever (Blocks Macros.thisCreature Nothing)
+            (Just (BecomesBlocked Macros.thisCreature
+                                  (Just (Macros.a Macros.creature))))
+            Nothing Nothing Nothing
+            (Macros.gets (That (TypeW Creature) {ok = ok}) (PtDown (Lit 1))
+                         (PtDown (Lit 1)) (Just Macros.untilEndOfTurn)))
+badAltHeaderMixedReadback Refl impossible

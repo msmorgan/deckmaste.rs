@@ -1099,6 +1099,91 @@ outcomesOnly [] = []
 outcomesOnly (b@(MkBinding _ Outcome _ _) :: bs) = b :: outcomesOnly bs
 outcomesOnly (_ :: bs) = outcomesOnly bs
 
+||| Structural agreement on the discourse: whether two announcement
+||| telescopes are one announcement. Decidable outright — a `Binding` is
+||| closed first-order data — and read by the coordinated trigger header,
+||| whose tail may see only the announcement its two arms share.
+public export
+sameDet : Determiner -> Determiner -> Bool
+sameDet TargetD TargetD = True
+sameDet TargetD _ = False
+sameDet AD AD = True
+sameDet AD _ = False
+sameDet EachD EachD = True
+sameDet EachD _ = False
+sameDet AllD AllD = True
+sameDet AllD _ = False
+sameDet TheD TheD = True
+sameDet TheD _ = False
+sameDet PartD PartD = True
+sameDet PartD _ = False
+sameDet CountD CountD = True
+sameDet CountD _ = False
+sameDet SelfD SelfD = True
+sameDet SelfD _ = False
+
+public export
+samePlur : Plurality -> Plurality -> Bool
+samePlur OneOf OneOf = True
+samePlur OneOf ManyOf = False
+samePlur ManyOf OneOf = False
+samePlur ManyOf ManyOf = True
+
+public export
+sameStamp : Stamp -> Stamp -> Bool
+sameStamp (MkStamp v f) (MkStamp w g) = v == w && f == g
+
+public export
+sameOrigin : Origin -> Origin -> Bool
+sameOrigin TokenOrigin TokenOrigin = True
+sameOrigin TokenOrigin CopyOrigin = False
+sameOrigin CopyOrigin TokenOrigin = False
+sameOrigin CopyOrigin CopyOrigin = True
+
+public export
+sameMaybeBy : (a -> a -> Bool) -> Maybe a -> Maybe a -> Bool
+sameMaybeBy f Nothing Nothing = True
+sameMaybeBy f (Just x) (Just y) = f x y
+sameMaybeBy f _ _ = False
+
+||| Heterogeneously indexed on purpose: the binding's `kind` field is
+||| compared separately by `sameBinding`, so two payloads are compared by
+||| constructor and field alone.
+public export
+samePayload : {0 j, k : Kind} -> Payload j -> Payload k -> Bool
+samePayload (ObjectP ty zn pv og) (ObjectP ty' zn' pv' og') =
+  sameMaybeBy (==) ty ty' && sameMaybeBy (==) zn zn' &&
+  sameMaybeBy sameStamp pv pv' && sameMaybeBy sameOrigin og og'
+samePayload (ObjectP _ _ _ _) _ = False
+samePayload PlayerP PlayerP = True
+samePayload PlayerP _ = False
+samePayload QualityP QualityP = True
+samePayload QualityP _ = False
+samePayload (OutcomeP s) (OutcomeP s') = s == s'
+samePayload (OutcomeP _) _ = False
+samePayload GapP GapP = True
+samePayload GapP _ = False
+samePayload LetterP LetterP = True
+samePayload LetterP _ = False
+samePayload TurnRefP TurnRefP = True
+samePayload TurnRefP _ = False
+samePayload AbilityP AbilityP = True
+samePayload AbilityP _ = False
+samePayload (JoinP l r) (JoinP l' r') = samePayload l l' && samePayload r r'
+samePayload (JoinP _ _) _ = False
+
+public export
+sameBinding : Binding -> Binding -> Bool
+sameBinding (MkBinding d k p pl) (MkBinding d' k' p' pl') =
+  sameDet d d' && k == k' && samePlur p p' && samePayload pl pl'
+
+public export
+sameBindings : Bindings -> Bindings -> Bool
+sameBindings [] [] = True
+sameBindings (b :: bs) (c :: cs) = sameBinding b c && sameBindings bs cs
+sameBindings [] (_ :: _) = False
+sameBindings (_ :: _) [] = False
+
 public export
 publicZone : Zone -> Bool
 publicZone Battlefield = True

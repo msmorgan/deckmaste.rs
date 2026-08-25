@@ -1107,7 +1107,8 @@ triggeredIf word ev cond eff =
 ||| "Whenever X or Y, …": a trigger with an alternative event.
 public export
 triggeredOr : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
-              (alt : GameEvent bs) -> (eff : Effect bs) ->
+              (alt : GameEvent bs) ->
+              (eff : Effect (headerCtx (Just alt) ev)) ->
               {auto 0 hn : HeaderNontarget ev} ->
               {auto 0 ae : AltEvent word (Just alt)} ->
               {auto 0 cd : ChapterDefaults ev (Just alt) Nothing Nothing Nothing} ->

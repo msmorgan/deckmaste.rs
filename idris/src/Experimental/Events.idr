@@ -7,6 +7,16 @@ import Experimental.Words
 %default total
 
 
+||| The event CLASSIFIER, and deliberately the retrospective readers'
+||| whole event vocabulary: `Happened`/`HappenedTo`/`EventCount`/`EventSum`
+||| name an event kind, a subject and a window, because the lookback
+||| clause's grammar is participial — `LookbackSubject` and
+||| `LookbackComplement` are that grammar — and any richer narrowing rides
+||| the subject's own predicate. The prospective readers (the trigger
+||| header, `Intercepts`, `UntilEvent`, `Delayed`, `HeldUntil`, `ThisWay`)
+||| take the full `GameEvent` term, and where a term meets a name-keyed
+||| table it lifts through `eventName` (`Interceptable`, `durationOk`) —
+||| the recorded pattern for any future widening.
 public export
 data EventName = Death | Departure | Destruction | DamageTaken
                | CardDrawn | Entry | AttackDeclaration | BlockDeclaration
