@@ -191,6 +191,8 @@ mutual
     HasCounters : (kind : Maybe CounterKind) ->
                   {auto 0 kn : CounterKindNamed Object kind} ->
                   Predicate bs Object
+    -- the bound slot is open to any amount at every relation; see
+    -- `CompareAmt`'s docstring for the recorded verdict.
     Compare : (c : Characteristic) -> (r : Comparator) -> (bound : Amount bs) ->
               Predicate bs Object
     ||| The bound read of a counter-bearing description: the referent's own
@@ -1205,10 +1207,10 @@ mutual
     Definite : (p : Predicate bs k) ->
                {auto ph : Phrasal k} ->
                {auto 0 uq : Uniquifying p} -> Noun bs k
-    TargetGroup : (q : Quantity) -> (p : Predicate bs k) ->
+    TargetGroup : (q : Quantity bs) -> (p : Predicate bs k) ->
                   {auto tk : Targetable k} -> {auto 0 nz : NonZeroQ q} ->
                   {auto 0 wf : WellFormedQ q} -> Noun bs k
-    CountedGroup : (q : Quantity) -> (p : Predicate bs k) ->
+    CountedGroup : (q : Quantity bs) -> (p : Predicate bs k) ->
                    {auto ph : Phrasal k} -> {auto 0 nz : NonZeroQ q} ->
                    {auto 0 wf : WellFormedQ q} ->
                    Noun bs k
@@ -1229,7 +1231,7 @@ mutual
                    (whose : Noun bs Player) ->
                    {auto 0 sp : SlicePossessor whose} ->
                    Noun bs Object
-    SomeOf : (q : Quantity) -> (grp : Noun bs Object) ->
+    SomeOf : (q : Quantity bs) -> (grp : Noun bs Object) ->
              {auto 0 gm : GroupMention grp} ->
              {auto 0 nz : NonZeroQ q} ->
              {auto 0 wf : WellFormedQ q} -> Noun bs Object
@@ -1344,8 +1346,11 @@ mutual
   nounDelta (Each p {ph}) = bindFor EachD ManyOf ph p :: predDelta p
   nounDelta (Indefinite m p {ph}) = bindFor AD OneOf ph p :: predDelta p
   nounDelta (Definite p {ph}) = bindFor TheD OneOf ph p :: predDelta p
-  nounDelta (TargetGroup q p {tk}) = bindFor TargetD (quantPlur q) (targetablePhrasal tk) p :: predDelta p
-  nounDelta (CountedGroup q p {ph}) = bindFor CountD (quantPlur q) ph p :: predDelta p
+  nounDelta (TargetGroup q p {tk}) =
+    bindFor TargetD (quantPlur q) (targetablePhrasal tk) p
+      :: (quantDelta q ++ predDelta p)
+  nounDelta (CountedGroup q p {ph}) =
+    bindFor CountD (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   nounDelta (EachOf grp) = nounDelta grp
   nounDelta (Both l r) = nounDelta r ++ nounDelta l
@@ -1358,7 +1363,7 @@ mutual
   nounDelta (NamesAgree _ grp) = nounDelta grp
   nounDelta (SomeOf q grp) =
     MkBinding PartD Object (quantPlur q) (ObjectP (nounTy grp) (nounZone grp) Nothing Nothing)
-      :: nounDelta grp
+      :: (quantDelta q ++ nounDelta grp)
   nounDelta TheRest = []
   nounDelta It = []
   nounDelta They = []
@@ -1506,6 +1511,70 @@ mutual
     LetterVal : (l : Letter) -> Amount bs
     Plus : (a : Amount bs) -> Amount (amtIntro a) -> Amount bs
     Minus : (a : Amount bs) -> Amount (amtIntro a) -> Amount bs
+    ||| "your devotion to [color]" / "… to [color] and [color]": the count
+    ||| of mana symbols of the named colour(s) among the mana costs of
+    ||| permanents the player controls [CR#700.5]. Its own row, never
+    ||| `CountOf`: the domain is symbols inside costs, not a set of
+    ||| objects. The pair slot is UNGATED: [CR#700.5] computes a pair over
+    ||| the symbols that are "[color 1], [color 2], or both colors", which
+    ||| is well defined when the two names coincide (it is then the
+    ||| single-colour count), so no rule refuses the repeated colour.
+    ||| -- spelling: "[whose] devotion to [color]"; with the second colour,
+    ||| "[whose] devotion to [color] and [color]".
+    Devotion : (who : Noun bs Player) -> (c : Chroma.Color) ->
+               (d : Maybe Chroma.Color) ->
+               {auto 0 one : nounPlur who = OneOf} -> Amount bs
+    ||| "half [amt], rounded down/up": the halving read the corpus writes,
+    ||| generalising `RoundMode`'s one existing site (`DamageScale.Halved`).
+    ||| The mode is a required slot: oracle text always writes it.
+    ||| -- spelling: "half [amt], rounded down" / "…, rounded up".
+    Half : (r : RoundMode) -> (a : Amount bs) -> Amount bs
+    ||| "the difference between [a] and [b]": the SYMMETRIC margin of two
+    ||| written amounts — plain English's absolute difference, so the
+    ||| directional floored `Minus` stays untouched beside it.
+    ||| -- spelling: "the difference between [a] and [b]".
+    DifferenceBetween : (a : Amount bs) -> (b : Amount (amtIntro a)) ->
+                        Amount bs
+    ||| "the amount of damage dealt to you this turn", "the amount of life
+    ||| you gained this turn": `EventCount`'s numeric twin — the SUM of a
+    ||| magnitude-bearing event's amounts over the lookback window, gated
+    ||| to the events that happen in an amount (`eventHasMagnitude`).
+    ||| -- spelling: "the amount of [event phrase] [window]", "the total
+    ||| amount of …".
+    EventSum : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
+               (w : Lookback) ->
+               (what :
+                  Maybe (EventComplement (nomIntro who) ev k)) ->
+               {auto 0 cw : ComplementWritten what} ->
+               {auto 0 sb : LookbackSubject ev k} ->
+               {auto 0 qm : So (eventHasMagnitude ev)} -> Amount bs
+    ||| "the total power of the sacrificed creatures", "the greatest power
+    ||| among them", "their total toughness": the fold whose complement is
+    ||| a group MENTION rather than a description — the plural twin of
+    ||| `StatOf`, whose gate takes one referent. A second slot shape, no
+    ||| new fold machinery.
+    ||| -- spelling: with `SumOf`, "the total [axis] of [grp]" and the
+    ||| possessive "[grp]'s total [axis]"; with an extremal op, "the
+    ||| greatest/least [axis] among [grp]".
+    AggregateOf : (op : AggregateOp) -> (ax : ProjAxis) ->
+                  {k : Kind} -> (grp : Noun bs k) ->
+                  {auto 0 sc : projScope ax = k} ->
+                  {auto 0 pl : nounPlur grp = ManyOf} -> Amount bs
+    ||| "the greatest number of creatures a player controls": the fold
+    ||| whose per-element read is RELATIVIZED to the member — the element
+    ||| binder both prior arts carry (core's `Projection` over a bound
+    ||| `It`; the legacy module's `Project`/`bindIt`). The domain binds one
+    ||| member (`TheD`, `OneOf`) for the body to read back as `It`/`They`.
+    ||| The body's own phrase deltas are NOT exported: a per-member phrase
+    ||| has no single announcement to make, so a target written inside the
+    ||| body is dropped — tolerated overgeneration, noted here.
+    ||| -- spelling: "the greatest/least [body] [domain relative clause]",
+    ||| e.g. "the greatest number of creatures a player controls".
+    AggregateOver : {k : Kind} -> (op : AggregateOp) ->
+                    (dom : Predicate bs k) -> {auto ph : Phrasal k} ->
+                    (body : Amount (bindFor TheD OneOf ph dom
+                                      :: (predDelta dom ++ bs))) ->
+                    Amount bs
 
   public export
   amtDelta : {bs : Bindings} -> Amount bs -> List Binding
@@ -1525,6 +1594,12 @@ mutual
   amtDelta (LetterVal l) = letterDelta l bs
   amtDelta (Plus a b) = amtDelta a ++ amtDelta b
   amtDelta (Minus a b) = amtDelta a ++ amtDelta b
+  amtDelta (Devotion who _ _) = nounDelta who
+  amtDelta (Half _ a) = amtDelta a
+  amtDelta (DifferenceBetween a b) = amtDelta a ++ amtDelta b
+  amtDelta (EventSum _ who _ what) = nounDelta who ++ complementDelta what
+  amtDelta (AggregateOf _ _ grp) = nounDelta grp
+  amtDelta (AggregateOver _ dom _) = predDelta dom
 
   public export
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
@@ -1544,6 +1619,12 @@ mutual
   amtIntro (LetterVal l) = letterDelta l bs ++ bs
   amtIntro (Plus a b) = amtIntro b
   amtIntro (Minus a b) = amtIntro b
+  amtIntro (Devotion who _ _) = nomIntro who
+  amtIntro (Half _ a) = amtIntro a
+  amtIntro (DifferenceBetween a b) = amtIntro b
+  amtIntro (EventSum _ who _ what) = complementDelta what ++ nomIntro who
+  amtIntro (AggregateOf _ _ grp) = nomIntro grp
+  amtIntro (AggregateOver _ dom _) = predDelta dom ++ bs
 
   ||| An unwritten amount introduces nothing: the slot's absence is the
   ||| bare "all" spelling, not a mention a later clause could read.
@@ -1571,6 +1652,12 @@ mutual
   amtPlur (LetterVal _) = ManyOf
   amtPlur (Plus _ _) = ManyOf
   amtPlur (Minus _ _) = ManyOf
+  amtPlur (Devotion _ _ _) = ManyOf
+  amtPlur (Half _ _) = ManyOf
+  amtPlur (DifferenceBetween _ _) = ManyOf
+  amtPlur (EventSum _ _ _ _) = ManyOf
+  amtPlur (AggregateOf _ _ _) = ManyOf
+  amtPlur (AggregateOver _ _ _) = ManyOf
 
   public export
   writtenBound : {0 bs : Bindings} -> Amount bs -> Bool
@@ -1590,6 +1677,12 @@ mutual
   writtenBound (LetterVal _) = True
   writtenBound (Plus _ _) = False
   writtenBound (Minus _ _) = False
+  writtenBound (Devotion _ _ _) = False
+  writtenBound (Half _ _) = False
+  writtenBound (DifferenceBetween _ _) = False
+  writtenBound (EventSum _ _ _ _) = False
+  writtenBound (AggregateOf _ _ _) = False
+  writtenBound (AggregateOver _ _ _) = False
 
   public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
@@ -1627,13 +1720,99 @@ mutual
   readAmount TheResult = True
   readAmount GroupSize = False
   readAmount TheDifference = True
-  readAmount (LetterVal _) = False
+  -- the announced letter READS game state — the value its announcement
+  -- fixed [CR#107.3a] — so "If X is 1" measures a fact, where a bare
+  -- numeral on the left states arithmetic (badCompareLiteralSubject).
+  readAmount (LetterVal _) = True
   readAmount (Plus _ _) = False
   readAmount (Minus _ _) = False
+  readAmount (Devotion _ _ _) = True
+  readAmount (Half _ _) = False
+  readAmount (DifferenceBetween _ _) = False
+  readAmount (EventSum _ _ _ _) = True
+  readAmount (AggregateOf _ _ _) = True
+  readAmount (AggregateOver _ _ _) = True
 
   public export
   ReadAmount : Amount bs -> Type
   ReadAmount {bs} a = So (readAmount a)
+
+  ||| How many of a described set a phrase picks out. Moved here from the
+  ||| word catalog the day a bound became able to carry a written AMOUNT:
+  ||| "up to X target creatures" prints, so the ceiling column is open to
+  ||| the amount vocabulary, and that vocabulary lives in this mutual
+  ||| block. The literal gates below keep their literal rows — an amount
+  ||| ceiling is statically no bound at all, so each gate answers it
+  ||| whole-constructor rather than becoming runtime-undecidable.
+  public export
+  data Quantity : Bindings -> Type where
+    Range : Maybe Nat -> Maybe Nat -> Quantity bs
+    ||| "up to [amt]": the ceiling that is a written amount. Only the
+    ||| ceiling arm is minted — the printed forms are ceilings — and a
+    ||| written floor or exact amount waits on a measured line.
+    ||| -- spelling: "up to [amt]".
+    UpToOf : (a : Amount bs) -> Quantity bs
+
+  public export
+  data NonZeroQ : Quantity bs -> Type where
+    UnboundedAbove : NonZeroQ (Range lo Nothing)
+    MaxAtLeastOne : NonZeroQ (Range lo (Just (S n)))
+    -- "up to X" admits X = 0 at resolution and still permits one when
+    -- X is positive; the statically-zero ceiling the literal arm refuses
+    -- (badZeroGroup) cannot be written here.
+    AmountCeiling : NonZeroQ (UpToOf a)
+
+  public export
+  ||| A range whose floor is above its ceiling picks out nothing;
+  ||| [CR#107.1c] otherwise leaves the vocabulary open, and a written zero
+  ||| floor is a second spelling of "any number of".
+  quantWellFormed : {0 bs : Bindings} -> Quantity bs -> Bool
+  quantWellFormed (Range Nothing _) = True
+  quantWellFormed (Range (Just _) Nothing) = True
+  quantWellFormed (Range (Just lo) (Just hi)) = lte lo hi
+  quantWellFormed (UpToOf _) = True
+
+  public export
+  WellFormedQ : Quantity bs -> Type
+  WellFormedQ q = So (quantWellFormed q)
+
+  public export
+  quantPlur : {0 bs : Bindings} -> Quantity bs -> Plurality
+  quantPlur (Range _ (Just (S Z))) = OneOf
+  quantPlur (Range _ _) = ManyOf
+  -- "up to X creatures" is written plural whatever X resolves to.
+  quantPlur (UpToOf _) = ManyOf
+
+  public export
+  ||| [CR#700.2]: a mode is chosen from the list printed on the card, so a
+  ||| headcount reaching past the list names modes that are not there. An
+  ||| amount headcount is not statically past any list, so it is admitted.
+  modesFit : {0 bs : Bindings} -> Quantity bs -> Nat -> Bool
+  modesFit (Range Nothing Nothing) n = True
+  modesFit (Range Nothing (Just hi)) n = lte hi n
+  modesFit (Range (Just lo) Nothing) n = lte lo n
+  modesFit (Range (Just lo) (Just hi)) n = lte hi n
+  modesFit (UpToOf _) n = True
+
+  public export
+  ModesFit : Quantity bs -> Nat -> Type
+  ModesFit q n = So (modesFit q n)
+
+  ||| [CR#706.3a] gives a results table's left column three forms — a
+  ||| single number, "N1—N2", "N+" — all numbers, so a table row's range
+  ||| is literal by rule.
+  public export
+  quantLiteral : {0 bs : Bindings} -> Quantity bs -> Bool
+  quantLiteral (Range _ _) = True
+  quantLiteral (UpToOf _) = False
+
+  ||| What a quantity's bound mentions: nothing for the literal ranges,
+  ||| the amount's own delta for the amount ceiling — so "up to X target
+  ||| creatures" introduces its letter like any other written X.
+  public export
+  quantDelta : {bs : Bindings} -> Quantity bs -> List Binding
+  quantDelta (Range _ _) = []
+  quantDelta (UpToOf a) = amtDelta a
 
   public export
   Bindingless : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
@@ -1917,6 +2096,10 @@ mutual
               {auto 0 sy : PredSays p} ->
               {auto 0 zc : ZoneFits (nounZone n) (seedZone p)} ->
               Condition bs
+    ||| The bound slot is open to ANY amount at every relation: the rules
+    ||| make a comparison against any number meaningful, and what bound
+    ||| shapes English prints at which relation is spelling-boundary
+    ||| knowledge, recorded on the deciding ticket rather than gated here.
     CompareAmt : (subj : Amount bs) -> (r : Comparator) ->
                  (bound : Amount (amtIntro subj)) ->
                  {auto 0 rd : ReadAmount subj} ->
@@ -2056,13 +2239,23 @@ mutual
   condDelta (DealtThisWay _) = []
   condDelta (FlipCalled _ _) = []
   condDelta (FlipFace _) = []
-  condDelta (NotCond _) = []
+  condDelta (NotCond c) = dropGaps (condDelta c)
   condDelta (AndCond cs) = condDeltaAll cs
 
   public export
   condDeltaAll : {bs : Bindings} -> List (Condition bs) -> List Binding
   condDeltaAll [] = []
   condDeltaAll (c :: cs) = condDelta c ++ condDeltaAll cs
+
+  ||| A negated condition unmakes no announcement — a target written
+  ||| inside "unless [comparison]" is announced at casting like any other
+  ||| [CR#601.2c] — but a comparison that did NOT hold leaves no margin,
+  ||| so the `Gap` binding alone is dropped.
+  public export
+  dropGaps : List Binding -> List Binding
+  dropGaps [] = []
+  dropGaps (MkBinding _ Gap _ GapP :: bs) = dropGaps bs
+  dropGaps (b :: bs) = b :: dropGaps bs
 
   public export
   data Duration : Bindings -> Type where
@@ -2158,7 +2351,7 @@ mutual
 
   public export
   data TokenPhrase : {0 bs : Bindings} -> Noun bs Object -> Type where
-    CountedTokens : {0 q : Quantity} -> {0 p : Predicate bs Object} ->
+    CountedTokens : {0 q : Quantity bs} -> {0 p : Predicate bs Object} ->
                     {0 ph : Phrasal Object} -> {0 nz : NonZeroQ q} ->
                     {0 wf : WellFormedQ q} ->
                     {auto 0 ok : So (seedsToken p)} ->
@@ -2303,6 +2496,19 @@ mutual
     Regenerates : (n : Noun bs Object) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   GameEvent bs
+    ||| The ordinal occurrence of an event: "When the fourth plan counter
+    ||| is put on this enchantment", "Whenever you cast your first spell
+    ||| during each opponent's turn". The ordinal names WHICH occurrence in
+    ||| a sequence — a third thing beside `CounterBatch`'s two determiners,
+    ||| deliberately not a third batch arm. A wrapper rather than per-event
+    ||| twins, so one word serves every countable event; a wrapped wrapper
+    ||| ("the third first spell") is tolerated overgeneration. The trigger
+    ||| word stays the header's own slot, unconstrained here: an ordinal
+    ||| names WHICH occurrence, not how often the header may trigger.
+    ||| -- spelling: at a counter event, "When the [ord] [kind] counter is
+    ||| put on [n]"; at a cast event, "Whenever [who] cast(s) [whose]
+    ||| [ord] spell [window]".
+    NthOccurrence : (ord : Ordinal) -> (ev : GameEvent bs) -> GameEvent bs
 
   public export
   eventName : {0 bs : Bindings} -> GameEvent bs -> EventName
@@ -2329,6 +2535,7 @@ mutual
   eventName (Activates _ _) = AbilityActivation
   eventName (StatBecomes _ _ _) = StatValueChange
   eventName (Regenerates _) = Regeneration
+  eventName (NthOccurrence _ ev) = eventName ev
 
   ||| What an event pattern contributes before it happens — its announced
   ||| subject phrase [CR#601.2c]. Read by an interception's replacement,
@@ -2363,6 +2570,7 @@ mutual
   eventIntro (Activates _ what) = nomIntro what
   eventIntro (StatBecomes _ _ v) = amtIntro v
   eventIntro (Regenerates n) = nomIntro n
+  eventIntro (NthOccurrence _ ev) = eventIntro ev
 
   public export
   selfSubjIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
@@ -2420,6 +2628,7 @@ mutual
   eventAfter (Activates _ what) = nomIntro what
   eventAfter (StatBecomes n _ v) = amtDelta v ++ selfSubjIntro n
   eventAfter (Regenerates n) = selfSubjIntro n
+  eventAfter (NthOccurrence _ ev) = eventAfter ev
 
   public export
   eventSubjectPlur : {bs : Bindings} -> GameEvent bs -> Plurality
@@ -2446,6 +2655,7 @@ mutual
   eventSubjectPlur (Activates who _) = nounPlur who
   eventSubjectPlur (StatBecomes n _ _) = nounPlur n
   eventSubjectPlur (Regenerates n) = nounPlur n
+  eventSubjectPlur (NthOccurrence _ ev) = eventSubjectPlur ev
 
   ||| The context a delayed body reads: the event's own after-discourse
   ||| with the outer clause's targets settled [CR#603.7c,603.3d,601.2c].
@@ -2846,9 +3056,15 @@ mutual
       Visibility : (v : ExposeVerb) -> (who : Noun bs Player) ->
                    (what : VisibleThing) ->
                    {auto 0 vo : VisibilityOk v what} -> StaticEffect bs
-      MayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity) ->
+      ||| The land allowance keeps a literal bound: no printed line writes
+      ||| "up to [amt] additional lands", and the statement introduces no
+      ||| mention of its own, so an amount bound written here would be
+      ||| announced nowhere. Widening waits on a printed line.
+      MayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity bs) ->
                                {auto 0 nz : NonZeroQ q} ->
-                               {auto 0 wf : WellFormedQ q} -> StaticEffect bs
+                               {auto 0 wf : WellFormedQ q} ->
+                               {auto 0 lt : So (quantLiteral q)} ->
+                               StaticEffect bs
       ||| [CR#506.3a] and [CR#508.4d] both say what happens when a
       ||| permanent enters attacking, so either rider is a real entry.
       EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
@@ -3028,7 +3244,11 @@ mutual
   staticIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
   staticIntro (Define l amt) = defineLetter l (amtIntro amt)
   staticIntro (Gets n pow tou) = shiftDelta tou ++ shiftDelta pow ++ selfSubjIntro n
-  staticIntro (DefinesPt n _ amt) = amtDelta amt ++ selfSubjIntro n
+  -- a definition names a number outright, and a sibling slot in the same
+  -- statement reads it back as "that number" (Lhurgoyf) — the quantity
+  -- anaphor's machinery, spelled "that number" after a definition.
+  staticIntro (DefinesPt n _ amt) =
+    outcomeB NamedNumber :: (amtDelta amt ++ selfSubjIntro n)
   staticIntro (HasBasePt n pow tou) = amtDelta tou ++ amtDelta pow ++ selfSubjIntro n
   staticIntro (SwitchesPt n) = selfSubjIntro n
   staticIntro (CostsToCast n sh) = amtDelta (costAmount sh) ++ selfSubjIntro n
@@ -3262,9 +3482,10 @@ mutual
   ||| either.
   public export
   data RollRow : Bindings -> Type where
-    MkRollRow : (results : Quantity) -> (e : Effect bs) ->
+    MkRollRow : (results : Quantity bs) -> (e : Effect bs) ->
                 {auto 0 nz : NonZeroQ results} ->
-                {auto 0 wf : WellFormedQ results} -> RollRow bs
+                {auto 0 wf : WellFormedQ results} ->
+                {auto 0 lt : So (quantLiteral results)} -> RollRow bs
 
   public export
   rowCount : {0 bs : Bindings} -> List (RollRow bs) -> Nat
@@ -3508,7 +3729,7 @@ mutual
                    {auto 0 ne : IsSucc n} -> Effect bs
     Simultaneously : {0 n : Nat} -> SimEffects n bs ->
                      {auto 0 ne : IsSucc n} -> Effect bs
-    Modal : (q : Quantity) -> (modes : List (Effect bs)) ->
+    Modal : (q : Quantity bs) -> (modes : List (Effect bs)) ->
             {auto 0 nz : NonZeroQ q} ->
             {auto 0 wf : WellFormedQ q} ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
@@ -4483,7 +4704,7 @@ mutual
   effIntro (Repeat _) = bs
   effIntro (Sequentially es) = effsIntro es
   effIntro (Simultaneously es) = simIntro es
-  effIntro (Modal q modes) = bs
+  effIntro (Modal q modes) = quantDelta q ++ bs
   effIntro (Delayed ev _ e) = bs               -- a future clause mentions nothing NOW
   effIntro (Reflexively body trig) = effIntro body
   effIntro (ThisWay body ev trig) = effIntro body
@@ -4549,7 +4770,7 @@ mutual
   preIntro (Repeat _) = bs
   preIntro (Sequentially es) = preIntros es
   preIntro (Simultaneously es) = simPres es
-  preIntro (Modal q modes) = bs
+  preIntro (Modal q modes) = quantDelta q ++ bs
   preIntro (Delayed ev _ e) = bs
   preIntro (Reflexively body trig) = preIntro body
   preIntro (ThisWay body ev trig) = preIntro body
@@ -4615,7 +4836,7 @@ mutual
   annIntro (Repeat _) = bs
   annIntro (Sequentially es) = bs
   annIntro (Simultaneously es) = annSims es
-  annIntro (Modal q modes) = bs
+  annIntro (Modal q modes) = quantDelta q ++ bs
   annIntro (Delayed ev _ e) = bs
   annIntro (Reflexively body trig) = annIntro body
   annIntro (ThisWay body ev trig) = annIntro body
@@ -5445,12 +5666,14 @@ chapterFrameOk subs (a :: as) = chapterLineOk subs a && chapterFrameOk subs as
 
 public export
 data PrintedStat = PrintedNum Integer | PrintedStar | PrintedStarPlus Nat
+                 | PrintedMinusStar Nat
 
 public export
 starred : PrintedStat -> Bool
 starred (PrintedNum _) = False
 starred PrintedStar = True
 starred (PrintedStarPlus _) = True
+starred (PrintedMinusStar _) = True
 
 ||| The one box in a face's lower right corner. [CR#208.1] prints a creature
 ||| card's power and toughness there, [CR#209.1] a planeswalker card's

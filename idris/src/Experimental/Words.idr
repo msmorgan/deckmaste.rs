@@ -562,6 +562,7 @@ Eq ProjAxis where
 public export
 data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  | DamagePrevented | RollResult | CoinFlipped
+                 | NamedNumber
 
 ||| Which reading of a flipped coin a clause takes. [CR#705.2] gives a
 ||| flip two and only two: the face it came up, and -- when the flipper
@@ -600,33 +601,9 @@ outputPlur OneOf ManyOf = ManyOf
 outputPlur ManyOf OneOf = ManyOf
 outputPlur ManyOf ManyOf = ManyOf
 
-public export
-data Quantity : Type where
-  Range : Maybe Nat -> Maybe Nat -> Quantity
-
-public export
-data NonZeroQ : Quantity -> Type where
-  UnboundedAbove : NonZeroQ (Range lo Nothing)
-  MaxAtLeastOne : NonZeroQ (Range lo (Just (S n)))
-
-public export
-||| A range whose floor is above its ceiling picks out nothing;
-||| [CR#107.1c] otherwise leaves the vocabulary open, and a written zero
-||| floor is a second spelling of "any number of".
-quantWellFormed : Quantity -> Bool
-quantWellFormed (Range Nothing _) = True
-quantWellFormed (Range (Just _) Nothing) = True
-quantWellFormed (Range (Just lo) (Just hi)) = lte lo hi
-
-public export
-WellFormedQ : Quantity -> Type
-WellFormedQ q = So (quantWellFormed q)
-
-
-public export
-quantPlur : Quantity -> Plurality
-quantPlur (Range _ (Just (S Z))) = OneOf
-quantPlur (Range _ _) = ManyOf
+-- `Quantity` and its four gates moved to Experimental.idr's mutual block
+-- the day a bound became able to carry a written AMOUNT; see the type's
+-- own docstring there.
 
 ||| Which way the names inside a counted group line up. Both poles are one
 ||| word class: [CR#201.2b] states the negative one over a group -- those
@@ -640,19 +617,6 @@ public export
 data NameAgreement : Type where
   DifferentNames : NameAgreement
   SameName : NameAgreement
-
-public export
-||| [CR#700.2]: a mode is chosen from the list printed on the card, so a
-||| headcount reaching past the list names modes that are not there.
-modesFit : Quantity -> Nat -> Bool
-modesFit (Range Nothing Nothing) n = True
-modesFit (Range Nothing (Just hi)) n = lte hi n
-modesFit (Range (Just lo) Nothing) n = lte lo n
-modesFit (Range (Just lo) (Just hi)) n = lte hi n
-
-public export
-ModesFit : Quantity -> Nat -> Type
-ModesFit q n = So (modesFit q n)
 
 ||| [CR#700.2]: a spell or ability is modal only if it has two or more
 ||| instructions to choose among, so a one-mode list offers no choice.
@@ -689,14 +653,23 @@ data LibPos = OnTop | OnBottom
 public export
 data Arrangement = AnyOrder | RandomOrder
 
-||| [CR#401.7] states the library offset as "Nth from the top" for any
-||| N, so the position is a number and not a closed vocabulary: the five
-||| ordinals cards have printed are spelling, and the frame is the rule's.
-||| `Nth 0` is the one refusal — [CR#401.7] counts positions from the top
-||| card, which is the first, so a library has no zeroth position.
+||| The ordinal occurrence word: WHICH member of a sequence, counted from
+||| the first — not how many. One vocabulary for its three sites: the
+||| library offset ([CR#401.7] states "Nth from the top" for any N, so the
+||| position is a number and not a closed vocabulary — the ordinals cards
+||| have printed are spelling, and the frame is the rule's), the ordinal
+||| counter event, and the ordinal cast restriction. `Nth 0` is the one
+||| refusal — a sequence's first member is its 1st, and [CR#401.7] counts
+||| library positions from the top card, which is the first.
 public export
-data LibOrdinal : Type where
-  Nth : (n : Nat) -> {auto 0 nz : IsSucc n} -> LibOrdinal
+data Ordinal : Type where
+  Nth : (n : Nat) -> {auto 0 nz : IsSucc n} -> Ordinal
+
+||| The library site's old name, kept as the same type so its use sites
+||| read unchanged.
+public export
+LibOrdinal : Type
+LibOrdinal = Ordinal
 
 namespace Verb
   public export
@@ -848,6 +821,8 @@ Eq OutcomeSort where
   (==) RollResult _ = False
   (==) CoinFlipped CoinFlipped = True
   (==) CoinFlipped _ = False
+  (==) NamedNumber NamedNumber = True
+  (==) NamedNumber _ = False
 
 public export
 outcomeB : OutcomeSort -> Binding
@@ -963,6 +938,9 @@ outcomeIsQuantity CountersPut = True
 outcomeIsQuantity DamagePrevented = True
 outcomeIsQuantity RollResult = True
 outcomeIsQuantity CoinFlipped = False
+-- a defining sentence names a number outright [CR#604.3,208.1], so the
+-- anaphor that reads a quantity back ("that number") has one to name.
+outcomeIsQuantity NamedNumber = True
 
 ||| What "that much" folds: the outcome mentions that carry a number.
 public export
@@ -1874,7 +1852,6 @@ Eq Color where
   (==) Green Green = True
   (==) Green _ = False
 
-
 public export
 data SimpleManaSymbol = Generic Nat | Specific ColorOrColorless
 
@@ -2013,6 +1990,7 @@ data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
              | Arlinn
              | Kraken | Sphinx
              | Werewolf | Eldrazi
+             | Fungus
 
 public export
 Eq Subtype where
@@ -2060,6 +2038,8 @@ Eq Subtype where
   (==) Werewolf _ = False
   (==) Eldrazi Eldrazi = True
   (==) Eldrazi _ = False
+  (==) Fungus Fungus = True
+  (==) Fungus _ = False
   (==) Goat Goat = True
   (==) Goat _ = False
   (==) Ox Ox = True
@@ -2262,6 +2242,7 @@ subtypeType Kraken = Creature
 subtypeType Sphinx = Creature
 subtypeType Werewolf = Creature
 subtypeType Eldrazi = Creature
+subtypeType Fungus = Creature
 subtypeType Goat = Creature
 subtypeType Ox = Creature
 subtypeType Boar = Creature
@@ -2837,6 +2818,10 @@ data CounterKind : Type where
   ||| loyalty counters as a cost. The count-equals-loyalty link
   ||| [CR#306.5c] is lowering's, not this layer's.
   LoyaltyCounter : CounterKind
+  ||| Sagas' plan counters and the hour counters of Midnight Clock: the
+  ||| kinds the ordinal counter headers name.
+  Plan : CounterKind
+  Hour : CounterKind
 
 public export
 counterScope : CounterKind -> Kind
@@ -2856,6 +2841,8 @@ counterScope Lore = Object
 counterScope Age = Object
 counterScope Shield = Object
 counterScope LoyaltyCounter = Object
+counterScope Plan = Object
+counterScope Hour = Object
 
 public export
 Eq CounterKind where
@@ -2892,6 +2879,10 @@ Eq CounterKind where
   (==) Shield _ = False
   (==) LoyaltyCounter LoyaltyCounter = True
   (==) LoyaltyCounter _ = False
+  (==) Plan Plan = True
+  (==) Plan _ = False
+  (==) Hour Hour = True
+  (==) Hour _ = False
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where

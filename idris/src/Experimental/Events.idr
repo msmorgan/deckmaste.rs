@@ -128,6 +128,46 @@ spanEventOk : EventName -> Bool
 spanEventOk PartBeginning = False
 spanEventOk _ = True
 
+||| Which events HAPPEN in an amount, for the summed lookback to read:
+||| damage is dealt in a number ([CR#120.8] makes a 0-damage deal no damage
+||| event at all), life is gained in one ([CR#119.9] makes a 0-life gain no
+||| life gain event) and lost in one ([CR#119.2] has a damaged player lose
+||| "that much" life). Everything else is a
+||| transition or an act with no number of its own -- a death is a zone
+||| change [CR#700.4], not a quantity -- so "the amount of" has nothing
+||| there to sum. A COUNT of such events is `EventCount`'s reading, not
+||| this one.
+public export
+eventHasMagnitude : EventName -> Bool
+eventHasMagnitude DamageTaken = True
+eventHasMagnitude CombatDamage = True
+eventHasMagnitude LifeGain = True
+eventHasMagnitude LifeLoss = True
+eventHasMagnitude Death = False
+eventHasMagnitude Departure = False
+eventHasMagnitude Destruction = False
+eventHasMagnitude CardDrawn = False
+eventHasMagnitude Entry = False
+eventHasMagnitude AttackDeclaration = False
+eventHasMagnitude BlockDeclaration = False
+eventHasMagnitude PartBeginning = False
+eventHasMagnitude SpellCast = False
+eventHasMagnitude StatusChange = False
+eventHasMagnitude TurnedFaceUp = False
+eventHasMagnitude PhasingChange = False
+eventHasMagnitude BlockedDeclaration = False
+eventHasMagnitude LastCounterRemoval = False
+eventHasMagnitude TimeShift = False
+eventHasMagnitude Placement = False
+eventHasMagnitude CounterPlacement = False
+eventHasMagnitude CounterRemoval = False
+eventHasMagnitude GameLoss = False
+eventHasMagnitude TokenCreation = False
+eventHasMagnitude ChapterArrival = False
+eventHasMagnitude AbilityActivation = False
+eventHasMagnitude StatValueChange = False
+eventHasMagnitude Regeneration = False
+
 public export
 data ReplUse = Repeatedly | NextTimeOnly
 

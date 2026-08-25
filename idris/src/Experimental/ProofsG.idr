@@ -479,3 +479,50 @@ badSpellFlipHalf : Unspellable Card (\ok =>
            (MkAltFace "" [] (MkTypeLine [] [Instant]) [] Nothing)
            {ah = ok})
 badSpellFlipHalf Oh impossible
+
+
+||| "your opponents' devotion to black"
+||| [CR#700.5] defines devotion per player -- a count among the mana costs of
+||| permanents ONE player controls -- so a plural possessor reads no total.
+public export
+badPluralDevotion : Unspellable (Amount []) (\ok =>
+  Devotion (PlayerGroup YourOpponents) Black Nothing {one = ok})
+badPluralDevotion Refl impossible
+
+||| "the amount of creatures that died this turn"
+||| A death is a zone change [CR#700.4], not a quantity, so there is no
+||| amount to sum; how MANY died is `EventCount`'s reading.
+public export
+badDeathSum : Unspellable (Amount []) (\ok =>
+  EventSum Death (Macros.a Macros.creature) Lookback.ThisTurn Nothing
+           {qm = ok})
+badDeathSum Oh impossible
+
+||| "the total power of target creature"
+||| The mention fold reads a GROUP; one referent's power is `StatOf`'s, and
+||| [CR#208.1] gives each creature its own single number.
+public export
+badSingularAggregateOf : Unspellable (Amount []) (\ok =>
+  AggregateOf SumOf (CharAxis Power) (Macros.target Macros.creature)
+              {pl = ok})
+badSingularAggregateOf Refl impossible
+
+||| "the greatest life total among all creatures"
+||| The fold's axis and complement agree in sort here as everywhere: a life
+||| total is a player's [CR#119.1].
+public export
+badAggregateOfWrongSort : Unspellable (Amount []) (\ok =>
+  AggregateOf MaxOf (PlayerStatAxis LifeTotal) (AllOf Macros.creature)
+              {sc = ok})
+badAggregateOfWrongSort Refl impossible
+
+||| "up to X | Draw a card."
+||| [CR#706.3a] gives the results column three forms — a single number,
+||| "N1—N2", "N+" — all numbers, so an amount-bounded row is outside the
+||| rule's own list.
+public export
+badAmountRollRow : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.rollADie 20,
+                ResultsTable [MkRollRow (UpToOf (LetterVal X))
+                                        Macros.drawACard {lt = ok}]])
+badAmountRollRow Oh impossible

@@ -8,27 +8,27 @@ import public Experimental
 
 
 public export
-exactly : Nat -> Quantity
+exactly : Nat -> Quantity bs
 exactly n = Range (Just n) (Just n)
 
 public export
-upTo : Nat -> Quantity
+upTo : Nat -> Quantity bs
 upTo n = Range Nothing (Just n)
 
 public export
-anyNumber : Quantity
+anyNumber : Quantity bs
 anyNumber = Range Nothing Nothing
 
 public export
-atLeast : Nat -> Quantity
+atLeast : Nat -> Quantity bs
 atLeast n = Range (Just n) Nothing
 
 public export
-oneOrBoth : Quantity
+oneOrBoth : Quantity bs
 oneOrBoth = Range (Just 1) (Just 2)
 
 public export
-oneThrough : Nat -> Quantity
+oneThrough : Nat -> Quantity bs
 oneThrough n = Range (Just 1) (Just n)
 
 public export
@@ -489,7 +489,7 @@ asLongAs : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
 asLongAs c se = Conditionally c se AsLongAs {nn}
 
 public export
-unlessSo : (c : Condition bs) -> (se : StaticEffect bs) ->
+unlessSo : (c : Condition bs) -> (se : StaticEffect (condIntro (NotCond c))) ->
            {auto 0 nn : NotConditional se} -> StaticEffect bs
 unlessSo c se = Conditionally (NotCond c) se Unless {nn}
 
@@ -690,35 +690,35 @@ drawsACard who = Draw who (Lit 1)
 public export
 chooseOne : (modes : List (Effect bs)) ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit (exactly 1) (modeCount modes)} ->
+            {auto 0 mf : ModesFit (exactly {bs} 1) (modeCount modes)} ->
             {auto 0 dm : distinctModes modes = True} -> Effect bs
 chooseOne modes = Modal (exactly 1) modes {tw} {mf} {dm = eqToSo dm}
 
 public export
 chooseTwo : (modes : List (Effect bs)) ->
             {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-            {auto 0 mf : ModesFit (exactly 2) (modeCount modes)} ->
+            {auto 0 mf : ModesFit (exactly {bs} 2) (modeCount modes)} ->
             {auto 0 dm : distinctModes modes = True} -> Effect bs
 chooseTwo modes = Modal (exactly 2) modes {tw} {mf} {dm = eqToSo dm}
 
 public export
 chooseOneOrBoth : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit Macros.oneOrBoth (modeCount modes)} ->
+                  {auto 0 mf : ModesFit (Macros.oneOrBoth {bs}) (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
 chooseOneOrBoth modes = Modal Macros.oneOrBoth modes {tw} {mf} {dm = eqToSo dm}
 
 public export
 chooseOneOrMore : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit (atLeast 1) (modeCount modes)} ->
+                  {auto 0 mf : ModesFit (atLeast {bs} 1) (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
 chooseOneOrMore modes = Modal (atLeast 1) modes {tw} {mf} {dm = eqToSo dm}
 
 public export
 chooseAnyNumber : (modes : List (Effect bs)) ->
                   {auto 0 tw : AtLeastTwo (modeCount modes)} ->
-                  {auto 0 mf : ModesFit Macros.anyNumber (modeCount modes)} ->
+                  {auto 0 mf : ModesFit (Macros.anyNumber {bs}) (modeCount modes)} ->
                   {auto 0 dm : distinctModes modes = True} -> Effect bs
 chooseAnyNumber modes = Modal Macros.anyNumber modes {wf = Oh} {tw} {mf} {dm = eqToSo dm}
 
@@ -810,8 +810,8 @@ oneOf grp = SomeOf (exactly 1) grp {gm}
 
 public export
 someOf : (n : Nat) -> (grp : Noun bs Object) -> {auto 0 gm : GroupMention grp} ->
-         {auto 0 nz : NonZeroQ (exactly n)} ->
-         {auto 0 wf : WellFormedQ (exactly n)} -> Noun bs Object
+         {auto 0 nz : NonZeroQ (exactly {bs} n)} ->
+         {auto 0 wf : WellFormedQ (exactly {bs} n)} -> Noun bs Object
 someOf n grp = SomeOf (exactly n) grp {gm} {nz} {wf}
 
 
@@ -1524,7 +1524,9 @@ public export
 monstrosity : {bs : Bindings} -> (amt : Amount bs) ->
               Effect bs
 monstrosity amt =
-  If (notSo (Matches thisCreature (HasDesignation Monstrous)))
+  -- [CR#701.37a] reads the gate over "this permanent", so the bare self
+  -- mention is the condition's subject; the counters go on the creature.
+  If (notSo (Matches This (HasDesignation Monstrous)))
      (Sequentially [ PutCounters amt plusOnePlusOne thisCreature
                    , GainsDesignation thisCreature Monstrous
                                       (InExpansionOf MonstrosityW) Nothing ])
@@ -1601,7 +1603,7 @@ mayCastFromWhileSearching who what from =
 
 ||| "N1—N2": a results table's two-ended range [CR#706.3a].
 public export
-fromTo : Nat -> Nat -> Quantity
+fromTo : Nat -> Nat -> Quantity bs
 fromTo lo hi = Range (Just lo) (Just hi)
 
 ||| "Flip a coin." [CR#705.1]
@@ -1650,9 +1652,10 @@ theResult = TheResult {ok}
 
 ||| One striation of a results table, "[results] | [effect]" [CR#706.3a].
 public export
-rollRow : (results : Quantity) -> (e : Effect bs) ->
+rollRow : (results : Quantity bs) -> (e : Effect bs) ->
           {auto 0 nz : NonZeroQ results} ->
-          {auto 0 wf : WellFormedQ results} -> RollRow bs
+          {auto 0 wf : WellFormedQ results} ->
+          {auto 0 lt : So (quantLiteral results)} -> RollRow bs
 rollRow results e = MkRollRow results e {nz} {wf}
 
 ||| The results table that reads a roll already written [CR#706.3].

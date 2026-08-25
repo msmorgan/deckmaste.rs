@@ -7891,3 +7891,232 @@ planeswalkerBackWithoutLoyalty =
 public export
 planeswalkerBackWithoutLoyaltyOk : AltFaceLaws Cards.planeswalkerBackWithoutLoyalty
 planeswalkerBackWithoutLoyaltyOk = MkAltFaceLaws
+
+
+-- ---------------------------------------------------------------------------
+-- The amount reads, the open comparison left side, and the two folds.
+-- ---------------------------------------------------------------------------
+
+||| Karametra's Acolyte -- "{T}: Add an amount of {G} equal to your devotion
+||| to green."
+public export
+karametrasAcolyte : Ability
+karametrasAcolyte =
+  Macros.activated TapSymbol
+    (AddMana You (Devotion You Green Nothing) (Runs [[OfColor Green]]) [])
+
+||| Anax, Hardened in the Forge -- "Anax's power is equal to your devotion
+||| to red." The devotion read at the definition frame; the box is */3.
+public export
+anaxPowerDefinition : Ability
+anaxPowerDefinition =
+  Static (DefinesPt Macros.thisCreature PowerAlone (Devotion You Red Nothing))
+
+||| Gray Merchant of Asphodel, first clause -- "each opponent loses X life,
+||| where X is your devotion to black." (The second sentence, "You gain life
+||| equal to the life lost this way.", is not taken here.)
+public export
+grayMerchantDrain : Effect []
+grayMerchantDrain =
+  Sequentially [ Macros.losesLife (Each Opponent) (LetterVal X)
+               , Define X (Devotion You Black Nothing) ]
+
+||| Erebos, God of the Dead -- "As long as your devotion to black is less
+||| than five, Erebos isn't a creature." The devotion read at the comparison
+||| frame.
+public export
+devotionCondition : Condition []
+devotionCondition = CompareAmt (Devotion You Black Nothing) Less (Lit 5)
+
+||| Aspect of Wolf -- "Enchanted creature gets +X/+Y, where X is half the
+||| number of Forests you control, rounded down, and Y is half the number of
+||| Forests you control, rounded up."
+public export
+aspectOfWolf : Ability
+aspectOfWolf =
+  Static (AndAlso
+    [ Gets (AttachHost Enchanted (TypeW Creature))
+           (PtUp (LetterVal X)) (PtUp (LetterVal Y))
+    , Define X (Half RoundDown
+                 (CountOf (And [HasSubtype Forest, ControlledBy You])))
+    , Define Y (Half RoundUp
+                 (CountOf (And [HasSubtype Forest, ControlledBy You]))) ])
+
+||| Jaws of Defeat -- "Whenever a creature you control enters, target
+||| opponent loses life equal to the difference between that creature's
+||| power and its toughness." The symmetric margin beside the directional
+||| `Minus`.
+public export
+jawsOfDefeat : Ability
+jawsOfDefeat =
+  Macros.triggered Whenever (Enters (Macros.a Macros.creatureYouControl))
+    (Macros.losesLife (Macros.target Opponent)
+       (DifferenceBetween (Macros.powerOf (That (TypeW Creature)))
+                          (Macros.toughnessOf (That (TypeW Creature)))))
+
+||| Defiling Daemogoth -- "At the beginning of your end step, each opponent
+||| loses X life, where X is the amount of life you gained this turn." The
+||| summed lookback, `EventCount`'s numeric twin.
+public export
+defilingDaemogothDrain : Effect []
+defilingDaemogothDrain =
+  Sequentially [ Macros.losesLife (Each Opponent) (LetterVal X)
+               , Define X (EventSum LifeGain You Lookback.ThisTurn Nothing) ]
+
+||| The Skullspore Nexus -- "Whenever one or more nontoken creatures you
+||| control die, create a green Fungus Dinosaur creature token with base
+||| power and toughness each equal to the total power of those creatures."
+||| The fold whose complement is a group MENTION.
+||| -- spelling: the card writes "those creatures"; `eventAfter (Dies …)`
+||| moves the mention to the graveyard, so the mention this term reads back
+||| is the graveyard-side `Those CardW`. The card-side spelling of a death's
+||| own mention is a standing gap, not this row's.
+public export
+skullsporeNexusTrigger : Ability
+skullsporeNexusTrigger =
+  Macros.triggered Whenever
+    (Dies (CountedGroup (Macros.atLeast 1)
+                        (And [Macros.nontoken, Macros.creatureYouControl])))
+    (Macros.create (Lit 1)
+       (Macros.creatureTokOf
+          (AggregateOf SumOf (CharAxis Power) (Those CardW))
+          (AggregateOf SumOf (CharAxis Power) (Those CardW))
+          [Green] [Fungus, Dinosaur]))
+
+||| Investigator's Journal's count -- "the greatest number of creatures a
+||| player controls". The element-binder fold's measured phrase; the whole
+||| card waits on a suspect counter-kind row.
+public export
+greatestCreaturesAPlayerControls : Amount []
+greatestCreaturesAPlayerControls =
+  AggregateOver MaxOf AnyPlayer
+    (CountOf (And [Macros.creature, ControlledBy They]))
+
+||| Cavern-Hoard Dragon's cost rider -- "This spell costs {X} less to cast,
+||| where X is the greatest number of artifacts an opponent controls." The
+||| same binder over a narrowed domain.
+public export
+greatestArtifactsAnOpponentControls : Amount []
+greatestArtifactsAnOpponentControls =
+  AggregateOver MaxOf Opponent
+    (CountOf (And [Macros.artifact, ControlledBy They]))
+
+||| Lhurgoyf -- "Lhurgoyf's power is equal to the number of creature cards in
+||| all graveyards and its toughness is equal to that number plus 1." The
+||| asymmetric definition as a telescope: the first slot names a number and
+||| the second reads it back.
+||| -- spelling: the bare graveyard zone prints "in all graveyards" here; the
+||| box is */1+*.
+public export
+lhurgoyfDefinition : Ability
+lhurgoyfDefinition =
+  Static (AndAlso
+    [ DefinesPt Macros.thisCreature PowerAlone
+        (CountOf (And [Macros.creature, InZone Macros.graveyardZ]))
+    , DefinesPt Macros.thisCreature ToughnessAlone
+        (Plus ThatMuch (Lit 1)) ])
+
+||| Shapeshifter's printed box -- "*/7-*", the subtracted star at the
+||| toughness slot.
+public export
+shapeshifterBox : PrintedBox
+shapeshifterBox = PtBox PrintedStar (PrintedMinusStar 7)
+
+||| Multiple Choice, first arm -- "If X is 1, scry 1, then draw a card." The
+||| announced letter on a comparison's left, at the equality.
+public export
+multipleChoiceFirstArm : Effect []
+multipleChoiceFirstArm =
+  If (CompareAmt (LetterVal X) Eq (Lit 1))
+     (Sequentially [ Does You Scry (Macros.lookAt (Macros.topCards 1))
+                   , Macros.drawACard ])
+     Nothing
+
+||| Multiple Choice, fourth arm -- "If X is 4 or more, do all of the above."
+||| The same left side at the ranged relation.
+public export
+multipleChoiceFourthGate : Condition []
+multipleChoiceFourthGate = CompareAmt (LetterVal X) AtLeast (Lit 4)
+
+||| Fell the Mighty -- "Destroy all creatures with power greater than target
+||| creature's power." The announcing bound in the postnominal frame,
+||| threaded by `predDelta`.
+public export
+fellTheMighty : Effect []
+fellTheMighty =
+  Macros.destroy
+    (AllOf (And [Macros.creature,
+                 Compare Power Greater
+                         (Macros.powerOf (Macros.target Macros.creature))]))
+
+||| Birthing Pod -- "{1}{G/P}, {T}, Sacrifice a creature: Search your library
+||| for a creature card with mana value equal to 1 plus the sacrificed
+||| creature's mana value, …" The summed bound at the open bound column.
+public export
+birthingPodSearch : Ability
+birthingPodSearch =
+  Macros.activated
+    (Compound [Mana [Macros.generic 1, Macros.phyrexianPip Green],
+               TapSymbol,
+               Do (Macros.sacrifice You (Macros.a Macros.creature))])
+    (Macros.searchLibraryFor
+       (And [Macros.creature,
+             Compare ManaValue Eq
+                     (Plus (Lit 1)
+                           (Macros.manaValueOf
+                              (Macros.theVerbed Sacrifice
+                                                (TypeW Creature))))]))
+
+
+-- ---------------------------------------------------------------------------
+-- The ordinal occurrence word and the amount-ceilinged quantity.
+-- ---------------------------------------------------------------------------
+
+||| Wavebreak Hippocamp -- "Whenever you cast your first spell during each
+||| opponent's turn, draw a card." The ordinal at the cast restriction,
+||| under the window that landed without it.
+public export
+wavebreakHippocamp : Ability
+wavebreakHippocamp =
+  Macros.triggeredOnlyDuring Whenever
+    (NthOccurrence (Nth 1) (Casts You (Macros.a Macros.spell)))
+    (DuringWindow Turn (Just EachOpponents))
+    Macros.drawACard
+
+||| Midnight Clock's header -- "When the twelfth hour counter is put on this
+||| artifact, …" (the body shuffles hand and graveyard into the library, which
+||| is unbuilt, so the header is the witness).
+public export
+midnightClockHeader : GameEvent []
+midnightClockHeader =
+  NthOccurrence (Nth 12)
+    (Macros.singleCounterEvent CounterPut Hour Macros.thisArtifact)
+
+||| Political Triumph -- "When the fourth plan counter is put on this
+||| enchantment, sacrifice it, draw a card, and put a +1/+1 counter on each
+||| creature you control." The plan-counter Saga family's header.
+public export
+politicalTriumphHeader : GameEvent []
+politicalTriumphHeader =
+  NthOccurrence (Nth 4)
+    (Macros.singleCounterEvent CounterPut Plan Macros.thisEnchantment)
+
+||| Run the Play (Striding Shotcaller's other half), first clause -- "Put a
+||| +1/+1 counter on each of up to X target creatures." The amount ceiling on
+||| a target group's quantity.
+public export
+runThePlayCounters : Effect []
+runThePlayCounters =
+  PutCounters (Lit 1) Macros.plusOnePlusOne
+              (EachOf (TargetGroup (UpToOf (LetterVal X)) Macros.creature))
+
+||| Berserker's Frenzy, the 1—14 striation -- "Choose any number of creatures.
+||| They block this turn if able." The counted choice the ticket lists as
+||| over-refused; `choosable (CountedGroup _ _)` already admits it.
+public export
+berserkersFrenzyLowRoll : Effect []
+berserkersFrenzyLowRoll =
+  Sequentially
+    [ Macros.choose (CountedGroup Macros.anyNumber Macros.creature)
+    , Continuously (Deontic Them Require Block Agent NoDeonticPatient)
+                   (Just Macros.thisTurn) ]

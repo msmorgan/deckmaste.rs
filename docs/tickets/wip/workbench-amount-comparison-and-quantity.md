@@ -352,38 +352,299 @@ including `idris/src/Experimental/ProofsB.idr`,
 (`badChooseCountedGroup`) and `idris/src/Experimental/ProofsG.idr` — evidence
 bench `idris/src/Experimental/Cards.idr`. No Rust crate.
 
+## Re-audit (2026-08-24)
+
+The sections above were written against an older tree. Read against the tree as
+claimed, these named artifacts do not exist:
+
+| named | status |
+|---|---|
+| `comparableBound` | **never existed** in this tree (0 hits under `idris/src`). The bound column has no gate at all; `CompareAmt` takes any `Amount`. |
+| `badScaledBound`, `badScaledConditionBound` | **never existed** (0 hits). The "measured zeros that must survive" have no pins to survive in. |
+| `badChooseCountedGroup` | **never existed** (0 hits). Nothing to keep refusing. |
+| `pumpSignsOk` (claimed at `Experimental.idr:2705`) | **never existed**; that line holds `DefinesPt`. |
+| `sameProjAxis` | **never existed**; an `Eq ProjAxis` instance stands in its place. |
+| `writtenBound` | exists, **no consumer** (signature + rows only). Residue of a removed bound gate; left untouched, conductor decides deletion. |
+| `StatOf`'s "Soulblast" comment | **never existed** in this tree (0 hits for `Soulblast` under `idris/src` at the round's baseline). Nothing to pay. |
+| the `LibPos` ledger comment holding "second from the top" beside the counter and cast sites | **never existed** (the only baseline "second from the top" is a witness docstring quoting a card). Nothing to discharge. |
+
+Already landed contrary to this ticket's premises, before the round opened:
+
+- `Comparator` already carries **five** relations (`AtLeast | AtMost | Greater |
+  Less | Eq`) — the "equality comparison" entry was already discharged.
+- `choosable (CountedGroup _ _) = True` already (`Experimental.idr:1872`), so the
+  choice cell was **not** over-refusing.
+- `condDelta (CompareAmt subj _ bound)` already threads both operands' deltas
+  beside `gapB` — the "announcing comparison operand" hole was already closed in
+  the condition frame.
+- Balance of Power (`balanceOfPower`), Vraska's ultimate
+  (`vraskaBetrayalsStingUltimate`) and Iymrith's margin read (`iymrithGapDraw`)
+  were already benched.
+
+Where the ticket and the tree disagreed, the tree won.
+
+Two of this ticket's own instructions are also superseded by
+`docs/memory/rulings/measurements-live-in-pins.md` (2026-08-22), which postdates
+the "Measured cell (2026-08-21)" block above:
+
+- "Gate the summed bound to equality" — **not done**. A count never refuses; the
+  bound slot stays open at all five relations and the attestation shape is
+  recorded here, not gated. The verdict is stated in `CompareAmt`'s docstring.
+- "the fix — reading the quantity — owes the full quantity-by-attestation grid
+  across BOTH choice tables" — **not done**. Both choice tables stay
+  quantity-blind; no cell moved, and the grid is not owed because no cell was
+  read.
+
 ## Acceptance
 
 - Each amount read lands as its own row; nothing is folded into the rider, which
   is not where any of these is blocked.
-- The absolute difference is symmetric at all six supported lines, and the
-  directional row is unchanged.
+- The absolute difference is symmetric, and the directional `Minus` row is
+  unchanged.
 - The card-type-among-cards count and the all-graveyards possessor are recorded
-  as still-blocking for the eight and the five, if this round does not take them.
-- The sum's admission is decided against all five relations, not just the
-  equality, and the decision is stated where the bound column is defined.
-- The scaled product and the outcome read remain measured zeros with their pins
-  intact; `badCompareLiteralSubject` still holds.
-- The announcing subject and the announcing bound are answered in one change.
-- Each new fold axis is justified by its own family, and the cards-in-hand axis
-  does not silently reverse chapter fifty-six's `PlayerStat` refusal without
-  stating the re-measurement.
+  as still-blocking for the eight and the five (Ledger below).
+- The bound slot's admission is decided against all five relations, and the
+  decision is stated where the bound column is defined (`CompareAmt`'s
+  docstring, with a pointer comment at `Compare`).
+- The scaled product and the outcome read stay unpinned and unrefused — the
+  doctrine forbids minting a corpus-zero pin for either; `badCompareLiteralSubject`
+  still holds.
+- The announcing subject and the announcing bound are answered in one change:
+  the left side opens (`readAmount (LetterVal _) = True`) and negation stops
+  dropping announcements (`dropGaps`).
+- No `ProjAxis` row is added; each candidate axis is recorded against its own
+  family in the Ledger, and the cards-in-hand refusal is not reversed.
 - The mentioned complement lands as a second slot shape, with no new fold
-  machinery, and `StatOf`'s comment is paid or updated.
-- The element binder reaches into the domain's own predicate and the 10
-  relativized cards land, or the shortfall is named card by card.
-- `CountersOn` gets NO `ProjAxis` row on this round's 1-landing evidence.
-- Both choice tables are answered in one change, with the quantity-by-attestation
-  grid recorded where the cells are defined.
-- Duneblast and Berserker's Frenzy are writable.
-- `badChooseCountedGroup` still refuses on its `atLeast 1` line.
+  machinery. (`StatOf` carries no Soulblast comment in this tree — see the
+  Re-audit table — so that clause is void, not satisfied.)
+- The element binder reaches into the domain's own predicate; the relativized
+  cards that do not land are named card by card in the Ledger.
+- `CountersOn` gets NO `ProjAxis` row.
+- Both choice tables stay quantity-blind; the counted-choice line that is
+  writable is benched, and Duneblast's blocker is ledgered.
 - One ordinal vocabulary serves the counter event, the cast restriction and
-  `LibPos`; the `LibPos` ledger comment is discharged rather than left standing.
+  `LibPos`. (The `LibPos` "ledger comment" named here does not exist in the
+  tree — see the Re-audit table — so there is nothing to discharge.)
 - `CounterBatch`'s two determiners are not extended into a third — the ordinal is
   its own thing.
-- The counter event keeps `When`'s once-per-object reading for all 11 headers.
-- The history identity read is either folded in or refused with its reason
-  recorded; Once Upon a Time is not counted as a payoff.
+- The counter event keeps `When`'s once-per-object reading; the trigger word
+  stays the header's own slot and the ordinal wrapper does not touch it.
+- The history identity read is refused with its reason recorded; Once Upon a
+  Time is not counted as a payoff.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## As-landed
+
+Design artifact: `docs/memory/scratch/amount-quantity-design.md`. Two ordered
+sub-rounds, `idris/scripts/build` 19/19 after each. No experiment-log chapter
+was written: the decision record is the docstrings plus this section.
+
+### Sub-round A — the amount vocabulary and the comparison's columns
+
+`jj diff --stat` at the A/B cut: 6 files, +404 / −5.
+
+- **`Amount` gains six rows** (`Experimental.idr`), each with its
+  `amtDelta`/`amtIntro`/`amtPlur`/`writtenBound`/`readAmount` companions:
+  `Devotion` (the mana-symbol count [CR#700.5], gated to one possessor only —
+  the colour pair is ungated, see the deviations), `Half` (a `RoundMode` slot, generalising
+  the one prior `DamageScale.Halved` site), `DifferenceBetween` (the symmetric
+  margin; the directional `Minus` is untouched), `EventSum` (`EventCount`'s
+  numeric twin, gated by the new `eventHasMagnitude`), `AggregateOf` (the fold
+  over a group MENTION — a second slot shape, no new fold machinery), and
+  `AggregateOver` (the element binder: the domain binds one member with
+  `bindFor TheD OneOf` for the body to read back as `It`/`They`).
+- **`eventHasMagnitude`** (`Events.idr`) answers all 28 `EventName`s: damage and
+  life gain/loss carry a number, everything else is a transition or an act.
+- **The comparison's left side opens**: `readAmount (LetterVal _) = True`, on the
+  ticket's own distinction — an announced X reads the value its announcement
+  fixed [CR#107.3a], where a bare numeral states arithmetic. `ReadAmount`'s only
+  consumer is `CompareAmt`'s `rd` gate (whole-tree grep: 1 site), the ticket's
+  stated precondition for widening it. `badCompareLiteralSubject` still refuses.
+- **The bound column's verdict is recorded, not gated**: a docstring on
+  `CompareAmt` and a pointer comment at `Compare`.
+- **Negation stops dropping announcements**: `condDelta (NotCond c) =
+  dropGaps (condDelta c)` — a target written inside "unless [comparison]" is
+  announced at casting like any other [CR#601.2c], and only the `Gap` binding
+  goes, because a comparison that did not hold leaves no margin.
+- **The asymmetric definition is a telescope, not a constructor**: `NamedNumber`
+  joins `OutcomeSort` with `outcomeIsQuantity NamedNumber = True`, and
+  `staticIntro (DefinesPt …)` introduces `outcomeB NamedNumber`, so a sibling
+  slot reads it back as `ThatMuch` ("that number").
+- **`PrintedMinusStar`** joins `PrintedStat` (and `starred`).
+
+Bench (`Cards.idr`), all oracle text verified against MTGJSON before landing:
+`karametrasAcolyte`, `anaxPowerDefinition`, `grayMerchantDrain`,
+`devotionCondition` (Erebos, God of the Dead), `aspectOfWolf`, `jawsOfDefeat`,
+`defilingDaemogothDrain`, `skullsporeNexusTrigger`,
+`greatestCreaturesAPlayerControls`, `greatestArtifactsAnOpponentControls`,
+`lhurgoyfDefinition`, `shapeshifterBox`, `multipleChoiceFirstArm`,
+`multipleChoiceFourthGate`, `fellTheMighty`, `birthingPodSearch`.
+
+Pins (`ProofsG.idr`): `badPluralDevotion`, `badDeathSum`,
+`badSingularAggregateOf`, `badAggregateOfWrongSort` — each naming the rule that
+makes its term meaningless, none justified by a count.
+
+### Sub-round B — the ordinal word and the quantity's bindings index
+
+- **One ordinal vocabulary**: `LibOrdinal` becomes `Ordinal` (same `Nth`, same
+  [CR#401.7] refusal) with `LibOrdinal` kept as a type alias, so every existing
+  use site and `badZerothFromTop` compile unchanged. (No `LibPos` ledger comment
+  existed to discharge; see the Re-audit table.)
+- **`NthOccurrence`** wraps any `GameEvent` (`eventName`/`eventIntro`/
+  `eventAfter`/`eventSubjectPlur` read through it; those four are the only total
+  matches over `GameEvent` in the tree). `CounterBatch` keeps its two
+  determiners. The trigger word stays the header's own slot.
+- **`Plan` and `Hour` counter kinds** join the catalog with their `counterScope`
+  and `Eq` rows.
+- **`Quantity` moves into `Experimental.idr`'s mutual block and gains a
+  `Bindings` index and `UpToOf`** — the ceiling that is a written amount. The
+  four literal gates (`NonZeroQ`, `WellFormedQ`, `quantPlur`, `modesFit`) answer
+  the new arm whole-constructor and stay decidable; that is the recorded answer
+  to the v1/v2 comparison's "would have to become runtime-undecidable" cost.
+  `quantDelta` threads the bound's mentions at `TargetGroup`, `CountedGroup`,
+  `SomeOf` and — because "choose up to X, where X is …" is attested (Bumi, The
+  Ruinous Wrecking Crew, and the modal-spell rider) — at `Modal`'s
+  `effIntro`/`preIntro`/`annIntro`, which previously dropped the headcount's
+  letter. Two constructs are gated literal (`quantLiteral`): the results table,
+  because [CR#706.3a]'s own three forms are numbers, and the land allowance,
+  because no printed line writes "up to [amt] additional lands" and the
+  statement introduces no mention of its own — that widening waits on a printed
+  line.
+- **The counter-header count** the ordinal serves: all 11 printed headers write
+  `When`, not `Whenever`. That is a corpus measurement, so it lives here and not
+  in `NthOccurrence`'s docstring; the trigger word stays the header's own slot
+  and the ordinal wrapper does not constrain it.
+
+Bench: `wavebreakHippocamp`, `midnightClockHeader`, `politicalTriumphHeader`,
+`runThePlayCounters`, `berserkersFrenzyLowRoll`.
+Pin: `badAmountRollRow`.
+
+Must-not-regress, all still refusing (a pin that stopped refusing would fail the
+`impossible` clause and break the build): `badCompareLiteralSubject`,
+`badZeroGroup`, `badDescendingRange`, `badModalOneMode`, `badModalOverreach`,
+`badZerothFromTop` (now pinning the shared `Ordinal`). Every literal-quantity
+witness typechecks unchanged.
+
+### Deviations from the design artifact
+
+- **`devotionColorsOk` and `badSameColorDevotion` were built, then deleted**
+  (conductor ruling, 2026-08-24). [CR#700.5]'s pair reading computes over the
+  symbols that are "[color 1], [color 2], or both colors", which is well defined
+  when the two names coincide — it is then the single-colour count. So "devotion
+  to black and black" is CR-*meaningful*, the pin was a measured zero dressed as
+  a presupposition, and
+  `docs/memory/rulings/measurements-live-in-pins.md` forbids it. The pair slot is
+  ungated and the ruling is recorded in one line on the `Devotion` row.
+- **[CR#119.3] and [CR#120.1] were the wrong cites** for `eventHasMagnitude` and
+  were replaced after reading the rule text: [CR#119.3] says only that a life
+  total is "adjusted accordingly", and [CR#120.1] says only who can be dealt
+  damage.
+  Landed as [CR#120.8] (a 0-damage deal is no damage event), [CR#119.9] (a
+  0-life gain is no life gain event) and [CR#119.2] (a damaged player loses
+  "that much" life).
+- **`condDelta (NotCond c)` has a second consequence the design did not name.**
+  `condDelta (Matches (AsType t This _) _)` also survives negation now, which
+  broke two macros. `unlessSo` was retyped to take its static effect at
+  `condIntro (NotCond c)`; `monstrosity`'s gate moved from `Matches thisCreature`
+  to `Matches This`, which is what [CR#701.37a] actually writes ("If this
+  permanent isn't monstrous"). Both are improvements, not workarounds.
+- **Doran, Besieged by Time is not the `DifferenceBetween` witness.** Its real
+  header is "Whenever a creature you control attacks or blocks", and
+  `triggeredOr`'s body is typed at `bs` rather than at the event's after-context,
+  so the rider's "it" has no antecedent. Jaws of Defeat — "Whenever a creature
+  you control enters, target opponent loses life equal to the difference between
+  that creature's power and its toughness" — carries the same surface with a
+  single-event header and is the witness instead.
+- **Soulblast is not the `AggregateOf` witness.** Its sacrifice is an additional
+  cost ("As an additional cost to cast this spell, sacrifice all creatures you
+  control"), and the additional-cost frame is unbuilt. The Skullspore Nexus —
+  "Whenever one or more nontoken creatures you control die, create a green Fungus
+  Dinosaur creature token with base power and toughness each equal to the total
+  power of those creatures" — is the witness. It required one catalog row,
+  `Fungus`, with its `subtypeType` and `Eq` companions.
+- **Death Denied writes "Return X target creature cards", not "up to X".** The
+  `UpToOf` witness is Run the Play's first clause instead.
+- **The design's `badAggregateOfWrongSort` complement was unelaborable** in the
+  empty context (`thoseVerbed` needs a prior plural sacrifice mention), so the
+  pin reads "the greatest life total among all creatures" over `AllOf` instead.
+  The sort mismatch it pins is unchanged.
+- **Cephalopod Sentry is */5, not "7-*".** The subtracted-star card is
+  **Shapeshifter** (*/7-*, "its toughness is equal to 7 minus that number"), and
+  that is the box the witness spells.
+- **The Skullspore Nexus witness reads `Those CardW`, not `Those (TypeW
+  Creature)`**, because `eventAfter (Dies …)` moves the mention to the graveyard.
+  The card-side spelling of a death's own mention is a standing gap, noted at the
+  witness; it is not this row's.
+
+### Ledger
+
+Named, not built, with the exact blocker:
+
+- **Duneblast — "Choose up to one creature. Destroy the rest." (oracle text
+  verified)** — NOT landed. `TheRest`'s presupposition is a partitioned group,
+  and a choice mints none: neither `countGroups` nor `countParts` sees a choice
+  clause. Landing it needs either a new `TheRest` licensor over the world's
+  creatures or a different row, which is a ruling this round did not have.
+  Berserker's Frenzy's counted choice IS landed (`berserkersFrenzyLowRoll`),
+  which is the half of the ticket's pair that the tree already admitted.
+- **Boreas Charger / Sandstone Oracle / Slithermuse** — deferred whole. "Choose
+  an opponent who controls more lands than you … the difference" needs a
+  predicate-level member-relative comparison AND a gap-licensing choice frame.
+  Neither exists; building half of it lands none of the three.
+- **Once Upon a Time's history identity read** ("if this spell is the first spell
+  you've cast this game") — neither built nor pinned. No rule makes it
+  meaningless, so a pin would be a doctrine violation; no buildable card pays it
+  (the rest of that card — look at five, reveal, bottom in a random order — is
+  unbuilt besides). Recorded as a ledger, not a refusal.
+- **`AggregateOver`'s ten relativized cards, card by card.** The binder itself is
+  landed and benched twice at the phrase level (Investigator's Journal's count,
+  Cavern-Hoard Dragon's cost rider). Whole cards still blocked:
+  - *Investigator's Journal* — additionally needs a `Suspect` counter kind
+    ("enters with a number of suspect counters on it equal to …"), outside this
+    ticket's counter scope.
+  - *Thought Sponge* — "the greatest number of cards an opponent has drawn this
+    turn" needs an `EventCount` INSIDE the binder body, relativized to the bound
+    member; the body admits an `Amount` but no per-member event subject exists.
+  - *Windfall / Jace's Archivist cycle* — "cards a player discarded this way"
+    inside the binder: same per-member event-mention gap.
+  - *Cavern-Hoard Dragon* — the phrase is landed; the whole card needs the
+    cost-reduction rider's `{X} less` frame.
+- **The definition-side double-blocks stand.** Eight of the asymmetric twelve
+  (incl. Tarmogoyf) count card TYPES among cards — a distinct-kind count
+  `CountOf` does not spell — and five of those eight also write the
+  all-graveyards possessor. The Lhurgoyf witness spells its zone as the bare
+  graveyard zone with a spelling note; the possessor question is untouched.
+- **`ProjAxis` gained no rows**, as the ticket required. Each candidate rides its
+  own family: votes → the will-of-the-council family; the colour share → a
+  quality-domain fold (a third sort beside object and player) that nothing here
+  builds; the noted number → named memory channels; cards in hand → chapter
+  fifty-six's `PlayerStat` refusal, NOT reversed. `CountersOn` gets no row.
+- **`writtenBound` has no consumer** (signature + rows only, whole-tree grep).
+  Likely residue of a removed bound gate. Left untouched; conductor decides
+  deletion.
+- **`Aggregate` is now a special case of `AggregateOver`.** `Aggregate op ax p`
+  folds `ax` over the members of `p`; `AggregateOver op p body` folds `body` over
+  the same members with one bound. Writing the axis read as the body recovers
+  the older row exactly, so the vocabulary now has two spellings for one meaning.
+  Nothing here dedups them — every existing `Aggregate` witness would have to be
+  re-spelled and the extremal modifier's own consumers re-read — but a future
+  round should collapse the pair rather than grow both.
+- **Three devotion cards stay unspellable**, per the shortfall-naming rule:
+  *Nykthos, Shrine to Nyx* and *Nyx Lotus* both write "Choose a color. Add an
+  amount of mana of that color equal to your devotion to that color" — the
+  colour slot is an anaphor over a chosen quality, and `Devotion`'s slot is a
+  literal `Chroma.Color`; a chosen-colour read is the quality-domain work, not
+  this row's. *Altar of the Pantheon* writes "Your devotion to each color and
+  each combination of colors is increased by one" — a modification of the
+  devotion count across every colour combination at once, which is neither a
+  read nor a slot this vocabulary has.
+- **The scaled product and the outcome read as bounds** stay unpinned. Both are
+  CR-meaningful, so under `docs/memory/rulings/measurements-live-in-pins.md` no
+  pin may be minted for either; the ticket's `badScaledBound` /
+  `badScaledConditionBound` never existed to begin with.
+- **`EventSum`'s witness is Defiling Daemogoth** ("At the beginning of your end
+  step, each opponent loses X life, where X is the amount of life you gained this
+  turn", verified) — the family (51 distinct supported oracle lines across 50
+  supported cards; 57 cards at `--all` scope) is no longer pin-backed only.
