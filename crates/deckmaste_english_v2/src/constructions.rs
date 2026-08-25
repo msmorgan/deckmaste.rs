@@ -155,6 +155,8 @@ constructions! {
         Green = "G",
     }
     vocab ScalarCharacteristic { Power = "power", Toughness = "toughness", }
+    vocab CounterName { Charge = "charge", Lore = "lore", Stun = "stun", Time = "time", }
+    vocab DieShape { SixSided = "six-sided", }
     vocab Zone {
         Battlefield = "battlefield",
         Exile = "exile",
@@ -196,6 +198,7 @@ constructions! {
             Plural = "abilities",
         },
         Card = "card",
+        Counter = "counter",
         Controller = "controller",
         Opponent = "opponent",
         Owner = "owner",
@@ -204,10 +207,20 @@ constructions! {
         Source = "source",
         Spell = "spell",
         Token = "token",
+        Die = "die" {
+            Plural = "dice",
+        },
     }
     lexeme VerbLexeme using EnglishVerb {
+        Add = "add",
         Deal = "deal",
+        Draw = "draw",
         Gain = "gain",
+        Lose = "lose",
+        Pay = "pay",
+        Put = "put",
+        Remove = "remove",
+        Roll = "roll",
         Control = "control",
         Own = "own",
         Be = "be" {
@@ -854,6 +867,20 @@ constructions! {
         };
         derive onset = word.onset;
         form reflexive_object = lex(word);
+    }
+    construction choice_object: Object {
+        element ChoiceObject { value: NounPhrase, }
+        derive agreement = value.agreement;
+        derive number = value.number;
+        derive onset = value.onset;
+        form choice_object = value "of" "their" "choice";
+    }
+    construction random_object: Object {
+        element RandomObject { value: NounPhrase, }
+        derive agreement = value.agreement;
+        derive number = value.number;
+        derive onset = value.onset;
+        form random_object = value "at" "random";
     }
     construction common_singular_head: SingularHead {
         element CommonSingularHead { noun: lex CommonNoun, }
@@ -2093,6 +2120,17 @@ constructions! {
         }
         form scalar_qualification = "with" measure comparison;
     }
+    construction possessed_scalar_value: ScalarValue {
+        element PossessedScalarValue {
+            possessor: lex PossessiveDeterminerPronoun,
+            measure: ScalarMeasure,
+        }
+        form possessed_scalar_value = lex(possessor) measure;
+    }
+    construction scalar_equality: ScalarEquality {
+        element ScalarEqualityValue { value: ScalarValue, }
+        form scalar_equality = "equal" "to" value;
+    }
     construction unqualified_controller_stage: ControllerStage {
         element UnqualifiedControllerStage { reference: UnqualifiedReference, }
         derive agreement = reference.agreement;
@@ -2195,6 +2233,91 @@ constructions! {
         ) = suffix(owner, "'");
         form plural_other otherwise = suffix(owner, "'s");
     }
+    construction singular_card_quantity: CardQuantity {
+        element SingularCardQuantity {}
+        form singular_card_quantity = "a" "card";
+    }
+    construction fixed_card_quantity: CardQuantity {
+        element FixedCardQuantity { count: CardinalQuantity, }
+        require count.cardinality is TwoPlus;
+        form fixed_card_quantity = count "cards";
+    }
+    construction variable_card_quantity: CardQuantity {
+        element VariableCardQuantity { count: lex Variable, }
+        form variable_card_quantity = lex(count) "cards";
+    }
+    construction anaphoric_card_quantity: CardQuantity {
+        element AnaphoricCardQuantity { count: CountReference, }
+        form anaphoric_card_quantity = count "cards";
+    }
+    construction positive_power_toughness_counter: CounterKind {
+        element PositivePowerToughnessCounter {
+            magnitudes: seq PositiveCounterMagnitude separated by "/",
+        }
+        require len(magnitudes) = 2;
+        form positive_power_toughness_counter = magnitudes;
+    }
+    construction negative_power_toughness_counter: CounterKind {
+        element NegativePowerToughnessCounter {
+            magnitudes: seq NegativeCounterMagnitude separated by "/",
+        }
+        require len(magnitudes) = 2;
+        form negative_power_toughness_counter = magnitudes;
+    }
+    construction positive_counter_magnitude: PositiveCounterMagnitude {
+        element PositiveCounterMagnitudeValue { amount: Amount, }
+        form positive_counter_magnitude = prefix("+", amount);
+    }
+    construction negative_counter_magnitude: NegativeCounterMagnitude {
+        element NegativeCounterMagnitudeValue { amount: Amount, }
+        form negative_counter_magnitude = prefix("-", amount);
+    }
+    construction named_counter: CounterKind {
+        element NamedCounter { name: lex CounterName, }
+        form named_counter = lex(name);
+    }
+    construction singular_counter_quantity: CounterQuantity {
+        element SingularCounterQuantity { kind: CounterKind, }
+        form singular_counter_quantity = "a" kind "counter";
+    }
+    construction fixed_counter_quantity: CounterQuantity {
+        element FixedCounterQuantity {
+            count: CardinalQuantity,
+            kind: CounterKind,
+        }
+        require count.cardinality is TwoPlus;
+        form fixed_counter_quantity = count kind "counters";
+    }
+    construction variable_counter_quantity: CounterQuantity {
+        element VariableCounterQuantity {
+            count: lex Variable,
+            kind: CounterKind,
+        }
+        form variable_counter_quantity = lex(count) kind "counters";
+    }
+    construction anaphoric_counter_quantity: CounterQuantity {
+        element AnaphoricCounterQuantity {
+            count: CountReference,
+            kind: CounterKind,
+        }
+        form anaphoric_counter_quantity = count kind "counters";
+    }
+    construction singular_die_object: DieObject {
+        element SingularDieObject { shape: opt lex DieShape, }
+        form singular_die_object = "a" lex(shape) "die";
+    }
+    construction fixed_dice_object: DieObject {
+        element FixedDiceObject {
+            count: CardinalQuantity,
+            shape: opt lex DieShape,
+        }
+        require count.cardinality is TwoPlus;
+        form fixed_dice_object = count lex(shape) "dice";
+    }
+    construction d20_object: DieObject {
+        element D20Object {}
+        form d20_object = "a" "d20";
+    }
     construction intransitive_predicate: VerbPhrase {
         element IntransitivePredicate { head: lex IntransitiveVerb, }
         derive agreement = head.agreement;
@@ -2219,6 +2342,71 @@ constructions! {
         element GainLife { amount: Amount, }
         derive agreement = verb.agreement;
         form gain_life = verb(VerbLexeme::Gain) amount "life";
+    }
+    construction deal_damage_equal_to: VerbPhrase {
+        element DealDamageEqualTo { equality: ScalarEquality, to: Object, }
+        derive agreement = verb.agreement;
+        form deal_damage_equal_to = verb(VerbLexeme::Deal) "damage" equality "to" to;
+    }
+    construction gain_life_equal_to: VerbPhrase {
+        element GainLifeEqualTo { equality: ScalarEquality, }
+        derive agreement = verb.agreement;
+        form gain_life_equal_to = verb(VerbLexeme::Gain) "life" equality;
+    }
+    construction lose_life: VerbPhrase {
+        element LoseLife { amount: Amount, }
+        derive agreement = verb.agreement;
+        form lose_life = verb(VerbLexeme::Lose) amount "life";
+    }
+    construction lose_life_equal_to: VerbPhrase {
+        element LoseLifeEqualTo { equality: ScalarEquality, }
+        derive agreement = verb.agreement;
+        form lose_life_equal_to = verb(VerbLexeme::Lose) "life" equality;
+    }
+    construction pay_life: VerbPhrase {
+        element PayLife { amount: Amount, }
+        derive agreement = verb.agreement;
+        form pay_life = verb(VerbLexeme::Pay) amount "life";
+    }
+    construction pay_mana: VerbPhrase {
+        element PayMana { mana: ManaAmount, }
+        derive agreement = verb.agreement;
+        form pay_mana = verb(VerbLexeme::Pay) mana;
+    }
+    construction add_mana: VerbPhrase {
+        element AddMana { mana: ManaAmount, }
+        derive agreement = verb.agreement;
+        form add_mana = verb(VerbLexeme::Add) mana;
+    }
+    construction draw_cards: VerbPhrase {
+        element DrawCards { cards: CardQuantity, }
+        derive agreement = verb.agreement;
+        form draw_cards = verb(VerbLexeme::Draw) cards;
+    }
+    construction draw_cards_equal_to: VerbPhrase {
+        element DrawCardsEqualTo { equality: ScalarEquality, }
+        derive agreement = verb.agreement;
+        form draw_cards_equal_to = verb(VerbLexeme::Draw) "cards" equality;
+    }
+    construction roll_dice: VerbPhrase {
+        element RollDice { dice: DieObject, }
+        derive agreement = verb.agreement;
+        form roll_dice = verb(VerbLexeme::Roll) dice;
+    }
+    construction put_counters: VerbPhrase {
+        element PutCounters { counters: CounterQuantity, recipient: Object, }
+        derive agreement = verb.agreement;
+        form put_counters = verb(VerbLexeme::Put) counters "on" recipient;
+    }
+    construction remove_counters: VerbPhrase {
+        element RemoveCounters { counters: CounterQuantity, source: Object, }
+        derive agreement = verb.agreement;
+        form remove_counters = verb(VerbLexeme::Remove) counters "from" source;
+    }
+    construction mana_amount: ManaAmount {
+        element ManaAmountValue { run: ActivationCostComponent, }
+        require run is SymbolRun;
+        form mana_amount = run;
     }
     construction number: Amount {
         element NumberAmount { number: lex ScalarNumber, }

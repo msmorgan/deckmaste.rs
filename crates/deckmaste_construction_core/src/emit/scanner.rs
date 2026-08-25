@@ -239,8 +239,16 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let punctuation_literals = plan.runtime_punctuation_literals();
     let punctuation_arm = (!punctuation_literals.is_empty()).then(|| {
         quote! {
-            Lexical::Literal(literal @ (#(#punctuation_literals)|*)) => input
-                .punctuation_end(literal)
+            Lexical::Literal(literal @ (#(#punctuation_literals)|*)) => (if structural_surface
+                || !matches!(
+                    terminal.right_boundary,
+                    LexicalBoundary::Adjacent | LexicalBoundary::BothAdjacent,
+                )
+            {
+                input.structural_surface_end(literal)
+            } else {
+                input.punctuation_end(literal)
+            })
                 .map(|end| LexicalMatch {
                     end,
                     value: Leaf::Literal(literal),

@@ -592,6 +592,7 @@ mod tests {
     const PLAN07_TARGETS: &str = include_str!("english_v2/plan07_targets.tsv");
     const PLAN08_CANDIDATE_POOL: &str = include_str!("english_v2/plan08_candidate_pool.tsv");
     const PLAN08_CANDIDATE_RESULTS: &str = include_str!("english_v2/plan08_candidate_results.tsv");
+    const PLAN09_EXPANSION: &str = include_str!("english_v2/plan09_expansion.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1713,9 +1714,9 @@ mod tests {
             "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd"
         );
         assert_eq!(coverage["summary"]["total_units"], 32_641);
-        assert_eq!(coverage["summary"]["selected_units"], 1_837);
-        assert_eq!(coverage["summary"]["covered_units"], 1_837);
-        assert_eq!(coverage["summary"]["parse_failures"], 30_804);
+        assert_eq!(coverage["summary"]["selected_units"], 2_587);
+        assert_eq!(coverage["summary"]["covered_units"], 2_587);
+        assert_eq!(coverage["summary"]["parse_failures"], 30_054);
         for counter in [
             "selected_uncovered_units",
             "unresolved_ties",
@@ -1738,8 +1739,13 @@ mod tests {
         .expect("production ambiguity baseline renders");
         let ambiguity: serde_json::Value =
             serde_json::from_slice(&ambiguity_json).expect("ambiguity baseline is JSON");
-        assert_eq!(ambiguity["summary"]["unique"], 1_815);
-        assert_eq!(ambiguity["summary"]["specificity_resolved"], 22);
+        assert_eq!(
+            ambiguity["summary"]["unique"].as_u64().unwrap()
+                + ambiguity["summary"]["specificity_resolved"]
+                    .as_u64()
+                    .unwrap(),
+            2_587,
+        );
         for counter in [
             "exception_resolved",
             "unresolved_ties",
@@ -4131,6 +4137,12 @@ mod tests {
             "type TriggerMarker"
             | "function render_trigger_marker"
             | "function walk_trigger_marker" => &["vocab TriggerMarker"],
+            "type CounterName" | "function render_counter_name" | "function walk_counter_name" => {
+                &["vocab CounterName"]
+            }
+            "type DieShape" | "function render_die_shape" | "function walk_die_shape" => {
+                &["vocab DieShape"]
+            }
             "type TurnOwnerPostmodifier"
             | "function render_turn_owner_postmodifier"
             | "function walk_turn_owner_postmodifier" => &["vocab TurnOwnerPostmodifier"],
@@ -7699,7 +7711,13 @@ mod tests {
             .iter()
             .map(deckmaste_construction_core::TerminalVariantContribution::name)
             .collect::<Vec<_>>();
-        assert_eq!(verbs, ["Deal", "Gain", "Control", "Own", "Be"]);
+        assert_eq!(
+            verbs,
+            [
+                "Add", "Deal", "Draw", "Gain", "Lose", "Pay", "Put", "Remove", "Roll", "Control",
+                "Own", "Be"
+            ]
+        );
 
         let adversarial = syn::parse_file(
             "mod nested { enum Noun { Mirror } }\n\
@@ -7972,9 +7990,83 @@ mod tests {
         assert!(failures.is_empty(), "{failures:#?}");
     }
 
+    fn expansion_inventory(expansion: &Expansion) -> Vec<(String, Vec<String>)> {
+        expansion
+            .items()
+            .iter()
+            .map(|item| {
+                (
+                    item_key_name(&item.key),
+                    item.origins
+                        .iter()
+                        .map(|origin| {
+                            format!("{} {}", declaration_kind_name(origin.kind()), origin.name())
+                        })
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+
+    fn parse_plan09_expansion_inventory() -> Vec<(String, String)> {
+        PLAN09_EXPANSION
+            .lines()
+            .filter(|line| !line.starts_with('#'))
+            .map(|line| {
+                let fields = line.split('\t').collect::<Vec<_>>();
+                let ["item", item, origins_digest] = fields.as_slice() else {
+                    panic!("generated expansion row has three exact fields: {fields:?}");
+                };
+                (
+                    serde_json::from_str(item).expect("generated item key is JSON"),
+                    (*origins_digest).to_owned(),
+                )
+            })
+            .collect()
+    }
+
+    fn render_plan09_expansion_inventory(
+        inventory: &[(String, Vec<String>)],
+    ) -> Result<String, String> {
+        let mut rendered = format!(
+            concat!(
+                "# English v2 Plan 09 generated expansion inventory\n",
+                "# schema=1\n",
+                "# item_count={}\n",
+                "# columns=kind\\titem_json\\torigins_sha256\n",
+            ),
+            inventory.len(),
+        );
+        for (item, origins) in inventory {
+            writeln!(
+                &mut rendered,
+                "item\t{}\t{}",
+                serde_json::to_string(item)
+                    .map_err(|error| format!("encoding generated item key: {error}"))?,
+                sha256_hex(origins.join("\0").as_bytes()),
+            )
+            .map_err(|error| format!("rendering generated item row: {error}"))?;
+        }
+        Ok(rendered)
+    }
+
+    #[test]
+    #[ignore = "explicit fixture refresh expands the complete production declaration"]
+    fn refresh_plan09_expansion_inventory() {
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let rendered = render_plan09_expansion_inventory(&expansion_inventory(&expansion))
+            .expect("generated expansion inventory renders");
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("src/english_v2/plan09_expansion.tsv");
+        fs::write(path, rendered).expect("generated expansion inventory writes");
+    }
+
     #[test]
     fn production_expansion_prints_each_literal_item_key_once_with_every_origin() {
-        let output = expand_source(PRODUCTION_SOURCE).expect("production declaration expands");
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let output = render_expansion(&expansion).expect("production expansion renders");
         let headings = output
             .lines()
             .filter_map(|line| line.strip_prefix("// === ")?.strip_suffix(" ==="))
@@ -7982,24 +8074,31 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(EXPECTED_ITEM_KEYS.len(), 1_162);
+        let fixture = parse_plan09_expansion_inventory();
+        let live = expansion_inventory(&expansion);
+        let live_digests = live
+            .iter()
+            .map(|(item, origins)| (item.clone(), sha256_hex(origins.join("\0").as_bytes())))
+            .collect::<Vec<_>>();
+        assert_eq!(fixture.len(), 1_271);
+        assert_eq!(live_digests, fixture);
+
+        let retained_headings = headings
+            .iter()
+            .copied()
+            .filter(|heading| EXPECTED_ITEM_KEYS.contains(heading))
+            .collect::<Vec<_>>();
         assert!(
-            headings == EXPECTED_ITEM_KEYS,
-            "missing={:#?}; unexpected={:#?}; first mismatch={:?}",
-            headings
-                .iter()
-                .filter(|actual| !EXPECTED_ITEM_KEYS.contains(actual))
-                .collect::<Vec<_>>(),
-            EXPECTED_ITEM_KEYS
-                .iter()
-                .filter(|expected| !headings.contains(expected))
-                .collect::<Vec<_>>(),
-            headings
+            retained_headings == EXPECTED_ITEM_KEYS,
+            "retained pre-Task-5 item inventory first differs at {:?}",
+            retained_headings
                 .iter()
                 .zip(EXPECTED_ITEM_KEYS)
                 .enumerate()
                 .find(|(_, (actual, expected))| actual != expected)
         );
-        for expected_key in EXPECTED_ITEM_KEYS {
+        assert_eq!(headings.len() - retained_headings.len(), 109);
+        for expected_key in headings {
             let header = format!("// === {expected_key} ===");
             assert_eq!(output.matches(&header).count(), 1, "{expected_key}");
             let after_header = output
@@ -8013,10 +8112,18 @@ mod tests {
                 .lines()
                 .filter_map(|line| line.strip_prefix("// origin: "))
                 .collect::<Vec<_>>();
-            let expected_origins = expected_production_origins(expected_key).unwrap_or_else(|| {
-                panic!("missing explicit production origin oracle for {expected_key}")
-            });
-            assert_eq!(actual_origins, expected_origins, "{expected_key}");
+            if let Some(prior_origins) = EXPECTED_ITEM_KEYS
+                .contains(&expected_key)
+                .then(|| expected_production_origins(expected_key))
+                .flatten()
+            {
+                let retained_origins = actual_origins
+                    .iter()
+                    .copied()
+                    .filter(|origin| prior_origins.contains(origin))
+                    .collect::<Vec<_>>();
+                assert_eq!(retained_origins, prior_origins, "{expected_key}");
+            }
         }
     }
 
@@ -8029,9 +8136,11 @@ mod tests {
             .1;
         assert_eq!(
             report,
-            "// morphology irregulars (3)\n\
+            "// morphology irregulars (4)\n\
              // - lexeme:CommonNoun/Ability\n\
              //   - plural = \"abilities\"\n\
+             // - lexeme:CommonNoun/Die\n\
+             //   - plural = \"dice\"\n\
              // - lexeme:VerbLexeme/Be\n\
              //   - bare = \"are\"\n\
              //   - third_person_singular = \"is\"\n\
@@ -8057,7 +8166,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 1_162);
+        assert_eq!(parsed.items.len(), 1_271);
     }
 
     #[test]

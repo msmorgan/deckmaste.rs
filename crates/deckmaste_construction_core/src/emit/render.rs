@@ -2253,7 +2253,10 @@ fn render_bound_atom(
     root_names: &HashSet<String>,
     fields: &HashMap<String, &ConstructionFieldPlan>,
 ) -> syn::Result<TokenStream> {
-    let affix_statement = render_fixed_surface_statement(affix);
+    let affix_statement = match direction {
+        crate::semantic::BoundDirectionPlan::Prefix => render_prefix_surface_statement(affix),
+        crate::semantic::BoundDirectionPlan::Suffix => render_fixed_surface_statement(affix),
+    };
     let affix_id = syn::LitStr::new(
         &format!(
             "form:{}/{}/{atom_index}/affix",
@@ -2335,7 +2338,11 @@ fn render_circumfix_atom(
     fields: &HashMap<String, &ConstructionFieldPlan>,
 ) -> syn::Result<TokenStream> {
     let affix_claim = |surface: &str, side: &str| {
-        let statement = render_fixed_surface_statement(surface);
+        let statement = if side == "prefix" {
+            render_prefix_surface_statement(surface)
+        } else {
+            render_fixed_surface_statement(surface)
+        };
         let stable_id = syn::LitStr::new(
             &format!(
                 "form:{}/{}/{atom_index}/{side}",
@@ -2396,6 +2403,11 @@ fn render_circumfix_atom(
         writer.suppress_next_space();
         #suffix_claim
     })
+}
+
+fn render_prefix_surface_statement(surface: &str) -> TokenStream {
+    let surface = syn::LitStr::new(surface, Span::call_site());
+    quote! { writer.word(#surface); }
 }
 
 fn render_fixed_surface_statement(surface: &str) -> TokenStream {

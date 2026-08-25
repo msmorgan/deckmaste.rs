@@ -399,7 +399,7 @@ fn emit_root_adapter(plan: &SemanticPlan) -> GeneratedItem {
                             kind: LexicalProvenanceKind::FormLiteral,
                             stable_id: #stable_id,
                         },
-                        right_boundary: LexicalBoundary::Separated,
+                        right_boundary: LexicalBoundary::LeftAdjacent,
                     }
                 });
             }
@@ -3266,5 +3266,18 @@ mod tests {
         assert!(!rules.contains("Lexical :: EndOfInput"));
         assert!(adapter.contains("Lexical :: Literal (\"!\")"));
         assert!(adapter.contains("Lexical :: EndOfInput"));
+        assert!(adapter.contains("stable_id : \"root:Phrase/punctuation\""));
+        assert!(adapter.contains("LexicalOwnerTemplate :: Static"));
+        assert!(adapter.contains("right_boundary : LexicalBoundary :: LeftAdjacent"));
+        assert_eq!(
+            adapter.matches("LexicalBoundary :: LeftAdjacent").count(),
+            2,
+            "root punctuation is projected once in each adapter API",
+        );
+        assert_eq!(
+            adapter.matches("LexicalBoundary :: Separated").count(),
+            2,
+            "the following end-of-input terminal stays separated in each adapter API",
+        );
     }
 }

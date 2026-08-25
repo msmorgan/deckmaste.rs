@@ -2431,13 +2431,25 @@ fn activation_boundaries_case_and_out_of_scope_costs_reject() {
         "{T}: You gain X life. destroy target creature.",
         "Channel — {T}: You gain X life.",
         "Remove a counter: You gain X life.",
-        "Pay 2 life: You gain X life.",
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
             "malformed or later-plan activation surface must reject: {text}",
         );
     }
+
+    let typed_pay = "Pay 2 life: You gain X life.";
+    let analysis = parser.analyze(typed_pay, &context);
+    assert!(
+        analysis.selected().is_some(),
+        "typed life payment is now an ordinary activation cost clause"
+    );
+    let ownership = analysis
+        .ownership()
+        .expect("typed life-payment activation has ownership");
+    assert!(ownership.summary().covered());
+    assert!(ownership.failures().is_empty());
+    assert_eq!(ownership.rendered_text(), typed_pay);
 }
 
 #[test]
@@ -2700,6 +2712,18 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
             "NumerativePredicate",
             "DealDamage",
             "GainLife",
+            "DealDamageEqualTo",
+            "GainLifeEqualTo",
+            "LoseLife",
+            "LoseLifeEqualTo",
+            "PayLife",
+            "PayMana",
+            "AddMana",
+            "DrawCards",
+            "DrawCardsEqualTo",
+            "RollDice",
+            "PutCounters",
+            "RemoveCounters",
         ],
         "linguistic auxiliaries add no predicate leaf",
     );

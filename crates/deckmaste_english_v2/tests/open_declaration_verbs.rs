@@ -714,7 +714,10 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             .iter()
             .map(deckmaste_construction_core::TerminalVariantContribution::name)
             .collect::<Vec<_>>(),
-        ["Deal", "Gain", "Control", "Own", "Be"]
+        [
+            "Add", "Deal", "Draw", "Gain", "Lose", "Pay", "Put", "Remove", "Roll", "Control",
+            "Own", "Be"
+        ]
     );
     assert_eq!(
         verb_lexeme
@@ -723,10 +726,24 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             .map(|row| (row.member(), row.feature(), row.surface()))
             .collect::<Vec<_>>(),
         [
+            ("Add", SurfaceFeature::Bare, "add"),
+            ("Add", SurfaceFeature::ThirdPersonSingular, "adds"),
             ("Deal", SurfaceFeature::Bare, "deal"),
             ("Deal", SurfaceFeature::ThirdPersonSingular, "deals"),
+            ("Draw", SurfaceFeature::Bare, "draw"),
+            ("Draw", SurfaceFeature::ThirdPersonSingular, "draws"),
             ("Gain", SurfaceFeature::Bare, "gain"),
             ("Gain", SurfaceFeature::ThirdPersonSingular, "gains"),
+            ("Lose", SurfaceFeature::Bare, "lose"),
+            ("Lose", SurfaceFeature::ThirdPersonSingular, "loses"),
+            ("Pay", SurfaceFeature::Bare, "pay"),
+            ("Pay", SurfaceFeature::ThirdPersonSingular, "pays"),
+            ("Put", SurfaceFeature::Bare, "put"),
+            ("Put", SurfaceFeature::ThirdPersonSingular, "puts"),
+            ("Remove", SurfaceFeature::Bare, "remove"),
+            ("Remove", SurfaceFeature::ThirdPersonSingular, "removes"),
+            ("Roll", SurfaceFeature::Bare, "roll"),
+            ("Roll", SurfaceFeature::ThirdPersonSingular, "rolls"),
             ("Control", SurfaceFeature::Bare, "control"),
             ("Control", SurfaceFeature::ThirdPersonSingular, "controls"),
             ("Own", SurfaceFeature::Bare, "own"),
@@ -751,6 +768,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Ability", SurfaceFeature::Plural, "abilities"),
             ("Card", SurfaceFeature::Singular, "card"),
             ("Card", SurfaceFeature::Plural, "cards"),
+            ("Counter", SurfaceFeature::Singular, "counter"),
+            ("Counter", SurfaceFeature::Plural, "counters"),
             ("Controller", SurfaceFeature::Singular, "controller"),
             ("Controller", SurfaceFeature::Plural, "controllers"),
             ("Opponent", SurfaceFeature::Singular, "opponent"),
@@ -767,6 +786,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Spell", SurfaceFeature::Plural, "spells"),
             ("Token", SurfaceFeature::Singular, "token"),
             ("Token", SurfaceFeature::Plural, "tokens"),
+            ("Die", SurfaceFeature::Singular, "die"),
+            ("Die", SurfaceFeature::Plural, "dice"),
         ]
     );
     let generated = expansion.tokens().to_string();

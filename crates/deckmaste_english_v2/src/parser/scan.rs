@@ -775,10 +775,14 @@ impl ScanInput<'_> {
 
     pub(crate) fn punctuation_end(&self, punctuation: &str) -> Option<usize> {
         let offset = self.position.byte_offset;
-        self.text
-            .get(offset..)?
+        let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
+        let remainder = self.text.get(offset..)?;
+        let remainder = (prefix == 0)
+            .then_some(remainder)
+            .or_else(|| remainder.strip_prefix(' '))?;
+        remainder
             .starts_with(punctuation)
-            .then_some(offset + punctuation.len())
+            .then_some(offset + prefix + punctuation.len())
     }
 
     pub(crate) fn structural_surface_end(&self, surface: &str) -> Option<usize> {
@@ -1097,7 +1101,7 @@ fn project_failure(
 fn has_lexical_boundary(text: &str, end: usize) -> bool {
     matches!(
         text.as_bytes().get(end),
-        None | Some(b' ' | b',' | b'.' | b':' | b']' | b'}')
+        None | Some(b' ' | b',' | b'.' | b':' | b'/' | b']' | b'}')
     )
 }
 
@@ -1301,6 +1305,51 @@ mod tests {
     }
 
     #[test]
+    fn punctuation_consumes_only_its_owned_leading_space() {
+        let environment = canonical_test_environment();
+        let context = context("Context Card");
+        let punctuation_end = |text, byte_offset, prefix| {
+            ScanInput {
+                text,
+                position: ScanPosition {
+                    byte_offset,
+                    case: CasePosition::Continuation,
+                    prefix,
+                },
+                environment: &environment,
+                context: &context,
+            }
+            .punctuation_end("{")
+        };
+
+        assert_eq!(
+            punctuation_end("Pay {2}", 3, PrefixPosition::WordOwnedSpace),
+            Some(5),
+            "word-owned punctuation consumes exactly one leading ASCII space",
+        );
+        assert_eq!(
+            punctuation_end("Pay {2}", 4, PrefixPosition::SurfaceOwned),
+            Some(5),
+            "surface-owned punctuation remains adjacent",
+        );
+        assert_eq!(
+            punctuation_end("Pay {2}", 3, PrefixPosition::SurfaceOwned),
+            None,
+            "surface-owned punctuation cannot consume a separator",
+        );
+        assert_eq!(
+            punctuation_end("Pay{2}", 3, PrefixPosition::WordOwnedSpace),
+            None,
+            "word-owned punctuation requires its separator",
+        );
+        assert_eq!(
+            punctuation_end("Pay  {2}", 3, PrefixPosition::WordOwnedSpace),
+            None,
+            "word-owned punctuation consumes no more than one separator",
+        );
+    }
+
+    #[test]
     #[should_panic(expected = "assertion failed")]
     fn document_initial_rejects_a_nonempty_prefix_contract() {
         let environment = canonical_test_environment();
@@ -1394,7 +1443,16 @@ mod tests {
                     member: match lexeme {
                         VerbLexeme::Deal => "Deal",
                         VerbLexeme::Be => "Be",
-                        VerbLexeme::Gain | VerbLexeme::Control | VerbLexeme::Own => unreachable!(),
+                        VerbLexeme::Add
+                        | VerbLexeme::Draw
+                        | VerbLexeme::Gain
+                        | VerbLexeme::Lose
+                        | VerbLexeme::Pay
+                        | VerbLexeme::Put
+                        | VerbLexeme::Remove
+                        | VerbLexeme::Roll
+                        | VerbLexeme::Control
+                        | VerbLexeme::Own => unreachable!(),
                     },
                 },
             );
@@ -1821,7 +1879,9 @@ mod tests {
 
     #[test]
     fn lexical_boundary_is_exactly_eoi_authored_spacing_transition_or_closing_circumfix() {
-        for text in ["word", "word ", "word,", "word.", "word:", "word]", "word}"] {
+        for text in [
+            "word", "word ", "word,", "word.", "word:", "word/", "word]", "word}",
+        ] {
             assert!(super::has_lexical_boundary(text, "word".len()), "{text:?}");
         }
         for text in ["word?", "word‽", "word_", "word!", "wordx", "wordé"] {
@@ -2293,14 +2353,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            35,
+            37,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            38,
+            40,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2320,14 +2380,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            35,
+            37,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            38,
+            40,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2352,13 +2412,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (36, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (37, "Siege.", "Siege", SubtypeCategory::Battle),
-            (38, "Elf.", "Elf", SubtypeCategory::Creature),
-            (39, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (40, "Forest.", "Forest", SubtypeCategory::Land),
-            (41, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (42, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (38, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (39, "Siege.", "Siege", SubtypeCategory::Battle),
+            (40, "Elf.", "Elf", SubtypeCategory::Creature),
+            (41, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (42, "Forest.", "Forest", SubtypeCategory::Land),
+            (43, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (44, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2376,7 +2436,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (36..=42).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (38..=44).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2392,7 +2452,7 @@ mod tests {
         }
 
         let player = scan(
-            35,
+            37,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2846,6 +2906,8 @@ mod tests {
                 "ObjectObjectNominal",
                 "ObjectObjectPronoun",
                 "ObjectReflexiveObject",
+                "ObjectChoiceObject",
+                "ObjectRandomObject",
                 "SingularHeadCommonSingularHead",
                 "SingularHeadTypeSingularHead",
                 "SingularHeadArtifactSubtypeSingularHead",
@@ -3042,6 +3104,8 @@ mod tests {
                 "CountComparisonCountOrMore",
                 "CountComparisonCountOrFewer",
                 "ScalarQualificationScalarQualification",
+                "ScalarValuePossessedScalarValue",
+                "ScalarEqualityScalarEquality",
                 "ControllerStageUnqualifiedControllerStage",
                 "ControllerStageControllerQualifiedReference",
                 "ControllerStageOtherThanQualifiedReference",
@@ -3056,11 +3120,48 @@ mod tests {
                 "PossessivePossessive [form singular]",
                 "PossessivePossessive [form plural_s]",
                 "PossessivePossessive [form plural_other]",
+                "CardQuantitySingularCardQuantity",
+                "CardQuantityFixedCardQuantity",
+                "CardQuantityVariableCardQuantity",
+                "CardQuantityAnaphoricCardQuantity",
+                "PositivePowerToughnessCounterMagnitudesSequenceNonEmpty",
+                "PositivePowerToughnessCounterMagnitudesSequenceCount1Continue",
+                "PositivePowerToughnessCounterMagnitudesSequenceCount2Final",
+                "NegativePowerToughnessCounterMagnitudesSequenceNonEmpty",
+                "NegativePowerToughnessCounterMagnitudesSequenceCount1Continue",
+                "NegativePowerToughnessCounterMagnitudesSequenceCount2Final",
+                "PositiveCounterMagnitudePositiveCounterMagnitude",
+                "NegativeCounterMagnitudeNegativeCounterMagnitude",
+                "CounterKindNamedCounter",
+                "CounterQuantitySingularCounterQuantity",
+                "CounterQuantityFixedCounterQuantity",
+                "CounterQuantityVariableCounterQuantity",
+                "CounterQuantityAnaphoricCounterQuantity",
+                "DieObjectSingularDieObject",
+                "SingularDieObjectShapeOptionalAbsent",
+                "SingularDieObjectShapeOptionalPresent",
+                "DieObjectFixedDiceObject",
+                "FixedDiceObjectShapeOptionalAbsent",
+                "FixedDiceObjectShapeOptionalPresent",
+                "DieObjectD20Object",
                 "VerbPhraseIntransitivePredicate",
                 "VerbPhraseTransitivePredicate",
                 "VerbPhraseNumerativePredicate",
                 "VerbPhraseDealDamage",
                 "VerbPhraseGainLife",
+                "VerbPhraseDealDamageEqualTo",
+                "VerbPhraseGainLifeEqualTo",
+                "VerbPhraseLoseLife",
+                "VerbPhraseLoseLifeEqualTo",
+                "VerbPhrasePayLife",
+                "VerbPhrasePayMana",
+                "VerbPhraseAddMana",
+                "VerbPhraseDrawCards",
+                "VerbPhraseDrawCardsEqualTo",
+                "VerbPhraseRollDice",
+                "VerbPhrasePutCounters",
+                "VerbPhraseRemoveCounters",
+                "ManaAmountManaAmount",
                 "AmountNumber",
                 "AmountVariable",
                 "AmountScalarReferenceAmount",
@@ -3096,7 +3197,7 @@ mod tests {
                 "ClauseAttachmentReflexivePredicateSubordinate",
                 "ConditionClauseFiniteCondition",
                 "ConditionClauseExistentialCondition",
-                "DocumentBlockAbility"
+                "DocumentBlockAbility",
             ]
         );
         let mut seen_lexical = BTreeSet::new();
@@ -3172,24 +3273,27 @@ mod tests {
                 "SubjectPronoun",
                 "ObjectPronoun",
                 "ReflexivePronoun",
+                "Literal(\"their\")",
+                "Literal(\"choice\")",
+                "Literal(\"random\")",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(35, Exact(Singular))",
-                "DeclarationNoun(36, Exact(Singular))",
                 "DeclarationNoun(37, Exact(Singular))",
                 "DeclarationNoun(38, Exact(Singular))",
                 "DeclarationNoun(39, Exact(Singular))",
                 "DeclarationNoun(40, Exact(Singular))",
                 "DeclarationNoun(41, Exact(Singular))",
                 "DeclarationNoun(42, Exact(Singular))",
+                "DeclarationNoun(43, Exact(Singular))",
+                "DeclarationNoun(44, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(35, Exact(Plural))",
-                "DeclarationNoun(36, Exact(Plural))",
                 "DeclarationNoun(37, Exact(Plural))",
                 "DeclarationNoun(38, Exact(Plural))",
                 "DeclarationNoun(39, Exact(Plural))",
                 "DeclarationNoun(40, Exact(Plural))",
                 "DeclarationNoun(41, Exact(Plural))",
                 "DeclarationNoun(42, Exact(Plural))",
+                "DeclarationNoun(43, Exact(Plural))",
+                "DeclarationNoun(44, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -3208,7 +3312,7 @@ mod tests {
                 "Literal(\"a\")",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(44)",
+                "CatalogIdentity(46)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -3248,13 +3352,31 @@ mod tests {
                 "Literal(\"fewer\")",
                 "Literal(\"with\")",
                 "Literal(\"'\")",
-                "DeclarationVerb(32, Any)",
-                "DeclarationVerb(33, Any)",
+                "Literal(\"cards\")",
+                "Literal(\"/\")",
+                "Literal(\"-\")",
+                "CounterName",
+                "Literal(\"counter\")",
+                "Literal(\"counters\")",
+                "Literal(\"die\")",
+                "DieShape",
+                "Literal(\"dice\")",
+                "Literal(\"d20\")",
                 "DeclarationVerb(34, Any)",
+                "DeclarationVerb(35, Any)",
+                "DeclarationVerb(36, Any)",
                 "Verb(Deal, Any)",
                 "Literal(\"damage\")",
                 "Verb(Gain, Any)",
                 "Literal(\"life\")",
+                "Verb(Lose, Any)",
+                "Verb(Pay, Any)",
+                "Verb(Add, Any)",
+                "Verb(Draw, Any)",
+                "Verb(Roll, Any)",
+                "Verb(Put, Any)",
+                "Literal(\"on\")",
+                "Verb(Remove, Any)",
                 "CardinalNumber",
             ]
         );

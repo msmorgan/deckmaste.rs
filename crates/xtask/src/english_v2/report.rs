@@ -744,7 +744,7 @@ mod tests {
                 report.checked_constructor_bindings.len(),
                 report.roots.len(),
             ],
-            [0, 0, 0, 1, 29, 0, 0, 0, 8],
+            [0, 0, 0, 1, 30, 0, 0, 0, 8],
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
@@ -795,6 +795,8 @@ mod tests {
                 "AtPhraseValue.specifier",
                 "AtPhraseValue.postmodifier",
                 "Triggered.intervening_if",
+                "SingularDieObject.shape",
+                "FixedDiceObject.shape",
             ]
         );
         assert_eq!(
@@ -831,6 +833,8 @@ mod tests {
                 "FullAndNounPhraseCoordination.members",
                 "FullOrNounPhraseCoordination.members",
                 "FullAndOrNounPhraseCoordination.members",
+                "PositivePowerToughnessCounter.magnitudes",
+                "NegativePowerToughnessCounter.magnitudes",
                 "OracleText.blocks",
             ]
         );
@@ -859,6 +863,8 @@ mod tests {
                 "DeterminerScopedAndNominalSeries.middle",
                 "DeterminerScopedOrNominalSeries.middle",
                 "DeterminerScopedAndOrNominalSeries.middle",
+                "PositivePowerToughnessCounter.magnitudes",
+                "NegativePowerToughnessCounter.magnitudes",
                 "OracleText.blocks",
             ]
         );
@@ -950,6 +956,7 @@ mod tests {
                     !matches!(
                         *identity,
                         "lexeme:CommonNoun/Ability"
+                            | "lexeme:CommonNoun/Die"
                             | "lexeme:VerbLexeme/Be"
                             | "lexeme:CoreIntransitiveVerb/Die"
                     )
@@ -991,6 +998,12 @@ mod tests {
                     "identity": "lexeme:CommonNoun/Ability",
                     "overrides": [
                         { "feature": "plural", "surface": "abilities" }
+                    ]
+                },
+                {
+                    "identity": "lexeme:CommonNoun/Die",
+                    "overrides": [
+                        { "feature": "plural", "surface": "dice" }
                     ]
                 },
                 {
@@ -1080,7 +1093,7 @@ mod tests {
             ],
             "abstract_products": ["OracleText"],
             "abstract_sums": ["ActivationCostComponent", "Predicate", "Clause", "ClauseAttachment", "ConditionClause", "DocumentBlock"],
-            "optional_roles": ["SingularExistentialClause.domain", "PluralExistentialClause.domain", "AtPhraseValue.specifier", "AtPhraseValue.postmodifier", "Triggered.intervening_if"],
+            "optional_roles": ["SingularExistentialClause.domain", "PluralExistentialClause.domain", "AtPhraseValue.specifier", "AtPhraseValue.postmodifier", "Triggered.intervening_if", "SingularDieObject.shape", "FixedDiceObject.shape"],
             "sequence_roles": [
                 "Sentences.sentences",
                 "ModalModeValue.sentences",
@@ -1113,6 +1126,8 @@ mod tests {
                 "FullAndNounPhraseCoordination.members",
                 "FullOrNounPhraseCoordination.members",
                 "FullAndOrNounPhraseCoordination.members",
+                "PositivePowerToughnessCounter.magnitudes",
+                "NegativePowerToughnessCounter.magnitudes",
                 "OracleText.blocks"
             ],
             "sequence_feature_roles": [
@@ -1135,6 +1150,8 @@ mod tests {
                 "DeterminerScopedAndNominalSeries.middle",
                 "DeterminerScopedOrNominalSeries.middle",
                 "DeterminerScopedAndOrNominalSeries.middle",
+                "PositivePowerToughnessCounter.magnitudes",
+                "NegativePowerToughnessCounter.magnitudes",
                 "OracleText.blocks"
             ],
             "positional_separator_tables": [
@@ -1335,6 +1352,7 @@ mod tests {
     fn expected_irregulars() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
         vec![
             ("lexeme:CommonNoun/Ability", vec![("plural", "abilities")]),
+            ("lexeme:CommonNoun/Die", vec![("plural", "dice")]),
             (
                 "lexeme:VerbLexeme/Be",
                 vec![("bare", "are"), ("third_person_singular", "is")],

@@ -774,8 +774,16 @@ pub(crate) fn scan_lexical(
                 .collect()
         }
         Lexical::Literal(literal @ (".")) => {
-            input
-                .punctuation_end(literal)
+            (if structural_surface
+                || !matches!(
+                    terminal.right_boundary, LexicalBoundary::Adjacent |
+                    LexicalBoundary::BothAdjacent,
+                )
+            {
+                input.structural_surface_end(literal)
+            } else {
+                input.punctuation_end(literal)
+            })
                 .map(|end| LexicalMatch {
                     end,
                     value: Leaf::Literal(literal),
@@ -1166,7 +1174,7 @@ impl Category {
                             kind: LexicalProvenanceKind::FormLiteral,
                             stable_id: "root:Action/punctuation",
                         },
-                        right_boundary: LexicalBoundary::Separated,
+                        right_boundary: LexicalBoundary::LeftAdjacent,
                     },
                     LexicalTerminal {
                         matcher: Lexical::EndOfInput,
@@ -1192,7 +1200,7 @@ impl Category {
                             kind: LexicalProvenanceKind::FormLiteral,
                             stable_id: "root:Action/punctuation",
                         },
-                        right_boundary: LexicalBoundary::Separated,
+                        right_boundary: LexicalBoundary::LeftAdjacent,
                     }),
                     L(LexicalTerminal {
                         matcher: Lexical::EndOfInput,
