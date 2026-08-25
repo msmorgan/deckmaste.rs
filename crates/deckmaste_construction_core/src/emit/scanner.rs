@@ -613,7 +613,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             &frame,
                             agreement,
                         ) {
-                            let Some(declaration) = #declaration::from_reading(id) else {
+                            let Some(declaration) = #declaration::new(input.environment, id) else {
                                 continue;
                             };
                             matches.push(LexicalMatch {

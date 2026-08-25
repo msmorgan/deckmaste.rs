@@ -1205,11 +1205,12 @@ pub mod declaration_verb_fixture {
                     (grammar.recipe().position() == macro_ron::v2::GrammarPosition::Verb)
                         .then_some((declaration, grammar))
                 })
-                .filter(|(_, grammar)| {
+                .filter(|(declaration, grammar)| {
                     let macro_ron::v2::GrammarRecipe::Verb { valence } = grammar.recipe() else {
                         return false;
                     };
-                    frame_matches(frame.atoms(), valence)
+                    fixture_frames_for(declaration.identity().name(), valence)
+                        .contains(&frame.atoms())
                 })
                 .filter_map(|(declaration, grammar)| {
                     grammar
@@ -1239,32 +1240,62 @@ pub mod declaration_verb_fixture {
         }
     }
 
-    fn frame_matches(frame: &[VerbFrameAtom], valence: &macro_ron::v2::VerbValence) -> bool {
+    fn fixture_frames_for(
+        name: &str,
+        valence: &macro_ron::v2::VerbValence,
+    ) -> &'static [&'static [VerbFrameAtom]] {
         use macro_ron::v2::CustomTailAtom;
         use macro_ron::v2::VerbValence;
 
-        match valence {
-            VerbValence::Intransitive => frame.is_empty(),
-            VerbValence::Transitive => frame == [VerbFrameAtom::ObjectNounPhrase],
-            VerbValence::Numerative => frame == [VerbFrameAtom::Amount],
-            VerbValence::Custom { shapes } => shapes.iter().any(|shape| {
-                shape.len() == frame.len()
-                    && shape
-                        .iter()
-                        .zip(frame)
-                        .all(|(source, planned)| match (source, planned) {
-                            (
-                                CustomTailAtom::Literal(source),
-                                VerbFrameAtom::Literal(planned),
-                            ) => source == planned,
-                            (CustomTailAtom::Amount, VerbFrameAtom::Amount)
-                            | (
-                                CustomTailAtom::ObjectNounPhrase,
-                                VerbFrameAtom::ObjectNounPhrase,
-                            ) => true,
-                            _ => false,
-                        })
-            }),
+        const EMPTY: &[VerbFrameAtom] = &[];
+        const OBJECT: &[VerbFrameAtom] = &[VerbFrameAtom::ObjectNounPhrase];
+        const AMOUNT: &[VerbFrameAtom] = &[VerbFrameAtom::Amount];
+        const CROSSED: &[VerbFrameAtom] = &[VerbFrameAtom::ObjectNounPhrase, VerbFrameAtom::Amount];
+        const DUPLICATED: &[VerbFrameAtom] = &[VerbFrameAtom::Amount, VerbFrameAtom::Amount];
+        const EXTRA: &[VerbFrameAtom] = &[VerbFrameAtom::Amount, VerbFrameAtom::Literal("extra")];
+        const NO_FRAMES: &[&[VerbFrameAtom]] = &[];
+        const TRANSITIVE: &[&[VerbFrameAtom]] = &[OBJECT];
+        const NUMERATIVE: &[&[VerbFrameAtom]] = &[AMOUNT];
+        const SHAPE: &[&[VerbFrameAtom]] = &[EMPTY, AMOUNT];
+        const CROSSED_ONLY: &[&[VerbFrameAtom]] = &[CROSSED];
+        const DUPLICATED_ONLY: &[&[VerbFrameAtom]] = &[DUPLICATED];
+        const EXTRA_ONLY: &[&[VerbFrameAtom]] = &[EXTRA];
+
+        match (name, valence) {
+            (
+                "FirstAct" | "SecondAct" | "MissingAgreement" | "WrongKind",
+                VerbValence::Transitive,
+            ) => TRANSITIVE,
+            ("FirstAct" | "Count", VerbValence::Numerative) => NUMERATIVE,
+            ("Shape", VerbValence::Custom { shapes })
+                if shapes.as_slice() == [Vec::new(), vec![CustomTailAtom::Amount]] =>
+            {
+                SHAPE
+            }
+            ("Crossed", VerbValence::Custom { shapes })
+                if shapes.as_slice()
+                    == [vec![
+                        CustomTailAtom::ObjectNounPhrase,
+                        CustomTailAtom::Amount,
+                    ]] =>
+            {
+                CROSSED_ONLY
+            }
+            ("DuplicatedTail", VerbValence::Custom { shapes })
+                if shapes.as_slice() == [vec![CustomTailAtom::Amount, CustomTailAtom::Amount]] =>
+            {
+                DUPLICATED_ONLY
+            }
+            ("Extra", VerbValence::Custom { shapes })
+                if shapes.as_slice()
+                    == [vec![
+                        CustomTailAtom::Amount,
+                        CustomTailAtom::Literal("extra".to_owned()),
+                    ]] =>
+            {
+                EXTRA_ONLY
+            }
+            _ => NO_FRAMES,
         }
     }
 
@@ -1475,6 +1506,10 @@ pub mod declaration_verb_fixture {
         fn visit_object_word(&mut self, object: ObjectWord) {
             self.0.push(format!("object:{object:?}"));
         }
+
+        fn visit_amount_word(&mut self, amount: AmountWord) {
+            self.0.push(format!("amount:{amount:?}"));
+        }
     }
 
     pub(crate) fn run() {
@@ -1589,6 +1624,7 @@ pub mod declaration_verb_fixture {
 
     pub(crate) fn run_checked_constructors() {
         let environment = environment();
+        let transitive = first_terminal(RuleId::VerbPhraseTransitive);
         assert!(
             DeclarationTransitiveVerb::new(&environment, id(&environment, "FirstAct")).is_some()
         );
@@ -1607,6 +1643,10 @@ pub mod declaration_verb_fixture {
         assert!(
             DeclarationTransitiveVerb::new(&environment, id(&environment, "MissingAgreement"))
                 .is_none()
+        );
+        assert!(
+            scanned_declaration_names(&environment, "Wane object.", transitive).is_empty(),
+            "scanner materialization must enforce the complete wrapper invariant",
         );
 
         let absent = environment_from_sources(vec![declaration(
@@ -1661,6 +1701,118 @@ pub mod declaration_verb_fixture {
         assert!(
             unsupported.is_err(),
             "unsupported tail atoms fail before runtime construction"
+        );
+    }
+
+    pub(crate) fn run_literal_input_frame_table() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let readings = |text: &str, atoms: &'static [VerbFrameAtom]| {
+            ScanInput {
+                text,
+                position: ScanPosition {
+                    byte_offset: 0,
+                    case: CasePosition::DocumentInitial,
+                    prefix: PrefixPosition::None,
+                },
+                environment: &environment,
+                context: &context,
+            }
+            .declaration_verb_readings(
+                0,
+                &[macro_ron::v2::DeclarationKind::KeywordAction],
+                &VerbFrameKey::new(atoms),
+                Agreement::Bare,
+            )
+            .into_iter()
+            .map(|(_, identity)| identity.name().to_owned())
+            .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            readings("Act", &[VerbFrameAtom::ObjectNounPhrase]),
+            ["FirstAct", "SecondAct"]
+        );
+        assert_eq!(readings("Count", &[VerbFrameAtom::Amount]), ["Count"]);
+        assert_eq!(readings("Shape", &[]), ["Shape"]);
+        assert_eq!(readings("Shape", &[VerbFrameAtom::Amount]), ["Shape"]);
+        assert!(readings("Shape", &[VerbFrameAtom::ObjectNounPhrase]).is_empty());
+    }
+
+    pub(crate) fn run_open_only_runtime_boundaries() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let (verb_terminal, amount_terminal) = rule_terminals(RuleId::NumerativePhraseNumerative);
+        let verbs = scan(&environment, &context, "Count one.", verb_terminal);
+        let amounts = scan(&environment, &context, "One.", amount_terminal);
+        let [verb] = verbs.as_slice() else {
+            panic!("the open-only numerative codec yields exactly one Count identity")
+        };
+        let Leaf::NumerativeVerb {
+            verb: identity,
+            agreement: Agreement::Bare,
+        } = &verb.value
+        else {
+            panic!("the open-only leaf stores its checked category-safe identity")
+        };
+        assert_eq!(identity.id().name(), "Count");
+
+        let runtime_owner = verb_terminal
+            .owner
+            .instantiate(&verb.value)
+            .expect("the open-only leaf materializes declaration provenance");
+        assert_eq!(runtime_owner.kind(), LexicalProvenanceKind::Lexeme);
+        assert_eq!(
+            runtime_owner.stable_id(),
+            "lexeme:keyword_action/Count/bare"
+        );
+
+        let [amount] = amounts.as_slice() else {
+            panic!("the numerative tail yields exactly one amount word")
+        };
+        let value = build(
+            RuleId::NumerativePhraseNumerative,
+            &[
+                BuildValue::Leaf(verb.value.clone()),
+                BuildValue::Leaf(amount.value.clone()),
+            ],
+            &context,
+        )
+        .expect("the open-only declaration verb builds through its generated rule");
+        let BuildValue::NumerativePhrase(phrase) = value else {
+            panic!("the generated rule builds its numerative category")
+        };
+        let NumerativePhrase::Numerative(stored) = &phrase;
+        assert_eq!(stored.head.id().name(), "Count");
+        assert_eq!(
+            Render::render(&phrase, &context, &environment),
+            "Count one."
+        );
+
+        let mut recorder = Recorder(Vec::new());
+        walk_numerative_phrase(&mut recorder, &phrase);
+        assert_eq!(
+            recorder.0,
+            [
+                "head:keyword action `Count`".to_owned(),
+                "amount:One".to_owned(),
+            ],
+        );
+
+        let (rendered, claims) =
+            render_numerative_phrase_with_claims(&phrase, &context, &environment);
+        assert_eq!(rendered, "Count one.");
+        assert_eq!(
+            claims
+                .iter()
+                .map(|claim| (claim.start, claim.end, claim.owner.stable_id()))
+                .collect::<Vec<_>>(),
+            [
+                (0, 5, "lexeme:keyword_action/Count/bare"),
+                (5, 9, "vocab:AmountWord/One"),
+                (9, 10, "root:NumerativePhrase/punctuation"),
+            ],
+            "open-only rendering owns one exact disjoint complete lexical partition",
         );
     }
 
@@ -6778,6 +6930,16 @@ fn declaration_verb_constructors_fail_closed() {
 #[test]
 fn declaration_verb_custom_shapes_match_only_exact_authored_tails() {
     declaration_verb_fixture::run_custom_shapes();
+}
+
+#[test]
+fn declaration_verb_input_uses_a_literal_identity_frame_table() {
+    declaration_verb_fixture::run_literal_input_frame_table();
+}
+
+#[test]
+fn declaration_verb_open_only_codec_crosses_every_runtime_boundary() {
+    declaration_verb_fixture::run_open_only_runtime_boundaries();
 }
 
 #[test]

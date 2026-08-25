@@ -189,12 +189,6 @@ pub(crate) fn emit(
                                 .then_some(Self { id })
                             }
 
-                            pub(crate) fn from_reading(
-                                id: ::macro_ron::v2::DeclarationIdentity,
-                            ) -> Option<Self> {
-                                matches!(id.kind(), #(#allowed)|*).then_some(Self { id })
-                            }
-
                             pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
                                 &self.id
                             }
