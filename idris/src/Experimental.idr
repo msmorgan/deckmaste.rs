@@ -3506,6 +3506,22 @@ mutual
   rowCount [] = Z
   rowCount (_ :: rs) = S (rowCount rs)
 
+  ||| One type for verbs and frames together, where the crate splits them and
+  ||| rejoins them through a wrapper. `docs/decisions/effect-atom-independence.md`
+  ||| does not grade that count: it is scoped to ENGINE atoms, ruling that one
+  ||| "depends only on its literal arguments and explicitly bound references"
+  ||| and "does not infer meaning from its parent". The `Bindings` index is
+  ||| that explicit-reference channel promoted to a type index, so a
+  ||| context-reading constructor here is the ADR's sanctioned form rather
+  ||| than an exception to it, and the single-type basis is settled by the
+  ||| ADR's scope, not owed a boundary by it.
+  |||
+  ||| One obligation the ADR does own, at lowering. `Composite` and `Does`
+  ||| tag a body with the verb that names it, and the atom emitted has to be
+  ||| the BODY -- never an atom that reads its tag to learn what it does,
+  ||| which is the parent-inference the ADR forbids. `TagBody` makes that
+  ||| free: the body is already the rule's whole expansion, so the tag is
+  ||| discardable and the wrapper buys nothing.
   public export
   data Effect : Bindings -> Type where
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->

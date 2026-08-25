@@ -672,6 +672,27 @@ LibOrdinal : Type
 LibOrdinal = Ordinal
 
 namespace Verb
+  ||| The verb a clause NAMES instead of spelling out its effect. [CR#701] is
+  ||| the CR's own closed enumeration of the specialized verbs, and it bounds
+  ||| this sum: every member but one is a keyword action the rule defines
+  ||| [CR#701.8,701.9,701.13,701.17,701.21,701.22,701.25]. `Put` is the
+  ||| exception and a deliberate one -- [CR#701.1] holds that a verb the rules
+  ||| do not keyword "use[s] the standard English definition", which is why
+  ||| `PutB` is the one `TagBody` arm that constrains nothing.
+  |||
+  ||| Bounded by that rule, not ported from it. [CR#205.2a] and [CR#207.2c]
+  ||| carry names only, so those catalogs take the whole list at once; a
+  ||| keyword action carries its expansion, and `TagBody` states that
+  ||| expansion as a type. A member therefore cannot arrive as data -- the
+  ||| rule's expansion is rules content and is not derivable -- so the
+  ||| vocabulary is minted from [CR#701]'s list as the body each tag needs
+  ||| lands. That is the closing rule, and the reason this stays an enum where
+  ||| the crate's `VerbName` is an open atom behind a membership gate: the
+  ||| atom buys "a new verb is a data row", which this side can never have,
+  ||| and it would spend `Eq`-based `TagBody` dispatch and the coverage the
+  ||| compiler checks on `verbAgentive`, `verbMoves`, `verbedMarkingOk` and
+  ||| `Eq`. Extension is one arm plus the rows those four tables demand by
+  ||| name.
   public export
   data VerbName = Destroy | Sacrifice | Exile | Discard | Mill | Scry | Surveil
                 | Put
