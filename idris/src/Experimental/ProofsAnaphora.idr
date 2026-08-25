@@ -165,6 +165,33 @@ countOutcomesIsFold s (MkBinding d TurnRef p pay :: bs) = countOutcomesIsFold s 
 countOutcomesIsFold s (MkBinding d Ability p pay :: bs) = countOutcomesIsFold s bs
 countOutcomesIsFold s (MkBinding d (a \/ b) p pay :: bs) = countOutcomesIsFold s bs
 
+||| What `countQuantOutcomes` folds: an outcome mention that carries a
+||| number. "That much" reads one of these and no other, since a coin
+||| flip's mention carries no value [CR#705.2].
+public export
+quantOutcome : Binding -> Bool
+quantOutcome (MkBinding _ Outcome OneOf (OutcomeP t)) = outcomeIsQuantity t
+quantOutcome (MkBinding _ _ _ _) = False
+
+public export
+countQuantOutcomesIsFold : (bs : Bindings) ->
+                           countQuantOutcomes bs = countBy quantOutcome bs
+countQuantOutcomesIsFold [] = Refl
+countQuantOutcomesIsFold (MkBinding d Outcome OneOf (OutcomeP t) :: bs)
+    with (outcomeIsQuantity t)
+  _ | True = cong S (countQuantOutcomesIsFold bs)
+  _ | False = countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d Outcome ManyOf (OutcomeP t) :: bs) =
+  countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d Object p pay :: bs) = countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d Player p pay :: bs) = countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d (Quality q) p pay :: bs) = countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d Gap p pay :: bs) = countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d (LetterK l) p pay :: bs) = countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d TurnRef p pay :: bs) = countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d Ability p pay :: bs) = countQuantOutcomesIsFold bs
+countQuantOutcomesIsFold (MkBinding d (a \/ b) p pay :: bs) = countQuantOutcomesIsFold bs
+
 ||| `countQuality` is `countOnes` at a quality kind: the chosen-quality
 ||| gates and the wildcard pronoun read the context the same way.
 public export
@@ -502,13 +529,15 @@ theRestResolvesInPrefix bs ok =
 -- "that much": the quantity an event-producing clause wrote.
 
 public export
-thatMuchReadsOnlyPrefix : (bs : Bindings) -> countOnes Outcome bs = 1 -> Amount bs
+thatMuchReadsOnlyPrefix : (bs : Bindings) -> countQuantOutcomes bs = 1 -> Amount bs
 thatMuchReadsOnlyPrefix bs ok = ThatMuch {bs} {ok}
 
 public export
-thatMuchResolvesInPrefix : (bs : Bindings) -> countOnes Outcome bs = 1 ->
-                           (b : Binding ** (Elem b bs, So (oneOfKind Outcome b)))
-thatMuchResolvesInPrefix bs ok = resolveOnes Outcome bs ok
+thatMuchResolvesInPrefix : (bs : Bindings) -> countQuantOutcomes bs = 1 ->
+                           (b : Binding ** (Elem b bs, So (quantOutcome b)))
+thatMuchResolvesInPrefix bs ok =
+  countByWitness quantOutcome bs Z
+                 (trans (sym (countQuantOutcomesIsFold bs)) ok)
 
 
 -- "that much damage prevented this way": the sorted outcome read.
@@ -525,6 +554,22 @@ preventedThisWayResolvesInPrefix :
 preventedThisWayResolvesInPrefix bs ok =
   countByWitness (outcomeIs DamagePrevented) bs Z
                  (trans (sym (countOutcomesIsFold DamagePrevented bs)) ok)
+
+
+-- "the result": the number the die a clause rolled came up [CR#706.2].
+
+public export
+theResultReadsOnlyPrefix : (bs : Bindings) ->
+                           countOutcomes RollResult bs = 1 -> Amount bs
+theResultReadsOnlyPrefix bs ok = TheResult {bs} {ok}
+
+public export
+theResultResolvesInPrefix :
+  (bs : Bindings) -> countOutcomes RollResult bs = 1 ->
+  (b : Binding ** (Elem b bs, So (outcomeIs RollResult b)))
+theResultResolvesInPrefix bs ok =
+  countByWitness (outcomeIs RollResult) bs Z
+                 (trans (sym (countOutcomesIsFold RollResult bs)) ok)
 
 
 -- "that many": the size of the one group the prefix assembled.

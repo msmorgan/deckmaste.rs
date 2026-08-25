@@ -395,3 +395,41 @@ badDealtThisWayAbility : Unspellable (Effect []) (\ok =>
                , If (DealtThisWay IsManaAbility {rk = ok}) (Draw You (Lit 1))
                     Nothing ])
 badDealtThisWayAbility Oh impossible
+
+||| "Flip a coin. Draw that many cards."
+||| [CR#705.2] gives a flip a face and, when the flipper called it, a
+||| winner, and the rules give it nothing else — no number — so a
+||| quantity read after one has no value to name. [CR#706.2] is where a
+||| randomiser does leave a number, and "the result" is that read.
+public export
+badThatMuchAfterFlip : Unspellable (Effect []) (\ok =>
+  Sequentially [Macros.flipACoin, Draw You (ThatMuch {ok})])
+badThatMuchAfterFlip Refl impossible
+
+||| "If you win the flip, draw a card." with no coin flipped.
+||| [CR#705.2] has the flipper call heads or tails and win the flip when
+||| the call matches the result, so the arm reads a flip the text made;
+||| with none written there is nothing to have been won.
+public export
+badFlipArmWithoutFlip : Unspellable (Effect []) (\ok =>
+  If (FlipCalled You WinsFlip {fl = ok}) (Draw You (Lit 1)) Nothing)
+badFlipArmWithoutFlip Oh impossible
+
+||| "1—9 | Draw a card." with no roll before it.
+||| [CR#706.3a] makes each striation mean "If the result was in this
+||| range, [effect]", and [CR#706.2] makes the result the number the die
+||| came up; with no roll written there is no result to range over.
+public export
+badTableWithoutRoll : Unspellable (Effect []) (\ok =>
+  ResultsTable [Macros.rollRow (Macros.fromTo 1 9) (Draw You (Lit 1))] {ok})
+badTableWithoutRoll Refl impossible
+
+||| "Roll a d0."
+||| [CR#706.1a] has an N-sided die carry N equally likely outcomes
+||| numbered from 1 to N, N a positive integer, so a nought-sided die has
+||| no face to come up and the instruction specifies no kind of die
+||| [CR#706.1].
+public export
+badNoughtSidedDie : Unspellable (Effect []) (\ok =>
+  RollDice You (Lit 1) 0 {nz = ok})
+badNoughtSidedDie ItIsSucc impossible

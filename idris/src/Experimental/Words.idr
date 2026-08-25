@@ -561,7 +561,22 @@ Eq ProjAxis where
 
 public export
 data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
-                 | DamagePrevented
+                 | DamagePrevented | RollResult | CoinFlipped
+
+||| Which reading of a flipped coin a clause takes. [CR#705.2] gives a
+||| flip two and only two: the face it came up, and -- when the flipper
+||| called it -- the winner. `FlipCall` is the called reading, which has
+||| a subject, since the rule says only the player who flips the coin
+||| wins or loses it.
+public export
+data FlipCall = WinsFlip | LosesFlip
+
+||| The other reading: the side the coin landed on. [CR#705.1] fixes the
+||| two sides and makes the grammar's pair exhaustive, and [CR#705.2]
+||| says no player wins or loses a flip read this way, so the face takes
+||| no subject.
+public export
+data CoinFace = Heads | Tails
 
 public export
 data Causer = AnEffect
@@ -829,6 +844,10 @@ Eq OutcomeSort where
   (==) CountersPut _ = False
   (==) DamagePrevented DamagePrevented = True
   (==) DamagePrevented _ = False
+  (==) RollResult RollResult = True
+  (==) RollResult _ = False
+  (==) CoinFlipped CoinFlipped = True
+  (==) CoinFlipped _ = False
 
 public export
 outcomeB : OutcomeSort -> Binding
@@ -917,6 +936,41 @@ damageDealtInScope : Bindings -> Bool
 damageDealtInScope [] = False
 damageDealtInScope (MkBinding _ Outcome OneOf (OutcomeP DamageDealt) :: _) = True
 damageDealtInScope (_ :: bs) = damageDealtInScope bs
+
+||| Whether the discourse carries a coin some clause flipped -- the whole
+||| licence either reading of a flip needs [CR#705.2]. An existence test
+||| for the reason `damageDealtInScope` is one: a text may flip several
+||| coins ("Flip five coins"), and which flip an arm names is left to
+||| whoever reads the card.
+public export
+coinFlipInScope : Bindings -> Bool
+coinFlipInScope [] = False
+coinFlipInScope (MkBinding _ Outcome OneOf (OutcomeP CoinFlipped) :: _) = True
+coinFlipInScope (_ :: bs) = coinFlipInScope bs
+
+||| Whether an outcome mention leaves a NUMBER behind for a quantity read
+||| to name. Damage, life, counters and a die's result each do --
+||| [CR#706.2] makes the number on the die the result of the roll -- and a
+||| coin flip does not: [CR#705.2] gives the flip a face and, when it was
+||| called, a winner, and the rules give it nothing else, so "that much"
+||| after a bare flip names no value.
+public export
+outcomeIsQuantity : OutcomeSort -> Bool
+outcomeIsQuantity DamageDealt = True
+outcomeIsQuantity LifeGained = True
+outcomeIsQuantity LifeLost = True
+outcomeIsQuantity CountersPut = True
+outcomeIsQuantity DamagePrevented = True
+outcomeIsQuantity RollResult = True
+outcomeIsQuantity CoinFlipped = False
+
+||| What "that much" folds: the outcome mentions that carry a number.
+public export
+countQuantOutcomes : Bindings -> Nat
+countQuantOutcomes [] = Z
+countQuantOutcomes (MkBinding _ Outcome OneOf (OutcomeP s) :: bs) =
+  if outcomeIsQuantity s then S (countQuantOutcomes bs) else countQuantOutcomes bs
+countQuantOutcomes (_ :: bs) = countQuantOutcomes bs
 
 public export
 countQuality : QualitySort -> Bindings -> Nat
@@ -1941,7 +1995,7 @@ data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
              | Horse
              | Bird
              | Ally | Gideon
-             | Goat
+             | Goat | Ox | Boar
              | Spirit
              | Shapeshifter
              | Saga
@@ -1999,6 +2053,10 @@ Eq Subtype where
   (==) Eldrazi _ = False
   (==) Goat Goat = True
   (==) Goat _ = False
+  (==) Ox Ox = True
+  (==) Ox _ = False
+  (==) Boar Boar = True
+  (==) Boar _ = False
   (==) Spirit Spirit = True
   (==) Spirit _ = False
   (==) Shapeshifter Shapeshifter = True
@@ -2196,6 +2254,8 @@ subtypeType Sphinx = Creature
 subtypeType Werewolf = Creature
 subtypeType Eldrazi = Creature
 subtypeType Goat = Creature
+subtypeType Ox = Creature
+subtypeType Boar = Creature
 subtypeType Spirit = Creature
 subtypeType Shapeshifter = Creature
 subtypeType Centaur = Creature

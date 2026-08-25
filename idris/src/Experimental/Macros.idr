@@ -419,6 +419,12 @@ discardsACard : (agent : Noun bs Player) -> Effect bs
 -- vocabulary doesn't have yet.
 discardsACard agent = discards agent (a (InZone handZ))
 
+||| "… discards a card at random": `discardsACard` with the selection
+||| mode written.
+public export
+discardsACardAtRandom : (agent : Noun bs Player) -> Effect bs
+discardsACardAtRandom agent = discards agent (aAtRandom (InZone handZ))
+
 
 public export
 dealsDivided : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
@@ -1577,3 +1583,66 @@ mayCastFromWhileSearching : (who : Noun bs Player) -> (what : Noun (nomIntro who
                             {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
 mayCastFromWhileSearching who what from =
   MayPlay who what Cast (Just from) Nothing Nothing (Just WhileSearchingLibrary) {pz} {cv}
+
+||| "N1—N2": a results table's two-ended range [CR#706.3a].
+public export
+fromTo : Nat -> Nat -> Quantity
+fromTo lo hi = Range (Just lo) (Just hi)
+
+||| "Flip a coin." [CR#705.1]
+public export
+flipACoin : Effect bs
+flipACoin = FlipCoins You (Lit 1)
+
+||| "Flip [n] coins."
+public export
+flipCoins : (n : Nat) -> Effect bs
+flipCoins n = FlipCoins You (Lit n)
+
+||| "If you win the flip, …" [CR#705.2]
+public export
+youWinTheFlip : {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
+youWinTheFlip = FlipCalled You WinsFlip {fl}
+
+||| "If you lose the flip, …" [CR#705.2]
+public export
+youLoseTheFlip : {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
+youLoseTheFlip = FlipCalled You LosesFlip {fl}
+
+||| "If the coin comes up heads, …", "If it comes up tails, …"
+||| [CR#705.2] — the reading no player wins.
+public export
+comesUp : (face : CoinFace) -> {auto 0 fl : So (coinFlipInScope bs)} ->
+          Condition bs
+comesUp face = FlipFace face {fl}
+
+||| "Roll a d[sides]." — the same construction as "Roll a [sides]-sided
+||| die", which is the other spelling [CR#706.1a].
+public export
+rollADie : (sides : Nat) -> {auto 0 nz : IsSucc sides} -> Effect bs
+rollADie sides = RollDice You (Lit 1) sides {nz}
+
+||| "Roll [count] d[sides]."
+public export
+rollDice : (count : Nat) -> (sides : Nat) -> {auto 0 nz : IsSucc sides} ->
+           Effect bs
+rollDice count sides = RollDice You (Lit count) sides {nz}
+
+||| "the result" [CR#706.2]
+public export
+theResult : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
+theResult = TheResult {ok}
+
+||| One striation of a results table, "[results] | [effect]" [CR#706.3a].
+public export
+rollRow : (results : Quantity) -> (e : Effect bs) ->
+          {auto 0 nz : NonZeroQ results} ->
+          {auto 0 wf : WellFormedQ results} -> RollRow bs
+rollRow results e = MkRollRow results e {nz} {wf}
+
+||| The results table that reads a roll already written [CR#706.3].
+public export
+resultsTable : (rows : List (RollRow bs)) ->
+               {auto 0 ne : IsSucc (rowCount rows)} ->
+               {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+resultsTable rows = ResultsTable rows {ne} {ok}

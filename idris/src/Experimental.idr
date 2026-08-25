@@ -1478,9 +1478,19 @@ mutual
                  {auto 0 sb : LookbackSubject ev k} -> Amount bs
     Times : (per : Nat) -> (a : Amount bs) ->
             {auto 0 nz : IsSucc per} -> Amount bs
-    ThatMuch : {auto 0 ok : countOnes Outcome bs = 1} -> Amount bs
+    ||| "that much": the quantity an earlier clause's outcome wrote. The
+    ||| gate counts the outcome mentions that CARRY a number
+    ||| (`outcomeIsQuantity`) rather than every outcome mention, because a
+    ||| coin flip leaves one that carries none [CR#705.2].
+    ThatMuch : {auto 0 ok : countQuantOutcomes bs = 1} -> Amount bs
     PreventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
                        Amount bs
+    ||| "the result": the number on the die a clause rolled. [CR#706.2]
+    ||| names it -- the natural result once every modifier has been
+    ||| applied -- so the read is sorted to the roll rather than left to
+    ||| `ThatMuch`, exactly as `PreventedThisWay` is sorted to prevention.
+    ||| -- spelling: "equal to the result", "where X is the result"
+    TheResult : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
     GroupSize : {auto 0 ok : countManysAny bs = 1} -> Amount bs
     TheDifference : {auto 0 ok : countOnes Gap bs = 1} -> Amount bs
     ||| The letter, wherever the text writes it. It INTRODUCES the letter
@@ -1509,6 +1519,7 @@ mutual
   amtDelta (Times _ a) = amtDelta a
   amtDelta ThatMuch = []
   amtDelta PreventedThisWay = []
+  amtDelta TheResult = []
   amtDelta GroupSize = []
   amtDelta TheDifference = []
   amtDelta (LetterVal l) = letterDelta l bs
@@ -1527,6 +1538,7 @@ mutual
   amtIntro (Times per a) = amtIntro a
   amtIntro ThatMuch = bs
   amtIntro PreventedThisWay = bs
+  amtIntro TheResult = bs
   amtIntro GroupSize = bs
   amtIntro TheDifference = bs
   amtIntro (LetterVal l) = letterDelta l bs ++ bs
@@ -1553,6 +1565,7 @@ mutual
   amtPlur (Times _ _) = ManyOf
   amtPlur ThatMuch = ManyOf
   amtPlur PreventedThisWay = ManyOf
+  amtPlur TheResult = ManyOf
   amtPlur GroupSize = ManyOf
   amtPlur TheDifference = ManyOf
   amtPlur (LetterVal _) = ManyOf
@@ -1571,6 +1584,7 @@ mutual
   writtenBound (Times _ _) = False
   writtenBound ThatMuch = False
   writtenBound PreventedThisWay = False
+  writtenBound TheResult = False
   writtenBound GroupSize = False
   writtenBound TheDifference = False
   writtenBound (LetterVal _) = True
@@ -1607,6 +1621,10 @@ mutual
   readAmount (Times _ _) = False
   readAmount ThatMuch = False
   readAmount PreventedThisWay = False
+  -- the die's number is a read of the roll, not a re-mention of a
+  -- quantity the text already stated, so a comparison may take it as
+  -- its subject: "If the result is 0 or less, …" [CR#706.2].
+  readAmount TheResult = True
   readAmount GroupSize = False
   readAmount TheDifference = True
   readAmount (LetterVal _) = False
@@ -1932,6 +1950,31 @@ mutual
                    {auto 0 wy : So (damageDealtInScope bs)} ->
                    {auto 0 rk : So (kindLte k (Object \/ Player))} ->
                    Condition bs
+    ||| "If you win the flip, …", "If you lose the flip, …": the called
+    ||| reading of a coin an earlier clause flipped. [CR#705.2] settles
+    ||| both halves of the shape — the flipper calls heads or tails and
+    ||| wins the flip when the call matches, and "only the player who
+    ||| flips the coin wins or loses the flip; no other players are
+    ||| involved", which is why the subject is a slot and not the whole
+    ||| construction's business. The arms are conditions over the flip
+    ||| rather than slots ON it because the same rule gives a flip a
+    ||| SECOND reading (`FlipFace`) that no winner attends, and because
+    ||| [CR#705.1]'s flip is complete without either: a cumulative upkeep
+    ||| that is a bare flip writes no arm at all.
+    ||| The gate is an existence test on the flip's mention, like every
+    ||| other back-reference to a clause's own outcome; it tests and
+    ||| names no referent, so it introduces nothing.
+    ||| -- spelling: "If you win the flip, [e]." / "… lose the flip, …"
+    FlipCalled : (who : Noun bs Player) -> (call : FlipCall) ->
+                 {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
+    ||| "If the coin comes up heads, …": [CR#705.2]'s other reading, for
+    ||| the effects that "care only about whether the coin comes up heads
+    ||| or tails". The rule says no player wins or loses a flip read this
+    ||| way, so this condition takes no subject.
+    ||| -- spelling: "If the coin comes up heads, [e]."; after a flip
+    ||| already named, "If it comes up tails, [e]."
+    FlipFace : (face : CoinFace) ->
+               {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
     NotCond : (c : Condition bs) -> Condition bs
     AndCond : (cs : List (Condition bs)) ->
               {auto 0 tw : TwoConjuncts cs} ->
@@ -1973,6 +2016,8 @@ mutual
   condNegated (Matches _ _) = False
   condNegated (CompareAmt _ _ _) = False
   condNegated (DealtThisWay _) = False
+  condNegated (FlipCalled _ _) = False
+  condNegated (FlipFace _) = False
   condNegated (NotCond _) = True
   condNegated (AndCond _) = False
 
@@ -2009,6 +2054,8 @@ mutual
   condDelta (Matches _ _) = []
   condDelta (CompareAmt subj _ bound) = gapB :: (amtDelta bound ++ amtDelta subj)
   condDelta (DealtThisWay _) = []
+  condDelta (FlipCalled _ _) = []
+  condDelta (FlipFace _) = []
   condDelta (NotCond _) = []
   condDelta (AndCond cs) = condDeltaAll cs
 
@@ -3204,6 +3251,26 @@ mutual
                 Repetition bs
     AnyNumber : Repetition bs
 
+  ||| One striation of a results table: the results it covers and the
+  ||| effect they bring about. [CR#706.3a] gives the left column three
+  ||| forms — a single number, a two-ended range "N1–N2", a one-ended
+  ||| range "N+" — and each means "If the result was in this range,
+  ||| [effect]", so the column is the quantity vocabulary's range and
+  ||| needs nothing of its own. The gates are that vocabulary's own: a
+  ||| range whose floor tops its ceiling covers no result, and a die is
+  ||| numbered from 1 [CR#706.1a], so a row ceiling of zero covers none
+  ||| either.
+  public export
+  data RollRow : Bindings -> Type where
+    MkRollRow : (results : Quantity) -> (e : Effect bs) ->
+                {auto 0 nz : NonZeroQ results} ->
+                {auto 0 wf : WellFormedQ results} -> RollRow bs
+
+  public export
+  rowCount : {0 bs : Bindings} -> List (RollRow bs) -> Nat
+  rowCount [] = Z
+  rowCount (_ :: rs) = S (rowCount rs)
+
   public export
   data Effect : Bindings -> Type where
     DealDamage : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
@@ -3278,6 +3345,45 @@ mutual
              (p : Predicate (nomIntro who) Object) ->
              {auto 0 zf : ZoneFree p} -> Effect bs
     Shuffle : (whose : Noun bs Player) -> Effect bs
+    ||| "Flip a coin", "Flip five coins", "target player flips a coin":
+    ||| [CR#705.1]'s instruction and nothing more. The clause says a coin
+    ||| is flipped; who calls it, which side lands up and who won are the
+    ||| rule's business, and the two readings a later clause may take of
+    ||| the flip are `FlipCalled` and `FlipFace`. The count is a slot
+    ||| because printed text writes it ("Flip X coins"), and a bare flip
+    ||| is `Lit 1`.
+    ||| It introduces the flip so those readings have something to name.
+    ||| -- spelling: "[who] flip[s] [count] coin(s)"; with `You` in the
+    ||| subject slot, the imperative "Flip a coin."
+    FlipCoins : (who : Noun bs Player) -> (count : Amount (nomIntro who)) ->
+                Effect bs
+    ||| "Roll a d20", "Roll two six-sided dice", "roll that many dice":
+    ||| [CR#706.1]'s instruction, which "will specify what kind of die to
+    ||| roll and how many of those dice to roll" — so both are written
+    ||| arguments and neither has a default. [CR#706.1a] fixes what the
+    ||| kind is: N equally likely outcomes numbered from 1 to N, N a
+    ||| positive integer, spelled either "dN" or "N-sided". The gate is
+    ||| that positivity and no more; a nought-sided die has no outcome to
+    ||| land on, and every other N the rule allows.
+    ||| It introduces the roll's number, which "the result" reads
+    ||| [CR#706.2] and a results table ranges over [CR#706.3a].
+    ||| -- spelling: "[who] roll[s] [count] d[sides]"
+    RollDice : (who : Noun bs Player) -> (count : Amount (nomIntro who)) ->
+               (sides : Nat) -> {auto 0 nz : IsSucc sides} -> Effect bs
+    ||| The results table [CR#706.3]: the striations that read the roll
+    ||| the text has already made. A separate clause rather than a slot on
+    ||| `RollDice`, because [CR#706.3b] binds the roll, "any additional
+    ||| instructions based on the result of the roll, and the associated
+    ||| results table" into one ability WITHOUT binding them into one
+    ||| sentence — a modifier clause may stand between — and because
+    ||| [CR#706.4] has rolls that carry no table at all. Its gate is the
+    ||| roll's number, so a table with no roll before it is unwritable.
+    ||| Only one striation happens [CR#706.3a], so like a mode list the
+    ||| table introduces nothing for later text to read.
+    ||| -- spelling: each row on its own line, "1—9 | [effect]"
+    ResultsTable : (rows : List (RollRow bs)) ->
+                   {auto 0 ne : IsSucc (rowCount rows)} ->
+                   {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
     Continuously : (se : StaticEffect bs) -> (span : Maybe (Duration (staticIntro se))) ->
                    {auto 0 sp : SpanOk (staticKind se) span} ->
                    {auto 0 cl : ClauseStatic se} -> Effect bs
@@ -3479,6 +3585,9 @@ mutual
   heldUntilOk (Expose _ _ _) = False
   heldUntilOk (Search _ _ _) = False
   heldUntilOk (Shuffle _) = False
+  heldUntilOk (FlipCoins _ _) = False
+  heldUntilOk (RollDice _ _ _) = False
+  heldUntilOk (ResultsTable _) = False
   heldUntilOk (Continuously _ _) = False
   heldUntilOk (Create _ _ _ _) = False
   heldUntilOk (GetsEmblem _ _) = False
@@ -3565,6 +3674,9 @@ mutual
   reflexEncloseUse (Choose _ _) = EncReflexive       -- 1
   reflexEncloseUse (Search _ _ _) = EncReflexive
   reflexEncloseUse (Shuffle _) = EncReflexive
+  reflexEncloseUse (FlipCoins _ _) = EncReflexive
+  reflexEncloseUse (RollDice _ _ _) = EncReflexive
+  reflexEncloseUse (ResultsTable _) = EncNotOneAction
   -- [CR#603.12] writes the reflexive over what a player did or didn't
   -- do, so a declined arm leaves one offered action to inflect.
   reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
@@ -3638,6 +3750,9 @@ mutual
   thisWayOutcomeOk (Expose _ _ _) = True
   thisWayOutcomeOk (Search _ _ _) = True
   thisWayOutcomeOk (Shuffle _) = True
+  thisWayOutcomeOk (FlipCoins _ _) = True
+  thisWayOutcomeOk (RollDice _ _ _) = True
+  thisWayOutcomeOk (ResultsTable _) = True
   thisWayOutcomeOk (Continuously _ _) = True
   thisWayOutcomeOk (Create _ _ _ _) = True
   thisWayOutcomeOk (GetsEmblem _ _) = True
@@ -3777,6 +3892,9 @@ mutual
   costActionOk (Expose _ who _) = costNounOk who
   costActionOk (Search who _ _) = costNounOk who
   costActionOk (Shuffle whose) = costNounOk whose
+  costActionOk (FlipCoins who _) = costNounOk who
+  costActionOk (RollDice who _ _) = costNounOk who
+  costActionOk (ResultsTable _) = False
   costActionOk (Continuously _ _) = False
   costActionOk (Create agent _ _ _) = costNounOk agent
   costActionOk (GetsEmblem _ _) = True
@@ -3890,6 +4008,9 @@ mutual
   effEq (Expose _ _ _) _ = False
   effEq (Search _ _ _) _ = False
   effEq (Shuffle _) _ = False
+  effEq (FlipCoins _ _) _ = False
+  effEq (RollDice _ _ _) _ = False
+  effEq (ResultsTable _) _ = False
   effEq (Continuously _ _) _ = False
   effEq (Create _ _ _ _) _ = False
   effEq (GetsEmblem _ _) _ = False
@@ -4332,6 +4453,9 @@ mutual
     MkBinding AD Object OneOf (ObjectP (seedTy p) (searchZone sc) Nothing Nothing)
       :: (predDelta p ++ searchDelta sc ++ nomIntro who)
   effIntro (Shuffle whose) = nomIntro whose
+  effIntro (FlipCoins who count) = outcomeB CoinFlipped :: amtIntro count
+  effIntro (RollDice who count _) = outcomeB RollResult :: amtIntro count
+  effIntro (ResultsTable rows) = bs
   effIntro (Continuously se _) = staticIntro se
   effIntro (Create agent count spec riders) =
     MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
@@ -4401,6 +4525,9 @@ mutual
   preIntro (Expose v who what) = exposedIntro what
   preIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
   preIntro (Shuffle whose) = nomIntro whose
+  preIntro (FlipCoins who count) = amtIntro count
+  preIntro (RollDice who count _) = amtIntro count
+  preIntro (ResultsTable rows) = bs
   preIntro (Continuously se _) = staticIntro se
   preIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   preIntro (GetsEmblem who _) = nomIntro who
@@ -4464,6 +4591,9 @@ mutual
   annIntro (Expose v who what) = exposedIntro what
   annIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
   annIntro (Shuffle whose) = nomIntro whose
+  annIntro (FlipCoins who count) = amtIntro count
+  annIntro (RollDice who count _) = amtIntro count
+  annIntro (ResultsTable rows) = bs
   annIntro (Continuously se _) = staticIntro se
   annIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   annIntro (GetsEmblem who _) = nomIntro who
@@ -4568,6 +4698,9 @@ mutual
   deedDelta (Search who sc p) =
     [MkBinding AD Object OneOf (ObjectP (seedTy p) (searchZone sc) Nothing Nothing)]
   deedDelta (Shuffle whose) = []
+  deedDelta (FlipCoins _ _) = [outcomeB CoinFlipped]
+  deedDelta (RollDice _ _ _) = [outcomeB RollResult]
+  deedDelta (ResultsTable _) = []
   deedDelta (Continuously se _) = []
   deedDelta (Create agent count spec riders) =
     [MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))

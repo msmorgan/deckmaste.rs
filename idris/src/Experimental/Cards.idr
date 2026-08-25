@@ -7749,3 +7749,46 @@ panglacialWurmCast : Ability
 panglacialWurmCast =
   Static (Macros.mayCastFromWhileSearching You This Macros.yourLibrary)
 
+
+||| Goblin Archaeologist
+||| "{R}, {T}: Flip a coin. If you win the flip, destroy target artifact and
+||| untap this creature. If you lose the flip, sacrifice this creature."
+goblinArchaeologist : Ability
+goblinArchaeologist =
+  Macros.activated (Compound [Mana [Macros.pip Red], TapSymbol])
+    (Sequentially
+       [Macros.flipACoin,
+        Macros.ifThen Macros.youWinTheFlip
+          (Sequentially [Macros.destroy (Macros.target Macros.artifact),
+                         SetStatus Untapped Macros.thisCreature]),
+        Macros.ifThen Macros.youLoseTheFlip
+          (Macros.sacrifice You Macros.thisCreature)])
+
+||| Contraband Livestock
+||| "Exile target creature, then roll a d20.
+|||  1—9 | Its controller creates a 4/4 green Ox creature token.
+|||  10—19 | Its controller creates a 2/2 green Boar creature token.
+|||  20 | Its controller creates a 0/1 white Goat creature token."
+contrabandLivestock : Effect []
+contrabandLivestock =
+  Sequentially
+    [Macros.exile (Macros.target Macros.creature),
+     Macros.rollADie 20,
+     Macros.resultsTable
+       [Macros.rollRow (Macros.fromTo 1 9)
+          (Create (ControllerOf It) (Lit 1)
+                  (TokenWritten (Macros.creatureTok 4 4 [Green] [Ox])) []),
+        Macros.rollRow (Macros.fromTo 10 19)
+          (Create (ControllerOf It) (Lit 1)
+                  (TokenWritten (Macros.creatureTok 2 2 [Green] [Boar])) []),
+        Macros.rollRow (Macros.exactly 20)
+          (Create (ControllerOf It) (Lit 1)
+                  (TokenWritten (Macros.creatureTok 0 1 [White] [Goat])) [])]]
+
+||| Hypnotic Specter, second line's body: "…, that player discards a card
+||| at random." The header is NOT written: "this creature deals damage to
+||| an opponent" is a source-side, non-combat damage event, and `GameEvent`
+||| carries only the recipient-side `IsDealtDamage` and the combat-only
+||| `DealsCombatDamage`. The at-random half is what this round owed.
+hypnoticSpecterDiscard : Effect [MkBinding TheD Player OneOf PlayerP]
+hypnoticSpecterDiscard = Macros.discardsACardAtRandom They
