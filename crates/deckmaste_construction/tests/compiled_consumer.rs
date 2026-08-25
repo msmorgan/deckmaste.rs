@@ -1931,6 +1931,11 @@ pub mod fixture {
         abstract sum AgreementChild { Child, }
         abstract sum MixedAgreementChild { Child, Predicate, }
         abstract sum OuterRelayedMixedChoice { RelayedMixedChoiceSequence, }
+        abstract product IntrinsicAgreementHolder {
+            required: AgreementChild,
+            optional: opt AgreementChild,
+            members: seq AgreementChild separated by " ",
+        }
         abstract product Holder {
             maybe: opt Child,
             items: seq Choice terminated by ",",
@@ -2016,6 +2021,7 @@ pub mod fixture {
         root OuterMixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DirectOuterMixedRelayEnvelopeRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root DirectIntrinsicChoiceRoot { punctuation = "."; eoi = true; standalone_render = true; }
+        root IntrinsicAgreementHolder { punctuation = "."; eoi = false; standalone_render = true; }
         root PartitionRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalGuardRoot { punctuation = "."; eoi = true; standalone_render = true; }
         root OptionalVisitRoot { punctuation = "."; eoi = true; standalone_render = true; }
@@ -5846,6 +5852,44 @@ pub mod fixture {
         );
     }
 
+    pub(super) fn assert_agreement_constrained_role_uses_checked_public_boundary() {
+        let intrinsic_third = OuterRelayedMixedChoice::RelayedMixedChoiceSequence(
+            RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(IntrinsicThirdMixedChoice),
+        );
+        assert!(BareDirectOuterMixedRelayEnvelope::new(intrinsic_third.clone()).is_none());
+        let rejection = BareDirectOuterMixedRelayEnvelope::try_new(intrinsic_third.clone())
+            .expect_err("the checked constructor rejects a mismatched intrinsic Agreement");
+        assert_eq!(rejection.owner(), "BareDirectOuterMixedRelayEnvelope");
+        assert_eq!(rejection.role(), "choice");
+
+        let accepted = ThirdDirectOuterMixedRelayEnvelope::new(intrinsic_third.clone())
+            .expect("the checked constructor accepts the matching intrinsic Agreement");
+        assert_eq!(accepted.choice(), &intrinsic_third);
+        assert_eq!(
+            Render::render(
+                &DirectOuterMixedRelayEnvelopeRoot::ThirdDirectOuterMixedRelayEnvelope(accepted),
+                &ParseContext::default(),
+            ),
+            "Intrinsic third.",
+        );
+    }
+
+    pub(super) fn assert_intrinsic_sum_product_fields_render_every_shape() {
+        let choice = |child| AgreementChild::Child(child);
+        let holder = IntrinsicAgreementHolder {
+            required: choice(Child::Bare(BareChild)),
+            optional: Some(choice(Child::Third(ThirdChild))),
+            members: vec![
+                choice(Child::Bare(BareChild)),
+                choice(Child::Third(ThirdChild)),
+            ],
+        };
+        assert_eq!(
+            Render::render(&holder, &ParseContext::default()),
+            "Bare third bare third.",
+        );
+    }
+
     pub(super) fn assert_direct_intrinsic_sum_render_derives_selected_agreement() {
         let choice = AgreementChild::Child(Child::Third(ThirdChild));
         let root = DirectIntrinsicChoiceRoot::DirectIntrinsicChoice(DirectIntrinsicChoice {
@@ -6110,6 +6154,16 @@ fn outer_sum_preserves_selected_category_agreement_authority() {
 #[test]
 fn direct_sum_role_invokes_recursive_selected_agreement_authority() {
     fixture::assert_direct_sum_role_invokes_recursive_selected_agreement_authority();
+}
+
+#[test]
+fn agreement_constrained_role_uses_checked_public_boundary() {
+    fixture::assert_agreement_constrained_role_uses_checked_public_boundary();
+}
+
+#[test]
+fn intrinsic_sum_product_fields_render_every_shape() {
+    fixture::assert_intrinsic_sum_product_fields_render_every_shape();
 }
 
 #[test]

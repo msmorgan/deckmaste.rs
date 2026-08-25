@@ -12,6 +12,15 @@ use clap::Args;
 use clap::ValueEnum;
 
 const HARD_CEILING: Duration = Duration::from_millis(16_260);
+const PLAN08_EXPECTED_INCOMPLETE: IncompleteCensus = IncompleteCensus {
+    schema_version: 1,
+    source_fingerprint: "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd",
+    total: 32_641,
+    accepted: 735,
+    parse_failures: 31_906,
+    ambiguities: 0,
+    internal_failures: 0,
+};
 
 #[derive(Debug, Args)]
 pub(super) struct PlanGateArgs {
@@ -137,31 +146,74 @@ impl PlanGate {
     }
 
     fn command(self) -> GateCommand {
-        let args = match self {
-            Self::Expand => &["xtask", "english_v2", "expand"][..],
-            Self::Report => &["xtask", "english_v2", "report", "--json"][..],
-            Self::Parse => &["xtask", "english_v2", "parse", "--json"][..],
-            Self::Roundtrip => &["xtask", "english_v2", "roundtrip", "--require-clean"][..],
-            Self::Ambiguity => &["xtask", "english_v2", "ambiguity", "--require-resolved"][..],
-            Self::Coverage => &["xtask", "english_v2", "coverage", "--check"][..],
-            Self::RequireComplete => &["xtask", "english_v2", "parse", "--require-complete"][..],
+        let (args, expected_incomplete) = match self {
+            Self::Expand => (&["xtask", "english_v2", "expand"][..], None),
+            Self::Report => (&["xtask", "english_v2", "report", "--json"][..], None),
+            Self::Parse => (&["xtask", "english_v2", "parse", "--json"][..], None),
+            Self::Roundtrip => (
+                &["xtask", "english_v2", "roundtrip", "--require-clean"][..],
+                None,
+            ),
+            Self::Ambiguity => (
+                &["xtask", "english_v2", "ambiguity", "--require-resolved"][..],
+                None,
+            ),
+            Self::Coverage => (&["xtask", "english_v2", "coverage", "--check"][..], None),
+            Self::RequireComplete => (
+                &["xtask", "english_v2", "parse", "--require-complete"][..],
+                Some(PLAN08_EXPECTED_INCOMPLETE),
+            ),
         };
-        GateCommand::new("cargo", args.iter().copied())
+        GateCommand::new("cargo", args.iter().copied(), expected_incomplete)
     }
+}
 
-    const fn expects_incomplete_failure(self) -> bool {
-        matches!(self, Self::RequireComplete)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct IncompleteCensus {
+    schema_version: u32,
+    source_fingerprint: &'static str,
+    total: usize,
+    accepted: usize,
+    parse_failures: usize,
+    ambiguities: usize,
+    internal_failures: usize,
+}
+
+impl IncompleteCensus {
+    fn matches_report(self, output: &[u8]) -> bool {
+        let Ok(report) = serde_json::from_slice::<RequireCompleteReport>(output) else {
+            return false;
+        };
+        report.schema_version == self.schema_version
+            && report.source_fingerprint == self.source_fingerprint
+            && report.total == self.total
+            && report.accepted == self.accepted
+            && report.parse_failures == self.parse_failures
+            && report.ambiguous == self.ambiguities
+            && report.internal_failures == self.internal_failures
     }
+}
+
+#[derive(serde::Deserialize)]
+struct RequireCompleteReport {
+    schema_version: u32,
+    source_fingerprint: String,
+    total: usize,
+    accepted: usize,
+    parse_failures: usize,
+    ambiguous: usize,
+    internal_failures: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct GateCommand {
     program: PathBuf,
     args: Vec<OsString>,
+    expected_incomplete: Option<IncompleteCensus>,
 }
 
 impl GateCommand {
-    fn new<P, I, S>(program: P, args: I) -> Self
+    fn new<P, I, S>(program: P, args: I, expected_incomplete: Option<IncompleteCensus>) -> Self
     where
         P: Into<PathBuf>,
         I: IntoIterator<Item = S>,
@@ -170,13 +222,21 @@ impl GateCommand {
         Self {
             program: program.into(),
             args: args.into_iter().map(Into::into).collect(),
+            expected_incomplete,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ChildResult {
+    Success,
+    ExpectedIncomplete,
+    Failure,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ChildOutcome {
-    success: bool,
+    result: ChildResult,
     exit_code: Option<i32>,
 }
 
@@ -184,9 +244,39 @@ impl ChildOutcome {
     #[cfg(test)]
     const fn from_exit_code(exit_code: Option<i32>) -> Self {
         Self {
-            success: matches!(exit_code, Some(0)),
+            result: if matches!(exit_code, Some(0)) {
+                ChildResult::Success
+            } else {
+                ChildResult::Failure
+            },
             exit_code,
         }
+    }
+
+    fn from_process(
+        success: bool,
+        exit_code: Option<i32>,
+        expected: Option<IncompleteCensus>,
+        stdout: &[u8],
+    ) -> Self {
+        let result = if success {
+            ChildResult::Success
+        } else if exit_code.is_some_and(|code| code != 0)
+            && expected.is_some_and(|census| census.matches_report(stdout))
+        {
+            ChildResult::ExpectedIncomplete
+        } else {
+            ChildResult::Failure
+        };
+        Self { result, exit_code }
+    }
+
+    const fn success(self) -> bool {
+        matches!(self.result, ChildResult::Success)
+    }
+
+    const fn expected_incomplete(self) -> bool {
+        matches!(self.result, ChildResult::ExpectedIncomplete)
     }
 
     fn exit_description(self) -> String {
@@ -203,16 +293,35 @@ struct ProcessRunner;
 
 impl Runner for ProcessRunner {
     fn run(&mut self, command: &GateCommand) -> anyhow::Result<ChildOutcome> {
+        if command.expected_incomplete.is_some() {
+            let outcome = tempfile::NamedTempFile::new()?;
+            let status = Command::new(&command.program)
+                .args(&command.args)
+                .stdin(Stdio::inherit())
+                .stdout(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .env(super::REQUIRE_COMPLETE_OUTCOME_ENV, outcome.path())
+                .status()?;
+            let structured = std::fs::read(outcome.path())?;
+            return Ok(ChildOutcome::from_process(
+                status.success(),
+                status.code(),
+                command.expected_incomplete,
+                &structured,
+            ));
+        }
         let status = Command::new(&command.program)
             .args(&command.args)
             .stdin(Stdio::inherit())
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
             .status()?;
-        Ok(ChildOutcome {
-            success: status.success(),
-            exit_code: status.code(),
-        })
+        Ok(ChildOutcome::from_process(
+            status.success(),
+            status.code(),
+            None,
+            &[],
+        ))
     }
 }
 
@@ -300,13 +409,13 @@ fn run_with(
             args.gate.name(),
         )
     })?;
-    if !child.success {
+    if !child.success() {
         bail!(
             "{}-child-failure gate={} exit_code={} expected_incomplete={}",
             args.profile.label(),
             args.gate.name(),
             child.exit_description(),
-            args.gate.expects_incomplete_failure(),
+            child.expected_incomplete(),
         );
     }
     Ok(())
@@ -435,6 +544,44 @@ mod tests {
         ChildOutcome::from_exit_code(Some(0))
     }
 
+    fn require_complete_report(
+        total: usize,
+        accepted: usize,
+        parse_failures: usize,
+        ambiguous: usize,
+        internal_failures: usize,
+    ) -> Vec<u8> {
+        serde_json::to_vec(&serde_json::json!({
+            "schema_version": PLAN08_EXPECTED_INCOMPLETE.schema_version,
+            "source_fingerprint": PLAN08_EXPECTED_INCOMPLETE.source_fingerprint,
+            "total": total,
+            "accepted": accepted,
+            "parse_failures": parse_failures,
+            "ambiguous": ambiguous,
+            "internal_failures": internal_failures,
+        }))
+        .expect("test census is JSON")
+    }
+
+    fn classified_require_complete(exit_code: Option<i32>, stdout: &[u8]) -> ChildOutcome {
+        ChildOutcome::from_process(
+            matches!(exit_code, Some(0)),
+            exit_code,
+            Some(PLAN08_EXPECTED_INCOMPLETE),
+            stdout,
+        )
+    }
+
+    fn exact_incomplete_report() -> Vec<u8> {
+        require_complete_report(
+            PLAN08_EXPECTED_INCOMPLETE.total,
+            PLAN08_EXPECTED_INCOMPLETE.accepted,
+            PLAN08_EXPECTED_INCOMPLETE.parse_failures,
+            PLAN08_EXPECTED_INCOMPLETE.ambiguities,
+            PLAN08_EXPECTED_INCOMPLETE.internal_failures,
+        )
+    }
+
     fn exact_test_invocation(name: &str) -> bool {
         std::env::args_os().skip(1).eq([
             OsString::from("--exact"),
@@ -447,6 +594,7 @@ mod tests {
         GateCommand::new(
             std::env::current_exe().expect("the current test executable has a path"),
             ["--exact", name, "--nocapture"],
+            None,
         )
     }
 
@@ -524,7 +672,7 @@ mod tests {
     }
 
     #[test]
-    fn require_complete_marks_a_real_nonzero_child_as_expected_incomplete() {
+    fn require_complete_does_not_mark_a_real_arbitrary_nonzero_child_as_incomplete() {
         let mut runner = RealFailureRunner {
             process: ProcessRunner,
             command: test_binary_command(ADAPTER_FAILURE_CHILD_TEST),
@@ -543,13 +691,78 @@ mod tests {
         .expect_err("the real nonzero child remains a distinct child failure");
 
         assert!(error.to_string().contains("exit_code=17"));
-        assert!(error.to_string().contains("expected_incomplete=true"));
+        assert!(error.to_string().contains("expected_incomplete=false"));
         assert!(!error.to_string().contains("timing-failure"));
         assert!(
             String::from_utf8(output)
                 .unwrap()
                 .contains("gate=require-complete")
         );
+    }
+
+    #[test]
+    fn require_complete_marks_only_the_exact_structured_incomplete_census() {
+        let child = classified_require_complete(Some(101), &exact_incomplete_report());
+        let (result, output, _) =
+            exercise(PlanGate::RequireComplete, Duration::from_secs(1), Ok(child));
+        let error = result.expect_err("the exact incomplete census remains nonzero");
+        assert!(error.to_string().contains("exit_code=101"));
+        assert!(error.to_string().contains("expected_incomplete=true"));
+        assert!(output.contains("SAMPLE english-v2-plan07-elapsed gate=require-complete"));
+    }
+
+    #[test]
+    fn require_complete_rejects_wrong_or_malformed_censuses_and_signals() {
+        let mut wrong_fingerprint = exact_incomplete_report();
+        let fingerprint = PLAN08_EXPECTED_INCOMPLETE.source_fingerprint.as_bytes();
+        let start = wrong_fingerprint
+            .windows(fingerprint.len())
+            .position(|window| window == fingerprint)
+            .expect("exact report contains the production fingerprint");
+        wrong_fingerprint[start] = b'f';
+        let wrong_reports = [
+            require_complete_report(32_640, 735, 31_905, 0, 0),
+            require_complete_report(32_641, 734, 31_907, 0, 0),
+            require_complete_report(32_641, 735, 31_905, 1, 0),
+            require_complete_report(32_641, 735, 31_905, 0, 1),
+            wrong_fingerprint,
+            b"not structured JSON".to_vec(),
+        ];
+        for stdout in &wrong_reports {
+            let child = classified_require_complete(Some(101), stdout);
+            assert_eq!(child.result, ChildResult::Failure);
+            assert!(!child.expected_incomplete());
+            let (result, _, _) =
+                exercise(PlanGate::RequireComplete, Duration::from_secs(1), Ok(child));
+            assert!(
+                result
+                    .expect_err("wrong census remains an ordinary child failure")
+                    .to_string()
+                    .contains("expected_incomplete=false")
+            );
+        }
+
+        let signal = classified_require_complete(None, &exact_incomplete_report());
+        assert_eq!(signal.result, ChildResult::Failure);
+        assert!(!signal.expected_incomplete());
+        assert_eq!(signal.exit_description(), "signal");
+        let (result, _, _) = exercise(
+            PlanGate::RequireComplete,
+            Duration::from_secs(1),
+            Ok(signal),
+        );
+        let error = result.expect_err("a signal remains an ordinary child failure");
+        assert!(error.to_string().contains("exit_code=signal"));
+        assert!(error.to_string().contains("expected_incomplete=false"));
+    }
+
+    #[test]
+    fn successful_require_complete_is_never_mislabeled_as_incomplete() {
+        let child = classified_require_complete(Some(0), &exact_incomplete_report());
+        let (result, _, _) = exercise(PlanGate::RequireComplete, Duration::from_secs(1), Ok(child));
+        result.expect("a successful require-complete child succeeds the wrapper");
+        assert_eq!(child.result, ChildResult::Success);
+        assert!(!child.expected_incomplete());
     }
 
     #[test]
@@ -837,7 +1050,7 @@ mod tests {
     }
 
     #[test]
-    fn require_complete_failure_is_explicitly_marked_as_the_expected_incomplete_probe() {
+    fn require_complete_arbitrary_failure_is_not_marked_as_expected_incomplete() {
         let (result, output, _) = exercise(
             PlanGate::RequireComplete,
             Duration::from_secs(1),
@@ -849,7 +1062,7 @@ mod tests {
                 .to_string()
                 .contains("english-v2-plan07-child-failure")
         );
-        assert!(error.to_string().contains("expected_incomplete=true"));
+        assert!(error.to_string().contains("expected_incomplete=false"));
         assert!(output.contains("gate=require-complete"));
     }
 

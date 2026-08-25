@@ -1,0 +1,5 @@
+error: Holder.required: Agreement-bearing sum `Choice` requires external agreement, but abstract products cannot declare feature writers
+  --> tests/compile_fail/abstract_product_required_external_agreement_sum.rs:12:31
+   |
+12 |     abstract product Holder { required: Choice, }
+   |                               ^^^^^^^^

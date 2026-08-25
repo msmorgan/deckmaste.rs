@@ -1459,6 +1459,8 @@ impl SemanticPlan {
             &mut constructions,
             &equations,
             &resolutions,
+            &category_render,
+            &agreement_carry_sums,
             &field_policy_terminals,
         )?;
         validate_generated_associated_names(&constructions, &products)?;
@@ -2745,6 +2747,8 @@ fn seal_invariant_field_policy(
     constructions: &mut [ConstructionPlan],
     equations: &HashMap<String, Vec<feature::FeatureEquation>>,
     resolutions: &HashMap<String, HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
+    category_render: &HashMap<String, crate::validate::CategoryRenderCapability>,
+    agreement_carry_sums: &HashSet<String>,
     terminals: &[TerminalPlan],
 ) -> syn::Result<()> {
     for construction in constructions {
@@ -2756,6 +2760,8 @@ fn seal_invariant_field_policy(
             construction,
             construction_equations,
             construction_resolutions,
+            category_render,
+            agreement_carry_sums,
         )?;
         construction.invariant.seal_field_policy(
             &mut construction.fields,
@@ -2770,6 +2776,8 @@ fn invariant_feature_dependencies(
     construction: &ConstructionPlan,
     equations: &[feature::FeatureEquation],
     resolutions: Option<&HashMap<feature::FeaturePlace, feature::FeatureResolution>>,
+    category_render: &HashMap<String, crate::validate::CategoryRenderCapability>,
+    agreement_carry_sums: &HashSet<String>,
 ) -> syn::Result<InvariantFeatureDependencies> {
     let mut dependencies = InvariantFeatureDependencies::default();
     for subject in construction
@@ -2796,6 +2804,35 @@ fn invariant_feature_dependencies(
             equations,
             resolutions,
             &place,
+            &mut HashSet::new(),
+            &mut dependencies,
+        )?;
+    }
+    for equation in equations {
+        let feature::FeaturePlace::Role {
+            field,
+            feature: Feature::Agreement,
+        } = equation.target()
+        else {
+            continue;
+        };
+        let Ok(constrained) = construction.field(&identifier_key(field)) else {
+            continue;
+        };
+        if constrained.kind() != ConstructionFieldKind::Category
+            || !(agreement_carry_sums.contains(constrained.terminal())
+                || category_render
+                    .get(constrained.terminal())
+                    .is_some_and(|capability| capability.carries_agreement()))
+        {
+            continue;
+        }
+        dependencies.fields.insert(constrained.name_key());
+        collect_invariant_feature_dependencies(
+            construction,
+            equations,
+            resolutions,
+            equation.target(),
             &mut HashSet::new(),
             &mut dependencies,
         )?;
@@ -3009,6 +3046,10 @@ impl ConstructionPlan {
 
     pub(crate) fn requires_constructor(&self) -> bool {
         self.invariant.requires_constructor()
+            || self
+                .fields
+                .iter()
+                .any(ConstructionFieldPlan::emits_generated_accessor)
             || self.fields.iter().any(|field| {
                 matches!(
                     field.structural_kind(),
@@ -6717,7 +6758,7 @@ mod tests {
                 .iter()
                 .map(ToString::to_string)
                 .collect::<Vec<_>>(),
-            ["mode"]
+            ["a", "b", "mode"]
         );
     }
 

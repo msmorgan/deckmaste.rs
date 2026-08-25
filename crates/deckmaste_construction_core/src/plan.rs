@@ -603,6 +603,58 @@ mod tests {
     }
 
     #[test]
+    fn agreement_constraint_field_policy_seals_target_and_source_accessors() {
+        let semantic = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                vocab Mode { One = "one", Many = "many", }
+                construction bare: Child {
+                    element BareChild {}
+                    derive agreement = Values::Bare;
+                    form bare = "bare";
+                }
+                construction third: Child {
+                    element ThirdChild {}
+                    derive agreement = Values::ThirdPersonSingular;
+                    form third = "third";
+                }
+                construction constrained: Root {
+                    element Constrained { mode: lex Mode, child: Child, }
+                    derive child.agreement = mode.agreement;
+                    derive mode.agreement = match mode {
+                        One => Values::Bare,
+                        Many => Values::ThirdPersonSingular,
+                    };
+                    form constrained = lex(mode) child;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("Agreement field-policy fixture parses"),
+        )
+        .expect("Agreement field-policy fixture validates")
+        .into_semantic();
+        let construction = semantic
+            .constructions()
+            .iter()
+            .find(|construction| construction.construction_id() == "constrained")
+            .expect("constrained construction is sealed");
+
+        assert_eq!(
+            construction
+                .fields()
+                .iter()
+                .map(|field| (field.name_key(), field.accessor_mode()))
+                .collect::<Vec<_>>(),
+            [
+                ("mode".to_owned(), Some(crate::semantic::AccessorMode::Copy),),
+                (
+                    "child".to_owned(),
+                    Some(crate::semantic::AccessorMode::Borrow),
+                ),
+            ],
+        );
+    }
+
+    #[test]
     fn invariant_plan_drives_ast_build_render_and_visit_projection() {
         let source = quote::quote! {
             vocab Mode { One = "one", Two = "two", }

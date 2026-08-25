@@ -3147,16 +3147,13 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
         panic!("former fixture remains one declarative: {paragraph:?}");
     };
     let deckmaste_english_v2::ast::Clause::Finite(
-        deckmaste_english_v2::ast::FiniteClause::PlainFiniteClause(
-            deckmaste_english_v2::ast::PlainFiniteClause {
-                subject: finite_subject,
-                predicate,
-            },
-        ),
+        deckmaste_english_v2::ast::FiniteClause::PlainFiniteClause(clause),
     ) = &declarative.clause
     else {
         panic!("former fixture remains a plain finite clause: {declarative:?}");
     };
+    let finite_subject = clause.subject();
+    let predicate = clause.predicate();
     let Subject::SubjectNominal(subject) = finite_subject else {
         panic!("former fixture retains a nominal subject: {declarative:?}");
     };
@@ -4002,6 +3999,228 @@ fn bare_target_determiner_is_singular_and_plural_targets_require_a_quantifier() 
             .unwrap_or_else(|error| panic!("quantified plural {text:?} must select: {error:?}"));
         assert_eq!(parsed.render(&context, parser.environment()), text);
     }
+}
+
+#[test]
+fn other_target_plurals_require_explicit_quantification_with_exact_semantics() {
+    let parser = parser();
+    let context = context("Context Card");
+    assert_bare_other_target_plurals_reject(&parser, &context);
+
+    let path_prefix = [
+        "AbilityPlain",
+        "AbilityBodySentences",
+        "SentenceImperative",
+        "VerbPhraseDestroy",
+        "ObjectObjectNominal",
+        "NounPhraseQualifiedNounPhrase",
+        "NumericStageUnqualifiedNumericStage",
+        "ZoneStageUnqualifiedZoneStage",
+        "ControllerStageUnqualifiedControllerStage",
+    ];
+    let visitor_prefix = [
+        "Ability",
+        "Plain",
+        "Sentence",
+        "Imperative",
+        "VerbPhrase",
+        "Destroy",
+        "Declaration:KeywordAction:Destroy",
+        "Object",
+        "NominalObject",
+        "NounPhrase",
+        "QualifiedNounPhrase",
+        "NumericStage",
+        "UnqualifiedNumericStage",
+        "ZoneStage",
+        "UnqualifiedZoneStage",
+        "ControllerStage",
+        "UnqualifiedControllerStage",
+        "UnqualifiedReference",
+    ];
+    for (text, path_suffix, visitor_suffix) in [
+        (
+            "Destroy all other target creatures.",
+            &[
+                "UnqualifiedReferenceAllReference",
+                "PluralSelectorOtherTargetPluralSelector",
+                "PluralNominalBarePluralNominal",
+                "PluralHeadTypePluralHead",
+            ][..],
+            &[
+                "AllReference",
+                "PluralSelector",
+                "OtherTargetPluralSelector",
+                "PluralNominal",
+                "BarePluralNominal",
+                "PluralHead",
+                "TypePluralHead",
+                "Declaration:Type:Creature",
+            ][..],
+        ),
+        (
+            "Destroy two other target creatures.",
+            &[
+                "UnqualifiedReferenceFixedReference",
+                "CardinalQuantityCardinal",
+                "PluralSelectorOtherTargetPluralSelector",
+                "PluralNominalBarePluralNominal",
+                "PluralHeadTypePluralHead",
+            ][..],
+            &[
+                "FixedReference",
+                "CardinalQuantity",
+                "CardinalQuantityValue",
+                "CardinalNumber:2",
+                "PluralSelector",
+                "OtherTargetPluralSelector",
+                "PluralNominal",
+                "BarePluralNominal",
+                "PluralHead",
+                "TypePluralHead",
+                "Declaration:Type:Creature",
+            ][..],
+        ),
+        (
+            "Destroy X other target creatures.",
+            &[
+                "UnqualifiedReferenceVariableReference",
+                "PluralSelectorOtherTargetPluralSelector",
+                "PluralNominalBarePluralNominal",
+                "PluralHeadTypePluralHead",
+            ][..],
+            &[
+                "VariableReference",
+                "Variable:X",
+                "PluralSelector",
+                "OtherTargetPluralSelector",
+                "PluralNominal",
+                "BarePluralNominal",
+                "PluralHead",
+                "TypePluralHead",
+                "Declaration:Type:Creature",
+            ][..],
+        ),
+        (
+            "Destroy up to three other target creatures.",
+            &[
+                "UnqualifiedReferenceUpToManyReference",
+                "CardinalQuantityCardinal",
+                "PluralSelectorOtherTargetPluralSelector",
+                "PluralNominalBarePluralNominal",
+                "PluralHeadTypePluralHead",
+            ][..],
+            &[
+                "UpToManyReference",
+                "CardinalQuantity",
+                "CardinalQuantityValue",
+                "CardinalNumber:3",
+                "PluralSelector",
+                "OtherTargetPluralSelector",
+                "PluralNominal",
+                "BarePluralNominal",
+                "PluralHead",
+                "TypePluralHead",
+                "Declaration:Type:Creature",
+            ][..],
+        ),
+        (
+            "Destroy any number of other target Equipment.",
+            &[
+                "UnqualifiedReferenceAnyNumberReference",
+                "PluralSelectorOtherTargetPluralSelector",
+                "PluralNominalBarePluralNominal",
+                "PluralHeadArtifactSubtypePluralHead",
+            ][..],
+            &[
+                "AnyNumberReference",
+                "PluralSelector",
+                "OtherTargetPluralSelector",
+                "PluralNominal",
+                "BarePluralNominal",
+                "PluralHead",
+                "ArtifactSubtypePluralHead",
+                "Declaration:Subtype(Artifact):Equipment",
+            ][..],
+        ),
+    ] {
+        assert_quantified_other_target_case(
+            &parser,
+            &context,
+            text,
+            &path_prefix,
+            path_suffix,
+            &visitor_prefix,
+            visitor_suffix,
+        );
+    }
+}
+
+fn assert_bare_other_target_plurals_reject(parser: &Parser, context: &ParseContext<'_>) {
+    for text in [
+        "Destroy other target creatures.",
+        "Destroy other target Equipment.",
+    ] {
+        assert!(
+            parser.parse(text, context).is_err(),
+            "bare other-target plural must not bypass the explicit-quantifier boundary: {text:?}",
+        );
+    }
+}
+
+fn assert_quantified_other_target_case(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+    path_prefix: &[&str],
+    path_suffix: &[&str],
+    visitor_prefix: &[&str],
+    visitor_suffix: &[&str],
+) {
+    let analysis = parser.analyze(text, context);
+    let selected = analysis
+        .selected()
+        .unwrap_or_else(|| panic!("quantified other-target plural must select: {analysis:?}"));
+    let decision = analysis.decision().expect("selected parse has a decision");
+    assert_eq!(decision.candidates().len(), 1, "{text:?}");
+    assert_eq!(
+        decision.resolution(),
+        SelectionResolution::Unique,
+        "{text:?}"
+    );
+    assert!(decision.exception_uses().is_empty(), "{text:?}");
+    assert_eq!(
+        decision.candidates()[0].construction_path(),
+        path_prefix
+            .iter()
+            .copied()
+            .chain(path_suffix.iter().copied())
+            .collect::<Vec<_>>(),
+        "exact quantified AST path changed for {text:?}",
+    );
+    assert_eq!(selected.render(context, parser.environment()), text);
+
+    let mut visitor = NominalVisitor::default();
+    visitor.visit_ability(selected);
+    assert_eq!(
+        visitor.events,
+        visitor_prefix
+            .iter()
+            .copied()
+            .chain(visitor_suffix.iter().copied())
+            .collect::<Vec<_>>(),
+        "exact quantified visitor preorder changed for {text:?}",
+    );
+
+    let ownership = analysis.ownership().expect("selected parse owns its bytes");
+    assert_eq!(ownership.rendered_text(), text);
+    assert!(ownership.failures().is_empty(), "{text:?}: {ownership:?}");
+    let summary = ownership.summary();
+    assert!(summary.covered(), "{text:?}: {ownership:?}");
+    assert_eq!(summary.gap_spans(), 0, "{text:?}");
+    assert_eq!(summary.overlap_spans(), 0, "{text:?}");
+    assert_eq!(summary.synthetic_claims(), 0, "{text:?}");
+    assert_eq!(summary.provenance_plan_mismatches(), 0, "{text:?}");
 }
 
 #[test]

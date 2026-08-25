@@ -39,6 +39,8 @@ use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
 
+const REQUIRE_COMPLETE_OUTCOME_ENV: &str = "DECKMASTE_ENGLISH_V2_REQUIRE_COMPLETE_OUTCOME";
+
 const CARD_NAME_ONSET_OVERRIDES: [(&str, macro_ron::v2::Onset); 8] = [
     ("+2 Mace", macro_ron::v2::Onset::Consonant),
     ("Éomer of the Riddermark", macro_ron::v2::Onset::Vowel),

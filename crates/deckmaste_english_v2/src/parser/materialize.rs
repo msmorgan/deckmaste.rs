@@ -976,9 +976,10 @@ mod tests {
 
     #[test]
     fn root_adapter_materialization_is_identity_over_one_semantic_child() {
-        let value = BuildValue::Sentence(Sentence::Imperative(Imperative {
-            predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
-        }));
+        let value = BuildValue::Sentence(Sentence::Imperative(
+            Imperative::new(Predicate::Atomic(VerbPhrase::Connive(Connive)))
+                .expect("bare test predicate satisfies imperative agreement"),
+        ));
         let adapter_children = [
             value.clone(),
             BuildValue::Leaf(Leaf::Literal(".")),
@@ -1214,9 +1215,10 @@ mod tests {
                 word: ObjectPronoun::You,
             }),
         });
-        let base = Sentence::Imperative(Imperative {
-            predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
-        });
+        let base = Sentence::Imperative(
+            Imperative::new(Predicate::Atomic(VerbPhrase::Connive(Connive)))
+                .expect("bare test predicate satisfies imperative agreement"),
+        );
         let once = Sentence::WithWhere(WithWhere {
             body: Box::new(base),
             clause: clause.clone(),

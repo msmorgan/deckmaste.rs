@@ -314,16 +314,17 @@ fn atomic(predicate: VerbPhrase) -> Predicate {
 }
 
 fn imperative(predicate: VerbPhrase) -> Sentence {
-    Sentence::Imperative(Imperative {
-        predicate: atomic(predicate),
-    })
+    Sentence::Imperative(
+        Imperative::new(atomic(predicate))
+            .expect("the helper supplies a bare imperative predicate"),
+    )
 }
 
 fn finite_clause(subject: Subject, predicate: VerbPhrase) -> FiniteClause {
-    FiniteClause::PlainFiniteClause(PlainFiniteClause {
-        subject,
-        predicate: atomic(predicate),
-    })
+    FiniteClause::PlainFiniteClause(
+        PlainFiniteClause::new(subject, atomic(predicate))
+            .expect("the helper supplies matching subject-predicate agreement"),
+    )
 }
 
 fn declarative(subject: Subject, predicate: VerbPhrase) -> Sentence {
@@ -547,12 +548,16 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
 
         fn visit_sentence(&mut self, sentence: &Sentence) {
             let label = match sentence {
-                Sentence::Imperative(Imperative {
-                    predicate: Predicate::Atomic(VerbPhrase::Destroy(_)),
-                }) => "destroy",
-                Sentence::Imperative(Imperative {
-                    predicate: Predicate::Atomic(VerbPhrase::Connive(_)),
-                }) => "connive",
+                Sentence::Imperative(value)
+                    if matches!(value.predicate(), Predicate::Atomic(VerbPhrase::Destroy(_))) =>
+                {
+                    "destroy"
+                }
+                Sentence::Imperative(value)
+                    if matches!(value.predicate(), Predicate::Atomic(VerbPhrase::Connive(_))) =>
+                {
+                    "connive"
+                }
                 Sentence::Declarative(_) => "gain",
                 Sentence::WithWhere(_) => "where",
                 Sentence::Imperative(_) | Sentence::Attached(_) => "other",

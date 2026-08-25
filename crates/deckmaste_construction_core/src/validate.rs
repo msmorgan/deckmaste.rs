@@ -357,6 +357,11 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     fold_unit_invariants(&raw, &mut invariants, &feature_resolutions)?;
     let category_render = seal_category_render_capabilities(&raw, &feature_resolutions);
     let agreement_carry_sums = agreement_carry_sums(&raw);
+    validate_abstract_product_external_agreement_sums(
+        &structural,
+        &category_render,
+        &agreement_carry_sums,
+    )?;
     let category_reads = seal_category_feature_reads(&raw, &category_render);
     validate_contextual_agreement_uses(&raw, &category_render)?;
     let mut boxed_fields = validate_category_graph(&raw);
@@ -399,6 +404,64 @@ fn agreement_carry_sums(raw: &Declarations) -> HashSet<String> {
                 .then_some(name)
         })
         .collect()
+}
+
+fn validate_abstract_product_external_agreement_sums(
+    structural: &StructuralSemantics,
+    category_render: &HashMap<String, CategoryRenderCapability>,
+    agreement_carry_sums: &HashSet<String>,
+) -> syn::Result<()> {
+    let mut external_sums = HashSet::new();
+    loop {
+        let before = external_sums.len();
+        for sum in &structural.sums {
+            if !agreement_carry_sums.contains(sum.name()) {
+                continue;
+            }
+            let requires_external = sum
+                .alternatives()
+                .iter()
+                .any(|alternative| match alternative.value() {
+                    ValueKindPlan::Category(category) => category_render
+                        .get(category)
+                        .is_some_and(|capability| capability.requires_external_agreement()),
+                    ValueKindPlan::Sum(nested) => external_sums.contains(nested),
+                    ValueKindPlan::Product(_)
+                    | ValueKindPlan::Lex(_)
+                    | ValueKindPlan::Identity(_) => false,
+                });
+            if requires_external {
+                external_sums.insert(sum.name().to_owned());
+            }
+        }
+        if external_sums.len() == before {
+            break;
+        }
+    }
+
+    let mut errors = None;
+    for product in &structural.products {
+        for field in product.fields() {
+            let ValueKindPlan::Sum(sum) = field.kind().value() else {
+                continue;
+            };
+            if !external_sums.contains(sum) {
+                continue;
+            }
+            combine(
+                &mut errors,
+                syn::Error::new(
+                    field.span(),
+                    format!(
+                        "{}.{role}: Agreement-bearing sum `{sum}` requires external agreement, but abstract products cannot declare feature writers",
+                        product.name(),
+                        role = field.name(),
+                    ),
+                ),
+            );
+        }
+    }
+    finish(errors)
 }
 
 fn validate_sequence_feature_roles(
@@ -11284,6 +11347,34 @@ pub(crate) mod tests {
 
     #[test]
     fn require_rejects_generated_new_name_collisions() {
+        let agreement_role_new_collision = error(quote! {
+            vocab Mode { One = "one", Two = "two", }
+            construction bare: Child {
+                element BareChild {}
+                derive agreement = Values::Bare;
+                form bare = "bare";
+            }
+            construction third: Child {
+                element ThirdChild {}
+                derive agreement = Values::ThirdPersonSingular;
+                form third = "third";
+            }
+            construction only: Root {
+                element Only { mode: lex Mode, r#new: Child, }
+                derive r#new.agreement = mode.agreement;
+                derive mode.agreement = match mode {
+                    One => Values::Bare,
+                    Two => Values::ThirdPersonSingular,
+                };
+                form only = lex(mode) r#new;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            agreement_role_new_collision.contains("generated construction associated item `new`"),
+            "{agreement_role_new_collision}"
+        );
+
         let transitive_new_collision = error(quote! {
             vocab Mode { One = "one", Two = "two", }
             construction only: Root {
@@ -12634,6 +12725,66 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn abstract_products_reject_external_agreement_sums_for_every_field_shape() {
+        for (field, role) in [
+            (quote! { required: Choice, }, "required"),
+            (quote! { optional: opt Choice, }, "optional"),
+            (quote! { members: seq Choice separated by " ", }, "members"),
+        ] {
+            let actual = error(quote! {
+                morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+                lexeme Verbs using EnglishVerb { Act = "act", }
+                construction contextual: Child {
+                    element ContextualChild {}
+                    derive agreement = verb.agreement;
+                    form contextual = verb(Verbs::Act);
+                }
+                abstract sum Choice { Child, }
+                abstract product Holder { #field }
+                construction anchor: Root {
+                    element Anchor {}
+                    form anchor = "anchor";
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            });
+            let expected = format!(
+                "Holder.{role}: Agreement-bearing sum `Choice` requires external agreement, but abstract products cannot declare feature writers"
+            );
+            assert!(
+                actual.contains(&expected),
+                "expected `{expected}` in {actual}"
+            );
+            assert!(!actual.contains("internal"), "{actual}");
+        }
+    }
+
+    #[test]
+    fn abstract_products_reject_transitively_external_agreement_sums() {
+        let actual = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Verbs using EnglishVerb { Act = "act", }
+            construction contextual: Child {
+                element ContextualChild {}
+                derive agreement = verb.agreement;
+                form contextual = verb(Verbs::Act);
+            }
+            abstract sum Choice { Inner, }
+            abstract sum Inner { Child, }
+            abstract product Holder { required: Choice, }
+            construction anchor: Root {
+                element Anchor {}
+                form anchor = "anchor";
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        let expected = "Holder.required: Agreement-bearing sum `Choice` requires external agreement, but abstract products cannot declare feature writers";
+        assert!(
+            actual.contains(expected),
+            "expected `{expected}` in {actual}"
+        );
+    }
+
+    #[test]
     fn structural_validation_accumulates_independent_declaration_errors() {
         let actual = error(quote! {
             abstract sum Choice { absent: Missing, }
@@ -13766,6 +13917,11 @@ pub(crate) mod tests {
                 (
                     "document".to_owned(),
                     "subject".to_owned(),
+                    crate::semantic::AccessorMode::Borrow,
+                ),
+                (
+                    "document".to_owned(),
+                    "predicate".to_owned(),
                     crate::semantic::AccessorMode::Borrow,
                 ),
             ],

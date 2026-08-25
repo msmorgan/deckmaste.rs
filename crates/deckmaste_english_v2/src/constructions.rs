@@ -1606,8 +1606,7 @@ constructions! {
         require any(
             selector is UnmarkedPluralSelector,
             selector is UnmarkedPluralCoordinationSelector,
-            selector is OtherPluralSelector,
-            selector is OtherTargetPluralSelector
+            selector is OtherPluralSelector
         );
         derive agreement = selector.agreement;
         derive number = selector.number;

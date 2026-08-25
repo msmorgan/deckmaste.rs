@@ -1033,18 +1033,22 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
     let value = Ability::Triggered(Triggered {
         trigger: TriggerPrefix::Finite(Finite {
             marker: TriggerMarker::Whenever,
-            clause: FiniteClause::PlainFiniteClause(PlainFiniteClause {
-                subject: Subject::SubjectPronoun(PersonalSubject {
-                    word: SubjectPronoun::You,
-                }),
-                predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
-            }),
+            clause: FiniteClause::PlainFiniteClause(
+                PlainFiniteClause::new(
+                    Subject::SubjectPronoun(PersonalSubject {
+                        word: SubjectPronoun::You,
+                    }),
+                    Predicate::Atomic(VerbPhrase::Connive(Connive)),
+                )
+                .expect("you and connive satisfy finite-clause agreement"),
+            ),
         }),
         intervening_if: None,
         body: AbilityBody::Sentences(
-            Sentences::new(vec![Sentence::Imperative(Imperative {
-                predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
-            })])
+            Sentences::new(vec![Sentence::Imperative(
+                Imperative::new(Predicate::Atomic(VerbPhrase::Connive(Connive)))
+                    .expect("connive satisfies bare imperative agreement"),
+            )])
             .expect("linguistic body remains nonempty"),
         ),
     });
@@ -1210,14 +1214,7 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
         intervening_if:
             Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(
                 FiniteConditionValue {
-                    clause:
-                        FiniteClause::PlainFiniteClause(PlainFiniteClause {
-                            subject:
-                                Subject::SubjectPronoun(PersonalSubject {
-                                    word: SubjectPronoun::You,
-                                }),
-                            predicate: Predicate::Atomic(VerbPhrase::Connive(Connive)),
-                        }),
+                    clause: FiniteClause::PlainFiniteClause(clause),
                 },
             ))),
         ..
@@ -1225,6 +1222,16 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
     else {
         panic!("the immediate if clause has its dedicated finite-condition attachment")
     };
+    assert!(matches!(
+        clause.subject(),
+        Subject::SubjectPronoun(PersonalSubject {
+            word: SubjectPronoun::You,
+        })
+    ));
+    assert!(matches!(
+        clause.predicate(),
+        Predicate::Atomic(VerbPhrase::Connive(Connive))
+    ));
 }
 
 #[test]
@@ -2041,13 +2048,12 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
         ActivationCostComponent::Loyalty(Loyalty {
             value: LoyaltyValue::NegativeLoyalty(NegativeLoyalty { magnitude }),
         }),
-        ActivationCostComponent::Clause(CostClause {
-            predicate: VerbPhrase::Destroy(_),
-        }),
+        ActivationCostComponent::Clause(cost_clause),
     ] = activated.costs()
     else {
         panic!("mixed cost builds the positional SymbolRun/Loyalty/Clause AST")
     };
+    assert!(matches!(cost_clause.predicate(), VerbPhrase::Destroy(_)));
     assert_eq!(
         symbols.symbols(),
         &[
@@ -2250,7 +2256,10 @@ fn you_subject() -> Subject {
 }
 
 fn plain_finite(subject: Subject, predicate: Predicate) -> FiniteClause {
-    FiniteClause::PlainFiniteClause(PlainFiniteClause { subject, predicate })
+    FiniteClause::PlainFiniteClause(
+        PlainFiniteClause::new(subject, predicate)
+            .expect("the helper supplies matching subject-predicate agreement"),
+    )
 }
 
 fn predicate_identity(predicate: &VerbPhrase) -> String {
@@ -2313,9 +2322,11 @@ fn subject_identity(subject: &Subject) -> &'static str {
 }
 
 fn finite_clause_identity(clause: &FiniteClause) -> String {
-    let FiniteClause::PlainFiniteClause(PlainFiniteClause { subject, predicate }) = clause else {
+    let FiniteClause::PlainFiniteClause(clause) = clause else {
         panic!("clause coordination stores complete plain finite clauses")
     };
+    let subject = clause.subject();
+    let predicate = clause.predicate();
     let Predicate::Atomic(predicate) = predicate else {
         panic!("the exact clause witnesses contain atomic predicates")
     };
@@ -2368,11 +2379,12 @@ fn auxiliaries_are_lexical_clause_structure_with_derived_bare_predicates() {
                 body: AbilityBody::Sentences(
                     Sentences::new(vec![Sentence::Declarative(Declarative {
                         clause: Clause::Finite(FiniteClause::AuxiliaryFiniteClause(
-                            AuxiliaryFiniteClause {
-                                subject: you_subject(),
+                            AuxiliaryFiniteClause::new(
+                                you_subject(),
                                 auxiliary,
-                                predicate: Predicate::Atomic(gain_life_predicate(2)),
-                            },
+                                Predicate::Atomic(gain_life_predicate(2)),
+                            )
+                            .expect("auxiliary clauses require a bare predicate"),
                         )),
                     })])
                     .expect("the independently built ability body is nonempty"),
@@ -2487,14 +2499,13 @@ fn assert_predicate_coordination(
     };
     let [
         Sentence::Declarative(Declarative {
-            clause:
-                Clause::Finite(FiniteClause::PlainFiniteClause(PlainFiniteClause {
-                    predicate: Predicate::Coordination(coordination),
-                    ..
-                })),
+            clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
         }),
     ] = sentences.sentences()
     else {
+        panic!("predicate coordination has the staged declarative AST: {text}")
+    };
+    let Predicate::Coordination(coordination) = clause.predicate() else {
         panic!("predicate coordination has the staged declarative AST: {text}")
     };
     let members = match (kind, coordination) {
@@ -2666,15 +2677,15 @@ fn malformed_coordination_and_minimum_arity_are_rejected() {
     else {
         panic!("one atomic clause remains a plain ability")
     };
-    assert!(matches!(
-        sentences.sentences(),
-        [Sentence::Declarative(Declarative {
-            clause: Clause::Finite(FiniteClause::PlainFiniteClause(PlainFiniteClause {
-                predicate: Predicate::Atomic(_),
-                ..
-            })),
-        })]
-    ));
+    let [
+        Sentence::Declarative(Declarative {
+            clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
+        }),
+    ] = sentences.sentences()
+    else {
+        panic!("one atomic clause retains the plain finite-clause shape")
+    };
+    assert!(matches!(clause.predicate(), Predicate::Atomic(_)));
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -2789,15 +2800,14 @@ fn logic_visitors_follow_semantic_member_order() {
     };
     let [
         Sentence::Declarative(Declarative {
-            clause:
-                Clause::Finite(FiniteClause::PlainFiniteClause(PlainFiniteClause { predicate, .. })),
+            clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
         }),
     ] = predicate_sentences.sentences()
     else {
         unreachable!()
     };
     let mut visitor = LogicVisitor::default();
-    visitor.visit_predicate(predicate);
+    visitor.visit_predicate(clause.predicate());
     assert_eq!(
         visitor.0,
         [
@@ -3309,10 +3319,13 @@ fn attachment_products_have_an_intermediate_linguistic_stage_for_imperatives() {
     let parser = parser();
     let context = context("Context Card", false);
     let expected = Sentence::Attached(Attached {
-        attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
-            condition: connive_clause(),
-            body: Predicate::Atomic(VerbPhrase::Connive(Connive {})),
-        }),
+        attachment: ClauseAttachment::PreposedIfPredicate(
+            PreposedIfPredicate::new(
+                connive_clause(),
+                Predicate::Atomic(VerbPhrase::Connive(Connive {})),
+            )
+            .expect("the attached imperative predicate is bare"),
+        ),
     });
     let selected = assert_one_logic_candidate(&parser, &context, "If you connive, connive.");
     assert_eq!(
@@ -3870,10 +3883,10 @@ fn conditional_attachment_root_scope_matrix_is_exact() {
         Ability::Plain(Plain {
             body: AbilityBody::Sentences(
                 Sentences::new(vec![Sentence::Attached(Attached {
-                    attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
-                        condition: condition.clone(),
-                        body: gain.clone(),
-                    }),
+                    attachment: ClauseAttachment::PreposedIfPredicate(
+                        PreposedIfPredicate::new(condition.clone(), gain.clone())
+                            .expect("the attached gain predicate is bare"),
+                    ),
                 })])
                 .expect("one root sentence"),
             ),
@@ -3936,10 +3949,10 @@ fn conditional_attachment_trigger_scope_matrix_is_exact() {
             intervening_if: None,
             body: AbilityBody::Sentences(
                 Sentences::new(vec![Sentence::Attached(Attached {
-                    attachment: ClauseAttachment::PostposedIfPredicate(PostposedIfPredicate {
-                        body: gain,
-                        condition,
-                    }),
+                    attachment: ClauseAttachment::PostposedIfPredicate(
+                        PostposedIfPredicate::new(gain, condition)
+                            .expect("the attached gain predicate is bare"),
+                    ),
                 })])
                 .expect("one trigger-body sentence"),
             ),
@@ -4012,10 +4025,10 @@ fn conditional_attachment_activation_scope_matrix_is_exact() {
         activated.body,
         AbilityBody::Sentences(
             Sentences::new(vec![Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PreposedIfPredicate(PreposedIfPredicate {
-                    condition,
-                    body: gain,
-                }),
+                attachment: ClauseAttachment::PreposedIfPredicate(
+                    PreposedIfPredicate::new(condition, gain)
+                        .expect("the attached gain predicate is bare"),
+                ),
             })])
             .expect("one post-colon sentence"),
         ),
@@ -4146,45 +4159,45 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
     for (text, expected) in [
         (
             "Gain 2 life if you connive.",
-            ClauseAttachment::PostposedIfPredicate(PostposedIfPredicate {
-                body: gain.clone(),
-                condition: condition.clone(),
-            }),
+            ClauseAttachment::PostposedIfPredicate(
+                PostposedIfPredicate::new(gain.clone(), condition.clone())
+                    .expect("the attached gain predicate is bare"),
+            ),
         ),
         (
             "Gain 2 life unless you connive.",
-            ClauseAttachment::PostposedUnlessPredicate(PostposedUnlessPredicate {
-                body: gain.clone(),
-                condition: condition.clone(),
-            }),
+            ClauseAttachment::PostposedUnlessPredicate(
+                PostposedUnlessPredicate::new(gain.clone(), condition.clone())
+                    .expect("the attached gain predicate is bare"),
+            ),
         ),
         (
             "As long as you connive, gain 2 life.",
-            ClauseAttachment::PreposedAsLongAsPredicate(PreposedAsLongAsPredicate {
-                condition: condition.clone(),
-                body: gain.clone(),
-            }),
+            ClauseAttachment::PreposedAsLongAsPredicate(
+                PreposedAsLongAsPredicate::new(condition.clone(), gain.clone())
+                    .expect("the attached gain predicate is bare"),
+            ),
         ),
         (
             "While you connive, gain 2 life.",
-            ClauseAttachment::PreposedWhilePredicate(PreposedWhilePredicate {
-                condition: condition.clone(),
-                body: gain.clone(),
-            }),
+            ClauseAttachment::PreposedWhilePredicate(
+                PreposedWhilePredicate::new(condition.clone(), gain.clone())
+                    .expect("the attached gain predicate is bare"),
+            ),
         ),
         (
             "During you connive, gain 2 life.",
-            ClauseAttachment::PreposedDuringPredicate(PreposedDuringPredicate {
-                condition: condition.clone(),
-                body: gain.clone(),
-            }),
+            ClauseAttachment::PreposedDuringPredicate(
+                PreposedDuringPredicate::new(condition.clone(), gain.clone())
+                    .expect("the attached gain predicate is bare"),
+            ),
         ),
         (
             "Until you connive, gain 2 life.",
-            ClauseAttachment::PreposedUntilPredicate(PreposedUntilPredicate {
-                condition: condition.clone(),
-                body: gain.clone(),
-            }),
+            ClauseAttachment::PreposedUntilPredicate(
+                PreposedUntilPredicate::new(condition.clone(), gain.clone())
+                    .expect("the attached gain predicate is bare"),
+            ),
         ),
     ] {
         let selected = assert_one_logic_candidate(&parser, &context, text);
@@ -4247,7 +4260,7 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
         panic!("predicate reflexive subordinate stores its body in the attachment stage")
     };
     assert_eq!(subordinate.kind, ReflexiveSubordinateKind::WhenYouDo);
-    assert_eq!(subordinate.body, gain);
+    assert_eq!(subordinate.body(), &gain);
 }
 
 #[test]

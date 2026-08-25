@@ -163,6 +163,19 @@ relay preserves that constraint through materialization and requires every
 enclosing Agreement writer to satisfy it, without storing the chosen feature
 in the public AST.
 
+Agreement-constrained construction roles use the same checked-public-boundary
+policy as `require`: the constrained role and every stored role used to derive
+its expected Agreement are private, with generated copy or borrow accessors.
+This prevents a consumer from constructing a valid product and then mutating a
+dependency so that the stored relation no longer holds. Abstract products may
+store an Agreement-bearing sum only when every reachable alternative supplies
+intrinsic Agreement. Their generated renderer derives the selected value's
+Agreement independently for a required field, a present optional field, and
+each sequence member. A sum with any contextual alternative instead requires
+an external Agreement writer; because abstract products have no feature-writer
+syntax, each of those three field shapes is rejected at the authored product
+role rather than deferred to code generation.
+
 `Onset::{Consonant,Vowel}` is a v2-owned sealed compiler feature, emitted and
 carried through generated feature plans exactly like `Number`. It is a
 property of each realized terminal surface. The v2 normalization path owns a
@@ -345,8 +358,10 @@ stage-5 work.
   with `VerbPhrase::DealDamage(DealDamage)`. Constructions are nameable types
   so frames, mappings, and the future hole matcher can put one in a
   signature.
-- `require` clauses become checked constructors; fields without invariants
-  stay public.
+- `require` clauses and Agreement-constrained roles become checked
+  constructors. Each constrained field and every stored field that derives
+  its expected Agreement is private with a generated accessor; fields outside
+  those invariant dependencies stay public.
 - Also generated per declaration: parse rules per form, the exact renderer,
   `Eq`/`Debug`, and arms of a **generated total traversal visitor** — the
   visitor is part of the codegen contract (the future hole matcher is a

@@ -1407,6 +1407,18 @@ fn render_structural_value(
             let context = capability.requires_context().then(|| quote! { , context });
             Ok(quote! { #function(writer, #expression #context #environment); })
         }
+        ValueKindPlan::Sum(name) if plan.sum_carries_agreement(name) => {
+            if plan.sum_requires_external_agreement(name) {
+                return Err(internal(
+                    "structural sum rendering cannot supply external agreement",
+                ));
+            }
+            let function = ident(&crate::identifier::prefixed("render_", name));
+            let helper = ident(&feature_helper("agreement", name));
+            Ok(quote! {
+                #function(writer, #expression, #helper(#expression), context #environment);
+            })
+        }
         ValueKindPlan::Product(name) | ValueKindPlan::Sum(name) => {
             let function = ident(&crate::identifier::prefixed("render_", name));
             Ok(quote! { #function(writer, #expression, context #environment); })
@@ -4651,6 +4663,50 @@ mod tests {
     }
 
     #[test]
+    fn abstract_products_derive_intrinsic_sum_agreement_for_every_field_shape() {
+        let expansion = crate::generate(quote::quote! {
+            construction bare: Child {
+                element BareChild {}
+                derive agreement = Values::Bare;
+                form bare = "bare";
+            }
+            construction third: Child {
+                element ThirdChild {}
+                derive agreement = Values::ThirdPersonSingular;
+                form third = "third";
+            }
+            abstract sum Choice { Child, }
+            abstract product Holder {
+                required: Choice,
+                optional: opt Choice,
+                members: seq Choice separated by " ",
+            }
+            root Child { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("intrinsic Agreement sums are self-sufficient product fields");
+        let source = expansion
+            .items()
+            .iter()
+            .filter(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named { name, .. }
+                        if name == "render_holder" || name == "render_holder_members_sequence"
+                )
+            })
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert_eq!(
+            source.matches("agreement_for_choice").count(),
+            3,
+            "{source}"
+        );
+        assert_eq!(source.matches("render_choice").count(), 3, "{source}");
+    }
+
+    #[test]
     fn authored_sentence_initial_transitions_are_uniform_in_rules_and_rendering() {
         let expansion = crate::generate(quote::quote! {
             construction item: Item {
@@ -5161,10 +5217,11 @@ mod tests {
             "ContextualAction { agreement : agreement_2 }",
             "render_marker (writer , * agreement_2)",
             "surface_for_verbs (Verbs :: Act , agreement)",
-            "RootNode { writer : writer_2 , context : context_2",
-            "render_marker (writer , * writer_2)",
+            "Self :: Root (root)",
+            "render_marker (writer , * & root . writer)",
             "writer . identity (context . card_name ())",
-            "match * context_2",
+            "match * & root . context",
+            "render_action (writer , root . action () , Agreement :: Bare)",
             "fn render_writer_word (writer : & mut Writer , writer_2 : WriterWord)",
             "fn render_render_child (writer : & mut Writer , render_child_2 : & RenderChild)",
             "match render_child_2",
@@ -5567,7 +5624,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         assert!(
-            source.contains("render_child (writer , child , Agreement :: Bare)"),
+            source.contains("render_child (writer , parent . child () , Agreement :: Bare)"),
             "the parent must supply the nested-only root's agreement: {source}",
         );
         assert!(
@@ -5661,7 +5718,7 @@ mod tests {
         for fragment in [
             "Self :: Document (document)",
             "render_expr (writer , document . subject ())",
-            "render_predicate (writer , & document . predicate , agreement_for_expr (document . subject ()))",
+            "render_predicate (writer , document . predicate () , agreement_for_expr (document . subject ()))",
             "Handle :: Primary => writer . identity (context . primary_name ())",
             "Handle :: Alias => writer . identity (context . alias_name ())",
             "render_pair (writer , & document . pair)",

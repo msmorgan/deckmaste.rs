@@ -89,14 +89,12 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         else {
             panic!("indefinite destroy is a paragraph")
         };
-        let [
-            Sentence::Imperative(Imperative {
-                predicate:
-                    Predicate::Atomic(VerbPhrase::Destroy(Destroy {
-                        object: Object::ObjectNominal(NominalObject { value }),
-                    })),
-            }),
-        ] = paragraph.sentences()
+        let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
+            panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
+        };
+        let Predicate::Atomic(VerbPhrase::Destroy(Destroy {
+            object: Object::ObjectNominal(NominalObject { value }),
+        })) = imperative.predicate()
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
@@ -1530,10 +1528,10 @@ fn atomic(predicate: VerbPhrase) -> Predicate {
 }
 
 fn finite_clause(subject: Subject, predicate: VerbPhrase) -> FiniteClause {
-    FiniteClause::PlainFiniteClause(PlainFiniteClause {
-        subject,
-        predicate: atomic(predicate),
-    })
+    FiniteClause::PlainFiniteClause(
+        PlainFiniteClause::new(subject, atomic(predicate))
+            .expect("the helper supplies matching subject-predicate agreement"),
+    )
 }
 
 fn declarative(subject: Subject, predicate: VerbPhrase) -> Sentence {
@@ -1553,11 +1551,12 @@ fn paragraph(sentence: Sentence) -> Ability {
 }
 
 fn destroy_target_creature() -> Ability {
-    paragraph(Sentence::Imperative(Imperative {
-        predicate: atomic(VerbPhrase::Destroy(Destroy {
+    paragraph(Sentence::Imperative(
+        Imperative::new(atomic(VerbPhrase::Destroy(Destroy {
             object: target_creature(),
-        })),
-    }))
+        })))
+        .expect("destroy is a valid bare imperative predicate"),
+    ))
 }
 
 fn connive_event() -> FiniteClause {
@@ -1896,14 +1895,12 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     else {
         panic!("named-card sentence is a paragraph: {parsed:?}");
     };
-    let [
-        Sentence::Imperative(Imperative {
-            predicate:
-                Predicate::Atomic(VerbPhrase::Destroy(Destroy {
-                    object: Object::ObjectNominal(NominalObject { value }),
-                })),
-        }),
-    ] = paragraph.sentences()
+    let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
+        panic!("explicit card name has its generated AST construction: {parsed:?}");
+    };
+    let Predicate::Atomic(VerbPhrase::Destroy(Destroy {
+        object: Object::ObjectNominal(NominalObject { value }),
+    })) = imperative.predicate()
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
@@ -1961,14 +1958,13 @@ fn bare_own_card_name_remains_unique_source_self_reference() {
     };
     let [
         Sentence::Declarative(Declarative {
-            clause:
-                Clause::Finite(FiniteClause::PlainFiniteClause(PlainFiniteClause {
-                    subject: Subject::SubjectNominal(NominalSubject { value }),
-                    ..
-                })),
+            clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
         }),
     ] = paragraph.sentences()
     else {
+        panic!("bare own card name remains source self-reference: {selected:?}");
+    };
+    let Subject::SubjectNominal(NominalSubject { value }) = clause.subject() else {
         panic!("bare own card name remains source self-reference: {selected:?}");
     };
     assert!(matches!(

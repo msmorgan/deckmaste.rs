@@ -36,13 +36,13 @@ The elapsed-time hard ceiling remains 16.26 seconds for each of the seven
 corpus-scale gates. Derived at exactly 1.5× the fresh Plan 08 samples, Plan 09
 WARNING thresholds are:
 
-- expand: 1.8969641790s;
-- report: 1.2664998975s;
-- parse: 22.1920343820s;
-- roundtrip: 19.7274238755s;
-- ambiguity: 21.4901364675s;
-- coverage: 22.1024426310s;
-- require-complete: 20.0884238970s.
+- expand: 2.2380377385s;
+- report: 1.2446044695s;
+- parse: 21.6422468970s;
+- roundtrip: 19.8100470315s;
+- ambiguity: 21.4917367965s;
+- coverage: 21.7592368245s;
+- require-complete: 20.2351749585s.
 
 The warning thresholds do not relax the 16.26-second hard ceiling. Before
 implementing either remaining plan, author and obtain approval of its detailed

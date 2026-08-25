@@ -1,7 +1,9 @@
+use std::fs;
 use std::io::Write;
+use std::path::Path;
 
 use anyhow::Context;
-use anyhow::bail;
+use anyhow::anyhow;
 use serde::Serialize;
 
 use super::ParseArgs;
@@ -18,8 +20,15 @@ pub(super) fn run(args: &ParseArgs, output: &mut dyn Write) -> anyhow::Result<()
 
     render_report(&report, args.json, output)?;
     output.flush().context("flushing English-v2 parse census")?;
-    if args.require_complete {
-        require_complete(&report, corpus.units().len())?;
+    if args.require_complete
+        && let CompletionCheck::Incomplete(outcome) =
+            completion_check(&report, corpus.units().len())
+    {
+        let error = incomplete_error(&outcome);
+        if let Some(path) = std::env::var_os(super::REQUIRE_COMPLETE_OUTCOME_ENV) {
+            write_completion_outcome(&outcome, Path::new(&path))?;
+        }
+        return Err(error);
     }
     Ok(())
 }
@@ -77,7 +86,15 @@ fn render_report(report: &AuditReport, json: bool, output: &mut dyn Write) -> an
     Ok(())
 }
 
+#[cfg(test)]
 fn require_complete(report: &AuditReport, corpus_size: usize) -> anyhow::Result<()> {
+    let CompletionCheck::Incomplete(outcome) = completion_check(report, corpus_size) else {
+        return Ok(());
+    };
+    Err(incomplete_error(&outcome))
+}
+
+fn completion_check(report: &AuditReport, corpus_size: usize) -> CompletionCheck<'_> {
     let summary = report.summary();
     let accepted = report.accepted_ids().len();
     if accepted == corpus_size
@@ -85,19 +102,39 @@ fn require_complete(report: &AuditReport, corpus_size: usize) -> anyhow::Result<
         && summary.ambiguous == 0
         && summary.internal_failures == 0
     {
-        return Ok(());
+        return CompletionCheck::Complete;
     }
 
-    bail!(
+    CompletionCheck::Incomplete(CompletionOutcome {
+        schema_version: report.schema_version(),
+        source_fingerprint: report.source_fingerprint(),
+        total: corpus_size,
+        accepted,
+        parse_failures: summary.parse_failures,
+        ambiguous: summary.ambiguous,
+        internal_failures: summary.internal_failures,
+    })
+}
+
+fn incomplete_error(outcome: &CompletionOutcome<'_>) -> anyhow::Error {
+    anyhow!(
         "corpus parse is incomplete: accepted {accepted} of {corpus_size}, {}, {}, {}",
-        counted(summary.parse_failures, "parse failure", "parse failures"),
-        counted(summary.ambiguous, "ambiguity", "ambiguities"),
+        counted(outcome.parse_failures, "parse failure", "parse failures"),
+        counted(outcome.ambiguous, "ambiguity", "ambiguities"),
         counted(
-            summary.internal_failures,
+            outcome.internal_failures,
             "internal failure",
             "internal failures"
         ),
+        accepted = outcome.accepted,
+        corpus_size = outcome.total,
     )
+}
+
+fn write_completion_outcome(outcome: &CompletionOutcome<'_>, path: &Path) -> anyhow::Result<()> {
+    let rendered = serde_json::to_vec(outcome).context("rendering require-complete outcome")?;
+    fs::write(path, rendered)
+        .with_context(|| format!("writing require-complete outcome to {}", path.display()))
 }
 
 fn status_name(status: AuditStatus) -> &'static str {
@@ -122,14 +159,33 @@ struct JsonReport<'a> {
     summary: super::audit::AuditSummary,
 }
 
+#[derive(Serialize)]
+struct CompletionOutcome<'a> {
+    schema_version: u32,
+    source_fingerprint: &'a str,
+    total: usize,
+    accepted: usize,
+    parse_failures: usize,
+    ambiguous: usize,
+    internal_failures: usize,
+}
+
+enum CompletionCheck<'a> {
+    Complete,
+    Incomplete(CompletionOutcome<'a>),
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
     use std::path::Path;
 
+    use super::CompletionCheck;
+    use super::completion_check;
     use super::render_report;
     use super::require_complete;
     use super::run;
+    use super::write_completion_outcome;
     use crate::english_v2::CorpusArgs;
     use crate::english_v2::ParseArgs;
     use crate::english_v2::audit::AuditReport;
@@ -243,6 +299,31 @@ mod tests {
                 .to_string()
                 .contains("accepted 1 of 2")
         );
+    }
+
+    #[test]
+    fn completion_outcome_is_a_compact_exact_structured_census() {
+        let report = complete_fixture_report();
+        let outcome = tempfile::NamedTempFile::new().unwrap();
+        let CompletionCheck::Incomplete(census) = completion_check(&report, 5) else {
+            panic!("mixed fixture is incomplete");
+        };
+        write_completion_outcome(&census, outcome.path()).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_slice(&fs::read(outcome.path()).unwrap()).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "schema_version": 1,
+                "source_fingerprint": "0".repeat(64),
+                "total": 5,
+                "accepted": 2,
+                "parse_failures": 1,
+                "ambiguous": 1,
+                "internal_failures": 1,
+            })
+        );
+        assert!(json.get("rows").is_none());
     }
 
     #[test]

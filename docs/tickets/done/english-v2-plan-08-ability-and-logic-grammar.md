@@ -12,7 +12,8 @@ deferral is amended only for ordinary unlabelled U+2022 modal abilities;
 advanced modal, keyword, ability-word, reminder, and frame syntax remains
 deferred. `target` is a linguistic determiner in the English grammar, not a
 targeting-semantic noun-phrase category: bare target phrases are singular,
-while plural target phrases require explicit quantification.
+while both `target <plural>` and `other target <plural>` require an explicit
+higher quantifier.
 
 The 427-row production candidate pool has source fingerprint
 `e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd`
@@ -88,12 +89,12 @@ counters are all zero.
 
 Completion evidence on the task-closed tree:
 
-- construction core: 315 library tests and its documentation tests passed;
-- construction proc macro: 2 catalog tests, all 67 trybuild fixtures, 28
+- construction core: 319 library tests and its documentation tests passed;
+- construction proc macro: 2 catalog tests, all 71 trybuild fixtures, 30
   compiled-consumer tests, and its documentation tests passed;
-- English v2: 131 library tests, 161 integration tests, and 2 documentation
+- English v2: 131 library tests, 162 integration tests, and 2 documentation
   tests passed;
-- xtask English v2: 167 library tests and 9 CLI tests passed;
+- xtask English v2: 171 library tests and 9 CLI tests passed;
 - the seven focused stale-construction-fixture checks passed exactly 7/7; the
   structural deferred-boundary census, complete candidate partition, and
   frozen target/full-lock focused checks each passed exactly 1/1;
@@ -125,20 +126,43 @@ Completion evidence on the task-closed tree:
   declared invariant in a single expansion build. Scanner, renderer, claims,
   and constructor behavior tracked both edits; both old behaviors produced no
   consumed mirror or selected parse. The live workspace diff hash remained
-  `f6e725dd754b77c8866d9f653cb71b658d1ff376dc953c7ff54055cb7d4d1038`
+  `aa90113e71d4f1b36d5b169ff2b43c26680a6bf14d0381837c6ef97d2cc716dc`
   before and after.
 
-The seven separate Plan 08 gate samples were expand 1.264642786s, report
-0.844333265s, parse 14.794689588s, roundtrip 13.151615917s, ambiguity
-14.326757645s, coverage 14.734961754s, and require-complete 13.392282598s.
+The seven separate Plan 08 gate samples were expand 1.492025159s, report
+0.829736313s, parse 14.428164598s, roundtrip 13.206698021s, ambiguity
+14.327824531s, coverage 14.506157883s, and require-complete 13.490116639s.
 Every sample stayed at or below 16.26 seconds. Expand and report emitted their
 named relative-slowdown warnings against the older 1.1815357365s and
 0.7659729825s warning thresholds; the other five gates emitted none. The
-require-complete child reported
-the expected incomplete 735-of-32,641 Stage 5 boundary with
-`expected_incomplete=true`; the wrapper remained nonzero after emitting the
-usable sample. The authenticated manifests, coverage lock, and closure gates
-themselves are complete and exact.
+require-complete child reported the exact structured incomplete 735-of-32,641
+Stage 5 boundary with `expected_incomplete=true`; the wrapper remained nonzero
+after emitting the usable sample. The marker is accepted only when schema,
+source fingerprint, total, accepted, parse-failure, ambiguity, and internal-
+failure fields all match the frozen census and the child exits normally with a
+nonzero status. Arbitrary nonzero exits, signals, malformed or wrong censuses,
+and successful children are ordinary outcomes and are never mislabeled. The
+authenticated manifests, coverage lock, and closure gates themselves are
+complete and exact.
+
+The final review also closed both parked compiler debts instead of leaving
+checked declarations bypassable. Every stored Agreement-constrained role and
+its stored derivation dependencies are private, use the generated accessor
+surface, and can be built only through the checked constructor boundary.
+Agreement-bearing sums in abstract products derive their exact selected
+intrinsic Agreement for required, optional, and sequence fields; sums with a
+reachable contextual alternative are rejected at the authored product role
+because abstract products cannot declare feature writers. External compile-
+fail and compiled-consumer evidence pins the privacy, exact match/mismatch,
+intrinsic render, and all three contextual-wrapper boundaries. Legitimate
+English test consumers now use checked constructors or accessors.
+
+The ordinary plural guard no longer admits `OtherTargetPluralSelector`, so
+bare `other target creatures` and the homonymous `other target Equipment` are
+ordinary parse failures. `all`, fixed-cardinal, `X`, `up to`, and `any number
+of` wrappers remain unique, render-exact, visit-exact, and totally owned. This
+repair did not change the 735 selected identities, either frozen manifest, the
+coverage lock, the expansion inventory, or any zero-defect counter.
 
 Plan 08 closure also repaired stale construction evidence exposed by the
 enlarged generated plan: the exact representative inventory is 93 rather than

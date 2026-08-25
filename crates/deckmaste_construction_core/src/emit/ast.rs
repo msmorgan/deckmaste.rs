@@ -1719,7 +1719,7 @@ mod tests {
                 "DocumentNode",
                 Some(&[
                     ("subject", "Expr", false, PRIVATE),
-                    ("predicate", "Predicate", false, PUB),
+                    ("predicate", "Predicate", false, PRIVATE),
                     ("handle", "Handle", false, PUB),
                     ("pair", "Pair", false, PUB),
                 ]),
