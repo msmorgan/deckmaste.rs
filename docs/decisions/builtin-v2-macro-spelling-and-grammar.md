@@ -86,7 +86,12 @@ replacements. A replacement equal to the default is rejected as redundant;
 there are no `-es` or `-ies` heuristics and no compound-head discovery. A
 record can explicitly mark a derived form unavailable when there is no
 authoritative attestation. Plain omission does not mean unattested, because it
-selects the default recipe.
+selects the default recipe. Explicit unavailability asserts the form is not
+well-formed English (a defective paradigm), never merely that it is unprinted;
+the grammar admits every recipe-derived regular form regardless of whether any
+card realizes it. Attestation gates which facts may be DECLARED — it is
+provenance for overrides, never a corpus filter on what the declared grammar
+admits.
 
 Catalog membership still does not establish that a form is attested. Authors
 must check supplied replacements and explicit unavailability against the
