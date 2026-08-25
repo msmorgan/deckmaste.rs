@@ -931,6 +931,208 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
 }
 
 #[test]
+fn finite_trigger_and_activation_boundaries_keep_structural_bytes_separate_from_word_prefixes() {
+    let parser = parser();
+    let context = context("Context Card", false);
+
+    let trigger_text = "Whenever a player connives, you gain X life.";
+    let trigger_analysis = parser.analyze(trigger_text, &context);
+    let trigger = trigger_analysis
+        .selected()
+        .expect("the finite trigger witness selects")
+        .clone();
+    let Ability::Triggered(Triggered {
+        trigger:
+            TriggerPrefix::Finite(Finite {
+                marker: TriggerMarker::Whenever,
+                clause: FiniteClause::PlainFiniteClause(_),
+            }),
+        intervening_if: None,
+        body: AbilityBody::Sentences(_),
+    }) = trigger
+    else {
+        panic!("a finite trigger stores the generated finite-clause branch")
+    };
+    let trigger_ownership = trigger_analysis
+        .ownership()
+        .expect("the finite trigger witness has lexical ownership");
+    assert_eq!(
+        trigger_ownership
+            .parsed_claims()
+            .iter()
+            .filter_map(|claim| {
+                let span = claim.span();
+                [(26, 27), (27, 31)]
+                    .contains(&(span.start, span.end))
+                    .then(|| {
+                        (
+                            span.start,
+                            span.end,
+                            &trigger_text[span.start..span.end],
+                            claim.kind(),
+                            claim.stable_owner_id(),
+                        )
+                    })
+            })
+            .collect::<Vec<_>>(),
+        [
+            (
+                26,
+                27,
+                ",",
+                LexicalProvenanceKind::FormLiteral,
+                "form:triggered/triggered/1",
+            ),
+            (
+                27,
+                31,
+                " you",
+                LexicalProvenanceKind::Vocab,
+                "vocab:SubjectPronoun/You",
+            ),
+        ],
+        "the trigger comma and its following word prefix have distinct exact owners",
+    );
+
+    let intervening_text = "Whenever a player connives, if you connive, you gain X life.";
+    let intervening_analysis = parser.analyze(intervening_text, &context);
+    let intervening = intervening_analysis
+        .selected()
+        .expect("the finite intervening-if witness selects")
+        .clone();
+    let Ability::Triggered(Triggered {
+        trigger:
+            TriggerPrefix::Finite(Finite {
+                marker: TriggerMarker::Whenever,
+                clause: FiniteClause::PlainFiniteClause(_),
+            }),
+        intervening_if:
+            Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(
+                FiniteConditionValue {
+                    clause: FiniteClause::PlainFiniteClause(_),
+                },
+            ))),
+        body: AbilityBody::Sentences(_),
+    }) = intervening
+    else {
+        panic!("a finite intervening condition stays in the generated triggered envelope")
+    };
+    let intervening_ownership = intervening_analysis
+        .ownership()
+        .expect("the finite intervening-if witness has lexical ownership");
+    assert_eq!(
+        intervening_ownership
+            .parsed_claims()
+            .iter()
+            .filter_map(|claim| {
+                let span = claim.span();
+                [(26, 27), (27, 30), (42, 43), (43, 47)]
+                    .contains(&(span.start, span.end))
+                    .then(|| {
+                        (
+                            span.start,
+                            span.end,
+                            &intervening_text[span.start..span.end],
+                            claim.kind(),
+                            claim.stable_owner_id(),
+                        )
+                    })
+            })
+            .collect::<Vec<_>>(),
+        [
+            (
+                26,
+                27,
+                ",",
+                LexicalProvenanceKind::FormLiteral,
+                "form:triggered/triggered/1",
+            ),
+            (
+                27,
+                30,
+                " if",
+                LexicalProvenanceKind::FormLiteral,
+                "form:finite_condition/finite_condition/0",
+            ),
+            (
+                42,
+                43,
+                ",",
+                LexicalProvenanceKind::FormLiteral,
+                "form:finite_condition/finite_condition/2",
+            ),
+            (
+                43,
+                47,
+                " you",
+                LexicalProvenanceKind::Vocab,
+                "vocab:SubjectPronoun/You",
+            ),
+        ],
+        "trigger and condition commas remain separate from their following word-prefix claims",
+    );
+
+    let activation_text = "{2}{W/U}{T}, [−2], Destroy target creature: You gain X life.";
+    let activation_analysis = parser.analyze(activation_text, &context);
+    let activation_ownership = activation_analysis
+        .ownership()
+        .expect("the mixed activation witness has lexical ownership");
+    assert_eq!(
+        activation_ownership
+            .parsed_claims()
+            .iter()
+            .filter_map(|claim| {
+                let span = claim.span();
+                [(11, 13), (19, 21), (44, 46)]
+                    .contains(&(span.start, span.end))
+                    .then(|| {
+                        (
+                            span.start,
+                            span.end,
+                            &activation_text[span.start..span.end],
+                            claim.kind(),
+                            claim.stable_owner_id(),
+                        )
+                    })
+            })
+            .collect::<Vec<_>>(),
+        [
+            (
+                11,
+                13,
+                ", ",
+                LexicalProvenanceKind::FormLiteral,
+                "structural:Activated/costs/separator/first/0",
+            ),
+            (
+                19,
+                21,
+                ", ",
+                LexicalProvenanceKind::FormLiteral,
+                "structural:Activated/costs/separator/last/0",
+            ),
+            (
+                44,
+                46,
+                ": ",
+                LexicalProvenanceKind::FormLiteral,
+                "form:activated/activated/1",
+            ),
+        ],
+        "activation separators retain their complete structural surfaces",
+    );
+    assert!(
+        parser
+            .parse(
+                "{2}{W/U}{T}, [−2], Destroy target creature: you gain X life.",
+                &context,
+            )
+            .is_err(),
+        "the activated-envelope colon-space remains a sentence-initial structural boundary",
+    );
+}
+
+#[test]
 fn finite_trigger_predicate_agreement_is_derived_from_its_subject() {
     let parser = parser();
     let context = context("Context Card", false);
