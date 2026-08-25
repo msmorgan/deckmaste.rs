@@ -10,6 +10,8 @@ mod inspect;
 mod parse;
 #[cfg(test)]
 mod plan04_authority;
+#[cfg(test)]
+mod plan09_frontier;
 mod probe;
 mod report;
 mod roundtrip;
@@ -783,7 +785,7 @@ mod tests {
             failure_span: deckmaste_english_v2::parser::TextSpan { start: 0, end: 6 },
             supported_primary: "{T}, Tap an untapped Ally you control: You gain 2 life.",
             supported_secondary: Some("{T}: You gain 2 life."),
-            primary_selects: false,
+            primary_selects: true,
         },
     ];
 
@@ -1148,18 +1150,6 @@ mod tests {
             .expect("frozen ability-word catalog loads");
         let review_witnesses = [
             (
-                "4d4491c2f480c2aa7872d83e25b6830975f891b16d7812fcb4c37f88c8b3e096",
-                deckmaste_english_v2::parser::TextSpan { start: 18, end: 24 },
-                "cycles",
-                "plan09-predicate",
-            ),
-            (
-                "90b98deb5a29c770617138c40ba5ebc08dff502c512d397f392932ce1aa9acf5",
-                deckmaste_english_v2::parser::TextSpan { start: 13, end: 17 },
-                "scry",
-                "plan09-predicate",
-            ),
-            (
                 "c82603ae98da0c4df2e8e05fffe027dab0d880ae8daedee2d34b0bca20e50ec9",
                 deckmaste_english_v2::parser::TextSpan { start: 25, end: 31 },
                 "flying",
@@ -1228,21 +1218,29 @@ mod tests {
                 unit.context_onset(),
             )
             .expect("keyword-reference witness context is valid");
-            let ParseError::Failure { span, .. } = parser
-                .parse_oracle_text(&controlled, &context)
-                .expect_err("supported scalar attachment advances to the predicate boundary")
-            else {
-                panic!("keyword-reference control has an ordinary failure: {id}");
-            };
-            assert!(span.start > start, "{id}");
-            assert_eq!(&controlled[span.start..span.end], "attacks", "{id}");
+            if id == "c82603ae98da0c4df2e8e05fffe027dab0d880ae8daedee2d34b0bca20e50ec9" {
+                assert_unique_plan08_ability(&parser, &context, id, &controlled);
+            } else {
+                let ParseError::Failure { span, .. } = parser
+                    .parse_oracle_text(&controlled, &context)
+                    .expect_err("the supported modifier advances to the coordinated object")
+                else {
+                    panic!("keyword-reference control has an ordinary failure: {id}");
+                };
+                assert_eq!(
+                    span,
+                    deckmaste_english_v2::parser::TextSpan { start: 56, end: 57 },
+                    "{id}",
+                );
+                assert_eq!(&controlled[span.start..span.end], "a", "{id}");
+            }
         }
         let mut predicted_counts = BTreeMap::new();
         let mut used_rules = BTreeSet::new();
         let mut mismatches = Vec::new();
         for fields in rows
             .values()
-            .filter(|fields| fields[0] != "plan08-selected")
+            .filter(|fields| fields[0] == "plan10-attachment")
         {
             let id = fields[3];
             let unit = units
@@ -1281,13 +1279,15 @@ mod tests {
                 mismatches.push((id, fields[4], fields[0], expected_category));
             }
         }
-        assert_eq!(used_rules.len(), PLAN08_DEFERRED_RULES.len());
+        let expected_rules = PLAN08_DEFERRED_RULES
+            .iter()
+            .filter(|rule| rule.authority.category() == "plan10-attachment")
+            .map(|rule| (rule.pool_family, rule.failure_surface))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(used_rules, expected_rules);
         assert_eq!(
             predicted_counts.into_iter().collect::<Vec<_>>(),
-            [
-                ("plan09-predicate", 355usize),
-                ("plan10-attachment", 5usize),
-            ],
+            [("plan10-attachment", 5usize)],
         );
         assert!(
             mismatches.is_empty(),
@@ -1296,14 +1296,6 @@ mod tests {
         assert_eq!(
             review_categories,
             [
-                (
-                    "4d4491c2f480c2aa7872d83e25b6830975f891b16d7812fcb4c37f88c8b3e096",
-                    "plan09-predicate",
-                ),
-                (
-                    "90b98deb5a29c770617138c40ba5ebc08dff502c512d397f392932ce1aa9acf5",
-                    "plan09-predicate",
-                ),
                 (
                     "c82603ae98da0c4df2e8e05fffe027dab0d880ae8daedee2d34b0bca20e50ec9",
                     "plan10-attachment",
@@ -1421,6 +1413,16 @@ mod tests {
             .map(|line| line.split('\t').collect::<Vec<_>>())
             .collect::<Vec<_>>();
         assert_eq!(rows.len(), 427);
+        let plan09_boundaries = include_str!("english_v2/plan09_progress.tsv")
+            .lines()
+            .filter(|line| line.starts_with("boundary\t"))
+            .map(|line| {
+                let fields = line.split('\t').collect::<Vec<_>>();
+                assert_eq!(fields.len(), 7, "Plan 09 boundary row: {line}");
+                (fields[1], fields)
+            })
+            .collect::<BTreeMap<_, _>>();
+        assert_eq!(plan09_boundaries.len(), 355);
 
         let data =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgjson/AtomicCards.json");
@@ -1553,7 +1555,62 @@ mod tests {
                     assert!(path.iter().any(|name| name == construction), "{id}");
                     *selected_families.entry(*plan08_family).or_insert(0usize) += 1;
                 }
-                "plan09-predicate" | "plan10-attachment" => {
+                "plan09-predicate" => {
+                    assert!(plan08_family.is_empty(), "{id}");
+                    let progress = plan09_boundaries
+                        .get(id)
+                        .unwrap_or_else(|| panic!("Plan 09 progress contains {id}"));
+                    match progress[3] {
+                        "selected" => {
+                            assert_eq!(analysis.outcome(), ParseAnalysisOutcome::Selected, "{id}");
+                            let ownership = analysis.ownership().expect("selected ownership");
+                            assert_eq!(ownership.rendered_text(), unit.text(), "{id}");
+                            assert!(ownership.summary().covered(), "{id}");
+                            assert!(ownership.failures().is_empty(), "{id}");
+                            let decision = analysis.decision().expect("selected decision");
+                            assert!(
+                                matches!(
+                                    decision.resolution(),
+                                    SelectionResolution::Unique | SelectionResolution::Specificity
+                                ),
+                                "{id}",
+                            );
+                            assert!(decision.exception_uses().is_empty(), "{id}");
+                        }
+                        movement @ ("same" | "later") => {
+                            assert_eq!(
+                                analysis.outcome(),
+                                ParseAnalysisOutcome::ParseFailure,
+                                "{id}",
+                            );
+                            let expected_span = TextSpan {
+                                start: progress[4].parse().expect("Plan 09 failure start"),
+                                end: progress[5].parse().expect("Plan 09 failure end"),
+                            };
+                            let ParseError::Failure { span, .. } = analysis
+                                .into_parse_result()
+                                .expect_err("unselected Plan 09 row fails")
+                            else {
+                                panic!("Plan 09 row has an ordinary parse failure: {id}");
+                            };
+                            assert_eq!(span, expected_span, "{id}");
+                            assert_eq!(
+                                &unit.text()[span.start..span.end],
+                                decode(progress[6]),
+                                "{id}",
+                            );
+                            let prior_start =
+                                failure_start.parse::<usize>().expect("failure start");
+                            if movement == "later" {
+                                assert!(span.start > prior_start, "{id}");
+                            } else {
+                                assert_eq!(span.start, prior_start, "{id}");
+                            }
+                        }
+                        other => panic!("unknown Plan 09 movement {other}: {id}"),
+                    }
+                }
+                "plan10-attachment" => {
                     assert_eq!(
                         analysis.outcome(),
                         ParseAnalysisOutcome::ParseFailure,
@@ -1607,18 +1664,14 @@ mod tests {
                         },
                     );
                     assert_eq!(*category, rule.authority.category(), "{id}");
-                    if *category == "plan09-predicate" {
-                        assert_eq!(*boundary, "predicate", "{id}");
-                    } else {
-                        assert_eq!(*boundary, "attachment", "{id}");
-                        if let Some(witness) = PLAN08_ATTACHMENT_WITNESSES
-                            .iter()
-                            .copied()
-                            .find(|witness| witness.id == *id)
-                        {
-                            assert_eq!(span, witness.failure_span, "{id}");
-                            assert_plan08_attachment_witness(witness, &parser, &context);
-                        }
+                    assert_eq!(*boundary, "attachment", "{id}");
+                    if let Some(witness) = PLAN08_ATTACHMENT_WITNESSES
+                        .iter()
+                        .copied()
+                        .find(|witness| witness.id == *id)
+                    {
+                        assert_eq!(span, witness.failure_span, "{id}");
+                        assert_plan08_attachment_witness(witness, &parser, &context);
                     }
                 }
                 "plan08-defect" => panic!("Plan 08 grammar defect blocks closure: {id}"),
@@ -1638,7 +1691,7 @@ mod tests {
     }
 
     #[test]
-    fn plan08_production_baseline_remains_the_frozen_plan07_starting_point() {
+    fn plan08_production_baseline_is_retained_through_the_plan09_delta() {
         let data =
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgjson/AtomicCards.json");
         let mut coverage_json = Vec::new();
@@ -1660,9 +1713,9 @@ mod tests {
             "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd"
         );
         assert_eq!(coverage["summary"]["total_units"], 32_641);
-        assert_eq!(coverage["summary"]["selected_units"], 735);
-        assert_eq!(coverage["summary"]["covered_units"], 735);
-        assert_eq!(coverage["summary"]["parse_failures"], 31_906);
+        assert_eq!(coverage["summary"]["selected_units"], 1_837);
+        assert_eq!(coverage["summary"]["covered_units"], 1_837);
+        assert_eq!(coverage["summary"]["parse_failures"], 30_804);
         for counter in [
             "selected_uncovered_units",
             "unresolved_ties",
@@ -1685,8 +1738,8 @@ mod tests {
         .expect("production ambiguity baseline renders");
         let ambiguity: serde_json::Value =
             serde_json::from_slice(&ambiguity_json).expect("ambiguity baseline is JSON");
-        assert_eq!(ambiguity["summary"]["unique"], 735);
-        assert_eq!(ambiguity["summary"]["specificity_resolved"], 0);
+        assert_eq!(ambiguity["summary"]["unique"], 1_815);
+        assert_eq!(ambiguity["summary"]["specificity_resolved"], 22);
         for counter in [
             "exception_resolved",
             "unresolved_ties",
@@ -3320,8 +3373,9 @@ mod tests {
             | "function render_verb_phrase"
             | "function agreement_matches_for_verb_phrase"
             | "function walk_verb_phrase" => &[
-                "construction destroy",
-                "construction connive",
+                "construction intransitive_predicate",
+                "construction transitive_predicate",
+                "construction numerative_predicate",
                 "construction deal_damage",
                 "construction gain_life",
             ],
@@ -4052,8 +4106,15 @@ mod tests {
             "type PossessiveNoun" | "function walk_possessive_noun" => {
                 &["construction possessive_plural_noun"]
             }
-            "type Destroy" | "function walk_destroy" => &["construction destroy"],
-            "type Connive" | "function walk_connive" => &["construction connive"],
+            "type IntransitivePredicate" | "function walk_intransitive_predicate" => {
+                &["construction intransitive_predicate"]
+            }
+            "type TransitivePredicate" | "function walk_transitive_predicate" => {
+                &["construction transitive_predicate"]
+            }
+            "type NumerativePredicate" | "function walk_numerative_predicate" => {
+                &["construction numerative_predicate"]
+            }
             "type DealDamage" | "function walk_deal_damage" => &["construction deal_damage"],
             "type GainLife" | "function walk_gain_life" => &["construction gain_life"],
             "type NumberAmount" | "function walk_number_amount" => &["construction number"],
@@ -4144,6 +4205,30 @@ mod tests {
             "type VerbLexeme"
             | "function surface_for_verb_lexeme"
             | "function walk_verb_lexeme" => &["lexeme VerbLexeme"],
+            "type CoreIntransitiveVerb"
+            | "function surface_for_core_intransitive_verb"
+            | "function walk_core_intransitive_verb" => &["lexeme CoreIntransitiveVerb"],
+            "type CoreTransitiveVerb"
+            | "function surface_for_core_transitive_verb"
+            | "function walk_core_transitive_verb" => &["lexeme CoreTransitiveVerb"],
+            "type CoreNumerativeVerb"
+            | "function surface_for_core_numerative_verb"
+            | "function walk_core_numerative_verb" => &["lexeme CoreNumerativeVerb"],
+            "type DeclarationIntransitiveVerb"
+            | "impl DeclarationIntransitiveVerb"
+            | "type IntransitiveVerb"
+            | "function walk_declaration_intransitive_verb"
+            | "function walk_intransitive_verb" => &["codec IntransitiveVerb"],
+            "type DeclarationTransitiveVerb"
+            | "impl DeclarationTransitiveVerb"
+            | "type TransitiveVerb"
+            | "function walk_declaration_transitive_verb"
+            | "function walk_transitive_verb" => &["codec TransitiveVerb"],
+            "type DeclarationNumerativeVerb"
+            | "impl DeclarationNumerativeVerb"
+            | "type NumerativeVerb"
+            | "function walk_declaration_numerative_verb"
+            | "function walk_numerative_verb" => &["codec NumerativeVerb"],
             "type DeclarationTypeNoun"
             | "impl DeclarationTypeNoun"
             | "type TypeNoun"
@@ -4227,6 +4312,9 @@ mod tests {
             | "type DeclarationClass"
             | "type DeclarationMatcher"
             | "type DeclarationLeaf"
+            | "type VerbFrameAtom"
+            | "type VerbFrameKey"
+            | "impl VerbFrameKey"
             | "type Lexical"
             | "type Leaf"
             | "type TerminalClass"
@@ -4279,7 +4367,6 @@ mod tests {
             | "impl Ord for LexicalOwner"
             | "impl PartialOrd for LexicalOwner"
             | "impl LexicalOwnerTemplate for LexicalOwnerTemplate"
-            | "constant REQUIRED_DECLARATIONS"
             | "type SequenceOwner"
             | "type FixedSurfaceAtom"
             | "function sequence_separator"
@@ -4315,6 +4402,12 @@ mod tests {
                 "morphology EnglishNoun",
                 "lexeme CommonNoun",
                 "lexeme VerbLexeme",
+                "lexeme CoreIntransitiveVerb",
+                "lexeme CoreTransitiveVerb",
+                "lexeme CoreNumerativeVerb",
+                "codec IntransitiveVerb",
+                "codec TransitiveVerb",
+                "codec NumerativeVerb",
                 "codec TypeNoun",
                 "codec ArtifactSubtypeNoun",
                 "codec BattleSubtypeNoun",
@@ -4551,8 +4644,9 @@ mod tests {
                 "construction possessive_self_reference",
                 "construction possessive_plural_noun",
                 "construction possessive",
-                "construction destroy",
-                "construction connive",
+                "construction intransitive_predicate",
+                "construction transitive_predicate",
+                "construction numerative_predicate",
                 "construction deal_damage",
                 "construction gain_life",
                 "construction number",
@@ -4601,6 +4695,9 @@ mod tests {
                 "vocab Supertype",
                 "lexeme CommonNoun",
                 "lexeme VerbLexeme",
+                "codec IntransitiveVerb",
+                "codec TransitiveVerb",
+                "codec NumerativeVerb",
                 "codec TypeNoun",
                 "codec ArtifactSubtypeNoun",
                 "codec BattleSubtypeNoun",
@@ -4979,8 +5076,9 @@ mod tests {
                 "construction possessive_self_reference",
                 "construction possessive_plural_noun",
                 "construction possessive",
-                "construction destroy",
-                "construction connive",
+                "construction intransitive_predicate",
+                "construction transitive_predicate",
+                "construction numerative_predicate",
                 "construction deal_damage",
                 "construction gain_life",
                 "construction number",
@@ -4998,6 +5096,9 @@ mod tests {
                 "codec LandSubtypeNoun",
                 "codec PlaneswalkerSubtypeNoun",
                 "codec SpellSubtypeNoun",
+                "codec IntransitiveVerb",
+                "codec TransitiveVerb",
+                "codec NumerativeVerb",
                 "construction finite_condition",
                 "construction existential_condition",
                 "construction singular_existential_clause",
@@ -5216,8 +5317,9 @@ mod tests {
                 "construction possessive_self_reference",
                 "construction possessive_plural_noun",
                 "construction possessive",
-                "construction destroy",
-                "construction connive",
+                "construction intransitive_predicate",
+                "construction transitive_predicate",
+                "construction numerative_predicate",
                 "construction deal_damage",
                 "construction gain_life",
                 "construction number",
@@ -5255,6 +5357,9 @@ mod tests {
                 "identity SelfReferenceSpelling",
                 "lexeme CommonNoun",
                 "lexeme VerbLexeme",
+                "lexeme CoreIntransitiveVerb",
+                "lexeme CoreTransitiveVerb",
+                "lexeme CoreNumerativeVerb",
             ],
             "type Category" => &[
                 "abstract sum ActivationCostComponent",
@@ -5480,8 +5585,9 @@ mod tests {
                 "construction possessive_self_reference",
                 "construction possessive_plural_noun",
                 "construction possessive",
-                "construction destroy",
-                "construction connive",
+                "construction intransitive_predicate",
+                "construction transitive_predicate",
+                "construction numerative_predicate",
                 "construction deal_damage",
                 "construction gain_life",
                 "construction number",
@@ -5715,8 +5821,9 @@ mod tests {
                 "construction possessive_self_reference",
                 "construction possessive_plural_noun",
                 "construction possessive",
-                "construction destroy",
-                "construction connive",
+                "construction intransitive_predicate",
+                "construction transitive_predicate",
+                "construction numerative_predicate",
                 "construction deal_damage",
                 "construction gain_life",
                 "construction number",
@@ -5953,8 +6060,9 @@ mod tests {
                 "construction possessive_self_reference",
                 "construction possessive_plural_noun",
                 "construction possessive",
-                "construction destroy",
-                "construction connive",
+                "construction intransitive_predicate",
+                "construction transitive_predicate",
+                "construction numerative_predicate",
                 "construction deal_damage",
                 "construction gain_life",
                 "construction number",
@@ -6406,8 +6514,9 @@ mod tests {
         "impl PossessiveSelfReference",
         "type PossessiveNoun",
         "type PossessiveValue",
-        "type Destroy",
-        "type Connive",
+        "type IntransitivePredicate",
+        "type TransitivePredicate",
+        "type NumerativePredicate",
         "type DealDamage",
         "type GainLife",
         "type NumberAmount",
@@ -6445,6 +6554,21 @@ mod tests {
         "function surface_for_common_noun",
         "type VerbLexeme",
         "function surface_for_verb_lexeme",
+        "type CoreIntransitiveVerb",
+        "function surface_for_core_intransitive_verb",
+        "type CoreTransitiveVerb",
+        "function surface_for_core_transitive_verb",
+        "type CoreNumerativeVerb",
+        "function surface_for_core_numerative_verb",
+        "type DeclarationIntransitiveVerb",
+        "impl DeclarationIntransitiveVerb",
+        "type IntransitiveVerb",
+        "type DeclarationTransitiveVerb",
+        "impl DeclarationTransitiveVerb",
+        "type TransitiveVerb",
+        "type DeclarationNumerativeVerb",
+        "impl DeclarationNumerativeVerb",
+        "type NumerativeVerb",
         "type DeclarationTypeNoun",
         "impl DeclarationTypeNoun",
         "type TypeNoun",
@@ -6494,6 +6618,9 @@ mod tests {
         "type DeclarationClass",
         "type DeclarationMatcher",
         "type DeclarationLeaf",
+        "type VerbFrameAtom",
+        "type VerbFrameKey",
+        "impl VerbFrameKey",
         "type Lexical",
         "type Leaf",
         "type TerminalClass",
@@ -6546,7 +6673,6 @@ mod tests {
         "impl Ord for LexicalOwner",
         "impl PartialOrd for LexicalOwner",
         "impl LexicalOwnerTemplate for LexicalOwnerTemplate",
-        "constant REQUIRED_DECLARATIONS",
         "function scan_lexical",
         "function possessive_ending_at",
         "type SequenceOwner",
@@ -7126,8 +7252,9 @@ mod tests {
         "function walk_possessive_self_reference",
         "function walk_possessive_noun",
         "function walk_possessive_value",
-        "function walk_destroy",
-        "function walk_connive",
+        "function walk_intransitive_predicate",
+        "function walk_transitive_predicate",
+        "function walk_numerative_predicate",
         "function walk_deal_damage",
         "function walk_gain_life",
         "function walk_number_amount",
@@ -7166,6 +7293,9 @@ mod tests {
         "function walk_card_name",
         "function walk_common_noun",
         "function walk_verb_lexeme",
+        "function walk_core_intransitive_verb",
+        "function walk_core_transitive_verb",
+        "function walk_core_numerative_verb",
         "function walk_cardinal_number",
         "function walk_scalar_number",
         "function walk_loyalty_magnitude",
@@ -7185,6 +7315,12 @@ mod tests {
         "function walk_planeswalker_subtype_noun",
         "function walk_declaration_spell_subtype_noun",
         "function walk_spell_subtype_noun",
+        "function walk_declaration_intransitive_verb",
+        "function walk_intransitive_verb",
+        "function walk_declaration_transitive_verb",
+        "function walk_transitive_verb",
+        "function walk_declaration_numerative_verb",
+        "function walk_numerative_verb",
         "type Category",
         "type Construction",
         "impl Construction",
@@ -7845,7 +7981,7 @@ mod tests {
             .filter(|heading| *heading != "counted escape hatches")
             .collect::<Vec<_>>();
 
-        assert_eq!(EXPECTED_ITEM_KEYS.len(), 1134);
+        assert_eq!(EXPECTED_ITEM_KEYS.len(), 1_162);
         assert!(
             headings == EXPECTED_ITEM_KEYS,
             "missing={:#?}; unexpected={:#?}; first mismatch={:?}",
@@ -7893,12 +8029,14 @@ mod tests {
             .1;
         assert_eq!(
             report,
-            "// morphology irregulars (2)\n\
+            "// morphology irregulars (3)\n\
              // - lexeme:CommonNoun/Ability\n\
              //   - plural = \"abilities\"\n\
              // - lexeme:VerbLexeme/Be\n\
              //   - bare = \"are\"\n\
              //   - third_person_singular = \"is\"\n\
+             // - lexeme:CoreIntransitiveVerb/Die\n\
+             //   - third_person_singular = \"dies\"\n\
              // terminal bindings (0)\n\
              // roots (8)\n\
              // - root Ability\n\
@@ -7919,7 +8057,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 1134);
+        assert_eq!(parsed.items.len(), 1_162);
     }
 
     #[test]

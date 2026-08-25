@@ -68,6 +68,7 @@ const INVENTORY_FILES: &[&str] = &[
     "crates/xtask/src/english_v2/inspect.rs",
     "crates/xtask/src/english_v2/parse.rs",
     "crates/xtask/src/english_v2/plan04_authority.rs",
+    "crates/xtask/src/english_v2/plan09_frontier.rs",
     "crates/xtask/src/english_v2/probe.rs",
     "crates/xtask/src/english_v2/report.rs",
     "crates/xtask/src/english_v2/roundtrip.rs",

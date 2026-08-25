@@ -3,17 +3,17 @@ use std::path::Path;
 
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::CommonNoun;
+use deckmaste_english_v2::ast::DeclarationTransitiveVerb;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
-use deckmaste_english_v2::parser::ParserBuildError;
-use deckmaste_english_v2::parser::TraceLimits;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
 use deckmaste_english_v2::visit::walk_ability;
+use macro_ron::v2::CustomTailAtom;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::NormalizedDeclaration;
@@ -69,14 +69,169 @@ fn context() -> ParseContext<'static> {
 }
 
 #[test]
-fn parser_build_rejects_missing_wrong_recipe_and_missing_agreement_surface() {
-    let missing = Parser::new(environment_from([]).unwrap())
-        .expect_err("static declarations must exist before parsing");
-    assert!(matches!(
-        missing,
-        ParserBuildError::MissingDeclaration { kind: DeclarationKind::KeywordAction, ref name }
-            if name == "Destroy" || name == "Connive"
-    ));
+fn environment_declaration_verb_readings_use_literal_exact_frame_membership() {
+    let environment = environment_from([
+        declaration(
+            "/synthetic/actions/FirstAct.ron",
+            r#"KeywordAction(name:"FirstAct",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+        ),
+        declaration(
+            "/synthetic/actions/SecondAct.ron",
+            r#"KeywordAction(name:"SecondAct",spelling:"act",grammar:Verb(bare:"act",valence:Custom(shapes:[[ObjectNounPhrase]])))"#,
+        ),
+        declaration(
+            "/synthetic/actions/Rest.ron",
+            r#"KeywordAction(name:"Rest",spelling:"rest",grammar:Verb(bare:"rest",valence:Intransitive))"#,
+        ),
+        declaration(
+            "/synthetic/actions/Count.ron",
+            r#"KeywordAction(name:"Count",spelling:"count",grammar:Verb(bare:"count",valence:Numerative))"#,
+        ),
+        declaration(
+            "/synthetic/actions/Shape.ron",
+            r#"KeywordAction(name:"Shape",spelling:"shape",grammar:Verb(bare:"shape",valence:Custom(shapes:[[],[Amount]])))"#,
+        ),
+        declaration(
+            "/synthetic/actions/Cross.ron",
+            r#"KeywordAction(name:"Cross",spelling:"cross",grammar:Verb(bare:"cross",third_person:"crosses",valence:Custom(shapes:[[ObjectNounPhrase,Amount]])))"#,
+        ),
+        declaration(
+            "/synthetic/abilities/WrongKind.ron",
+            r#"KeywordAbility(name:"WrongKind",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+        ),
+        declaration(
+            "/synthetic/actions/WrongPosition.ron",
+            r#"KeywordAction(name:"WrongPosition",spelling:"act",grammar:FixedTerm(surface:"act"))"#,
+        ),
+    ])
+    .expect("synthetic declaration frame matrix freezes");
+    let names = |surface, feature, frame: &[CustomTailAtom]| {
+        environment
+            .declaration_verb_readings(&[DeclarationKind::KeywordAction], surface, feature, frame)
+            .into_iter()
+            .map(|reading| reading.id().name().to_owned())
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(
+        names(
+            "act",
+            SurfaceFeature::Bare,
+            &[CustomTailAtom::ObjectNounPhrase]
+        ),
+        ["FirstAct", "SecondAct"]
+    );
+    assert_eq!(names("rest", SurfaceFeature::Bare, &[]), ["Rest"]);
+    assert_eq!(
+        names("count", SurfaceFeature::Bare, &[CustomTailAtom::Amount]),
+        ["Count"]
+    );
+    assert_eq!(names("shape", SurfaceFeature::Bare, &[]), ["Shape"]);
+    assert_eq!(
+        names("shape", SurfaceFeature::Bare, &[CustomTailAtom::Amount]),
+        ["Shape"]
+    );
+    assert!(
+        names(
+            "shape",
+            SurfaceFeature::Bare,
+            &[CustomTailAtom::ObjectNounPhrase]
+        )
+        .is_empty()
+    );
+    assert!(
+        names(
+            "cross",
+            SurfaceFeature::Bare,
+            &[CustomTailAtom::ObjectNounPhrase]
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn environment_declaration_verb_readings_filter_kind_position_surface_and_agreement() {
+    let environment = environment_from([
+        declaration(
+            "/synthetic/actions/Right.ron",
+            r#"KeywordAction(name:"Right",spelling:"echo",grammar:Verb(bare:"echo",third_person:"echoes",valence:Transitive))"#,
+        ),
+        declaration(
+            "/synthetic/abilities/WrongKind.ron",
+            r#"KeywordAbility(name:"WrongKind",spelling:"echo",grammar:Verb(bare:"echo",third_person:"echoes",valence:Transitive))"#,
+        ),
+        declaration(
+            "/synthetic/actions/WrongPosition.ron",
+            r#"KeywordAction(name:"WrongPosition",spelling:"echo",grammar:FixedTerm(surface:"echo"))"#,
+        ),
+        declaration(
+            "/synthetic/actions/MissingThird.ron",
+            r#"KeywordAction(name:"MissingThird",spelling:"wane",grammar:Verb(bare:"wane",third_person:Unavailable,valence:Transitive))"#,
+        ),
+    ])
+    .expect("synthetic declaration filters freeze");
+    let names = |kinds: &[DeclarationKind], surface, feature| {
+        environment
+            .declaration_verb_readings(kinds, surface, feature, &[CustomTailAtom::ObjectNounPhrase])
+            .into_iter()
+            .map(|reading| reading.id().name().to_owned())
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(
+        names(
+            &[DeclarationKind::KeywordAction],
+            "echo",
+            SurfaceFeature::Bare
+        ),
+        ["Right"]
+    );
+    assert_eq!(
+        names(
+            &[DeclarationKind::KeywordAction],
+            "echoes",
+            SurfaceFeature::ThirdPersonSingular
+        ),
+        ["Right"]
+    );
+    assert!(
+        names(
+            &[DeclarationKind::KeywordAction],
+            "echo",
+            SurfaceFeature::ThirdPersonSingular
+        )
+        .is_empty()
+    );
+    assert!(
+        names(
+            &[DeclarationKind::KeywordAction],
+            "wane",
+            SurfaceFeature::ThirdPersonSingular
+        )
+        .is_empty()
+    );
+    assert_eq!(
+        names(
+            &[DeclarationKind::KeywordAbility],
+            "echo",
+            SurfaceFeature::Bare
+        ),
+        ["WrongKind"]
+    );
+    assert!(
+        names(
+            &[DeclarationKind::KeywordAction],
+            "missing",
+            SurfaceFeature::Bare
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn parser_build_has_no_fixed_keyword_requirements_and_constructors_fail_closed() {
+    Parser::new(environment_from([]).unwrap())
+        .expect("the shared frames have no fixed keyword-name requirements");
 
     let wrong_recipe = environment_from([
         declaration(
@@ -89,14 +244,9 @@ fn parser_build_rejects_missing_wrong_recipe_and_missing_agreement_surface() {
         ),
     ])
     .unwrap();
-    assert!(matches!(
-        Parser::new(wrong_recipe).expect_err("fixed-term Destroy is not a verb"),
-        ParserBuildError::WrongGrammarPosition {
-            expected: GrammarPosition::Verb,
-            actual: Some(GrammarPosition::FixedTerm),
-            ..
-        }
-    ));
+    let wrong_id = DeclarationId::new(DeclarationKind::KeywordAction, "Destroy");
+    assert!(DeclarationTransitiveVerb::new(&wrong_recipe, wrong_id).is_none());
+    Parser::new(wrong_recipe).expect("wrong recipes do not become fixed parser requirements");
 
     let missing_feature = environment_from([
         declaration(
@@ -109,13 +259,10 @@ fn parser_build_rejects_missing_wrong_recipe_and_missing_agreement_surface() {
         ),
     ])
     .unwrap();
-    assert!(matches!(
-        Parser::new(missing_feature).expect_err("both agreement surfaces are required"),
-        ParserBuildError::MissingSurfaceFeature {
-            feature: SurfaceFeature::ThirdPersonSingular,
-            ..
-        }
-    ));
+    let missing_id = DeclarationId::new(DeclarationKind::KeywordAction, "Destroy");
+    assert!(DeclarationTransitiveVerb::new(&missing_feature, missing_id).is_none());
+    Parser::new(missing_feature)
+        .expect("missing agreement surfaces do not become fixed parser requirements");
 }
 
 #[test]
@@ -156,27 +303,14 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
         "the environment must retain both category-safe identities"
     );
     let parser = Parser::new(environment).unwrap();
-    let trace = parser.trace(
-        "Frindle target player.",
-        &context(),
-        TraceLimits::new(usize::MAX),
-    );
-    let declaration_matches = trace
-        .scanner_matches()
-        .items()
-        .iter()
-        .filter(|scanner_match| scanner_match.terminal_name_v1().starts_with("Declaration("))
-        .collect::<Vec<_>>();
-    assert_eq!(declaration_matches.len(), 1);
-    assert!(
-        declaration_matches[0]
-            .value_label_v1()
-            .contains("KeywordAction")
-    );
-    assert!(
-        !declaration_matches[0]
-            .value_label_v1()
-            .contains("KeywordAbility")
+    let ability = parser
+        .parse("Frindle target player.", &context())
+        .expect("only the requested declaration category reaches the shared frame");
+    let mut visitor = IdentityVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(
+        visitor.events.first().map(String::as_str),
+        Some("declaration:KeywordAction/Destroy")
     );
 
     let ability_only = environment_from([declaration(
@@ -184,13 +318,9 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
         r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
     )])
     .unwrap();
-    assert!(matches!(
-        Parser::new(ability_only).expect_err("another category cannot satisfy the request"),
-        ParserBuildError::MissingDeclaration {
-            kind: DeclarationKind::KeywordAction,
-            ..
-        }
-    ));
+    let parser = Parser::new(ability_only)
+        .expect("another declaration category is not a fixed parser requirement");
+    assert!(parser.parse("Frindle target player.", &context()).is_err());
 }
 
 #[derive(Default)]

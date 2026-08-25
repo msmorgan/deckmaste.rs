@@ -7,6 +7,7 @@ use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
+use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::ParseError;
@@ -15,14 +16,15 @@ use deckmaste_english_v2::parser::SelectionResolution;
 use deckmaste_english_v2::parser::TextSpan;
 use deckmaste_english_v2::render::Render as _;
 use deckmaste_english_v2::visit::Visitor;
+use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::Onset;
 
-fn parser() -> Parser {
+fn environment() -> ParserEnvironment {
     let declarations = macro_ron::v2::read_builtin_v2(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"),
     )
     .expect("integrated builtin-v2 declarations load");
-    let environment = ParserEnvironment::try_from_parts(
+    ParserEnvironment::try_from_parts(
         declarations,
         [CatalogProviderRows::new(
             CatalogProvider::CardNames,
@@ -33,13 +35,45 @@ fn parser() -> Parser {
             )],
         )],
     )
-    .expect("builtin-v2 declarations and catalog provider freeze");
-    Parser::new(environment).expect("required declarations are present")
+    .expect("builtin-v2 declarations and catalog provider freeze")
+}
+
+fn parser() -> Parser {
+    Parser::new(environment()).expect("required declarations are present")
 }
 
 fn context(card_name: &str, is_legendary: bool) -> ParseContext<'_> {
     ParseContext::new(card_name, is_legendary, Onset::Consonant)
         .expect("test card name is a valid parse context")
+}
+
+fn connive() -> VerbPhrase {
+    let environment = environment();
+    let head = DeclarationIntransitiveVerb::new(
+        &environment,
+        DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+    )
+    .expect("the builtin grammar declares intransitive Connive");
+    VerbPhrase::IntransitivePredicate(IntransitivePredicate {
+        head: IntransitiveVerb::Declaration(head),
+    })
+}
+
+fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
+    match predicate {
+        VerbPhrase::IntransitivePredicate(IntransitivePredicate {
+            head: IntransitiveVerb::Declaration(head),
+        }) => Some(head.id().name()),
+        VerbPhrase::TransitivePredicate(TransitivePredicate {
+            head: TransitiveVerb::Declaration(head),
+            ..
+        }) => Some(head.id().name()),
+        VerbPhrase::NumerativePredicate(NumerativePredicate {
+            head: NumerativeVerb::Declaration(head),
+            ..
+        }) => Some(head.id().name()),
+        _ => None,
+    }
 }
 
 #[test]
@@ -835,9 +869,9 @@ impl Visitor for CostVisitor {
         deckmaste_english_v2::visit::walk_verb_phrase(self, value);
     }
 
-    fn visit_destroy(&mut self, value: &Destroy) {
-        self.0.push(CostVisit::Node("Destroy"));
-        deckmaste_english_v2::visit::walk_destroy(self, value);
+    fn visit_transitive_predicate(&mut self, value: &TransitivePredicate) {
+        self.0.push(CostVisit::Node("TransitivePredicate"));
+        deckmaste_english_v2::visit::walk_transitive_predicate(self, value);
     }
 
     fn visit_gain_life(&mut self, value: &GainLife) {
@@ -931,6 +965,10 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the literal trigger/activation ownership oracle authenticates every byte boundary"
+)]
 fn finite_trigger_and_activation_boundaries_keep_structural_bytes_separate_from_word_prefixes() {
     let parser = parser();
     let context = context("Context Card", false);
@@ -1240,7 +1278,7 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
                     Subject::SubjectPronoun(PersonalSubject {
                         word: SubjectPronoun::You,
                     }),
-                    Predicate::Atomic(VerbPhrase::Connive(Connive)),
+                    Predicate::Atomic(connive()),
                 )
                 .expect("you and connive satisfy finite-clause agreement"),
             ),
@@ -1248,7 +1286,7 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
         intervening_if: None,
         body: AbilityBody::Sentences(
             Sentences::new(vec![Sentence::Imperative(
-                Imperative::new(Predicate::Atomic(VerbPhrase::Connive(Connive)))
+                Imperative::new(Predicate::Atomic(connive()))
                     .expect("connive satisfies bare imperative agreement"),
             )])
             .expect("linguistic body remains nonempty"),
@@ -1432,7 +1470,7 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
     ));
     assert!(matches!(
         clause.predicate(),
-        Predicate::Atomic(VerbPhrase::Connive(Connive))
+        Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Connive")
     ));
 }
 
@@ -2255,7 +2293,10 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
     else {
         panic!("mixed cost builds the positional SymbolRun/Loyalty/Clause AST")
     };
-    assert!(matches!(cost_clause.predicate(), VerbPhrase::Destroy(_)));
+    assert_eq!(
+        declared_action_name(cost_clause.predicate()),
+        Some("Destroy")
+    );
     assert_eq!(
         symbols.symbols(),
         &[
@@ -2358,7 +2399,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             CostVisit::Node("ActivationCostComponent"),
             CostVisit::Node("CostClause"),
             CostVisit::Node("VerbPhrase"),
-            CostVisit::Node("Destroy"),
+            CostVisit::Node("TransitivePredicate"),
             CostVisit::Node("AbilityBody"),
             CostVisit::Node("Sentences"),
             CostVisit::Node("Sentence"),
@@ -2368,7 +2409,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             CostVisit::Node("Sentence"),
             CostVisit::Node("Imperative"),
             CostVisit::Node("VerbPhrase"),
-            CostVisit::Node("Destroy"),
+            CostVisit::Node("TransitivePredicate"),
         ],
     );
 }
@@ -2389,13 +2430,8 @@ fn activation_boundaries_case_and_out_of_scope_costs_reject() {
         "{2}, Destroy target creature,: You gain X life.",
         "{T}: You gain X life. destroy target creature.",
         "Channel — {T}: You gain X life.",
-        "Sacrifice a creature: You gain X life.",
-        "Discard a card: You gain X life.",
-        "Exile a card: You gain X life.",
         "Remove a counter: You gain X life.",
-        "Reveal a card: You gain X life.",
         "Pay 2 life: You gain X life.",
-        "Tap a creature: You gain X life.",
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
@@ -2466,7 +2502,7 @@ fn plain_finite(subject: Subject, predicate: Predicate) -> FiniteClause {
 
 fn predicate_identity(predicate: &VerbPhrase) -> String {
     match predicate {
-        VerbPhrase::Connive(_) => "connive".to_owned(),
+        predicate if declared_action_name(predicate) == Some("Connive") => "connive".to_owned(),
         VerbPhrase::GainLife(GainLife {
             amount:
                 Amount::Number(NumberAmount {
@@ -2658,7 +2694,13 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
     assert_eq!(variants("Auxiliary"), ["May", "Can", "Cant", "Must"]);
     assert_eq!(
         variants("VerbPhrase"),
-        ["Destroy", "Connive", "DealDamage", "GainLife"],
+        [
+            "IntransitivePredicate",
+            "TransitivePredicate",
+            "NumerativePredicate",
+            "DealDamage",
+            "GainLife",
+        ],
         "linguistic auxiliaries add no predicate leaf",
     );
     for forbidden in [
@@ -2936,7 +2978,9 @@ impl Visitor for LogicVisitor {
                         number: ScalarNumber { magnitude },
                     }),
             }) => self.0.push(LogicVisit::GainLife(*magnitude)),
-            VerbPhrase::Connive(_) => self.0.push(LogicVisit::Connive),
+            predicate if declared_action_name(predicate) == Some("Connive") => {
+                self.0.push(LogicVisit::Connive);
+            }
             other => panic!("unexpected logic visitor predicate payload: {other:?}"),
         }
     }
@@ -3459,10 +3503,7 @@ fn coordination_case_transitions_and_self_reference_reuse_existing_envelopes() {
 }
 
 fn connive_clause() -> FiniteClause {
-    plain_finite(
-        you_subject(),
-        Predicate::Atomic(VerbPhrase::Connive(Connive {})),
-    )
+    plain_finite(you_subject(), Predicate::Atomic(connive()))
 }
 
 fn player_subject() -> Subject {
@@ -3494,10 +3535,7 @@ fn player_subject() -> Subject {
 }
 
 fn player_connive_clause() -> FiniteClause {
-    plain_finite(
-        player_subject(),
-        Predicate::Atomic(VerbPhrase::Connive(Connive {})),
-    )
+    plain_finite(player_subject(), Predicate::Atomic(connive()))
 }
 
 fn tap_cost() -> ActivationCostComponent {
@@ -3522,11 +3560,8 @@ fn attachment_products_have_an_intermediate_linguistic_stage_for_imperatives() {
     let context = context("Context Card", false);
     let expected = Sentence::Attached(Attached {
         attachment: ClauseAttachment::PreposedIfPredicate(
-            PreposedIfPredicate::new(
-                connive_clause(),
-                Predicate::Atomic(VerbPhrase::Connive(Connive {})),
-            )
-            .expect("the attached imperative predicate is bare"),
+            PreposedIfPredicate::new(connive_clause(), Predicate::Atomic(connive()))
+                .expect("the attached imperative predicate is bare"),
         ),
     });
     let selected = assert_one_logic_candidate(&parser, &context, "If you connive, connive.");
@@ -4003,7 +4038,9 @@ impl Visitor for AttachmentEnvelopeVisitor {
 
     fn visit_predicate(&mut self, value: &Predicate) {
         match value {
-            Predicate::Atomic(VerbPhrase::Connive(_)) => self.0.push("Predicate:Connive"),
+            Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Connive") => {
+                self.0.push("Predicate:Connive");
+            }
             Predicate::Atomic(VerbPhrase::GainLife(GainLife {
                 amount:
                     Amount::Number(NumberAmount {
@@ -4437,7 +4474,7 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
         sequence.members(),
         [
             Predicate::Atomic(gain_life_predicate(1)),
-            Predicate::Atomic(VerbPhrase::Connive(Connive {})),
+            Predicate::Atomic(connive()),
         ],
     );
 
@@ -5693,7 +5730,11 @@ impl Visitor for ModalVisitor {
         self.0.push(format!("GainLife:{magnitude}"));
     }
 
-    fn visit_connive(&mut self, _value: &Connive) {
+    fn visit_intransitive_predicate(&mut self, value: &IntransitivePredicate) {
+        assert!(matches!(
+            &value.head,
+            IntransitiveVerb::Declaration(head) if head.id().name() == "Connive"
+        ));
         self.0.push("Connive".to_owned());
     }
 }
@@ -5712,7 +5753,7 @@ fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
                 vec![
                     modal_mode(vec![
                         modal_sentence(gain_life_predicate(1)),
-                        modal_sentence(VerbPhrase::Connive(Connive {})),
+                        modal_sentence(connive()),
                     ]),
                     modal_mode(vec![modal_sentence(gain_life_predicate(2))]),
                 ],

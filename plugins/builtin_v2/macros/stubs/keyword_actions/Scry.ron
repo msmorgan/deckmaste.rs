@@ -4,6 +4,6 @@ KeywordAction(
     grammar: Verb(
         bare: "scry",
         third_person: "scries",
-        valence: Numerative,
+        valence: Custom(shapes: [[], [Amount]]),
     ),
 )

@@ -853,8 +853,6 @@ fn push_unique<T: PartialEq>(values: &mut Vec<T>, value: T) -> bool {
 mod tests {
 
     use macro_ron::v2::DeclarationKind;
-    use macro_ron::v2::GrammarPosition;
-    use macro_ron::v2::SurfaceFeature;
 
     use super::BuildValue;
     use super::Category;
@@ -872,8 +870,10 @@ mod tests {
     use crate::ast::BareSingularNominal;
     use crate::ast::CommonNoun;
     use crate::ast::CommonSingularHead;
-    use crate::ast::Connive;
+    use crate::ast::DeclarationIntransitiveVerb;
     use crate::ast::Imperative;
+    use crate::ast::IntransitivePredicate;
+    use crate::ast::IntransitiveVerb;
     use crate::ast::Object;
     use crate::ast::ObjectPronoun;
     use crate::ast::PersonalObject;
@@ -890,8 +890,6 @@ mod tests {
     use crate::ast::WhereClauseCategory;
     use crate::ast::WithWhere;
     use crate::constructions::Agreement;
-    use crate::constructions::DeclarationLeaf;
-    use crate::constructions::DeclarationMatcher;
     use crate::constructions::FeatureConstraint;
     use crate::constructions::LexicalOwnerTemplate;
     use crate::constructions::Number;
@@ -921,6 +919,28 @@ mod tests {
             value,
             owner: None,
         })
+    }
+
+    fn connive_phrase() -> VerbPhrase {
+        let environment = canonical_test_environment();
+        let declaration = DeclarationIntransitiveVerb::new(
+            &environment,
+            DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+        )
+        .expect("the canonical environment declares intransitive Connive");
+        VerbPhrase::IntransitivePredicate(IntransitivePredicate {
+            head: IntransitiveVerb::Declaration(declaration),
+        })
+    }
+
+    fn connive_leaf() -> Leaf {
+        let VerbPhrase::IntransitivePredicate(predicate) = connive_phrase() else {
+            unreachable!("the helper constructs an intransitive predicate")
+        };
+        Leaf::IntransitiveVerb {
+            verb: predicate.head,
+            agreement: Agreement::Bare,
+        }
     }
 
     fn slice_candidates(
@@ -977,7 +997,7 @@ mod tests {
     #[test]
     fn root_adapter_materialization_is_identity_over_one_semantic_child() {
         let value = BuildValue::Sentence(Sentence::Imperative(
-            Imperative::new(Predicate::Atomic(VerbPhrase::Connive(Connive)))
+            Imperative::new(Predicate::Atomic(connive_phrase()))
                 .expect("bare test predicate satisfies imperative agreement"),
         ));
         let adapter_children = [
@@ -1164,15 +1184,11 @@ mod tests {
                     }],
                 },
                 PackedNode {
-                    rule: RuleId::VerbPhraseConnive,
+                    rule: RuleId::VerbPhraseIntransitivePredicate,
                     start: 0,
                     end: 0,
                     families: vec![Family {
-                        children: vec![lexical(Leaf::Declaration(DeclarationLeaf {
-                            id: DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
-                            feature: SurfaceFeature::Bare,
-                            onset: Onset::Consonant,
-                        }))],
+                        children: vec![lexical(connive_leaf())],
                     }],
                 },
                 PackedNode {
@@ -1216,7 +1232,7 @@ mod tests {
             }),
         });
         let base = Sentence::Imperative(
-            Imperative::new(Predicate::Atomic(VerbPhrase::Connive(Connive)))
+            Imperative::new(Predicate::Atomic(connive_phrase()))
                 .expect("bare test predicate satisfies imperative agreement"),
         );
         let once = Sentence::WithWhere(WithWhere {
@@ -1243,7 +1259,7 @@ mod tests {
                 Construction::SentenceWithWhere,
                 Construction::SentenceWithWhere,
                 Construction::SentenceImperative,
-                Construction::VerbPhraseConnive,
+                Construction::VerbPhraseIntransitivePredicate,
                 Construction::WhereClauseCategoryWhere,
                 Construction::ObjectObjectPronoun,
                 Construction::WhereClauseCategoryWhere,
@@ -1260,12 +1276,7 @@ mod tests {
                 RulePosition::Lexical(Lexical::Literal(",")),
                 RulePosition::Nonterminal(Category::WhereClauseCategory),
                 RulePosition::Nonterminal(Category::Predicate),
-                RulePosition::Lexical(Lexical::Declaration(DeclarationMatcher {
-                    kind: DeclarationKind::KeywordAction,
-                    name: "Connive",
-                    position: GrammarPosition::Verb,
-                    feature: FeatureConstraint::Any,
-                })),
+                RulePosition::Lexical(Lexical::DeclarationVerb(32, FeatureConstraint::Any,)),
                 RulePosition::Lexical(Lexical::Literal("where")),
                 RulePosition::Lexical(Lexical::Variable),
                 RulePosition::Lexical(Lexical::Verb(
@@ -1487,7 +1498,7 @@ mod tests {
                 Construction::AbilityPlain,
                 Construction::AbilityBodySentences,
                 Construction::SentenceImperative,
-                Construction::VerbPhraseDestroy,
+                Construction::VerbPhraseTransitivePredicate,
                 Construction::ObjectObjectNominal,
                 Construction::NounPhraseQualifiedNounPhrase,
                 Construction::NumericStageUnqualifiedNumericStage,
@@ -1505,12 +1516,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::AbilityBody),
                 RulePosition::Nonterminal(Category::SentencesSentencesSequenceCategory),
                 RulePosition::Nonterminal(Category::Predicate),
-                RulePosition::Lexical(Lexical::Declaration(DeclarationMatcher {
-                    kind: DeclarationKind::KeywordAction,
-                    name: "Destroy",
-                    position: GrammarPosition::Verb,
-                    feature: FeatureConstraint::Any,
-                })),
+                RulePosition::Lexical(Lexical::DeclarationVerb(33, FeatureConstraint::Any,)),
                 RulePosition::Nonterminal(Category::Object),
                 RulePosition::Nonterminal(Category::NounPhrase),
                 RulePosition::Nonterminal(Category::NumericStage),
@@ -1522,7 +1528,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
-                    29,
+                    35,
                     FeatureConstraint::Exact(Number::Singular),
                 )),
             ]
@@ -1576,7 +1582,7 @@ mod tests {
             for family in &mut node.families {
                 for child in &mut family.children {
                     if let Child::Lexical(claim) = child
-                        && matches!(claim.value, Leaf::Declaration(_))
+                        && matches!(claim.value, Leaf::TransitiveVerb { .. })
                         && claim.span == (crate::parser::TextSpan { start: 0, end: 7 })
                     {
                         claim.owner = LexicalOwnerTemplate::Vocab {

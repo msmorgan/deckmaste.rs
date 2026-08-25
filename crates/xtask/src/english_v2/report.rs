@@ -744,7 +744,7 @@ mod tests {
                 report.checked_constructor_bindings.len(),
                 report.roots.len(),
             ],
-            [0, 0, 0, 1, 28, 0, 0, 0, 8],
+            [0, 0, 0, 1, 29, 0, 0, 0, 8],
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
@@ -949,7 +949,9 @@ mod tests {
                 .filter(|(identity, _)| {
                     !matches!(
                         *identity,
-                        "lexeme:CommonNoun/Ability" | "lexeme:VerbLexeme/Be"
+                        "lexeme:CommonNoun/Ability"
+                            | "lexeme:VerbLexeme/Be"
+                            | "lexeme:CoreIntransitiveVerb/Die"
                     )
                 })
                 .map(|(identity, rows)| (identity.to_owned(), rows[0].1.to_owned()))
@@ -996,6 +998,12 @@ mod tests {
                     "overrides": [
                         { "feature": "bare", "surface": "are" },
                         { "feature": "third_person_singular", "surface": "is" }
+                    ]
+                },
+                {
+                    "identity": "lexeme:CoreIntransitiveVerb/Die",
+                    "overrides": [
+                        { "feature": "third_person_singular", "surface": "dies" }
                     ]
                 },
                 { "identity": "lexeme:artifact_subtype/Equipment", "overrides": [{ "feature": "plural", "surface": "Equipment" }] },
@@ -1330,6 +1338,10 @@ mod tests {
             (
                 "lexeme:VerbLexeme/Be",
                 vec![("bare", "are"), ("third_person_singular", "is")],
+            ),
+            (
+                "lexeme:CoreIntransitiveVerb/Die",
+                vec![("third_person_singular", "dies")],
             ),
             (
                 "lexeme:artifact_subtype/Equipment",

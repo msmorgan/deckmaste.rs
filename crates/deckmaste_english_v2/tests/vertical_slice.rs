@@ -341,6 +341,44 @@ fn plain(values: Vec<Sentence>) -> Ability {
     Ability::Plain(Plain { body: body(values) })
 }
 
+fn destroy(object: Object) -> VerbPhrase {
+    let environment = environment();
+    let head = DeclarationTransitiveVerb::new(
+        &environment,
+        DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
+    )
+    .expect("the builtin grammar declares transitive Destroy");
+    VerbPhrase::TransitivePredicate(TransitivePredicate {
+        head: TransitiveVerb::Declaration(head),
+        object,
+    })
+}
+
+fn connive() -> VerbPhrase {
+    let environment = environment();
+    let head = DeclarationIntransitiveVerb::new(
+        &environment,
+        DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+    )
+    .expect("the builtin grammar declares intransitive Connive");
+    VerbPhrase::IntransitivePredicate(IntransitivePredicate {
+        head: IntransitiveVerb::Declaration(head),
+    })
+}
+
+fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
+    match predicate {
+        VerbPhrase::IntransitivePredicate(IntransitivePredicate {
+            head: IntransitiveVerb::Declaration(head),
+        }) => Some(head.id().name()),
+        VerbPhrase::TransitivePredicate(TransitivePredicate {
+            head: TransitiveVerb::Declaration(head),
+            ..
+        }) => Some(head.id().name()),
+        _ => None,
+    }
+}
+
 fn triggered(trigger_clause: FiniteClause, consequences: Vec<Sentence>) -> Triggered {
     Triggered {
         trigger: TriggerPrefix::Finite(Finite {
@@ -355,7 +393,7 @@ fn triggered(trigger_clause: FiniteClause, consequences: Vec<Sentence>) -> Trigg
 fn triggered_damage() -> Ability {
     let event = finite_clause(
         nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
-        VerbPhrase::Connive(Connive),
+        connive(),
     );
     let effect = declarative(
         nominal_subject(that_noun(creature())),
@@ -548,14 +586,10 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
 
         fn visit_sentence(&mut self, sentence: &Sentence) {
             let label = match sentence {
-                Sentence::Imperative(value)
-                    if matches!(value.predicate(), Predicate::Atomic(VerbPhrase::Destroy(_))) =>
-                {
+                Sentence::Imperative(value) if matches!(value.predicate(), Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Destroy")) => {
                     "destroy"
                 }
-                Sentence::Imperative(value)
-                    if matches!(value.predicate(), Predicate::Atomic(VerbPhrase::Connive(_))) =>
-                {
+                Sentence::Imperative(value) if matches!(value.predicate(), Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Connive")) => {
                     "connive"
                 }
                 Sentence::Declarative(_) => "gain",
@@ -567,9 +601,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         }
     }
 
-    let destroy = imperative(VerbPhrase::Destroy(Destroy {
-        object: target_creature(),
-    }));
+    let destroy = imperative(destroy(target_creature()));
     let gain = declarative(
         subject_you(),
         VerbPhrase::GainLife(GainLife {
@@ -578,7 +610,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
             }),
         }),
     );
-    let connive = imperative(VerbPhrase::Connive(Connive));
+    let connive_sentence = imperative(connive());
 
     assert!(Sentences::new(vec![]).is_none());
     let paragraph_sentences = vec![destroy, gain.clone()];
@@ -586,12 +618,12 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
         .expect("a paragraph accepts one or more sentences");
     assert_eq!(paragraph.sentences(), paragraph_sentences.as_slice());
 
-    let event = finite_clause(subject_you(), VerbPhrase::Connive(Connive));
+    let event = finite_clause(subject_you(), connive());
     assert!(
         Sentences::new(vec![]).is_none(),
         "an ability body is nonempty"
     );
-    let triggered_effects = vec![connive, gain];
+    let triggered_effects = vec![connive_sentence, gain];
     let triggered = triggered(event, triggered_effects.clone());
     let AbilityBody::Sentences(triggered_body) = &triggered.body else {
         panic!("the triggered fixture has an ordinary sentence body")
@@ -666,8 +698,8 @@ fn declaration_noun_construction_requires_allowed_environment_membership() {
 
 #[test]
 fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_effects() {
-    let event = finite_clause(subject_you(), VerbPhrase::Connive(Connive));
-    let effect = imperative(VerbPhrase::Connive(Connive));
+    let event = finite_clause(subject_you(), connive());
+    let effect = imperative(connive());
     let value = triggered(event, vec![effect.clone()]);
     let AbilityBody::Sentences(body) = value.body else {
         panic!("the generated invariant fixture has an ordinary sentence body")
@@ -677,9 +709,7 @@ fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_eff
 
 #[test]
 fn renders_destroy_target_creature_exactly() {
-    let value = plain(vec![imperative(VerbPhrase::Destroy(Destroy {
-        object: target_creature(),
-    }))]);
+    let value = plain(vec![imperative(destroy(target_creature()))]);
     assert_eq!(
         value.render(&context("Context Card"), &environment()),
         "Destroy target creature."
@@ -884,9 +914,7 @@ fn renders_a_subtype_with_its_printed_case() {
 
 #[test]
 fn visitor_reaches_every_vertical_slice_leaf() {
-    let destroy = plain(vec![imperative(VerbPhrase::Destroy(Destroy {
-        object: target_creature(),
-    }))]);
+    let destroy = plain(vec![imperative(destroy(target_creature()))]);
     let self_reference = declarative(
         nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference(

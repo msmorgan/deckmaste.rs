@@ -934,7 +934,10 @@ impl RuntimeEmissionPlan {
                         ));
                     }
                 }
-                TerminalPlan::Lexeme(lexeme) => {
+                TerminalPlan::Lexeme(lexeme)
+                    if lexeme.morphology().recipe()
+                        == crate::morphology::MorphologyRecipe::EnglishNoun =>
+                {
                     if plan.noun_lexeme_index.replace(index).is_some() {
                         return Err(syn::Error::new(
                             lexeme.name_ident().span(),
@@ -965,7 +968,7 @@ impl RuntimeEmissionPlan {
                         plan.opaque_binding_indices.push(index);
                     }
                 }
-                TerminalPlan::Binding(_) => {}
+                TerminalPlan::Lexeme(_) | TerminalPlan::Binding(_) => {}
                 TerminalPlan::ContextIdentity(_) => {
                     plan.context_identity_indices.push(index);
                 }
@@ -1124,6 +1127,7 @@ pub(crate) struct LexemePlan {
     morphology: MorphologyPlan,
     surfaces: Vec<LexemeSurfacePlan>,
     irregulars: Vec<LexemeIrregularPlan>,
+    verb_provider: bool,
 }
 
 #[derive(Debug)]
@@ -1309,6 +1313,7 @@ pub(crate) struct FeaturePlan {
 fn seal_terminals(
     source: &Declarations,
     morphology_by_name: &HashMap<String, MorphologyPlan>,
+    verb_lexeme_provider: Option<&str>,
 ) -> syn::Result<Vec<TerminalPlan>> {
     source
         .declarations
@@ -1326,6 +1331,8 @@ fn seal_terminals(
                         .get(&identifier_key(&lexeme.morphology))
                         .expect("validated lexeme morphology")
                         .clone(),
+                    verb_lexeme_provider
+                        .is_some_and(|provider| provider == identifier_key(&lexeme.name)),
                 )
                 .map(TerminalPlan::Lexeme),
             ),
@@ -1415,6 +1422,7 @@ impl SemanticPlan {
         agreement_carry_sums: HashSet<String>,
         mut atoms_by_construction: HashMap<String, (Span, Vec<AtomContribution>)>,
         mut invariants_by_construction: HashMap<String, (Span, InvariantPlan)>,
+        verb_lexeme_provider: Option<&str>,
     ) -> syn::Result<Self> {
         let StructuralSemantics {
             products,
@@ -1443,7 +1451,8 @@ impl SemanticPlan {
             .iter()
             .map(|morphology| (identifier_key(morphology.name_ident()), morphology.clone()))
             .collect::<HashMap<_, _>>();
-        let field_policy_terminals = seal_terminals(source, &morphology_by_name)?;
+        let field_policy_terminals =
+            seal_terminals(source, &morphology_by_name, verb_lexeme_provider)?;
         let mut constructions =
             source
                 .declarations
@@ -1729,6 +1738,13 @@ impl SemanticPlan {
 
     pub(crate) fn runtime_verb_lexeme(&self) -> Option<&LexemePlan> {
         self.runtime_lexeme(self.runtime.verb_lexeme_index)
+    }
+
+    pub(crate) fn lexeme(&self, name: &str) -> Option<&LexemePlan> {
+        self.terminals.iter().find_map(|terminal| match terminal {
+            TerminalPlan::Lexeme(lexeme) if lexeme.name() == name => Some(lexeme),
+            _ => None,
+        })
     }
 
     pub(crate) fn runtime_noun_binding(&self) -> Option<&BindingPlan> {
@@ -5139,6 +5155,7 @@ impl LexemePlan {
         source_index: usize,
         source: &crate::Lexeme,
         morphology: MorphologyPlan,
+        verb_provider: bool,
     ) -> syn::Result<Self> {
         let mut surfaces = Vec::new();
         let mut irregulars = Vec::new();
@@ -5222,6 +5239,7 @@ impl LexemePlan {
             morphology,
             surfaces,
             irregulars,
+            verb_provider,
         })
     }
 
@@ -5238,7 +5256,7 @@ impl LexemePlan {
     }
 
     pub(crate) fn is_verb_provider(&self) -> bool {
-        self.morphology.recipe() == crate::morphology::MorphologyRecipe::EnglishVerb
+        self.verb_provider
     }
 
     #[allow(

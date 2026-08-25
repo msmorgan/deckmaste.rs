@@ -44,6 +44,7 @@ use crate::semantic::UnsignedNumberPlan;
 use crate::semantic::VocabPlan;
 
 struct RuntimeInventory<'a> {
+    lexemes: Vec<&'a LexemePlan>,
     vocabs: Vec<&'a VocabPlan>,
     unused_vocab_lexicals: Vec<&'a VocabPlan>,
     noun_lexeme: Option<&'a LexemePlan>,
@@ -79,6 +80,14 @@ impl<'a> RuntimeInventory<'a> {
             })
             .collect();
         Self {
+            lexemes: plan
+                .terminals()
+                .iter()
+                .filter_map(|terminal| match terminal {
+                    crate::semantic::TerminalPlan::Lexeme(lexeme) => Some(lexeme),
+                    _ => None,
+                })
+                .collect(),
             vocabs,
             unused_vocab_lexicals,
             noun_lexeme: plan.runtime_noun_lexeme(),
@@ -1704,8 +1713,11 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 let verb = codec.codec_ident();
                 let closed_owner_arms = if let Some(closed) = codec.closed_lexeme() {
                     inventory
-                        .verb_lexeme
-                        .expect("validated declaration verb has its closed lexeme provider")
+                        .lexemes
+                        .iter()
+                        .copied()
+                        .find(|lexeme| closed == lexeme.name())
+                        .expect("validated declaration verb has its closed lexeme")
                         .surfaces()
                         .iter()
                         .map(|row| {

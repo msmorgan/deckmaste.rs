@@ -94,9 +94,9 @@ fn rend_spirit_is_the_reviewed_declaration_noun_corpus_delta() {
     assert!(trace.scanner_matches().items().iter().any(|scanner_match| {
         scanner_match.start() == 0
             && scanner_match.end() == 7
-            && scanner_match.value_label_v1().contains(
-                "DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Bare",
-            )
+            && scanner_match
+                .value_label_v1()
+                .contains("DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }")
     }));
     assert!(trace.scanner_matches().items().iter().any(|scanner_match| {
         scanner_match.start() == 14

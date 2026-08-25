@@ -554,8 +554,8 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 .collect::<Vec<_>>();
             let closed_scan = codec.closed_lexeme().map(|closed| {
                 let closed_plan = plan
-                    .runtime_verb_lexeme()
-                    .expect("validated declaration_verb closed branch is the verb lexeme");
+                    .lexeme(&closed.to_string())
+                    .expect("validated declaration_verb closed branch is a verb lexeme");
                 assert_eq!(closed, closed_plan.name());
                 let closed_candidates = closed_plan.surfaces().iter().map(|row| {
                     let member = emitted_ident(row.member(), Span::call_site());

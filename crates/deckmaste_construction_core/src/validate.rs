@@ -381,7 +381,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     validate_backend_completeness(&raw, &resolved)?;
     let ResolvedGrammar {
         atoms_by_construction,
-        ..
+        verb_lexeme_provider,
     } = resolved;
     Ok(ValidatedDeclarations {
         semantic: SemanticPlan::new(
@@ -397,6 +397,7 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
             agreement_carry_sums,
             atoms_by_construction,
             invariants,
+            verb_lexeme_provider.as_deref(),
         )?,
     })
 }
@@ -1777,7 +1778,6 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
         })
         .collect::<HashMap<_, _>>();
     let mut errors = None;
-    let mut verb_providers = Vec::new();
     let mut noun_providers = Vec::new();
     for declaration in &raw.declarations {
         let Declaration::Lexeme(lexeme) = declaration else {
@@ -1795,9 +1795,7 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
             continue;
         };
         match recipe {
-            MorphologyRecipe::EnglishVerb => {
-                verb_providers.push((&lexeme.name, identifier_key(&lexeme.name)));
-            }
+            MorphologyRecipe::EnglishVerb => {}
             MorphologyRecipe::EnglishNoun => {
                 noun_providers.push((&lexeme.name, identifier_key(&lexeme.name)));
             }
@@ -1816,17 +1814,15 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
             }
         }
     }
-    for (kind, providers) in [("verb", verb_providers), ("noun", noun_providers)] {
-        if let Some((_, first)) = providers.first() {
-            for (name, provider) in providers.iter().skip(1) {
-                combine(
-                    &mut errors,
-                    syn::Error::new(
-                        name.span(),
-                        format!("multiple {kind} lexeme providers `{first}` and `{provider}`"),
-                    ),
-                );
-            }
+    if let Some((_, first)) = noun_providers.first() {
+        for (name, provider) in noun_providers.iter().skip(1) {
+            combine(
+                &mut errors,
+                syn::Error::new(
+                    name.span(),
+                    format!("multiple noun lexeme providers `{first}` and `{provider}`"),
+                ),
+            );
         }
     }
     finish(errors)
@@ -5432,17 +5428,6 @@ fn open_declaration_kind(kind: &syn::Ident) -> Option<macro_ron::v2::Declaration
 fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
     let mut errors = None;
     let mut atoms_by_construction = HashMap::new();
-    let verb_providers = raw
-        .declarations
-        .iter()
-        .filter_map(|declaration| {
-            let Declaration::Lexeme(lexeme) = declaration else {
-                return None;
-            };
-            (lexeme_recipe(raw, lexeme) == Some(crate::morphology::MorphologyRecipe::EnglishVerb))
-                .then(|| (identifier_key(&lexeme.name), lexeme.name.span()))
-        })
-        .collect::<Vec<_>>();
 
     for declaration in &raw.declarations {
         let Declaration::Construction(construction) = declaration else { continue };
@@ -5549,6 +5534,29 @@ fn resolve_grammar_uses(raw: &Declarations) -> syn::Result<ResolvedGrammar> {
             (construction.name.span(), atoms),
         );
     }
+
+    let fixed_verb_terminals = atoms_by_construction
+        .values()
+        .flat_map(|(_, atoms)| atoms)
+        .filter_map(|atom| match atom {
+            AtomContribution::VerbFixed { terminal, .. } => Some(terminal.as_str()),
+            _ => None,
+        })
+        .collect::<HashSet<_>>();
+    let verb_providers = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| {
+            let Declaration::Lexeme(lexeme) = declaration else {
+                return None;
+            };
+            let name = identifier_key(&lexeme.name);
+            (fixed_verb_terminals.contains(name.as_str())
+                && lexeme_recipe(raw, lexeme)
+                    == Some(crate::morphology::MorphologyRecipe::EnglishVerb))
+            .then(|| (name, lexeme.name.span()))
+        })
+        .collect::<Vec<_>>();
 
     if let Some((first, _)) = verb_providers.first() {
         for (provider, span) in verb_providers.iter().skip(1) {
@@ -7796,22 +7804,36 @@ fn seal_feature_resolutions(
             .iter()
             .map(|equation| equation.target().clone())
             .collect::<Vec<_>>();
-        if construction
-            .forms
-            .iter()
-            .flat_map(|form| &form.atoms)
-            .any(|atom| {
-                matches!(
-                    atom,
-                    FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_)
-                )
-            })
-        {
-            places.push(feature::FeaturePlace::Role {
-                field: syn::Ident::new("verb", construction.forms[0].name.span()),
-                feature: feature::Feature::Agreement,
-            });
-        }
+        places.extend(
+            construction
+                .forms
+                .iter()
+                .flat_map(|form| &form.atoms)
+                .filter_map(|atom| {
+                    let atom = match atom {
+                        FormAtom::Bound(bound) => bound.value.as_ref(),
+                        atom => atom,
+                    };
+                    let field = match atom {
+                        FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_) => {
+                            syn::Ident::new("verb", construction.forms[0].name.span())
+                        }
+                        FormAtom::Verb(VerbOperand::Projected(role)) => role.clone(),
+                        FormAtom::Literal(_)
+                        | FormAtom::SentenceInitial(_)
+                        | FormAtom::Role(_)
+                        | FormAtom::Lex(_)
+                        | FormAtom::Identity(_)
+                        | FormAtom::Noun(_)
+                        | FormAtom::Circumfix(_) => return None,
+                        FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
+                    };
+                    Some(feature::FeaturePlace::Role {
+                        field,
+                        feature: feature::Feature::Agreement,
+                    })
+                }),
+        );
         let mut resolutions = HashMap::new();
         for place in places {
             let resolution = resolve_local_feature(
@@ -7888,26 +7910,40 @@ fn seal_category_render_capabilities(
     };
 
     for construction in &constructions {
-        let has_fixed_verb = construction
-            .forms
-            .iter()
-            .flat_map(|form| &form.atoms)
-            .any(|atom| {
-                matches!(
-                    atom,
-                    FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_)
-                )
-            });
-        let verb_place = feature::FeaturePlace::Role {
-            field: syn::Ident::new("verb", construction.forms[0].name.span()),
-            feature: feature::Feature::Agreement,
-        };
-        if has_fixed_verb
-            && resolutions
-                .get(&identifier_key(&construction.name))
-                .and_then(|values| values.get(&verb_place))
-                == Some(&feature::FeatureResolution::External)
-        {
+        let has_external_verb =
+            construction
+                .forms
+                .iter()
+                .flat_map(|form| &form.atoms)
+                .any(|atom| {
+                    let atom = match atom {
+                        FormAtom::Bound(bound) => bound.value.as_ref(),
+                        atom => atom,
+                    };
+                    let role = match atom {
+                        FormAtom::Verb(VerbOperand::Fixed(_)) | FormAtom::OpenVerb(_) => {
+                            "verb".to_owned()
+                        }
+                        FormAtom::Verb(VerbOperand::Projected(role)) => identifier_key(role),
+                        FormAtom::Literal(_)
+                        | FormAtom::SentenceInitial(_)
+                        | FormAtom::Role(_)
+                        | FormAtom::Lex(_)
+                        | FormAtom::Identity(_)
+                        | FormAtom::Noun(_)
+                        | FormAtom::Circumfix(_) => return false,
+                        FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
+                    };
+                    let place = feature::FeaturePlace::Role {
+                        field: syn::Ident::new(&role, construction.forms[0].name.span()),
+                        feature: feature::Feature::Agreement,
+                    };
+                    resolutions
+                        .get(&identifier_key(&construction.name))
+                        .and_then(|values| values.get(&place))
+                        == Some(&feature::FeatureResolution::External)
+                });
+        if has_external_verb {
             agreement_contextual.insert(path_name(&construction.category));
         }
     }
@@ -8119,12 +8155,19 @@ fn resolve_local_feature(
             feature::FeaturePlace::Role {
                 field,
                 feature: feature::Feature::Agreement,
-            } if identifier_key(field) == "verb"
+            } if (identifier_key(field) == "verb"
                 && !construction
                     .element
                     .fields
                     .iter()
-                    .any(|candidate| same_identifier(&candidate.name, field)) =>
+                    .any(|candidate| same_identifier(&candidate.name, field)))
+                || construction.forms.iter().flat_map(|form| &form.atoms).any(|atom| {
+                    let atom = match atom {
+                        FormAtom::Bound(bound) => bound.value.as_ref(),
+                        atom => atom,
+                    };
+                    matches!(atom, FormAtom::Verb(VerbOperand::Projected(role)) if same_identifier(role, field))
+                }) =>
             {
                 feature::FeatureResolution::External
             }
@@ -12291,6 +12334,116 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn declaration_verb_frames_can_use_distinct_closed_english_verb_lexicons() {
+        let validated = validate(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb { Be = "be", }
+            lexeme CoreIntransitiveVerb using EnglishVerb { Enter = "enter", }
+            lexeme CoreTransitiveVerb using EnglishVerb { Control = "control", }
+            lexeme CoreNumerativeVerb using EnglishVerb { Draw = "draw", }
+            codec IntransitiveVerb {
+                generate declaration_verb {
+                    closed = CoreIntransitiveVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                }
+            }
+            codec TransitiveVerb {
+                generate declaration_verb {
+                    closed = CoreTransitiveVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [ObjectNounPhrase];
+                    feature = Agreement;
+                }
+            }
+            codec NumerativeVerb {
+                generate declaration_verb {
+                    closed = CoreNumerativeVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [Amount];
+                    feature = Agreement;
+                }
+            }
+            construction only: Cat {
+                element Only {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form only = verb(VerbLexeme::Be);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("generated frames may each name a closed English-verb lexicon");
+        let semantic = validated.semantic();
+        assert_eq!(
+            semantic
+                .runtime_verb_lexeme()
+                .expect("the fixed verb atom retains one global provider")
+                .name(),
+            "VerbLexeme"
+        );
+        for (codec, closed) in [
+            ("IntransitiveVerb", "CoreIntransitiveVerb"),
+            ("TransitiveVerb", "CoreTransitiveVerb"),
+            ("NumerativeVerb", "CoreNumerativeVerb"),
+        ] {
+            let (_, plan) = semantic
+                .runtime_declaration_verb_for(codec)
+                .unwrap_or_else(|| panic!("{codec} declaration-verb plan is retained"));
+            assert_eq!(
+                plan.closed_lexeme()
+                    .expect("the frame has a closed lexical source")
+                    .to_string(),
+                closed
+            );
+            assert!(
+                !semantic
+                    .lexeme(closed)
+                    .expect("the frame lexicon is planned")
+                    .is_verb_provider(),
+                "a generated frame lexicon must not replace the fixed verb provider"
+            );
+        }
+
+        let direct_second_provider = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme VerbLexeme using EnglishVerb { Be = "be", }
+            lexeme CoreIntransitiveVerb using EnglishVerb { Enter = "enter", }
+            codec IntransitiveVerb {
+                generate declaration_verb {
+                    closed = CoreIntransitiveVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                }
+            }
+            construction be: Cat {
+                element Be {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form be = verb(VerbLexeme::Be);
+            }
+            construction enter: Cat {
+                element Enter {}
+                derive agreement = verb.agreement;
+                derive verb.agreement = Values::Bare;
+                form enter = verb(CoreIntransitiveVerb::Enter);
+            }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            direct_second_provider.contains("multiple verb lexeme providers")
+                && direct_second_provider.contains("VerbLexeme")
+                && direct_second_provider.contains("CoreIntransitiveVerb"),
+            "{direct_second_provider}"
+        );
+    }
+
+    #[test]
     fn unused_noun_lexemes_retain_traversal_without_direct_atom_capability() {
         let validated = validate(quote! {
             morphology EnglishNoun { feature = Number; recipe = english_noun; }
@@ -13346,9 +13499,14 @@ pub(crate) mod tests {
                 form active = verb(head) object;
             }
             construction object: Object { element ObjectValue {} form object = "object"; }
-            root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
+            construction imperative: Sentence {
+                element Imperative { predicate: VerbPhrase, }
+                derive predicate.agreement = Values::Bare;
+                form imperative = predicate;
+            }
+            root Sentence { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("Agreement-aware declaration verbs permit projected verb roles");
+        .expect("Agreement-aware declaration verbs permit parent-bound projected verb roles");
         let terminal = validated
             .semantic()
             .terminals()

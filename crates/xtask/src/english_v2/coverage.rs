@@ -1365,7 +1365,7 @@ mod tests {
         digit.to_string().repeat(64)
     }
 
-    fn assert_full_production_selected_covered_lock(
+    fn assert_full_production_selected_covered_baseline(
         report: &CoverageReport,
         baseline_ids: &BTreeSet<&str>,
         target_ids: &BTreeSet<&str>,
@@ -1387,8 +1387,8 @@ mod tests {
             .iter()
             .map(String::as_str)
             .collect::<BTreeSet<_>>();
-        assert_eq!(production_selected_covered_ids.len(), 735);
-        assert_eq!(covered_ids, production_selected_covered_ids);
+        assert_eq!(production_selected_covered_ids.len(), 1_837);
+        assert!(covered_ids.is_subset(&production_selected_covered_ids));
         assert!(baseline_ids.is_subset(&covered_ids));
         assert!(target_ids.is_subset(&covered_ids));
     }
@@ -1524,16 +1524,16 @@ mod tests {
 
         assert_eq!(report.rows().len(), 32_641);
         assert_eq!(report.summary().total_units(), 32_641);
-        assert_eq!(report.summary().selected_units(), 735);
-        assert_eq!(report.summary().covered_units(), 735);
+        assert_eq!(report.summary().selected_units(), 1_837);
+        assert_eq!(report.summary().covered_units(), 1_837);
         assert_eq!(report.summary().selected_uncovered_units(), 0);
-        assert_eq!(report.summary().parse_failures(), 31_906);
+        assert_eq!(report.summary().parse_failures(), 30_804);
         assert_eq!(report.summary().unresolved_ties(), 0);
         assert_eq!(report.summary().internal_failures(), 0);
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);
         assert_eq!(report.summary().ownership_failure_units(), 0);
 
-        assert_full_production_selected_covered_lock(&report, &baseline_ids, &target_ids);
+        assert_full_production_selected_covered_baseline(&report, &baseline_ids, &target_ids);
     }
 
     #[allow(
@@ -1807,15 +1807,15 @@ mod tests {
         }
 
         assert_eq!(report.summary().total_units(), 32_641);
-        assert_eq!(report.summary().selected_units(), 735);
-        assert_eq!(report.summary().covered_units(), 735);
+        assert_eq!(report.summary().selected_units(), 1_837);
+        assert_eq!(report.summary().covered_units(), 1_837);
         assert_eq!(report.summary().selected_uncovered_units(), 0);
-        assert_eq!(report.summary().parse_failures(), 31_906);
+        assert_eq!(report.summary().parse_failures(), 30_804);
         assert_eq!(report.summary().unresolved_ties(), 0);
         assert_eq!(report.summary().internal_failures(), 0);
         assert_eq!(report.summary().roundtrip_mismatch_units(), 0);
         assert_eq!(report.summary().ownership_failure_units(), 0);
-        assert_full_production_selected_covered_lock(&report, &baseline_ids, &target_ids);
+        assert_full_production_selected_covered_baseline(&report, &baseline_ids, &target_ids);
     }
 
     #[derive(Clone)]

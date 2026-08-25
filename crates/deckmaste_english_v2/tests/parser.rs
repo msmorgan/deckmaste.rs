@@ -92,7 +92,8 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        let Predicate::Atomic(VerbPhrase::Destroy(Destroy {
+        let Predicate::Atomic(VerbPhrase::TransitivePredicate(TransitivePredicate {
+            head: TransitiveVerb::Declaration(_),
             object: Object::ObjectNominal(NominalObject { value }),
         })) = imperative.predicate()
         else {
@@ -845,6 +846,10 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
         Err(ParseError::Failure {
             span: TextSpan { start: 34, end: 35 },
             expectations: BTreeSet::from([
+                Expectation::Nonterminal(NonterminalCategory::ScalarReference),
+                Expectation::Nonterminal(NonterminalCategory::Amount),
+                Expectation::Terminal(TerminalClass::Variable),
+                Expectation::Terminal(TerminalClass::ScalarNumber),
                 Expectation::Literal(" and "),
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),
@@ -852,6 +857,7 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
                 Expectation::Literal(", and "),
                 Expectation::Literal(", and/or "),
                 Expectation::Literal(", or "),
+                Expectation::Literal("that"),
             ]),
         })
     );
@@ -1238,8 +1244,9 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "PossessiveSelfReference",
             "PossessiveNoun",
             "PossessiveValue",
-            "Destroy",
-            "Connive",
+            "IntransitivePredicate",
+            "TransitivePredicate",
+            "NumerativePredicate",
             "DealDamage",
             "GainLife",
             "NumberAmount",
@@ -1275,6 +1282,15 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "Supertype",
             "CommonNoun",
             "VerbLexeme",
+            "CoreIntransitiveVerb",
+            "CoreTransitiveVerb",
+            "CoreNumerativeVerb",
+            "DeclarationIntransitiveVerb",
+            "IntransitiveVerb",
+            "DeclarationTransitiveVerb",
+            "TransitiveVerb",
+            "DeclarationNumerativeVerb",
+            "NumerativeVerb",
             "DeclarationTypeNoun",
             "TypeNoun",
             "DeclarationArtifactSubtypeNoun",
@@ -1550,19 +1566,42 @@ fn paragraph(sentence: Sentence) -> Ability {
     })
 }
 
+fn destroy(object: Object) -> VerbPhrase {
+    let environment = environment();
+    let head = DeclarationTransitiveVerb::new(
+        &environment,
+        DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
+    )
+    .expect("the builtin grammar declares transitive Destroy");
+    VerbPhrase::TransitivePredicate(TransitivePredicate {
+        head: TransitiveVerb::Declaration(head),
+        object,
+    })
+}
+
+fn connive() -> VerbPhrase {
+    let environment = environment();
+    let head = DeclarationIntransitiveVerb::new(
+        &environment,
+        DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+    )
+    .expect("the builtin grammar declares intransitive Connive");
+    VerbPhrase::IntransitivePredicate(IntransitivePredicate {
+        head: IntransitiveVerb::Declaration(head),
+    })
+}
+
 fn destroy_target_creature() -> Ability {
     paragraph(Sentence::Imperative(
-        Imperative::new(atomic(VerbPhrase::Destroy(Destroy {
-            object: target_creature(),
-        })))
-        .expect("destroy is a valid bare imperative predicate"),
+        Imperative::new(atomic(destroy(target_creature())))
+            .expect("destroy is a valid bare imperative predicate"),
     ))
 }
 
 fn connive_event() -> FiniteClause {
     finite_clause(
         nominal_subject(indefinite(Noun::Lexeme(CommonNoun::Player))),
-        VerbPhrase::Connive(Connive),
+        connive(),
     )
 }
 
@@ -1789,7 +1828,7 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "AbilityPlain".to_owned(),
             "AbilityBodySentences".to_owned(),
             "SentenceImperative".to_owned(),
-            "VerbPhraseDestroy".to_owned(),
+            "VerbPhraseTransitivePredicate".to_owned(),
             "ObjectObjectNominal".to_owned(),
             "NounPhraseQualifiedNounPhrase".to_owned(),
             "NumericStageUnqualifiedNumericStage".to_owned(),
@@ -1898,7 +1937,8 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
-    let Predicate::Atomic(VerbPhrase::Destroy(Destroy {
+    let Predicate::Atomic(VerbPhrase::TransitivePredicate(TransitivePredicate {
+        head: TransitiveVerb::Declaration(_),
         object: Object::ObjectNominal(NominalObject { value }),
     })) = imperative.predicate()
     else {
@@ -2127,7 +2167,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "AbilityPlain",
                     "AbilityBodySentences",
                     "SentenceImperative",
-                    "VerbPhraseDestroy",
+                    "VerbPhraseTransitivePredicate",
                     "ObjectObjectNominal",
                     "NounPhraseQualifiedNounPhrase",
                     "NumericStageUnqualifiedNumericStage",
@@ -2279,14 +2319,14 @@ fn disallowed_declaration_kind_is_a_parse_failure() {
                 Expectation::Terminal(TerminalClass::NonTargetCommonModifier),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(33)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(34)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(35)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(36)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(37)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(38)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(39)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(40)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(41)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(42)),
                 Expectation::Literal("non"),
                 Expectation::Literal("non-"),
             ]),
@@ -2321,14 +2361,14 @@ fn missing_period_reports_chart_derived_literal_expectation() {
                 Expectation::Terminal(TerminalClass::Status),
                 Expectation::Terminal(TerminalClass::Supertype),
                 Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(29)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(30)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(31)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(32)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(33)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(34)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(35)),
                 Expectation::Terminal(TerminalClass::DeclarationNoun(36)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(37)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(38)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(39)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(40)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(41)),
+                Expectation::Terminal(TerminalClass::DeclarationNoun(42)),
                 Expectation::Literal(" and "),
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),

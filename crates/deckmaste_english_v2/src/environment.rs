@@ -5,6 +5,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use macro_ron::v2::CustomTailAtom;
 pub use macro_ron::v2::DeclarationIdentity as DeclarationId;
 use macro_ron::v2::DeclarationKind;
 pub use macro_ron::v2::GrammarPosition;
@@ -418,6 +419,10 @@ impl ParserEnvironment {
             .and_then(|records| records.get(name))
     }
 
+    pub(crate) fn grammar_recipe(&self, id: &DeclarationId) -> Option<&GrammarRecipe> {
+        self.declaration(id.kind(), id.name())?.recipe()
+    }
+
     /// Returns every exact reading for a surface in deterministic identity
     /// order.
     #[must_use]
@@ -428,6 +433,58 @@ impl ParserEnvironment {
             .get(&position)
             .and_then(|by_surface| by_surface.get(surface))
             .map_or(&[], Vec::as_slice)
+    }
+
+    /// Returns verb readings whose normalized declarations license one exact
+    /// grammatical tail.
+    #[must_use]
+    pub fn declaration_verb_readings(
+        &self,
+        kinds: &[DeclarationKind],
+        surface: &str,
+        feature: SurfaceFeature,
+        frame: &[CustomTailAtom],
+    ) -> Vec<&DeclarationReading> {
+        self.filter_declaration_verb_readings(
+            self.readings(GrammarPosition::Verb, surface),
+            kinds,
+            feature,
+            frame,
+        )
+    }
+
+    pub(crate) fn initial_declaration_verb_readings(
+        &self,
+        kinds: &[DeclarationKind],
+        surface: &str,
+        feature: SurfaceFeature,
+        frame: &[CustomTailAtom],
+    ) -> Vec<&DeclarationReading> {
+        self.filter_declaration_verb_readings(
+            self.initial_readings(GrammarPosition::Verb, surface),
+            kinds,
+            feature,
+            frame,
+        )
+    }
+
+    fn filter_declaration_verb_readings<'a>(
+        &'a self,
+        readings: &'a [DeclarationReading],
+        kinds: &[DeclarationKind],
+        feature: SurfaceFeature,
+        frame: &[CustomTailAtom],
+    ) -> Vec<&'a DeclarationReading> {
+        readings
+            .iter()
+            .filter(|reading| kinds.contains(&reading.id().kind()))
+            .filter(|reading| reading.feature() == feature)
+            .filter(|reading| {
+                self.declaration(reading.id().kind(), reading.id().name())
+                    .and_then(DeclarationRecord::valence)
+                    .is_some_and(|valence| valence_licenses_frame(valence, frame))
+            })
+            .collect()
     }
 
     pub(crate) fn initial_readings(
@@ -563,6 +620,15 @@ impl ParserEnvironment {
             .and_then(|by_surface| by_surface.get_mut(surface))
             .expect("test surface is indexed");
         readings.extend(readings.clone());
+    }
+}
+
+fn valence_licenses_frame(valence: &VerbValence, frame: &[CustomTailAtom]) -> bool {
+    match valence {
+        VerbValence::Intransitive => frame.is_empty(),
+        VerbValence::Transitive => frame == [CustomTailAtom::ObjectNounPhrase],
+        VerbValence::Numerative => frame == [CustomTailAtom::Amount],
+        VerbValence::Custom { shapes } => shapes.iter().any(|shape| shape.as_slice() == frame),
     }
 }
 

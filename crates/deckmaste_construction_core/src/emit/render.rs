@@ -1748,9 +1748,16 @@ fn render_allocator(
                     let terminal = field.terminal();
                     if let Some((_, codec)) = validated.runtime_declaration_verb_for(terminal) {
                         if codec.closed_lexeme().is_some() {
-                            let lexeme = validated.runtime_verb_lexeme().ok_or_else(|| {
-                                internal("declaration verb lacks its sealed lexeme plan")
-                            })?;
+                            let lexeme = validated
+                                .lexeme(
+                                    &codec
+                                        .closed_lexeme()
+                                        .expect("checked closed lexeme")
+                                        .to_string(),
+                                )
+                                .ok_or_else(|| {
+                                    internal("declaration verb lacks its sealed lexeme plan")
+                                })?;
                             allocator.reserve(lexeme_surface_helper(lexeme.name()));
                         }
                         let target = FeaturePlace::Role {
@@ -3065,7 +3072,7 @@ fn render_declaration_verb_atom(
     if let Some(closed) = codec.closed_lexeme() {
         let verb = codec.codec_ident();
         let lexeme = validated
-            .runtime_verb_lexeme()
+            .lexeme(&closed.to_string())
             .ok_or_else(|| internal("validated declaration verb lacks a closed lexeme plan"))?;
         if closed != lexeme.name() {
             return Err(internal(
@@ -3117,7 +3124,7 @@ fn declaration_verb_owner(
     if let Some(closed) = codec.closed_lexeme() {
         let verb = codec.codec_ident();
         let lexeme = validated
-            .runtime_verb_lexeme()
+            .lexeme(&closed.to_string())
             .ok_or_else(|| internal("validated declaration verb lacks a closed lexeme plan"))?;
         let arms = lexeme.surfaces().iter().map(|row| {
             let member = emitted_ident(row.member(), Span::call_site());

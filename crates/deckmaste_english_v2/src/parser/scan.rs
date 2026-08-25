@@ -33,6 +33,7 @@ use super::engine::StatefulLexicalMatch;
 use super::engine::parse_root_observed_with_state;
 use super::engine::parse_root_with_state;
 use super::materialize::completion_has_checked_build;
+use crate::constructions::Agreement;
 use crate::constructions::BuildRejection;
 use crate::constructions::CasePosition;
 use crate::constructions::CatalogProvider;
@@ -50,6 +51,8 @@ use crate::constructions::PrefixPosition;
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
 use crate::constructions::ScanPosition;
+use crate::constructions::VerbFrameAtom;
+use crate::constructions::VerbFrameKey;
 use crate::constructions::scan_lexical;
 use crate::context::ParseContext;
 use crate::environment::DeclarationId;
@@ -871,6 +874,84 @@ impl ScanInput<'_> {
                     ));
                 }
             }
+        }
+        results.sort();
+        results.dedup();
+        results
+    }
+
+    pub(crate) fn declaration_verb_readings(
+        &self,
+        start: usize,
+        kinds: &[DeclarationKind],
+        frame: &VerbFrameKey,
+        agreement: Agreement,
+    ) -> Vec<(usize, DeclarationId)> {
+        use macro_ron::v2::CustomTailAtom;
+
+        if start != self.position.byte_offset {
+            return Vec::new();
+        }
+        let feature = match agreement {
+            Agreement::Bare => SurfaceFeature::Bare,
+            Agreement::ThirdPersonSingular => SurfaceFeature::ThirdPersonSingular,
+        };
+        let frame = frame
+            .atoms()
+            .iter()
+            .map(|atom| match atom {
+                VerbFrameAtom::Literal(literal) => CustomTailAtom::Literal((*literal).to_owned()),
+                VerbFrameAtom::Amount => CustomTailAtom::Amount,
+                VerbFrameAtom::ObjectNounPhrase => CustomTailAtom::ObjectNounPhrase,
+            })
+            .collect::<Vec<_>>();
+        let offset = self.position.byte_offset;
+        let initial = matches!(
+            self.position.case,
+            CasePosition::DocumentInitial | CasePosition::SentenceInitial
+        );
+        let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
+        let Some(remainder) = self.text.get(offset..) else {
+            return Vec::new();
+        };
+        let Some(surface_text) = (prefix == 0)
+            .then_some(remainder)
+            .or_else(|| remainder.strip_prefix(' '))
+        else {
+            return Vec::new();
+        };
+        let surface_byte_limit = if initial {
+            self.environment
+                .initial_surface_byte_limit(GrammarPosition::Verb)
+        } else {
+            self.environment
+                .running_surface_byte_limit(GrammarPosition::Verb)
+        };
+        let mut results = Vec::new();
+        for relative_end in surface_text
+            .char_indices()
+            .skip(1)
+            .map(|(end, _)| end)
+            .chain(std::iter::once(surface_text.len()))
+            .take_while(|&end| end <= surface_byte_limit)
+        {
+            let end = offset + prefix + relative_end;
+            if !has_lexical_boundary(self.text, end) {
+                continue;
+            }
+            let candidate = &surface_text[..relative_end];
+            let readings = if initial {
+                self.environment
+                    .initial_declaration_verb_readings(kinds, candidate, feature, &frame)
+            } else {
+                self.environment
+                    .declaration_verb_readings(kinds, candidate, feature, &frame)
+            };
+            results.extend(
+                readings
+                    .into_iter()
+                    .map(|reading| (end, reading.id().clone())),
+            );
         }
         results.sort();
         results.dedup();
@@ -2212,14 +2293,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            29,
+            35,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            32,
+            38,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2239,14 +2320,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            29,
+            35,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            32,
+            38,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2271,13 +2352,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (30, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (31, "Siege.", "Siege", SubtypeCategory::Battle),
-            (32, "Elf.", "Elf", SubtypeCategory::Creature),
-            (33, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (34, "Forest.", "Forest", SubtypeCategory::Land),
-            (35, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (36, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (36, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (37, "Siege.", "Siege", SubtypeCategory::Battle),
+            (38, "Elf.", "Elf", SubtypeCategory::Creature),
+            (39, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (40, "Forest.", "Forest", SubtypeCategory::Land),
+            (41, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (42, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2295,7 +2376,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (30..=36).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (36..=42).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2311,7 +2392,7 @@ mod tests {
         }
 
         let player = scan(
-            29,
+            35,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2975,8 +3056,9 @@ mod tests {
                 "PossessivePossessive [form singular]",
                 "PossessivePossessive [form plural_s]",
                 "PossessivePossessive [form plural_other]",
-                "VerbPhraseDestroy",
-                "VerbPhraseConnive",
+                "VerbPhraseIntransitivePredicate",
+                "VerbPhraseTransitivePredicate",
+                "VerbPhraseNumerativePredicate",
                 "VerbPhraseDealDamage",
                 "VerbPhraseGainLife",
                 "AmountNumber",
@@ -3091,23 +3173,23 @@ mod tests {
                 "ObjectPronoun",
                 "ReflexivePronoun",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(29, Exact(Singular))",
-                "DeclarationNoun(30, Exact(Singular))",
-                "DeclarationNoun(31, Exact(Singular))",
-                "DeclarationNoun(32, Exact(Singular))",
-                "DeclarationNoun(33, Exact(Singular))",
-                "DeclarationNoun(34, Exact(Singular))",
                 "DeclarationNoun(35, Exact(Singular))",
                 "DeclarationNoun(36, Exact(Singular))",
+                "DeclarationNoun(37, Exact(Singular))",
+                "DeclarationNoun(38, Exact(Singular))",
+                "DeclarationNoun(39, Exact(Singular))",
+                "DeclarationNoun(40, Exact(Singular))",
+                "DeclarationNoun(41, Exact(Singular))",
+                "DeclarationNoun(42, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(29, Exact(Plural))",
-                "DeclarationNoun(30, Exact(Plural))",
-                "DeclarationNoun(31, Exact(Plural))",
-                "DeclarationNoun(32, Exact(Plural))",
-                "DeclarationNoun(33, Exact(Plural))",
-                "DeclarationNoun(34, Exact(Plural))",
                 "DeclarationNoun(35, Exact(Plural))",
                 "DeclarationNoun(36, Exact(Plural))",
+                "DeclarationNoun(37, Exact(Plural))",
+                "DeclarationNoun(38, Exact(Plural))",
+                "DeclarationNoun(39, Exact(Plural))",
+                "DeclarationNoun(40, Exact(Plural))",
+                "DeclarationNoun(41, Exact(Plural))",
+                "DeclarationNoun(42, Exact(Plural))",
                 "Color",
                 "Status",
                 "Supertype",
@@ -3126,7 +3208,7 @@ mod tests {
                 "Literal(\"a\")",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(38)",
+                "CatalogIdentity(44)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
@@ -3166,8 +3248,9 @@ mod tests {
                 "Literal(\"fewer\")",
                 "Literal(\"with\")",
                 "Literal(\"'\")",
-                "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Destroy\", position: Verb, feature: Any })",
-                "Declaration(DeclarationMatcher { kind: KeywordAction, name: \"Connive\", position: Verb, feature: Any })",
+                "DeclarationVerb(32, Any)",
+                "DeclarationVerb(33, Any)",
+                "DeclarationVerb(34, Any)",
                 "Verb(Deal, Any)",
                 "Literal(\"damage\")",
                 "Verb(Gain, Any)",

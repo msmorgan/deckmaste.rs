@@ -215,6 +215,52 @@ constructions! {
             ThirdPersonSingular = "is",
         },
     }
+    lexeme CoreIntransitiveVerb using EnglishVerb {
+        Attack = "attack",
+        Block = "block",
+        Cycle = "cycle",
+        Die = "die" {
+            ThirdPersonSingular = "dies",
+        },
+        Enter = "enter",
+        Leave = "leave",
+    }
+    lexeme CoreTransitiveVerb using EnglishVerb {
+        Attack = "attack",
+        Block = "block",
+        Control = "control",
+        Draw = "draw",
+        Own = "own",
+    }
+    lexeme CoreNumerativeVerb using EnglishVerb { Draw = "draw", }
+
+    codec IntransitiveVerb {
+        generate declaration_verb {
+            closed = CoreIntransitiveVerb;
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = [];
+            feature = Agreement;
+        }
+    }
+    codec TransitiveVerb {
+        generate declaration_verb {
+            closed = CoreTransitiveVerb;
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = [ObjectNounPhrase];
+            feature = Agreement;
+        }
+    }
+    codec NumerativeVerb {
+        generate declaration_verb {
+            closed = CoreNumerativeVerb;
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = [Amount];
+            feature = Agreement;
+        }
+    }
 
     codec TypeNoun {
         generate declaration_noun {
@@ -2149,15 +2195,20 @@ constructions! {
         ) = suffix(owner, "'");
         form plural_other otherwise = suffix(owner, "'s");
     }
-    construction destroy: VerbPhrase {
-        element Destroy { object: Object, }
-        derive agreement = verb.agreement;
-        form destroy = open_verb(KeywordAction, "Destroy") object;
+    construction intransitive_predicate: VerbPhrase {
+        element IntransitivePredicate { head: lex IntransitiveVerb, }
+        derive agreement = head.agreement;
+        form intransitive_predicate = verb(head);
     }
-    construction connive: VerbPhrase {
-        element Connive {}
-        derive agreement = verb.agreement;
-        form connive = open_verb(KeywordAction, "Connive");
+    construction transitive_predicate: VerbPhrase {
+        element TransitivePredicate { head: lex TransitiveVerb, object: Object, }
+        derive agreement = head.agreement;
+        form transitive_predicate = verb(head) object;
+    }
+    construction numerative_predicate: VerbPhrase {
+        element NumerativePredicate { head: lex NumerativeVerb, amount: Amount, }
+        derive agreement = head.agreement;
+        form numerative_predicate = verb(head) amount;
     }
     construction deal_damage: VerbPhrase {
         element DealDamage { amount: Amount, to: Object, }

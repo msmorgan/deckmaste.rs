@@ -475,6 +475,9 @@ pub(crate) fn escape_hatch_report(plan: &SemanticPlan) -> syn::Result<EscapeHatc
         }
         match binding.kind() {
             TerminalBindingKind::Codec => {
+                if binding.declaration_verb().is_some() {
+                    continue;
+                }
                 handwritten_codecs.push(name.clone());
                 terminal_bindings.push(TerminalBindingDeclaration {
                     kind: TerminalBindingDeclarationKind::Codec,
@@ -774,6 +777,30 @@ mod tests {
             ["SelfReferenceSpelling"]
         );
         assert!(expansion.escape_hatches().terminal_bindings().is_empty());
+    }
+
+    #[test]
+    fn generated_declaration_verb_is_not_a_handwritten_codec_escape_hatch() {
+        let expansion = crate::generate(quote::quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme CoreVerb using EnglishVerb { Act = "act", }
+            codec ActionVerb {
+                generate declaration_verb {
+                    closed = CoreVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [];
+                    feature = Agreement;
+                }
+            }
+            construction only: Root { element Only {} form only = "only"; }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("generated declaration-verb report fixture validates");
+        let report = expansion.escape_hatches();
+
+        assert!(report.handwritten_codecs().is_empty());
+        assert!(report.terminal_bindings().is_empty());
     }
 
     #[test]
