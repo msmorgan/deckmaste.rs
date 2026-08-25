@@ -325,10 +325,11 @@ subset:
   codegen replaces it at buildout.
 - **Role refinements.** `require <role> is <Variant>` is the one `require`
   form the MVP implements: it emits the golden's category-variant and
-  vocab-value narrowing in `build` (`Triggered.event` accepts
-  `Clause::Event` only; `WithWhere.clause` accepts `Clause::Where` only;
-  `CountNp.controller` accepts `Pronoun::You` only). Every other `require`
-  form remains a named hard error.
+  vocab-value narrowing in `build` (`WithWhere.clause` accepts
+  `Clause::Where` only; `CountNp.controller` accepts `Pronoun::You` only).
+  The historical `Triggered.event` / `Clause::Event` example is superseded;
+  the current finite trigger branch is `TriggerPrefix::Finite(FiniteClause)`.
+  Every other `require` form remains a named hard error.
 - **Feature equations.** Agreement/number derivation uses the equation
   grammar from the stage-4 architecture plan: constant, from-role, and
   exhaustive match-over-vocab equations with a directional IR — sufficient
@@ -550,26 +551,29 @@ Plan 10. Its public data boundary uses this per-boundary assignment.
 
 `CasePosition::DocumentInitial` and `CasePosition::SentenceInitial` capitalize
 the following lexical word; `CasePosition::Continuation` preserves its running
-case. Each structural owner below claims every listed byte, including its ASCII
-space where present, before passing the stated position to the following node.
+case. Each structural owner below claims every listed structural byte,
+including its ASCII space where present, before passing the stated position to
+the following node. The explicit word-prefix row names the lexical owner when
+that prefix instead owns the ASCII space.
 
 | Boundary bytes | Structural owner | Following `CasePosition` / capitalization |
 | --- | --- | --- |
 | Sentence period (`.`) | `Sentence` | Sets `CasePosition::SentenceInitial`; the next lexical word is capitalized. |
 | Intersentence ASCII space | `SentenceSequence` | Preserves `CasePosition::SentenceInitial`; the following sentence's first lexical word remains capitalized. |
 | Document LF | `OracleText`'s document-block sequence | Sets `CasePosition::DocumentInitial`; the next document block's first lexical word is capitalized. |
-| Trigger → body comma-space | `Triggered` envelope | Sets `CasePosition::Continuation`; the body begins without capitalization. |
-| Trigger → intervening-if comma-space | `Triggered` envelope | Sets `CasePosition::Continuation`; `if` begins without capitalization. |
-| Intervening-if → body comma-space | `Triggered` envelope | Sets `CasePosition::Continuation`; the body begins without capitalization. |
+| Trigger → body comma | `Triggered` envelope | Sets `CasePosition::Continuation`; the body begins without capitalization. |
+| Trigger → intervening-if comma | `Triggered` envelope | Sets `CasePosition::Continuation`; `if` begins without capitalization. |
+| Intervening-if → body comma | `FiniteCondition` | Sets `CasePosition::Continuation`; the body begins without capitalization. |
+| Trigger or condition → following ASCII space + word prefix | The immediately following lexical or form-literal word-prefix claim | Preserves `CasePosition::Continuation`; that one claim owns both the ASCII space and its word. |
 | Cost-component comma-space | `ActivationCost` sequence | Sets `CasePosition::SentenceInitial`; the next cost component's first lexical word is capitalized. |
 | Activation colon-space | `Activated` envelope | Sets `CasePosition::SentenceInitial`; the `AbilityBody`'s first lexical word is capitalized. |
 | Modal header ASCII-space + U+2014 + LF | `Modal` header | Sets `CasePosition::SentenceInitial`; the first mode body is capitalized after its bullet. |
 | Mode U+2022 + ASCII-space | `ModalMode` | Preserves `CasePosition::SentenceInitial`; the mode body's first lexical word is capitalized. |
 | Intermode LF after preceding final period | `Modal` mode sequence | The preceding `Sentence` has set `CasePosition::SentenceInitial`; the next `ModalMode` preserves it through its bullet, so its body is capitalized. |
 
-Every separator-owned space is part of the structural owner's claim. The
-following lexical word claim begins after that surface: the separator-owned
-space and following word claim cannot overlap.
+Every listed structural or lexical owner claims its assigned bytes. Trigger
+and condition comma claims end at the comma; the immediately following
+word-prefix claim owns the separator space and word. Claims cannot overlap.
 Keyword-, ability-word-, reminder-, frame-coupled, labelled,
 pawprint-weighted, repetition, and other advanced modal forms remain Plan 10.
 
@@ -674,34 +678,26 @@ is a syntactic binder node, recognized but never resolved.
 Declarations sufficient for two sentences, the generated Rust, the parsed
 values, and the byte accounting are recorded as the paper slice of
 2026-08-13; the stage-2 ticket (`english-v2-vertical-slice`) implements it.
-Compressed exhibit — the flagship value:
+Compressed exhibit — the current production shape:
 
-~~~rust
-Ability::Triggered(Triggered {
-    trigger: TriggerWord::Whenever,
-    event: Clause::Event(EventClause {
-        subject: NounPhrase::Common(Common { article: Article::A, head: Noun::Player }),
-        predicate: VerbPhrase::Connive(Connive),
-    }),
-    effects: vec![Sentence::Declarative(Declarative {
-        subject: NounPhrase::Demonstrative(DemonstrativeNp {
-            word: Demonstrative::That, head: Noun::Creature }),
-        predicate: VerbPhrase::DealDamage(DealDamage {
-            amount: Amount::Var(VarAmount { var: Variable::X }),
-            to: NounPhrase::Pronoun(PronounNp { word: Pronoun::It }),
-        }),
-    })],
-})
+~~~text
+Triggered
+  trigger = TriggerPrefix::Finite
+    clause = FiniteClause
+      subject + Predicate
+  body = AbilityBody
 ~~~
 
-renders to exactly `"Whenever a player connives, that creature deals X damage
-to it."` — every byte attributed to a stored field, a form literal, or a
-derived rule (inflection, capitalization position, punctuation attachment,
-spacing), and the same `verb(..)` atoms render bare in imperatives. Working
-the slice on paper surfaced the four derived-rule commitments listed in
-§Bidirectionality; the byte-accounting table is the ADR's acceptance
-demonstration that "exact inverse rendering" is a mechanical property, not an
-aspiration.
+`EventClause`, its `event` role, and `Clause::Event` are superseded production
+API, not usable historical authority.
+
+The finite witness renders to exactly `"Whenever a player connives, you gain X
+life."` — every byte is attributed to a stored field, a form literal, or a derived rule
+(inflection, capitalization position, punctuation attachment, spacing), and
+the same `verb(..)` atoms render bare in imperatives. Working the slice on
+paper surfaced the four derived-rule commitments listed in §Bidirectionality;
+the byte-accounting table is the ADR's acceptance demonstration that "exact
+inverse rendering" is a mechanical property, not an aspiration.
 
 ## Verification gates and tooling
 
@@ -793,7 +789,9 @@ the `semantics` shape and are handled separately.
    v2; shadow running with `movers` reports.
 7. Cutover and deletion, per the plan above.
 
-No tickets beyond stages 1–3 are minted without explicit user approval.
+New roadmap scope needs explicit approval; completion tickets and re-minted
+remainder tickets within an approved stage are evidence, not expanded scope;
+integrate one plan before claiming the next.
 
 ## Prior-decision audit
 
