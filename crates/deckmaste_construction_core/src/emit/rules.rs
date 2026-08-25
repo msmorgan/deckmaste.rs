@@ -90,6 +90,7 @@ pub(super) enum RuleSymbolPlan {
         side: CircumfixSide,
     },
     Value(ValueKindPlan),
+    AdjacentValue(ValueKindPlan),
     Helper(String),
     Surface(StructuralSurfaceSymbolPlan),
 }
@@ -128,6 +129,7 @@ impl RuleSymbolPlan {
             Self::BoundAffix { .. } => "bound-affix".to_owned(),
             Self::CircumfixAffix { side, .. } => format!("circumfix-{side:?}"),
             Self::Value(value) => format!("value:{}", value_name(value)),
+            Self::AdjacentValue(value) => format!("adjacent-value:{}", value_name(value)),
             Self::Helper(category) => format!("helper:{category}"),
             Self::Surface(StructuralSurfaceSymbolPlan {
                 atom: FixedSurfaceAtomPlan::Literal(value),
@@ -522,7 +524,8 @@ fn emit_rule_symbol(plan: &SemanticPlan, symbol: &RuleSymbolPlan) -> syn::Result
             *atom_index,
             *side,
         ),
-        RuleSymbolPlan::Value(value) => emit_value_position(plan, value),
+        RuleSymbolPlan::Value(value) => emit_value_position(plan, value, false),
+        RuleSymbolPlan::AdjacentValue(value) => emit_value_position(plan, value, true),
         RuleSymbolPlan::Helper(category) => {
             let category = ident(category);
             Ok(quote! { N(Category::#category) })
@@ -566,16 +569,32 @@ fn emit_rule_symbol(plan: &SemanticPlan, symbol: &RuleSymbolPlan) -> syn::Result
     }
 }
 
-fn emit_value_position(plan: &SemanticPlan, value: &ValueKindPlan) -> syn::Result<TokenStream> {
+fn emit_value_position(
+    plan: &SemanticPlan,
+    value: &ValueKindPlan,
+    right_adjacent: bool,
+) -> syn::Result<TokenStream> {
     match value {
         ValueKindPlan::Category(name) | ValueKindPlan::Product(name) | ValueKindPlan::Sum(name) => {
             let name = ident(name);
-            Ok(quote! { N(Category::#name) })
+            Ok(if right_adjacent {
+                quote! { RulePosition::AdjacentNonterminal(Category::#name) }
+            } else {
+                quote! { N(Category::#name) }
+            })
         }
         ValueKindPlan::Lex(name) | ValueKindPlan::Identity(name) => {
             let lexical = lexical_variant(plan, name)?;
             let owner = owner_template(plan, name)?;
-            Ok(lexical_terminal(&lexical, &owner))
+            Ok(if right_adjacent {
+                lexical_terminal_with_boundary(
+                    &lexical,
+                    &owner,
+                    &quote! { LexicalBoundary::Adjacent },
+                )
+            } else {
+                lexical_terminal(&lexical, &owner)
+            })
         }
     }
 }
@@ -944,12 +963,13 @@ fn owner_field_variants(
                     };
                     let mut rhs =
                         item_with_terminator(item, surface.terminator(), owner, field.name());
-                    rhs.extend(surface_symbols(
+                    extend_surface_symbols(
+                        &mut rhs,
                         positional_surface(rows, EdgeClass::First)?,
                         owner,
                         field.name(),
                         StructuralSurfacePolicy::SeparatorPositional(EdgeClass::First),
-                    ));
+                    );
                     rhs.push(RuleSymbolPlan::Helper(helper_category(owner, field)?));
                     variants.push((Some(state), rhs));
                 }
@@ -1070,12 +1090,13 @@ fn lower_helper_rows<'a>(
                                     owner,
                                     field.name(),
                                 );
-                                last.extend(surface_symbols(
+                                extend_surface_symbols(
+                                    &mut last,
                                     positional_surface(positional, EdgeClass::Last)?,
                                     owner,
                                     field.name(),
                                     StructuralSurfacePolicy::SeparatorPositional(EdgeClass::Last),
-                                ));
+                                );
                                 last.extend(item_with_terminator(
                                     item,
                                     surface.terminator(),
@@ -1110,12 +1131,13 @@ fn lower_helper_rows<'a>(
                                     owner,
                                     field.name(),
                                 );
-                                middle.extend(surface_symbols(
+                                extend_surface_symbols(
+                                    &mut middle,
                                     positional_surface(positional, EdgeClass::Middle)?,
                                     owner,
                                     field.name(),
                                     StructuralSurfacePolicy::SeparatorPositional(EdgeClass::Middle),
-                                ));
+                                );
                                 middle.push(RuleSymbolPlan::Helper(next));
                                 rows.push(sequence_helper_row(
                                     owner_key,
@@ -1167,12 +1189,13 @@ fn lower_helper_rows<'a>(
                         ));
                         let mut middle =
                             item_with_terminator(item, surface.terminator(), owner, field.name());
-                        middle.extend(surface_symbols(
+                        extend_surface_symbols(
+                            &mut middle,
                             positional_surface(positional, EdgeClass::Middle)?,
                             owner,
                             field.name(),
                             StructuralSurfacePolicy::SeparatorPositional(EdgeClass::Middle),
-                        ));
+                        );
                         middle.push(RuleSymbolPlan::Helper(category.clone()));
                         rows.push(sequence_helper_row(
                             owner_key,
@@ -1230,12 +1253,13 @@ fn lower_helper_rows<'a>(
                                     field.name(),
                                 );
                                 if let Some(SeparatorPlan::Uniform(separator)) = uniform {
-                                    recursive.extend(surface_symbols(
+                                    extend_surface_symbols(
+                                        &mut recursive,
                                         separator,
                                         owner,
                                         field.name(),
                                         StructuralSurfacePolicy::SeparatorUniform,
-                                    ));
+                                    );
                                 }
                                 recursive.push(RuleSymbolPlan::Helper(next));
                                 rows.push(sequence_helper_row(
@@ -1289,12 +1313,13 @@ fn lower_helper_rows<'a>(
                         let mut recursive =
                             item_with_terminator(item, surface.terminator(), owner, field.name());
                         if let Some(SeparatorPlan::Uniform(separator)) = uniform {
-                            recursive.extend(surface_symbols(
+                            extend_surface_symbols(
+                                &mut recursive,
                                 separator,
                                 owner,
                                 field.name(),
                                 StructuralSurfacePolicy::SeparatorUniform,
-                            ));
+                            );
                         }
                         recursive.push(RuleSymbolPlan::Helper(category.clone()));
                         rows.push(sequence_helper_row(
@@ -1369,12 +1394,13 @@ fn exact_uniform_rhs(
         if index > 0
             && let Some(SeparatorPlan::Uniform(separator)) = separator
         {
-            rhs.extend(surface_symbols(
+            extend_surface_symbols(
+                &mut rhs,
                 separator,
                 owner,
                 role,
                 StructuralSurfacePolicy::SeparatorUniform,
-            ));
+            );
         }
         rhs.extend(item_with_terminator(
             item,
@@ -1403,12 +1429,13 @@ fn exact_positional_rhs(
                 _ if index + 1 == length => EdgeClass::Last,
                 _ => EdgeClass::Middle,
             };
-            rhs.extend(surface_symbols(
+            extend_surface_symbols(
+                &mut rhs,
                 positional_surface(rows, class)?,
                 owner,
                 role,
                 StructuralSurfacePolicy::SeparatorPositional(class),
-            ));
+            );
         }
         rhs.extend(item_with_terminator(
             item,
@@ -1432,12 +1459,13 @@ fn exact_positional_tail_rhs(
     for index in 0..length {
         if index > 0 {
             let class = if index + 1 == length { EdgeClass::Last } else { EdgeClass::Middle };
-            rhs.extend(surface_symbols(
+            extend_surface_symbols(
+                &mut rhs,
                 positional_surface(rows, class)?,
                 owner,
                 role,
                 StructuralSurfacePolicy::SeparatorPositional(class),
-            ));
+            );
         }
         rhs.extend(item_with_terminator(
             item,
@@ -1457,14 +1485,47 @@ fn item_with_terminator(
 ) -> Vec<RuleSymbolPlan> {
     let mut symbols = vec![RuleSymbolPlan::Value(item.clone())];
     if let Some(terminator) = terminator {
-        symbols.extend(surface_symbols(
+        extend_surface_symbols(
+            &mut symbols,
             terminator,
             owner,
             role,
             StructuralSurfacePolicy::Terminator,
-        ));
+        );
     }
     symbols
+}
+
+fn extend_surface_symbols(
+    symbols: &mut Vec<RuleSymbolPlan>,
+    surface: &FixedSurfacePlan,
+    owner: &str,
+    role: &str,
+    policy: StructuralSurfacePolicy,
+) {
+    let adjacent_value = surface_starts_left_adjacent(surface)
+        .then(|| match symbols.last() {
+            Some(RuleSymbolPlan::Value(value)) => Some(value.clone()),
+            _ => None,
+        })
+        .flatten();
+    if let Some(value) = adjacent_value {
+        *symbols.last_mut().expect("last value is present") = RuleSymbolPlan::AdjacentValue(value);
+    }
+    symbols.extend(surface_symbols(surface, owner, role, policy));
+}
+
+fn surface_starts_left_adjacent(surface: &FixedSurfacePlan) -> bool {
+    surface.atoms().iter().find_map(|atom| match atom {
+        FixedSurfaceAtomPlan::Literal(value) if value.is_empty() => None,
+        FixedSurfaceAtomPlan::Literal(value) => Some(
+            value
+                .chars()
+                .next()
+                .is_some_and(|character| !character.is_whitespace()),
+        ),
+        FixedSurfaceAtomPlan::Lex { .. } => Some(false),
+    }) == Some(true)
 }
 
 fn surface_symbols(
@@ -2372,7 +2433,7 @@ mod tests {
         assert_eq!(
             labels("SequenceValuesSequenceRecursive"),
             [
-                "value:Item",
+                "adjacent-value:Item",
                 "literal:}{",
                 "helper:SequenceValuesSequenceCategory",
             ],
@@ -2438,6 +2499,63 @@ mod tests {
         )
         .expect("bounded sequence rule fixture validates")
         .into_semantic()
+    }
+
+    #[test]
+    fn authored_sequence_separator_spacing_controls_preceding_lexical_adjacency() {
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote! {
+                vocab Digit { One = "one", }
+                construction magnitude: Magnitude {
+                    element MagnitudeValue { digit: lex Digit, }
+                    form magnitude = lex(digit);
+                }
+                construction slash_pair: SlashPair {
+                    element SlashPairValue {
+                        magnitudes: seq Magnitude separated by "/",
+                    }
+                    require len(magnitudes) = 2;
+                    form slash_pair = magnitudes;
+                }
+                construction spaced_pair: SpacedPair {
+                    element SpacedPairValue {
+                        magnitudes: seq Magnitude separated by " / ",
+                    }
+                    require len(magnitudes) = 2;
+                    form spaced_pair = magnitudes;
+                }
+                root SlashPair { eoi = true; standalone_render = true; }
+            })
+            .expect("separator-adjacency fixture parses"),
+        )
+        .expect("separator-adjacency fixture validates")
+        .into_semantic();
+        let rows = super::lowered_rows(&plan).expect("separator-adjacency rows lower");
+        let labels = |owner| {
+            rows.iter()
+                .find(|row| row.owner == owner && row.rhs.len() == 3)
+                .expect("exact pair helper has three symbols")
+                .rhs
+                .iter()
+                .map(super::RuleSymbolPlan::test_label)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            labels("SlashPairValue"),
+            [
+                "adjacent-value:Magnitude",
+                "literal:/",
+                "helper:SlashPairValueMagnitudesSequenceCount2Category",
+            ]
+        );
+        assert_eq!(
+            labels("SpacedPairValue"),
+            [
+                "value:Magnitude",
+                "literal: / ",
+                "helper:SpacedPairValueMagnitudesSequenceCount2Category",
+            ]
+        );
     }
 
     fn finite_lowering_size(maximum: usize) -> LoweringSize {
@@ -2550,10 +2668,10 @@ mod tests {
                 "ExactPair",
                 "positional_pair",
                 vec![
-                    "value:Item".to_owned(),
+                    "adjacent-value:Item".to_owned(),
                     "literal:<T>".to_owned(),
                     "literal:<P>".to_owned(),
-                    "value:Item".to_owned(),
+                    "adjacent-value:Item".to_owned(),
                     "literal:<T>".to_owned(),
                 ],
             )],
@@ -2588,7 +2706,7 @@ mod tests {
                     "BoundedUniformValueItemsSequenceCount1Continue",
                     "sequence_count_1_continue",
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<S>".to_owned(),
                         "helper:BoundedUniformValueItemsSequenceCount2Category".to_owned(),
@@ -2597,13 +2715,13 @@ mod tests {
                 (
                     "BoundedUniformValueItemsSequenceCount2Final",
                     "sequence_count_2_final",
-                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                    vec!["adjacent-value:Item".to_owned(), "literal:<T>".to_owned(),],
                 ),
                 (
                     "BoundedUniformValueItemsSequenceCount2Continue",
                     "sequence_count_2_continue",
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<S>".to_owned(),
                         "helper:BoundedUniformValueItemsSequenceCount3Category".to_owned(),
@@ -2612,13 +2730,13 @@ mod tests {
                 (
                     "BoundedUniformValueItemsSequenceCount3Final",
                     "sequence_count_3_final",
-                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                    vec!["adjacent-value:Item".to_owned(), "literal:<T>".to_owned(),],
                 ),
                 (
                     "BoundedUniformValueItemsSequenceCount3Continue",
                     "sequence_count_3_continue",
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<S>".to_owned(),
                         "helper:BoundedUniformValueItemsSequenceCount4Category".to_owned(),
@@ -2627,7 +2745,7 @@ mod tests {
                 (
                     "BoundedUniformValueItemsSequenceCount4Final",
                     "sequence_count_4_final",
-                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                    vec!["adjacent-value:Item".to_owned(), "literal:<T>".to_owned(),],
                 ),
             ],
             "finite uniform bounds use constant-size counted transitions only",
@@ -2656,10 +2774,10 @@ mod tests {
                     "BoundedPositional",
                     "positional_pair",
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<P>".to_owned(),
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                     ],
                 ),
@@ -2668,7 +2786,7 @@ mod tests {
                     "BoundedPositional",
                     "positional_three_plus",
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<F>".to_owned(),
                         "helper:BoundedPositionalValueItemsSequenceCategory".to_owned(),
@@ -2679,10 +2797,10 @@ mod tests {
                     "BoundedPositionalValueItemsSequenceCategory",
                     "positional_count_2_last",
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<L>".to_owned(),
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                     ],
                 ),
@@ -2691,7 +2809,7 @@ mod tests {
                     "BoundedPositionalValueItemsSequenceCategory",
                     "positional_count_2_middle",
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<M>".to_owned(),
                         "helper:BoundedPositionalValueItemsSequenceCount3Category".to_owned(),
@@ -2702,10 +2820,10 @@ mod tests {
                     "BoundedPositionalValueItemsSequenceCount3Category",
                     "positional_count_3_last",
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<L>".to_owned(),
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                     ],
                 ),
@@ -2751,7 +2869,7 @@ mod tests {
                     "ZeroUniformValueItemsSequenceCategory",
                     "sequence_singleton",
                     None,
-                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                    vec!["adjacent-value:Item".to_owned(), "literal:<T>".to_owned(),],
                 ),
                 (
                     "ZeroUniformValueItemsSequenceRecursive",
@@ -2759,7 +2877,7 @@ mod tests {
                     "sequence_recursive",
                     None,
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<S>".to_owned(),
                         "helper:ZeroUniformValueItemsSequenceCategory".to_owned(),
@@ -2824,7 +2942,7 @@ mod tests {
                     Some("items"),
                     "sequence_singleton",
                     None,
-                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                    vec!["adjacent-value:Item".to_owned(), "literal:<T>".to_owned(),],
                 ),
                 (
                     "UniformValueItemsSequenceRecursive",
@@ -2834,7 +2952,7 @@ mod tests {
                     "sequence_recursive",
                     None,
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<S>".to_owned(),
                         "helper:UniformValueItemsSequenceCategory".to_owned(),
@@ -2876,7 +2994,7 @@ mod tests {
                     Some("items"),
                     "positional_singleton",
                     Some("PositionalPositional"),
-                    vec!["value:Item".to_owned(), "literal:<T>".to_owned()],
+                    vec!["adjacent-value:Item".to_owned(), "literal:<T>".to_owned(),],
                 ),
                 (
                     "PositionalValueItemsSequencePair",
@@ -2885,10 +3003,10 @@ mod tests {
                     "positional_pair",
                     Some("PositionalPositional"),
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<P>".to_owned(),
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                     ],
                 ),
@@ -2899,7 +3017,7 @@ mod tests {
                     "positional_three_plus",
                     Some("PositionalPositional"),
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<F>".to_owned(),
                         "helper:PositionalValueItemsSequenceCategory".to_owned(),
@@ -2912,10 +3030,10 @@ mod tests {
                     "positional_last",
                     None,
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<L>".to_owned(),
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                     ],
                 ),
@@ -2926,7 +3044,7 @@ mod tests {
                     "positional_middle",
                     None,
                     vec![
-                        "value:Item".to_owned(),
+                        "adjacent-value:Item".to_owned(),
                         "literal:<T>".to_owned(),
                         "literal:<M>".to_owned(),
                         "helper:PositionalValueItemsSequenceCategory".to_owned(),

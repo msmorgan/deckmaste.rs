@@ -87,6 +87,38 @@ fn imperative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) ->
     predicate.clone()
 }
 
+fn exact_claim_trace(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+) -> Vec<(String, String)> {
+    let analysis = parser.analyze(text, context);
+    assert!(analysis.selected().is_some(), "{text:?}: {analysis:?}");
+    let claims = analysis
+        .ownership()
+        .expect("selected document has ownership")
+        .parsed_claims();
+    let mut cursor = 0;
+    let trace = claims
+        .iter()
+        .map(|claim| {
+            assert_eq!(claim.span().start, cursor, "{text:?}: {claim:?}");
+            assert!(claim.span().end > claim.span().start, "{text:?}: {claim:?}");
+            cursor = claim.span().end;
+            (
+                text[claim.span().start..claim.span().end].to_owned(),
+                claim.stable_owner_id().to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        cursor,
+        text.len(),
+        "{text:?}: claims are total and disjoint"
+    );
+    trace
+}
+
 fn assert_selected(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Ability {
     assert_selected_with_specificity(parser, context, text, false)
 }
@@ -572,7 +604,151 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
 #[derive(Default)]
 struct ComplementVisitor(Vec<String>);
 
+macro_rules! trace_product {
+    ($method:ident, $type:ty, $walk:ident, $label:literal) => {
+        fn $method(&mut self, value: &$type) {
+            self.0.push(concat!("product:", $label).to_owned());
+            deckmaste_english_v2::visit::$walk(self, value);
+        }
+    };
+}
+
 impl Visitor for ComplementVisitor {
+    trace_product!(
+        visit_deal_damage,
+        DealDamage,
+        walk_deal_damage,
+        "DealDamage"
+    );
+    trace_product!(
+        visit_deal_damage_equal_to,
+        DealDamageEqualTo,
+        walk_deal_damage_equal_to,
+        "DealDamageEqualTo"
+    );
+    trace_product!(visit_gain_life, GainLife, walk_gain_life, "GainLife");
+    trace_product!(
+        visit_gain_life_equal_to,
+        GainLifeEqualTo,
+        walk_gain_life_equal_to,
+        "GainLifeEqualTo"
+    );
+    trace_product!(visit_lose_life, LoseLife, walk_lose_life, "LoseLife");
+    trace_product!(
+        visit_lose_life_equal_to,
+        LoseLifeEqualTo,
+        walk_lose_life_equal_to,
+        "LoseLifeEqualTo"
+    );
+    trace_product!(visit_pay_life, PayLife, walk_pay_life, "PayLife");
+    trace_product!(visit_pay_mana, PayMana, walk_pay_mana, "PayMana");
+    trace_product!(visit_add_mana, AddMana, walk_add_mana, "AddMana");
+    trace_product!(visit_draw_cards, DrawCards, walk_draw_cards, "DrawCards");
+    trace_product!(
+        visit_draw_cards_equal_to,
+        DrawCardsEqualTo,
+        walk_draw_cards_equal_to,
+        "DrawCardsEqualTo"
+    );
+    trace_product!(visit_roll_dice, RollDice, walk_roll_dice, "RollDice");
+    trace_product!(
+        visit_put_counters,
+        PutCounters,
+        walk_put_counters,
+        "PutCounters"
+    );
+    trace_product!(
+        visit_remove_counters,
+        RemoveCounters,
+        walk_remove_counters,
+        "RemoveCounters"
+    );
+    trace_product!(
+        visit_singular_card_quantity,
+        SingularCardQuantity,
+        walk_singular_card_quantity,
+        "SingularCardQuantity"
+    );
+    trace_product!(
+        visit_fixed_card_quantity,
+        FixedCardQuantity,
+        walk_fixed_card_quantity,
+        "FixedCardQuantity"
+    );
+    trace_product!(
+        visit_variable_card_quantity,
+        VariableCardQuantity,
+        walk_variable_card_quantity,
+        "VariableCardQuantity"
+    );
+    trace_product!(
+        visit_anaphoric_card_quantity,
+        AnaphoricCardQuantity,
+        walk_anaphoric_card_quantity,
+        "AnaphoricCardQuantity"
+    );
+    trace_product!(
+        visit_singular_die_object,
+        SingularDieObject,
+        walk_singular_die_object,
+        "SingularDieObject"
+    );
+    trace_product!(
+        visit_fixed_dice_object,
+        FixedDiceObject,
+        walk_fixed_dice_object,
+        "FixedDiceObject"
+    );
+    trace_product!(visit_d20object, D20Object, walk_d20object, "D20Object");
+    trace_product!(
+        visit_positive_power_toughness_counter,
+        PositivePowerToughnessCounter,
+        walk_positive_power_toughness_counter,
+        "PositivePowerToughnessCounter"
+    );
+    trace_product!(
+        visit_negative_power_toughness_counter,
+        NegativePowerToughnessCounter,
+        walk_negative_power_toughness_counter,
+        "NegativePowerToughnessCounter"
+    );
+    trace_product!(
+        visit_singular_counter_quantity,
+        SingularCounterQuantity,
+        walk_singular_counter_quantity,
+        "SingularCounterQuantity"
+    );
+    trace_product!(
+        visit_fixed_counter_quantity,
+        FixedCounterQuantity,
+        walk_fixed_counter_quantity,
+        "FixedCounterQuantity"
+    );
+    trace_product!(
+        visit_variable_counter_quantity,
+        VariableCounterQuantity,
+        walk_variable_counter_quantity,
+        "VariableCounterQuantity"
+    );
+    trace_product!(
+        visit_anaphoric_counter_quantity,
+        AnaphoricCounterQuantity,
+        walk_anaphoric_counter_quantity,
+        "AnaphoricCounterQuantity"
+    );
+    trace_product!(
+        visit_choice_object,
+        ChoiceObject,
+        walk_choice_object,
+        "ChoiceObject"
+    );
+    trace_product!(
+        visit_random_object,
+        RandomObject,
+        walk_random_object,
+        "RandomObject"
+    );
+
     fn visit_verb_lexeme(&mut self, verb: VerbLexeme) {
         self.0.push(format!("verb:{verb:?}"));
     }
@@ -597,6 +773,22 @@ impl Visitor for ComplementVisitor {
         self.0.push(format!("counter:{counter:?}"));
     }
 
+    fn visit_die_shape(&mut self, shape: DieShape) {
+        self.0.push(format!("die:{shape:?}"));
+    }
+
+    fn visit_variable(&mut self, variable: Variable) {
+        self.0.push(format!("variable:{variable:?}"));
+    }
+
+    fn visit_fixed_cost_symbol(&mut self, symbol: FixedCostSymbol) {
+        self.0.push(format!("symbol:{symbol:?}"));
+    }
+
+    fn visit_common_noun(&mut self, noun: CommonNoun) {
+        self.0.push(format!("noun:{noun:?}"));
+    }
+
     fn visit_declaration(&mut self, declaration: &DeclarationIdentity) {
         self.0.push(format!("declared:{}", declaration.name()));
     }
@@ -614,12 +806,16 @@ fn typed_complements_visit_payloads_in_surface_order_with_exact_claims() {
     assert_eq!(
         visitor.0,
         [
+            "product:PayMana",
             "verb:Pay",
             "scalar:2",
+            "product:DrawCardsEqualTo",
             "verb:Draw",
             "possessive:Its",
             "characteristic:Toughness",
+            "product:PutCounters",
             "verb:Put",
+            "product:FixedCounterQuantity",
             "cardinal:2",
             "counter:Stun",
             "declared:Creature",
@@ -644,6 +840,562 @@ fn typed_complements_visit_payloads_in_surface_order_with_exact_claims() {
     assert_eq!(
         claims.last().expect("terminator claim").stable_owner_id(),
         "structural:Sentences/sentences/terminator/0",
+    );
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    clippy::items_after_statements,
+    reason = "one literal matrix authenticates every complement visitor and claim trace"
+)]
+fn every_new_complement_family_is_reached_by_the_production_visitor() {
+    let parser = parser();
+    let context = context();
+    macro_rules! assert_family {
+        ($text:literal, [$($visit:literal),+ $(,)?], [$($claim:expr),+ $(,)?]) => {{
+            let text = $text;
+            let ability = assert_selected_with_specificity(&parser, &context, text, true);
+            let mut visitor = ComplementVisitor::default();
+            visitor.visit_ability(&ability);
+            assert_eq!(visitor.0, [$($visit),+], "{text:?}: exact visitor trace");
+            assert_eq!(
+                exact_claim_trace(&parser, &context, text),
+                [$((String::from($claim.0), String::from($claim.1))),+],
+                "{text:?}: exact total, disjoint claim trace",
+            );
+        }};
+    }
+
+    const TERMINATOR: &str = "structural:Sentences/sentences/terminator/0";
+    assert_family!(
+        "Deal X damage to any target.",
+        ["product:DealDamage", "verb:Deal", "variable:X"],
+        [
+            ("Deal", "lexeme:VerbLexeme/Deal/bare"),
+            (" X", "vocab:Variable/X"),
+            (" damage", "form:deal_damage/deal_damage/2"),
+            (" to", "form:deal_damage/deal_damage/3"),
+            (" any", "form:any_target_reference/any_target_reference/0"),
+            (
+                " target",
+                "form:any_target_reference/any_target_reference/1"
+            ),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Deal damage equal to its power to any target.",
+        [
+            "product:DealDamageEqualTo",
+            "verb:Deal",
+            "possessive:Its",
+            "characteristic:Power"
+        ],
+        [
+            ("Deal", "lexeme:VerbLexeme/Deal/bare"),
+            (
+                " damage",
+                "form:deal_damage_equal_to/deal_damage_equal_to/1"
+            ),
+            (" equal", "form:scalar_equality/scalar_equality/0"),
+            (" to", "form:scalar_equality/scalar_equality/1"),
+            (" its", "vocab:PossessiveDeterminerPronoun/Its"),
+            (" power", "vocab:ScalarCharacteristic/Power"),
+            (" to", "form:deal_damage_equal_to/deal_damage_equal_to/3"),
+            (" any", "form:any_target_reference/any_target_reference/0"),
+            (
+                " target",
+                "form:any_target_reference/any_target_reference/1"
+            ),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Gain that much life.",
+        ["product:GainLife", "verb:Gain"],
+        [
+            ("Gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" that", "form:that_much/that_much/0"),
+            (" much", "form:that_much/that_much/1"),
+            (" life", "form:gain_life/gain_life/2"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Gain life equal to its power.",
+        [
+            "product:GainLifeEqualTo",
+            "verb:Gain",
+            "possessive:Its",
+            "characteristic:Power"
+        ],
+        [
+            ("Gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" life", "form:gain_life_equal_to/gain_life_equal_to/1"),
+            (" equal", "form:scalar_equality/scalar_equality/0"),
+            (" to", "form:scalar_equality/scalar_equality/1"),
+            (" its", "vocab:PossessiveDeterminerPronoun/Its"),
+            (" power", "vocab:ScalarCharacteristic/Power"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Lose 2 life.",
+        ["product:LoseLife", "verb:Lose", "scalar:2"],
+        [
+            ("Lose", "lexeme:VerbLexeme/Lose/bare"),
+            (" 2", "codec:ScalarNumber"),
+            (" life", "form:lose_life/lose_life/2"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Lose life equal to its toughness.",
+        [
+            "product:LoseLifeEqualTo",
+            "verb:Lose",
+            "possessive:Its",
+            "characteristic:Toughness"
+        ],
+        [
+            ("Lose", "lexeme:VerbLexeme/Lose/bare"),
+            (" life", "form:lose_life_equal_to/lose_life_equal_to/1"),
+            (" equal", "form:scalar_equality/scalar_equality/0"),
+            (" to", "form:scalar_equality/scalar_equality/1"),
+            (" its", "vocab:PossessiveDeterminerPronoun/Its"),
+            (" toughness", "vocab:ScalarCharacteristic/Toughness"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Pay X life.",
+        ["product:PayLife", "verb:Pay", "variable:X"],
+        [
+            ("Pay", "lexeme:VerbLexeme/Pay/bare"),
+            (" X", "vocab:Variable/X"),
+            (" life", "form:pay_life/pay_life/2"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Pay {2}{B}.",
+        ["product:PayMana", "verb:Pay", "scalar:2", "symbol:Black"],
+        [
+            ("Pay", "lexeme:VerbLexeme/Pay/bare"),
+            (" {", "form:symbol_run/symbol_run/0/prefix"),
+            ("2", "codec:ScalarNumber"),
+            ("}{", "structural:SymbolRun/symbols/separator/uniform/0"),
+            ("B", "vocab:FixedCostSymbol/Black"),
+            ("}", "form:symbol_run/symbol_run/0/suffix"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Add {B}.",
+        ["product:AddMana", "verb:Add", "symbol:Black"],
+        [
+            ("Add", "lexeme:VerbLexeme/Add/bare"),
+            (" {", "form:symbol_run/symbol_run/0/prefix"),
+            ("B", "vocab:FixedCostSymbol/Black"),
+            ("}", "form:symbol_run/symbol_run/0/suffix"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Draw a card.",
+        [
+            "product:DrawCards",
+            "verb:Draw",
+            "product:SingularCardQuantity"
+        ],
+        [
+            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            (" a", "form:singular_card_quantity/singular_card_quantity/0"),
+            (
+                " card",
+                "form:singular_card_quantity/singular_card_quantity/1"
+            ),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Draw two cards.",
+        [
+            "product:DrawCards",
+            "verb:Draw",
+            "product:FixedCardQuantity",
+            "cardinal:2"
+        ],
+        [
+            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            (" two", "codec:CardinalNumber"),
+            (" cards", "form:fixed_card_quantity/fixed_card_quantity/1"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Draw X cards.",
+        [
+            "product:DrawCards",
+            "verb:Draw",
+            "product:VariableCardQuantity",
+            "variable:X"
+        ],
+        [
+            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            (" X", "vocab:Variable/X"),
+            (
+                " cards",
+                "form:variable_card_quantity/variable_card_quantity/1"
+            ),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Draw that many cards.",
+        [
+            "product:DrawCards",
+            "verb:Draw",
+            "product:AnaphoricCardQuantity"
+        ],
+        [
+            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            (" that", "form:that_many/that_many/0"),
+            (" many", "form:that_many/that_many/1"),
+            (
+                " cards",
+                "form:anaphoric_card_quantity/anaphoric_card_quantity/1"
+            ),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Draw cards equal to its toughness.",
+        [
+            "product:DrawCardsEqualTo",
+            "verb:Draw",
+            "possessive:Its",
+            "characteristic:Toughness"
+        ],
+        [
+            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            (" cards", "form:draw_cards_equal_to/draw_cards_equal_to/1"),
+            (" equal", "form:scalar_equality/scalar_equality/0"),
+            (" to", "form:scalar_equality/scalar_equality/1"),
+            (" its", "vocab:PossessiveDeterminerPronoun/Its"),
+            (" toughness", "vocab:ScalarCharacteristic/Toughness"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Roll a six-sided die.",
+        [
+            "product:RollDice",
+            "verb:Roll",
+            "product:SingularDieObject",
+            "die:SixSided"
+        ],
+        [
+            ("Roll", "lexeme:VerbLexeme/Roll/bare"),
+            (" a", "form:singular_die_object/singular_die_object/0"),
+            (" six-sided", "vocab:DieShape/SixSided"),
+            (" die", "form:singular_die_object/singular_die_object/2"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Roll two six-sided dice.",
+        [
+            "product:RollDice",
+            "verb:Roll",
+            "product:FixedDiceObject",
+            "cardinal:2",
+            "die:SixSided"
+        ],
+        [
+            ("Roll", "lexeme:VerbLexeme/Roll/bare"),
+            (" two", "codec:CardinalNumber"),
+            (" six-sided", "vocab:DieShape/SixSided"),
+            (" dice", "form:fixed_dice_object/fixed_dice_object/2"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Roll a d20.",
+        ["product:RollDice", "verb:Roll", "product:D20Object"],
+        [
+            ("Roll", "lexeme:VerbLexeme/Roll/bare"),
+            (" a", "form:d20_object/d20_object/0"),
+            (" d20", "form:d20_object/d20_object/1"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Put a +1/+1 counter on target creature.",
+        [
+            "product:PutCounters",
+            "verb:Put",
+            "product:SingularCounterQuantity",
+            "product:PositivePowerToughnessCounter",
+            "scalar:1",
+            "scalar:1",
+            "declared:Creature",
+        ],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (
+                " a",
+                "form:singular_counter_quantity/singular_counter_quantity/0"
+            ),
+            (
+                " +",
+                "form:positive_counter_magnitude/positive_counter_magnitude/0/affix"
+            ),
+            ("1", "codec:ScalarNumber"),
+            (
+                "/",
+                "structural:PositivePowerToughnessCounter/magnitudes/separator/uniform/0"
+            ),
+            (
+                "+",
+                "form:positive_counter_magnitude/positive_counter_magnitude/0/affix"
+            ),
+            ("1", "codec:ScalarNumber"),
+            (
+                " counter",
+                "form:singular_counter_quantity/singular_counter_quantity/2"
+            ),
+            (" on", "form:put_counters/put_counters/2"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Put a -1/-1 counter on target creature.",
+        [
+            "product:PutCounters",
+            "verb:Put",
+            "product:SingularCounterQuantity",
+            "product:NegativePowerToughnessCounter",
+            "scalar:1",
+            "scalar:1",
+            "declared:Creature",
+        ],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (
+                " a",
+                "form:singular_counter_quantity/singular_counter_quantity/0"
+            ),
+            (
+                " -",
+                "form:negative_counter_magnitude/negative_counter_magnitude/0/affix"
+            ),
+            ("1", "codec:ScalarNumber"),
+            (
+                "/",
+                "structural:NegativePowerToughnessCounter/magnitudes/separator/uniform/0"
+            ),
+            (
+                "-",
+                "form:negative_counter_magnitude/negative_counter_magnitude/0/affix"
+            ),
+            ("1", "codec:ScalarNumber"),
+            (
+                " counter",
+                "form:singular_counter_quantity/singular_counter_quantity/2"
+            ),
+            (" on", "form:put_counters/put_counters/2"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Put a time counter on target creature.",
+        [
+            "product:PutCounters",
+            "verb:Put",
+            "product:SingularCounterQuantity",
+            "counter:Time",
+            "declared:Creature"
+        ],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (
+                " a",
+                "form:singular_counter_quantity/singular_counter_quantity/0"
+            ),
+            (" time", "vocab:CounterName/Time"),
+            (
+                " counter",
+                "form:singular_counter_quantity/singular_counter_quantity/2"
+            ),
+            (" on", "form:put_counters/put_counters/2"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Put two stun counters on it.",
+        [
+            "product:PutCounters",
+            "verb:Put",
+            "product:FixedCounterQuantity",
+            "cardinal:2",
+            "counter:Stun"
+        ],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (" two", "codec:CardinalNumber"),
+            (" stun", "vocab:CounterName/Stun"),
+            (
+                " counters",
+                "form:fixed_counter_quantity/fixed_counter_quantity/2"
+            ),
+            (" on", "form:put_counters/put_counters/2"),
+            (" it", "vocab:ObjectPronoun/It"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Put X time counters on target creature.",
+        [
+            "product:PutCounters",
+            "verb:Put",
+            "product:VariableCounterQuantity",
+            "variable:X",
+            "counter:Time",
+            "declared:Creature"
+        ],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (" X", "vocab:Variable/X"),
+            (" time", "vocab:CounterName/Time"),
+            (
+                " counters",
+                "form:variable_counter_quantity/variable_counter_quantity/2"
+            ),
+            (" on", "form:put_counters/put_counters/2"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Put that many charge counters on target creature.",
+        [
+            "product:PutCounters",
+            "verb:Put",
+            "product:AnaphoricCounterQuantity",
+            "counter:Charge",
+            "declared:Creature"
+        ],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (" that", "form:that_many/that_many/0"),
+            (" many", "form:that_many/that_many/1"),
+            (" charge", "vocab:CounterName/Charge"),
+            (
+                " counters",
+                "form:anaphoric_counter_quantity/anaphoric_counter_quantity/2"
+            ),
+            (" on", "form:put_counters/put_counters/2"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Remove X time counters from this card.",
+        [
+            "product:RemoveCounters",
+            "verb:Remove",
+            "product:VariableCounterQuantity",
+            "variable:X",
+            "counter:Time",
+            "noun:Card"
+        ],
+        [
+            ("Remove", "lexeme:VerbLexeme/Remove/bare"),
+            (" X", "vocab:Variable/X"),
+            (" time", "vocab:CounterName/Time"),
+            (
+                " counters",
+                "form:variable_counter_quantity/variable_counter_quantity/2"
+            ),
+            (" from", "form:remove_counters/remove_counters/2"),
+            (" this", "form:this_reference/this_reference/0"),
+            (" card", "lexeme:CommonNoun/Card/singular"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Each player sacrifices a creature of their choice.",
+        [
+            "noun:Player",
+            "declared:Sacrifice",
+            "product:ChoiceObject",
+            "declared:Creature"
+        ],
+        [
+            ("Each", "form:each_reference/each_reference/0"),
+            (" player", "lexeme:CommonNoun/Player/singular"),
+            (
+                " sacrifices",
+                "lexeme:keyword_action/Sacrifice/third_person_singular"
+            ),
+            (" a", "form:indefinite_reference/a/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" of", "form:choice_object/choice_object/1"),
+            (" their", "form:choice_object/choice_object/2"),
+            (" choice", "form:choice_object/choice_object/3"),
+            (".", TERMINATOR),
+        ]
+    );
+    assert_family!(
+        "Target player discards two cards at random.",
+        [
+            "noun:Player",
+            "declared:Discard",
+            "product:RandomObject",
+            "cardinal:2",
+            "noun:Card"
+        ],
+        [
+            (
+                "Target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" player", "lexeme:CommonNoun/Player/singular"),
+            (
+                " discards",
+                "lexeme:keyword_action/Discard/third_person_singular"
+            ),
+            (" two", "codec:CardinalNumber"),
+            (" cards", "lexeme:CommonNoun/Card/plural"),
+            (" at", "form:random_object/random_object/1"),
+            (" random", "form:random_object/random_object/2"),
+            (".", TERMINATOR),
+        ]
     );
 }
 

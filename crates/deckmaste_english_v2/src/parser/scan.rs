@@ -1101,7 +1101,7 @@ fn project_failure(
 fn has_lexical_boundary(text: &str, end: usize) -> bool {
     matches!(
         text.as_bytes().get(end),
-        None | Some(b' ' | b',' | b'.' | b':' | b'/' | b']' | b'}')
+        None | Some(b' ' | b',' | b'.' | b':' | b']' | b'}')
     )
 }
 
@@ -1879,12 +1879,12 @@ mod tests {
 
     #[test]
     fn lexical_boundary_is_exactly_eoi_authored_spacing_transition_or_closing_circumfix() {
-        for text in [
-            "word", "word ", "word,", "word.", "word:", "word/", "word]", "word}",
-        ] {
+        for text in ["word", "word ", "word,", "word.", "word:", "word]", "word}"] {
             assert!(super::has_lexical_boundary(text, "word".len()), "{text:?}");
         }
-        for text in ["word?", "word‽", "word_", "word!", "wordx", "wordé"] {
+        for text in [
+            "word/", "word?", "word‽", "word_", "word!", "wordx", "wordé",
+        ] {
             assert!(!super::has_lexical_boundary(text, "word".len()), "{text:?}");
         }
         assert!(!super::has_lexical_boundary("é", 1));

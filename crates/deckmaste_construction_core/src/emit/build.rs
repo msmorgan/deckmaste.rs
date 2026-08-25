@@ -889,7 +889,8 @@ fn lower_sequence_rhs(
     let mut tail_agreement = None;
     for (index, symbol) in symbols.iter().enumerate() {
         match symbol {
-            super::rules::RuleSymbolPlan::Value(value) => {
+            super::rules::RuleSymbolPlan::Value(value)
+            | super::rules::RuleSymbolPlan::AdjacentValue(value) => {
                 let (value, agreement) = if feature == Some(Feature::Agreement) {
                     let (value, agreement) =
                         lower_value_with_agreement(plan, value, &format!("item_{index}"), binders)?;
