@@ -645,6 +645,58 @@ public export
 youRolledADieThisTurn : Condition []
 youRolledADieThisTurn = Happened DiceRoll You Lookback.ThisTurn Nothing
 
+||| "Ignore the lowest roll." with no roll before it.
+||| [CR#706.6] makes an ignored roll one that "is considered to have never
+||| happened", which presupposes a roll that did; with nothing rolled
+||| there is no roll to set aside.
+public export
+badIgnoreWithoutRoll : Unspellable (Effect []) (\ok =>
+  IgnoreRolls (IgnoreExtreme LowestRoll) {ok})
+badIgnoreWithoutRoll Refl impossible
+
+||| "Store those results on this creature." with no roll before it.
+||| [CR#706.8a] stores "both the kind of die rolled and the result of that
+||| roll", so the storing names a roll the text has already made.
+public export
+badStoreResultsWithoutRoll : Unspellable (Effect []) (\ok =>
+  StoreResults Macros.thisCreature {ok})
+badStoreResultsWithoutRoll Refl impossible
+
+||| "If you rolled doubles, sacrifice this creature." with no roll.
+||| [CR#706.5] defines the phrase over "each of those rolls", which is the
+||| roll the clause made; with none made the phrase compares nothing.
+public export
+badRolledDoublesWithoutRoll : Unspellable (Condition []) (\ok =>
+  RolledDoubles {ok})
+badRolledDoublesWithoutRoll Refl impossible
+
+||| The discourse after "Flip a coin."
+public export
+afterACoinFlip : Bindings
+afterACoinFlip = effIntro (the (Effect []) Macros.flipACoin)
+
+||| "an ability whose coin comes up tails"
+||| [CR#705.1] makes a coin flip a randomisation with two faces and
+||| [CR#705.2] gives the face to the coin some effect had flipped for a
+||| player or for an object; an ability is neither, so no coin is ever
+||| flipped for one.
+public export
+badCoinCameUpOnAbility :
+  Unspellable (Predicate ProofsG.afterACoinFlip Ability) (\ok =>
+    CoinCameUp Tails {rk = ok})
+badCoinCameUpOnAbility Oh impossible
+
+||| "Whenever you roll a 0, …"
+||| [CR#706.1a] numbers a die "from 1 to N", so a result test whose
+||| ceiling is zero covers no result the roll can produce -- the same
+||| ground on which a results-table row of zero is refused.
+public export
+badZeroRollTest : Unspellable (GameEvent []) (\ok =>
+  RollsDice You OneDie (Just (Range Nothing (Just 0)))
+            {rt = ResultIn {nz = ok} {wf = Oh} {lt = Oh}})
+badZeroRollTest MaxAtLeastOne impossible
+
+
 ||| "When a player doesn't pay this creature's flying, …"
 ||| [CR#118.1] makes a cost an action or payment necessary to take another
 ||| action; [CR#702.9a] states flying whole as an evasion ability and names

@@ -8148,7 +8148,7 @@ vexingPuzzleboxCounters =
 public export
 spaceFamilyGoblinsonRoll : Ability
 spaceFamilyGoblinsonRoll =
-  Macros.triggered Whenever (RollsDice You OneDie)
+  Macros.triggered Whenever Macros.youRollADie
                    (PutCounters (Lit 1) Macros.plusOnePlusOne
                                 Macros.thisCreature)
 
@@ -8171,6 +8171,140 @@ sparkFiendUpkeepRoll =
   Sequentially [Macros.rollDice 2 6,
                 Macros.ifThen (CompareAmt Macros.theTotal Eq (Lit 7))
                               (Macros.sacrifice You Macros.thisCreature)]
+
+
+||| Berserker's Frenzy's roll: "Roll two d20 and ignore the lower roll."
+||| The ignore instruction written as an instruction [CR#706.6], beside
+||| the replacement lines that write the same word under a "would".
+||| "The lower roll" is the two-die spelling of the lowest.
+public export
+berserkersFrenzyRoll : Effect []
+berserkersFrenzyRoll =
+  Sequentially [Macros.rollDice 2 20, IgnoreRolls (IgnoreExtreme LowestRoll)]
+
+||| Iron Mastiff's ignore, benched over a bare roll: "…and ignore all but
+||| the highest roll." The card rolls "a d20 for each player being
+||| attacked", a count over the players an attack names, which no player
+||| description carries.
+public export
+ironMastiffIgnore : Effect []
+ironMastiffIgnore =
+  Sequentially [Macros.rollADie 20, IgnoreRolls (IgnoreAllBut HighestRoll)]
+
+||| Xenosquirrels' modifier, benched over a roll of its own: "…increase
+||| or decrease the result by 1." [CR#706.2]'s modifier "from other
+||| sources". The card writes it under an "After you roll a die" header,
+||| and [CR#603.1] writes a triggered ability's word as
+||| "[When/Whenever/At]", which is the whole of `TriggerWord`.
+public export
+xenosquirrelsShift : Effect []
+xenosquirrelsShift =
+  Sequentially [Macros.rollADie 6, ShiftResult (Lit 1)]
+
+||| Atomwheel Acrobats, first line: "Whenever you roll a 1 or 2, put that
+||| many +1/+1 counters on this creature." The two-ended result test
+||| [CR#706.3a], and the body reading the result back as "that many".
+public export
+atomwheelAcrobatsRoll : Ability
+atomwheelAcrobatsRoll =
+  Macros.triggered Whenever (Macros.youRollResultIn (Range (Just 1) (Just 2)))
+                   (PutCounters ThatMuch Macros.plusOnePlusOne
+                                Macros.thisCreature)
+
+||| Monoxa, Midway Manager, first line: "Whenever you roll a 3 or higher,
+||| Monoxa gains first strike until end of turn. If the roll was 4 or
+||| higher, it gains menace until end of turn. If the roll was 5 or
+||| higher, it gains lifelink until end of turn." The one-ended test on
+||| the header, and "the roll" read back off it as the result [CR#706.2].
+public export
+monoxaRollTrigger : Ability
+monoxaRollTrigger =
+  Macros.triggered Whenever (Macros.youRollResultIn (Macros.orHigher 3))
+    (Sequentially
+      [ Macros.gains Macros.thisCreature (KeywordAbility FirstStrike Nothing)
+                     (Just Macros.untilEndOfTurn)
+      , Macros.ifThen (CompareAmt Macros.theResult AtLeast (Lit 4))
+                      (Macros.gains Macros.thisCreature
+                                    (KeywordAbility Menace Nothing)
+                                    (Just Macros.untilEndOfTurn))
+      , Macros.ifThen (CompareAmt Macros.theResult AtLeast (Lit 5))
+                      (Macros.gains Macros.thisCreature
+                                    (KeywordAbility Lifelink Nothing)
+                                    (Just Macros.untilEndOfTurn)) ])
+
+||| Fractured Powerstone, second line: "{T}: Roll the planar die.
+||| Activate only as a sorcery." The planar die's instruction row
+||| [CR#901.3a]; it announces no number, since [CR#706.7] has every
+||| numerical read ignore the planar roll.
+public export
+fracturedPowerstonePlanarRoll : Ability
+fracturedPowerstonePlanarRoll =
+  Macros.activatedOnlyDuring TapSymbol (RollPlanarDie You) AsSorcery
+
+||| Farideh, Devil's Chosen, her roll trigger's second sentence: "If any
+||| of those results was 10 or higher, draw a card." The existential over
+||| one clause's rolls [CR#706.2]. The line's first sentence grants two
+||| keywords at once, which is a coordination of grants and not this
+||| ticket's.
+public export
+faridehResultRead : Ability
+faridehResultRead =
+  Macros.triggered Whenever Macros.youRollDice
+                   (Macros.ifThen (AnyResultIs AtLeast (Lit 10))
+                                  (Draw You (Lit 1)))
+
+||| Celebr-8000's doubles clause: "roll two six-sided dice. … If you
+||| rolled doubles, it also gains double strike until end of turn."
+||| [CR#706.5] defines the phrase for this card by name.
+public export
+celebr8000Doubles : Effect []
+celebr8000Doubles =
+  Sequentially [ Macros.rollDice 2 6
+               , Macros.ifThen RolledDoubles
+                   (Macros.gains Macros.thisCreature
+                                 (KeywordAbility DoubleStrike Nothing)
+                                 (Just Macros.untilEndOfTurn)) ]
+
+||| Goblin Assassin's second sentence: "each player flips a coin. Each
+||| player whose coin comes up tails sacrifices a creature." The uncalled
+||| face read [CR#705.2] narrowing a described set, where `FlipFace`
+||| reads the one coin a clause flipped. The card's "of their choice"
+||| is not written here: the sentence mentions players twice -- once
+||| flipping, once narrowed by the face -- and `TheirChoice` presupposes
+||| a single chooser mention, the pre-existing chooser-mention gap.
+public export
+goblinAssassinCoinTails : Effect []
+goblinAssassinCoinTails =
+  Sequentially [ FlipCoins (Each AnyPlayer) (Lit 1)
+               , Macros.sacrifice (Each (And [AnyPlayer, CoinCameUp Tails]))
+                                  (Macros.a Macros.creature) ]
+
+||| Centaur of Attention
+||| "When this creature enters, roll five six-sided dice and store those
+|||  results on it.
+|||  At the beginning of combat on your turn, you may reroll any number of
+|||  this creature's stored results.
+|||  This creature gets +X/+X, where X is the greatest number of stored
+|||  results on it of the same value."
+||| The card [CR#706.8] is written for, whole.
+public export
+centaurOfAttention : Card
+centaurOfAttention =
+  Macros.card "Centaur of Attention"
+       (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Centaur", creatureType "Advisor"] [Creature])
+       [ Macros.triggered When (Enters Macros.thisCreature)
+                          (Sequentially [ Macros.rollDice 5 6
+                                        , StoreResults Macros.thisCreature ])
+       , Macros.triggered At (BeginningOf Combat (ByWord Yours))
+                          (Macros.may You
+                             (RerollStored You Macros.anyNumber
+                                           Macros.thisCreature))
+       , Static (AndAlso [ Gets Macros.thisCreature
+                                (PtUp (LetterVal X)) (PtUp (LetterVal X))
+                         , Define X
+                             (GreatestStoredMatch Macros.thisCreature) ]) ]
+       (Just (0, 0))
 
 
 ||| Wax // Wane, a split card [CR#709.1]: two faces on one card, each with its
