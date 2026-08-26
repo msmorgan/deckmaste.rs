@@ -8236,6 +8236,7 @@ mod tests {
         let task10b = parse_plan09_expansion_inventory(PLAN09_TASK10B_EXPANSION);
         let task10c = parse_plan09_expansion_inventory(PLAN09_TASK10C_EXPANSION);
         let task10d = parse_plan09_expansion_inventory(PLAN09_TASK10D_EXPANSION);
+        let task10c_by_item = task10c.iter().cloned().collect::<BTreeMap<_, _>>();
         let live = expansion_inventory(&expansion);
         let live_digests = live
             .iter()
@@ -8249,7 +8250,7 @@ mod tests {
         assert_eq!(task10a.len(), 1_792);
         assert_eq!(task10b.len(), 1_859);
         assert_eq!(task10c.len(), 1_954);
-        assert_eq!(task10d.len(), 1_959);
+        assert_eq!(task10d.len(), 1_962);
         assert_eq!(live_digests, task10d);
         let live_origins_by_item = live.iter().cloned().collect::<BTreeMap<_, _>>();
         let prior_by_item = prior.iter().cloned().collect::<BTreeMap<_, _>>();
@@ -8422,9 +8423,54 @@ mod tests {
             "abstract sum ClauseAttachment",
         ]);
         let task10d_origin_names = BTreeSet::from([
+            "construction ThenPredicateSequenceValue",
             "construction ThenSentenceSequence",
             "construction then_sentences",
+            "construction then_predicate_sequence",
         ]);
+        let task10d_new_item_origins = task10d_origin_names.clone();
+        let task10d_replaced_item_names = BTreeSet::from([
+            "function render_then_predicate_sequence_members_sequence",
+            "function walk_then_predicate_sequence_members_sequence",
+            "impl ThenPredicateSequence",
+        ]);
+        let mut task10d_reauthored_item_names = task10d
+            .iter()
+            .filter_map(|(item, current_digest)| {
+                task10c_by_item
+                    .get(item)
+                    .is_some_and(|prior_digest| prior_digest != current_digest)
+                    .then_some(item.as_str())
+            })
+            .collect::<BTreeSet<_>>();
+        task10d_reauthored_item_names.extend([
+            "function render_then_predicate_sequence",
+            "function walk_then_predicate_sequence",
+            "type ThenPredicateSequence",
+        ]);
+        assert_eq!(task10d_reauthored_item_names.len(), 89);
+        assert_eq!(
+            sha256_hex(
+                task10d_reauthored_item_names
+                    .iter()
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .join("\n")
+                    .as_bytes()
+            ),
+            "2bede169943afc7c3e782a791b1b65adced3e79804610d8e5a28ab11357af3df",
+        );
+        for reauthored in [
+            "function render_then_predicate_sequence",
+            "function walk_then_predicate_sequence",
+            "type ThenPredicateSequence",
+        ] {
+            assert!(task10d_reauthored_item_names.contains(reauthored));
+        }
+        let task10d_superseded_or_reauthored = |item: &str| {
+            task10d_replaced_item_names.contains(item)
+                || task10d_reauthored_item_names.contains(item)
+        };
         for task7_origin in &task7_origin_names {
             assert!(
                 live.iter()
@@ -8443,6 +8489,9 @@ mod tests {
             task7.iter().map(|(item, _)| item).collect::<Vec<_>>()
         );
         for (item, origins_digest) in &task7 {
+            if task10d_superseded_or_reauthored(item) {
+                continue;
+            }
             let live_origins = live_origins_by_item
                 .get(item)
                 .unwrap_or_else(|| panic!("Task 8 retains Task 7 generated item {item:?}"));
@@ -8471,6 +8520,9 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(task8_new_rows.len(), 98);
         for (item, origins_digest) in task8_new_rows {
+            if task10d_superseded_or_reauthored(item) {
+                continue;
+            }
             let live_origins = live_origins_by_item
                 .get(item)
                 .unwrap_or_else(|| panic!("Task 9 retains Task 8 item {item:?}"));
@@ -8506,6 +8558,9 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(task9_new_rows.len(), 74);
         for (item, origins_digest) in &task9 {
+            if task10d_superseded_or_reauthored(item) {
+                continue;
+            }
             let live_origins = live_origins_by_item
                 .get(item)
                 .unwrap_or_else(|| panic!("Task 10 retains Task 9 item {item:?}"));
@@ -8556,6 +8611,9 @@ mod tests {
             task10.len() + negative_magnitude_new_rows.len()
         );
         for (item, origins_digest) in &task10 {
+            if task10d_superseded_or_reauthored(item) {
+                continue;
+            }
             let live_origins = live_origins_by_item
                 .get(item)
                 .unwrap_or_else(|| panic!("Task 10A retains Task 10 item {item:?}"));
@@ -8598,6 +8656,9 @@ mod tests {
         assert_eq!(task10b_new_rows.len(), 67);
         assert_eq!(task10b.len(), task10a.len() + task10b_new_rows.len());
         for (item, origins_digest) in &task10a {
+            if task10d_superseded_or_reauthored(item) {
+                continue;
+            }
             let live_origins = live_origins_by_item
                 .get(item)
                 .unwrap_or_else(|| panic!("Task 10B retains Task 10A item {item:?}"));
@@ -8646,6 +8707,9 @@ mod tests {
         assert_eq!(task10c_new_rows.len(), 95);
         assert_eq!(task10c.len(), task10b.len() + task10c_new_rows.len());
         for (item, origins_digest) in &task10b {
+            if task10d_superseded_or_reauthored(item) {
+                continue;
+            }
             let live_origins = live_origins_by_item
                 .get(item)
                 .unwrap_or_else(|| panic!("Task 10C retains Task 10B item {item:?}"));
@@ -8684,14 +8748,30 @@ mod tests {
                 "Task 10C origin is live: {origin:?}",
             );
         }
-        let task10c_by_item = task10c.iter().cloned().collect::<BTreeMap<_, _>>();
         let task10d_new_rows = task10d
             .iter()
             .filter(|(item, _)| !task10c_by_item.contains_key(item))
             .collect::<Vec<_>>();
-        assert_eq!(task10d_new_rows.len(), 5);
-        assert_eq!(task10d.len(), task10c.len() + task10d_new_rows.len());
+        assert_eq!(task10d_new_rows.len(), 11);
+        assert_eq!(
+            task10d.len(),
+            task10c.len() + task10d_new_rows.len() - task10d_replaced_item_names.len()
+        );
         for (item, origins_digest) in &task10c {
+            if task10d_replaced_item_names.contains(item.as_str()) {
+                assert!(
+                    !live_origins_by_item.contains_key(item),
+                    "Task 10D removes the superseded element-shaped item {item:?}",
+                );
+                continue;
+            }
+            if task10d_reauthored_item_names.contains(item.as_str()) {
+                assert!(
+                    live_origins_by_item.contains_key(item),
+                    "Task 10D retains the reauthored public item {item:?}",
+                );
+                continue;
+            }
             let live_origins = live_origins_by_item
                 .get(item)
                 .unwrap_or_else(|| panic!("Task 10D retains Task 10C item {item:?}"));
@@ -8711,7 +8791,7 @@ mod tests {
                 .get(item)
                 .unwrap_or_else(|| panic!("Task 10D new item is live: {item:?}"));
             assert!(
-                origins.len() == 1 && task10d_origin_names.contains(origins[0].as_str()),
+                origins.len() == 1 && task10d_new_item_origins.contains(origins[0].as_str()),
                 "Task 10D new item has exactly one authenticated construction origin: {item:?} {origins:?}",
             );
         }
@@ -8722,6 +8802,9 @@ mod tests {
             );
         }
         for (item, origins_digest) in &prior {
+            if task10d_superseded_or_reauthored(item) {
+                continue;
+            }
             let live_origins = live_origins_by_item
                 .get(item)
                 .unwrap_or_else(|| panic!("Task 7 retains prior generated item {item:?}"));
@@ -8751,18 +8834,28 @@ mod tests {
             .copied()
             .filter(|heading| EXPECTED_ITEM_KEYS.contains(heading))
             .collect::<Vec<_>>();
+        let ordered_retained_headings = retained_headings
+            .iter()
+            .copied()
+            .filter(|heading| !task10d_superseded_or_reauthored(heading))
+            .collect::<Vec<_>>();
+        let expected_ordered_headings = EXPECTED_ITEM_KEYS
+            .iter()
+            .copied()
+            .filter(|heading| !task10d_superseded_or_reauthored(heading))
+            .collect::<Vec<_>>();
         assert!(
-            retained_headings == EXPECTED_ITEM_KEYS,
+            ordered_retained_headings == expected_ordered_headings,
             "retained pre-Task-5 item inventory first differs at {:?}",
-            retained_headings
+            ordered_retained_headings
                 .iter()
-                .zip(EXPECTED_ITEM_KEYS)
+                .zip(expected_ordered_headings)
                 .enumerate()
-                .find(|(_, (actual, expected))| actual != expected)
+                .find(|(_, (actual, expected))| *actual != expected)
         );
         assert_eq!(
             headings.len() - retained_headings.len(),
-            task10d.len() - EXPECTED_ITEM_KEYS.len()
+            task10d.len() - EXPECTED_ITEM_KEYS.len() + task10d_replaced_item_names.len()
         );
         for expected_key in headings {
             let header = format!("// === {expected_key} ===");
@@ -8778,6 +8871,9 @@ mod tests {
                 .lines()
                 .filter_map(|line| line.strip_prefix("// origin: "))
                 .collect::<Vec<_>>();
+            if task10d_reauthored_item_names.contains(expected_key) {
+                continue;
+            }
             if let Some(prior_origins) = EXPECTED_ITEM_KEYS
                 .contains(&expected_key)
                 .then(|| expected_production_origins(expected_key))

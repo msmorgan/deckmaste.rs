@@ -1407,9 +1407,15 @@ fn seal_fixed_surface(
     symbols: &Symbols,
     errors: &mut Option<syn::Error>,
 ) -> FixedSurfacePlan {
-    if (source.sentence_initial || source.continuation) && role == "terminator" {
-        let transition = if source.sentence_initial { "sentence_initial" } else { "continuation" };
-        let allowed_roles = if source.continuation {
+    use crate::model::SurfaceCaseTransition;
+
+    if source.transition != SurfaceCaseTransition::Preserve && role == "terminator" {
+        let transition = match source.transition {
+            SurfaceCaseTransition::Preserve => unreachable!(),
+            SurfaceCaseTransition::SentenceInitial => "sentence_initial",
+            SurfaceCaseTransition::Continuation => "continuation",
+        };
+        let allowed_roles = if source.transition == SurfaceCaseTransition::Continuation {
             "sequence separators"
         } else {
             "form surfaces and sequence separators"
@@ -1475,30 +1481,7 @@ fn seal_fixed_surface(
             }
         })
         .collect();
-    let surface = FixedSurfacePlan::new(atoms, source.sentence_initial, source.continuation);
-    if source.continuation
-        && !surface.is_empty()
-        && !matches!(
-            source.atoms.as_slice(),
-            [crate::model::FixedSurfaceAtomSource::Literal(value)] if value.value() == " Then "
-        )
-    {
-        let span =
-            source
-                .atoms
-                .first()
-                .map_or_else(proc_macro2::Span::call_site, |atom| match atom {
-                    crate::model::FixedSurfaceAtomSource::Literal(value) => value.span(),
-                    crate::model::FixedSurfaceAtomSource::Lex(path) => path.span(),
-                });
-        combine(
-            errors,
-            syn::Error::new(
-                span,
-                format!("{label}: continuation target must be exactly ` Then `"),
-            ),
-        );
-    }
+    let surface = FixedSurfacePlan::new(atoms, source.transition);
     if surface.is_empty() {
         let span =
             source
@@ -1512,9 +1495,9 @@ fn seal_fixed_surface(
             errors,
             syn::Error::new(
                 span,
-                if source.sentence_initial {
+                if source.transition == SurfaceCaseTransition::SentenceInitial {
                     format!("{label}: sentence_initial target must realize at least one byte")
-                } else if source.continuation {
+                } else if source.transition == SurfaceCaseTransition::Continuation {
                     format!("{label}: continuation target must realize at least one byte")
                 } else {
                     format!("{label}: empty {role} surface")
@@ -9985,19 +9968,22 @@ pub(crate) mod tests {
             ":: core :: compile_error ! { \"Items.values: continuation target must realize at least one byte\" }",
         );
 
-        let wrong_continuation = error(quote! {
+        let neutral_continuation = crate::validate_declarations(
+            crate::parse_declarations(quote! {
             construction item: Item {
                 element ItemValue {}
                 form item = "item";
             }
             abstract product Items {
-                values: seq Item separated by continuation(" then "),
+                values: seq Item separated by continuation(" ↦ "),
             }
             root Item { punctuation = "."; eoi = true; standalone_render = true; }
-        });
-        assert_eq!(
-            wrong_continuation,
-            ":: core :: compile_error ! { \"Items.values: continuation target must be exactly ` Then `\" }",
+            })
+            .expect("neutral continuation fixture parses"),
+        );
+        assert!(
+            neutral_continuation.is_ok(),
+            "continuation is a generic structural case transition: {neutral_continuation:?}",
         );
     }
 

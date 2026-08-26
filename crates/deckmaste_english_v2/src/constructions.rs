@@ -583,6 +583,7 @@ constructions! {
     abstract sum Predicate {
         Atomic: VerbPhrase,
         Coordination: PredicateCoordination,
+        ThenSequence: ThenPredicateSequence,
         BareCopular: BareCopularPredicate,
         ChangeState: ChangeStatePredicate,
         BarePassive: BarePassivePredicate,
@@ -668,7 +669,6 @@ constructions! {
         PreposedUntil,
         PreposedUntilPredicate,
         ThenSequence,
-        ThenPredicateSequence,
         ReflexiveSubordinate,
         ReflexivePredicateSubordinate,
         AdditionalCost,
@@ -978,9 +978,9 @@ constructions! {
         require len(members) >= 2;
         form then_sequence = members;
     }
-    construction then_predicate_sequence: ClauseAttachment {
-        element ThenPredicateSequence {
-            members: seq Predicate separated by position {
+    construction then_predicate_sequence: ThenPredicateSequence {
+        element ThenPredicateSequenceValue {
+            members: seq CoordinatedPredicate separated by position {
                 pair = ", then ";
                 first = ", ";
                 middle = ", ";
@@ -989,6 +989,7 @@ constructions! {
         }
         require len(members) >= 2;
         derive members.agreement = Values::Bare;
+        derive agreement = members.agreement;
         form then_predicate_sequence = members;
     }
     construction reflexive_subordinate: ClauseAttachment {

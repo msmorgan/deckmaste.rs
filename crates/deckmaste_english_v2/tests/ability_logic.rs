@@ -4549,18 +4549,18 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
     }
 
     let ordered = assert_one_logic_candidate(&parser, &context, "Gain 1 life, then connive.");
-    let [Sentence::Attached(Attached { attachment })] = plain_sentences(&ordered).sentences()
-    else {
-        panic!("predicate ordering stores its members in the attachment stage")
+    let [Sentence::Imperative(imperative)] = plain_sentences(&ordered).sentences() else {
+        panic!("predicate ordering inhabits the shared predicate stage")
     };
-    let ClauseAttachment::ThenPredicateSequence(sequence) = attachment.as_ref() else {
-        panic!("predicate ordering retains its attachment")
+    let Predicate::ThenSequence(sequence) = imperative.predicate() else {
+        panic!("predicate ordering retains its dedicated predicate alternative")
     };
+    let ThenPredicateSequence::ThenPredicateSequence(sequence) = sequence.as_ref();
     assert_eq!(
         sequence.members(),
         [
-            Predicate::Atomic(Box::new(gain_life_predicate(1))),
-            Predicate::Atomic(Box::new(connive())),
+            CoordinatedPredicate::Atomic(Box::new(gain_life_predicate(1))),
+            CoordinatedPredicate::Atomic(Box::new(connive())),
         ],
     );
 

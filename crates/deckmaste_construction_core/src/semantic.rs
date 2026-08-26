@@ -20,6 +20,7 @@ use crate::model::Declaration;
 use crate::model::Declarations;
 use crate::model::Form;
 use crate::model::FormAtom;
+use crate::model::SurfaceCaseTransition;
 use crate::model::VerbOperand;
 use crate::plan::DeclarationKey;
 use crate::plan::DeclarationKind;
@@ -160,8 +161,7 @@ pub(crate) struct PositionalSeparatorPlan {
 #[derive(Debug, Clone)]
 pub(crate) struct FixedSurfacePlan {
     atoms: Vec<FixedSurfaceAtomPlan>,
-    sentence_initial: bool,
-    continuation: bool,
+    transition: SurfaceCaseTransition,
 }
 
 #[derive(Debug, Clone)]
@@ -434,28 +434,16 @@ impl PositionalSeparatorPlan {
     reason = "Tasks 3 through 5 consume fixed-surface accessors"
 )]
 impl FixedSurfacePlan {
-    pub(crate) fn new(
-        atoms: Vec<FixedSurfaceAtomPlan>,
-        sentence_initial: bool,
-        continuation: bool,
-    ) -> Self {
-        Self {
-            atoms,
-            sentence_initial,
-            continuation,
-        }
+    pub(crate) fn new(atoms: Vec<FixedSurfaceAtomPlan>, transition: SurfaceCaseTransition) -> Self {
+        Self { atoms, transition }
     }
 
     pub(crate) fn atoms(&self) -> &[FixedSurfaceAtomPlan] {
         &self.atoms
     }
 
-    pub(crate) const fn sentence_initial(&self) -> bool {
-        self.sentence_initial
-    }
-
-    pub(crate) const fn continuation(&self) -> bool {
-        self.continuation
+    pub(crate) const fn transition(&self) -> SurfaceCaseTransition {
+        self.transition
     }
 
     pub(crate) fn is_empty(&self) -> bool {

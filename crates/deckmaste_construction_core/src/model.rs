@@ -116,8 +116,14 @@ pub struct PositionalSeparatorSource {
 #[derive(Debug)]
 pub struct FixedSurfaceSource {
     pub atoms: Vec<FixedSurfaceAtomSource>,
-    pub sentence_initial: bool,
-    pub continuation: bool,
+    pub transition: SurfaceCaseTransition,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SurfaceCaseTransition {
+    Preserve,
+    SentenceInitial,
+    Continuation,
 }
 
 #[derive(Debug)]

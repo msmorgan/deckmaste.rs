@@ -4997,7 +4997,7 @@ mod tests {
                 form item = "item";
             }
             abstract product Pair {
-                values: seq Item separated by continuation(" Then ") terminated by ".",
+                values: seq Item separated by continuation(" ↦ ") terminated by ".",
             }
             require len(Pair.values) >= 2;
             root Item { punctuation = "."; eoi = true; standalone_render = true; }
@@ -5007,7 +5007,7 @@ mod tests {
 
         for expected in [
             "transition : StructuralTransition :: Continuation",
-            "text : \" Then \"",
+            "text : \" ↦ \"",
             "writer . structural_surface (atom . text , atom . transition",
             "structural:Pair/values/separator/uniform/0",
             "structural:Pair/values/terminator/0",

@@ -65,7 +65,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Shuffle.ron",
-            r#"KeywordAction(name:"Shuffle",spelling:"shuffle",grammar:Verb(bare:"shuffle",valence:Transitive))"#,
+            r#"KeywordAction(name:"Shuffle",spelling:"shuffle",grammar:Verb(bare:"shuffle",valence:Custom(shapes:[[],[ObjectNounPhrase],[ObjectNounPhrase,Literal("into"),ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Attach.ron",
@@ -5625,6 +5625,7 @@ fn task10d_then_sequences_select_pair_serial_and_intersentence_forms() {
         "Gain 1 life, then connive.",
         "Gain 1 life, connive, then draw a card.",
         "Draw three cards. Then discard two cards.",
+        "When this creature enters, you may search your library for a Goblin card, reveal that card, put it into your hand, then shuffle.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
     }
@@ -5662,6 +5663,50 @@ fn task10d_then_sequences_have_exact_ast_build_visit_and_structural_ownership() 
     let parser = parser();
     let context = context();
 
+    let auxiliary_text = "When this creature enters, you may search your library for a Goblin card, reveal that card, put it into your hand, then shuffle.";
+    let auxiliary = assert_selected(&parser, &context, auxiliary_text);
+    let Ability::Triggered(triggered) = &auxiliary else {
+        panic!("Goblin Matron has a triggered ability")
+    };
+    let AbilityBody::Sentences(auxiliary_sentences) = triggered.body.as_ref() else {
+        panic!("Goblin Matron consequence is a sentence body")
+    };
+    let [Sentence::Declarative(declarative)] = auxiliary_sentences.sentences() else {
+        panic!("Goblin Matron consequence is one declarative sentence")
+    };
+    let Clause::Finite(finite) = declarative.clause.as_ref() else {
+        panic!("Goblin Matron consequence is finite")
+    };
+    let FiniteClause::AuxiliaryFiniteClause(auxiliary_clause) = finite.as_ref() else {
+        panic!("Goblin Matron retains may as an auxiliary")
+    };
+    let Predicate::ThenSequence(predicate_sequence) = auxiliary_clause.predicate() else {
+        panic!("the may complement is the shared-subject ordered predicate")
+    };
+    let ThenPredicateSequence::ThenPredicateSequence(predicate_sequence) =
+        predicate_sequence.as_ref();
+    assert_eq!(predicate_sequence.members().len(), 4);
+    assert_eq!(
+        exact_claim_trace(&parser, &context, auxiliary_text)
+            .into_iter()
+            .filter(|(_, owner)| owner.starts_with("structural:ThenPredicateSequence"))
+            .collect::<Vec<_>>(),
+        [
+            (
+                ", ".to_owned(),
+                "structural:ThenPredicateSequenceValue/members/separator/first/0".to_owned(),
+            ),
+            (
+                ", ".to_owned(),
+                "structural:ThenPredicateSequenceValue/members/separator/middle/0".to_owned(),
+            ),
+            (
+                ", then ".to_owned(),
+                "structural:ThenPredicateSequenceValue/members/separator/last/0".to_owned(),
+            ),
+        ],
+    );
+
     let finite_text = "You gain 1 life, you connive, then a player gains 2 life.";
     let finite = assert_selected_with_specificity(&parser, &context, finite_text, true);
     let Ability::Plain(Plain { body }) = finite else {
@@ -5686,13 +5731,14 @@ fn task10d_then_sequences_have_exact_ast_build_visit_and_structural_ownership() 
     let AbilityBody::Sentences(sentences) = body.as_ref() else {
         panic!("shared-subject then sequence remains one sentence")
     };
-    let [Sentence::Attached(attached)] = sentences.sentences() else {
-        panic!("shared-subject then sequence is one attached sentence")
+    let [Sentence::Imperative(imperative)] = sentences.sentences() else {
+        panic!("shared-subject then sequence is one imperative sentence")
     };
-    let ClauseAttachment::ThenPredicateSequence(predicate_sequence) = attached.attachment.as_ref()
-    else {
+    let Predicate::ThenSequence(predicate_sequence) = imperative.predicate() else {
         panic!("imperative members use the shared-subject predicate sequence")
     };
+    let ThenPredicateSequence::ThenPredicateSequence(predicate_sequence) =
+        predicate_sequence.as_ref();
     assert_eq!(predicate_sequence.members().len(), 3);
 
     let sentence_text = "Draw three cards. Then discard two cards.";

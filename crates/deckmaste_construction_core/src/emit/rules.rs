@@ -1565,16 +1565,22 @@ pub(super) fn structural_surface_transition(
     policy: StructuralSurfacePolicy,
     atom_index: usize,
 ) -> StructuralTransitionPlan {
+    use crate::model::SurfaceCaseTransition;
+
     let final_atom = atom_index.checked_add(1) == Some(surface.atoms().len());
-    let sentence_initial = surface.sentence_initial()
-        || (policy == StructuralSurfacePolicy::Terminator
-            && fixed_surface_terminates_sentence(surface));
-    if final_atom && surface.continuation() {
-        StructuralTransitionPlan::Continuation
-    } else if final_atom && sentence_initial {
-        StructuralTransitionPlan::SentenceInitial
-    } else {
-        StructuralTransitionPlan::Preserve
+    if !final_atom {
+        return StructuralTransitionPlan::Preserve;
+    }
+    match surface.transition() {
+        SurfaceCaseTransition::Continuation => StructuralTransitionPlan::Continuation,
+        SurfaceCaseTransition::SentenceInitial => StructuralTransitionPlan::SentenceInitial,
+        SurfaceCaseTransition::Preserve
+            if policy == StructuralSurfacePolicy::Terminator
+                && fixed_surface_terminates_sentence(surface) =>
+        {
+            StructuralTransitionPlan::SentenceInitial
+        }
+        SurfaceCaseTransition::Preserve => StructuralTransitionPlan::Preserve,
     }
 }
 

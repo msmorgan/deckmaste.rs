@@ -60,6 +60,7 @@ use crate::model::SignedDecimalSignRoleSource;
 use crate::model::SignedDecimalSignSpelling;
 use crate::model::SignedDecimalSignTypeSource;
 use crate::model::SignedDecimalSource;
+use crate::model::SurfaceCaseTransition;
 use crate::model::TerminalBinding;
 use crate::model::TerminalBindingKind;
 use crate::model::Traversal;
@@ -441,24 +442,23 @@ fn parse_separator_source(input: ParseStream<'_>) -> syn::Result<SeparatorSource
 fn parse_fixed_surface_source(input: ParseStream<'_>) -> syn::Result<FixedSurfaceSource> {
     let transition = if input.peek(keyword::sentence_initial) {
         input.parse::<keyword::sentence_initial>()?;
-        Some(("sentence_initial", true, false))
+        Some(("sentence_initial", SurfaceCaseTransition::SentenceInitial))
     } else if input.peek(keyword::continuation) {
         input.parse::<keyword::continuation>()?;
-        Some(("continuation", false, true))
+        Some(("continuation", SurfaceCaseTransition::Continuation))
     } else {
         None
     };
-    if let Some((name, sentence_initial, continuation)) = transition {
+    if let Some((name, transition)) = transition {
         let content;
         parenthesized!(content in input);
         let surface = parse_fixed_surface_source(&content)?;
-        if surface.sentence_initial || surface.continuation || !content.is_empty() {
+        if surface.transition != SurfaceCaseTransition::Preserve || !content.is_empty() {
             return Err(content.error(format!("{name} accepts exactly one unnested fixed surface")));
         }
         return Ok(FixedSurfaceSource {
             atoms: surface.atoms,
-            sentence_initial,
-            continuation,
+            transition,
         });
     }
     let mut atoms = Vec::new();
@@ -481,8 +481,7 @@ fn parse_fixed_surface_source(input: ParseStream<'_>) -> syn::Result<FixedSurfac
     }
     Ok(FixedSurfaceSource {
         atoms,
-        sentence_initial: false,
-        continuation: false,
+        transition: SurfaceCaseTransition::Preserve,
     })
 }
 
@@ -2903,7 +2902,10 @@ mod tests {
         let Some(crate::SeparatorSource::Uniform(separator)) = &surface.separator else {
             panic!("sequence has one uniform separator")
         };
-        assert!(separator.sentence_initial);
+        assert_eq!(
+            separator.transition,
+            crate::model::SurfaceCaseTransition::SentenceInitial,
+        );
 
         for (malformed, expected) in [
             (
@@ -2990,8 +2992,10 @@ mod tests {
         let Some(crate::SeparatorSource::Uniform(separator)) = &surface.separator else {
             panic!("the sequence has one uniform separator")
         };
-        assert!(separator.continuation);
-        assert!(!separator.sentence_initial);
+        assert_eq!(
+            separator.transition,
+            crate::model::SurfaceCaseTransition::Continuation,
+        );
 
         for malformed in [
             quote::quote! { continuation(sentence_initial(" Then ")) },
