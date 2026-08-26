@@ -125,7 +125,11 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Activate.ron",
-            r#"KeywordAction(name:"Activate",spelling:"activate",grammar:Verb(bare:"activate",valence:Transitive))"#,
+            r#"KeywordAction(name:"Activate",spelling:"activate",grammar:Verb(bare:"activate",participle:"activated",valence:Transitive))"#,
+        ),
+        (
+            "/synthetic/actions/Untap.ron",
+            r#"KeywordAction(name:"Untap",spelling:"untap",grammar:Verb(bare:"untap",valence:Transitive))"#,
         ),
     ]
     .into_iter()
@@ -2601,6 +2605,33 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
         assert!(
             parser.parse(malformed, &context).is_err(),
             "malformed scalar composition must reject {malformed:?}",
+        );
+    }
+}
+
+#[test]
+fn distributed_quantifiers_and_declared_participle_modifiers_compose() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Destroy each of X target creatures.",
+        "Destroy target activated ability.",
+        "You may choose not to untap this creature during your untap step.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    for malformed in [
+        "Destroy each X target creatures.",
+        "Destroy each of X target creature.",
+        "Destroy target activate ability.",
+        "You may choose not untap this creature during your untap step.",
+        "You may choose not to untap this creature your untap step.",
+    ] {
+        assert!(
+            parser.parse(malformed, &context).is_err(),
+            "malformed distributed nominal must reject {malformed:?}",
         );
     }
 }

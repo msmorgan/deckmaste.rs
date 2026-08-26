@@ -3,6 +3,7 @@ KeywordAction(
     spelling: "activate",
     grammar: Verb(
         bare: "activate",
+        participle: "activated",
         valence: Transitive,
     ),
 )

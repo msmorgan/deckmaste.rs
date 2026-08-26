@@ -993,6 +993,7 @@ enum NonterminalKind {
     ChosenDamageDistribution,
     EvenDamageDistribution,
     ObjectInfinitivePredicate,
+    InfinitiveComplement,
     RequirementPredicate,
     TransitiveRequirementPredicate,
     AsThoughPredicate,
@@ -1645,6 +1646,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ObjectInfinitivePredicate => {
             NonterminalKind::ObjectInfinitivePredicate
         }
+        NonterminalCategory::InfinitiveComplement => NonterminalKind::InfinitiveComplement,
         NonterminalCategory::RequirementPredicate => NonterminalKind::RequirementPredicate,
         NonterminalCategory::TransitiveRequirementPredicate => {
             NonterminalKind::TransitiveRequirementPredicate

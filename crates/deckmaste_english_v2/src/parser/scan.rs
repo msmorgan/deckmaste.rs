@@ -1445,6 +1445,7 @@ mod tests {
                         VerbLexeme::Become
                         | VerbLexeme::Add
                         | VerbLexeme::Cause
+                        | VerbLexeme::Choose
                         | VerbLexeme::Enter
                         | VerbLexeme::Draw
                         | VerbLexeme::Gain

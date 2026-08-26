@@ -25,6 +25,7 @@ constructions! {
         Didnt = "didn't",
         Would = "would",
     }
+    vocab InfinitiveMarker { Positive = "to", Negative = "not to", }
     vocab FiniteCopula { Is = "is", Are = "are", Was = "was", Were = "were", }
     vocab BareCopula { Be = "be", }
     vocab PredicativeAdjective { Legendary = "legendary", }
@@ -277,6 +278,7 @@ constructions! {
     }
     lexeme VerbLexeme using EnglishVerb {
         Add = "add",
+        Choose = "choose",
         Deal = "deal",
         Draw = "draw",
         Enter = "enter",
@@ -1183,6 +1185,28 @@ constructions! {
         derive agreement = verb.agreement;
         derive complement.agreement = Values::Bare;
         form object_infinitive_predicate = verb(VerbLexeme::Cause) object "to" complement;
+    }
+    construction infinitive_complement: InfinitiveComplement {
+        element InfinitiveComplementValue {
+            marker: lex InfinitiveMarker,
+            predicate: VerbPhrase,
+        }
+        derive predicate.agreement = Values::Bare;
+        form infinitive_complement = lex(marker) predicate;
+    }
+    construction choose_infinitive_predicate: VerbPhrase {
+        element ChooseInfinitivePredicate { complement: InfinitiveComplement, }
+        derive agreement = verb.agreement;
+        form choose_infinitive_predicate = verb(VerbLexeme::Choose) complement;
+    }
+    construction during_turn_predicate: VerbPhrase {
+        element DuringTurnPredicate {
+            head: lex TransitiveVerb,
+            object: Object,
+            timing: RestrictionTurn,
+        }
+        derive agreement = head.agreement;
+        form during_turn_predicate = verb(head) object "during" timing;
     }
     construction requirement_predicate: RequirementPredicate {
         element RequirementPredicateValue {
@@ -2432,6 +2456,16 @@ constructions! {
         derive number = Values::Singular;
         derive onset = Values::Vowel;
         form each_reference = "each" selector;
+    }
+    construction each_of_variable_reference: UnqualifiedReference {
+        element EachOfVariableReference {
+            count: lex Variable,
+            selector: PluralSelector,
+        }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Vowel;
+        form each_of_variable_reference = "each" "of" lex(count) selector;
     }
     construction all_reference: UnqualifiedReference {
         element AllReference { selector: PluralSelector, }
