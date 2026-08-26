@@ -1407,7 +1407,13 @@ fn seal_fixed_surface(
     symbols: &Symbols,
     errors: &mut Option<syn::Error>,
 ) -> FixedSurfacePlan {
-    if source.sentence_initial && role == "terminator" {
+    if (source.sentence_initial || source.continuation) && role == "terminator" {
+        let transition = if source.sentence_initial { "sentence_initial" } else { "continuation" };
+        let allowed_roles = if source.continuation {
+            "sequence separators"
+        } else {
+            "form surfaces and sequence separators"
+        };
         let span =
             source
                 .atoms
@@ -1420,9 +1426,7 @@ fn seal_fixed_surface(
             errors,
             syn::Error::new(
                 span,
-                format!(
-                    "{label}: sentence_initial is supported only on form surfaces and sequence separators"
-                ),
+                format!("{label}: {transition} is supported only on {allowed_roles}"),
             ),
         );
     }
@@ -1471,7 +1475,30 @@ fn seal_fixed_surface(
             }
         })
         .collect();
-    let surface = FixedSurfacePlan::new(atoms, source.sentence_initial);
+    let surface = FixedSurfacePlan::new(atoms, source.sentence_initial, source.continuation);
+    if source.continuation
+        && !surface.is_empty()
+        && !matches!(
+            source.atoms.as_slice(),
+            [crate::model::FixedSurfaceAtomSource::Literal(value)] if value.value() == " Then "
+        )
+    {
+        let span =
+            source
+                .atoms
+                .first()
+                .map_or_else(proc_macro2::Span::call_site, |atom| match atom {
+                    crate::model::FixedSurfaceAtomSource::Literal(value) => value.span(),
+                    crate::model::FixedSurfaceAtomSource::Lex(path) => path.span(),
+                });
+        combine(
+            errors,
+            syn::Error::new(
+                span,
+                format!("{label}: continuation target must be exactly ` Then `"),
+            ),
+        );
+    }
     if surface.is_empty() {
         let span =
             source
@@ -1487,6 +1514,8 @@ fn seal_fixed_surface(
                 span,
                 if source.sentence_initial {
                     format!("{label}: sentence_initial target must realize at least one byte")
+                } else if source.continuation {
+                    format!("{label}: continuation target must realize at least one byte")
                 } else {
                     format!("{label}: empty {role} surface")
                 },
@@ -9924,6 +9953,51 @@ pub(crate) mod tests {
         assert_eq!(
             empty,
             ":: core :: compile_error ! { \"Items.values: sentence_initial target must realize at least one byte\" }",
+        );
+
+        let continuation_terminator = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            abstract product Items {
+                values: seq Item terminated by continuation(" Then "),
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert_eq!(
+            continuation_terminator,
+            ":: core :: compile_error ! { \"Items.values: continuation is supported only on sequence separators\" }",
+        );
+
+        let empty_continuation = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            abstract product Items {
+                values: seq Item separated by continuation(""),
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert_eq!(
+            empty_continuation,
+            ":: core :: compile_error ! { \"Items.values: continuation target must realize at least one byte\" }",
+        );
+
+        let wrong_continuation = error(quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            abstract product Items {
+                values: seq Item separated by continuation(" then "),
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert_eq!(
+            wrong_continuation,
+            ":: core :: compile_error ! { \"Items.values: continuation target must be exactly ` Then `\" }",
         );
     }
 

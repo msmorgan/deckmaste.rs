@@ -112,6 +112,7 @@ pub(super) enum StructuralSurfacePolicy {
 pub(super) enum StructuralTransitionPlan {
     Preserve,
     SentenceInitial,
+    Continuation,
 }
 
 #[derive(Debug, Clone)]
@@ -1568,7 +1569,9 @@ pub(super) fn structural_surface_transition(
     let sentence_initial = surface.sentence_initial()
         || (policy == StructuralSurfacePolicy::Terminator
             && fixed_surface_terminates_sentence(surface));
-    if final_atom && sentence_initial {
+    if final_atom && surface.continuation() {
+        StructuralTransitionPlan::Continuation
+    } else if final_atom && sentence_initial {
         StructuralTransitionPlan::SentenceInitial
     } else {
         StructuralTransitionPlan::Preserve
@@ -1581,6 +1584,7 @@ pub(super) fn emit_structural_transition(transition: StructuralTransitionPlan) -
         StructuralTransitionPlan::SentenceInitial => {
             quote! { StructuralTransition::SentenceInitial }
         }
+        StructuralTransitionPlan::Continuation => quote! { StructuralTransition::Continuation },
     }
 }
 

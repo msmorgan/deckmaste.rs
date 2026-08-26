@@ -3764,7 +3764,7 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
 fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
     let parser = parser();
     let context = context("Context Card", false);
-    let ordered_text = "You gain 1 life, then you connive, then a player gains 2 life.";
+    let ordered_text = "You gain 1 life, you connive, then a player gains 2 life.";
     let ordered = assert_one_logic_candidate(&parser, &context, ordered_text);
     let [Sentence::Attached(Attached { attachment })] = plain_sentences(&ordered).sentences()
     else {
@@ -3820,7 +3820,7 @@ fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
 
     for invalid in [
         "You gain 1 life then you connive.",
-        "You gain 1 life, then you connive, a player gains 2 life.",
+        "You gain 1 life, then you connive, then a player gains 2 life.",
         "You gain 1 life. If you do you connive.",
         "You gain 1 life. if you do, you connive.",
         "You gain 1 life. When you do,  you connive.",
@@ -4601,7 +4601,7 @@ fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names
     let ordered = assert_one_logic_candidate(
         &parser,
         &ordinary,
-        "You gain 1 life, then you connive, then a player gains 2 life.",
+        "You gain 1 life, you connive, then a player gains 2 life.",
     );
     let [Sentence::Attached(Attached { attachment })] = plain_sentences(&ordered).sentences()
     else {
@@ -4701,7 +4701,11 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
         ["SelfReferenceSpelling"],
         "modal headers store chooser and bounds semantics, never a selected spelling arm",
     );
-    for role in ["ModalModeValue.sentences", "PlainModal.modes"] {
+    for role in [
+        "ModalModeValue.sentences",
+        "PlainModal.modes",
+        "ThenSentenceSequence.members",
+    ] {
         assert!(
             report.sequence_roles().iter().any(|actual| actual == role),
             "generated report contains structural sequence authority for {role}",
@@ -4720,6 +4724,13 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
             .iter()
             .any(|actual| actual == "ModalModeValue.sentences"),
         "each modal sentence owns its generated period terminator",
+    );
+    assert!(
+        report
+            .terminators()
+            .iter()
+            .any(|actual| actual == "ThenSentenceSequence.members"),
+        "each ordered sentence owns its generated period terminator",
     );
     for role in [
         "AndPredicateCoordination.members",

@@ -2036,7 +2036,7 @@ mod tests {
         );
         assert_eq!(
             enum_variants(generated_item(&expansion, "StructuralTransition")),
-            ["Preserve", "SentenceInitial"]
+            ["Preserve", "SentenceInitial", "Continuation"]
         );
         let scan_position =
             syn::parse2::<syn::File>(generated_item(&expansion, "ScanPosition").tokens.clone())

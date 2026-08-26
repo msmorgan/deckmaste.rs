@@ -4990,6 +4990,33 @@ mod tests {
     }
 
     #[test]
+    fn authored_continuation_transition_is_uniform_in_rules_and_rendering() {
+        let expansion = crate::generate(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            abstract product Pair {
+                values: seq Item separated by continuation(" Then ") terminated by ".",
+            }
+            require len(Pair.values) >= 2;
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a continuation sequence separator generates");
+        let source = expansion.tokens().to_string();
+
+        for expected in [
+            "transition : StructuralTransition :: Continuation",
+            "text : \" Then \"",
+            "writer . structural_surface (atom . text , atom . transition",
+            "structural:Pair/values/separator/uniform/0",
+            "structural:Pair/values/terminator/0",
+        ] {
+            assert!(source.contains(expected), "missing `{expected}`: {source}");
+        }
+    }
+
+    #[test]
     fn context_free_construction_sequence_renderer_does_not_require_parse_context() {
         let expansion = crate::generate(quote::quote! {
             vocab Word { Alpha = "alpha", Beta = "beta", }

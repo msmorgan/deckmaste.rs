@@ -161,6 +161,7 @@ pub(crate) struct PositionalSeparatorPlan {
 pub(crate) struct FixedSurfacePlan {
     atoms: Vec<FixedSurfaceAtomPlan>,
     sentence_initial: bool,
+    continuation: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -433,10 +434,15 @@ impl PositionalSeparatorPlan {
     reason = "Tasks 3 through 5 consume fixed-surface accessors"
 )]
 impl FixedSurfacePlan {
-    pub(crate) fn new(atoms: Vec<FixedSurfaceAtomPlan>, sentence_initial: bool) -> Self {
+    pub(crate) fn new(
+        atoms: Vec<FixedSurfaceAtomPlan>,
+        sentence_initial: bool,
+        continuation: bool,
+    ) -> Self {
         Self {
             atoms,
             sentence_initial,
+            continuation,
         }
     }
 
@@ -446,6 +452,10 @@ impl FixedSurfacePlan {
 
     pub(crate) const fn sentence_initial(&self) -> bool {
         self.sentence_initial
+    }
+
+    pub(crate) const fn continuation(&self) -> bool {
+        self.continuation
     }
 
     pub(crate) fn is_empty(&self) -> bool {

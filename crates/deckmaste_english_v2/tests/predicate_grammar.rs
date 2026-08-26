@@ -5613,3 +5613,167 @@ fn task10c_cost_products_keep_ast_render_visit_and_lexical_ownership() {
         ],
     );
 }
+
+#[test]
+fn task10d_then_sequences_select_pair_serial_and_intersentence_forms() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "You gain 1 life, then you connive.",
+        "You gain 1 life, you connive, then a player gains 2 life.",
+        "Gain 1 life, then connive.",
+        "Gain 1 life, connive, then draw a card.",
+        "Draw three cards. Then discard two cards.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    let ordinary =
+        assert_selected_with_specificity(&parser, &context, "Draw a card. Discard a card.", true);
+    let Ability::Plain(Plain { body }) = ordinary else {
+        panic!("ordinary sentence juxtaposition keeps its plain ability envelope")
+    };
+    assert!(
+        matches!(body.as_ref(), AbilityBody::Sentences(_)),
+        "a non-then sentence sequence is not an ordered then structure",
+    );
+}
+
+#[test]
+fn task10d_then_sequences_have_exact_ast_build_visit_and_structural_ownership() {
+    #[derive(Default)]
+    struct ThenVisitor {
+        sequences: usize,
+        sentences: usize,
+    }
+    impl Visitor for ThenVisitor {
+        fn visit_then_sentence_sequence(&mut self, value: &ThenSentenceSequence) {
+            self.sequences += 1;
+            deckmaste_english_v2::visit::walk_then_sentence_sequence(self, value);
+        }
+
+        fn visit_sentence(&mut self, value: &Sentence) {
+            self.sentences += 1;
+            deckmaste_english_v2::visit::walk_sentence(self, value);
+        }
+    }
+
+    let parser = parser();
+    let context = context();
+
+    let finite_text = "You gain 1 life, you connive, then a player gains 2 life.";
+    let finite = assert_selected_with_specificity(&parser, &context, finite_text, true);
+    let Ability::Plain(Plain { body }) = finite else {
+        panic!("finite then sequence has the plain ability envelope")
+    };
+    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+        panic!("intra-sentence then sequence remains one sentence")
+    };
+    let [Sentence::Attached(attached)] = sentences.sentences() else {
+        panic!("finite then sequence is one attached sentence")
+    };
+    let ClauseAttachment::ThenSequence(finite_sequence) = attached.attachment.as_ref() else {
+        panic!("finite subjects use the typed finite-clause sequence")
+    };
+    assert_eq!(finite_sequence.members().len(), 3);
+
+    let predicate_text = "Gain 1 life, connive, then draw a card.";
+    let predicate = assert_selected_with_specificity(&parser, &context, predicate_text, true);
+    let Ability::Plain(Plain { body }) = predicate else {
+        panic!("shared-subject then sequence has the plain ability envelope")
+    };
+    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+        panic!("shared-subject then sequence remains one sentence")
+    };
+    let [Sentence::Attached(attached)] = sentences.sentences() else {
+        panic!("shared-subject then sequence is one attached sentence")
+    };
+    let ClauseAttachment::ThenPredicateSequence(predicate_sequence) = attached.attachment.as_ref()
+    else {
+        panic!("imperative members use the shared-subject predicate sequence")
+    };
+    assert_eq!(predicate_sequence.members().len(), 3);
+
+    let sentence_text = "Draw three cards. Then discard two cards.";
+    let sentence = assert_selected_with_specificity(&parser, &context, sentence_text, true);
+    let Ability::Plain(Plain { body }) = sentence else {
+        panic!("intersentence then sequence has the plain ability envelope")
+    };
+    let AbilityBody::ThenSentences(sentence_sequence) = body.as_ref() else {
+        panic!("sentence-initial Then has a distinct structural AST")
+    };
+    assert_eq!(sentence_sequence.members().len(), 2);
+    assert!(ThenSentenceSequence::new(Box::new(sentence_sequence.members().to_vec())).is_some());
+    assert!(
+        ThenSentenceSequence::new(Box::new(vec![sentence_sequence.members()[0].clone()])).is_none()
+    );
+
+    let mut visitor = ThenVisitor::default();
+    visitor.visit_then_sentence_sequence(sentence_sequence);
+    assert_eq!((visitor.sequences, visitor.sentences), (1, 2));
+
+    let finite_structural = exact_claim_trace(&parser, &context, finite_text)
+        .into_iter()
+        .filter(|(_, owner)| owner.starts_with("structural:"))
+        .collect::<Vec<_>>();
+    assert!(
+        finite_structural.contains(&(
+            ", ".to_owned(),
+            "structural:ThenSequence/members/separator/first/0".to_owned(),
+        )),
+        "{finite_structural:?}",
+    );
+    assert!(
+        finite_structural.contains(&(
+            ", then ".to_owned(),
+            "structural:ThenSequence/members/separator/last/0".to_owned(),
+        )),
+        "{finite_structural:?}",
+    );
+
+    let sentence_structural = exact_claim_trace(&parser, &context, sentence_text)
+        .into_iter()
+        .filter(|(_, owner)| owner.starts_with("structural:"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        sentence_structural,
+        [
+            (
+                ".".to_owned(),
+                "structural:ThenSentenceSequence/members/terminator/0".to_owned(),
+            ),
+            (
+                " Then ".to_owned(),
+                "structural:ThenSentenceSequence/members/separator/uniform/0".to_owned(),
+            ),
+            (
+                ".".to_owned(),
+                "structural:ThenSentenceSequence/members/terminator/0".to_owned(),
+            ),
+        ],
+    );
+}
+
+#[test]
+fn task10d_then_sequences_reject_malformed_punctuation_case_spacing_and_singletons() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "You gain 1 life then you connive.",
+        "You gain 1 life, you connive then a player gains 2 life.",
+        "You gain 1 life, then you connive, a player gains 2 life.",
+        "You gain 1 life, Then you connive.",
+        "Draw a card. then discard a card.",
+        "Draw a card.  Then discard a card.",
+        "Draw a card Then discard a card.",
+        "Draw a card. Then discard a card",
+        "Then draw a card.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "malformed then boundary must reject {text:?}",
+        );
+    }
+}

@@ -115,6 +115,7 @@ mod keyword {
     syn::custom_keyword!(root);
     syn::custom_keyword!(scanner);
     syn::custom_keyword!(sentence_initial);
+    syn::custom_keyword!(continuation);
     syn::custom_keyword!(standalone_render);
     syn::custom_keyword!(sum);
     syn::custom_keyword!(separated);
@@ -438,23 +439,28 @@ fn parse_separator_source(input: ParseStream<'_>) -> syn::Result<SeparatorSource
 }
 
 fn parse_fixed_surface_source(input: ParseStream<'_>) -> syn::Result<FixedSurfaceSource> {
-    let sentence_initial = if input.peek(keyword::sentence_initial) {
+    let transition = if input.peek(keyword::sentence_initial) {
         input.parse::<keyword::sentence_initial>()?;
+        Some(("sentence_initial", true, false))
+    } else if input.peek(keyword::continuation) {
+        input.parse::<keyword::continuation>()?;
+        Some(("continuation", false, true))
+    } else {
+        None
+    };
+    if let Some((name, sentence_initial, continuation)) = transition {
         let content;
         parenthesized!(content in input);
         let surface = parse_fixed_surface_source(&content)?;
-        if surface.sentence_initial || !content.is_empty() {
-            return Err(
-                content.error("sentence_initial accepts exactly one unnested fixed surface")
-            );
+        if surface.sentence_initial || surface.continuation || !content.is_empty() {
+            return Err(content.error(format!("{name} accepts exactly one unnested fixed surface")));
         }
         return Ok(FixedSurfaceSource {
             atoms: surface.atoms,
-            sentence_initial: true,
+            sentence_initial,
+            continuation,
         });
-    } else {
-        false
-    };
+    }
     let mut atoms = Vec::new();
     while input.peek(LitStr) || input.peek(keyword::lex) {
         if input.peek(LitStr) {
@@ -475,7 +481,8 @@ fn parse_fixed_surface_source(input: ParseStream<'_>) -> syn::Result<FixedSurfac
     }
     Ok(FixedSurfaceSource {
         atoms,
-        sentence_initial,
+        sentence_initial: false,
+        continuation: false,
     })
 }
 
@@ -2957,6 +2964,66 @@ mod tests {
         assert_eq!(
             error,
             "sentence_initial target must realize at least one byte",
+        );
+    }
+
+    #[test]
+    fn continuation_fixed_surface_parses_only_for_sequence_separators() {
+        let declarations = crate::parse_declarations(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = "item";
+            }
+            abstract product Items {
+                values: seq Item separated by continuation(" Then ") terminated by ".",
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("continuation transition parses on an exact sequence separator");
+
+        let crate::Declaration::AbstractProduct(items) = &declarations.declarations[1] else {
+            panic!("second declaration is the structural sequence")
+        };
+        let crate::FieldKind::Sequence { surface, .. } = &items.fields[0].kind else {
+            panic!("the structural field is a sequence")
+        };
+        let Some(crate::SeparatorSource::Uniform(separator)) = &surface.separator else {
+            panic!("the sequence has one uniform separator")
+        };
+        assert!(separator.continuation);
+        assert!(!separator.sentence_initial);
+
+        for malformed in [
+            quote::quote! { continuation(sentence_initial(" Then ")) },
+            quote::quote! { sentence_initial(continuation(" Then ")) },
+            quote::quote! { continuation(continuation(" Then ")) },
+        ] {
+            let source = quote::quote! {
+                construction item: Item {
+                    element ItemValue {}
+                    form item = "item";
+                }
+                abstract product Items {
+                    values: seq Item separated by #malformed,
+                }
+                root Item { punctuation = "."; eoi = true; standalone_render = true; }
+            };
+            assert!(
+                crate::parse_declarations(source).is_err(),
+                "case transitions cannot nest: {malformed}",
+            );
+        }
+
+        let misplaced = crate::parse_declarations(quote::quote! {
+            construction item: Item {
+                element ItemValue {}
+                form item = continuation("item");
+            }
+            root Item { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            misplaced.is_err(),
+            "continuation is not a general-purpose form atom"
         );
     }
 

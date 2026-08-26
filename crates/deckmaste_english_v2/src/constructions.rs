@@ -717,6 +717,13 @@ constructions! {
         require len(sentences) >= 1;
         form sentences = sentences;
     }
+    construction then_sentences: AbilityBody {
+        element ThenSentenceSequence {
+            members: seq Sentence separated by continuation(" Then ") terminated by ".",
+        }
+        require len(members) >= 2;
+        form then_sentences = members;
+    }
     construction modal_mode: ModalMode {
         element ModalModeValue {
             sentences: seq Sentence separated by " " terminated by ".",
@@ -963,8 +970,8 @@ constructions! {
         element ThenSequence {
             members: seq Clause separated by position {
                 pair = ", then ";
-                first = ", then ";
-                middle = ", then ";
+                first = ", ";
+                middle = ", ";
                 last = ", then ";
             },
         }
@@ -975,8 +982,8 @@ constructions! {
         element ThenPredicateSequence {
             members: seq Predicate separated by position {
                 pair = ", then ";
-                first = ", then ";
-                middle = ", then ";
+                first = ", ";
+                middle = ", ";
                 last = ", then ";
             },
         }

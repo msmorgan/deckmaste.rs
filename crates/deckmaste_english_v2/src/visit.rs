@@ -559,6 +559,7 @@ pub use crate::constructions::walk_that_many;
 pub use crate::constructions::walk_that_much;
 pub use crate::constructions::walk_that_reference;
 pub use crate::constructions::walk_then_predicate_sequence;
+pub use crate::constructions::walk_then_sentence_sequence;
 pub use crate::constructions::walk_then_sequence;
 pub use crate::constructions::walk_this_determiner_phrase;
 pub use crate::constructions::walk_this_reference;

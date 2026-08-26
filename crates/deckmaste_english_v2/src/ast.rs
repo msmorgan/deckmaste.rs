@@ -573,6 +573,7 @@ pub use crate::constructions::ThatMany;
 pub use crate::constructions::ThatMuch;
 pub use crate::constructions::ThatReference;
 pub use crate::constructions::ThenPredicateSequence;
+pub use crate::constructions::ThenSentenceSequence;
 pub use crate::constructions::ThenSequence;
 pub use crate::constructions::ThisDeterminerPhrase;
 pub use crate::constructions::ThisReference;

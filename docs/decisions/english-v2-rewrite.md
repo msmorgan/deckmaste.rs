@@ -244,6 +244,16 @@ terminators are rejected. The English lexical boundary inventory admits the
 exact `:`, `]`, and `}` delimiters required by these form and circumfix
 surfaces, without treating arbitrary punctuation as a word boundary.
 
+The fixed-surface annotation `continuation(" Then ")` is the narrower
+sequence-separator counterpart for an intersentence connective. It consumes
+that exact ASCII separator surface while the preceding sequence member's
+terminator retains ownership of the sentence-ending period, then passes
+`CasePosition::Continuation` to the following member. Its sole approved use is
+the exact sentence-initial ` Then ` separator of the generated `Then` sentence
+sequence. It emits no AST field, form tag, connective spelling, parser branch,
+or runtime case escape. Form atoms, sequence terminators, any other target, and
+nested or duplicated transition annotations are rejected.
+
 An `abstract sum` may be the sole generated authority for a construction
 category with the same name when its alternatives map every construction
 element type in that category exactly once. The alternative name authors the

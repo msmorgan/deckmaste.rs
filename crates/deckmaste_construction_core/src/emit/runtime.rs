@@ -193,7 +193,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             STRUCTURAL_TRANSITION_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
-                pub(crate) enum StructuralTransition { Preserve, SentenceInitial }
+                pub(crate) enum StructuralTransition { Preserve, SentenceInitial, Continuation }
             },
         ),
         named_type(
@@ -1299,6 +1299,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         match self {
                             StructuralTransition::Preserve => current,
                             StructuralTransition::SentenceInitial => CasePosition::SentenceInitial,
+                            StructuralTransition::Continuation => CasePosition::Continuation,
                         }
                     }
 

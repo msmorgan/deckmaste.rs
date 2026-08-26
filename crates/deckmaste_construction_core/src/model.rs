@@ -117,6 +117,7 @@ pub struct PositionalSeparatorSource {
 pub struct FixedSurfaceSource {
     pub atoms: Vec<FixedSurfaceAtomSource>,
     pub sentence_initial: bool,
+    pub continuation: bool,
 }
 
 #[derive(Debug)]
