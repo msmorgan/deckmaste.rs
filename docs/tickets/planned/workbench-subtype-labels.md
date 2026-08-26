@@ -26,8 +26,12 @@ renaming the symbol to `PhyrexianMana`) is the shape's own symptom.
    vocabulary entry (one macro per subtype), and a rules-meaningful one
    carries its meaning as a `confers:` list (Aura, Equipment, Fortification,
    Saga, the basic land types via `macro/subtype/BasicLandType.ron`) — the
-   macros' own comments mark the subtype special *because* it confers. Per
-   the mirrors-v2 ruling the workbench takes that shape: subtype = label,
+   macros' own comments mark the subtype special *because* it confers. The
+   v1 crate already did this well (user, 2026-08-25):
+   `crates/deckmaste_semantics` — `conferral_rule.rs` and the subtype
+   handling around it — is the code-side model to study alongside the RON
+   data. Per the mirrors-v2 ruling the workbench takes that shape: subtype
+   = label,
    rules meaning = what the label confers, no structural constructor class
    at all. Where the workbench gates currently index on a structural subtype
    (e.g. `chapterLineOk`'s Saga check, `subsFitLine`), rework them to read
