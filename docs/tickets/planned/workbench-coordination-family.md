@@ -285,3 +285,5 @@ threading and for `Move` destinations, the pin modules
 Standard constraints apply.
 
 - **Routed from workbench-split-determiner-union-read (close, 2026-08-25):** Concussive Bolt writes a 26th, differently-shaped split read — "by that player or by that planeswalker's controller", the preposition repeated over a noun disjunction rather than a bare `EitherOf` — outside that ticket's 25 and unbenched; it is a coordination-spelling question and lands here.
+
+- **Carrier from workbench-randomness-residues (close, 2026-08-26):** Mana Clash — "You and target opponent each flip a coin" — is the player-plus-player coordination this ticket already owns, now with a distributive verb over the pair; add it to the witness set.
