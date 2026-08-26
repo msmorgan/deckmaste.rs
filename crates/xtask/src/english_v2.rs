@@ -599,6 +599,7 @@ mod tests {
     const PLAN09_TASK10_EXPANSION: &str = include_str!("english_v2/plan09_task10_expansion.tsv");
     const PLAN09_TASK10A_EXPANSION: &str = include_str!("english_v2/plan09_task10a_expansion.tsv");
     const PLAN09_TASK10B_EXPANSION: &str = include_str!("english_v2/plan09_task10b_expansion.tsv");
+    const PLAN09_TASK10C_EXPANSION: &str = include_str!("english_v2/plan09_task10c_expansion.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8185,6 +8186,18 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "explicit Task 10C fixture refresh expands the complete production declaration"]
+    fn refresh_plan09_task10c_expansion_inventory() {
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let rendered = render_plan09_expansion_inventory(&expansion_inventory(&expansion))
+            .expect("Task 10C generated expansion inventory renders");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/english_v2/plan09_task10c_expansion.tsv");
+        fs::write(path, rendered).expect("Task 10C expansion fixture writes");
+    }
+
+    #[test]
     #[allow(
         clippy::similar_names,
         clippy::too_many_lines,
@@ -8208,6 +8221,7 @@ mod tests {
         let task10 = parse_plan09_expansion_inventory(PLAN09_TASK10_EXPANSION);
         let task10a = parse_plan09_expansion_inventory(PLAN09_TASK10A_EXPANSION);
         let task10b = parse_plan09_expansion_inventory(PLAN09_TASK10B_EXPANSION);
+        let task10c = parse_plan09_expansion_inventory(PLAN09_TASK10C_EXPANSION);
         let live = expansion_inventory(&expansion);
         let live_digests = live
             .iter()
@@ -8220,7 +8234,8 @@ mod tests {
         assert_eq!(task10.len(), 1_790);
         assert_eq!(task10a.len(), 1_792);
         assert_eq!(task10b.len(), 1_859);
-        assert_eq!(live_digests, task10b);
+        assert_eq!(task10c.len(), 1_949);
+        assert_eq!(live_digests, task10c);
         let live_origins_by_item = live.iter().cloned().collect::<BTreeMap<_, _>>();
         let prior_by_item = prior.iter().cloned().collect::<BTreeMap<_, _>>();
         let task7_new_rows = task7
@@ -8360,6 +8375,36 @@ mod tests {
             "construction negative_power_toughness_counter",
             "construction named_counter",
         ]);
+        let task10c_origin_names = BTreeSet::from([
+            "vocab CostComparisonDirection",
+            "abstract sum AdditionalCostBody",
+            "abstract sum ManaCostReference",
+            "abstract sum CastingRestriction",
+            "construction additional_cost_action",
+            "construction additional_cost",
+            "construction additional_cost_predicate_body",
+            "construction additional_cost_finite_body",
+            "construction this_spell_mana_cost",
+            "construction definite_mana_cost",
+            "construction singular_pronoun_mana_cost",
+            "construction plural_pronoun_mana_costs",
+            "construction rather_than_mana_cost_predicate",
+            "construction without_paying_mana_cost_predicate",
+            "construction controlled_cost_action",
+            "construction cost_comparison_predicate",
+            "construction for_each_cost_basis",
+            "construction restriction_turn",
+            "construction only_if_restriction",
+            "construction only_during_restriction",
+            "construction action_restriction_predicate",
+            "construction ActionRestrictionPredicateValue",
+        ]);
+        let task10c_modified_origin_names = BTreeSet::from([
+            "lexeme VerbLexeme",
+            "abstract sum CoordinatedPredicate",
+            "abstract sum Predicate",
+            "abstract sum ClauseAttachment",
+        ]);
         for task7_origin in &task7_origin_names {
             assert!(
                 live.iter()
@@ -8389,6 +8434,7 @@ mod tests {
                         && !task10_origin_names.contains(origin.as_str())
                         && !negative_magnitude_origins.contains(origin.as_str())
                         && !task10b_origin_names.contains(origin.as_str())
+                        && !task10c_origin_names.contains(origin.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -8414,6 +8460,7 @@ mod tests {
                         && !task10_origin_names.contains(origin.as_str())
                         && !negative_magnitude_origins.contains(origin.as_str())
                         && !task10b_origin_names.contains(origin.as_str())
+                        && !task10c_origin_names.contains(origin.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -8445,6 +8492,7 @@ mod tests {
                 .filter(|origin| !task10_origin_names.contains(origin.as_str()))
                 .filter(|origin| !negative_magnitude_origins.contains(origin.as_str()))
                 .filter(|origin| !task10b_origin_names.contains(origin.as_str()))
+                .filter(|origin| !task10c_origin_names.contains(origin.as_str()))
                 .cloned()
                 .collect::<Vec<_>>();
             assert_eq!(
@@ -8492,6 +8540,7 @@ mod tests {
                 .iter()
                 .filter(|origin| !negative_magnitude_origins.contains(origin.as_str()))
                 .filter(|origin| !task10b_origin_names.contains(origin.as_str()))
+                .filter(|origin| !task10c_origin_names.contains(origin.as_str()))
                 .cloned()
                 .collect::<Vec<_>>();
             assert_eq!(
@@ -8531,6 +8580,7 @@ mod tests {
             let retained_origins = live_origins
                 .iter()
                 .filter(|origin| !task10b_origin_names.contains(origin.as_str()))
+                .filter(|origin| !task10c_origin_names.contains(origin.as_str()))
                 .cloned()
                 .collect::<Vec<_>>();
             assert_eq!(
@@ -8550,6 +8600,7 @@ mod tests {
             assert!(
                 origins
                     .iter()
+                    .filter(|origin| !task10c_origin_names.contains(origin.as_str()))
                     .all(|origin| allowed_task10b_origins.contains(origin.as_str())),
                 "Task 10B new item has only authenticated origins: {item:?} {origins:?}",
             );
@@ -8559,6 +8610,50 @@ mod tests {
                 live.iter()
                     .any(|(_, origins)| origins.iter().any(|live_origin| live_origin == origin)),
                 "Task 10B origin is live: {origin:?}",
+            );
+        }
+        let task10b_by_item = task10b.iter().cloned().collect::<BTreeMap<_, _>>();
+        let task10c_new_rows = task10c
+            .iter()
+            .filter(|(item, _)| !task10b_by_item.contains_key(item))
+            .collect::<Vec<_>>();
+        assert_eq!(task10c_new_rows.len(), 90);
+        assert_eq!(task10c.len(), task10b.len() + task10c_new_rows.len());
+        for (item, origins_digest) in &task10b {
+            let live_origins = live_origins_by_item
+                .get(item)
+                .unwrap_or_else(|| panic!("Task 10C retains Task 10B item {item:?}"));
+            let retained_origins = live_origins
+                .iter()
+                .filter(|origin| !task10c_origin_names.contains(origin.as_str()))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                sha256_hex(retained_origins.join("\0").as_bytes()),
+                *origins_digest,
+                "Task 10C retains exact Task 10B origins for {item:?}",
+            );
+        }
+        let allowed_task10c_origins = task10c_origin_names
+            .union(&task10c_modified_origin_names)
+            .copied()
+            .collect::<BTreeSet<_>>();
+        for (item, _) in task10c_new_rows {
+            let origins = live_origins_by_item
+                .get(item)
+                .unwrap_or_else(|| panic!("Task 10C new item is live: {item:?}"));
+            assert!(
+                origins
+                    .iter()
+                    .all(|origin| allowed_task10c_origins.contains(origin.as_str())),
+                "Task 10C new item has only authenticated origins: {item:?} {origins:?}",
+            );
+        }
+        for origin in &allowed_task10c_origins {
+            assert!(
+                live.iter()
+                    .any(|(_, origins)| origins.iter().any(|live_origin| live_origin == origin)),
+                "Task 10C origin is live: {origin:?}",
             );
         }
         for (item, origins_digest) in &prior {
@@ -8574,6 +8669,7 @@ mod tests {
                         && !task10_origin_names.contains(origin.as_str())
                         && !negative_magnitude_origins.contains(origin.as_str())
                         && !task10b_origin_names.contains(origin.as_str())
+                        && !task10c_origin_names.contains(origin.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -8600,7 +8696,7 @@ mod tests {
         );
         assert_eq!(
             headings.len() - retained_headings.len(),
-            task10b.len() - EXPECTED_ITEM_KEYS.len()
+            task10c.len() - EXPECTED_ITEM_KEYS.len()
         );
         for expected_key in headings {
             let header = format!("// === {expected_key} ===");

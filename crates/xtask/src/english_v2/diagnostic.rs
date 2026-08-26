@@ -936,6 +936,26 @@ enum NonterminalKind {
     ThenPredicateSequence,
     ReflexiveSubordinate,
     ReflexivePredicateSubordinate,
+    AdditionalCostBody,
+    AdditionalCost,
+    AdditionalCostAction,
+    AdditionalCostPredicateBody,
+    AdditionalCostFiniteBody,
+    ManaCostReference,
+    ThisSpellManaCost,
+    DefiniteManaCost,
+    SingularPronounManaCost,
+    PluralPronounManaCosts,
+    CastingRestriction,
+    OnlyIfRestriction,
+    OnlyDuringRestriction,
+    RatherThanManaCostPredicate,
+    WithoutPayingManaCostPredicate,
+    ControlledCostAction,
+    CostComparisonPredicate,
+    ForEachCostBasis,
+    RestrictionTurn,
+    ActionRestrictionPredicate,
     Predicate,
     CoordinatedPredicate,
     PredicateCoordination,
@@ -1525,6 +1545,34 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ReflexiveSubordinate => NonterminalKind::ReflexiveSubordinate,
         NonterminalCategory::ReflexivePredicateSubordinate => {
             NonterminalKind::ReflexivePredicateSubordinate
+        }
+        NonterminalCategory::AdditionalCostBody => NonterminalKind::AdditionalCostBody,
+        NonterminalCategory::AdditionalCost => NonterminalKind::AdditionalCost,
+        NonterminalCategory::AdditionalCostAction => NonterminalKind::AdditionalCostAction,
+        NonterminalCategory::AdditionalCostPredicateBody => {
+            NonterminalKind::AdditionalCostPredicateBody
+        }
+        NonterminalCategory::AdditionalCostFiniteBody => NonterminalKind::AdditionalCostFiniteBody,
+        NonterminalCategory::ManaCostReference => NonterminalKind::ManaCostReference,
+        NonterminalCategory::ThisSpellManaCost => NonterminalKind::ThisSpellManaCost,
+        NonterminalCategory::DefiniteManaCost => NonterminalKind::DefiniteManaCost,
+        NonterminalCategory::SingularPronounManaCost => NonterminalKind::SingularPronounManaCost,
+        NonterminalCategory::PluralPronounManaCosts => NonterminalKind::PluralPronounManaCosts,
+        NonterminalCategory::CastingRestriction => NonterminalKind::CastingRestriction,
+        NonterminalCategory::OnlyIfRestriction => NonterminalKind::OnlyIfRestriction,
+        NonterminalCategory::OnlyDuringRestriction => NonterminalKind::OnlyDuringRestriction,
+        NonterminalCategory::RatherThanManaCostPredicate => {
+            NonterminalKind::RatherThanManaCostPredicate
+        }
+        NonterminalCategory::WithoutPayingManaCostPredicate => {
+            NonterminalKind::WithoutPayingManaCostPredicate
+        }
+        NonterminalCategory::ControlledCostAction => NonterminalKind::ControlledCostAction,
+        NonterminalCategory::CostComparisonPredicate => NonterminalKind::CostComparisonPredicate,
+        NonterminalCategory::ForEachCostBasis => NonterminalKind::ForEachCostBasis,
+        NonterminalCategory::RestrictionTurn => NonterminalKind::RestrictionTurn,
+        NonterminalCategory::ActionRestrictionPredicate => {
+            NonterminalKind::ActionRestrictionPredicate
         }
         NonterminalCategory::Predicate => NonterminalKind::Predicate,
         NonterminalCategory::CoordinatedPredicate => NonterminalKind::CoordinatedPredicate,

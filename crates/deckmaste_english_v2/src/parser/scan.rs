@@ -1382,6 +1382,10 @@ mod tests {
     }
 
     #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "the authority enumerates every closed morphology boundary and owner"
+    )]
     fn generated_morphology_scans_exact_closed_surfaces_boundaries_and_owners() {
         let environment = canonical_test_environment();
         let context = context("Context Card");
@@ -1404,7 +1408,6 @@ mod tests {
                 },
             )
         };
-
         for (text, lexeme, agreement, owner) in [
             (
                 "Deal.",
@@ -1456,6 +1459,7 @@ mod tests {
                         | VerbLexeme::Remove
                         | VerbLexeme::Return
                         | VerbLexeme::Roll
+                        | VerbLexeme::Cost
                         | VerbLexeme::Control
                         | VerbLexeme::Own => unreachable!(),
                     },

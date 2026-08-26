@@ -119,6 +119,14 @@ fn environment() -> ParserEnvironment {
             "/synthetic/subtypes/Forest.ron",
             r#"Subtype(category:Land,name:"Forest",spelling:"Forest",grammar:Noun(singular:"Forest"))"#,
         ),
+        (
+            "/synthetic/subtypes/Mountain.ron",
+            r#"Subtype(category:Land,name:"Mountain",spelling:"Mountain",grammar:Noun(singular:"Mountain"))"#,
+        ),
+        (
+            "/synthetic/actions/Activate.ron",
+            r#"KeywordAction(name:"Activate",spelling:"activate",grammar:Verb(bare:"activate",valence:Transitive))"#,
+        ),
     ]
     .into_iter()
     .map(|(path, source)| read_str(path, source).expect("synthetic keyword action is valid"));
@@ -5324,5 +5332,282 @@ fn task10b_scope_rejects_copular_duration_and_global_composite_amounts() {
     assert!(
         accepted.is_empty(),
         "Task 10B-only syntax leaked through global products: {accepted:?}",
+    );
+}
+
+#[test]
+fn task10c_cost_frames_select_their_complete_typed_paths() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "As an additional cost to cast this spell, discard a card.",
+        "You may sacrifice a Mountain rather than pay this spell's mana cost.",
+        "You may cast spells from your hand without paying their mana costs.",
+        "Spells cost {1} less to cast.",
+        "Spells cost {1} more to cast.",
+        "This ability costs {1} less to activate for each legendary creature you control.",
+        "Cast this spell only if you control a snow land.",
+        "Cast this spell only during your turn.",
+        "Cast this spell only during your turn and only if you control a snow land.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+}
+
+#[test]
+fn task10c_cost_frame_reciprocals_reject_crossed_boundaries() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "As an additional cost cast this spell, discard a card.",
+        "As an additional cost to cast, discard a card.",
+        "You may sacrifice a Mountain for rather than pay this spell's mana cost.",
+        "You may sacrifice a Mountain rather than this spell's mana cost.",
+        "You may cast spells from your hand without pay their mana costs.",
+        "Spells cost less {1} to cast.",
+        "Spells cost {1} less for cast.",
+        "Spells costs {1} less to cast.",
+        "This ability cost {1} less to activate.",
+        "Cast this spell if only you control fewer creatures than each opponent.",
+        "Cast this spell only your turn.",
+        "Cast this spell only only during your turn.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "crossed Task 10C frame must reject {text:?}",
+        );
+    }
+}
+
+#[test]
+fn task10c_cost_scope_rejects_missing_complements_modifiers_and_shortcuts() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "As an additional cost to cast this spell.",
+        "As an additional cost to cast, discard a card.",
+        "As an additional cost for cast this spell, discard a card.",
+        "You may sacrifice a land rather pay this spell's mana cost.",
+        "You may sacrifice a land rather than pay mana cost.",
+        "You may cast spells without paying mana costs.",
+        "Spells cost {} less to cast.",
+        "Spells cost {1 less to cast.",
+        "Spells cost one less to cast.",
+        "Spells cost {1} more less to cast.",
+        "Spells cost {1} less to cast for for each creature you control.",
+        "Cast only this spell if you control a snow land.",
+        "Cast this spell if you control a snow land only.",
+        "Cast this spell only only if you control a snow land.",
+        "Draw only a card.",
+        "Activate only as a sorcery.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "Task 10C scope must reject {text:?}",
+        );
+    }
+}
+
+#[derive(Default)]
+struct Task10cVisitor(Vec<&'static str>);
+
+impl Visitor for Task10cVisitor {
+    fn visit_additional_cost(&mut self, value: &AdditionalCost) {
+        self.0.push("additional-cost");
+        deckmaste_english_v2::visit::walk_additional_cost(self, value);
+    }
+
+    fn visit_rather_than_mana_cost_predicate_value(
+        &mut self,
+        value: &RatherThanManaCostPredicateValue,
+    ) {
+        self.0.push("rather-than");
+        deckmaste_english_v2::visit::walk_rather_than_mana_cost_predicate_value(self, value);
+    }
+
+    fn visit_without_paying_mana_cost_predicate_value(
+        &mut self,
+        value: &WithoutPayingManaCostPredicateValue,
+    ) {
+        self.0.push("without-paying");
+        deckmaste_english_v2::visit::walk_without_paying_mana_cost_predicate_value(self, value);
+    }
+
+    fn visit_cost_comparison_predicate_value(&mut self, value: &CostComparisonPredicateValue) {
+        self.0.push("cost-comparison");
+        deckmaste_english_v2::visit::walk_cost_comparison_predicate_value(self, value);
+    }
+
+    fn visit_for_each_cost_basis_value(&mut self, value: &ForEachCostBasisValue) {
+        self.0.push("for-each-basis");
+        deckmaste_english_v2::visit::walk_for_each_cost_basis_value(self, value);
+    }
+
+    fn visit_action_restriction_predicate_value(
+        &mut self,
+        value: &ActionRestrictionPredicateValue,
+    ) {
+        self.0.push("action-restriction");
+        deckmaste_english_v2::visit::walk_action_restriction_predicate_value(self, value);
+    }
+
+    fn visit_only_if_restriction(&mut self, value: &OnlyIfRestriction) {
+        self.0.push("only-if");
+        deckmaste_english_v2::visit::walk_only_if_restriction(self, value);
+    }
+
+    fn visit_only_during_restriction(&mut self, value: &OnlyDuringRestriction) {
+        self.0.push("only-during");
+        deckmaste_english_v2::visit::walk_only_during_restriction(self, value);
+    }
+
+    fn visit_verb_lexeme(&mut self, value: VerbLexeme) {
+        if value == VerbLexeme::Cost {
+            self.0.push("ordinary-cost-head");
+        }
+    }
+
+    fn visit_declaration(&mut self, declaration: &DeclarationIdentity) {
+        if declaration.kind() == macro_ron::v2::DeclarationKind::KeywordAction {
+            match declaration.name() {
+                "Cast" => self.0.push("cast-declaration"),
+                "Activate" => self.0.push("activate-declaration"),
+                _ => {}
+            }
+        }
+    }
+}
+
+#[test]
+fn task10c_cost_products_keep_ast_render_visit_and_lexical_ownership() {
+    let parser = parser();
+    let context = context();
+
+    for (text, expected) in [
+        (
+            "As an additional cost to cast this spell, discard a card.",
+            &["additional-cost", "cast-declaration"][..],
+        ),
+        (
+            "You may sacrifice a Mountain rather than pay this spell's mana cost.",
+            &["rather-than"][..],
+        ),
+        (
+            "You may cast spells from your hand without paying their mana costs.",
+            &["without-paying", "cast-declaration"][..],
+        ),
+        (
+            "Spells cost {1} less to cast.",
+            &["cost-comparison", "ordinary-cost-head", "cast-declaration"][..],
+        ),
+        (
+            "This ability costs {1} less to activate for each legendary creature you control.",
+            &[
+                "cost-comparison",
+                "ordinary-cost-head",
+                "activate-declaration",
+                "for-each-basis",
+            ][..],
+        ),
+        (
+            "Cast this spell only during your turn and only if you control a snow land.",
+            &[
+                "action-restriction",
+                "cast-declaration",
+                "only-during",
+                "only-if",
+            ][..],
+        ),
+    ] {
+        let ability = assert_selected_with_specificity(&parser, &context, text, true);
+        assert_eq!(ability.render(&context, parser.environment()), text);
+        let mut visitor = Task10cVisitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(visitor.0, expected, "typed visit path for {text:?}");
+    }
+
+    let Sentence::Attached(Attached { attachment }) = parser
+        .parse_sentence(
+            "As an additional cost to cast this spell, discard a card.",
+            &context,
+        )
+        .expect("additional-cost attachment parses")
+    else {
+        panic!("additional cost has the attached-sentence envelope")
+    };
+    let ClauseAttachment::AdditionalCost(additional) = attachment.as_ref() else {
+        panic!("additional cost retains its dedicated typed attachment")
+    };
+    assert_eq!(
+        AdditionalCost {
+            action: additional.action.clone(),
+            body: additional.body.clone(),
+        },
+        *additional.clone(),
+    );
+
+    let cost = assert_selected(&parser, &context, "Spells cost {1} less to cast.");
+    assert!(matches!(
+        cost,
+        Ability::Plain(Plain { body })
+            if matches!(
+                body.as_ref(),
+                AbilityBody::Sentences(sentences)
+                    if matches!(
+                        &sentences.sentences()[0],
+                        Sentence::Declarative(Declarative { clause })
+                            if matches!(
+                                clause.as_ref(),
+                                Clause::Finite(finite)
+                                    if matches!(
+                                        finite.as_ref(),
+                                        FiniteClause::PlainFiniteClause(value)
+                                            if matches!(
+                                                value.predicate(),
+                                                Predicate::CostComparison(_)
+                                            )
+                                    )
+                            )
+                    )
+            )
+    ));
+
+    assert_eq!(
+        exact_claim_trace(&parser, &context, "Spells cost {1} less to cast."),
+        [
+            (
+                "Spells".to_owned(),
+                "lexeme:CommonNoun/Spell/plural".to_owned()
+            ),
+            (" cost".to_owned(), "lexeme:VerbLexeme/Cost/bare".to_owned()),
+            (
+                " {".to_owned(),
+                "form:symbol_run/symbol_run/0/prefix".to_owned()
+            ),
+            ("1".to_owned(), "codec:ScalarNumber".to_owned()),
+            (
+                "}".to_owned(),
+                "form:symbol_run/symbol_run/0/suffix".to_owned()
+            ),
+            (
+                " less".to_owned(),
+                "vocab:CostComparisonDirection/Less".to_owned()
+            ),
+            (
+                " to".to_owned(),
+                "form:controlled_cost_action/controlled_cost_action/0".to_owned()
+            ),
+            (
+                " cast".to_owned(),
+                "lexeme:keyword_action/Cast/bare".to_owned()
+            ),
+            (
+                ".".to_owned(),
+                "structural:Sentences/sentences/terminator/0".to_owned(),
+            ),
+        ],
     );
 }

@@ -34,6 +34,7 @@ constructions! {
         ThisTurn = "this turn",
         UntilEndOfTurn = "until end of turn",
     }
+    vocab CostComparisonDirection { More = "more", Less = "less", }
     vocab BareTargetDistributionBounds {
         AnyNumberOf = "any number of",
         OneOrTwo = "one or two",
@@ -294,6 +295,7 @@ constructions! {
         Return = "return",
         Cause = "cause",
         Become = "become",
+        Cost = "cost",
         Be = "be" {
             Bare = "are",
             ThirdPersonSingular = "is",
@@ -530,6 +532,20 @@ constructions! {
         Intransitive: IntransitiveAsThoughPredicate,
         Transitive: TransitiveAsThoughPredicate,
     }
+    abstract sum AdditionalCostBody {
+        Predicate: AdditionalCostPredicateBody,
+        Finite: AdditionalCostFiniteBody,
+    }
+    abstract sum ManaCostReference {
+        ThisSpell: ThisSpellManaCost,
+        Definite: DefiniteManaCost,
+        SingularPronoun: SingularPronounManaCost,
+        PluralPronoun: PluralPronounManaCosts,
+    }
+    abstract sum CastingRestriction {
+        Conditional: OnlyIfRestriction,
+        Timing: OnlyDuringRestriction,
+    }
     abstract sum CoordinatedPredicate {
         Atomic: VerbPhrase,
         BareCopular: BareCopularPredicate,
@@ -545,6 +561,10 @@ constructions! {
         StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
         Manner: MannerPredicate,
+        RatherThanManaCost: RatherThanManaCostPredicate,
+        WithoutPayingManaCost: WithoutPayingManaCostPredicate,
+        CostComparison: CostComparisonPredicate,
+        ActionRestriction: ActionRestrictionPredicate,
     }
     abstract sum Predicate {
         Atomic: VerbPhrase,
@@ -562,6 +582,10 @@ constructions! {
         StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
         Manner: MannerPredicate,
+        RatherThanManaCost: RatherThanManaCostPredicate,
+        WithoutPayingManaCost: WithoutPayingManaCostPredicate,
+        CostComparison: CostComparisonPredicate,
+        ActionRestriction: ActionRestrictionPredicate,
     }
     abstract sum Clause {
         Finite: FiniteClause,
@@ -633,6 +657,7 @@ constructions! {
         ThenPredicateSequence,
         ReflexiveSubordinate,
         ReflexivePredicateSubordinate,
+        AdditionalCost,
     }
     abstract sum ConditionClause { FiniteCondition, ExistentialCondition, }
     construction finite_condition: FiniteCondition {
@@ -957,6 +982,30 @@ constructions! {
         derive body.agreement = Values::Bare;
         form reflexive_predicate_subordinate = lex(kind) "," body;
     }
+    construction additional_cost_action: AdditionalCostAction {
+        element AdditionalCostActionValue {
+            head: lex TransitiveVerb,
+            object: Object,
+        }
+        derive head.agreement = Values::Bare;
+        form additional_cost_action = "to" verb(head) object;
+    }
+    construction additional_cost: ClauseAttachment {
+        element AdditionalCost {
+            action: AdditionalCostAction,
+            body: AdditionalCostBody,
+        }
+        form additional_cost = "as" "an" "additional" "cost" action "," body;
+    }
+    construction additional_cost_predicate_body: AdditionalCostBody {
+        element AdditionalCostPredicateBody { predicate: Predicate, }
+        derive predicate.agreement = Values::Bare;
+        form additional_cost_predicate_body = predicate;
+    }
+    construction additional_cost_finite_body: AdditionalCostBody {
+        element AdditionalCostFiniteBody { clause: FiniteClause, }
+        form additional_cost_finite_body = clause;
+    }
     construction with_where: Sentence {
         element WithWhere { body: Sentence, clause: WhereClauseCategory, }
         form with_where = body "," clause;
@@ -1227,6 +1276,88 @@ constructions! {
         }
         derive agreement = head.agreement;
         form manner_predicate = verb(head) object manner;
+    }
+    construction this_spell_mana_cost: ManaCostReference {
+        element ThisSpellManaCost {}
+        form this_spell_mana_cost = "this" "spell's" "mana" "cost";
+    }
+    construction definite_mana_cost: ManaCostReference {
+        element DefiniteManaCost {}
+        form definite_mana_cost = "the" "mana" "cost";
+    }
+    construction singular_pronoun_mana_cost: ManaCostReference {
+        element SingularPronounManaCost {}
+        form singular_pronoun_mana_cost = "its" "mana" "cost";
+    }
+    construction plural_pronoun_mana_costs: ManaCostReference {
+        element PluralPronounManaCosts {}
+        form plural_pronoun_mana_costs = "their" "mana" "costs";
+    }
+    construction rather_than_mana_cost_predicate: RatherThanManaCostPredicate {
+        element RatherThanManaCostPredicateValue {
+            action: VerbPhrase,
+            reference: ManaCostReference,
+        }
+        derive action.agreement = Values::Bare;
+        derive agreement = action.agreement;
+        derive verb.agreement = Values::Bare;
+        form rather_than_mana_cost_predicate =
+            action "rather" "than" verb(VerbLexeme::Pay) reference;
+    }
+    construction without_paying_mana_cost_predicate: WithoutPayingManaCostPredicate {
+        element WithoutPayingManaCostPredicateValue {
+            head: lex TransitiveVerb,
+            object: Object,
+            reference: ManaCostReference,
+        }
+        derive agreement = head.agreement;
+        form without_paying_mana_cost_predicate =
+            verb(head) object "without" "paying" reference;
+    }
+    construction controlled_cost_action: ControlledCostAction {
+        element ControlledCostActionValue { head: lex TransitiveVerb, }
+        derive head.agreement = Values::Bare;
+        form controlled_cost_action = "to" verb(head);
+    }
+    construction cost_comparison_predicate: CostComparisonPredicate {
+        element CostComparisonPredicateValue {
+            amount: ManaAmount,
+            direction: lex CostComparisonDirection,
+            action: ControlledCostAction,
+            basis: opt ForEachCostBasis,
+        }
+        derive agreement = verb.agreement;
+        form cost_comparison_predicate =
+            verb(VerbLexeme::Cost) amount lex(direction) action basis;
+    }
+    construction for_each_cost_basis: ForEachCostBasis {
+        element ForEachCostBasisValue { object: Object, }
+        form for_each_cost_basis = "for" object;
+    }
+    construction restriction_turn: RestrictionTurn {
+        element RestrictionTurnValue {
+            specifier: opt lex TurnSpecifier,
+            part: lex TurnPart,
+        }
+        form restriction_turn = lex(specifier) lex(part);
+    }
+    construction only_if_restriction: CastingRestriction {
+        element OnlyIfRestriction { condition: FiniteClause, }
+        form only_if_restriction = "only" "if" condition;
+    }
+    construction only_during_restriction: CastingRestriction {
+        element OnlyDuringRestriction { timing: RestrictionTurn, }
+        form only_during_restriction = "only" "during" timing;
+    }
+    construction action_restriction_predicate: ActionRestrictionPredicate {
+        element ActionRestrictionPredicateValue {
+            action: VerbPhrase,
+            restrictions: seq CastingRestriction separated by " and ",
+        }
+        require len(restrictions) >= 1;
+        derive action.agreement = Values::Bare;
+        derive agreement = action.agreement;
+        form action_restriction_predicate = action restrictions;
     }
     construction copular_clause: CopularClause {
         element CopularClauseValue {
