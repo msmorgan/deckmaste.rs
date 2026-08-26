@@ -67,6 +67,7 @@ pub use crate::constructions::walk_card_quantity;
 pub use crate::constructions::walk_cardinal_number;
 pub use crate::constructions::walk_cardinal_quantity;
 pub use crate::constructions::walk_cardinal_quantity_value;
+pub use crate::constructions::walk_cast_restriction_verb;
 pub use crate::constructions::walk_casting_restriction;
 pub use crate::constructions::walk_change_state_predicate;
 pub use crate::constructions::walk_change_state_predicate_value;

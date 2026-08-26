@@ -1,3 +1,8 @@
+#![allow(
+    clippy::pub_underscore_fields,
+    reason = "the generated restriction product retains its typed Cast identity even though fixed Bare feature projection does not read the local binding"
+)]
+
 use RulePosition::Lexical as L;
 use RulePosition::Nonterminal as N;
 use deckmaste_construction::constructions;
@@ -353,6 +358,15 @@ constructions! {
             closed = CoreTransitiveVerb;
             position = Verb;
             kinds = [KeywordAction];
+            tail = [ObjectNounPhrase];
+            feature = Agreement;
+        }
+    }
+    codec CastRestrictionVerb {
+        generate declaration_verb {
+            position = Verb;
+            kinds = [KeywordAction];
+            names = [Cast];
             tail = [ObjectNounPhrase];
             feature = Agreement;
         }
@@ -1351,13 +1365,14 @@ constructions! {
     }
     construction action_restriction_predicate: ActionRestrictionPredicate {
         element ActionRestrictionPredicateValue {
-            action: VerbPhrase,
+            _head: lex CastRestrictionVerb,
+            object: Object,
             restrictions: seq CastingRestriction separated by " and ",
         }
         require len(restrictions) >= 1;
-        derive action.agreement = Values::Bare;
-        derive agreement = action.agreement;
-        form action_restriction_predicate = action restrictions;
+        derive _head.agreement = Values::Bare;
+        derive agreement = _head.agreement;
+        form action_restriction_predicate = verb(_head) object restrictions;
     }
     construction copular_clause: CopularClause {
         element CopularClauseValue {

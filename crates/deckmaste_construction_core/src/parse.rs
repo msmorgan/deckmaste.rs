@@ -1567,6 +1567,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
         let mut closed_slots = Vec::new();
         let mut position_slots = Vec::new();
         let mut kind_slots = Vec::new();
+        let mut name_slots = Vec::new();
         let mut tail_slots = Vec::new();
         let mut feature_slots = Vec::new();
         while !content.is_empty() {
@@ -1584,6 +1585,17 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                     .into_iter()
                     .collect();
                     kind_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
+                }
+                "names" => {
+                    let names_content;
+                    bracketed!(names_content in content);
+                    let names = Punctuated::<Ident, Token![,]>::parse_terminated_with(
+                        &names_content,
+                        Ident::parse_any,
+                    )?
+                    .into_iter()
+                    .collect();
+                    name_slots.push(crate::model::DeclarationVerbNamesSource { slot, names });
                 }
                 "tail" => {
                     let tail_content;
@@ -1633,7 +1645,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 _ => {
                     return Err(syn::Error::new(
                         slot.span(),
-                        "declaration_verb recipe accepts only `closed`, `position`, `kinds`, `tail`, and `feature` fields",
+                        "declaration_verb recipe accepts only `closed`, `position`, `kinds`, `names`, `tail`, and `feature` fields",
                     ));
                 }
             }
@@ -1645,6 +1657,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 closed_slots,
                 position_slots,
                 kind_slots,
+                name_slots,
                 tail_slots,
                 feature_slots,
             },

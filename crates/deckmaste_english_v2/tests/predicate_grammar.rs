@@ -5401,6 +5401,8 @@ fn task10c_cost_scope_rejects_missing_complements_modifiers_and_shortcuts() {
         "Cast only this spell if you control a snow land.",
         "Cast this spell if you control a snow land only.",
         "Cast this spell only only if you control a snow land.",
+        "Draw a card only if you control a snow land.",
+        "Activate this ability only if you control a snow land.",
         "Draw only a card.",
         "Activate only as a sorcery.",
     ] {

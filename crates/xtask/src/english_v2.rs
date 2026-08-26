@@ -8234,7 +8234,7 @@ mod tests {
         assert_eq!(task10.len(), 1_790);
         assert_eq!(task10a.len(), 1_792);
         assert_eq!(task10b.len(), 1_859);
-        assert_eq!(task10c.len(), 1_949);
+        assert_eq!(task10c.len(), 1_954);
         assert_eq!(live_digests, task10c);
         let live_origins_by_item = live.iter().cloned().collect::<BTreeMap<_, _>>();
         let prior_by_item = prior.iter().cloned().collect::<BTreeMap<_, _>>();
@@ -8377,6 +8377,7 @@ mod tests {
         ]);
         let task10c_origin_names = BTreeSet::from([
             "vocab CostComparisonDirection",
+            "codec CastRestrictionVerb",
             "abstract sum AdditionalCostBody",
             "abstract sum ManaCostReference",
             "abstract sum CastingRestriction",
@@ -8617,7 +8618,7 @@ mod tests {
             .iter()
             .filter(|(item, _)| !task10b_by_item.contains_key(item))
             .collect::<Vec<_>>();
-        assert_eq!(task10c_new_rows.len(), 90);
+        assert_eq!(task10c_new_rows.len(), 95);
         assert_eq!(task10c.len(), task10b.len() + task10c_new_rows.len());
         for (item, origins_digest) in &task10b {
             let live_origins = live_origins_by_item

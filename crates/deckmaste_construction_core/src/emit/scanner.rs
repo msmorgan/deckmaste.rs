@@ -625,6 +625,13 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             } else {
                 quote! { declaration }
             };
+            let allowed_names = codec.names();
+            let declaration_filter = quote! {
+                let allowed_names: &[&str] = &[#(#allowed_names),*];
+                if !allowed_names.is_empty() && !allowed_names.contains(&id.name()) {
+                    continue;
+                }
+            };
             match codec.feature_axis() {
                 crate::feature::Feature::Agreement => quote! {
                     Lexical::DeclarationVerb(#terminal_index, wanted) => {
@@ -646,6 +653,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
                             },
                         ) {
+                            #declaration_filter
                             let Some(declaration) = #declaration::new(input.environment, id) else {
                                 continue;
                             };
@@ -673,6 +681,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             &frame,
                             ::macro_ron::v2::SurfaceFeature::Participle,
                         ) {
+                            #declaration_filter
                             let Some(declaration) = #declaration::new(input.environment, id) else { continue; };
                             matches.push(LexicalMatch { end, value: Leaf::#verb {
                                 verb: #open_value,

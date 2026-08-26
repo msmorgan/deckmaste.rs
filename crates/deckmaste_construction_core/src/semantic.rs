@@ -810,6 +810,7 @@ pub(crate) struct DeclarationVerbPlan {
     closed_lexeme: Option<syn::Ident>,
     position: macro_ron::v2::GrammarPosition,
     kinds: Vec<macro_ron::v2::DeclarationKind>,
+    names: Vec<String>,
     frame_key: VerbFrameKey,
     feature_axis: Feature,
 }
@@ -5759,6 +5760,11 @@ impl DeclarationVerbPlan {
             closed_lexeme: recipe.closed_slots.first().map(|slot| slot.value.clone()),
             position: macro_ron::v2::GrammarPosition::Verb,
             kinds,
+            names: recipe
+                .name_slots
+                .first()
+                .map(|slot| slot.names.iter().map(identifier_key).collect())
+                .unwrap_or_default(),
             frame_key,
             feature_axis: match identifier_key(
                 &recipe
@@ -5806,6 +5812,10 @@ impl DeclarationVerbPlan {
 
     pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] {
         &self.kinds
+    }
+
+    pub(crate) fn names(&self) -> &[String] {
+        &self.names
     }
 
     pub(crate) fn frame_key(&self) -> &VerbFrameKey {

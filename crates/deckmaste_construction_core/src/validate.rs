@@ -2355,11 +2355,16 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
                 .intersection(&right_domain.kinds)
                 .next()
                 .cloned();
+            let names_overlap = match (&left_domain.names, &right_domain.names) {
+                (None, None) => true,
+                (Some(left), Some(right)) => left.intersection(right).next().is_some(),
+                (None, Some(_)) | (Some(_), None) => false,
+            };
             let closed_overlap = left_domain
                 .closed
                 .as_ref()
                 .is_some_and(|left_closed| right_domain.closed.as_ref() == Some(left_closed));
-            if let Some(kind) = kind_overlap {
+            if let Some(kind) = kind_overlap.filter(|_| names_overlap) {
                 combine(
                     errors,
                     syn::Error::new(
@@ -2394,6 +2399,7 @@ struct DeclarationVerbDomain {
     closed: Option<String>,
     position: String,
     kinds: BTreeSet<String>,
+    names: Option<BTreeSet<String>>,
     feature: String,
     tail: String,
 }
@@ -2426,6 +2432,10 @@ fn declaration_verb_domain(
             .map(|slot| identifier_key(&slot.value)),
         position: identifier_key(&position.value),
         kinds: kinds.kinds.iter().map(identifier_key).collect(),
+        names: source
+            .name_slots
+            .first()
+            .map(|slot| slot.names.iter().map(identifier_key).collect()),
         feature: identifier_key(&feature.value),
         tail: format!("[{tail}]"),
     })
@@ -2545,6 +2555,7 @@ fn validate_declaration_verb_source(
         errors,
     );
     let kinds = validate_declaration_verb_kinds(source, errors);
+    validate_declaration_verb_names(source, errors);
     validate_declaration_verb_tail(source, errors);
 
     if let Some(position) = position
@@ -2624,6 +2635,49 @@ fn validate_declaration_verb_source(
         }
     }
     let _ = kinds;
+}
+
+fn validate_declaration_verb_names(
+    source: &crate::model::DeclarationVerbSource,
+    errors: &mut Option<syn::Error>,
+) {
+    let names = match source.name_slots.as_slice() {
+        [] => return,
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate declaration_verb field `names`",
+                    ),
+                );
+            }
+            slot
+        }
+    };
+    if names.names.is_empty() {
+        combine(
+            errors,
+            syn::Error::new(
+                names.slot.span(),
+                "declaration_verb name filter cannot be empty",
+            ),
+        );
+    }
+    let mut seen = HashSet::new();
+    for name_source in &names.names {
+        let name = identifier_key(name_source);
+        if !seen.insert(name.clone()) {
+            combine(
+                errors,
+                syn::Error::new(
+                    name_source.span(),
+                    format!("duplicate declaration_verb name `{name}`"),
+                ),
+            );
+        }
+    }
 }
 
 fn validate_declaration_verb_kinds<'a>(

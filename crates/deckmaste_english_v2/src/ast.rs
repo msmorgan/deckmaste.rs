@@ -66,6 +66,7 @@ pub use crate::constructions::CardQuantity;
 pub use crate::constructions::CardinalNumber;
 pub use crate::constructions::CardinalQuantity;
 pub use crate::constructions::CardinalQuantityValue;
+pub use crate::constructions::CastRestrictionVerb;
 pub use crate::constructions::CastingRestriction;
 pub use crate::constructions::CatalogProvider;
 pub use crate::constructions::ChangeStatePredicate;
