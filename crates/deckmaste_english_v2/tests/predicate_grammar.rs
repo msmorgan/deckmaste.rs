@@ -5107,7 +5107,6 @@ fn task10b_passive_distribution_and_counter_frames_select_typed_products() {
     for text in [
         "It can't be regenerated.",
         "It can't be regenerated this turn.",
-        "Target creature can't be blocked this turn.",
         "It deals 2 damage divided as you choose among one or two targets.",
         "It deals 3 damage divided as you choose among one, two, or three target attacking creatures.",
         "It deals X damage divided as you choose among any number of target creatures.",
@@ -5145,15 +5144,14 @@ fn task10b_passive_distribution_and_counter_frames_select_typed_products() {
     let StateDurationPredicate::StateDurationPredicate(StateDurationPredicateValue {
         predicate,
         duration,
-    }) = duration.as_ref();
-    assert_eq!(*duration, PredicateDuration::ThisTurn);
-    let StateDurationBase::BarePassive(passive) = predicate.as_ref() else {
-        panic!("regeneration remains a passive state")
-    };
-    let BarePassivePredicate::BarePassivePredicate(BarePassivePredicateValue {
-        predicate: PassivePredicate::DeclaredTransitive(declared),
-        ..
-    }) = passive
+    }) = duration;
+    assert_eq!(duration, &PredicateDuration::ThisTurn);
+    let StateDurationBase::BarePassive(BarePassivePredicate::BarePassivePredicate(
+        BarePassivePredicateValue {
+            predicate: PassivePredicate::DeclaredTransitive(declared),
+            ..
+        },
+    )) = predicate
     else {
         panic!("regeneration uses the open transitive-participle frame")
     };
@@ -5309,4 +5307,22 @@ fn task10b_frame_reciprocals_reject_crossed_morphology_and_boundaries() {
             "crossed Task 10B frame must reject {text:?}",
         );
     }
+}
+
+#[test]
+fn task10b_scope_rejects_copular_duration_and_global_composite_amounts() {
+    let parser = parser();
+    let context = context();
+    let accepted = [
+        "Target creature can't be legendary this turn.",
+        "You gain twice X life.",
+        "You gain X plus 3 life.",
+    ]
+    .into_iter()
+    .filter(|text| parser.parse(text, &context).is_ok())
+    .collect::<Vec<_>>();
+    assert!(
+        accepted.is_empty(),
+        "Task 10B-only syntax leaked through global products: {accepted:?}",
+    );
 }

@@ -945,6 +945,10 @@ enum NonterminalKind {
     StateDurationBase,
     DamageDistribution,
     DistributionRecipient,
+    DistributedDamageAmount,
+    ScalarDistributedDamageAmount,
+    TwiceVariableAmount,
+    VariablePlusAmount,
     PredicativeAdjectiveComplement,
     PredicativeColorComplement,
     PredicativeTypeComplement,
@@ -1531,6 +1535,12 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::StateDurationBase => NonterminalKind::StateDurationBase,
         NonterminalCategory::DamageDistribution => NonterminalKind::DamageDistribution,
         NonterminalCategory::DistributionRecipient => NonterminalKind::DistributionRecipient,
+        NonterminalCategory::DistributedDamageAmount => NonterminalKind::DistributedDamageAmount,
+        NonterminalCategory::ScalarDistributedDamageAmount => {
+            NonterminalKind::ScalarDistributedDamageAmount
+        }
+        NonterminalCategory::TwiceVariableAmount => NonterminalKind::TwiceVariableAmount,
+        NonterminalCategory::VariablePlusAmount => NonterminalKind::VariablePlusAmount,
         NonterminalCategory::PredicativeAdjectiveComplement => {
             NonterminalKind::PredicativeAdjectiveComplement
         }

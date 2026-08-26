@@ -8219,7 +8219,7 @@ mod tests {
         assert_eq!(task9.len(), 1_733);
         assert_eq!(task10.len(), 1_790);
         assert_eq!(task10a.len(), 1_792);
-        assert_eq!(task10b.len(), 1_851);
+        assert_eq!(task10b.len(), 1_859);
         assert_eq!(live_digests, task10b);
         let live_origins_by_item = live.iter().cloned().collect::<BTreeMap<_, _>>();
         let prior_by_item = prior.iter().cloned().collect::<BTreeMap<_, _>>();
@@ -8337,9 +8337,11 @@ mod tests {
             "vocab BoundedTargetDistributionBounds",
             "vocab DistributionReplacement",
             "abstract sum StateDurationBase",
+            "abstract sum DistributedDamageAmount",
             "abstract sum DamageDistribution",
             "abstract sum DistributionRecipient",
             "construction state_duration_predicate",
+            "construction scalar_distributed_damage_amount",
             "construction unnamed_singular_counter_quantity",
             "construction unnamed_fixed_counter_quantity",
             "construction unnamed_variable_counter_quantity",
@@ -8520,7 +8522,7 @@ mod tests {
             .iter()
             .filter(|(item, _)| !task10a_by_item.contains_key(item))
             .collect::<Vec<_>>();
-        assert_eq!(task10b_new_rows.len(), 59);
+        assert_eq!(task10b_new_rows.len(), 67);
         assert_eq!(task10b.len(), task10a.len() + task10b_new_rows.len());
         for (item, origins_digest) in &task10a {
             let live_origins = live_origins_by_item

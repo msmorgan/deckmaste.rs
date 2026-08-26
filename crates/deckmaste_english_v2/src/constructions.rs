@@ -596,8 +596,12 @@ constructions! {
         DeclaredTransitive: DeclaredTransitivePassivePredicate,
     }
     abstract sum StateDurationBase {
-        BareCopular: BareCopularPredicate,
         BarePassive: BarePassivePredicate,
+    }
+    abstract sum DistributedDamageAmount {
+        Scalar: ScalarDistributedDamageAmount,
+        TwiceVariable: TwiceVariableAmount,
+        VariablePlus: VariablePlusAmount,
     }
     abstract sum DamageDistribution {
         AsYouChoose: ChosenDamageDistribution,
@@ -1097,7 +1101,7 @@ constructions! {
             predicate: StateDurationBase,
             duration: lex PredicateDuration,
         }
-        derive agreement = predicate.agreement;
+        derive agreement = Values::Bare;
         form state_duration_predicate = predicate lex(duration);
     }
     construction object_infinitive_predicate: ObjectInfinitivePredicate {
@@ -3080,6 +3084,10 @@ constructions! {
         element DamageRecipientValue { object: Object, }
         form damage_recipient = "to" object;
     }
+    construction scalar_distributed_damage_amount: DistributedDamageAmount {
+        element ScalarDistributedDamageAmount { amount: Amount, }
+        form scalar_distributed_damage_amount = amount;
+    }
     construction object_distribution_recipient: DistributionRecipient {
         element ObjectDistributionRecipient { object: Object, }
         form object_distribution_recipient = object;
@@ -3142,7 +3150,7 @@ constructions! {
     }
     construction deal_distributed_damage: VerbPhrase {
         element DealDistributedDamage {
-            amount: Amount,
+            amount: DistributedDamageAmount,
             distribution: DamageDistribution,
             replacement: opt lex DistributionReplacement,
         }
@@ -3436,11 +3444,11 @@ constructions! {
         element VariableAmount { variable: lex Variable, }
         form variable = lex(variable);
     }
-    construction twice_variable_amount: Amount {
+    construction twice_variable_amount: DistributedDamageAmount {
         element TwiceVariableAmount { variable: lex Variable, }
         form twice_variable_amount = "twice" lex(variable);
     }
-    construction variable_plus_amount: Amount {
+    construction variable_plus_amount: DistributedDamageAmount {
         element VariablePlusAmount {
             variable: lex Variable,
             increment: lex ScalarNumber,
