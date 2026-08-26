@@ -290,6 +290,7 @@ pub use crate::constructions::NegativeModifiedSingularNominal;
 pub use crate::constructions::NegativeModifierMember;
 pub use crate::constructions::NegativeNominalModifier;
 pub use crate::constructions::NegativePowerToughnessCounter;
+pub use crate::constructions::NegativePowerToughnessMagnitude;
 pub use crate::constructions::NominalModifier;
 pub use crate::constructions::NominalObject;
 pub use crate::constructions::NominalSubject;

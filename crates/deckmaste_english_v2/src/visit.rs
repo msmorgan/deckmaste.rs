@@ -286,6 +286,7 @@ pub use crate::constructions::walk_negative_modified_singular_nominal;
 pub use crate::constructions::walk_negative_modifier_member;
 pub use crate::constructions::walk_negative_nominal_modifier;
 pub use crate::constructions::walk_negative_power_toughness_counter;
+pub use crate::constructions::walk_negative_power_toughness_magnitude;
 pub use crate::constructions::walk_nominal_modifier;
 pub use crate::constructions::walk_nominal_object;
 pub use crate::constructions::walk_nominal_subject;

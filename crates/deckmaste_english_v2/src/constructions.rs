@@ -2945,6 +2945,10 @@ constructions! {
         element PositivePowerToughnessMagnitude { amount: Amount, }
         form positive_power_toughness_magnitude = prefix("+", amount);
     }
+    construction negative_power_toughness_magnitude: PowerToughnessAdjustmentMagnitude {
+        element NegativePowerToughnessMagnitude { amount: Amount, }
+        form negative_power_toughness_magnitude = prefix("-", amount);
+    }
     construction power_toughness_adjustment: PowerToughnessAdjustment {
         element PowerToughnessAdjustmentValue {
             magnitudes: seq PowerToughnessAdjustmentMagnitude separated by "/",

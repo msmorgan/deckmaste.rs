@@ -1032,6 +1032,192 @@ fn task9_power_toughness_predicates_keep_modifier_and_base_value_frames_distinct
     ));
 }
 
+#[derive(Default)]
+struct Task10aPowerToughnessVisitor(Vec<&'static str>);
+
+impl Visitor for Task10aPowerToughnessVisitor {
+    fn visit_clause_coordination(&mut self, value: &ClauseCoordination) {
+        self.0.push("clause-coordination");
+        deckmaste_english_v2::visit::walk_clause_coordination(self, value);
+    }
+
+    fn visit_positive_power_toughness_magnitude(
+        &mut self,
+        value: &PositivePowerToughnessMagnitude,
+    ) {
+        self.0.push("positive-magnitude");
+        deckmaste_english_v2::visit::walk_positive_power_toughness_magnitude(self, value);
+    }
+
+    fn visit_negative_power_toughness_magnitude(
+        &mut self,
+        value: &NegativePowerToughnessMagnitude,
+    ) {
+        self.0.push("negative-magnitude");
+        deckmaste_english_v2::visit::walk_negative_power_toughness_magnitude(self, value);
+    }
+}
+
+#[test]
+fn task10a_negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
+    let parser = parser();
+    let context = context();
+    let text = "Target creature gets -1/-1 until end of turn.";
+    let ability = assert_selected(&parser, &context, text);
+    let VerbPhrase::GetPowerToughness(GetPowerToughness {
+        adjustment: PowerToughnessAdjustment::PowerToughnessAdjustment(adjustment),
+        duration: Some(PredicateDuration::UntilEndOfTurn),
+    }) = declarative_atomic(&parser, &context, text)
+    else {
+        panic!("negative adjustment stays in the ordinary typed gets frame")
+    };
+    assert_eq!(
+        adjustment.magnitudes(),
+        [
+            PowerToughnessAdjustmentMagnitude::NegativePowerToughnessMagnitude(
+                NegativePowerToughnessMagnitude {
+                    amount: Amount::Number(NumberAmount {
+                        number: ScalarNumber { magnitude: 1 },
+                    }),
+                },
+            ),
+            PowerToughnessAdjustmentMagnitude::NegativePowerToughnessMagnitude(
+                NegativePowerToughnessMagnitude {
+                    amount: Amount::Number(NumberAmount {
+                        number: ScalarNumber { magnitude: 1 },
+                    }),
+                },
+            ),
+        ],
+    );
+    assert_eq!(ability.render(&context, parser.environment()), text);
+
+    let mut visitor = Task10aPowerToughnessVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["negative-magnitude", "negative-magnitude"]);
+    assert_eq!(
+        exact_claim_trace(&parser, &context, text),
+        [
+            (
+                "Target".to_owned(),
+                "form:target_determiner_phrase/target_determiner_phrase/0".to_owned(),
+            ),
+            (
+                " creature".to_owned(),
+                "lexeme:type/Creature/singular".to_owned(),
+            ),
+            (
+                " gets".to_owned(),
+                "lexeme:VerbLexeme/Get/third_person_singular".to_owned(),
+            ),
+            (
+                " -".to_owned(),
+                "form:negative_power_toughness_magnitude/negative_power_toughness_magnitude/0/affix"
+                    .to_owned(),
+            ),
+            ("1".to_owned(), "codec:ScalarNumber".to_owned()),
+            (
+                "/".to_owned(),
+                "structural:PowerToughnessAdjustmentValue/magnitudes/separator/uniform/0"
+                    .to_owned(),
+            ),
+            (
+                "-".to_owned(),
+                "form:negative_power_toughness_magnitude/negative_power_toughness_magnitude/0/affix"
+                    .to_owned(),
+            ),
+            ("1".to_owned(), "codec:ScalarNumber".to_owned()),
+            (
+                " until end of turn".to_owned(),
+                "vocab:PredicateDuration/UntilEndOfTurn".to_owned(),
+            ),
+            (
+                ".".to_owned(),
+                "structural:Sentences/sentences/terminator/0".to_owned(),
+            ),
+        ],
+    );
+}
+
+#[test]
+fn task10a_fixed_variable_asymmetric_and_crossed_adjustments_share_existing_amounts() {
+    let parser = parser();
+    let context = context();
+    for (text, expected_visits) in [
+        (
+            "All creatures get -1/-0 until end of turn.",
+            &["negative-magnitude", "negative-magnitude"][..],
+        ),
+        (
+            "Target creature gets -X/-X until end of turn.",
+            &["negative-magnitude", "negative-magnitude"][..],
+        ),
+        (
+            "Target creature gets +X/-X until end of turn.",
+            &["positive-magnitude", "negative-magnitude"][..],
+        ),
+        (
+            "Target creature gets -X/+X until end of turn.",
+            &["negative-magnitude", "positive-magnitude"][..],
+        ),
+    ] {
+        let ability = assert_selected(&parser, &context, text);
+        let mut visitor = Task10aPowerToughnessVisitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(visitor.0, expected_visits, "{text:?}");
+    }
+
+    let text = "This creature gets -1/-1 and target creature gets +1/+1.";
+    let ability = assert_selected(&parser, &context, text);
+    let mut visitor = Task10aPowerToughnessVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(
+        visitor.0,
+        [
+            "clause-coordination",
+            "negative-magnitude",
+            "negative-magnitude",
+            "positive-magnitude",
+            "positive-magnitude",
+        ],
+    );
+}
+
+#[test]
+fn task10a_adjustment_sign_slash_pairing_and_agreement_boundaries_are_reciprocal() {
+    let parser = parser();
+    let context = context();
+
+    for retained in [
+        "Target creature gets +1/+1 until end of turn.",
+        "This creature has base power and toughness 4/4.",
+    ] {
+        assert_selected(&parser, &context, retained);
+    }
+    for malformed in [
+        "Target creature gets 1/-1 until end of turn.",
+        "Target creature gets -1/1 until end of turn.",
+        "Target creature gets --1/-1 until end of turn.",
+        "Target creature gets -1/--1 until end of turn.",
+        "Target creature gets +-1/-1 until end of turn.",
+        "Target creature gets -1/-+1 until end of turn.",
+        "Target creature gets -1 until end of turn.",
+        "Target creature gets -1/ until end of turn.",
+        "Target creature gets /-1 until end of turn.",
+        "Target creature gets -1//-1 until end of turn.",
+        "Target creature gets -1 /-1 until end of turn.",
+        "Target creature gets -1/ -1 until end of turn.",
+        "Target creature gets 3/3 until end of turn.",
+        "Target creature get -1/-1 until end of turn.",
+        "Creatures gets -1/-1 until end of turn.",
+    ] {
+        assert!(
+            parser.parse(malformed, &context).is_err(),
+            "malformed adjustment boundary must reject {malformed:?}",
+        );
+    }
+}
+
 #[test]
 fn task9_ordinary_ability_nouns_parse_while_keyword_interiors_remain_plan10() {
     let parser = parser();
