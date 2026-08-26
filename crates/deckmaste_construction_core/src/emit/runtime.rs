@@ -887,9 +887,11 @@ fn declaration_verb_lexical_variants(
             let verb = codec.codec_ident();
             match codec.feature_axis() {
                 crate::feature::Feature::Agreement => {
-                    quote! { #verb { verb: #verb, agreement: Agreement }, }
+                    quote! { #verb { verb: #verb, agreement: Agreement, onset: Onset }, }
                 }
-                crate::feature::Feature::Participle => quote! { #verb { verb: #verb }, },
+                crate::feature::Feature::Participle => {
+                    quote! { #verb { verb: #verb, onset: Onset }, }
+                }
                 _ => unreachable!("validated declaration_verb feature axis is closed"),
             }
         })
@@ -1764,7 +1766,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                     };
                                     quote! {
                                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
-                                            verb: #verb::Lexeme(#closed::#member), agreement: #agreement,
+                                            verb: #verb::Lexeme(#closed::#member), agreement: #agreement, ..
                                         }) => Some(LexicalOwner::static_owner(LexicalProvenanceKind::Lexeme, #stable_id)),
                                     }
                                 }
@@ -1773,6 +1775,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                     quote! {
                                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
                                             verb: #verb::Lexeme(#closed::#member),
+                                            ..
                                         }) => Some(LexicalOwner::static_owner(LexicalProvenanceKind::Lexeme, #stable_id)),
                                     }
                                 }
@@ -1789,7 +1792,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     crate::feature::Feature::Agreement => quote! {
                         #(#closed_owner_arms)*
                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
-                            verb: #declaration_pattern, agreement,
+                            verb: #declaration_pattern, agreement, ..
                         }) => Some(LexicalOwner::declaration_owner(
                             declaration.id().clone(), match agreement {
                                 Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
@@ -1800,7 +1803,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     crate::feature::Feature::Participle => quote! {
                         #(#closed_owner_arms)*
                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
-                            verb: #declaration_pattern,
+                            verb: #declaration_pattern, ..
                         }) => Some(LexicalOwner::declaration_owner(
                             declaration.id().clone(), ::macro_ron::v2::SurfaceFeature::Participle,
                         )),

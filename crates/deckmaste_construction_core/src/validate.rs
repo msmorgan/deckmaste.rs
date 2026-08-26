@@ -13949,11 +13949,12 @@ pub(crate) mod tests {
             }
             construction passive: Predicate {
                 element Passive { head: lex PassiveHead, }
+                derive onset = head.onset;
                 form passive = verb(head);
             }
             root Predicate { punctuation = "."; eoi = true; standalone_render = true; }
         })
-        .expect("the finite participle terminal compiles without a stored form tag");
+        .expect("the finite participle terminal projects onset without a stored form tag");
 
         let mismatch = error(quote! {
             morphology EnglishVerb { feature = Agreement; recipe = english_verb; }

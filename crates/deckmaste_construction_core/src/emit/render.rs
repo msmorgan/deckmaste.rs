@@ -3744,6 +3744,89 @@ fn lexical_onset_expr(
         });
         return Ok(quote! { match (#role_value, #number) { #(#arms,)* } });
     }
+    if let Some((_, codec)) = validated.runtime_declaration_verb_for(field.terminal()) {
+        let verb = codec.codec_ident();
+        if let Some(closed) = codec.closed_lexeme() {
+            let lexeme = validated
+                .lexeme(&closed.to_string())
+                .ok_or_else(|| internal("validated declaration verb lacks a closed lexeme plan"))?;
+            return match codec.feature_axis() {
+                Feature::Agreement => {
+                    let agreement =
+                        projected_verb_agreement(validated, construction, role, locals)?;
+                    let closed_arms = lexeme.surfaces().iter().map(|row| {
+                        let member = ident(row.member());
+                        let agreement = match row.feature() {
+                            macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                            macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                                quote! { Agreement::ThirdPersonSingular }
+                            }
+                            _ => unreachable!(
+                                "validated Agreement declaration verb has Agreement rows"
+                            ),
+                        };
+                        let onset = super::onset(row.onset());
+                        quote! { (#verb::Lexeme(#closed::#member), #agreement) => #onset }
+                    });
+                    Ok(quote! {
+                        match (#role_value, #agreement) {
+                            #(#closed_arms,)*
+                            (#verb::Declaration(declaration), agreement) => environment
+                                .onset(
+                                    declaration.id(),
+                                    match agreement {
+                                        Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                                        Agreement::ThirdPersonSingular => {
+                                            ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                                        }
+                                    },
+                                )
+                                .expect("stored declaration verb remains in its normalized parser environment"),
+                        }
+                    })
+                }
+                Feature::Participle => {
+                    let closed_arms = lexeme.surfaces().iter().map(|row| {
+                        let member = ident(row.member());
+                        let onset = super::onset(row.onset());
+                        quote! { #verb::Lexeme(#closed::#member) => #onset }
+                    });
+                    Ok(quote! {
+                        match #role_value {
+                            #(#closed_arms,)*
+                            #verb::Declaration(declaration) => environment
+                                .onset(
+                                    declaration.id(),
+                                    ::macro_ron::v2::SurfaceFeature::Participle,
+                                )
+                                .expect("stored declaration verb remains in its normalized parser environment"),
+                        }
+                    })
+                }
+                _ => unreachable!("validated declaration verb feature axis is closed"),
+            };
+        }
+        let feature = match codec.feature_axis() {
+            Feature::Agreement => {
+                let agreement = projected_verb_agreement(validated, construction, role, locals)?;
+                quote! {
+                    match #agreement {
+                        Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                        Agreement::ThirdPersonSingular => {
+                            ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                        }
+                    }
+                }
+            }
+            Feature::Participle => quote! { ::macro_ron::v2::SurfaceFeature::Participle },
+            _ => unreachable!("validated declaration verb feature axis is closed"),
+        };
+        return Ok(quote! {
+            environment
+                .onset((#role_value).id(), #feature)
+                .expect("stored declaration verb remains in its normalized parser environment")
+        });
+    }
     let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
         return Err(internal(
             "lexical onset source has no sealed terminal onset plan",

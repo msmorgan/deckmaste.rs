@@ -718,6 +718,10 @@ impl TerminalPlan {
                 | Self::ContextIdentity(_)
                 | Self::CatalogIdentity(_)
                 | Self::DeclarationNoun(_)
+                | Self::Binding(BindingPlan {
+                    declaration_verb: Some(_),
+                    ..
+                })
         )
     }
 

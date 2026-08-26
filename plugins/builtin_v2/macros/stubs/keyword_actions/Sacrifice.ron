@@ -3,6 +3,7 @@ KeywordAction(
     spelling: "sacrifice",
     grammar: Verb(
         bare: "sacrifice",
+        participle: "sacrificed",
         valence: Transitive,
     ),
 )

@@ -934,12 +934,20 @@ mod tests {
     }
 
     fn connive_leaf() -> Leaf {
+        let environment = canonical_test_environment();
         let VerbPhrase::IntransitivePredicate(predicate) = connive_phrase() else {
             unreachable!("the helper constructs an intransitive predicate")
         };
+        let IntransitiveVerb::Declaration(declaration) = &predicate.head else {
+            unreachable!("the helper constructs a declared intransitive verb")
+        };
+        let onset = environment
+            .onset(declaration.id(), ::macro_ron::v2::SurfaceFeature::Bare)
+            .expect("the canonical Connive row carries onset");
         Leaf::IntransitiveVerb {
             verb: predicate.head,
             agreement: Agreement::Bare,
+            onset,
         }
     }
 

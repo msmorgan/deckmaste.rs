@@ -21,7 +21,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Sacrifice.ron",
-            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",valence:Transitive))"#,
+            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",participle:"sacrificed",valence:Transitive))"#,
         ),
         (
             "/synthetic/actions/Connive.ron",
@@ -2508,6 +2508,101 @@ fn typed_scalar_measure_counter_and_object_complements_select_exact_products() {
             }),
         })
     ));
+}
+
+#[test]
+fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Draw cards equal to the blue creature's toughness.",
+        "Draw cards equal to the sacrificed creature's toughness.",
+        "Deal damage equal to the number of Slivers you control to target artifact.",
+        "Deal damage to target artifact equal to the number of Slivers you control.",
+        "Gain life equal to twice the number of Slivers you control.",
+        "Gain life equal to one plus the number of Slivers you control.",
+        "Draw cards equal to the greatest power among creatures you control.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    let draw = imperative_atomic(
+        &parser,
+        &context,
+        "Draw cards equal to the blue creature's toughness.",
+    );
+    let VerbPhrase::DrawCardsEqualTo(DrawCardsEqualTo { equality }) = draw else {
+        panic!("genitive scalar selects the existing draw-equality frame")
+    };
+    let ScalarEquality::ScalarEquality(ScalarEqualityValue { value }) = equality;
+    assert!(matches!(value, ScalarValue::GenitiveScalarValue(_)));
+
+    assert_selected_with_specificity(&parser, &context, "Destroy the chosen creature.", true);
+    assert_selected_with_specificity(&parser, &context, "Destroy the exiled card.", true);
+
+    let damage = imperative_atomic(
+        &parser,
+        &context,
+        "Deal damage to target artifact equal to the number of Slivers you control.",
+    );
+    let VerbPhrase::DealDamageToEqualTo(DealDamageToEqualTo {
+        recipient,
+        equality,
+    }) = damage
+    else {
+        panic!("post-recipient equality selects its ordered damage frame")
+    };
+    assert!(matches!(recipient, DamageRecipient::DamageRecipient(_)));
+    let ScalarEquality::ScalarEquality(ScalarEqualityValue { value }) = equality;
+    assert!(matches!(value, ScalarValue::NumberOfScalarValue(_)));
+
+    for (text, expected) in [
+        (
+            "Gain life equal to twice the number of Slivers you control.",
+            "twice",
+        ),
+        (
+            "Gain life equal to one plus the number of Slivers you control.",
+            "offset",
+        ),
+        (
+            "Draw cards equal to the greatest power among creatures you control.",
+            "greatest",
+        ),
+    ] {
+        let predicate = imperative_atomic(&parser, &context, text);
+        let equality = match predicate {
+            VerbPhrase::GainLifeEqualTo(GainLifeEqualTo { equality })
+            | VerbPhrase::DrawCardsEqualTo(DrawCardsEqualTo { equality }) => equality,
+            other => panic!("{expected} scalar selected wrong frame: {other:?}"),
+        };
+        let ScalarEquality::ScalarEquality(ScalarEqualityValue { value }) = equality;
+        assert!(
+            matches!(
+                (expected, value),
+                ("twice", ScalarValue::TwiceScalarValue(_))
+                    | ("offset", ScalarValue::OffsetScalarValue(_))
+                    | ("greatest", ScalarValue::GreatestScalarValue(_))
+            ),
+            "{expected} scalar retains its compositional AST",
+        );
+    }
+
+    for malformed in [
+        "Draw cards equal to the blue creature toughness.",
+        "Draw cards equal to the blue creatures' toughness.",
+        "Deal damage to target artifact equal the number of Slivers you control.",
+        "Deal damage to target artifact the number of Slivers you control.",
+        "Gain life equal to twice number of Slivers you control.",
+        "Gain life equal to one the number of Slivers you control.",
+        "Draw cards equal to greatest power among creatures you control.",
+    ] {
+        assert!(
+            parser.parse(malformed, &context).is_err(),
+            "malformed scalar composition must reject {malformed:?}",
+        );
+    }
 }
 
 #[test]

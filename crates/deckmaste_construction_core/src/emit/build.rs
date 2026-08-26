@@ -673,8 +673,13 @@ fn lower_terminal_value(
         AtomTerminal::DeclarationVerb { plan, .. } => {
             let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
+            let feature = match plan.feature_axis() {
+                Feature::Agreement => quote! { agreement: _, },
+                Feature::Participle => quote! {},
+                _ => unreachable!("validated declaration verb feature axis is closed"),
+            };
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { verb: #binding, agreement: _ }) },
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { verb: #binding, #feature onset: _ }) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -1747,14 +1752,21 @@ fn lower_declaration_verb_role(
 ) -> syn::Result<()> {
     let leaf = plan.codec_ident();
     let value = lowering.binders.allocate(&identifier_key(role));
+    let onset = lowering
+        .binders
+        .allocate(&format!("{}_onset", identifier_key(role)));
+    lowering.role_features.insert(
+        (identifier_key(role), Feature::Onset),
+        LocalFeatureValue::Bound(onset.clone()),
+    );
     let feature_field = match plan.feature_axis() {
         Feature::Agreement => {
             let agreement =
                 role_agreement_pattern(validated, row, role, plan.codec_name(), lowering)?;
             if agreement.to_string() == "agreement" {
-                quote! { agreement }
+                quote! { agreement, }
             } else {
-                quote! { agreement: #agreement }
+                quote! { agreement: #agreement, }
             }
         }
         Feature::Participle => quote! {},
@@ -1764,6 +1776,7 @@ fn lower_declaration_verb_role(
         BuildValue::Leaf(Leaf::#leaf {
             verb: #value,
             #feature_field
+            onset: #onset,
         })
     });
     lowering

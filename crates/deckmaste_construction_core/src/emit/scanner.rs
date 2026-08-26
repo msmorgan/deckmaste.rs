@@ -585,16 +585,17 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
                             };
                             let surface = syn::LitStr::new(row.surface(), Span::call_site());
-                            quote! { (#closed::#member, #agreement, #surface) }
+                            let onset = crate::emit::onset(row.onset());
+                            quote! { (#closed::#member, #agreement, #onset, #surface) }
                         });
                         quote! {
-                            for (lexeme, agreement, surface) in [#(#candidates),*] {
+                            for (lexeme, agreement, onset, surface) in [#(#candidates),*] {
                                 if (matches!(wanted, FeatureConstraint::Any)
                                     || matches!(wanted, FeatureConstraint::Exact(expected) if expected == agreement))
                                     && let Some(end) = input.word_end(surface, terminal.right_boundary)
                                 {
                                     matches.push(LexicalMatch { end, value: Leaf::#verb {
-                                        verb: #verb::Lexeme(lexeme), agreement,
+                                        verb: #verb::Lexeme(lexeme), agreement, onset,
                                     }, owner: None });
                                 }
                             }
@@ -605,13 +606,14 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             debug_assert_eq!(row.feature(), macro_ron::v2::SurfaceFeature::Participle);
                             let member = emitted_ident(row.member(), Span::call_site());
                             let surface = syn::LitStr::new(row.surface(), Span::call_site());
-                            quote! { (#closed::#member, #surface) }
+                            let onset = crate::emit::onset(row.onset());
+                            quote! { (#closed::#member, #onset, #surface) }
                         });
                         quote! {
-                            for (lexeme, surface) in [#(#candidates),*] {
+                            for (lexeme, onset, surface) in [#(#candidates),*] {
                                 if let Some(end) = input.word_end(surface, terminal.right_boundary) {
                                     matches.push(LexicalMatch { end, value: Leaf::#verb {
-                                        verb: #verb::Lexeme(lexeme),
+                                        verb: #verb::Lexeme(lexeme), onset,
                                     }, owner: None });
                                 }
                             }
@@ -654,6 +656,15 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             },
                         ) {
                             #declaration_filter
+                            let feature = match agreement {
+                                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                                Agreement::ThirdPersonSingular => {
+                                    ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                                }
+                            };
+                            let onset = input.environment
+                                .onset(&id, feature)
+                                .expect("normalized declaration verb reading carries onset");
                             let Some(declaration) = #declaration::new(input.environment, id) else {
                                 continue;
                             };
@@ -662,6 +673,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 value: Leaf::#verb {
                                     verb: #open_value,
                                     agreement,
+                                    onset,
                                 },
                                 owner: None,
                             });
@@ -682,9 +694,13 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             ::macro_ron::v2::SurfaceFeature::Participle,
                         ) {
                             #declaration_filter
+                            let onset = input.environment
+                                .onset(&id, ::macro_ron::v2::SurfaceFeature::Participle)
+                                .expect("normalized declaration verb reading carries onset");
                             let Some(declaration) = #declaration::new(input.environment, id) else { continue; };
                             matches.push(LexicalMatch { end, value: Leaf::#verb {
                                 verb: #open_value,
+                                onset,
                             }, owner: None });
                         }
                         matches

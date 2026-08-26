@@ -1736,6 +1736,13 @@ constructions! {
         derive onset = status.onset;
         form status_modifier = lex(status);
     }
+    construction reduced_relative_modifier: NominalModifier {
+        element ReducedRelativeModifier { head: lex DeclaredTransitiveParticipleHead, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = head.onset;
+        form reduced_relative_modifier = verb(head);
+    }
     construction supertype_modifier: NominalModifier {
         element SupertypeModifier { supertype: lex Supertype, }
         derive agreement = Values::ThirdPersonSingular;
@@ -2919,6 +2926,35 @@ constructions! {
         }
         form possessed_scalar_value = lex(possessor) measure;
     }
+    construction genitive_scalar_value: ScalarValue {
+        element GenitiveScalarValue {
+            possessor: SingularSelector,
+            measure: ScalarMeasure,
+        }
+        form genitive_scalar_value = "the" suffix(possessor, "'s") measure;
+    }
+    construction number_of_scalar_value: ScalarValue {
+        element NumberOfScalarValue { counted: Object, }
+        form number_of_scalar_value = "the" "number" "of" counted;
+    }
+    construction twice_scalar_value: ScalarValue {
+        element TwiceScalarValue { value: ScalarValue, }
+        form twice_scalar_value = "twice" value;
+    }
+    construction offset_scalar_value: ScalarValue {
+        element OffsetScalarValue {
+            offset: CardinalQuantity,
+            basis: ScalarValue,
+        }
+        form offset_scalar_value = offset "plus" basis;
+    }
+    construction greatest_scalar_value: ScalarValue {
+        element GreatestScalarValue {
+            measure: ScalarMeasure,
+            domain: AmongPhrase,
+        }
+        form greatest_scalar_value = "the" "greatest" measure domain;
+    }
     construction scalar_equality: ScalarEquality {
         element ScalarEqualityValue { value: ScalarValue, }
         form scalar_equality = "equal" "to" value;
@@ -3347,6 +3383,14 @@ constructions! {
         }
         derive agreement = verb.agreement;
         form deal_damage_equal_to = verb(VerbLexeme::Deal) "damage" equality recipient;
+    }
+    construction deal_damage_to_equal_to: VerbPhrase {
+        element DealDamageToEqualTo {
+            recipient: DamageRecipient,
+            equality: ScalarEquality,
+        }
+        derive agreement = verb.agreement;
+        form deal_damage_to_equal_to = verb(VerbLexeme::Deal) "damage" recipient equality;
     }
     construction gain_life_equal_to: VerbPhrase {
         element GainLifeEqualTo { equality: ScalarEquality, }
