@@ -6329,6 +6329,48 @@ damnation =
                        Regenerated Them) ]
        Nothing
 
+||| "Destroy all creatures, then create an X/X colorless Phyrexian Horror
+||| artifact creature token, where X is the number of creatures destroyed
+||| this way." The letter reads the group the destruction left, through
+||| `CountOfGroup`.
+public export
+phyrexianRebirth : Card
+phyrexianRebirth =
+  Macros.card "Phyrexian Rebirth"
+       (Just [Macros.generic 4, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ Macros.destroy (AllOf Macros.creature)
+                  , Create You (Lit 1)
+                           (TokenWritten
+                              (MkToken (Just (LetterVal X ** LetterVal X)) []
+                                       (MkTypeLine [Phyrexian, Horror]
+                                                   [Artifact, Creature])
+                                       [] Nothing))
+                           []
+                  , Define X (CountOfGroup
+                                (Macros.thoseVerbedThisWay "Destroy"
+                                                           (TypeW Creature))) ]) ]
+       Nothing
+
+||| "Incinerate deals 3 damage to any target. A creature dealt damage this
+||| way can't be regenerated this turn." The bare participle is the
+||| lookback reader with `ThisWay` in the window's place.
+public export
+incinerate : Card
+incinerate =
+  Macros.card "Incinerate" (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
+                  , Continuously
+                      (ObjectCant Regenerated
+                         (Macros.a (And [Macros.creature,
+                                         HappenedTo DamageTaken Lookback.ThisWay
+                                                    Nothing])))
+                      (Just Macros.thisTurn) ]) ]
+       Nothing
+
 public export
 hurrJackalAbility : Ability
 hurrJackalAbility =

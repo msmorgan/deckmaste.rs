@@ -978,7 +978,7 @@ monoHybridPip n c = Hybrid (Generic n) c
 
 public export
 phyrexianPip : Color -> ManaSymbol
-phyrexianPip c = Phyrexian c Nothing
+phyrexianPip c = PhyrexianMana c Nothing
 
 public export
 payLife : (who : Noun bs Player) -> (n : Nat) -> Cost bs

@@ -120,6 +120,8 @@ sameLookback LastTurn LastTurn = True
 sameLookback LastTurn _ = False
 sameLookback ThisGame ThisGame = True
 sameLookback ThisGame _ = False
+sameLookback ThisWay ThisWay = True
+sameLookback ThisWay _ = False
 
 ||| [CR#614.1] hangs a replacement effect on an event that would
 ||| happen. A chapter's arrival is not an event: the chapter symbol is a

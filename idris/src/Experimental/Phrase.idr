@@ -1575,6 +1575,17 @@ mutual
                     (body : Amount (bindFor TheD OneOf ph dom
                                       :: (predDelta dom ++ bs))) ->
                     Amount bs
+    ||| "the number of creatures destroyed this way", "the number of
+    ||| them": the count whose domain is a group MENTION rather than a
+    ||| description -- `CountOf`'s mention twin, as `AggregateOf` is
+    ||| `Aggregate`'s. It READS the group an earlier clause left, where
+    ||| `GroupSize` re-mentions a quantity the text already stated: that
+    ||| one spells "that many" and finds the unique plural mention, this
+    ||| one names its group and may stand as a comparison's subject.
+    ||| -- spelling: "the number of [grp]".
+    CountOfGroup : {k : Kind} -> (grp : Noun bs k) ->
+                   {auto 0 pl : nounPlur grp = ManyOf} ->
+                   {auto 0 gm : GroupMention grp} -> Amount bs
 
   public export
   amtDelta : {bs : Bindings} -> Amount bs -> List Binding
@@ -1600,6 +1611,7 @@ mutual
   amtDelta (EventSum _ who _ what) = nounDelta who ++ complementDelta what
   amtDelta (AggregateOf _ _ grp) = nounDelta grp
   amtDelta (AggregateOver _ dom _) = predDelta dom
+  amtDelta (CountOfGroup grp) = nounDelta grp
 
   public export
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
@@ -1625,6 +1637,7 @@ mutual
   amtIntro (EventSum _ who _ what) = complementDelta what ++ nomIntro who
   amtIntro (AggregateOf _ _ grp) = nomIntro grp
   amtIntro (AggregateOver _ dom _) = predDelta dom ++ bs
+  amtIntro (CountOfGroup grp) = nomIntro grp
 
   ||| An unwritten amount introduces nothing: the slot's absence is the
   ||| bare "all" spelling, not a mention a later clause could read.
@@ -1658,6 +1671,7 @@ mutual
   amtPlur (EventSum _ _ _ _) = ManyOf
   amtPlur (AggregateOf _ _ _) = ManyOf
   amtPlur (AggregateOver _ _ _) = ManyOf
+  amtPlur (CountOfGroup _) = ManyOf
 
   public export
   writtenBound : {0 bs : Bindings} -> Amount bs -> Bool
@@ -1683,6 +1697,7 @@ mutual
   writtenBound (EventSum _ _ _ _) = False
   writtenBound (AggregateOf _ _ _) = False
   writtenBound (AggregateOver _ _ _) = False
+  writtenBound (CountOfGroup _) = False
 
   public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
@@ -1732,6 +1747,7 @@ mutual
   readAmount (EventSum _ _ _ _) = True
   readAmount (AggregateOf _ _ _) = True
   readAmount (AggregateOver _ _ _) = True
+  readAmount (CountOfGroup _) = True
 
   public export
   ReadAmount : Amount bs -> Type

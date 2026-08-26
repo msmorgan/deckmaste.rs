@@ -418,7 +418,7 @@ badEmptyManaCost IsNonEmpty impossible
 ||| A hybrid Phyrexian symbol names two different colors [CR#107.4f].
 public export
 badSameColorPhyrexian : Unspellable ManaSymbol (\ok =>
-  Phyrexian White (Just White) {ds = ok})
+  PhyrexianMana White (Just White) {ds = ok})
 badSameColorPhyrexian Oh impossible
 
 

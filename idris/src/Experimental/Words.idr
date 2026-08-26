@@ -1752,8 +1752,22 @@ Eq ShiftDir where
 
 
 namespace Lookback
+  ||| The window a retrospective reader scopes its event to. Three of the
+  ||| values name a stretch of time; `ThisWay` names a CAUSE instead -- the
+  ||| actions this spell or ability itself took. [CR#608.2c] is the rule that
+  ||| lets later text read the instruction it follows, one of its two worked
+  ||| examples being a "...this way" back-reference, and it settles no more
+  ||| than that the reading is available: WHICH earlier instruction the phrase
+  ||| names is left to whoever reads the card. The value carries no discourse
+  ||| gate, where `DealtThisWay` carries one, because the bindings record the
+  ||| mentions an earlier clause left rather than the instructions it ran, and
+  ||| a window is generic over every event name. A text writing it with no
+  ||| earlier instruction to name is tolerated overgeneration, refused at the
+  ||| spelling boundary.
+  ||| -- spelling: "this way" in the window's place, "dealt damage this
+  ||| way", "destroyed this way".
   public export
-  data Lookback = ThisTurn | ThisCombat | LastTurn | ThisGame
+  data Lookback = ThisTurn | ThisCombat | LastTurn | ThisGame | ThisWay
 
 public export
 data OnStack : Maybe Zone -> Type where
@@ -2033,8 +2047,8 @@ data ManaSymbol : Type where
   Simple : SimpleManaSymbol -> ManaSymbol
   Hybrid : (l : SimpleManaSymbol) -> (r : Color) ->
            {auto 0 ds : HalvesDistinct l r} -> ManaSymbol
-  Phyrexian : (c : Color) -> (d : Maybe Color) ->
-              {auto 0 ds : PhyrexianDistinct c d} -> ManaSymbol
+  PhyrexianMana : (c : Color) -> (d : Maybe Color) ->
+                  {auto 0 ds : PhyrexianDistinct c d} -> ManaSymbol
   Variable : ManaSymbol
   SnowMana : ManaSymbol
 
@@ -2145,6 +2159,7 @@ data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
              | Kraken | Sphinx
              | Werewolf | Eldrazi
              | Fungus
+             | Phyrexian
 
 public export
 Eq Subtype where
@@ -2164,6 +2179,8 @@ Eq Subtype where
   (==) Horror _ = False
   (==) Gargoyle Gargoyle = True
   (==) Gargoyle _ = False
+  (==) Phyrexian Phyrexian = True
+  (==) Phyrexian _ = False
   (==) Assassin Assassin = True
   (==) Assassin _ = False
   (==) Skeleton Skeleton = True
@@ -2385,6 +2402,7 @@ subtypeType Elder = Creature
 subtypeType Dinosaur = Creature
 subtypeType Horror = Creature
 subtypeType Gargoyle = Creature
+subtypeType Phyrexian = Creature
 subtypeType Assassin = Creature
 subtypeType Skeleton = Creature
 subtypeType Golem = Creature
