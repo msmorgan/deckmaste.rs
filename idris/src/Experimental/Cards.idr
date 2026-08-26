@@ -2700,7 +2700,7 @@ docSamsonDistributive =
 
 ||| Stalwart Successor's header — "Whenever one or more counters are put on
 ||| a creature you control": the kind-blind batch on the trigger side,
-||| benched at the event level (precedent: tahngarthAttacksThatJoin); the
+||| benched at the event level; the
 ||| intervening-if clause the line goes on to write has no row.
 stalwartSuccessorHeader : GameEvent []
 stalwartSuccessorHeader =
@@ -3492,6 +3492,39 @@ gideonAllyOfZendikar =
                                                  (PtUp (Lit 1)) (PtUp (Lit 1)))]) ]
        (Macros.loyaltyBox 4)
 
+||| Gideon Jura. The [+2] is the fronted span: "During target opponent's
+||| next turn" announces the target and "creatures that player controls"
+||| reads it back, which is why the span leads the statement rather than
+||| trailing it. Its patient is the source named by its own type -- an
+||| attack aimed at a named permanent [CR#506.3].
+public export
+gideonJura : Card
+gideonJura =
+  Macros.cardOf "Gideon Jura"
+       (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) [Legendary]
+       (MkTypeLine [planeswalkerType "Gideon"] [Planeswalker])
+       [ Macros.activated (LoyaltySymbol (LoyaltyUp 2))
+           (Throughout (DuringNextTurnOf (Macros.target Opponent))
+                       (Deontic (AllOf (And [Macros.creature,
+                                             ControlledBy (That PlayerW)]))
+                                Require Attack Agent
+                                (DefendingPlayer Macros.thisPlaneswalker)))
+       , Macros.activated (LoyaltySymbol (LoyaltyDown 2))
+           (Macros.destroy (Macros.target (And [Macros.creature, Macros.tapped])))
+       , Macros.activated (LoyaltySymbol LoyaltyZero)
+           (Sequentially
+              [ Continuously
+                  (SetsType Macros.thisPlaneswalker
+                            (MkToken (Just (Lit 6 ** Lit 6)) []
+                                     (MkTypeLine [creatureType "Human",
+                                                  creatureType "Soldier"] [Creature])
+                                     [] Nothing)
+                            (Just Planeswalker))
+                  (Just Macros.untilEndOfTurn)
+              , Macros.preventAll AnyDamage (Macros.shieldingIt It)
+                                  (Just Macros.thisTurn) ]) ]
+       (Macros.loyaltyBox 6)
+
 public export
 turnTheTables : Card
 turnTheTables =
@@ -3785,6 +3818,55 @@ firesongJoinEcho =
                    (Macros.target (Macros.kindJoin AnyPlayer Macros.creature))
                , DealDamage This (Lit 1) (Macros.thatJoin) ]
 
+||| Sorrow's Path's could-block test -- "if each of those creatures could
+||| block all creatures that the other is blocking". [CR#509.1a] and
+||| [CR#509.1b] are the whole of the reading: untapped, and no blocking
+||| restriction disobeyed. "The other" has no shape, so the relatum is
+||| written as the attacking creatures at large.
+public export
+sorrowsPathCouldBlock : Predicate [] Object
+sorrowsPathCouldBlock = CouldBlock (AllOf (And [Macros.creature, Attacking]))
+
+||| General Jarkeld's -- "if each of those creatures could be blocked by
+||| all creatures that the other is blocked by": the same test in the other
+||| voice, as `BlockedBy` is to `BlockerOf`. Same relatum drop.
+public export
+generalJarkeldCouldBeBlocked : Predicate [] Object
+generalJarkeldCouldBeBlocked =
+  CouldBeBlockedBy (AllOf (And [Macros.creature, Blocking]))
+
+||| Sorrow's Path's reassignment -- "remove both of them from combat. Each
+||| one then blocks all creatures the other was blocking." The removal and
+||| the write back in, which [CR#509.3a] distinguishes from the reading
+||| below: the creature was not a blocking creature between the two
+||| clauses, so a "whenever [it] blocks" ability triggers again. The card's
+||| own subject ("two target blocking creatures controlled by the same
+||| opponent") is written as one, and "the other" is dropped.
+public export
+sorrowsPathReassign : Effect []
+sorrowsPathReassign =
+  Sequentially
+    [ RemoveFromCombat (Macros.target (And [Macros.creature, Blocking]))
+    , BecomesBlocking (That (TypeW Creature))
+                      (Macros.a (And [Macros.creature, Attacking])) ]
+
+||| General Jarkeld's -- "each creature that's blocking exactly one of
+||| those attacking creatures stops blocking it and is blocking the other
+||| attacking creature." The same reassignment written the other way: no
+||| removal, so [CR#506.4] leaves the creature a blocking creature
+||| throughout and [CR#509.3a] fires nothing. That the two terms differ at
+||| all is the point; collapsing them would lose the card's ruling. Its
+||| subject is written as the source for want of "each creature that's
+||| blocking exactly one of those attacking creatures".
+public export
+generalJarkeldReassign : Effect []
+generalJarkeldReassign =
+  Sequentially
+    [ StopsBlocking Macros.thisCreature
+                    (Macros.target (And [Macros.creature, Attacking]))
+    , BecomesBlocking Macros.thisCreature
+                      (Macros.a (And [Macros.creature, Attacking])) ]
+
 ||| Tahngarth, First Mate's last two clauses -- "choose a player or
 ||| planeswalker that opponent is attacking. Tahngarth is attacking that
 ||| player or planeswalker." The choose mints the joined binding; the
@@ -3800,14 +3882,14 @@ tahngarthChoosesDefender =
 ||| "Tahngarth is attacking that player or planeswalker", in the context
 ||| the choose above leaves behind. [CR#506.3] closes what the slot may
 ||| name and the joined head is inside that set; the same slot refuses a
-||| creature (`badCreatureAttackDefender`). It is a `GameEvent` rather than
-||| an `Effect` because no effect row makes an on-battlefield permanent an
-||| attacking creature -- `EntersAttacking` is an entry rider and names no
-||| defender.
+||| creature (`badCreatureAttackDefender`). The clause asserts the
+||| assignment rather than declaring it, so it is `BecomesAttacking` and
+||| not the declaration event: nothing is declared as an attacker by a
+||| resolving effect [CR#508.3a].
 public export
-tahngarthAttacksThatJoin : GameEvent (effIntro Cards.tahngarthChoosesDefender)
+tahngarthAttacksThatJoin : Effect (effIntro Cards.tahngarthChoosesDefender)
 tahngarthAttacksThatJoin =
-  Macros.attacksPlayer Macros.thisCreature Macros.thatJoin
+  BecomesAttacking Macros.thisCreature (OneDefender Macros.thatJoin)
 
 public export
 endure : Card

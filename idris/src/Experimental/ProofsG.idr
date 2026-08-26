@@ -553,3 +553,45 @@ badSameKindJoinDamage : Unspellable (Effect []) (\ok =>
   DealDamage This (Lit 3)
              (Macros.a (Joined (HasType Land) (HasType Land))) {rk = ok})
 badSameKindJoinDamage JoinTakes impossible
+
+
+||| "creature that could block target creature card in your graveyard"
+||| The hypothetical block is asked of a block that could be declared, and
+||| [CR#509.1g] holds the relation between creatures in combat, so the
+||| relatum names no other zone. `BlockerOf`'s relatum falls the same way.
+public export
+badCouldBlockGraveyardRelatum : Unspellable (Predicate [] Object) (\ok =>
+  CouldBlock (Macros.target (And [Macros.creature,
+                                  InZone (Macros.graveyardOf You)])) {zn = ok})
+badCouldBlockGraveyardRelatum Oh impossible
+
+
+||| "Target land blocks an attacking creature."
+||| [CR#506.3]: "Only a creature can attack or block." The write puts a
+||| permanent into a blocking assignment, so it takes the block's agent
+||| type, and no land is one.
+public export
+badLandBecomesBlocking : Unspellable (Effect []) (\ok =>
+  BecomesBlocking (Macros.target Macros.land)
+                  (Macros.a (And [Macros.creature, Attacking])) {dn = ok})
+badLandBecomesBlocking Participant impossible
+
+
+||| "This creature blocks target planeswalker."
+||| What a blocker is assigned to is an attacking creature [CR#509.1a], and
+||| [CR#506.3] puts a planeswalker on the attacked side of combat, never
+||| the attacking one, so it is never a thing blocked.
+public export
+badBecomesBlockingPlaneswalker : Unspellable (Effect []) (\ok =>
+  BecomesBlocking Macros.thisCreature
+                  (Macros.target (HasType Planeswalker)) {dw = ok})
+badBecomesBlockingPlaneswalker Participant impossible
+
+
+||| "During each opponent's next turn, ..."
+||| [CR#102.1] makes the active player the player whose turn it is, so a
+||| turn has one possessor and a span naming several names no turn.
+public export
+badPluralNextTurnSpan : Unspellable (Duration []) (\ok =>
+  DuringNextTurnOf (Each Opponent) {one = ok})
+badPluralNextTurnSpan Refl impossible
