@@ -2781,6 +2781,9 @@ data CounterKind : Type where
   ||| Investigator's Journal's stored draws: an ordinary marker whose
   ||| whole meaning is the ability that reads it [CR#122.1].
   Suspect : CounterKind
+  ||| Chance Encounter's tally of won flips: the same ordinary marker
+  ||| [CR#122.1], counted by the ability that reads it.
+  Luck : CounterKind
 
 public export
 counterScope : CounterKind -> Kind
@@ -2803,6 +2806,7 @@ counterScope LoyaltyCounter = Object
 counterScope Plan = Object
 counterScope Hour = Object
 counterScope Suspect = Object
+counterScope Luck = Object
 
 public export
 Eq CounterKind where
@@ -2845,6 +2849,8 @@ Eq CounterKind where
   (==) Hour _ = False
   (==) Suspect Suspect = True
   (==) Suspect _ = False
+  (==) Luck Luck = True
+  (==) Luck _ = False
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where

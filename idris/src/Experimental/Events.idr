@@ -30,6 +30,8 @@ data EventName = Death | Departure | Destruction | DamageTaken
                | ChapterArrival
                | AbilityActivation
                | StatValueChange | Regeneration
+               | FlipWin | FlipLoss
+               | DiceRoll
 
 public export
 statusEventName : StatusCat -> EventName
@@ -50,6 +52,21 @@ counterEventName CounterTaken = CounterRemoval
 
 public export
 data CounterBatch = OneCounter | ManyCounters
+
+||| The two arms of a called flip [CR#705.2] as two events, on
+||| `counterEventName`'s model: the call's arms are opposite outcomes, and
+||| a name-keyed table has to be able to answer about each on its own.
+public export
+flipEventName : FlipCall -> EventName
+flipEventName WinsFlip = FlipWin
+flipEventName LosesFlip = FlipLoss
+
+||| The determiner a roll event writes. Printed headers say both "a die"
+||| and "one or more dice"; [CR#706.7] states the rules' own form of the
+||| event with the plural. Spelling only -- the roll leaves one result to
+||| read either way [CR#706.2].
+public export
+data DiceBatch = OneDie | ManyDice
 
 public export
 sameEventName : EventName -> EventName -> Bool
@@ -109,6 +126,12 @@ sameEventName StatValueChange StatValueChange = True
 sameEventName StatValueChange _ = False
 sameEventName Regeneration Regeneration = True
 sameEventName Regeneration _ = False
+sameEventName FlipWin FlipWin = True
+sameEventName FlipWin _ = False
+sameEventName FlipLoss FlipLoss = True
+sameEventName FlipLoss _ = False
+sameEventName DiceRoll DiceRoll = True
+sameEventName DiceRoll _ = False
 
 public export
 sameLookback : Lookback -> Lookback -> Bool
@@ -179,6 +202,15 @@ eventHasMagnitude ChapterArrival = False
 eventHasMagnitude AbilityActivation = False
 eventHasMagnitude StatValueChange = False
 eventHasMagnitude Regeneration = False
+-- [CR#705.2] gives a flip a face and, when called, a winner, and nothing
+-- numeric, so no arm of the call happens in an amount.
+eventHasMagnitude FlipWin = False
+eventHasMagnitude FlipLoss = False
+-- a roll's number is not the amount the rolling happened in: [CR#706.2]
+-- makes the result a number the roll PRODUCED, which is read back off
+-- the roll itself, and how many dice were rolled is `EventCount`'s
+-- reading.
+eventHasMagnitude DiceRoll = False
 
 public export
 data ReplUse = Repeatedly | NextTimeOnly
@@ -247,6 +279,16 @@ lookbackSubjectOk StatValueChange Object = False
 lookbackSubjectOk StatValueChange Player = False
 lookbackSubjectOk Regeneration Object = True
 lookbackSubjectOk Regeneration Player = False
+-- [CR#705.2] gives the flip to the player who flipped it and to no one
+-- else, so only a player is what won or lost one.
+lookbackSubjectOk FlipWin Object = False
+lookbackSubjectOk FlipWin Player = True
+lookbackSubjectOk FlipLoss Object = False
+lookbackSubjectOk FlipLoss Player = True
+-- "if you rolled a die this turn": a player is who [CR#706.1] instructs
+-- to roll.
+lookbackSubjectOk DiceRoll Object = False
+lookbackSubjectOk DiceRoll Player = True
 lookbackSubjectOk _ (Quality _) = False
 lookbackSubjectOk _ Outcome = False
 lookbackSubjectOk _ Gap = False
@@ -293,6 +335,12 @@ lookbackComplementOk CounterPlacement _ _ = False
 lookbackComplementOk CounterRemoval _ _ = False
 lookbackComplementOk AbilityActivation Player Ability = True
 lookbackComplementOk AbilityActivation _ _ = False
+-- neither flip arm nor a roll names a second participant: [CR#705.2]
+-- involves no other player, and [CR#706.1]'s dice are no phrase the
+-- grammar mentions.
+lookbackComplementOk FlipWin _ _ = False
+lookbackComplementOk FlipLoss _ _ = False
+lookbackComplementOk DiceRoll _ _ = False
 lookbackComplementOk _ _ _ = False
 
 ||| A lookback names its event. No rule fixes which subject a lookback

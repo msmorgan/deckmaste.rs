@@ -236,6 +236,26 @@ mutual
     Regenerates : (n : Noun bs Object) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   GameEvent bs
+    ||| "Whenever you win a coin flip", "Whenever a player wins a coin
+    ||| flip": the called reading of a flip as a thing that HAPPENS.
+    ||| [CR#705.2] makes it one — the flipper calls the coin and then
+    ||| wins or loses the flip — and gives it to that player alone, so
+    ||| the subject is a player and the event names no one else. The two
+    ||| arms are one row under a `FlipCall` slot lifting through
+    ||| `flipEventName`, on `CounterEvent`'s model. It announces its
+    ||| subject and no flip: the win is what happened, and the face
+    ||| belongs to the effect that instructed the flip.
+    ||| -- spelling: "[who] win(s)/lose(s) a coin flip"
+    FlipEvent : (who : Noun bs Player) -> (call : FlipCall) -> GameEvent bs
+    ||| "Whenever you roll one or more dice", "Whenever you roll a die":
+    ||| [CR#706.7] names this event in the rules' own words, so the roll
+    ||| is watchable and not merely instructable. It announces the roll's
+    ||| number, which the body reads back ("equal to the result") — the
+    ||| same mint `RollDice` makes, since [CR#706.2] gives the roll its
+    ||| result however the roll was called for.
+    ||| -- spelling: with `ManyDice`, "[who] roll(s) one or more dice";
+    ||| with `OneDie`, "[who] roll(s) a die".
+    RollsDice : (who : Noun bs Player) -> (many : DiceBatch) -> GameEvent bs
     ||| The ordinal occurrence of an event: "When the fourth plan counter
     ||| is put on this enchantment", "Whenever you cast your first spell
     ||| during each opponent's turn". The ordinal names WHICH occurrence in
@@ -275,6 +295,8 @@ mutual
   eventName (Activates _ _) = AbilityActivation
   eventName (StatBecomes _ _ _) = StatValueChange
   eventName (Regenerates _) = Regeneration
+  eventName (FlipEvent _ call) = flipEventName call
+  eventName (RollsDice _ _) = DiceRoll
   eventName (NthOccurrence _ ev) = eventName ev
 
   ||| What an event pattern contributes before it happens — its announced
@@ -310,6 +332,8 @@ mutual
   eventIntro (Activates _ what) = nomIntro what
   eventIntro (StatBecomes _ _ v) = amtIntro v
   eventIntro (Regenerates n) = nomIntro n
+  eventIntro (FlipEvent who _) = nomIntro who
+  eventIntro (RollsDice who _) = nomIntro who
   eventIntro (NthOccurrence _ ev) = eventIntro ev
 
   ||| The discourse after the event has happened, read by a trigger's
@@ -348,6 +372,8 @@ mutual
   eventAfter (Activates _ what) = nomIntro what
   eventAfter (StatBecomes n _ v) = amtDelta v ++ selfSubjIntro n
   eventAfter (Regenerates n) = selfSubjIntro n
+  eventAfter (FlipEvent who _) = nomIntro who
+  eventAfter (RollsDice who _) = outcomeB RollResult :: nomIntro who
   eventAfter (NthOccurrence _ ev) = eventAfter ev
 
   public export
@@ -375,6 +401,8 @@ mutual
   eventSubjectPlur (Activates who _) = nounPlur who
   eventSubjectPlur (StatBecomes n _ _) = nounPlur n
   eventSubjectPlur (Regenerates n) = nounPlur n
+  eventSubjectPlur (FlipEvent who _) = nounPlur who
+  eventSubjectPlur (RollsDice who _) = nounPlur who
   eventSubjectPlur (NthOccurrence _ ev) = eventSubjectPlur ev
 
   ||| The context a delayed body reads: the event's own after-discourse
