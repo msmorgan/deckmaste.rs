@@ -1571,6 +1571,26 @@ mutual
     ||| `ThatMuch`, exactly as `PreventedThisWay` is sorted to prevention.
     ||| -- spelling: "equal to the result", "where X is the result"
     TheResult : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
+    ||| "the total of those results", "If you rolled 7": the sum of the
+    ||| results of the dice one clause rolled. [CR#706.2] defines a
+    ||| result per die and stops there, so the total is a second read of
+    ||| the same roll and not a spelling of `TheResult`; nothing in the
+    ||| rules makes it undefined, and the clause that rolled several dice
+    ||| is what it sums. Gated on the roll like `TheResult`, and a total
+    ||| over a single die -- equal to that die's result -- is tolerated.
+    ||| -- spelling: "the total of those results"; on a comparison's
+    ||| left, "If you rolled [n]".
+    TheTotal : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
+    ||| "the number of coins that came up heads", "for each coin that
+    ||| comes up heads": how many of the flipped coins show a face. The
+    ||| plural twin of the `FlipFace` condition, which reads one coin --
+    ||| [CR#705.2]'s uncalled reading, the one that has a face and no
+    ||| winner -- and it takes no subject for the same reason. The gate
+    ||| is `FlipFace`'s existence test, not a count, because "Flip five
+    ||| coins" leaves one mention for any number of coins; a count over a
+    ||| single flip is 0 or 1 and is tolerated.
+    CoinsShowing : (face : CoinFace) ->
+                   {auto 0 fl : So (coinFlipInScope bs)} -> Amount bs
     GroupSize : {auto 0 ok : countManysAny bs = 1} -> Amount bs
     TheDifference : {auto 0 ok : countOnes Gap bs = 1} -> Amount bs
     ||| The letter, wherever the text writes it. It INTRODUCES the letter
@@ -1675,6 +1695,8 @@ mutual
   amtDelta ThatMuch = []
   amtDelta PreventedThisWay = []
   amtDelta TheResult = []
+  amtDelta TheTotal = []
+  amtDelta (CoinsShowing _) = []
   amtDelta GroupSize = []
   amtDelta TheDifference = []
   amtDelta (LetterVal l) = letterDelta l bs
@@ -1701,6 +1723,8 @@ mutual
   amtIntro ThatMuch = bs
   amtIntro PreventedThisWay = bs
   amtIntro TheResult = bs
+  amtIntro TheTotal = bs
+  amtIntro (CoinsShowing _) = bs
   amtIntro GroupSize = bs
   amtIntro TheDifference = bs
   amtIntro (LetterVal l) = letterDelta l bs ++ bs
@@ -1735,6 +1759,8 @@ mutual
   amtPlur ThatMuch = ManyOf
   amtPlur PreventedThisWay = ManyOf
   amtPlur TheResult = ManyOf
+  amtPlur TheTotal = ManyOf
+  amtPlur (CoinsShowing _) = ManyOf
   amtPlur GroupSize = ManyOf
   amtPlur TheDifference = ManyOf
   amtPlur (LetterVal _) = ManyOf
@@ -1761,6 +1787,8 @@ mutual
   writtenBound ThatMuch = False
   writtenBound PreventedThisWay = False
   writtenBound TheResult = False
+  writtenBound TheTotal = False
+  writtenBound (CoinsShowing _) = False
   writtenBound GroupSize = False
   writtenBound TheDifference = False
   writtenBound (LetterVal _) = True
@@ -1808,6 +1836,12 @@ mutual
   -- quantity the text already stated, so a comparison may take it as
   -- its subject: "If the result is 0 or less, …" [CR#706.2].
   readAmount TheResult = True
+  -- the total reads the dice the same way, and printed text puts it on
+  -- a comparison's left: "If you rolled 7, \u2026".
+  readAmount TheTotal = True
+  -- how the coins came up is a fact about the flip, read like any other
+  -- count of what happened (`EventCount`).
+  readAmount (CoinsShowing _) = True
   readAmount GroupSize = False
   readAmount TheDifference = True
   -- the announced letter READS game state — the value its announcement

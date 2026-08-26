@@ -1752,3 +1752,29 @@ resultsTable : (rows : List (RollRow bs)) ->
                {auto 0 ne : IsSucc (rowCount rows)} ->
                {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
 resultsTable rows = ResultsTable rows {ne} {ok}
+
+||| "Whenever you win a coin flip, …" [CR#705.2]
+public export
+youWinACoinFlip : GameEvent bs
+youWinACoinFlip = FlipEvent You WinsFlip
+
+||| "Whenever you lose a coin flip, …" [CR#705.2]
+public export
+youLoseACoinFlip : GameEvent bs
+youLoseACoinFlip = FlipEvent You LosesFlip
+
+||| "Whenever you roll one or more dice, …" [CR#706.7]
+public export
+youRollDice : GameEvent bs
+youRollDice = RollsDice You ManyDice
+
+||| "the total of those results" [CR#706.2]
+public export
+theTotal : {auto 0 ok : countOutcomes RollResult bs = 1} -> Amount bs
+theTotal = TheTotal {ok}
+
+||| "the number of coins that came up [face]" [CR#705.2]
+public export
+coinsThatCameUp : (face : CoinFace) ->
+                  {auto 0 fl : So (coinFlipInScope bs)} -> Amount bs
+coinsThatCameUp face = CoinsShowing face {fl}
