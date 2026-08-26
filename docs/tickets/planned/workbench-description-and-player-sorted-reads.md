@@ -352,3 +352,5 @@ rather than on a new row.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-combat-assignment-and-forced-attack (close, 2026-08-26):** no `Predicate` describes a player or planeswalker by what is attacking it. Measured there: the common form has an OBJECT relatum ("the player or planeswalker that creature is attacking" — Cavalcade of Calamity, Raid Bombardment, Interplanar Brushwagg) and would mirror `BlockedBy`; Tahngarth's "that opponent is attacking" needs a PLAYER relatum and is additionally blocked on the player-subject attack event (routed to event-zone-and-cast-provenance). Either way the row is kind-polymorphic (`Object \/ Player`), unlike every existing combat predicate.

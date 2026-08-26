@@ -285,3 +285,5 @@ verb, … }` is named as the shape precedent only.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-combat-assignment-and-forced-attack (close, 2026-08-26):** no attack-declaration event with a PLAYER subject — `Attacks`'s subject is `Noun bs Object`, so "Whenever an opponent attacks with one or more creatures" (Tahngarth, First Mate) never binds the opponent; [CR#508.3d] is the rule. An event-subject row, so it lands here.
