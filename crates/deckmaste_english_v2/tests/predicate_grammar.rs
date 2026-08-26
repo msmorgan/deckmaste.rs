@@ -2527,6 +2527,7 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
         "Gain life equal to twice the number of Slivers you control.",
         "Gain life equal to one plus the number of Slivers you control.",
         "Draw cards equal to the greatest power among creatures you control.",
+        "Draw cards equal to the number of artifacts they control.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
     }
@@ -2601,10 +2602,34 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
         "Gain life equal to twice number of Slivers you control.",
         "Gain life equal to one the number of Slivers you control.",
         "Draw cards equal to greatest power among creatures you control.",
+        "Draw cards equal to the number of artifacts they controls.",
     ] {
         assert!(
             parser.parse(malformed, &context).is_err(),
             "malformed scalar composition must reject {malformed:?}",
+        );
+    }
+}
+
+#[test]
+fn controller_owner_qualifications_follow_determiner_agreement() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Creatures target player controls get -2/-2 until end of turn.",
+        "It deals X damage divided evenly, rounded down, among all creatures target opponent controls.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    for malformed in [
+        "Creatures target player control get -2/-2 until end of turn.",
+        "It deals X damage divided evenly, rounded down, among all creatures target opponent control.",
+    ] {
+        assert!(
+            parser.parse(malformed, &context).is_err(),
+            "singular determiner controller must reject bare agreement in {malformed:?}",
         );
     }
 }
@@ -2617,6 +2642,8 @@ fn distributed_quantifiers_and_declared_participle_modifiers_compose() {
     for text in [
         "Destroy each of X target creatures.",
         "Destroy target activated ability.",
+        "Discard up to one card.",
+        "Discard up to two cards.",
         "You may choose not to untap this creature during your untap step.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
@@ -2626,6 +2653,8 @@ fn distributed_quantifiers_and_declared_participle_modifiers_compose() {
         "Destroy each X target creatures.",
         "Destroy each of X target creature.",
         "Destroy target activate ability.",
+        "Discard up to one cards.",
+        "Discard up to two card.",
         "You may choose not untap this creature during your untap step.",
         "You may choose not to untap this creature your untap step.",
     ] {
@@ -3863,6 +3892,33 @@ fn target_and_card_name_boundaries_remain_grammatical_and_metadata_governed() {
     ] {
         assert_selected(&parser, &legendary, text);
     }
+    assert_selected_with_specificity(
+        &parser,
+        &legendary,
+        "When Zoraline enters, draw a card.",
+        true,
+    );
+    assert_selected_with_specificity(
+        &parser,
+        &context,
+        "Target creature you control deals damage equal to its power to another target creature, artifact, or planeswalker.",
+        true,
+    );
+    assert!(
+        parser
+            .parse("When Zoraline enter, draw a card.", &legendary)
+            .is_err(),
+        "singular shortened self-reference requires singular verb agreement",
+    );
+    assert!(
+        parser
+            .parse(
+                "Target creature you control deals damage equal to its power to another target creature, artifacts, or planeswalker.",
+                &context,
+            )
+            .is_err(),
+        "a determiner-scoped singular coordination rejects a plural conjunct",
+    );
 }
 
 #[test]
@@ -4003,6 +4059,7 @@ fn location_state_and_object_control_frames_select_exact_products() {
         "Look at the top two cards of your library.",
         "Reveal the top card of your library.",
         "Each player reveals their hand.",
+        "You have one or fewer cards in hand.",
         "You have three or fewer cards in hand.",
         "You have 10 or less life.",
         "You have no maximum hand size.",
@@ -4206,6 +4263,7 @@ fn movement_location_and_control_frames_reject_reciprocal_heads_prepositions_and
         "This creature enters from your graveyard.",
         "Look into the top two cards of your library.",
         "Reveal at the top card of your library.",
+        "You have one or fewer card in hand.",
         "You have three or fewer cards on hand.",
         "Put that card under your control onto the battlefield.",
     ] {

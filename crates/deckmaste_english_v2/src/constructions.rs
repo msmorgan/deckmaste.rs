@@ -2434,7 +2434,8 @@ constructions! {
         element AnotherReference { selector: SingularSelector, }
         require any(
             selector is UnmarkedSingularSelector,
-            selector is TargetSingularSelector
+            selector is TargetSingularSelector,
+            selector is TargetSingularCoordinationSelector
         );
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2492,11 +2493,6 @@ constructions! {
     construction up_to_one_reference: UnqualifiedReference {
         element UpToOneReference { count: CardinalQuantity, selector: SingularSelector, }
         require count.cardinality is One;
-        require any(
-            selector is TargetSingularSelector,
-            selector is TargetSingularCoordinationSelector,
-            selector is OtherTargetSingularSelector
-        );
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Vowel;
@@ -2505,11 +2501,6 @@ constructions! {
     construction up_to_many_reference: UnqualifiedReference {
         element UpToManyReference { count: CardinalQuantity, selector: PluralSelector, }
         require count.cardinality is TwoPlus;
-        require any(
-            selector is TargetPluralSelector,
-            selector is TargetPluralCoordinationSelector,
-            selector is OtherTargetPluralSelector
-        );
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive onset = Values::Vowel;
@@ -2678,7 +2669,8 @@ constructions! {
         element AnotherDeterminerPhrase { selector: SingularSelector, }
         require any(
             selector is UnmarkedSingularSelector,
-            selector is TargetSingularSelector
+            selector is TargetSingularSelector,
+            selector is TargetSingularCoordinationSelector
         );
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2758,6 +2750,12 @@ constructions! {
         derive verb.agreement = Values::Bare;
         form you_control = lex(controller) verb(VerbLexeme::Control);
     }
+    construction they_control: ControllerOwnerQualification {
+        element TheyControl { controller: lex SubjectPronoun, }
+        require controller is They;
+        derive verb.agreement = Values::Bare;
+        form they_control = lex(controller) verb(VerbLexeme::Control);
+    }
     construction opponent_controller: SingularController {
         element OpponentController { controller: lex ControllerNoun, }
         require controller is Opponent;
@@ -2775,6 +2773,15 @@ constructions! {
         require controller is ThatDeterminerPhrase;
         derive verb.agreement = Values::ThirdPersonSingular;
         form demonstrative_controls = controller verb(VerbLexeme::Control);
+    }
+    construction target_determiner_controls: ControllerOwnerQualification {
+        element TargetDeterminerControls { controller: DeterminerPhrase, }
+        require any(
+            controller is TargetDeterminerPhrase,
+            controller is TargetCoordinationDeterminerPhrase
+        );
+        derive verb.agreement = Values::ThirdPersonSingular;
+        form target_determiner_controls = controller verb(VerbLexeme::Control);
     }
     construction you_own: ControllerOwnerQualification {
         element YouOwn { owner: lex SubjectPronoun, }
@@ -3186,7 +3193,6 @@ constructions! {
             count: CardinalQuantity,
             comparison: CountComparison,
         }
-        require count.cardinality is TwoPlus;
         form compared_card_quantity = count comparison "cards";
     }
     construction positive_power_toughness_counter: CounterKind {
