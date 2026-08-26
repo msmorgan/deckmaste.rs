@@ -2698,6 +2698,55 @@ docSamsonDistributive =
             (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1)) (That PermanentW))
             Repeatedly)
 
+||| Winding Constrictor, whole: the object-side distributive over a
+||| disjoined holder, and its player-side twin — "If you would get one or
+||| more counters, you get that many plus one of each of those kinds of
+||| counters instead." [CR#122.1]'s second holder, written with the
+||| player's own verb.
+windingConstrictor : Card
+windingConstrictor =
+  Macros.card "Winding Constrictor" (Just [Macros.pip Black, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Snake"] [Creature])
+       [ Static (Intercepts
+                   (Macros.manyBareCounterEvent CounterPut
+                      (Macros.a (And [Or [Macros.artifact, Macros.creature],
+                                      ControlledBy You])))
+                   (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1))
+                                            (That PermanentW))
+                   Repeatedly)
+       , Static (Intercepts
+                   (Macros.manyBareCounterEvent CounterPut You)
+                   (GetsCountersOfThoseKinds You (Plus ThatMuch (Lit 1)))
+                   Repeatedly) ]
+       (Just (2, 3))
+
+||| Aragorn, Company Leader (second line) — "Whenever you put one or more
+||| counters on Aragorn, put one of each of those kinds of counters on up
+||| to one other target creature": the distributive kind anaphor in a
+||| trigger body rather than under an interception -- the header's own
+||| batch is what it ranges over either way. The card waits on the
+||| Ring-tempts header its first line writes.
+aragornDistributive : Ability
+aragornDistributive =
+  Macros.triggered Whenever
+    (Macros.manyBareCountersPutBy You Macros.thisCreature)
+    (PutCountersOfThoseKinds (Lit 1)
+       (TargetGroup (Macros.upTo 1)
+          (Macros.otherCreature Macros.thisCreature)))
+
+||| Captain Marvel, Apex Avenger (trigger) — "Whenever you put one or more
+||| counters on another creature, … you may put the same number and kind
+||| of counters on Captain Marvel": "the same number and kind" is the
+||| distributive anaphor at the batch's own size. The card's intervening
+||| "if it's not a Kree" has no row. Bold Plagiarist writes the same body
+||| over an opponent's put.
+captainMarvelSameKinds : Ability
+captainMarvelSameKinds =
+  Macros.triggered Whenever
+    (Macros.manyBareCountersPutBy You
+       (Macros.a (Macros.otherCreature Macros.thisCreature)))
+    (Macros.may You (PutCountersOfThoseKinds ThatMuch Macros.thisCreature))
+
 ||| Stalwart Successor's header — "Whenever one or more counters are put on
 ||| a creature you control": the kind-blind batch on the trigger side,
 ||| benched at the event level; the
@@ -7693,6 +7742,17 @@ nahiriLoyaltyRead =
   And [ Macros.creature, InZone (Macros.graveyardOf You)
       , Compare ManaValue Less (StatOf Loyalty This) ]
 
+||| Nahiri, the Unforgiving's compleated reminder -- "this planeswalker
+||| enters with two fewer loyalty counters": the entry mark's subtracting
+||| arm, over [CR#306.5b]'s printed loyalty count. The reminder's leading
+||| "If life was paid" reads back a payment made while casting and has no
+||| condition row.
+public export
+nahiriCompleatedEntry : Ability
+nahiriCompleatedEntry =
+  Static (Macros.entersWithFewerCounters Macros.thisPlaneswalker (Lit 2)
+                                         LoyaltyCounter)
+
 ||| Vivien's Talent: "Whenever a nontoken creature you control enters, put
 ||| a loyalty counter on enchanted planeswalker." [CR#122.1] makes a
 ||| loyalty counter a marker like any other.
@@ -8184,6 +8244,23 @@ greatestCreaturesAPlayerControls : Amount []
 greatestCreaturesAPlayerControls =
   AggregateOver MaxOf AnyPlayer
     (CountOf (And [Macros.creature, ControlledBy They]))
+
+||| Investigator's Journal, whole -- the element-binder fold as an entry
+||| count, with the suspect counters it stores.
+investigatorsJournal : Card
+investigatorsJournal =
+  Macros.card "Investigator's Journal" (Just [Macros.generic 2]) []
+       (MkTypeLine [artifactType "Book", artifactType "Clue"] [Artifact])
+       [ Static (Macros.entersWithCounters Macros.thisArtifact
+                   greatestCreaturesAPlayerControls Suspect)
+       , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol,
+                              Do (RemoveCounters (Lit 1) (Just Suspect)
+                                    Macros.thisArtifact)])
+                          Macros.drawACard
+       , Macros.activated (Compound [Mana [Macros.generic 2],
+                              Do (Macros.sacrifice You Macros.thisArtifact)])
+                          Macros.drawACard ]
+       Nothing
 
 ||| Cavern-Hoard Dragon's cost rider -- "This spell costs {X} less to cast,
 ||| where X is the greatest number of artifacts an opponent controls." The
