@@ -347,7 +347,10 @@ the done ticket that recorded them.
 - **`Effect.Search` takes no `Quantity` and mints no mention**, so neither a
   counted search nor a group constraint on its object has anywhere to attach;
   13 of the 24 "with different names" lines write the constraint there —
-  `docs/tickets/done/workbench-name-match-family.md`.
+  `docs/tickets/done/workbench-name-match-family.md`. Boreas Charger's second
+  clause ("search your library for a number of Plains cards equal to the
+  difference") is a payoff too, ledgered by
+  `workbench-choice-frame-licensed-reads`.
 - **The card's mana cost is unthreaded.** `Spell` effects are typed at `[]`, so
   Prosperity's `{X}` and its text X are one variable only in prose; the fix is
   `Card.text : AbilitySeq (costLetters cost)` —
