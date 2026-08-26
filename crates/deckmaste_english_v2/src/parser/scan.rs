@@ -1441,6 +1441,7 @@ mod tests {
                         VerbLexeme::Be => "Be",
                         VerbLexeme::Become
                         | VerbLexeme::Add
+                        | VerbLexeme::Cause
                         | VerbLexeme::Enter
                         | VerbLexeme::Draw
                         | VerbLexeme::Gain

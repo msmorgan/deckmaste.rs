@@ -54,8 +54,16 @@ fn environment() -> ParserEnvironment {
             r#"KeywordAction(name:"Reveal",spelling:"reveal",grammar:Verb(bare:"reveal",valence:Transitive))"#,
         ),
         (
+            "/synthetic/actions/Shuffle.ron",
+            r#"KeywordAction(name:"Shuffle",spelling:"shuffle",grammar:Verb(bare:"shuffle",valence:Transitive))"#,
+        ),
+        (
             "/synthetic/types/Creature.ron",
             r#"Type(name:"Creature",spelling:"creature",grammar:Noun(singular:"creature"))"#,
+        ),
+        (
+            "/synthetic/types/Artifact.ron",
+            r#"Type(name:"Artifact",spelling:"artifact",grammar:Noun(singular:"artifact"))"#,
         ),
     ]
     .into_iter()
@@ -385,6 +393,12 @@ fn copular_change_auxiliary_and_passive_minimal_pairs_select() {
 }
 
 #[test]
+#[allow(
+    clippy::items_after_statements,
+    clippy::match_same_arms,
+    clippy::too_many_lines,
+    reason = "one exhaustive integration table keeps every Task 7 clause family and AST oracle together"
+)]
 fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
     let parser = parser();
     let context = context();
@@ -580,7 +594,7 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
         ),
         (
             "At the beginning of each player's end step, if that player didn't cast a spell this turn, this enchantment deals 2 damage to that player.",
-            (84, 88, "turn"),
+            (95, 106, "enchantment"),
         ),
     ];
     for (text, (expected_start, expected_end, expected_surface)) in later {
@@ -3452,4 +3466,204 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             (".", TERMINATOR)
         ]
     );
+}
+
+#[derive(Default)]
+struct Task8Visitor(Vec<&'static str>);
+
+impl Visitor for Task8Visitor {
+    fn visit_object_infinitive_predicate_value(&mut self, value: &ObjectInfinitivePredicateValue) {
+        self.0.push("object-infinitive");
+        deckmaste_english_v2::visit::walk_object_infinitive_predicate_value(self, value);
+    }
+
+    fn visit_requirement_predicate_value(&mut self, value: &RequirementPredicateValue) {
+        self.0.push("requirement");
+        deckmaste_english_v2::visit::walk_requirement_predicate_value(self, value);
+    }
+
+    fn visit_as_though_predicate_value(&mut self, value: &AsThoughPredicateValue) {
+        self.0.push("as-though");
+        deckmaste_english_v2::visit::walk_as_though_predicate_value(self, value);
+    }
+
+    fn visit_counterfactual_status_clause_value(
+        &mut self,
+        value: &CounterfactualStatusClauseValue,
+    ) {
+        self.0.push("counterfactual-status");
+        deckmaste_english_v2::visit::walk_counterfactual_status_clause_value(self, value);
+    }
+
+    fn visit_ordered_predicate_value(&mut self, value: &OrderedPredicateValue) {
+        self.0.push("ordered");
+        deckmaste_english_v2::visit::walk_ordered_predicate_value(self, value);
+    }
+
+    fn visit_purpose_predicate_value(&mut self, value: &PurposePredicateValue) {
+        self.0.push("purpose");
+        deckmaste_english_v2::visit::walk_purpose_predicate_value(self, value);
+    }
+
+    fn visit_duration_predicate_value(&mut self, value: &DurationPredicateValue) {
+        self.0.push("duration");
+        deckmaste_english_v2::visit::walk_duration_predicate_value(self, value);
+    }
+
+    fn visit_instead_predicate_value(&mut self, value: &InsteadPredicateValue) {
+        self.0.push("instead");
+        deckmaste_english_v2::visit::walk_instead_predicate_value(self, value);
+    }
+
+    fn visit_manner_predicate_value(&mut self, value: &MannerPredicateValue) {
+        self.0.push("manner");
+        deckmaste_english_v2::visit::walk_manner_predicate_value(self, value);
+    }
+}
+
+#[test]
+fn task8_infinitive_requirement_counterfactual_and_order_products_are_typed() {
+    let parser = parser();
+    let context = context();
+
+    for (text, expected, permits_specificity) in [
+        (
+            "Whenever a spell or ability an opponent controls causes you to discard a card, you gain 2 life and you may draw a card.",
+            &["object-infinitive"][..],
+            true,
+        ),
+        (
+            "This creature attacks each combat if able.",
+            &["requirement"][..],
+            false,
+        ),
+        (
+            "Tapped creatures you control can block as though they were untapped.",
+            &["as-though", "counterfactual-status"][..],
+            false,
+        ),
+        (
+            "Put them on top of your library in any order.",
+            &["ordered"][..],
+            false,
+        ),
+    ] {
+        let ability =
+            assert_selected_with_specificity(&parser, &context, text, permits_specificity);
+        let mut visitor = Task8Visitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(visitor.0, expected, "exact typed products for {text:?}");
+    }
+}
+
+#[test]
+fn task8_purpose_duration_and_instead_products_are_typed() {
+    let parser = parser();
+    let context = context();
+
+    for (text, expected, permits_specificity) in [
+        ("Discard a card to draw a card.", "purpose", true),
+        ("You may cast it this turn.", "duration", false),
+        ("Draw a card instead.", "instead", false),
+    ] {
+        let ability =
+            assert_selected_with_specificity(&parser, &context, text, permits_specificity);
+        let mut visitor = Task8Visitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(visitor.0, [expected], "exact typed product for {text:?}");
+    }
+}
+
+#[test]
+fn task8_this_way_keeps_predicate_manner_scope() {
+    let parser = parser();
+    let context = context();
+    let text = "You didn't create a token this way.";
+    let ability = assert_selected(&parser, &context, text);
+    let mut visitor = Task8Visitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["manner"]);
+}
+
+#[derive(Default)]
+struct Task8SurfaceVisitor(Vec<String>);
+
+impl Visitor for Task8SurfaceVisitor {
+    fn visit_auxiliary(&mut self, value: Auxiliary) {
+        self.0.push(format!("auxiliary:{value:?}"));
+    }
+
+    fn visit_duration_predicate_value(&mut self, value: &DurationPredicateValue) {
+        self.0.push("duration".to_owned());
+        deckmaste_english_v2::visit::walk_duration_predicate_value(self, value);
+    }
+
+    fn visit_random_object(&mut self, value: &RandomObject) {
+        self.0.push("at-random-object".to_owned());
+        deckmaste_english_v2::visit::walk_random_object(self, value);
+    }
+
+    fn visit_object_order(&mut self, value: ObjectOrder) {
+        self.0.push(format!("order:{value:?}"));
+    }
+
+    fn visit_postposed_unless_predicate(&mut self, value: &PostposedUnlessPredicate) {
+        self.0.push("exception:unless".to_owned());
+        deckmaste_english_v2::visit::walk_postposed_unless_predicate(self, value);
+    }
+}
+
+#[test]
+fn task8_permission_restriction_exception_random_and_order_surfaces_are_scoped() {
+    let parser = parser();
+    let context = context();
+    for (text, expected) in [
+        (
+            "You may cast it this turn.",
+            &["auxiliary:May", "duration"][..],
+        ),
+        (
+            "Target player can't cast spells this turn.",
+            &["auxiliary:Cant", "duration"][..],
+        ),
+        (
+            "Sacrifice this creature unless you discard a card.",
+            &["exception:unless"][..],
+        ),
+        (
+            "Target player discards two cards at random.",
+            &["at-random-object"][..],
+        ),
+        (
+            "Put them on top of your library in a random order.",
+            &["order:Random"][..],
+        ),
+    ] {
+        let ability = assert_selected(&parser, &context, text);
+        let mut visitor = Task8SurfaceVisitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(visitor.0, expected, "exact scoped surface for {text:?}");
+    }
+}
+
+#[test]
+fn task8_attachment_movement_does_not_silently_change_scope() {
+    let parser = parser();
+    let context = context();
+    for text in [
+        "To draw a card, discard a card.",
+        "You may this turn cast it.",
+        "Instead draw a card.",
+        "You didn't create this way a token.",
+        "If able, this creature attacks each combat.",
+        "As though they were untapped, tapped creatures you control can block.",
+        "In any order, put them on top of your library.",
+        "Target player discards at random two cards.",
+    ] {
+        let analysis = parser.analyze(text, &context);
+        assert!(
+            analysis.selected().is_none(),
+            "moved attachment must not silently reattach {text:?}: {analysis:?}"
+        );
+    }
 }

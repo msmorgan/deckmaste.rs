@@ -953,6 +953,15 @@ enum NonterminalKind {
     PassiveOrientationPredicate,
     DeclaredTransitivePassivePredicate,
     BarePassivePredicate,
+    ObjectInfinitivePredicate,
+    RequirementPredicate,
+    AsThoughPredicate,
+    OrderedPredicate,
+    CounterfactualStatusClause,
+    PurposePredicate,
+    DurationPredicate,
+    InsteadPredicate,
+    MannerPredicate,
     CopularClause,
     PassiveFiniteClause,
     FiniteClause,
@@ -1521,6 +1530,19 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::DeclaredTransitivePassivePredicate
         }
         NonterminalCategory::BarePassivePredicate => NonterminalKind::BarePassivePredicate,
+        NonterminalCategory::ObjectInfinitivePredicate => {
+            NonterminalKind::ObjectInfinitivePredicate
+        }
+        NonterminalCategory::RequirementPredicate => NonterminalKind::RequirementPredicate,
+        NonterminalCategory::AsThoughPredicate => NonterminalKind::AsThoughPredicate,
+        NonterminalCategory::OrderedPredicate => NonterminalKind::OrderedPredicate,
+        NonterminalCategory::CounterfactualStatusClause => {
+            NonterminalKind::CounterfactualStatusClause
+        }
+        NonterminalCategory::PurposePredicate => NonterminalKind::PurposePredicate,
+        NonterminalCategory::DurationPredicate => NonterminalKind::DurationPredicate,
+        NonterminalCategory::InsteadPredicate => NonterminalKind::InsteadPredicate,
+        NonterminalCategory::MannerPredicate => NonterminalKind::MannerPredicate,
         NonterminalCategory::CopularClause => NonterminalKind::CopularClause,
         NonterminalCategory::PassiveFiniteClause => NonterminalKind::PassiveFiniteClause,
         NonterminalCategory::FiniteClause => NonterminalKind::FiniteClause,

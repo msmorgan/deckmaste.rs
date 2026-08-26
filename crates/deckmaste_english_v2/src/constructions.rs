@@ -25,6 +25,9 @@ constructions! {
     vocab PredicativeAdjective { Legendary = "legendary", }
     vocab DamageKind { Ordinary = "damage", Combat = "combat damage", }
     vocab FaceOrientation { FaceUp = "face up", }
+    vocab RequirementFrequency { EachCombat = "each combat", }
+    vocab ObjectOrder { Any = "any", Random = "a random", }
+    vocab PredicateDuration { ThisTurn = "this turn", }
     vocab AtBoundary { Beginning = "the beginning of", End = "end of", }
     vocab TriggerMarker { When = "when", Whenever = "whenever", }
     vocab TurnOwnerPostmodifier {
@@ -248,6 +251,7 @@ constructions! {
         Control = "control",
         Own = "own",
         Return = "return",
+        Cause = "cause",
         Become = "become",
         Be = "be" {
             Bare = "are",
@@ -449,6 +453,14 @@ constructions! {
         BareCopular: BareCopularPredicate,
         ChangeState: ChangeStatePredicate,
         BarePassive: BarePassivePredicate,
+        Cause: ObjectInfinitivePredicate,
+        Requirement: RequirementPredicate,
+        AsThough: AsThoughPredicate,
+        Ordered: OrderedPredicate,
+        Purpose: PurposePredicate,
+        Duration: DurationPredicate,
+        Instead: InsteadPredicate,
+        Manner: MannerPredicate,
     }
     abstract sum Clause {
         Finite: FiniteClause,
@@ -934,6 +946,93 @@ constructions! {
         }
         derive agreement = Values::Bare;
         form bare_passive_predicate = lex(copula) predicate;
+    }
+    construction object_infinitive_predicate: ObjectInfinitivePredicate {
+        element ObjectInfinitivePredicateValue {
+            object: Object,
+            complement: VerbPhrase,
+        }
+        derive agreement = verb.agreement;
+        derive complement.agreement = Values::Bare;
+        form object_infinitive_predicate = verb(VerbLexeme::Cause) object "to" complement;
+    }
+    construction requirement_predicate: RequirementPredicate {
+        element RequirementPredicateValue {
+            head: lex IntransitiveVerb,
+            frequency: lex RequirementFrequency,
+        }
+        derive agreement = head.agreement;
+        form requirement_predicate = verb(head) lex(frequency) "if" "able";
+    }
+    construction as_though_predicate: AsThoughPredicate {
+        element AsThoughPredicateValue {
+            head: lex IntransitiveVerb,
+            condition: CounterfactualStatusClause,
+        }
+        derive agreement = head.agreement;
+        form as_though_predicate = verb(head) "as" "though" condition;
+    }
+    construction ordered_predicate: OrderedPredicate {
+        element OrderedPredicateValue {
+            object: Object,
+            source: opt FromSource,
+            destination: OnDestination,
+            order: lex ObjectOrder,
+        }
+        derive agreement = verb.agreement;
+        form ordered_predicate =
+            verb(VerbLexeme::Put) object source destination "in" lex(order) "order";
+    }
+    construction counterfactual_status_clause: CounterfactualStatusClause {
+        element CounterfactualStatusClauseValue {
+            subject: Subject,
+            copula: lex FiniteCopula,
+            status: lex Status,
+        }
+        derive copula.agreement = match copula {
+            Is => Values::ThirdPersonSingular,
+            Are => Values::Bare,
+            Was => Values::ThirdPersonSingular,
+            Were => Values::Bare,
+        };
+        derive subject.agreement = copula.agreement;
+        form counterfactual_status_clause = subject lex(copula) lex(status);
+    }
+    construction purpose_predicate: PurposePredicate {
+        element PurposePredicateValue {
+            head: lex TransitiveVerb,
+            object: Object,
+            purpose: VerbPhrase,
+        }
+        derive agreement = head.agreement;
+        derive purpose.agreement = Values::Bare;
+        form purpose_predicate = verb(head) object "to" purpose;
+    }
+    construction duration_predicate: DurationPredicate {
+        element DurationPredicateValue {
+            head: lex TransitiveVerb,
+            object: Object,
+            duration: lex PredicateDuration,
+        }
+        derive agreement = head.agreement;
+        form duration_predicate = verb(head) object lex(duration);
+    }
+    construction instead_predicate: InsteadPredicate {
+        element InsteadPredicateValue {
+            head: lex TransitiveVerb,
+            object: Object,
+        }
+        derive agreement = head.agreement;
+        form instead_predicate = verb(head) object "instead";
+    }
+    construction manner_predicate: MannerPredicate {
+        element MannerPredicateValue {
+            head: lex TransitiveVerb,
+            object: Object,
+            manner: MannerReference,
+        }
+        derive agreement = head.agreement;
+        form manner_predicate = verb(head) object manner;
     }
     construction copular_clause: CopularClause {
         element CopularClauseValue {

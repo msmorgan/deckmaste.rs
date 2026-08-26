@@ -3631,6 +3631,10 @@ fn attachment_products_have_an_intermediate_linguistic_stage_for_imperatives() {
 }
 
 #[test]
+#[allow(
+    clippy::large_stack_arrays,
+    reason = "the fixed attachment table keeps each complete expected AST beside its surface"
+)]
 fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
     let parser = parser();
     let context = context("Context Card", false);
