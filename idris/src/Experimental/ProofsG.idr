@@ -703,7 +703,7 @@ badZeroRollTest MaxAtLeastOne impossible
 ||| no cost, so the phrase names nothing to pay.
 public export
 badPayCostlessKeyword : Unspellable (GameEvent []) (\ok =>
-  PaysCost (Macros.a AnyPlayer) Unpaid Macros.thisCreature Flying {kc = ok})
+  PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisCreature Flying {kc = ok})
 badPayCostlessKeyword Oh impossible
 
 ||| "if you paid a cost this turn"
@@ -772,3 +772,58 @@ badBasicCreatureTypeAxis : Unspellable (Amount []) (\ok =>
   DistinctCount (SubtypeAxis Creature BasicOnly {sc = ok})
                 (AllOf Macros.creatureYouControl))
 badBasicCreatureTypeAxis Oh impossible
+
+||| "Echo"
+||| [CR#702.30a] states the keyword as "Echo [cost]", so the parameter is
+||| never absent -- cumulative upkeep's ground [CR#702.24a], at the second
+||| keyword whose parameter is a cost.
+public export
+badBareEcho : Unspellable Ability (\ok =>
+  KeywordAbility Echo Nothing {pf = ok})
+badBareEcho Oh impossible
+
+||| The discourse after "Whenever this creature's cumulative upkeep is
+||| paid" -- the passive payment header, which writes no payer.
+public export
+afterPassivePayment : Bindings
+afterPassivePayment =
+  eventAfter (the (GameEvent [])
+    (PaysCost Nothing Paid Macros.thisCreature CumulativeUpkeep))
+
+||| "Whenever this creature's cumulative upkeep is paid, that player …"
+||| [CR#702.24a] fixes WHO pays a cumulative upkeep, so the passive omits
+||| nothing the rules leave open -- but it MENTIONS no one, and a
+||| demonstrative here reads a mention. That is the whole difference the
+||| voice slot carries: the active header hands Thought Lash its "that
+||| player", the passive hands Balduvian Fallen only the bearer.
+public export
+badPassivePayerReadback :
+  Unspellable (Noun ProofsG.afterPassivePayment Player) (\ok => That PlayerW {ok})
+badPassivePayerReadback Refl impossible
+
+||| The discourse after "Whenever you pay this enchantment's cumulative
+||| upkeep" -- the active payment header.
+public export
+afterKeywordCostPayment : Bindings
+afterKeywordCostPayment =
+  eventAfter (the (GameEvent [])
+    (PaysCost (Just You) Paid Macros.thisEnchantment CumulativeUpkeep))
+
+||| "Whenever you pay this enchantment's cumulative upkeep, put that many
+||| counters on it."
+||| The size of a keyword-named cost is the cost's own, and [CR#702.24a]
+||| refuses a partial payment outright, so paying one writes no number for
+||| the tail to name. Font of Agonies' life payment is the contrast:
+||| [CR#118.3b] subtracts an indicated amount, so that payment does.
+public export
+badKeywordCostPaymentThatMuch :
+  Unspellable (Amount ProofsG.afterKeywordCostPayment) (\ok => ThatMuch {ok})
+badKeywordCostPaymentThatMuch Refl impossible
+
+||| The reading those pins leave standing, so none passes for want of a
+||| positive: a life payment names its own paid thing, so it is looked
+||| back on bare ("if you paid life this turn") where a cost payment
+||| cannot be.
+public export
+youPaidLifeThisTurn : Condition []
+youPaidLifeThisTurn = Happened LifePayment You Lookback.ThisTurn Nothing

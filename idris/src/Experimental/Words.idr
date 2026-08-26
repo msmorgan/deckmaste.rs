@@ -1977,7 +1977,7 @@ data Keyword = Haste | Flying | Trample | Vigilance | Deathtouch
              | Ward | Protection
              | Enchant | Equip | Ascend | Storied | Renown
              | Indestructible | Flash
-             | CumulativeUpkeep
+             | CumulativeUpkeep | Echo
              | Hexproof | Menace | Skulk
              | Unearth | Flashback | Dredge | Retrace
              | Cycling | Ninjutsu | Miracle | Warp
@@ -2010,6 +2010,8 @@ keywordParamShape Renown = NumberParam
 keywordParamShape Indestructible = NoParam
 keywordParamShape Flash = NoParam
 keywordParamShape CumulativeUpkeep = CostParam
+-- [CR#702.30a] writes the keyword as "Echo [cost]".
+keywordParamShape Echo = CostParam
 keywordParamShape Hexproof = NoParam
 keywordParamShape Menace = NoParam
 keywordParamShape Skulk = NoParam
@@ -2087,6 +2089,8 @@ Eq Keyword where
   (==) Flash _ = False
   (==) CumulativeUpkeep CumulativeUpkeep = True
   (==) CumulativeUpkeep _ = False
+  (==) Echo Echo = True
+  (==) Echo _ = False
   (==) Hexproof Hexproof = True
   (==) Hexproof _ = False
   (==) Menace Menace = True
@@ -2429,6 +2433,7 @@ keywordCounterOk Renown = False
 keywordCounterOk Indestructible = True
 keywordCounterOk Flash = False
 keywordCounterOk CumulativeUpkeep = False
+keywordCounterOk Echo = False
 keywordCounterOk Hexproof = True
 keywordCounterOk Menace = True
 keywordCounterOk Skulk = False
@@ -2479,6 +2484,7 @@ keywordStackRegime Renown = Nothing
 keywordStackRegime Indestructible = Nothing
 keywordStackRegime Flash = Just AtCasting
 keywordStackRegime CumulativeUpkeep = Nothing
+keywordStackRegime Echo = Nothing
 keywordStackRegime Hexproof = Nothing
 keywordStackRegime Menace = Nothing
 keywordStackRegime Skulk = Nothing
@@ -2863,6 +2869,9 @@ data CounterKind : Type where
   ||| Chance Encounter's tally of won flips: the same ordinary marker
   ||| [CR#122.1], counted by the ability that reads it.
   Luck : CounterKind
+  ||| Font of Agonies' tally of life paid: the same ordinary marker
+  ||| [CR#122.1].
+  Blood : CounterKind
 
 public export
 counterScope : CounterKind -> Kind
@@ -2886,6 +2895,7 @@ counterScope Plan = Object
 counterScope Hour = Object
 counterScope Suspect = Object
 counterScope Luck = Object
+counterScope Blood = Object
 
 public export
 Eq CounterKind where
@@ -2930,6 +2940,8 @@ Eq CounterKind where
   (==) Suspect _ = False
   (==) Luck Luck = True
   (==) Luck _ = False
+  (==) Blood Blood = True
+  (==) Blood _ = False
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where

@@ -8965,7 +8965,8 @@ public export
 thoughtLashTrigger : Ability
 thoughtLashTrigger =
   Macros.triggered When
-    (PaysCost (Macros.a AnyPlayer) Unpaid Macros.thisEnchantment CumulativeUpkeep)
+    (PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisEnchantment
+              CumulativeUpkeep)
     (Does (That PlayerW) "Exile"
           (Macros.move (Each (InZone (Macros.libraryOf They))) Macros.exileZ))
 
@@ -8980,7 +8981,39 @@ thoughtLashTrigger =
 public export
 heartOfBogardanHeader : GameEvent []
 heartOfBogardanHeader =
-  PaysCost (Macros.a AnyPlayer) Unpaid Macros.thisEnchantment CumulativeUpkeep
+  PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisEnchantment CumulativeUpkeep
+
+||| Balduvian Fallen's header -- "Whenever this creature's cumulative
+||| upkeep is paid, …", the passive voice: the cost is the surface subject
+||| and no payer is written, though [CR#702.24a] fixes one. Its BODY does
+||| not write: "it gets +1/+0 until end of turn for each {B} or {R} spent
+||| this way" counts the mana that paid the cost, and no phrase names mana
+||| by what it was spent on. The card's blocker, not the row's.
+public export
+balduvianFallenHeader : GameEvent []
+balduvianFallenHeader =
+  PaysCost Nothing Paid Macros.thisCreature CumulativeUpkeep
+
+||| Shah of Naar Isle's header -- "When this creature's echo cost is paid,
+||| …", the passive again, over the second keyword whose parameter is a
+||| cost [CR#702.30a]. Its BODY does not write: "each opponent may draw up
+||| to three cards" wants a ceiling on the drawn count, and "up to [n]" is
+||| a quantity over a described set with no `Amount` twin. The card's
+||| blocker, not the row's.
+public export
+shahOfNaarIsleHeader : GameEvent []
+shahOfNaarIsleHeader =
+  PaysCost Nothing Paid Macros.thisCreature Echo
+
+||| Font of Agonies -- "Whenever you pay life, put that many blood
+||| counters on this enchantment." The paid thing is a resource and not a
+||| named cost, and the payment carries the number [CR#119.4] that "that
+||| many" reads back.
+public export
+fontOfAgoniesTrigger : Ability
+fontOfAgoniesTrigger =
+  Macros.triggered Whenever (PaysLife You)
+    (PutCounters ThatMuch Blood Macros.thisEnchantment)
 
 ||| Hibernation's End's trigger -- "Whenever you pay this enchantment's
 ||| cumulative upkeep, you may search your library for a creature card with
@@ -8990,7 +9023,7 @@ public export
 hibernationsEndTrigger : Ability
 hibernationsEndTrigger =
   Macros.triggered Whenever
-    (PaysCost You Paid Macros.thisEnchantment CumulativeUpkeep)
+    (PaysCost (Just You) Paid Macros.thisEnchantment CumulativeUpkeep)
     (Macros.may You
        (Sequentially
           [ Macros.searchLibraryFor

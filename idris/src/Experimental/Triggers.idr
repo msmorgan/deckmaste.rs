@@ -153,6 +153,14 @@ mutual
                {auto 0 wf : WellFormedQ q} ->
                {auto 0 lt : So (quantLiteral q)} -> RollTest (Just q)
 
+  ||| What a payment event has announced by the time its cost is named:
+  ||| the payer when the clause writes one, and nothing when the passive
+  ||| leaves it out. `mayCtx`'s shape at the event seat.
+  public export
+  payerIntro : {bs : Bindings} -> Maybe (Noun bs Player) -> Bindings
+  payerIntro Nothing = bs
+  payerIntro (Just who) = nomIntro who
+
   ||| The event algebra's shape, decided once: composition is carried by
   ||| the slots this vocabulary already has, not by operator constructors.
   ||| The one operator row is `NthOccurrence`. Disjunction is a SEAT slot
@@ -284,7 +292,8 @@ mutual
                 (res : Maybe (Quantity bs)) ->
                 {auto 0 rt : RollTest res} -> GameEvent bs
     ||| "When a player doesn't pay this enchantment's cumulative upkeep",
-    ||| "Whenever you pay this enchantment's cumulative upkeep": a stated
+    ||| "Whenever you pay this enchantment's cumulative upkeep",
+    ||| "Whenever this creature's cumulative upkeep is paid": a stated
     ||| cost's payment as a thing that happens [CR#118.1]. The two
     ||| outcomes are one row under a `PaymentOutcome` slot lifting through
     ||| `paymentEventName`, on `FlipEvent`'s model -- not a general
@@ -295,13 +304,35 @@ mutual
     ||| bearer is singular; its zone is ungated because a keyword ability
     ||| functions from the zones its own rule names [CR#113.6b], and those
     ||| are not always the battlefield.
-    ||| It announces the payer, whom the tail reads back ("that player
-    ||| exiles all cards from their library").
-    ||| -- spelling: "[who] pay(s)/doesn't pay [whose]'s [keyword]"
-    PaysCost : (who : Noun bs Player) -> (out : PaymentOutcome) ->
-               (whose : Noun (nomIntro who) Object) -> (kw : Keyword) ->
+    ||| The payer is a VOICE and not a second row. The passive names the
+    ||| cost as its surface subject and no payer at all, but the same
+    ||| event happened: the keyword's own rule fixes who pays it --
+    ||| [CR#702.24a] and [CR#702.30a] both say "you" of the permanent's
+    ||| controller -- so nothing about the event is left indeterminate by
+    ||| the omission. What the omission costs is the announcement: voiced,
+    ||| the payer is what the tail reads back ("that player exiles all
+    ||| cards from their library"); unvoiced, only the bearer is there to
+    ||| read. Both outcomes take either voice; a passive nonpayment is
+    ||| unattested and refused by no rule, so it is tolerated at its zero.
+    ||| -- spelling: voiced, "[who] pay(s)/doesn't pay [whose]'s
+    ||| [keyword]"; unvoiced, "[whose]'s [keyword] is/isn't paid".
+    PaysCost : (who : Maybe (Noun bs Player)) -> (out : PaymentOutcome) ->
+               (whose : Noun (payerIntro who) Object) -> (kw : Keyword) ->
                {auto 0 kc : KeywordCost kw} ->
                {auto 0 one : nounPlur whose = OneOf} -> GameEvent bs
+    ||| "Whenever you pay life" (Font of Agonies): a life payment as a
+    ||| thing that happens. Its own row and not a `PaysCost` voice,
+    ||| because it names no cost: any payment of life, towards whatever
+    ||| cost asked for it, is the event [CR#118.1]. It is also the one
+    ||| payment that happens IN a number -- [CR#118.3b] pays life by
+    ||| subtracting the indicated amount from a life total and [CR#119.4]
+    ||| reads that back as losing that much life -- so the row announces
+    ||| that amount for the tail ("put that many blood counters on this
+    ||| enchantment"), on `RollsDice`'s model, and the mint is
+    ||| [CR#119.4]'s own life loss rather than a second sort naming the
+    ||| same number.
+    ||| -- spelling: "[who] pay(s) life"
+    PaysLife : (who : Noun bs Player) -> GameEvent bs
     ||| The ordinal occurrence of an event: "When the fourth plan counter
     ||| is put on this enchantment", "Whenever you cast your first spell
     ||| during each opponent's turn". The ordinal names WHICH occurrence in
@@ -344,6 +375,7 @@ mutual
   eventName (FlipEvent _ call) = flipEventName call
   eventName (RollsDice _ _ _) = DiceRoll
   eventName (PaysCost _ out _ _) = paymentEventName out
+  eventName (PaysLife _) = LifePayment
   eventName (NthOccurrence _ ev) = eventName ev
 
   ||| What an event pattern contributes before it happens — its announced
@@ -382,6 +414,7 @@ mutual
   eventIntro (FlipEvent who _) = nomIntro who
   eventIntro (RollsDice who _ _) = nomIntro who
   eventIntro (PaysCost _ _ whose _) = nomIntro whose
+  eventIntro (PaysLife who) = nomIntro who
   eventIntro (NthOccurrence _ ev) = eventIntro ev
 
   ||| The discourse after the event has happened, read by a trigger's
@@ -423,6 +456,7 @@ mutual
   eventAfter (FlipEvent who _) = nomIntro who
   eventAfter (RollsDice who _ _) = outcomeB RollResult :: nomIntro who
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
+  eventAfter (PaysLife who) = outcomeB LifeLost :: nomIntro who
   eventAfter (NthOccurrence _ ev) = eventAfter ev
 
   public export
@@ -452,7 +486,11 @@ mutual
   eventSubjectPlur (Regenerates n) = nounPlur n
   eventSubjectPlur (FlipEvent who _) = nounPlur who
   eventSubjectPlur (RollsDice who _ _) = nounPlur who
-  eventSubjectPlur (PaysCost who _ _ _) = nounPlur who
+  eventSubjectPlur (PaysCost (Just who) _ _ _) = nounPlur who
+  -- the passive's surface subject is "[whose]'s [keyword]", whose head
+  -- is the already-singular bearer.
+  eventSubjectPlur (PaysCost Nothing _ _ _) = OneOf
+  eventSubjectPlur (PaysLife who) = nounPlur who
   eventSubjectPlur (NthOccurrence _ ev) = eventSubjectPlur ev
 
   ||| The context a delayed body reads: the event's own after-discourse

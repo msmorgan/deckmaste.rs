@@ -33,6 +33,7 @@ data EventName = Death | Departure | Destruction | DamageTaken
                | FlipWin | FlipLoss
                | DiceRoll
                | CostPayment | CostNonpayment
+               | LifePayment
 
 public export
 statusEventName : StatusCat -> EventName
@@ -160,6 +161,8 @@ sameEventName CostPayment CostPayment = True
 sameEventName CostPayment _ = False
 sameEventName CostNonpayment CostNonpayment = True
 sameEventName CostNonpayment _ = False
+sameEventName LifePayment LifePayment = True
+sameEventName LifePayment _ = False
 
 public export
 sameLookback : Lookback -> Lookback -> Bool
@@ -244,6 +247,10 @@ eventHasMagnitude DiceRoll = False
 -- [CR#702.24a] refuses a partial payment outright.
 eventHasMagnitude CostPayment = False
 eventHasMagnitude CostNonpayment = False
+-- a life payment is the one payment the rules give a number of its
+-- own: [CR#118.3b] subtracts the indicated amount from a life total
+-- and [CR#119.4] reads that back as losing that much life.
+eventHasMagnitude LifePayment = True
 
 public export
 data ReplUse = Repeatedly | NextTimeOnly
@@ -331,6 +338,11 @@ lookbackSubjectOk CostPayment Object = False
 lookbackSubjectOk CostPayment Player = False
 lookbackSubjectOk CostNonpayment Object = False
 lookbackSubjectOk CostNonpayment Player = False
+-- a life payment names its own paid thing, so a bare "paid life this
+-- turn" leaves nothing unnamed; [CR#118.1] makes it a player's act,
+-- and [CR#119.4] gives the life to that player alone.
+lookbackSubjectOk LifePayment Object = False
+lookbackSubjectOk LifePayment Player = True
 lookbackSubjectOk _ (Quality _) = False
 lookbackSubjectOk _ Outcome = False
 lookbackSubjectOk _ Gap = False
@@ -383,6 +395,9 @@ lookbackComplementOk AbilityActivation _ _ = False
 lookbackComplementOk FlipWin _ _ = False
 lookbackComplementOk FlipLoss _ _ = False
 lookbackComplementOk DiceRoll _ _ = False
+-- life is the paid thing and the verb already carries it; the cost it
+-- went to is no participant [CR#118.1].
+lookbackComplementOk LifePayment _ _ = False
 lookbackComplementOk _ _ _ = False
 
 ||| A lookback names its event. No rule fixes which subject a lookback

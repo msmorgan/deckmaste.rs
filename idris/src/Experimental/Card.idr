@@ -100,6 +100,10 @@ keywordCardOk PermanentCard Ascend = True
 keywordCardOk SpellCard Ascend = True
 keywordCardOk PermanentCard CumulativeUpkeep = True
 keywordCardOk SpellCard CumulativeUpkeep = False
+-- [CR#702.30a] speaks of "this permanent", and [CR#110.4] denies an
+-- instant or sorcery card ever being one.
+keywordCardOk PermanentCard Echo = True
+keywordCardOk SpellCard Echo = False
 keywordCardOk PermanentCard Hexproof = True
 keywordCardOk SpellCard Hexproof = False
 keywordCardOk PermanentCard Menace = True
