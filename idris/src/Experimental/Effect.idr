@@ -752,6 +752,67 @@ mutual
                 {auto 0 at : StatusEffectVal v} -> Effect bs
     RemoveFromCombat : (n : Noun bs Object) ->
                        {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+    ||| "[n] blocks [what]" as an instruction: the write that puts a
+    ||| creature already on the battlefield into a blocking assignment.
+    ||| [CR#506.3g] is the rule that knows the write -- it speaks of "a
+    ||| resolving spell or ability [that] would cause a battle to become an
+    ||| attacking or blocking creature" -- and [CR#509.1g] is what the
+    ||| write makes true. It is not a requirement: "blocks if able" is a
+    ||| deontic and leaves the declaration to its step, where this row
+    ||| writes the assignment outright.
+    ||| Against `RemoveFromCombat`, this is the second half of a reassign,
+    ||| and [CR#509.3a] is what keeps the two readings apart. A creature
+    ||| removed from combat and written back in "becomes a blocker as the
+    ||| result of an effect" when it "wasn't a blocking creature at that
+    ||| time", so a "whenever [it] blocks" ability triggers; a creature
+    ||| that only `StopsBlocking` never stopped being one, so none does.
+    ||| The blocked side is written, never left bare: [CR#509.1g] gives a
+    ||| blocking creature the attacking creatures chosen for it, and a
+    ||| creature put onto the battlefield blocking is the entry rider's
+    ||| business [CR#506.3e].
+    ||| -- spelling: "[n] blocks [what]"; after a removal, "[n] then
+    ||| blocks [what]".
+    BecomesBlocking : (n : Noun bs Object) ->
+                      {auto 0 zn : OnBattlefield (nounZone n)} ->
+                      {auto 0 dn : DeedParticipant Block Agent (nounTy n)} ->
+                      (what : Noun (nomIntro n) Object) ->
+                      {auto 0 zw : OnBattlefield (nounZone what)} ->
+                      {auto 0 dw : DeedParticipant Block Patient (nounTy what)} ->
+                      Effect bs
+    ||| "[n] stops blocking [what]": one assignment unwritten and nothing
+    ||| else. [CR#506.4] lists what removes a permanent from combat and a
+    ||| dropped assignment is not among them; [CR#506.4a] settles the
+    ||| neighbouring case the same way, an effect that would have kept a
+    ||| creature from blocking not removing it once declared. So the
+    ||| creature stays a blocking creature and stays blocking whatever else
+    ||| it was blocking -- which is exactly what `RemoveFromCombat` does
+    ||| not leave true, and why the two are separate rows.
+    ||| The blocked side is written, never left bare: [CR#509.1g] leaves a
+    ||| creature a blocking creature "until it's removed from combat or the
+    ||| combat phase ends", so a bare "stops blocking" would name the
+    ||| removal this row is defined against.
+    ||| -- spelling: "[n] stops blocking [what]"
+    StopsBlocking : (n : Noun bs Object) ->
+                    {auto 0 zn : OnBattlefield (nounZone n)} ->
+                    {auto 0 dn : DeedParticipant Block Agent (nounTy n)} ->
+                    (what : Noun (nomIntro n) Object) ->
+                    {auto 0 zw : OnBattlefield (nounZone what)} ->
+                    {auto 0 dw : DeedParticipant Block Patient (nounTy what)} ->
+                    Effect bs
+    ||| "[n] is attacking [whom]": the attacking twin of
+    ||| `BecomesBlocking`, for a permanent already on the battlefield.
+    ||| `EntersAttacking` is the rider on entry and names no defender;
+    ||| this row names one, through the same `AttackDefender` slot the
+    ||| declaration event takes, so [CR#506.3]'s closed set and
+    ||| [CR#508.1b]'s one-defender rule ride it unchanged.
+    ||| It is an assignment, not a declaration: [CR#508.3a] keys attack
+    ||| triggers on a creature being "declared as an attacker", which a
+    ||| resolving effect never does.
+    ||| -- spelling: "[n] is attacking [whom]"
+    BecomesAttacking : (n : Noun bs Object) ->
+                       {auto 0 zn : OnBattlefield (nounZone n)} ->
+                       {auto 0 dn : DeedParticipant Attack Agent (nounTy n)} ->
+                       (whom : AttackDefender (nomIntro n)) -> Effect bs
     Regenerate : (n : Noun bs Object) ->
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                  Effect bs
@@ -849,6 +910,19 @@ mutual
     Continuously : (se : StaticEffect bs) -> (span : Maybe (Duration (staticIntro se))) ->
                    {auto 0 sp : SpanOk (staticKind se) span} ->
                    {auto 0 cl : ClauseStatic se} -> Effect bs
+    ||| The leading span, "During [span], [se]": the span is written first
+    ||| and the statement reads the phrase it names -- "During TARGET
+    ||| OPPONENT's next turn, creatures THAT PLAYER controls attack ... if
+    ||| able". `Continuously` is the postposed twin, whose span sits at
+    ||| `staticIntro se` and so announces into nothing; a span naming a
+    ||| target announces it like any other phrase [CR#601.2c], and no
+    ||| statement reads forward. Neither is a macro over the other, on the
+    ||| model of `Conditionally`/`OnlyWhile`.
+    ||| -- spelling: "During [span], [se]."
+    Throughout : (span : Duration bs) ->
+                 (se : StaticEffect (spanIntro span)) ->
+                 {auto 0 sp : SpanOk (staticKind se) (Just span)} ->
+                 {auto 0 cl : ClauseStatic se} -> Effect bs
     Create : (agent : Noun bs Player) -> (count : Amount (nomIntro agent)) ->
              (spec : TokenSpec (amtIntro count)) -> (riders : List TokenRider) ->
              Effect bs
@@ -1061,6 +1135,9 @@ mutual
   heldUntilOk (GetsCounters _ _ _) = False
   heldUntilOk (LosesCounters _ _ _) = False
   heldUntilOk (RemoveFromCombat _) = False
+  heldUntilOk (BecomesBlocking _ _) = False
+  heldUntilOk (StopsBlocking _ _) = False
+  heldUntilOk (BecomesAttacking _ _) = False
   heldUntilOk (Regenerate _) = False
   heldUntilOk (CantBe _ _ _) = False
   heldUntilOk (GainsDesignation _ _ _ _) = False
@@ -1082,6 +1159,7 @@ mutual
   heldUntilOk (RollDice _ _ _) = False
   heldUntilOk (ResultsTable _) = False
   heldUntilOk (Continuously _ _) = False
+  heldUntilOk (Throughout _ _) = False
   heldUntilOk (Create _ _ _ _) = False
   heldUntilOk (GetsEmblem _ _) = False
   heldUntilOk (PutCounters _ _ _) = False
@@ -1137,6 +1215,8 @@ mutual
   reflexEncloseUse (ChangeLife _ _) = EncAgentless
   reflexEncloseUse (Continuously (GainsControl _ _) _) = EncReflexive
   reflexEncloseUse (Continuously _ _) = EncAgentless
+  reflexEncloseUse (Throughout _ (GainsControl _ _)) = EncReflexive
+  reflexEncloseUse (Throughout _ _) = EncAgentless
   reflexEncloseUse (Does _ _ _) = EncReflexive
   reflexEncloseUse (Pay _ _) = EncReflexive        -- 66, all of them offered
   reflexEncloseUse (Enact _ _) = EncReflexive
@@ -1146,6 +1226,9 @@ mutual
   reflexEncloseUse (GetsCounters _ _ _) = EncAgentless
   reflexEncloseUse (LosesCounters _ _ _) = EncAgentless
   reflexEncloseUse (RemoveFromCombat _) = EncAgentless
+  reflexEncloseUse (BecomesBlocking _ _) = EncAgentless
+  reflexEncloseUse (StopsBlocking _ _) = EncAgentless
+  reflexEncloseUse (BecomesAttacking _ _) = EncAgentless
   reflexEncloseUse (Regenerate _) = EncAgentless
   reflexEncloseUse (CantBe _ _ _) = EncAgentless
   reflexEncloseUse (GainsDesignation _ _ _ _) = EncAgentless
@@ -1228,6 +1311,9 @@ mutual
   thisWayOutcomeOk (GetsCounters _ _ _) = True
   thisWayOutcomeOk (LosesCounters _ _ _) = True
   thisWayOutcomeOk (RemoveFromCombat _) = True
+  thisWayOutcomeOk (BecomesBlocking _ _) = True
+  thisWayOutcomeOk (StopsBlocking _ _) = True
+  thisWayOutcomeOk (BecomesAttacking _ _) = True
   thisWayOutcomeOk (Regenerate _) = True
   thisWayOutcomeOk (CantBe _ _ _) = True
   thisWayOutcomeOk (GainsDesignation _ _ _ _) = True
@@ -1249,6 +1335,7 @@ mutual
   thisWayOutcomeOk (RollDice _ _ _) = True
   thisWayOutcomeOk (ResultsTable _) = True
   thisWayOutcomeOk (Continuously _ _) = True
+  thisWayOutcomeOk (Throughout _ _) = True
   thisWayOutcomeOk (Create _ _ _ _) = True
   thisWayOutcomeOk (GetsEmblem _ _) = True
   thisWayOutcomeOk (PutCounters _ _ _) = True
@@ -1311,6 +1398,9 @@ mutual
   costActionOk (GetsCounters who _ _) = costNounOk who
   costActionOk (LosesCounters who _ _) = costNounOk who
   costActionOk (RemoveFromCombat n) = costNounOk n
+  costActionOk (BecomesBlocking n _) = costNounOk n
+  costActionOk (StopsBlocking n _) = costNounOk n
+  costActionOk (BecomesAttacking n _) = costNounOk n
   costActionOk (Regenerate n) = costNounOk n
   costActionOk (CantBe e _ _) = costActionOk e
   costActionOk (GainsDesignation n _ _ _) = costNounOk n
@@ -1332,6 +1422,7 @@ mutual
   costActionOk (RollDice who _ _) = costNounOk who
   costActionOk (ResultsTable _) = False
   costActionOk (Continuously _ _) = False
+  costActionOk (Throughout _ _) = False
   costActionOk (Create agent _ _ _) = costNounOk agent
   costActionOk (GetsEmblem _ _) = True
   costActionOk (PutCounters _ _ on) = costNounOk on
@@ -1420,6 +1511,9 @@ mutual
   effEq (LosesCounters _ _ _) _ = False
   effEq (RemoveFromCombat a) (RemoveFromCombat b) = nounEqRef a b
   effEq (RemoveFromCombat _) _ = False
+  effEq (BecomesBlocking _ _) _ = False
+  effEq (StopsBlocking _ _) _ = False
+  effEq (BecomesAttacking _ _) _ = False
   effEq (Regenerate a) (Regenerate b) = nounEqRef a b
   effEq (Regenerate _) _ = False
   effEq (CantBe _ _ _) _ = False
@@ -1449,6 +1543,7 @@ mutual
   effEq (RollDice _ _ _) _ = False
   effEq (ResultsTable _) _ = False
   effEq (Continuously _ _) _ = False
+  effEq (Throughout _ _) _ = False
   effEq (Create _ _ _ _) _ = False
   effEq (GetsEmblem _ _) _ = False
   effEq (PutCounters _ _ _) _ = False
@@ -1521,6 +1616,10 @@ mutual
   effIntro (GetsCounters who amt _) = amtIntro amt
   effIntro (LosesCounters who _ amt) = optAmtIntro amt
   effIntro (RemoveFromCombat n) = nomIntro n
+  effIntro (BecomesBlocking _ what) = nomIntro what
+  effIntro (StopsBlocking _ what) = nomIntro what
+  effIntro (BecomesAttacking n NoDefender) = nomIntro n
+  effIntro (BecomesAttacking _ (OneDefender whom)) = nomIntro whom
   effIntro (Regenerate n) = nomIntro n
   effIntro (CantBe e _ _) = effIntro e
   effIntro (GainsDesignation n _ _ _) = nomIntro n
@@ -1550,6 +1649,7 @@ mutual
   effIntro (RollDice who count _) = outcomeB RollResult :: amtIntro count
   effIntro (ResultsTable rows) = bs
   effIntro (Continuously se _) = staticIntro se
+  effIntro (Throughout _ se) = staticIntro se
   effIntro (Create agent count spec riders) =
     MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
               (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin))
@@ -1603,6 +1703,10 @@ mutual
   preIntro (GetsCounters who amt _) = amtIntro amt
   preIntro (LosesCounters who _ amt) = optAmtIntro amt
   preIntro (RemoveFromCombat n) = nomIntro n
+  preIntro (BecomesBlocking _ what) = nomIntro what
+  preIntro (StopsBlocking _ what) = nomIntro what
+  preIntro (BecomesAttacking n NoDefender) = nomIntro n
+  preIntro (BecomesAttacking _ (OneDefender whom)) = nomIntro whom
   preIntro (Regenerate n) = nomIntro n
   preIntro (CantBe e _ _) = preIntro e
   preIntro (GainsDesignation n _ _ _) = nomIntro n
@@ -1626,6 +1730,7 @@ mutual
   preIntro (RollDice who count _) = amtIntro count
   preIntro (ResultsTable rows) = bs
   preIntro (Continuously se _) = staticIntro se
+  preIntro (Throughout _ se) = staticIntro se
   preIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   preIntro (GetsEmblem who _) = nomIntro who
   preIntro (PutCounters amt kind on) = nomIntro on
@@ -1670,6 +1775,10 @@ mutual
   annIntro (GetsCounters who amt _) = amtIntro amt
   annIntro (LosesCounters who _ amt) = optAmtIntro amt
   annIntro (RemoveFromCombat n) = nomIntro n
+  annIntro (BecomesBlocking _ what) = nomIntro what
+  annIntro (StopsBlocking _ what) = nomIntro what
+  annIntro (BecomesAttacking n NoDefender) = nomIntro n
+  annIntro (BecomesAttacking _ (OneDefender whom)) = nomIntro whom
   annIntro (Regenerate n) = nomIntro n
   annIntro (CantBe e _ _) = annIntro e
   annIntro (GainsDesignation n _ _ _) = nomIntro n
@@ -1693,6 +1802,7 @@ mutual
   annIntro (RollDice who count _) = amtIntro count
   annIntro (ResultsTable rows) = bs
   annIntro (Continuously se _) = staticIntro se
+  annIntro (Throughout _ se) = staticIntro se
   annIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   annIntro (GetsEmblem who _) = nomIntro who
   annIntro (PutCounters amt kind on) = nomIntro on
@@ -1775,6 +1885,9 @@ mutual
   deedDelta (GetsCounters _ _ _) = []
   deedDelta (LosesCounters _ _ _) = []
   deedDelta (RemoveFromCombat _) = []
+  deedDelta (BecomesBlocking _ _) = []
+  deedDelta (StopsBlocking _ _) = []
+  deedDelta (BecomesAttacking _ _) = []
   deedDelta (Regenerate _) = []
   deedDelta (CantBe e _ _) = deedDelta e
   deedDelta (GainsDesignation _ _ _ _) = []
@@ -1801,6 +1914,7 @@ mutual
   deedDelta (RollDice _ _ _) = [outcomeB RollResult]
   deedDelta (ResultsTable _) = []
   deedDelta (Continuously se _) = []
+  deedDelta (Throughout _ _) = []
   deedDelta (Create agent count spec riders) =
     [MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
                (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin))]
@@ -2003,6 +2117,7 @@ mutual
   public export
   effKeyword : {0 bs : Bindings} -> Effect bs -> Maybe Keyword
   effKeyword (Continuously se _) = statKeyword se
+  effKeyword (Throughout _ se) = statKeyword se
   effKeyword _ = Nothing
 
   public export

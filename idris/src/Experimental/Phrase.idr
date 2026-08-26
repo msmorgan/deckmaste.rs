@@ -169,6 +169,34 @@ mutual
     BlockedBy : (m : Noun bs Object) ->
                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
                 Predicate bs Object
+    ||| "creature that could block [m]" -- the hypothetical block, asked of
+    ||| a block that has not been declared. [CR#509.1a] and [CR#509.1b] are
+    ||| the whole of what it reads: the prospective blocker must be
+    ||| untapped, and no restriction ("effects that say a creature can't
+    ||| block, or that it can't block unless some condition is met") may be
+    ||| disobeyed. It reads NEITHER of the two checks that follow.
+    ||| [CR#509.1c]'s requirements are no part of it -- a creature that must
+    ||| block could block whether or not it is made to -- and neither are
+    ||| that same rule's costs, which "that player is not required to pay"
+    ||| and which [CR#509.1d] locks in only once blockers are chosen. That
+    ||| refusal is the construction's content, not an omission: a reading
+    ||| that took either in would answer Sorrow's Path's question wrongly.
+    ||| The relatum is the attacking creature and is gated like every other
+    ||| combat relatum [CR#509.1g]; the described side is a creature by
+    ||| `seedType`, as `BlockerOf`'s is.
+    ||| -- spelling: "[n] could block [m]"
+    CouldBlock : (m : Noun bs Object) ->
+                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
+                 Predicate bs Object
+    ||| "creature that could be blocked by [m]" -- `CouldBlock`'s other
+    ||| voice, on the model of `BlockerOf`/`BlockedBy`. Same rules, same
+    ||| refusal; the two differ only in which side the description is of,
+    ||| and General Jarkeld writes this one where Sorrow's Path writes the
+    ||| other.
+    ||| -- spelling: "[n] could be blocked by [m]"
+    CouldBeBlockedBy : (m : Noun bs Object) ->
+                       {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
+                       Predicate bs Object
     HappenedTo : {k : Kind} -> (ev : EventName) -> (w : Lookback) ->
                  (what : Maybe (EventComplement bs ev k)) ->
                  {auto 0 cw : ComplementWritten what} ->
@@ -321,6 +349,8 @@ mutual
   seedZone Blocking = Just Battlefield
   seedZone (BlockerOf _) = Just Battlefield
   seedZone (BlockedBy _) = Just Battlefield
+  seedZone (CouldBlock _) = Just Battlefield
+  seedZone (CouldBeBlockedBy _) = Just Battlefield
   seedZone (HappenedTo _ _ _) = Nothing
   seedZone (ColorIs _) = Nothing
   seedZone IsColorless = Nothing
@@ -395,6 +425,8 @@ mutual
   seedType Blocking = Just Creature
   seedType (BlockerOf _) = Just Creature
   seedType (BlockedBy _) = Just Creature
+  seedType (CouldBlock _) = Just Creature
+  seedType (CouldBeBlockedBy _) = Just Creature
   seedType (HappenedTo _ _ _) = Nothing
   seedType (ColorIs _) = Nothing
   seedType IsColorless = Nothing
@@ -465,6 +497,8 @@ mutual
   hasHead Blocking = False
   hasHead (BlockerOf _) = False
   hasHead (BlockedBy _) = False
+  hasHead (CouldBlock _) = False
+  hasHead (CouldBeBlockedBy _) = False
   hasHead (HappenedTo _ _ _) = False
   hasHead (CastFrom _) = False
   hasHead (ColorIs _) = False
@@ -627,6 +661,10 @@ mutual
   predEq (BlockerOf _) _ = False
   predEq (BlockedBy a) (BlockedBy b) = nounEqRef a b
   predEq (BlockedBy _) _ = False
+  predEq (CouldBlock a) (CouldBlock b) = nounEqRef a b
+  predEq (CouldBlock _) _ = False
+  predEq (CouldBeBlockedBy a) (CouldBeBlockedBy b) = nounEqRef a b
+  predEq (CouldBeBlockedBy _) _ = False
   -- both arguments are closed words, so this row compares wholly rather
   -- than conservatively.
   predEq (HappenedTo a v Nothing) (HappenedTo b w Nothing) =
@@ -1072,6 +1110,8 @@ mutual
   predSays Blocking = True
   predSays (BlockerOf _) = True
   predSays (BlockedBy _) = True
+  predSays (CouldBlock _) = True
+  predSays (CouldBeBlockedBy _) = True
   predSays (HappenedTo _ _ _) = True
   predSays (CastFrom _) = True
   predSays (ColorIs _) = True
@@ -1129,6 +1169,8 @@ mutual
   predNegFree Blocking = True
   predNegFree (BlockerOf _) = True
   predNegFree (BlockedBy _) = True
+  predNegFree (CouldBlock _) = True
+  predNegFree (CouldBeBlockedBy _) = True
   predNegFree (HappenedTo _ _ _) = True
   predNegFree (CastFrom _) = True
   predNegFree (ColorIs _) = True
@@ -1422,6 +1464,8 @@ mutual
   predDelta (CastBy n) = nounDelta n
   predDelta (BlockerOf m) = nounDelta m
   predDelta (BlockedBy m) = nounDelta m
+  predDelta (CouldBlock m) = nounDelta m
+  predDelta (CouldBeBlockedBy m) = nounDelta m
   predDelta (HappenedTo _ _ what) = complementDelta what
   predDelta (CastFrom z) = zoneDelta z
   predDelta (ColorIs _) = []

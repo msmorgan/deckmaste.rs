@@ -16,6 +16,21 @@ mutual
     Until : DurationEnd -> Duration bs
     ForAsLongAs : Condition bs -> Duration bs
     UntilEvent : GameEvent bs -> Duration bs
+    ||| "During [who]'s next turn": a named player's next turn entire.
+    ||| Every other next-turn span the corpus writes is an ENDPOINT --
+    ||| "until your next turn", "until the end of your next turn" --
+    ||| which `Until` already spells against `StartOf`/`EndOf`; this one
+    ||| is neither endpoint but the turn between them.
+    ||| The possessor is a noun and not a `Whose` because the surface asks
+    ||| for one: beside "your" and "that player's" the printed phrasings
+    ||| include "target opponent's", "target player's", "its controller's"
+    ||| and "the first/second player's". One of those announces a target,
+    ||| which the governed statement reads back ("creatures THAT PLAYER
+    ||| controls"), and only the leading twin `Throughout` is placed to
+    ||| let it. A turn has one active player [CR#102.1], so the possessor
+    ||| names one.
+    DuringNextTurnOf : (who : Noun bs Player) ->
+                       {auto 0 one : nounPlur who = OneOf} -> Duration bs
 
   ||| The defender an attack names, or none written. A creature attacks
   ||| one defender [CR#508.1b] and [CR#506.3] closes what that may be, so
@@ -438,6 +453,19 @@ mutual
   durationOk : {0 bs : Bindings} -> Duration bs -> Bool
   durationOk (UntilEvent ev) = spanEventOk (eventName ev)
   durationOk _ = True
+
+  ||| What a span announces for the statement it governs to read. Only a
+  ||| span written BEFORE its statement is in a position to be read, so
+  ||| `Throughout` is the one clause row that threads this; `Continuously`
+  ||| sits its span at `staticIntro` and announces into nothing.
+  public export
+  spanIntro : {bs : Bindings} -> Duration bs -> Bindings
+  spanIntro ThisTurn = bs
+  spanIntro RestOfGame = bs
+  spanIntro (Until _) = bs
+  spanIntro (ForAsLongAs c) = condIntro c
+  spanIntro (UntilEvent ev) = eventIntro ev
+  spanIntro (DuringNextTurnOf who) = nomIntro who
 
   ||| A resolving clause's duration slot: [CR#611.2a] gives a stated
   ||| duration its meaning and gives an unstated one the end of the game.
