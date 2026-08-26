@@ -283,3 +283,5 @@ threading and for `Move` destinations, the pin modules
 `idris/src/Experimental/Cards.idr`. No Rust crate.
 
 Standard constraints apply.
+
+- **Routed from workbench-split-determiner-union-read (close, 2026-08-25):** Concussive Bolt writes a 26th, differently-shaped split read — "by that player or by that planeswalker's controller", the preposition repeated over a noun disjunction rather than a bare `EitherOf` — outside that ticket's 25 and unbenched; it is a coordination-spelling question and lands here.
