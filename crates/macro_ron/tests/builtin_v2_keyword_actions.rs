@@ -1,9 +1,13 @@
 use std::path::Path;
 
-use macro_ron::v2::{
-    CustomTailAtom, DeclarationKind, GrammarRecipe, NormalizedDeclaration, SpellingPart,
-    SurfaceFeature, VerbValence, read_builtin_v2,
-};
+use macro_ron::v2::CustomTailAtom;
+use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::GrammarRecipe;
+use macro_ron::v2::NormalizedDeclaration;
+use macro_ron::v2::SpellingPart;
+use macro_ron::v2::SurfaceFeature;
+use macro_ron::v2::VerbValence;
+use macro_ron::v2::read_builtin_v2;
 
 const EXPECTED_NAMES: &[&str] = &[
     "Abandon",
@@ -149,6 +153,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         [
             (SurfaceFeature::Bare, "destroy"),
             (SurfaceFeature::ThirdPersonSingular, "destroys"),
+            (SurfaceFeature::Participle, "destroyed"),
         ]
     );
 
@@ -163,7 +168,9 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         scry.grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            valence: VerbValence::Numerative,
+            valence: VerbValence::Custom {
+                shapes: vec![vec![], vec![CustomTailAtom::Amount]],
+            },
         }
     );
     assert_eq!(
@@ -171,6 +178,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         [
             (SurfaceFeature::Bare, "scry"),
             (SurfaceFeature::ThirdPersonSingular, "scries"),
+            (SurfaceFeature::Participle, "scryed"),
         ]
     );
     assert!(
@@ -212,6 +220,7 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         [
             (SurfaceFeature::Bare, "manifest dread"),
             (SurfaceFeature::ThirdPersonSingular, "manifests dread"),
+            (SurfaceFeature::Participle, "manifest dreaded"),
         ]
     );
 
@@ -260,6 +269,10 @@ fn roll_to_visit_your_attractions_has_its_attested_agreeing_surface() {
             (
                 SurfaceFeature::ThirdPersonSingular,
                 "rolls to visit their Attractions",
+            ),
+            (
+                SurfaceFeature::Participle,
+                "roll to visit your Attractionsed",
             ),
         ]
     );

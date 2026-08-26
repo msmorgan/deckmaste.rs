@@ -936,6 +936,25 @@ enum NonterminalKind {
     ReflexivePredicateSubordinate,
     Predicate,
     PredicateCoordination,
+    PredicativeComplement,
+    PredicativeStatus,
+    PassivePredicate,
+    PredicativeAdjectiveComplement,
+    PredicativeColorComplement,
+    PredicativeTypeComplement,
+    PredicativeStatusComplement,
+    BlockedByStatusComplement,
+    PredicativeAbilityComplement,
+    PredicativePowerToughnessComplement,
+    BareCopularPredicate,
+    ChangeStatePredicate,
+    PassiveDamagePredicate,
+    PassiveMovementPredicate,
+    PassiveOrientationPredicate,
+    DeclaredTransitivePassivePredicate,
+    BarePassivePredicate,
+    CopularClause,
+    PassiveFiniteClause,
     FiniteClause,
     ClauseCoordination,
     WhereClauseCategory,
@@ -1421,6 +1440,10 @@ fn expectation(expectation: &RuntimeExpectation) -> Expectation {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the source-to-wire nonterminal mapping is deliberately exhaustive and literal"
+)]
 fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
     match kind {
         NonterminalCategory::Ability => NonterminalKind::Ability,
@@ -1463,6 +1486,43 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::Predicate => NonterminalKind::Predicate,
         NonterminalCategory::PredicateCoordination => NonterminalKind::PredicateCoordination,
+        NonterminalCategory::PredicativeComplement => NonterminalKind::PredicativeComplement,
+        NonterminalCategory::PredicativeStatus => NonterminalKind::PredicativeStatus,
+        NonterminalCategory::PassivePredicate => NonterminalKind::PassivePredicate,
+        NonterminalCategory::PredicativeAdjectiveComplement => {
+            NonterminalKind::PredicativeAdjectiveComplement
+        }
+        NonterminalCategory::PredicativeColorComplement => {
+            NonterminalKind::PredicativeColorComplement
+        }
+        NonterminalCategory::PredicativeTypeComplement => {
+            NonterminalKind::PredicativeTypeComplement
+        }
+        NonterminalCategory::PredicativeStatusComplement => {
+            NonterminalKind::PredicativeStatusComplement
+        }
+        NonterminalCategory::BlockedByStatusComplement => {
+            NonterminalKind::BlockedByStatusComplement
+        }
+        NonterminalCategory::PredicativeAbilityComplement => {
+            NonterminalKind::PredicativeAbilityComplement
+        }
+        NonterminalCategory::PredicativePowerToughnessComplement => {
+            NonterminalKind::PredicativePowerToughnessComplement
+        }
+        NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,
+        NonterminalCategory::ChangeStatePredicate => NonterminalKind::ChangeStatePredicate,
+        NonterminalCategory::PassiveDamagePredicate => NonterminalKind::PassiveDamagePredicate,
+        NonterminalCategory::PassiveMovementPredicate => NonterminalKind::PassiveMovementPredicate,
+        NonterminalCategory::PassiveOrientationPredicate => {
+            NonterminalKind::PassiveOrientationPredicate
+        }
+        NonterminalCategory::DeclaredTransitivePassivePredicate => {
+            NonterminalKind::DeclaredTransitivePassivePredicate
+        }
+        NonterminalCategory::BarePassivePredicate => NonterminalKind::BarePassivePredicate,
+        NonterminalCategory::CopularClause => NonterminalKind::CopularClause,
+        NonterminalCategory::PassiveFiniteClause => NonterminalKind::PassiveFiniteClause,
         NonterminalCategory::FiniteClause => NonterminalKind::FiniteClause,
         NonterminalCategory::ClauseCoordination => NonterminalKind::ClauseCoordination,
         NonterminalCategory::WhereClauseCategory => NonterminalKind::WhereClauseCategory,

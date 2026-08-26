@@ -744,7 +744,7 @@ mod tests {
                 report.checked_constructor_bindings.len(),
                 report.roots.len(),
             ],
-            [0, 0, 0, 1, 31, 0, 0, 0, 8],
+            [0, 0, 0, 1, 33, 0, 0, 0, 8],
             "categories intentionally overlap and have no unique total"
         );
         assert!(report.handwritten_codecs.is_empty());
@@ -782,6 +782,9 @@ mod tests {
                 "ActivationCostComponent",
                 "Predicate",
                 "Clause",
+                "PredicativeComplement",
+                "PredicativeStatus",
+                "PassivePredicate",
                 "ClauseAttachment",
                 "ConditionClause",
                 "DocumentBlock",
@@ -797,6 +800,7 @@ mod tests {
                 "Triggered.intervening_if",
                 "SingularDieObject.shape",
                 "FixedDiceObject.shape",
+                "DealUnspecifiedDamage.recipient",
                 "PutInto.source",
                 "PutOnto.source",
                 "PutOnto.post_state",
@@ -822,6 +826,7 @@ mod tests {
                 "AndPredicateCoordination.members",
                 "OrPredicateCoordination.members",
                 "AndOrPredicateCoordination.members",
+                "PredicativePowerToughnessValue.magnitudes",
                 "AndClauseCoordination.members",
                 "OrClauseCoordination.members",
                 "AndOrClauseCoordination.members",
@@ -864,6 +869,7 @@ mod tests {
                 "ModalModeValue.sentences",
                 "PlainModal.modes",
                 "SymbolRun.symbols",
+                "PredicativePowerToughnessValue.magnitudes",
                 "NegativeModifiedSingularNominal.modifiers",
                 "CompoundModifiedSingularNominal.rest",
                 "CompoundModifiedPluralNominal.rest",
@@ -970,6 +976,8 @@ mod tests {
                             | "lexeme:VerbLexeme/Have"
                             | "lexeme:VerbLexeme/Be"
                             | "lexeme:CoreIntransitiveVerb/Die"
+                            | "lexeme:DamageParticipleLexeme/Deal"
+                            | "lexeme:MovementParticipleLexeme/Put"
                     )
                 })
                 .map(|(identity, rows)| (identity.to_owned(), rows[0].1.to_owned()))
@@ -1034,6 +1042,18 @@ mod tests {
                     "identity": "lexeme:CoreIntransitiveVerb/Die",
                     "overrides": [
                         { "feature": "third_person_singular", "surface": "dies" }
+                    ]
+                },
+                {
+                    "identity": "lexeme:DamageParticipleLexeme/Deal",
+                    "overrides": [
+                        { "feature": "participle", "surface": "dealt" }
+                    ]
+                },
+                {
+                    "identity": "lexeme:MovementParticipleLexeme/Put",
+                    "overrides": [
+                        { "feature": "participle", "surface": "put" }
                     ]
                 },
                 { "identity": "lexeme:artifact_subtype/Equipment", "overrides": [{ "feature": "plural", "surface": "Equipment" }] },
@@ -1109,8 +1129,8 @@ mod tests {
                 }
             ],
             "abstract_products": ["OracleText"],
-            "abstract_sums": ["ActivationCostComponent", "Predicate", "Clause", "ClauseAttachment", "ConditionClause", "DocumentBlock"],
-            "optional_roles": ["SingularExistentialClause.domain", "PluralExistentialClause.domain", "AtPhraseValue.specifier", "AtPhraseValue.postmodifier", "Triggered.intervening_if", "SingularDieObject.shape", "FixedDiceObject.shape", "PutInto.source", "PutOnto.source", "PutOnto.post_state", "PutOnto.control", "PutOn.source", "ReturnTo.source", "ReturnTo.post_state", "ReturnTo.control", "EnterLocation.post_state", "EnterLocation.control"],
+            "abstract_sums": ["ActivationCostComponent", "Predicate", "Clause", "PredicativeComplement", "PredicativeStatus", "PassivePredicate", "ClauseAttachment", "ConditionClause", "DocumentBlock"],
+            "optional_roles": ["SingularExistentialClause.domain", "PluralExistentialClause.domain", "AtPhraseValue.specifier", "AtPhraseValue.postmodifier", "Triggered.intervening_if", "SingularDieObject.shape", "FixedDiceObject.shape", "DealUnspecifiedDamage.recipient", "PutInto.source", "PutOnto.source", "PutOnto.post_state", "PutOnto.control", "PutOn.source", "ReturnTo.source", "ReturnTo.post_state", "ReturnTo.control", "EnterLocation.post_state", "EnterLocation.control"],
             "sequence_roles": [
                 "Sentences.sentences",
                 "ModalModeValue.sentences",
@@ -1122,6 +1142,7 @@ mod tests {
                 "AndPredicateCoordination.members",
                 "OrPredicateCoordination.members",
                 "AndOrPredicateCoordination.members",
+                "PredicativePowerToughnessValue.magnitudes",
                 "AndClauseCoordination.members",
                 "OrClauseCoordination.members",
                 "AndOrClauseCoordination.members",
@@ -1158,6 +1179,7 @@ mod tests {
                 "ModalModeValue.sentences",
                 "PlainModal.modes",
                 "SymbolRun.symbols",
+                "PredicativePowerToughnessValue.magnitudes",
                 "NegativeModifiedSingularNominal.modifiers",
                 "CompoundModifiedSingularNominal.rest",
                 "CompoundModifiedPluralNominal.rest",
@@ -1381,6 +1403,14 @@ mod tests {
             (
                 "lexeme:CoreIntransitiveVerb/Die",
                 vec![("third_person_singular", "dies")],
+            ),
+            (
+                "lexeme:DamageParticipleLexeme/Deal",
+                vec![("participle", "dealt")],
+            ),
+            (
+                "lexeme:MovementParticipleLexeme/Put",
+                vec![("participle", "put")],
             ),
             (
                 "lexeme:artifact_subtype/Equipment",

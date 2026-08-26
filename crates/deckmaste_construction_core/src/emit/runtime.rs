@@ -20,6 +20,7 @@ use crate::identifier::LEXICAL_TERMINAL_TYPE;
 use crate::identifier::LEXICAL_TYPE;
 use crate::identifier::NUMBER_TYPE;
 use crate::identifier::ONSET_TYPE;
+use crate::identifier::PARTICIPLE_TYPE;
 use crate::identifier::POSSESSIVE_ENDING_TYPE;
 use crate::identifier::PREFIX_POSITION_TYPE;
 use crate::identifier::SCAN_POSITION_TYPE;
@@ -139,6 +140,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             ONSET_TYPE,
             quote! {
                 pub(crate) use ::macro_ron::v2::Onset;
+            },
+        ),
+        named_type(
+            PARTICIPLE_TYPE,
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum Participle { Participle }
             },
         ),
         named_type(
@@ -859,14 +867,31 @@ fn unsigned_lexical_variants(
 fn declaration_verb_lexical_variants(
     inventory: &RuntimeInventory<'_>,
 ) -> (Option<TokenStream>, Vec<TokenStream>, Option<TokenStream>) {
-    let lexical = (!inventory.declaration_verbs.is_empty())
-        .then(|| quote! { DeclarationVerb(usize, FeatureConstraint<Agreement>), });
+    let has_agreement = inventory
+        .declaration_verbs
+        .iter()
+        .any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Agreement);
+    let has_participle = inventory
+        .declaration_verbs
+        .iter()
+        .any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Participle);
+    let agreement =
+        has_agreement.then(|| quote! { DeclarationVerb(usize, FeatureConstraint<Agreement>), });
+    let participle = has_participle.then(|| quote! { DeclarationParticiple(usize), });
+    let lexical =
+        (!inventory.declaration_verbs.is_empty()).then(|| quote! { #agreement #participle });
     let leaf = inventory
         .declaration_verbs
         .iter()
         .map(|(_, codec)| {
             let verb = codec.codec_ident();
-            quote! { #verb { verb: #verb, agreement: Agreement }, }
+            match codec.feature_axis() {
+                crate::feature::Feature::Agreement => {
+                    quote! { #verb { verb: #verb, agreement: Agreement }, }
+                }
+                crate::feature::Feature::Participle => quote! { #verb { verb: #verb }, },
+                _ => unreachable!("validated declaration_verb feature axis is closed"),
+            }
         })
         .collect();
     let class =
@@ -1167,7 +1192,13 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         quote! { Lexical::DeclarationNoun(terminal_index, _) => TerminalClass::DeclarationNoun(terminal_index), }
     });
     let declaration_verb_class_arm = (!inventory.declaration_verbs.is_empty()).then(|| {
-        quote! { Lexical::DeclarationVerb(terminal_index, _) => TerminalClass::DeclarationVerb(terminal_index), }
+        let agreement = inventory.declaration_verbs.iter().any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Agreement).then(|| quote! {
+            Lexical::DeclarationVerb(terminal_index, _) => TerminalClass::DeclarationVerb(terminal_index),
+        });
+        let participle = inventory.declaration_verbs.iter().any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Participle).then(|| quote! {
+            Lexical::DeclarationParticiple(terminal_index) => TerminalClass::DeclarationVerb(terminal_index),
+        });
+        quote! { #agreement #participle }
     });
     let verb_class_arm = inventory
         .verb_lexeme
@@ -1583,6 +1614,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 }
                 macro_ron::v2::SurfaceFeature::Singular
                 | macro_ron::v2::SurfaceFeature::Plural
+                | macro_ron::v2::SurfaceFeature::Participle
                 | macro_ron::v2::SurfaceFeature::Fixed => {
                     unreachable!("validated verb lexeme has the Agreement feature axis")
                 }
@@ -1616,6 +1648,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                 macro_ron::v2::SurfaceFeature::Bare
                 | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                | macro_ron::v2::SurfaceFeature::Participle
                 | macro_ron::v2::SurfaceFeature::Fixed => {
                     unreachable!("validated noun lexeme has the Number feature axis")
                 }
@@ -1658,6 +1691,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                                 macro_ron::v2::SurfaceFeature::Bare
                                 | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                                | macro_ron::v2::SurfaceFeature::Participle
                                 | macro_ron::v2::SurfaceFeature::Fixed => {
                                     unreachable!(
                                         "validated noun lexeme has the Number feature axis"
@@ -1711,74 +1745,66 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
             .iter()
             .map(|(terminal_index, codec)| {
                 let verb = codec.codec_ident();
-                let closed_owner_arms = if let Some(closed) = codec.closed_lexeme() {
-                    inventory
-                        .lexemes
-                        .iter()
-                        .copied()
+                let closed_owner_arms = codec.closed_lexeme().map_or_else(Vec::new, |closed| {
+                    inventory.lexemes.iter().copied()
                         .find(|lexeme| closed == lexeme.name())
                         .expect("validated declaration verb has its closed lexeme")
-                        .surfaces()
-                        .iter()
-                        .map(|row| {
+                        .surfaces().iter().map(|row| {
                             let member = emitted_ident(row.member(), Span::call_site());
-                            let agreement = match row.feature() {
-                                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
-                                    quote! { Agreement::ThirdPersonSingular }
-                                }
-                                macro_ron::v2::SurfaceFeature::Singular
-                                | macro_ron::v2::SurfaceFeature::Plural
-                                | macro_ron::v2::SurfaceFeature::Fixed => {
-                                    unreachable!(
-                                        "validated verb lexeme has the Agreement feature axis"
-                                    )
-                                }
-                            };
                             let stable_id = crate::emit::closed_lexeme_owner_id(
-                                &closed.to_string(),
-                                row.member(),
-                                row.feature(),
+                                &closed.to_string(), row.member(), row.feature(),
                             );
-                            quote! {
-                                (
-                                    LexicalOwnerTemplate::DeclarationVerb(#terminal_index),
-                                    Leaf::#verb {
-                                        verb: #verb::Lexeme(#closed::#member),
-                                        agreement: #agreement,
-                                    },
-                                ) => Some(LexicalOwner::static_owner(
-                                    LexicalProvenanceKind::Lexeme,
-                                    #stable_id,
-                                )),
+                            match codec.feature_axis() {
+                                crate::feature::Feature::Agreement => {
+                                    let agreement = match row.feature() {
+                                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
+                                        _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
+                                    };
+                                    quote! {
+                                        (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
+                                            verb: #verb::Lexeme(#closed::#member), agreement: #agreement,
+                                        }) => Some(LexicalOwner::static_owner(LexicalProvenanceKind::Lexeme, #stable_id)),
+                                    }
+                                }
+                                crate::feature::Feature::Participle => {
+                                    debug_assert_eq!(row.feature(), macro_ron::v2::SurfaceFeature::Participle);
+                                    quote! {
+                                        (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
+                                            verb: #verb::Lexeme(#closed::#member),
+                                        }) => Some(LexicalOwner::static_owner(LexicalProvenanceKind::Lexeme, #stable_id)),
+                                    }
+                                }
+                                _ => unreachable!("validated declaration verb feature axis is closed"),
                             }
-                        })
-                        .collect::<Vec<_>>()
-                } else {
-                    Vec::new()
-                };
+                        }).collect::<Vec<_>>()
+                });
                 let declaration_pattern = if codec.closed_lexeme().is_some() {
                     quote! { #verb::Declaration(declaration) }
                 } else {
                     quote! { declaration }
                 };
-                quote! {
-                    #(#closed_owner_arms)*
-                    (
-                        LexicalOwnerTemplate::DeclarationVerb(#terminal_index),
-                        Leaf::#verb {
+                match codec.feature_axis() {
+                    crate::feature::Feature::Agreement => quote! {
+                        #(#closed_owner_arms)*
+                        (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
+                            verb: #declaration_pattern, agreement,
+                        }) => Some(LexicalOwner::declaration_owner(
+                            declaration.id().clone(), match agreement {
+                                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                                Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                            },
+                        )),
+                    },
+                    crate::feature::Feature::Participle => quote! {
+                        #(#closed_owner_arms)*
+                        (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
                             verb: #declaration_pattern,
-                            agreement,
-                        },
-                    ) => Some(LexicalOwner::declaration_owner(
-                        declaration.id().clone(),
-                        match agreement {
-                            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
-                            Agreement::ThirdPersonSingular => {
-                                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                            }
-                        },
-                    )),
+                        }) => Some(LexicalOwner::declaration_owner(
+                            declaration.id().clone(), ::macro_ron::v2::SurfaceFeature::Participle,
+                        )),
+                    },
+                    _ => unreachable!("validated declaration verb feature axis is closed"),
                 }
             });
 
@@ -1816,6 +1842,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         }
                         ::macro_ron::v2::SurfaceFeature::Singular => "singular",
                         ::macro_ron::v2::SurfaceFeature::Plural => "plural",
+                        ::macro_ron::v2::SurfaceFeature::Participle => "participle",
                         ::macro_ron::v2::SurfaceFeature::Fixed => "fixed",
                     };
                     LexicalOwner::construct_label(|| {

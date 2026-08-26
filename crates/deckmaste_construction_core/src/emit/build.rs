@@ -1747,16 +1747,23 @@ fn lower_declaration_verb_role(
 ) -> syn::Result<()> {
     let leaf = plan.codec_ident();
     let value = lowering.binders.allocate(&identifier_key(role));
-    let agreement = role_agreement_pattern(validated, row, role, plan.codec_name(), lowering)?;
-    let agreement_field = if agreement.to_string() == "agreement" {
-        quote! { agreement }
-    } else {
-        quote! { agreement: #agreement }
+    let feature_field = match plan.feature_axis() {
+        Feature::Agreement => {
+            let agreement =
+                role_agreement_pattern(validated, row, role, plan.codec_name(), lowering)?;
+            if agreement.to_string() == "agreement" {
+                quote! { agreement }
+            } else {
+                quote! { agreement: #agreement }
+            }
+        }
+        Feature::Participle => quote! {},
+        _ => unreachable!("validated declaration verb feature axis is closed"),
     };
     lowering.patterns.push(quote! {
         BuildValue::Leaf(Leaf::#leaf {
             verb: #value,
-            #agreement_field,
+            #feature_field
         })
     });
     lowering
@@ -2087,6 +2094,7 @@ fn verb_onset_pattern(
             | FeatureValue::Vowel
             | FeatureValue::EndsInS
             | FeatureValue::Other
+            | FeatureValue::Participle
             | FeatureValue::Zero
             | FeatureValue::One
             | FeatureValue::TwoPlus => {
@@ -2121,6 +2129,7 @@ fn verb_onset_pattern(
             }
             macro_ron::v2::SurfaceFeature::Singular
             | macro_ron::v2::SurfaceFeature::Plural
+            | macro_ron::v2::SurfaceFeature::Participle
             | macro_ron::v2::SurfaceFeature::Fixed => {
                 unreachable!("validated verb lexeme has Agreement rows")
             }
@@ -2673,6 +2682,11 @@ fn resolve_feature_place(
                     });
                     ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
                 }
+                FeaturePlace::Construction(Feature::Participle)
+                | FeaturePlace::Role {
+                    feature: Feature::Participle,
+                    ..
+                } => ResolvedFeatureValue::Known(FeatureValue::Participle),
             }
         }
     };
@@ -2786,6 +2800,7 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Vowel => quote! { Onset::Vowel },
         FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
         FeatureValue::Other => quote! { PossessiveEnding::Other },
+        FeatureValue::Participle => quote! { Participle::Participle },
         FeatureValue::Zero => quote! { Cardinality::Zero },
         FeatureValue::One => quote! { Cardinality::One },
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },

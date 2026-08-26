@@ -720,7 +720,7 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             .collect::<Vec<_>>(),
         [
             "Add", "Deal", "Draw", "Enter", "Gain", "Lose", "Pay", "Put", "Remove", "Roll", "Have",
-            "Look", "Leave", "Control", "Own", "Return", "Be"
+            "Look", "Leave", "Control", "Own", "Return", "Become", "Be"
         ]
     );
     assert_eq!(
@@ -762,6 +762,8 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Own", SurfaceFeature::ThirdPersonSingular, "owns"),
             ("Return", SurfaceFeature::Bare, "return"),
             ("Return", SurfaceFeature::ThirdPersonSingular, "returns"),
+            ("Become", SurfaceFeature::Bare, "become"),
+            ("Become", SurfaceFeature::ThirdPersonSingular, "becomes"),
             ("Be", SurfaceFeature::Bare, "are"),
             ("Be", SurfaceFeature::ThirdPersonSingular, "is"),
         ]

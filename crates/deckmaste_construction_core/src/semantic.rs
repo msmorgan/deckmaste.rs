@@ -5760,7 +5760,19 @@ impl DeclarationVerbPlan {
             position: macro_ron::v2::GrammarPosition::Verb,
             kinds,
             frame_key,
-            feature_axis: Feature::Agreement,
+            feature_axis: match identifier_key(
+                &recipe
+                    .feature_slots
+                    .first()
+                    .expect("validated declaration_verb has one feature")
+                    .value,
+            )
+            .as_str()
+            {
+                "Agreement" => Feature::Agreement,
+                "Participle" => Feature::Participle,
+                _ => unreachable!("validated declaration_verb feature is closed"),
+            },
         }
     }
 

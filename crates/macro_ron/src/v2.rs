@@ -222,6 +222,10 @@ pub enum Grammar {
         third_person: DerivedSurface,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         third_person_onset: Option<Onset>,
+        #[serde(default, skip_serializing_if = "DerivedSurface::is_derived")]
+        participle: DerivedSurface,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        participle_onset: Option<Onset>,
         valence: VerbValence,
     },
     Noun {
@@ -483,6 +487,7 @@ pub enum GrammarPosition {
 pub enum SurfaceFeature {
     Bare,
     ThirdPersonSingular,
+    Participle,
     Singular,
     Plural,
     Fixed,
@@ -568,6 +573,7 @@ enum GrammarSourceMap {
     Verb {
         bare: SourcePosition,
         third_person: Option<SourcePosition>,
+        participle: Option<SourcePosition>,
         valence: SourcePosition,
     },
     Noun {
@@ -630,6 +636,8 @@ enum DiagnosticGrammar<'a> {
         bare: &'a RawValue,
         #[serde(default, borrow)]
         third_person: Option<&'a RawValue>,
+        #[serde(default, borrow)]
+        participle: Option<&'a RawValue>,
         #[serde(borrow)]
         valence: &'a RawValue,
     },
@@ -884,10 +892,14 @@ impl GrammarSourceMap {
             DiagnosticGrammar::Verb {
                 bare,
                 third_person,
+                participle,
                 valence,
             } => Ok(Self::Verb {
                 bare: raw_position(path, source, bare, declaration)?,
                 third_person: third_person
+                    .map(|value| raw_position(path, source, value, declaration))
+                    .transpose()?,
+                participle: participle
                     .map(|value| raw_position(path, source, value, declaration))
                     .transpose()?,
                 valence: raw_position(path, source, valence, declaration)?,
@@ -1239,11 +1251,14 @@ fn normalize_grammar(
                 bare_onset,
                 third_person,
                 third_person_onset,
+                participle,
+                participle_onset,
                 valence,
             },
             GrammarSourceMap::Verb {
                 bare: bare_position,
                 third_person: third_person_position,
+                participle: participle_position,
                 valence: valence_position,
             },
         ) => {
@@ -1257,6 +1272,14 @@ fn normalize_grammar(
                 english_verb(&bare),
                 third_person,
             )?;
+            let participle = realize_derived_surface(
+                path,
+                *bare_position,
+                *participle_position,
+                "participle",
+                english_participle(&bare),
+                participle,
+            )?;
             let mut surfaces = vec![RealizedSurface {
                 feature: SurfaceFeature::Bare,
                 onset: normalized_onset(path, *bare_position, &bare, bare_onset)?,
@@ -1269,6 +1292,15 @@ fn normalize_grammar(
                     feature: SurfaceFeature::ThirdPersonSingular,
                     onset: normalized_onset(path, position, &text, third_person_onset)?,
                     onset_override: third_person_onset,
+                    text,
+                });
+            }
+            if let Some(text) = participle {
+                let position = participle_position.unwrap_or(*bare_position);
+                surfaces.push(RealizedSurface {
+                    feature: SurfaceFeature::Participle,
+                    onset: normalized_onset(path, position, &text, participle_onset)?,
+                    onset_override: participle_onset,
                     text,
                 });
             }
@@ -1490,6 +1522,10 @@ fn realize_derived_surface(
 
 fn english_verb(bare: &str) -> String {
     format!("{bare}s")
+}
+
+fn english_participle(bare: &str) -> String {
+    format!("{bare}ed")
 }
 
 fn english_noun(singular: &str) -> String {

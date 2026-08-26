@@ -332,6 +332,7 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
         crate::feature::Feature::Cardinality => quote! { Cardinality },
         crate::feature::Feature::Number => quote! { Number },
         crate::feature::Feature::Onset => quote! { Onset },
+        crate::feature::Feature::Participle => quote! { Participle },
         crate::feature::Feature::PossessiveEnding => quote! { PossessiveEnding },
     }
 }
@@ -434,6 +435,7 @@ fn emit_predicate_atom(
                 crate::feature::Feature::Cardinality => local_ident("Cardinality"),
                 crate::feature::Feature::Number => local_ident("Number"),
                 crate::feature::Feature::Onset => local_ident("Onset"),
+                crate::feature::Feature::Participle => local_ident("Participle"),
                 crate::feature::Feature::PossessiveEnding => local_ident("PossessiveEnding"),
             };
             let members = allowed
@@ -584,6 +586,7 @@ pub(super) fn closed_lexeme_owner_id(
         macro_ron::v2::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
         macro_ron::v2::SurfaceFeature::Singular => "singular",
         macro_ron::v2::SurfaceFeature::Plural => "plural",
+        macro_ron::v2::SurfaceFeature::Participle => "participle",
         macro_ron::v2::SurfaceFeature::Fixed => {
             unreachable!("closed lexemes use only Agreement or Number features")
         }

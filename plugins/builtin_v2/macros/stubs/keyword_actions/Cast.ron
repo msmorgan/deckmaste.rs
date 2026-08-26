@@ -3,6 +3,7 @@ KeywordAction(
     spelling: "cast",
     grammar: Verb(
         bare: "cast",
+        participle: "cast",
         valence: Transitive,
     ),
 )

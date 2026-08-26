@@ -1187,15 +1187,9 @@ pub mod declaration_verb_fixture {
             start: usize,
             kinds: &[macro_ron::v2::DeclarationKind],
             frame: &VerbFrameKey,
-            agreement: Agreement,
+            feature: macro_ron::v2::SurfaceFeature,
         ) -> Vec<(usize, macro_ron::v2::DeclarationIdentity)> {
             assert_eq!(start, self.position.byte_offset);
-            let feature = match agreement {
-                Agreement::Bare => macro_ron::v2::SurfaceFeature::Bare,
-                Agreement::ThirdPersonSingular => {
-                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-                }
-            };
             self.environment
                 .declarations()
                 .iter()
@@ -1263,7 +1257,7 @@ pub mod declaration_verb_fixture {
 
         match (name, valence) {
             (
-                "FirstAct" | "SecondAct" | "MissingAgreement" | "WrongKind",
+                "FirstAct" | "SecondAct" | "Cast" | "MissingAgreement" | "WrongKind",
                 VerbValence::Transitive,
             ) => TRANSITIVE,
             ("FirstAct" | "Count", VerbValence::Numerative) => NUMERATIVE,
@@ -1301,6 +1295,7 @@ pub mod declaration_verb_fixture {
 
     constructions! {
         morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+        morphology EnglishParticiple { feature = Participle; recipe = english_participle; }
         lexeme CoreVerb using EnglishVerb { Act = "act", }
         vocab ObjectWord { Object = "object", }
         vocab AmountWord { One = "one", }
@@ -1329,6 +1324,14 @@ pub mod declaration_verb_fixture {
                 feature = Agreement;
             }
         }
+        codec TransitiveParticiple {
+            generate declaration_verb {
+                position = Verb;
+                kinds = [KeywordAction];
+                tail = [ObjectNounPhrase];
+                feature = Participle;
+            }
+        }
         construction transitive: VerbPhrase {
             element Transitive {
                 head: lex TransitiveVerb,
@@ -1350,9 +1353,17 @@ pub mod declaration_verb_fixture {
             derive head.agreement = Values::Bare;
             form intransitive = verb(head);
         }
+        construction participle: ParticiplePhrase {
+            element Participial {
+                head: lex TransitiveParticiple,
+                object: lex ObjectWord,
+            }
+            form participle = verb(head) lex(object);
+        }
         root VerbPhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root NumerativePhrase { punctuation = "."; eoi = true; standalone_render = true; }
         root IntransitivePhrase { punctuation = "."; eoi = true; standalone_render = true; }
+        root ParticiplePhrase { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
     fn declaration(path: &str, source: &str) -> macro_ron::v2::DeclarationSource {
@@ -1364,6 +1375,10 @@ pub mod declaration_verb_fixture {
             declaration(
                 "/synthetic/actions/FirstAct.ron",
                 r#"KeywordAction(name:"FirstAct",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
+            ),
+            declaration(
+                "/synthetic/actions/Cast.ron",
+                r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",valence:Transitive))"#,
             ),
             declaration(
                 "/synthetic/actions/SecondAct.ron",
@@ -1622,6 +1637,79 @@ pub mod declaration_verb_fixture {
         );
     }
 
+    pub(crate) fn run_participle() {
+        let environment = environment();
+        let context = ParseContext::default();
+        let (verb_terminal, object_terminal) = rule_terminals(RuleId::ParticiplePhraseParticiple);
+        assert!(matches!(
+            verb_terminal,
+            LexicalTerminal {
+                matcher: Lexical::DeclarationParticiple(_),
+                owner: LexicalOwnerTemplate::DeclarationVerb(_),
+                ..
+            }
+        ));
+
+        let verbs = scan(&environment, &context, "Cast object.", verb_terminal);
+        let [verb] = verbs.as_slice() else {
+            panic!("the explicit cast participle yields exactly one reading")
+        };
+        let Leaf::TransitiveParticiple { verb: identity } = &verb.value else {
+            panic!("the participle leaf stores only its checked declaration identity")
+        };
+        assert_eq!(identity.id().name(), "Cast");
+        assert_eq!(
+            verb_terminal
+                .owner
+                .instantiate(&verb.value)
+                .expect("the participle materializes declaration provenance")
+                .stable_id(),
+            "lexeme:keyword_action/Cast/participle",
+        );
+
+        let objects = scan(&environment, &context, "Object.", object_terminal);
+        let value = build(
+            RuleId::ParticiplePhraseParticiple,
+            &[
+                BuildValue::Leaf(verb.value.clone()),
+                BuildValue::Leaf(objects[0].value.clone()),
+            ],
+            &context,
+        )
+        .expect("the participle and its exact transitive tail build");
+        let BuildValue::ParticiplePhrase(phrase) = value else {
+            panic!("the participle rule builds its declared category")
+        };
+        assert_eq!(
+            Render::render(&phrase, &context, &environment),
+            "Cast object."
+        );
+        let mut recorder = Recorder(Vec::new());
+        walk_participle_phrase(&mut recorder, &phrase);
+        assert_eq!(recorder.0, ["head:keyword action `Cast`", "object:Object"]);
+        let (rendered, claims) =
+            render_participle_phrase_with_claims(&phrase, &context, &environment);
+        assert_eq!(rendered, "Cast object.");
+        assert_eq!(
+            claims
+                .iter()
+                .map(|claim| (claim.start, claim.end, claim.owner.stable_id()))
+                .collect::<Vec<_>>(),
+            [
+                (0, 4, "lexeme:keyword_action/Cast/participle"),
+                (4, 11, "vocab:ObjectWord/Object"),
+                (11, 12, "root:ParticiplePhrase/punctuation"),
+            ]
+        );
+
+        assert!(
+            DeclarationTransitiveParticiple::new(&environment, id(&environment, "Cast")).is_some()
+        );
+        assert!(
+            DeclarationTransitiveParticiple::new(&environment, id(&environment, "Count")).is_none()
+        );
+    }
+
     pub(crate) fn run_checked_constructors() {
         let environment = environment();
         let transitive = first_terminal(RuleId::VerbPhraseTransitive);
@@ -1722,7 +1810,7 @@ pub mod declaration_verb_fixture {
                 0,
                 &[macro_ron::v2::DeclarationKind::KeywordAction],
                 &VerbFrameKey::new(atoms),
-                Agreement::Bare,
+                macro_ron::v2::SurfaceFeature::Bare,
             )
             .into_iter()
             .map(|(_, identity)| identity.name().to_owned())
@@ -6920,6 +7008,11 @@ fn generated_morphology_output_is_type_correct_and_executes_every_boundary_case(
 #[test]
 fn declaration_verbs_preserve_identity_through_every_generated_boundary() {
     declaration_verb_fixture::run();
+}
+
+#[test]
+fn declaration_participles_preserve_identity_through_every_generated_boundary() {
+    declaration_verb_fixture::run_participle();
 }
 
 #[test]

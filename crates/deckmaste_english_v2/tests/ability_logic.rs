@@ -106,7 +106,10 @@ fn linguistic_bodies_enclose_plain_and_triggered_sentence_sequences() {
         panic!("triggered ability stores its finite trigger and linguistic body")
     };
     assert_eq!(finite.marker, TriggerMarker::Whenever);
-    assert!(matches!(finite.clause, FiniteClause::PlainFiniteClause(_)));
+    assert!(matches!(
+        finite.clause,
+        Clause::Finite(FiniteClause::PlainFiniteClause(_))
+    ));
     assert_eq!(consequences.sentences().len(), 1);
 }
 
@@ -942,6 +945,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             "TriggerPrefix",
             "Finite",
             "TriggerMarker",
+            "Clause",
             "FiniteClause",
             "AbilityBody",
             "Sentences",
@@ -983,7 +987,7 @@ fn finite_trigger_and_activation_boundaries_keep_structural_bytes_separate_from_
         trigger:
             TriggerPrefix::Finite(Finite {
                 marker: TriggerMarker::Whenever,
-                clause: FiniteClause::PlainFiniteClause(_),
+                clause: Clause::Finite(FiniteClause::PlainFiniteClause(_)),
             }),
         intervening_if: None,
         body: AbilityBody::Sentences(_),
@@ -1042,12 +1046,12 @@ fn finite_trigger_and_activation_boundaries_keep_structural_bytes_separate_from_
         trigger:
             TriggerPrefix::Finite(Finite {
                 marker: TriggerMarker::Whenever,
-                clause: FiniteClause::PlainFiniteClause(_),
+                clause: Clause::Finite(FiniteClause::PlainFiniteClause(_)),
             }),
         intervening_if:
             Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(
                 FiniteConditionValue {
-                    clause: FiniteClause::PlainFiniteClause(_),
+                    clause: Clause::Finite(FiniteClause::PlainFiniteClause(_)),
                 },
             ))),
         body: AbilityBody::Sentences(_),
@@ -1213,7 +1217,10 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
             })
             .unwrap_or_else(|| panic!("generated public enum {name} is present"))
     };
-    assert_eq!(variants("Clause"), ["Finite", "Coordination"]);
+    assert_eq!(
+        variants("Clause"),
+        ["Finite", "Coordination", "Copular", "Passive"]
+    );
     assert_eq!(variants("TriggerMarker"), ["When", "Whenever"]);
     assert_eq!(variants("TriggerPrefix"), ["Finite", "Temporal"]);
     assert_eq!(variants("AtPhrase"), ["AtPhrase"]);
@@ -1273,7 +1280,7 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
     let value = Ability::Triggered(Triggered {
         trigger: TriggerPrefix::Finite(Finite {
             marker: TriggerMarker::Whenever,
-            clause: FiniteClause::PlainFiniteClause(
+            clause: Clause::Finite(FiniteClause::PlainFiniteClause(
                 PlainFiniteClause::new(
                     Subject::SubjectPronoun(PersonalSubject {
                         word: SubjectPronoun::You,
@@ -1281,7 +1288,7 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
                     Predicate::Atomic(connive()),
                 )
                 .expect("you and connive satisfy finite-clause agreement"),
-            ),
+            )),
         }),
         intervening_if: None,
         body: AbilityBody::Sentences(
@@ -1426,7 +1433,10 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
             panic!("finite trigger uses the finite generated prefix: {text}")
         };
         assert_eq!(finite.marker, marker);
-        assert!(matches!(finite.clause, FiniteClause::PlainFiniteClause(_)));
+        assert!(matches!(
+            finite.clause,
+            Clause::Finite(FiniteClause::PlainFiniteClause(_))
+        ));
     }
 
     let temporal_text = "At the beginning of each player's draw step, you gain X life.";
@@ -1454,7 +1464,7 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
         intervening_if:
             Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(
                 FiniteConditionValue {
-                    clause: FiniteClause::PlainFiniteClause(clause),
+                    clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
                 },
             ))),
         ..
@@ -1675,10 +1685,12 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             "TriggerPrefix",
             "Finite",
             "TriggerMarker",
+            "Clause",
             "FiniteClause",
             "ConditionClause",
             "FiniteCondition",
             "FiniteConditionValue",
+            "Clause",
             "FiniteClause",
             "AbilityBody",
             "Sentences",
@@ -2703,7 +2715,10 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
             })
             .unwrap_or_else(|| panic!("generated public enum {name} is present"))
     };
-    assert_eq!(variants("Auxiliary"), ["May", "Can", "Cant", "Must"]);
+    assert_eq!(
+        variants("Auxiliary"),
+        ["May", "Can", "Cant", "Must", "Didnt", "Would"]
+    );
     assert_eq!(
         variants("VerbPhrase"),
         [
@@ -2711,7 +2726,9 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
             "TransitivePredicate",
             "NumerativePredicate",
             "DealDamage",
+            "DealUnspecifiedDamage",
             "GainLife",
+            "GainUnspecifiedLife",
             "DealDamageEqualTo",
             "GainLifeEqualTo",
             "LoseLife",
@@ -3735,7 +3752,9 @@ fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
             .iter()
             .map(|member| match member {
                 Clause::Finite(member) => finite_clause_identity(member),
-                Clause::Coordination(_) => panic!("then members retain their finite clause shape"),
+                Clause::Coordination(_) | Clause::Copular(_) | Clause::Passive(_) => {
+                    panic!("then members retain their finite clause shape")
+                }
             })
             .collect::<Vec<_>>(),
         ["you/gain:1", "you/connive", "player/gain:2"],
@@ -4222,7 +4241,7 @@ fn conditional_attachment_trigger_scope_matrix_is_exact() {
         Ability::Triggered(Triggered {
             trigger: TriggerPrefix::Finite(Finite {
                 marker: TriggerMarker::Whenever,
-                clause: player_connive_clause(),
+                clause: Clause::Finite(player_connive_clause()),
             }),
             intervening_if: None,
             body: AbilityBody::Sentences(
@@ -4895,11 +4914,11 @@ fn expected_modal_envelope_with_body(envelope: &str, body: AbilityBody) -> Abili
         "trigger" => Ability::Triggered(Triggered {
             trigger: TriggerPrefix::Finite(Finite {
                 marker: TriggerMarker::Whenever,
-                clause: player_connive_clause(),
+                clause: Clause::Finite(player_connive_clause()),
             }),
             intervening_if: Some(ConditionClause::FiniteCondition(
                 FiniteCondition::FiniteCondition(FiniteConditionValue {
-                    clause: connive_clause(),
+                    clause: Clause::Finite(connive_clause()),
                 }),
             )),
             body,
@@ -5069,12 +5088,14 @@ fn expected_complete_modal_visit(
                 "TriggerPrefix",
                 "Finite",
                 "TriggerMarker:Whenever",
+                "Clause",
                 "FiniteClause",
                 "Subject:player",
                 "Predicate:connive",
                 "ConditionClause",
                 "FiniteCondition",
                 "FiniteConditionValue",
+                "Clause",
                 "FiniteClause",
                 "Subject:you",
                 "Predicate:connive",

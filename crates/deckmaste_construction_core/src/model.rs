@@ -216,6 +216,7 @@ pub enum Feature {
     Cardinality,
     Number,
     Onset,
+    Participle,
     PossessiveEnding,
 }
 

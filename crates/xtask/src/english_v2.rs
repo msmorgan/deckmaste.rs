@@ -593,6 +593,7 @@ mod tests {
     const PLAN08_CANDIDATE_POOL: &str = include_str!("english_v2/plan08_candidate_pool.tsv");
     const PLAN08_CANDIDATE_RESULTS: &str = include_str!("english_v2/plan08_candidate_results.tsv");
     const PLAN09_EXPANSION: &str = include_str!("english_v2/plan09_expansion.tsv");
+    const PLAN09_TASK7_EXPANSION: &str = include_str!("english_v2/plan09_task7_expansion.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1230,10 +1231,10 @@ mod tests {
                 };
                 assert_eq!(
                     span,
-                    deckmaste_english_v2::parser::TextSpan { start: 56, end: 57 },
+                    deckmaste_english_v2::parser::TextSpan { start: 82, end: 83 },
                     "{id}",
                 );
-                assert_eq!(&controlled[span.start..span.end], "a", "{id}");
+                assert_eq!(&controlled[span.start..span.end], ",", "{id}");
             }
         }
         let mut predicted_counts = BTreeMap::new();
@@ -1414,7 +1415,7 @@ mod tests {
             .map(|line| line.split('\t').collect::<Vec<_>>())
             .collect::<Vec<_>>();
         assert_eq!(rows.len(), 427);
-        let plan09_boundaries = include_str!("english_v2/plan09_progress.tsv")
+        let plan09_boundaries = include_str!("english_v2/plan09_task7_progress.tsv")
             .lines()
             .filter(|line| line.starts_with("boundary\t"))
             .map(|line| {
@@ -1714,9 +1715,9 @@ mod tests {
             "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd"
         );
         assert_eq!(coverage["summary"]["total_units"], 32_641);
-        assert_eq!(coverage["summary"]["selected_units"], 3_204);
-        assert_eq!(coverage["summary"]["covered_units"], 3_204);
-        assert_eq!(coverage["summary"]["parse_failures"], 29_437);
+        assert_eq!(coverage["summary"]["selected_units"], 3_413);
+        assert_eq!(coverage["summary"]["covered_units"], 3_413);
+        assert_eq!(coverage["summary"]["parse_failures"], 29_228);
         for counter in [
             "selected_uncovered_units",
             "unresolved_ties",
@@ -1744,7 +1745,7 @@ mod tests {
                 + ambiguity["summary"]["specificity_resolved"]
                     .as_u64()
                     .unwrap(),
-            3_204,
+            3_413,
         );
         for counter in [
             "exception_resolved",
@@ -4131,6 +4132,21 @@ mod tests {
             "type Auxiliary" | "function render_auxiliary" | "function walk_auxiliary" => {
                 &["vocab Auxiliary"]
             }
+            "type FiniteCopula"
+            | "function render_finite_copula"
+            | "function walk_finite_copula" => &["vocab FiniteCopula"],
+            "type BareCopula" | "function render_bare_copula" | "function walk_bare_copula" => {
+                &["vocab BareCopula"]
+            }
+            "type PredicativeAdjective"
+            | "function render_predicative_adjective"
+            | "function walk_predicative_adjective" => &["vocab PredicativeAdjective"],
+            "type DamageKind" | "function render_damage_kind" | "function walk_damage_kind" => {
+                &["vocab DamageKind"]
+            }
+            "type FaceOrientation"
+            | "function render_face_orientation"
+            | "function walk_face_orientation" => &["vocab FaceOrientation"],
             "type AtBoundary" | "function render_at_boundary" | "function walk_at_boundary" => {
                 &["vocab AtBoundary"]
             }
@@ -4220,6 +4236,17 @@ mod tests {
             "type VerbLexeme"
             | "function surface_for_verb_lexeme"
             | "function walk_verb_lexeme" => &["lexeme VerbLexeme"],
+            "type DamageParticipleLexeme"
+            | "function surface_for_damage_participle_lexeme"
+            | "function walk_damage_participle_lexeme" => &["lexeme DamageParticipleLexeme"],
+            "type MovementParticipleLexeme"
+            | "function surface_for_movement_participle_lexeme"
+            | "function walk_movement_participle_lexeme" => &["lexeme MovementParticipleLexeme"],
+            "type OrientationParticipleLexeme"
+            | "function surface_for_orientation_participle_lexeme"
+            | "function walk_orientation_participle_lexeme" => {
+                &["lexeme OrientationParticipleLexeme"]
+            }
             "type CoreIntransitiveVerb"
             | "function surface_for_core_intransitive_verb"
             | "function walk_core_intransitive_verb" => &["lexeme CoreIntransitiveVerb"],
@@ -7718,7 +7745,7 @@ mod tests {
             verbs,
             [
                 "Add", "Deal", "Draw", "Enter", "Gain", "Lose", "Pay", "Put", "Remove", "Roll",
-                "Have", "Look", "Leave", "Control", "Own", "Return", "Be"
+                "Have", "Look", "Leave", "Control", "Own", "Return", "Become", "Be"
             ]
         );
 
@@ -8011,8 +8038,8 @@ mod tests {
             .collect()
     }
 
-    fn parse_plan09_expansion_inventory() -> Vec<(String, String)> {
-        PLAN09_EXPANSION
+    fn parse_plan09_expansion_inventory(source: &str) -> Vec<(String, String)> {
+        source
             .lines()
             .filter(|line| !line.starts_with('#'))
             .map(|line| {
@@ -8061,7 +8088,7 @@ mod tests {
         let rendered = render_plan09_expansion_inventory(&expansion_inventory(&expansion))
             .expect("generated expansion inventory renders");
         let path =
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("src/english_v2/plan09_expansion.tsv");
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("src/english_v2/plan09_task7_expansion.tsv");
         fs::write(path, rendered).expect("generated expansion inventory writes");
     }
 
@@ -8077,14 +8104,24 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(EXPECTED_ITEM_KEYS.len(), 1_162);
-        let fixture = parse_plan09_expansion_inventory();
+        let prior = parse_plan09_expansion_inventory(PLAN09_EXPANSION);
+        let fixture = parse_plan09_expansion_inventory(PLAN09_TASK7_EXPANSION);
         let live = expansion_inventory(&expansion);
         let live_digests = live
             .iter()
             .map(|(item, origins)| (item.clone(), sha256_hex(origins.join("\0").as_bytes())))
             .collect::<Vec<_>>();
-        assert_eq!(fixture.len(), 1_410);
+        assert_eq!(prior.len(), 1_410);
+        assert_eq!(fixture.len(), 1_561);
         assert_eq!(live_digests, fixture);
+        let live_by_item = live_digests.iter().cloned().collect::<BTreeMap<_, _>>();
+        for (item, _) in prior {
+            assert!(
+                live_by_item.contains_key(&item),
+                "Task 7 retains prior generated item {item:?}",
+            );
+        }
+        assert_eq!(live_by_item.len() - 1_410, 151);
 
         let retained_headings = headings
             .iter()
@@ -8100,7 +8137,7 @@ mod tests {
                 .enumerate()
                 .find(|(_, (actual, expected))| actual != expected)
         );
-        assert_eq!(headings.len() - retained_headings.len(), 248);
+        assert_eq!(headings.len() - retained_headings.len(), 399);
         for expected_key in headings {
             let header = format!("// === {expected_key} ===");
             assert_eq!(output.matches(&header).count(), 1, "{expected_key}");
@@ -8139,7 +8176,7 @@ mod tests {
             .1;
         assert_eq!(
             report,
-            "// morphology irregulars (5)\n\
+            "// morphology irregulars (7)\n\
              // - lexeme:CommonNoun/Ability\n\
              //   - plural = \"abilities\"\n\
              // - lexeme:CommonNoun/Die\n\
@@ -8151,6 +8188,10 @@ mod tests {
              //   - third_person_singular = \"is\"\n\
              // - lexeme:CoreIntransitiveVerb/Die\n\
              //   - third_person_singular = \"dies\"\n\
+             // - lexeme:DamageParticipleLexeme/Deal\n\
+             //   - participle = \"dealt\"\n\
+             // - lexeme:MovementParticipleLexeme/Put\n\
+             //   - participle = \"put\"\n\
              // terminal bindings (0)\n\
              // roots (8)\n\
              // - root Ability\n\
@@ -8171,7 +8212,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 1_410);
+        assert_eq!(parsed.items.len(), 1_561);
     }
 
     #[test]

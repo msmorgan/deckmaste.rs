@@ -33,7 +33,6 @@ use super::engine::StatefulLexicalMatch;
 use super::engine::parse_root_observed_with_state;
 use super::engine::parse_root_with_state;
 use super::materialize::completion_has_checked_build;
-use crate::constructions::Agreement;
 use crate::constructions::BuildRejection;
 use crate::constructions::CasePosition;
 use crate::constructions::CatalogProvider;
@@ -865,6 +864,7 @@ impl ScanInput<'_> {
                     SurfaceFeature::Plural => Number::Plural,
                     SurfaceFeature::Bare
                     | SurfaceFeature::ThirdPersonSingular
+                    | SurfaceFeature::Participle
                     | SurfaceFeature::Fixed => continue,
                 };
                 if matches!(wanted, FeatureConstraint::Any)
@@ -889,17 +889,13 @@ impl ScanInput<'_> {
         start: usize,
         kinds: &[DeclarationKind],
         frame: &VerbFrameKey,
-        agreement: Agreement,
+        feature: SurfaceFeature,
     ) -> Vec<(usize, DeclarationId)> {
         use macro_ron::v2::CustomTailAtom;
 
         if start != self.position.byte_offset {
             return Vec::new();
         }
-        let feature = match agreement {
-            Agreement::Bare => SurfaceFeature::Bare,
-            Agreement::ThirdPersonSingular => SurfaceFeature::ThirdPersonSingular,
-        };
         let frame = frame
             .atoms()
             .iter()
@@ -1443,7 +1439,8 @@ mod tests {
                     member: match lexeme {
                         VerbLexeme::Deal => "Deal",
                         VerbLexeme::Be => "Be",
-                        VerbLexeme::Add
+                        VerbLexeme::Become
+                        | VerbLexeme::Add
                         | VerbLexeme::Enter
                         | VerbLexeme::Draw
                         | VerbLexeme::Gain
@@ -2358,14 +2355,14 @@ mod tests {
             };
 
         let mut elf_declarations = declarations(scan(
-            39,
+            51,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
             FeatureConstraint::Exact(Number::Plural),
         ));
         elf_declarations.extend(declarations(scan(
-            42,
+            54,
             "Elves.",
             0,
             CasePosition::DocumentInitial,
@@ -2385,14 +2382,14 @@ mod tests {
             "same-spelling Type/Subtype readings remain distinct across sealed terminals",
         );
         let mut continued = declarations(scan(
-            39,
+            51,
             "prefix elf.",
             6,
             CasePosition::Continuation,
             FeatureConstraint::Exact(Number::Singular),
         ));
         continued.extend(declarations(scan(
-            42,
+            54,
             "prefix elf.",
             6,
             CasePosition::Continuation,
@@ -2417,13 +2414,13 @@ mod tests {
         );
 
         for (codec, text, spelling, category) in [
-            (40, "Clue.", "Clue", SubtypeCategory::Artifact),
-            (41, "Siege.", "Siege", SubtypeCategory::Battle),
-            (42, "Elf.", "Elf", SubtypeCategory::Creature),
-            (43, "Aura.", "Aura", SubtypeCategory::Enchantment),
-            (44, "Forest.", "Forest", SubtypeCategory::Land),
-            (45, "Jace.", "Jace", SubtypeCategory::Planeswalker),
-            (46, "Arcane.", "Arcane", SubtypeCategory::Spell),
+            (52, "Clue.", "Clue", SubtypeCategory::Artifact),
+            (53, "Siege.", "Siege", SubtypeCategory::Battle),
+            (54, "Elf.", "Elf", SubtypeCategory::Creature),
+            (55, "Aura.", "Aura", SubtypeCategory::Enchantment),
+            (56, "Forest.", "Forest", SubtypeCategory::Land),
+            (57, "Jace.", "Jace", SubtypeCategory::Planeswalker),
+            (58, "Arcane.", "Arcane", SubtypeCategory::Spell),
         ] {
             assert_eq!(
                 declarations(scan(
@@ -2441,7 +2438,7 @@ mod tests {
                 )],
                 "the exact family terminal accepts its own normalized declaration",
             );
-            for wrong_codec in (40..=46).filter(|wrong_codec| *wrong_codec != codec) {
+            for wrong_codec in (52..=58).filter(|wrong_codec| *wrong_codec != codec) {
                 assert!(
                     declarations(scan(
                         wrong_codec,
@@ -2457,7 +2454,7 @@ mod tests {
         }
 
         let player = scan(
-            39,
+            51,
             "Player.",
             0,
             CasePosition::DocumentInitial,
@@ -2891,6 +2888,25 @@ mod tests {
                 "AndOrPredicateCoordinationMembersSequenceThreePlus",
                 "AndOrPredicateCoordinationMembersSequenceLast",
                 "AndOrPredicateCoordinationMembersSequenceMiddle",
+                "PredicativeAdjectiveComplementPredicativeAdjective",
+                "PredicativeColorComplementPredicativeColor",
+                "PredicativeTypeComplementPredicativeType [form an]",
+                "PredicativeTypeComplementPredicativeType [form a]",
+                "PredicativeStatusComplementPredicativeStatus",
+                "BlockedByStatusComplementBlockedByStatus",
+                "PredicativeAbilityComplementPredicativeAbility",
+                "PredicativePowerToughnessValueMagnitudesSequenceNonEmpty",
+                "PredicativePowerToughnessValueMagnitudesSequenceCount1Continue",
+                "PredicativePowerToughnessValueMagnitudesSequenceCount2Final",
+                "BareCopularPredicateBareCopularPredicate",
+                "ChangeStatePredicateChangeStatePredicate",
+                "PassiveDamagePredicatePassiveDamagePredicate",
+                "PassiveMovementPredicatePassiveMovementPredicate",
+                "PassiveOrientationPredicatePassiveOrientationPredicate",
+                "DeclaredTransitivePassivePredicateDeclaredTransitivePassivePredicate",
+                "BarePassivePredicateBarePassivePredicate",
+                "CopularClauseCopularClause",
+                "PassiveFiniteClausePassiveFiniteClause",
                 "FiniteClausePlainFiniteClause",
                 "FiniteClauseAuxiliaryFiniteClause",
                 "AndClauseCoordinationMembersSequencePair",
@@ -3177,7 +3193,11 @@ mod tests {
                 "CounterRecipientCounterRecipient",
                 "CounterSourceCounterSource",
                 "VerbPhraseDealDamage",
+                "VerbPhraseDealUnspecifiedDamage",
+                "DealUnspecifiedDamageRecipientOptionalAbsent",
+                "DealUnspecifiedDamageRecipientOptionalPresent",
                 "VerbPhraseGainLife",
+                "VerbPhraseGainUnspecifiedLife",
                 "VerbPhraseDealDamageEqualTo",
                 "VerbPhraseGainLifeEqualTo",
                 "VerbPhraseLoseLife",
@@ -3239,8 +3259,25 @@ mod tests {
                 "ActivationCostComponentClause",
                 "PredicateAtomic",
                 "PredicateCoordination",
+                "PredicateBareCopular",
+                "PredicateChangeState",
+                "PredicateBarePassive",
                 "ClauseFinite",
                 "ClauseCoordination",
+                "ClauseCopular",
+                "ClausePassive",
+                "PredicativeComplementAdjective",
+                "PredicativeComplementColor",
+                "PredicativeComplementType",
+                "PredicativeComplementStatus",
+                "PredicativeComplementAbility",
+                "PredicativeComplementPowerToughness",
+                "PredicativeStatusPlain",
+                "PredicativeStatusBlockedBy",
+                "PassivePredicateDamage",
+                "PassivePredicateMovement",
+                "PassivePredicateOrientation",
+                "PassivePredicateDeclaredTransitive",
                 "ClauseAttachmentPreposedIf",
                 "ClauseAttachmentPreposedIfPredicate",
                 "ClauseAttachmentPostposedIf",
@@ -3328,6 +3365,26 @@ mod tests {
                 "Literal(\", or \")",
                 "Literal(\" and/or \")",
                 "Literal(\", and/or \")",
+                "PredicativeAdjective",
+                "Color",
+                "Literal(\"an\")",
+                "DeclarationNoun(51, Exact(Singular))",
+                "Literal(\"a\")",
+                "Status",
+                "Literal(\"blocked\")",
+                "Literal(\"by\")",
+                "Literal(\"able\")",
+                "Literal(\"to\")",
+                "Literal(\"/\")",
+                "BareCopula",
+                "Verb(Become, Any)",
+                "DeclarationParticiple(47)",
+                "DamageKind",
+                "DeclarationParticiple(48)",
+                "DeclarationParticiple(49)",
+                "FaceOrientation",
+                "DeclarationParticiple(50)",
+                "FiniteCopula",
                 "Auxiliary",
                 "Literal(\"where\")",
                 "Variable",
@@ -3341,25 +3398,22 @@ mod tests {
                 "Literal(\"choice\")",
                 "Literal(\"random\")",
                 "Noun(Exact(Singular))",
-                "DeclarationNoun(39, Exact(Singular))",
-                "DeclarationNoun(40, Exact(Singular))",
-                "DeclarationNoun(41, Exact(Singular))",
-                "DeclarationNoun(42, Exact(Singular))",
-                "DeclarationNoun(43, Exact(Singular))",
-                "DeclarationNoun(44, Exact(Singular))",
-                "DeclarationNoun(45, Exact(Singular))",
-                "DeclarationNoun(46, Exact(Singular))",
+                "DeclarationNoun(52, Exact(Singular))",
+                "DeclarationNoun(53, Exact(Singular))",
+                "DeclarationNoun(54, Exact(Singular))",
+                "DeclarationNoun(55, Exact(Singular))",
+                "DeclarationNoun(56, Exact(Singular))",
+                "DeclarationNoun(57, Exact(Singular))",
+                "DeclarationNoun(58, Exact(Singular))",
                 "Noun(Exact(Plural))",
-                "DeclarationNoun(39, Exact(Plural))",
-                "DeclarationNoun(40, Exact(Plural))",
-                "DeclarationNoun(41, Exact(Plural))",
-                "DeclarationNoun(42, Exact(Plural))",
-                "DeclarationNoun(43, Exact(Plural))",
-                "DeclarationNoun(44, Exact(Plural))",
-                "DeclarationNoun(45, Exact(Plural))",
-                "DeclarationNoun(46, Exact(Plural))",
-                "Color",
-                "Status",
+                "DeclarationNoun(51, Exact(Plural))",
+                "DeclarationNoun(52, Exact(Plural))",
+                "DeclarationNoun(53, Exact(Plural))",
+                "DeclarationNoun(54, Exact(Plural))",
+                "DeclarationNoun(55, Exact(Plural))",
+                "DeclarationNoun(56, Exact(Plural))",
+                "DeclarationNoun(57, Exact(Plural))",
+                "DeclarationNoun(58, Exact(Plural))",
                 "Supertype",
                 "Literal(\"non\")",
                 "NonCommonNoun",
@@ -3372,17 +3426,14 @@ mod tests {
                 "Literal(\"and/or\")",
                 "Literal(\"target\")",
                 "Literal(\"other\")",
-                "Literal(\"an\")",
-                "Literal(\"a\")",
                 "Literal(\"card\")",
                 "Literal(\"named\")",
-                "CatalogIdentity(48)",
+                "CatalogIdentity(60)",
                 "Literal(\"any\")",
                 "Literal(\"another\")",
                 "Literal(\"each\")",
                 "Literal(\"all\")",
                 "Literal(\"up\")",
-                "Literal(\"to\")",
                 "Literal(\"one\")",
                 "Literal(\"more\")",
                 "Literal(\"that\")",
@@ -3427,7 +3478,6 @@ mod tests {
                 "Literal(\"fewer\")",
                 "Literal(\"with\")",
                 "Literal(\"'\")",
-                "Literal(\"/\")",
                 "Literal(\"-\")",
                 "CounterName",
                 "Literal(\"counter\")",
@@ -3436,9 +3486,9 @@ mod tests {
                 "DieShape",
                 "Literal(\"dice\")",
                 "Literal(\"d20\")",
-                "DeclarationVerb(35, Any)",
-                "DeclarationVerb(36, Any)",
-                "DeclarationVerb(37, Any)",
+                "DeclarationVerb(43, Any)",
+                "DeclarationVerb(44, Any)",
+                "DeclarationVerb(45, Any)",
                 "Verb(Deal, Any)",
                 "Literal(\"damage\")",
                 "Verb(Gain, Any)",
@@ -3454,7 +3504,7 @@ mod tests {
                 "Verb(Enter, Any)",
                 "Verb(Leave, Any)",
                 "Verb(Look, Any)",
-                "DeclarationVerb(38, Any)",
+                "DeclarationVerb(46, Any)",
                 "Literal(\"for\")",
                 "Verb(Have, Any)",
                 "Literal(\"hand\")",

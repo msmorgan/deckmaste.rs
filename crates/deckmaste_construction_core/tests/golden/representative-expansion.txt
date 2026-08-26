@@ -73,6 +73,10 @@ pub(crate) enum Number {
 }
 pub(crate) use ::macro_ron::v2::Onset;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub(crate) enum Participle {
+    Participle,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) enum PossessiveEnding {
     EndsInS,
     Other,
@@ -508,6 +512,7 @@ pub(crate) fn declaration_lexeme_owner_id(
         ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
         ::macro_ron::v2::SurfaceFeature::Singular => "singular",
         ::macro_ron::v2::SurfaceFeature::Plural => "plural",
+        ::macro_ron::v2::SurfaceFeature::Participle => "participle",
         ::macro_ron::v2::SurfaceFeature::Fixed => "fixed",
     };
     LexicalOwner::construct_label(|| {

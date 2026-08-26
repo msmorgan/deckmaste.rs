@@ -12,7 +12,19 @@ use crate::render::Render;
 use crate::render::Writer;
 
 constructions! {
-    vocab Auxiliary { May = "may", Can = "can", Cant = "can't", Must = "must", }
+    vocab Auxiliary {
+        May = "may",
+        Can = "can",
+        Cant = "can't",
+        Must = "must",
+        Didnt = "didn't",
+        Would = "would",
+    }
+    vocab FiniteCopula { Is = "is", Are = "are", Was = "was", Were = "were", }
+    vocab BareCopula { Be = "be", }
+    vocab PredicativeAdjective { Legendary = "legendary", }
+    vocab DamageKind { Ordinary = "damage", Combat = "combat damage", }
+    vocab FaceOrientation { FaceUp = "face up", }
     vocab AtBoundary { Beginning = "the beginning of", End = "end of", }
     vocab TriggerMarker { When = "when", Whenever = "whenever", }
     vocab TurnOwnerPostmodifier {
@@ -194,6 +206,10 @@ constructions! {
         feature = Number;
         recipe = english_noun;
     }
+    morphology EnglishParticiple {
+        feature = Participle;
+        recipe = english_participle;
+    }
     lexeme CommonNoun using EnglishNoun {
         Ability = "ability" {
             Plural = "abilities",
@@ -232,6 +248,7 @@ constructions! {
         Control = "control",
         Own = "own",
         Return = "return",
+        Become = "become",
         Be = "be" {
             Bare = "are",
             ThirdPersonSingular = "is",
@@ -255,6 +272,13 @@ constructions! {
         Own = "own",
     }
     lexeme CoreNumerativeVerb using EnglishVerb { Draw = "draw", }
+    lexeme DamageParticipleLexeme using EnglishParticiple {
+        Deal = "deal" { Participle = "dealt", },
+    }
+    lexeme MovementParticipleLexeme using EnglishParticiple {
+        Put = "put" { Participle = "put", },
+    }
+    lexeme OrientationParticipleLexeme using EnglishParticiple { Turn = "turn", }
 
     codec IntransitiveVerb {
         generate declaration_verb {
@@ -293,6 +317,41 @@ constructions! {
                 sought: ObjectNounPhrase,
             ];
             feature = Agreement;
+        }
+    }
+    codec DamageParticipleHead {
+        generate declaration_verb {
+            closed = DamageParticipleLexeme;
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = [Amount];
+            feature = Participle;
+        }
+    }
+    codec MovementParticipleHead {
+        generate declaration_verb {
+            closed = MovementParticipleLexeme;
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = [moved: ObjectNounPhrase, "into", destination: ObjectNounPhrase];
+            feature = Participle;
+        }
+    }
+    codec OrientationParticipleHead {
+        generate declaration_verb {
+            closed = OrientationParticipleLexeme;
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = ["face", "up"];
+            feature = Participle;
+        }
+    }
+    codec DeclaredTransitiveParticipleHead {
+        generate declaration_verb {
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = [ObjectNounPhrase];
+            feature = Participle;
         }
     }
 
@@ -387,10 +446,33 @@ constructions! {
     abstract sum Predicate {
         Atomic: VerbPhrase,
         Coordination: PredicateCoordination,
+        BareCopular: BareCopularPredicate,
+        ChangeState: ChangeStatePredicate,
+        BarePassive: BarePassivePredicate,
     }
     abstract sum Clause {
         Finite: FiniteClause,
         Coordination: ClauseCoordination,
+        Copular: CopularClause,
+        Passive: PassiveFiniteClause,
+    }
+    abstract sum PredicativeComplement {
+        Adjective: PredicativeAdjectiveComplement,
+        Color: PredicativeColorComplement,
+        Type: PredicativeTypeComplement,
+        Status: PredicativeStatus,
+        Ability: PredicativeAbilityComplement,
+        PowerToughness: PredicativePowerToughnessComplement,
+    }
+    abstract sum PredicativeStatus {
+        Plain: PredicativeStatusComplement,
+        BlockedBy: BlockedByStatusComplement,
+    }
+    abstract sum PassivePredicate {
+        Damage: PassiveDamagePredicate,
+        Movement: PassiveMovementPredicate,
+        Orientation: PassiveOrientationPredicate,
+        DeclaredTransitive: DeclaredTransitivePassivePredicate,
     }
     abstract sum ClauseAttachment {
         PreposedIf,
@@ -414,7 +496,7 @@ constructions! {
     }
     abstract sum ConditionClause { FiniteCondition, ExistentialCondition, }
     construction finite_condition: FiniteCondition {
-        element FiniteConditionValue { clause: FiniteClause, }
+        element FiniteConditionValue { clause: Clause, }
         form finite_condition = "if" clause ",";
     }
     construction existential_condition: ExistentialCondition {
@@ -490,7 +572,7 @@ constructions! {
     construction finite: TriggerPrefix {
         element Finite {
             marker: lex TriggerMarker,
-            clause: FiniteClause,
+            clause: Clause,
         }
         form finite = lex(marker) clause;
     }
@@ -768,6 +850,120 @@ constructions! {
         require len(members) >= 2;
         derive agreement = members.agreement;
         form and_or_predicate_coordination = members;
+    }
+    construction predicative_adjective: PredicativeAdjectiveComplement {
+        element PredicativeAdjectiveValue { adjective: lex PredicativeAdjective, }
+        form predicative_adjective = lex(adjective);
+    }
+    construction predicative_color: PredicativeColorComplement {
+        element PredicativeColorValue { color: lex Color, }
+        form predicative_color = lex(color);
+    }
+    construction predicative_type: PredicativeTypeComplement {
+        element PredicativeTypeValue { head: lex TypeNoun, }
+        derive number = Values::Singular;
+        derive onset = head.onset;
+        form an when onset is Vowel = "an" noun(head);
+        form a otherwise = "a" noun(head);
+    }
+    construction predicative_status: PredicativeStatusComplement {
+        element PredicativeStatusValue { status: lex Status, }
+        form predicative_status = lex(status);
+    }
+    construction blocked_by_status: BlockedByStatusComplement {
+        element BlockedByStatusValue { agent: Object, }
+        form blocked_by_status = "blocked" "by" agent;
+    }
+    construction predicative_ability: PredicativeAbilityComplement {
+        element PredicativeAbilityValue { predicate: Predicate, }
+        derive predicate.agreement = Values::Bare;
+        form predicative_ability = "able" "to" predicate;
+    }
+    construction predicative_power_toughness: PredicativePowerToughnessComplement {
+        element PredicativePowerToughnessValue {
+            magnitudes: seq Amount separated by "/",
+        }
+        require len(magnitudes) = 2;
+        form predicative_power_toughness = magnitudes;
+    }
+    construction bare_copular_predicate: BareCopularPredicate {
+        element BareCopularPredicateValue {
+            copula: lex BareCopula,
+            complement: PredicativeComplement,
+        }
+        derive agreement = Values::Bare;
+        form bare_copular_predicate = lex(copula) complement;
+    }
+    construction change_state_predicate: ChangeStatePredicate {
+        element ChangeStatePredicateValue { complement: PredicativeComplement, }
+        derive agreement = verb.agreement;
+        form change_state_predicate = verb(VerbLexeme::Become) complement;
+    }
+    construction passive_damage_predicate: PassiveDamagePredicate {
+        element PassiveDamagePredicateValue {
+            head: lex DamageParticipleHead,
+            kind: lex DamageKind,
+        }
+        form passive_damage_predicate = verb(head) lex(kind);
+    }
+    construction passive_movement_predicate: PassiveMovementPredicate {
+        element PassiveMovementPredicateValue {
+            head: lex MovementParticipleHead,
+            destination: IntoDestination,
+            source: FromSource,
+        }
+        form passive_movement_predicate = verb(head) destination source;
+    }
+    construction passive_orientation_predicate: PassiveOrientationPredicate {
+        element PassiveOrientationPredicateValue {
+            head: lex OrientationParticipleHead,
+            orientation: lex FaceOrientation,
+        }
+        form passive_orientation_predicate = verb(head) lex(orientation);
+    }
+    construction declared_transitive_passive_predicate: DeclaredTransitivePassivePredicate {
+        element DeclaredTransitivePassivePredicateValue {
+            head: lex DeclaredTransitiveParticipleHead,
+        }
+        form declared_transitive_passive_predicate = verb(head);
+    }
+    construction bare_passive_predicate: BarePassivePredicate {
+        element BarePassivePredicateValue {
+            copula: lex BareCopula,
+            predicate: PassivePredicate,
+        }
+        derive agreement = Values::Bare;
+        form bare_passive_predicate = lex(copula) predicate;
+    }
+    construction copular_clause: CopularClause {
+        element CopularClauseValue {
+            subject: Subject,
+            copula: lex FiniteCopula,
+            complement: PredicativeComplement,
+        }
+        derive copula.agreement = match copula {
+            Is => Values::ThirdPersonSingular,
+            Are => Values::Bare,
+            Was => Values::ThirdPersonSingular,
+            Were => Values::Bare,
+        };
+        derive subject.agreement = copula.agreement;
+        form copular_clause = subject lex(copula) complement;
+    }
+    construction passive_finite_clause: PassiveFiniteClause {
+        element PassiveFiniteClauseValue {
+            subject: Subject,
+            copula: lex FiniteCopula,
+            predicate: PassivePredicate,
+        }
+        derive copula.agreement = match copula {
+            Is => Values::ThirdPersonSingular,
+            Are => Values::Bare,
+            Was => Values::ThirdPersonSingular,
+            Were => Values::Bare,
+        };
+        derive subject.agreement = copula.agreement;
+        form passive_finite_clause = subject lex(copula) predicate;
     }
     construction plain_finite_clause: FiniteClause {
         element PlainFiniteClause { subject: Subject, predicate: Predicate, }
@@ -2486,10 +2682,23 @@ constructions! {
         derive agreement = verb.agreement;
         form deal_damage = verb(VerbLexeme::Deal) amount "damage" recipient;
     }
+    construction deal_unspecified_damage: VerbPhrase {
+        element DealUnspecifiedDamage {
+            kind: lex DamageKind,
+            recipient: opt DamageRecipient,
+        }
+        derive agreement = verb.agreement;
+        form deal_unspecified_damage = verb(VerbLexeme::Deal) lex(kind) recipient;
+    }
     construction gain_life: VerbPhrase {
         element GainLife { amount: Amount, }
         derive agreement = verb.agreement;
         form gain_life = verb(VerbLexeme::Gain) amount "life";
+    }
+    construction gain_unspecified_life: VerbPhrase {
+        element GainUnspecifiedLife {}
+        derive agreement = verb.agreement;
+        form gain_unspecified_life = verb(VerbLexeme::Gain) "life";
     }
     construction deal_damage_equal_to: VerbPhrase {
         element DealDamageEqualTo {

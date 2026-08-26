@@ -13,6 +13,7 @@ pub(crate) enum Feature {
     Cardinality,
     Number,
     Onset,
+    Participle,
     PossessiveEnding,
 }
 
@@ -26,6 +27,7 @@ pub(crate) enum FeatureValue {
     Vowel,
     EndsInS,
     Other,
+    Participle,
     Zero,
     One,
     TwoPlus,
@@ -73,6 +75,7 @@ impl Feature {
             Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
             Self::Number => &[FeatureValue::Singular, FeatureValue::Plural],
             Self::Onset => &[FeatureValue::Consonant, FeatureValue::Vowel],
+            Self::Participle => &[FeatureValue::Participle],
             Self::PossessiveEnding => &[FeatureValue::EndsInS, FeatureValue::Other],
         }
     }
@@ -100,6 +103,7 @@ impl Feature {
             Self::Cardinality => "cardinality",
             Self::Number => "number",
             Self::Onset => "onset",
+            Self::Participle => "participle",
             Self::PossessiveEnding => "possessive_ending",
         }
     }
@@ -116,6 +120,7 @@ impl FeatureValue {
             Self::Vowel => "Vowel",
             Self::EndsInS => "EndsInS",
             Self::Other => "Other",
+            Self::Participle => "Participle",
             Self::Zero => "Zero",
             Self::One => "One",
             Self::TwoPlus => "TwoPlus",
@@ -252,6 +257,7 @@ impl Feature {
             Self::Cardinality => "cardinality",
             Self::Number => "number",
             Self::Onset => "onset",
+            Self::Participle => "participle",
             Self::PossessiveEnding => "possessive_ending",
         }
     }
@@ -269,6 +275,7 @@ impl FeatureValue {
             Self::Vowel => "Vowel",
             Self::EndsInS => "EndsInS",
             Self::Other => "Other",
+            Self::Participle => "Participle",
             Self::Zero => "Zero",
             Self::One => "One",
             Self::TwoPlus => "TwoPlus",
@@ -305,6 +312,7 @@ pub(crate) fn lower_constant(
         (model::Feature::Number, "Plural") => FeatureValue::Plural,
         (model::Feature::Onset, "Consonant") => FeatureValue::Consonant,
         (model::Feature::Onset, "Vowel") => FeatureValue::Vowel,
+        (model::Feature::Participle, "Participle") => FeatureValue::Participle,
         (model::Feature::PossessiveEnding, "EndsInS") => FeatureValue::EndsInS,
         (model::Feature::PossessiveEnding, "Other") => FeatureValue::Other,
         (model::Feature::Cardinality, "Zero") => FeatureValue::Zero,
@@ -340,6 +348,12 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a possessive-ending value"),
             ));
         }
+        (model::Feature::Participle, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a participle value"),
+            ));
+        }
     };
     Ok(value)
 }
@@ -351,6 +365,7 @@ impl From<model::Feature> for Feature {
             model::Feature::Cardinality => Self::Cardinality,
             model::Feature::Number => Self::Number,
             model::Feature::Onset => Self::Onset,
+            model::Feature::Participle => Self::Participle,
             model::Feature::PossessiveEnding => Self::PossessiveEnding,
         }
     }

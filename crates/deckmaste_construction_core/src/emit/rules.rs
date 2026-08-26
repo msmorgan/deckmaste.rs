@@ -1691,10 +1691,21 @@ fn lex_position(
     terminal: &str,
     right_boundary: &TokenStream,
 ) -> syn::Result<TokenStream> {
-    if let AtomTerminal::DeclarationVerb { terminal_index, .. } = plan.atom_terminal(terminal)? {
-        let agreement = declaration_verb_feature(plan, construction, role)?;
+    if let AtomTerminal::DeclarationVerb {
+        terminal_index,
+        plan: codec,
+    } = plan.atom_terminal(terminal)?
+    {
+        let matcher = match codec.feature_axis() {
+            Feature::Agreement => {
+                let agreement = declaration_verb_feature(plan, construction, role)?;
+                quote! { Lexical::DeclarationVerb(#terminal_index, #agreement) }
+            }
+            Feature::Participle => quote! { Lexical::DeclarationParticiple(#terminal_index) },
+            _ => unreachable!("validated declaration verb feature axis is closed"),
+        };
         return Ok(lexical_terminal_with_boundary(
-            &quote! { Lexical::DeclarationVerb(#terminal_index, #agreement) },
+            &matcher,
             &quote! { LexicalOwnerTemplate::DeclarationVerb(#terminal_index) },
             right_boundary,
         ));
@@ -1957,6 +1968,7 @@ fn closed_verb_feature(
             | FeatureValue::Vowel
             | FeatureValue::EndsInS
             | FeatureValue::Other
+            | FeatureValue::Participle
             | FeatureValue::Zero
             | FeatureValue::One
             | FeatureValue::TwoPlus => {
@@ -1992,6 +2004,7 @@ fn declaration_verb_feature(
             | FeatureValue::Vowel
             | FeatureValue::EndsInS
             | FeatureValue::Other
+            | FeatureValue::Participle
             | FeatureValue::Zero
             | FeatureValue::One
             | FeatureValue::TwoPlus => Err(internal(
@@ -2030,6 +2043,7 @@ pub(crate) fn open_verb_feature(
             | FeatureValue::Vowel
             | FeatureValue::EndsInS
             | FeatureValue::Other
+            | FeatureValue::Participle
             | FeatureValue::Zero
             | FeatureValue::One
             | FeatureValue::TwoPlus => {
@@ -2181,6 +2195,7 @@ fn noun_number(
             | FeatureValue::Vowel
             | FeatureValue::EndsInS
             | FeatureValue::Other
+            | FeatureValue::Participle
             | FeatureValue::Zero
             | FeatureValue::One
             | FeatureValue::TwoPlus => Err(internal("noun number has a non-number value")),

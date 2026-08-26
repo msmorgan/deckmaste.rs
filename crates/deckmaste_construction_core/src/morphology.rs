@@ -1,9 +1,14 @@
 use macro_ron::v2::SurfaceFeature;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[expect(
+    clippy::enum_variant_names,
+    reason = "the private recipe names mirror the three sealed declaration-language recipes"
+)]
 pub(crate) enum MorphologyRecipe {
     EnglishVerb,
     EnglishNoun,
+    EnglishParticiple,
 }
 
 impl MorphologyRecipe {
@@ -11,6 +16,7 @@ impl MorphologyRecipe {
         match recipe.to_string().as_str() {
             "english_verb" => Some(Self::EnglishVerb),
             "english_noun" => Some(Self::EnglishNoun),
+            "english_participle" => Some(Self::EnglishParticiple),
             _ => None,
         }
     }
@@ -19,6 +25,7 @@ impl MorphologyRecipe {
         match self {
             Self::EnglishVerb => crate::Feature::Agreement,
             Self::EnglishNoun => crate::Feature::Number,
+            Self::EnglishParticiple => crate::Feature::Participle,
         }
     }
 
@@ -26,6 +33,7 @@ impl MorphologyRecipe {
         match self {
             Self::EnglishVerb => &[SurfaceFeature::Bare, SurfaceFeature::ThirdPersonSingular],
             Self::EnglishNoun => &[SurfaceFeature::Singular, SurfaceFeature::Plural],
+            Self::EnglishParticiple => &[SurfaceFeature::Participle],
         }
     }
 
@@ -35,6 +43,7 @@ impl MorphologyRecipe {
             (Self::EnglishVerb, "ThirdPersonSingular") => Some(SurfaceFeature::ThirdPersonSingular),
             (Self::EnglishNoun, "Singular") => Some(SurfaceFeature::Singular),
             (Self::EnglishNoun, "Plural") => Some(SurfaceFeature::Plural),
+            (Self::EnglishParticiple, "Participle") => Some(SurfaceFeature::Participle),
             _ => None,
         }
     }
@@ -52,6 +61,9 @@ pub(crate) fn derive_surface(
         | (MorphologyRecipe::EnglishNoun, SurfaceFeature::Singular) => lemma.to_owned(),
         (MorphologyRecipe::EnglishVerb, SurfaceFeature::ThirdPersonSingular)
         | (MorphologyRecipe::EnglishNoun, SurfaceFeature::Plural) => format!("{lemma}s"),
+        (MorphologyRecipe::EnglishParticiple, SurfaceFeature::Participle) => {
+            format!("{lemma}ed")
+        }
         _ => {
             return Err(syn::Error::new(
                 proc_macro2::Span::call_site(),

@@ -1637,6 +1637,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::Cardinality => quote! { Cardinality },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
+        Feature::Participle => quote! { Participle },
         Feature::PossessiveEnding => quote! { PossessiveEnding },
     };
     let arms = helper
@@ -2879,6 +2880,7 @@ fn render_owner(
                         }
                         macro_ron::v2::SurfaceFeature::Singular
                         | macro_ron::v2::SurfaceFeature::Plural
+                        | macro_ron::v2::SurfaceFeature::Participle
                         | macro_ron::v2::SurfaceFeature::Fixed => {
                             unreachable!("validated verb lexeme has the Agreement feature axis")
                         }
@@ -2924,6 +2926,7 @@ fn render_owner(
                         macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                         macro_ron::v2::SurfaceFeature::Bare
                         | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                        | macro_ron::v2::SurfaceFeature::Participle
                         | macro_ron::v2::SurfaceFeature::Fixed => {
                             unreachable!("validated noun lexeme has the Number feature axis")
                         }
@@ -2963,6 +2966,7 @@ fn render_owner(
                         macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                         macro_ron::v2::SurfaceFeature::Bare
                         | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                        | macro_ron::v2::SurfaceFeature::Participle
                         | macro_ron::v2::SurfaceFeature::Fixed => {
                             unreachable!("validated noun lexeme has the Number feature axis")
                         }
@@ -3072,14 +3076,20 @@ fn render_declaration_verb_atom(
     locals: &RenderLocals,
     method_writer: &TokenStream,
 ) -> syn::Result<TokenStream> {
-    let agreement = projected_verb_agreement(validated, construction, role, locals)?;
-    let feature = quote! {
-        match #agreement {
-            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
-            Agreement::ThirdPersonSingular => {
-                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-            }
+    let (axis_value, feature) = match codec.feature_axis() {
+        Feature::Agreement => {
+            let agreement = projected_verb_agreement(validated, construction, role, locals)?;
+            let feature = quote! { match #agreement {
+                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+            }};
+            (agreement, feature)
         }
+        Feature::Participle => (
+            quote! { Participle::Participle },
+            quote! { ::macro_ron::v2::SurfaceFeature::Participle },
+        ),
+        _ => unreachable!("validated declaration verb feature axis is closed"),
     };
     if let Some(closed) = codec.closed_lexeme() {
         let verb = codec.codec_ident();
@@ -3095,7 +3105,7 @@ fn render_declaration_verb_atom(
         return Ok(quote! {
             match #value {
                 #verb::Lexeme(lexeme) => {
-                    #method_writer.word(#surface(*lexeme, #agreement));
+                    #method_writer.word(#surface(*lexeme, #axis_value));
                 }
                 #verb::Declaration(declaration) => {
                     #method_writer.word(
@@ -3124,14 +3134,20 @@ fn declaration_verb_owner(
     value: &TokenStream,
     locals: &RenderLocals,
 ) -> syn::Result<TokenStream> {
-    let agreement = projected_verb_agreement(validated, construction, role, locals)?;
-    let feature = quote! {
-        match #agreement {
-            Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
-            Agreement::ThirdPersonSingular => {
-                ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
-            }
+    let (axis_value, feature) = match codec.feature_axis() {
+        Feature::Agreement => {
+            let agreement = projected_verb_agreement(validated, construction, role, locals)?;
+            let feature = quote! { match #agreement {
+                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+            }};
+            (agreement, feature)
         }
+        Feature::Participle => (
+            quote! { Participle::Participle },
+            quote! { ::macro_ron::v2::SurfaceFeature::Participle },
+        ),
+        _ => unreachable!("validated declaration verb feature axis is closed"),
     };
     if let Some(closed) = codec.closed_lexeme() {
         let verb = codec.codec_ident();
@@ -3140,16 +3156,19 @@ fn declaration_verb_owner(
             .ok_or_else(|| internal("validated declaration verb lacks a closed lexeme plan"))?;
         let arms = lexeme.surfaces().iter().map(|row| {
             let member = emitted_ident(row.member(), Span::call_site());
-            let agreement = match row.feature() {
-                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
-                    quote! { Agreement::ThirdPersonSingular }
+            let axis = match codec.feature_axis() {
+                Feature::Agreement => match row.feature() {
+                    macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                    macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+                        quote! { Agreement::ThirdPersonSingular }
+                    }
+                    _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
+                },
+                Feature::Participle => {
+                    debug_assert_eq!(row.feature(), macro_ron::v2::SurfaceFeature::Participle);
+                    quote! { Participle::Participle }
                 }
-                macro_ron::v2::SurfaceFeature::Singular
-                | macro_ron::v2::SurfaceFeature::Plural
-                | macro_ron::v2::SurfaceFeature::Fixed => {
-                    unreachable!("validated verb lexeme has the Agreement feature axis")
-                }
+                _ => unreachable!("validated declaration verb feature axis is closed"),
             };
             let stable_id = crate::emit::closed_lexeme_owner_id(
                 &closed.to_string(),
@@ -3157,14 +3176,14 @@ fn declaration_verb_owner(
                 row.feature(),
             );
             quote! {
-                (#verb::Lexeme(#closed::#member), #agreement) => LexicalOwner::static_owner(
+                (#verb::Lexeme(#closed::#member), #axis) => LexicalOwner::static_owner(
                     LexicalProvenanceKind::Lexeme,
                     #stable_id,
                 )
             }
         });
         return Ok(quote! {
-            match (#value, #agreement) {
+            match (#value, #axis_value) {
                 #(#arms,)*
                 (#verb::Declaration(declaration), _) => LexicalOwner::declaration_owner(
                     declaration.id().clone(),
@@ -3373,6 +3392,7 @@ fn feature_expr(
                     Feature::Cardinality => Err(internal("verb slot does not provide cardinality")),
                     Feature::Onset => implicit_verb_onset(validated, construction, locals),
                     Feature::Number => Err(internal("verb slot does not provide number")),
+                    Feature::Participle => Ok(quote! { Participle::Participle }),
                     Feature::PossessiveEnding => {
                         Err(internal("verb slot does not provide possessive ending"))
                     }
@@ -3563,6 +3583,7 @@ fn implicit_verb_onset(
                         }
                         macro_ron::v2::SurfaceFeature::Singular
                         | macro_ron::v2::SurfaceFeature::Plural
+                        | macro_ron::v2::SurfaceFeature::Participle
                         | macro_ron::v2::SurfaceFeature::Fixed => {
                             unreachable!("validated verb lexeme has the Agreement feature axis")
                         }
@@ -3708,6 +3729,7 @@ fn lexical_onset_expr(
                 macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                 macro_ron::v2::SurfaceFeature::Bare
                 | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                | macro_ron::v2::SurfaceFeature::Participle
                 | macro_ron::v2::SurfaceFeature::Fixed => {
                     unreachable!("validated noun lexeme has the Number feature axis")
                 }
@@ -3737,6 +3759,7 @@ fn lexical_onset_expr(
                     macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                     macro_ron::v2::SurfaceFeature::Bare
                     | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    | macro_ron::v2::SurfaceFeature::Participle
                     | macro_ron::v2::SurfaceFeature::Fixed => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
@@ -3810,6 +3833,7 @@ fn lexical_possessive_ending_expr(
                 macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                 macro_ron::v2::SurfaceFeature::Bare
                 | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                | macro_ron::v2::SurfaceFeature::Participle
                 | macro_ron::v2::SurfaceFeature::Fixed => {
                     unreachable!("validated noun lexeme has the Number feature axis")
                 }
@@ -3839,6 +3863,7 @@ fn lexical_possessive_ending_expr(
                     macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
                     macro_ron::v2::SurfaceFeature::Bare
                     | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+                    | macro_ron::v2::SurfaceFeature::Participle
                     | macro_ron::v2::SurfaceFeature::Fixed => {
                         unreachable!("validated noun lexeme has the Number feature axis")
                     }
@@ -3969,6 +3994,7 @@ fn emit_feature_helper(
         Feature::Cardinality => quote! { Cardinality },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
+        Feature::Participle => quote! { Participle },
         Feature::PossessiveEnding => quote! { PossessiveEnding },
     };
     let mut entries: Vec<(TokenStream, String, TokenStream)> = Vec::new();
@@ -4490,6 +4516,7 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Vowel => quote! { Onset::Vowel },
         FeatureValue::EndsInS => quote! { PossessiveEnding::EndsInS },
         FeatureValue::Other => quote! { PossessiveEnding::Other },
+        FeatureValue::Participle => quote! { Participle::Participle },
         FeatureValue::Zero => quote! { Cardinality::Zero },
         FeatureValue::One => quote! { Cardinality::One },
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
@@ -4702,6 +4729,7 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Cardinality => "cardinality",
         Feature::Number => "number",
         Feature::Onset => "onset",
+        Feature::Participle => "participle",
         Feature::PossessiveEnding => "possessive_ending",
     }
 }

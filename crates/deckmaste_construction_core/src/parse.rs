@@ -726,6 +726,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "number" => Some(Feature::Number),
         "onset" => Some(Feature::Onset),
         "possessive_ending" => Some(Feature::PossessiveEnding),
+        "participle" => Some(Feature::Participle),
         _ => None,
     }
 }
@@ -1099,10 +1100,11 @@ fn parse_morphology(input: ParseStream<'_>) -> syn::Result<Morphology> {
     let feature = match feature_ident.to_string().as_str() {
         "Agreement" => Feature::Agreement,
         "Number" => Feature::Number,
+        "Participle" => Feature::Participle,
         _ => {
             return Err(syn::Error::new(
                 feature_ident.span(),
-                "morphology feature must be Agreement or Number",
+                "morphology feature must be Agreement, Number, or Participle",
             ));
         }
     };
@@ -2716,6 +2718,39 @@ mod tests {
         assert_eq!(nouns.members[0].name, "Player");
         assert_eq!(nouns.members[0].lemma.value(), "player");
         assert!(nouns.members[0].overrides.is_empty());
+    }
+
+    #[test]
+    fn generated_participle_morphology_parses_as_one_sealed_axis() {
+        let declarations = parse(
+            r#"
+                morphology EnglishParticiple {
+                    feature = Participle;
+                    recipe = english_participle;
+                }
+                lexeme ParticipleVerb using EnglishParticiple {
+                    Deal = "deal" { Participle = "dealt", },
+                    Turn = "turn",
+                }
+                construction passive: PassivePredicate {
+                    element Passive { head: lex ParticipleVerb, }
+                    form passive = lex(head);
+                }
+            "#,
+        )
+        .expect("the finite participle axis and its sole form atom parse");
+
+        let Declaration::Morphology(morphology) = &declarations.declarations[0] else {
+            panic!("first declaration is the participle morphology")
+        };
+        assert_eq!(morphology.feature, Feature::Participle);
+        let Declaration::Construction(passive) = &declarations.declarations[2] else {
+            panic!("third declaration is the passive frame")
+        };
+        assert!(matches!(
+            &passive.forms[0].atoms[0],
+            FormAtom::Lex(role) if role == "head"
+        ));
     }
 
     #[test]

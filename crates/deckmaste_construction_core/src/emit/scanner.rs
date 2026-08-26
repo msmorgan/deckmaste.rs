@@ -233,8 +233,14 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let unknown_declaration_noun_arm = (!declaration_noun_arms.is_empty())
         .then(|| quote! { Lexical::DeclarationNoun(_, _) => Vec::new(), });
     let declaration_verb_arms = declaration_verb_arms(plan);
-    let unknown_declaration_verb_arm = (!declaration_verb_arms.is_empty())
+    let unknown_declaration_verb_arm = plan
+        .runtime_declaration_verbs()
+        .any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Agreement)
         .then(|| quote! { Lexical::DeclarationVerb(_, _) => Vec::new(), });
+    let unknown_declaration_participle_arm = plan
+        .runtime_declaration_verbs()
+        .any(|(_, codec)| codec.feature_axis() == crate::feature::Feature::Participle)
+        .then(|| quote! { Lexical::DeclarationParticiple(_) => Vec::new(), });
     let noun_lexeme_arm = noun_lexeme_arm(plan);
     let punctuation_literals = plan.runtime_punctuation_literals();
     let punctuation_arm = (!punctuation_literals.is_empty()).then(|| {
@@ -307,6 +313,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 #unknown_declaration_noun_arm
                 #(#declaration_verb_arms,)*
                 #unknown_declaration_verb_arm
+                #unknown_declaration_participle_arm
                 #noun_lexeme_arm
                 #bound_arm
                 Lexical::Declaration(matcher) => input
@@ -370,6 +377,7 @@ fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
                 }
                 macro_ron::v2::SurfaceFeature::Singular
                 | macro_ron::v2::SurfaceFeature::Plural
+                | macro_ron::v2::SurfaceFeature::Participle
                 | macro_ron::v2::SurfaceFeature::Fixed => {
                     unreachable!("validated verb lexeme has the Agreement feature axis")
                 }
@@ -436,6 +444,7 @@ fn noun_surface_candidates(
             macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
             macro_ron::v2::SurfaceFeature::Bare
             | macro_ron::v2::SurfaceFeature::ThirdPersonSingular
+            | macro_ron::v2::SurfaceFeature::Participle
             | macro_ron::v2::SurfaceFeature::Fixed => {
                 unreachable!("validated noun lexeme has the Number feature axis")
             }
@@ -495,6 +504,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             crate::feature::Feature::Agreement
             | crate::feature::Feature::Cardinality
             | crate::feature::Feature::Onset
+            | crate::feature::Feature::Participle
             | crate::feature::Feature::PossessiveEnding => {
                 unreachable!("validated declaration_noun has the Number feature axis")
             }
@@ -565,38 +575,49 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     .lexeme(&closed.to_string())
                     .expect("validated declaration_verb closed branch is a verb lexeme");
                 assert_eq!(closed, closed_plan.name());
-                let closed_candidates = closed_plan.surfaces().iter().map(|row| {
-                    let member = emitted_ident(row.member(), Span::call_site());
-                    let agreement = match row.feature() {
-                        macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
-                        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
-                            quote! { Agreement::ThirdPersonSingular }
-                        }
-                        macro_ron::v2::SurfaceFeature::Singular
-                        | macro_ron::v2::SurfaceFeature::Plural
-                        | macro_ron::v2::SurfaceFeature::Fixed => {
-                            unreachable!("validated verb lexeme has the Agreement feature axis")
-                        }
-                    };
-                    let surface = syn::LitStr::new(row.surface(), Span::call_site());
-                    quote! { (#closed::#member, #agreement, #surface) }
-                });
-                quote! {
-                    for (lexeme, agreement, surface) in [#(#closed_candidates),*] {
-                        if (matches!(wanted, FeatureConstraint::Any)
-                            || matches!(wanted, FeatureConstraint::Exact(expected) if expected == agreement))
-                            && let Some(end) = input.word_end(surface, terminal.right_boundary)
-                        {
-                            matches.push(LexicalMatch {
-                                end,
-                                value: Leaf::#verb {
-                                    verb: #verb::Lexeme(lexeme),
-                                    agreement,
-                                },
-                                owner: None,
-                            });
+                match codec.feature_axis() {
+                    crate::feature::Feature::Agreement => {
+                        let candidates = closed_plan.surfaces().iter().map(|row| {
+                            let member = emitted_ident(row.member(), Span::call_site());
+                            let agreement = match row.feature() {
+                                macro_ron::v2::SurfaceFeature::Bare => quote! { Agreement::Bare },
+                                macro_ron::v2::SurfaceFeature::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
+                                _ => unreachable!("validated Agreement declaration verb has Agreement rows"),
+                            };
+                            let surface = syn::LitStr::new(row.surface(), Span::call_site());
+                            quote! { (#closed::#member, #agreement, #surface) }
+                        });
+                        quote! {
+                            for (lexeme, agreement, surface) in [#(#candidates),*] {
+                                if (matches!(wanted, FeatureConstraint::Any)
+                                    || matches!(wanted, FeatureConstraint::Exact(expected) if expected == agreement))
+                                    && let Some(end) = input.word_end(surface, terminal.right_boundary)
+                                {
+                                    matches.push(LexicalMatch { end, value: Leaf::#verb {
+                                        verb: #verb::Lexeme(lexeme), agreement,
+                                    }, owner: None });
+                                }
+                            }
                         }
                     }
+                    crate::feature::Feature::Participle => {
+                        let candidates = closed_plan.surfaces().iter().map(|row| {
+                            debug_assert_eq!(row.feature(), macro_ron::v2::SurfaceFeature::Participle);
+                            let member = emitted_ident(row.member(), Span::call_site());
+                            let surface = syn::LitStr::new(row.surface(), Span::call_site());
+                            quote! { (#closed::#member, #surface) }
+                        });
+                        quote! {
+                            for (lexeme, surface) in [#(#candidates),*] {
+                                if let Some(end) = input.word_end(surface, terminal.right_boundary) {
+                                    matches.push(LexicalMatch { end, value: Leaf::#verb {
+                                        verb: #verb::Lexeme(lexeme),
+                                    }, owner: None });
+                                }
+                            }
+                        }
+                    }
+                    _ => unreachable!("validated declaration verb feature axis is closed"),
                 }
             });
             let open_value = if codec.closed_lexeme().is_some() {
@@ -604,8 +625,9 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             } else {
                 quote! { declaration }
             };
-            quote! {
-                Lexical::DeclarationVerb(#terminal_index, wanted) => {
+            match codec.feature_axis() {
+                crate::feature::Feature::Agreement => quote! {
+                    Lexical::DeclarationVerb(#terminal_index, wanted) => {
                     let mut matches = Vec::new();
                     #closed_scan
                     let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
@@ -619,7 +641,10 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                             input.position.byte_offset,
                             &[#(#kinds),*],
                             &frame,
-                            agreement,
+                            match agreement {
+                                Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
+                                Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
+                            },
                         ) {
                             let Some(declaration) = #declaration::new(input.environment, id) else {
                                 continue;
@@ -635,7 +660,28 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         }
                     }
                     matches
-                }
+                    }
+                },
+                crate::feature::Feature::Participle => quote! {
+                    Lexical::DeclarationParticiple(#terminal_index) => {
+                        let mut matches = Vec::new();
+                        #closed_scan
+                        let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
+                        for (end, id) in input.declaration_verb_readings(
+                            input.position.byte_offset,
+                            &[#(#kinds),*],
+                            &frame,
+                            ::macro_ron::v2::SurfaceFeature::Participle,
+                        ) {
+                            let Some(declaration) = #declaration::new(input.environment, id) else { continue; };
+                            matches.push(LexicalMatch { end, value: Leaf::#verb {
+                                verb: #open_value,
+                            }, owner: None });
+                        }
+                        matches
+                    }
+                },
+                _ => unreachable!("validated declaration verb feature axis is closed"),
             }
         })
         .collect()

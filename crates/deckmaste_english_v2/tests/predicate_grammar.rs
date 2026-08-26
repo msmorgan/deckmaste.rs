@@ -42,6 +42,10 @@ fn environment() -> ParserEnvironment {
             r#"KeywordAction(name:"Create",spelling:"create",grammar:Verb(bare:"create",valence:Transitive))"#,
         ),
         (
+            "/synthetic/actions/Cast.ron",
+            r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",valence:Transitive))"#,
+        ),
+        (
             "/synthetic/actions/Search.ron",
             r#"KeywordAction(name:"Search",spelling:"search",grammar:Verb(bare:"search",third_person:"searches",valence:Custom(shapes:[[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase],[ObjectNounPhrase,Literal("for"),ObjectNounPhrase]])))"#,
         ),
@@ -347,6 +351,668 @@ fn shared_active_frames_reject_complement_and_agreement_reciprocals() {
             "wrong frame or agreement must reject {text:?}",
         );
     }
+}
+
+#[test]
+fn copular_change_auxiliary_and_passive_minimal_pairs_select() {
+    let parser = parser();
+    let context = context();
+    for text in [
+        "It is legendary.",
+        "They are white.",
+        "It was tapped.",
+        "They were 2/2.",
+        "It is a creature.",
+        "It is able to attack.",
+        "Be white.",
+        "Become tapped.",
+        "It becomes blocked by target creature.",
+        "They become tapped.",
+        "It didn't cast a spell.",
+        "It would attack.",
+        "It would be white.",
+        "It can't be dealt damage.",
+        "It is dealt damage.",
+        "It is dealt combat damage.",
+        "It is put into your graveyard from the battlefield.",
+        "It is turned face up.",
+        "A spell was cast.",
+        "It deals damage.",
+        "It gains life.",
+    ] {
+        assert_selected(&parser, &context, text);
+    }
+}
+
+#[test]
+fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
+    let parser = parser();
+    let context = context();
+    for (text, old_start) in [
+        (
+            "Whenever this creature is dealt damage, it deals that much damage to you.",
+            23,
+        ),
+        (
+            "Whenever this creature is dealt damage, you gain 1 life.",
+            23,
+        ),
+        (
+            "Whenever this creature is dealt damage, it deals that much damage to each player.",
+            23,
+        ),
+        (
+            "Whenever this creature is dealt damage, it deals that much damage to target opponent or planeswalker.",
+            23,
+        ),
+        (
+            "Whenever a creature is put into your graveyard from the battlefield, you gain 1 life.",
+            0,
+        ),
+        (
+            "Whenever a permanent is turned face up, this creature deals 1 damage to any target.",
+            21,
+        ),
+        (
+            "At the beginning of each player's end step, if that player didn't cast a spell this turn, this enchantment deals 2 damage to that player.",
+            59,
+        ),
+        (
+            "Whenever this creature is dealt combat damage, you gain that much life.",
+            23,
+        ),
+        (
+            "Whenever this creature is dealt damage, each opponent gains that much life.",
+            23,
+        ),
+        (
+            "Whenever a creature is put into your graveyard from the battlefield, you gain 1 life.",
+            0,
+        ),
+        (
+            "Whenever this creature is dealt damage, it deals that much damage to any target.",
+            23,
+        ),
+        (
+            "Whenever a creature you control is put into your graveyard from the battlefield, you gain 1 life.",
+            0,
+        ),
+        (
+            "At the beginning of your upkeep, if all creatures are white, you gain 1 life.",
+            0,
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        match analysis.into_parse_result() {
+            Ok(_) => {}
+            Err(
+                deckmaste_english_v2::parser::ParseError::Failure { span, .. }
+                | deckmaste_english_v2::parser::ParseError::BuildRejected { span, .. },
+            ) => assert!(
+                span.start > old_start,
+                "authenticated finite family moves beyond {old_start} for {text:?}: {span:?}",
+            ),
+            Err(error) => panic!("authenticated finite family has terminal outcome: {error:?}"),
+        }
+    }
+}
+
+#[test]
+fn copular_change_auxiliary_and_passive_reciprocals_reject() {
+    let parser = parser();
+    let context = context();
+    for text in [
+        "It are white.",
+        "They is white.",
+        "It become tapped.",
+        "They becomes tapped.",
+        "It didn't casts a spell.",
+        "It would attacks.",
+        "It can't is dealt damage.",
+        "It is deal damage.",
+        "It is dealt.",
+        "It is dealt face up.",
+        "It is put damage.",
+        "It is turned damage.",
+        "A spell was cast damage.",
+        "It deals life.",
+        "It gains damage.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "crossed agreement, form, or complement must reject {text:?}",
+        );
+    }
+}
+
+#[test]
+fn task7_ast_keeps_each_linguistic_product_typed() {
+    let parser = parser();
+    let context = context();
+    for (text, expected) in [
+        ("It is legendary.", "adjective"),
+        ("They are white.", "color"),
+        ("It is a creature.", "type"),
+        ("It was tapped.", "status"),
+        ("It is able to attack.", "ability"),
+        ("They were 2/2.", "power-toughness"),
+    ] {
+        let Sentence::Declarative(Declarative {
+            clause:
+                Clause::Copular(CopularClause::CopularClause(CopularClauseValue { complement, .. })),
+        }) = parser
+            .parse_sentence(text, &context)
+            .unwrap_or_else(|error| panic!("copular AST parses {text:?}: {error:?}"))
+        else {
+            panic!("{text:?} stores a typed copular clause")
+        };
+        let observed = match complement {
+            PredicativeComplement::Adjective(_) => "adjective",
+            PredicativeComplement::Color(_) => "color",
+            PredicativeComplement::Type(_) => "type",
+            PredicativeComplement::Status(_) => "status",
+            PredicativeComplement::Ability(_) => "ability",
+            PredicativeComplement::PowerToughness(_) => "power-toughness",
+        };
+        assert_eq!(observed, expected);
+    }
+
+    let Sentence::Imperative(imperative) = parser
+        .parse_sentence("Be white.", &context)
+        .expect("bare copular predicate parses")
+    else {
+        panic!("bare copular predicate has an imperative envelope")
+    };
+    let Predicate::BareCopular(predicate) = imperative.predicate() else {
+        panic!("bare copula has its distinct predicate sum branch")
+    };
+    let BareCopularPredicate::BareCopularPredicate(BareCopularPredicateValue {
+        copula,
+        complement,
+    }) = predicate.as_ref();
+    assert_eq!(*copula, BareCopula::Be);
+    assert!(matches!(
+        complement.as_ref(),
+        PredicativeComplement::Color(_)
+    ));
+
+    let Sentence::Declarative(Declarative {
+        clause: Clause::Finite(FiniteClause::PlainFiniteClause(change)),
+    }) = parser
+        .parse_sentence("It becomes blocked by target creature.", &context)
+        .expect("change-state predicate parses")
+    else {
+        panic!("change-state predicate keeps its ordinary finite envelope")
+    };
+    let Predicate::ChangeState(predicate) = change.predicate() else {
+        panic!("become has its distinct predicate sum branch")
+    };
+    let ChangeStatePredicate::ChangeStatePredicate(ChangeStatePredicateValue { complement }) =
+        predicate.as_ref();
+    assert!(matches!(
+        complement.as_ref(),
+        PredicativeComplement::Status(PredicativeStatus::BlockedBy(_))
+    ));
+
+    for (text, expected) in [
+        ("It is dealt damage.", "damage"),
+        (
+            "It is put into your graveyard from the battlefield.",
+            "movement",
+        ),
+        ("It is turned face up.", "orientation"),
+        ("A spell was cast.", "declared"),
+    ] {
+        let Sentence::Declarative(Declarative {
+            clause:
+                Clause::Passive(PassiveFiniteClause::PassiveFiniteClause(PassiveFiniteClauseValue {
+                    predicate,
+                    ..
+                })),
+        }) = parser
+            .parse_sentence(text, &context)
+            .unwrap_or_else(|error| panic!("passive AST parses {text:?}: {error:?}"))
+        else {
+            panic!("{text:?} stores a typed finite passive clause")
+        };
+        let observed = match predicate {
+            PassivePredicate::Damage(_) => "damage",
+            PassivePredicate::Movement(_) => "movement",
+            PassivePredicate::Orientation(_) => "orientation",
+            PassivePredicate::DeclaredTransitive(_) => "declared",
+        };
+        assert_eq!(observed, expected);
+    }
+
+    assert!(matches!(
+        declarative_atomic(&parser, &context, "It deals damage."),
+        VerbPhrase::DealUnspecifiedDamage(DealUnspecifiedDamage { .. })
+    ));
+    assert!(matches!(
+        declarative_atomic(&parser, &context, "It gains life."),
+        VerbPhrase::GainUnspecifiedLife(GainUnspecifiedLife {})
+    ));
+}
+
+#[derive(Default)]
+struct Task7Visitor(Vec<String>);
+
+macro_rules! task7_product {
+    ($method:ident, $type:ty, $walk:ident, $label:literal) => {
+        fn $method(&mut self, value: &$type) {
+            self.0.push(concat!("product:", $label).to_owned());
+            deckmaste_english_v2::visit::$walk(self, value);
+        }
+    };
+}
+
+impl Visitor for Task7Visitor {
+    task7_product!(
+        visit_copular_clause_value,
+        CopularClauseValue,
+        walk_copular_clause_value,
+        "CopularClauseValue"
+    );
+    task7_product!(
+        visit_predicative_adjective_value,
+        PredicativeAdjectiveValue,
+        walk_predicative_adjective_value,
+        "PredicativeAdjectiveValue"
+    );
+    task7_product!(
+        visit_predicative_color_value,
+        PredicativeColorValue,
+        walk_predicative_color_value,
+        "PredicativeColorValue"
+    );
+    task7_product!(
+        visit_predicative_type_value,
+        PredicativeTypeValue,
+        walk_predicative_type_value,
+        "PredicativeTypeValue"
+    );
+    task7_product!(
+        visit_predicative_status_value,
+        PredicativeStatusValue,
+        walk_predicative_status_value,
+        "PredicativeStatusValue"
+    );
+    task7_product!(
+        visit_blocked_by_status_value,
+        BlockedByStatusValue,
+        walk_blocked_by_status_value,
+        "BlockedByStatusValue"
+    );
+    task7_product!(
+        visit_predicative_ability_value,
+        PredicativeAbilityValue,
+        walk_predicative_ability_value,
+        "PredicativeAbilityValue"
+    );
+    task7_product!(
+        visit_predicative_power_toughness_value,
+        PredicativePowerToughnessValue,
+        walk_predicative_power_toughness_value,
+        "PredicativePowerToughnessValue"
+    );
+    task7_product!(
+        visit_bare_copular_predicate_value,
+        BareCopularPredicateValue,
+        walk_bare_copular_predicate_value,
+        "BareCopularPredicateValue"
+    );
+    task7_product!(
+        visit_change_state_predicate_value,
+        ChangeStatePredicateValue,
+        walk_change_state_predicate_value,
+        "ChangeStatePredicateValue"
+    );
+    task7_product!(
+        visit_auxiliary_finite_clause,
+        AuxiliaryFiniteClause,
+        walk_auxiliary_finite_clause,
+        "AuxiliaryFiniteClause"
+    );
+    task7_product!(
+        visit_bare_passive_predicate_value,
+        BarePassivePredicateValue,
+        walk_bare_passive_predicate_value,
+        "BarePassivePredicateValue"
+    );
+    task7_product!(
+        visit_passive_finite_clause_value,
+        PassiveFiniteClauseValue,
+        walk_passive_finite_clause_value,
+        "PassiveFiniteClauseValue"
+    );
+    task7_product!(
+        visit_passive_damage_predicate_value,
+        PassiveDamagePredicateValue,
+        walk_passive_damage_predicate_value,
+        "PassiveDamagePredicateValue"
+    );
+    task7_product!(
+        visit_passive_movement_predicate_value,
+        PassiveMovementPredicateValue,
+        walk_passive_movement_predicate_value,
+        "PassiveMovementPredicateValue"
+    );
+    task7_product!(
+        visit_passive_orientation_predicate_value,
+        PassiveOrientationPredicateValue,
+        walk_passive_orientation_predicate_value,
+        "PassiveOrientationPredicateValue"
+    );
+    task7_product!(
+        visit_declared_transitive_passive_predicate_value,
+        DeclaredTransitivePassivePredicateValue,
+        walk_declared_transitive_passive_predicate_value,
+        "DeclaredTransitivePassivePredicateValue"
+    );
+    task7_product!(
+        visit_deal_unspecified_damage,
+        DealUnspecifiedDamage,
+        walk_deal_unspecified_damage,
+        "DealUnspecifiedDamage"
+    );
+    task7_product!(
+        visit_gain_unspecified_life,
+        GainUnspecifiedLife,
+        walk_gain_unspecified_life,
+        "GainUnspecifiedLife"
+    );
+}
+
+#[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the literal per-frame visitor and ownership matrix is intentionally exhaustive"
+)]
+fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
+    const TERMINATOR: &str = "structural:Sentences/sentences/terminator/0";
+    let parser = parser();
+    let context = context();
+
+    macro_rules! assert_frame {
+        ($text:literal, [$($visit:literal),+ $(,)?], [$(($surface:literal, $owner:expr)),+ $(,)?]) => {{
+            let ability = assert_selected(&parser, &context, $text);
+            let mut visitor = Task7Visitor::default();
+            visitor.visit_ability(&ability);
+            assert_eq!(visitor.0, [$($visit),+], "exact visitor trace for {:?}", $text);
+            assert_eq!(
+                exact_claim_trace(&parser, &context, $text),
+                [$(($surface.to_owned(), $owner.to_owned())),+],
+                "complete ordered ownership for {:?}", $text,
+            );
+        }};
+    }
+
+    assert_frame!(
+        "It is legendary.",
+        [
+            "product:CopularClauseValue",
+            "product:PredicativeAdjectiveValue"
+        ],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" legendary", "vocab:PredicativeAdjective/Legendary"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "They are white.",
+        [
+            "product:CopularClauseValue",
+            "product:PredicativeColorValue"
+        ],
+        [
+            ("They", "vocab:SubjectPronoun/They"),
+            (" are", "vocab:FiniteCopula/Are"),
+            (" white", "vocab:Color/White"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It was tapped.",
+        [
+            "product:CopularClauseValue",
+            "product:PredicativeStatusValue"
+        ],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" was", "vocab:FiniteCopula/Was"),
+            (" tapped", "vocab:Status/Tapped"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "They were 2/2.",
+        [
+            "product:CopularClauseValue",
+            "product:PredicativePowerToughnessValue"
+        ],
+        [
+            ("They", "vocab:SubjectPronoun/They"),
+            (" were", "vocab:FiniteCopula/Were"),
+            (" 2", "codec:ScalarNumber"),
+            (
+                "/",
+                "structural:PredicativePowerToughnessValue/magnitudes/separator/uniform/0"
+            ),
+            ("2", "codec:ScalarNumber"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It is a creature.",
+        ["product:CopularClauseValue", "product:PredicativeTypeValue"],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" a", "form:predicative_type/a/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It is able to attack.",
+        [
+            "product:CopularClauseValue",
+            "product:PredicativeAbilityValue"
+        ],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" able", "form:predicative_ability/predicative_ability/0"),
+            (" to", "form:predicative_ability/predicative_ability/1"),
+            (" attack", "lexeme:CoreIntransitiveVerb/Attack/bare"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "Be white.",
+        [
+            "product:BareCopularPredicateValue",
+            "product:PredicativeColorValue"
+        ],
+        [
+            ("Be", "vocab:BareCopula/Be"),
+            (" white", "vocab:Color/White"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "Become tapped.",
+        [
+            "product:ChangeStatePredicateValue",
+            "product:PredicativeStatusValue"
+        ],
+        [
+            ("Become", "lexeme:VerbLexeme/Become/bare"),
+            (" tapped", "vocab:Status/Tapped"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It becomes blocked by target creature.",
+        [
+            "product:ChangeStatePredicateValue",
+            "product:BlockedByStatusValue"
+        ],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" becomes", "lexeme:VerbLexeme/Become/third_person_singular"),
+            (" blocked", "form:blocked_by_status/blocked_by_status/0"),
+            (" by", "form:blocked_by_status/blocked_by_status/1"),
+            (
+                " target",
+                "form:target_determiner_phrase/target_determiner_phrase/0"
+            ),
+            (" creature", "lexeme:type/Creature/singular"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It didn't cast a spell.",
+        ["product:AuxiliaryFiniteClause"],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" didn't", "vocab:Auxiliary/Didnt"),
+            (" cast", "lexeme:keyword_action/Cast/bare"),
+            (" a", "form:indefinite_reference/a/0"),
+            (" spell", "lexeme:CommonNoun/Spell/singular"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It would attack.",
+        ["product:AuxiliaryFiniteClause"],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" would", "vocab:Auxiliary/Would"),
+            (" attack", "lexeme:CoreIntransitiveVerb/Attack/bare"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It would be white.",
+        [
+            "product:AuxiliaryFiniteClause",
+            "product:BareCopularPredicateValue",
+            "product:PredicativeColorValue"
+        ],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" would", "vocab:Auxiliary/Would"),
+            (" be", "vocab:BareCopula/Be"),
+            (" white", "vocab:Color/White"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It can't be dealt damage.",
+        [
+            "product:AuxiliaryFiniteClause",
+            "product:BarePassivePredicateValue",
+            "product:PassiveDamagePredicateValue"
+        ],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" can't", "vocab:Auxiliary/Cant"),
+            (" be", "vocab:BareCopula/Be"),
+            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" damage", "vocab:DamageKind/Ordinary"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It is dealt combat damage.",
+        [
+            "product:PassiveFiniteClauseValue",
+            "product:PassiveDamagePredicateValue"
+        ],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" combat damage", "vocab:DamageKind/Combat"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It is put into your graveyard from the battlefield.",
+        [
+            "product:PassiveFiniteClauseValue",
+            "product:PassiveMovementPredicateValue"
+        ],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" put", "lexeme:MovementParticipleLexeme/Put/participle"),
+            (" into", "form:into_destination/into_destination/0"),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (" graveyard", "vocab:Zone/Graveyard"),
+            (" from", "form:from_source/from_source/0"),
+            (" the", "form:definite_zone/definite_zone/0"),
+            (" battlefield", "vocab:Zone/Battlefield"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It is turned face up.",
+        [
+            "product:PassiveFiniteClauseValue",
+            "product:PassiveOrientationPredicateValue"
+        ],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (
+                " turned",
+                "lexeme:OrientationParticipleLexeme/Turn/participle"
+            ),
+            (" face up", "vocab:FaceOrientation/FaceUp"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "A spell was cast.",
+        [
+            "product:PassiveFiniteClauseValue",
+            "product:DeclaredTransitivePassivePredicateValue"
+        ],
+        [
+            ("A", "form:indefinite_reference/a/0"),
+            (" spell", "lexeme:CommonNoun/Spell/singular"),
+            (" was", "vocab:FiniteCopula/Was"),
+            (" cast", "lexeme:keyword_action/Cast/participle"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It deals damage.",
+        ["product:DealUnspecifiedDamage"],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" damage", "vocab:DamageKind/Ordinary"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_frame!(
+        "It gains life.",
+        ["product:GainUnspecifiedLife"],
+        [
+            ("It", "vocab:SubjectPronoun/It"),
+            (" gains", "lexeme:VerbLexeme/Gain/third_person_singular"),
+            (
+                " life",
+                "form:gain_unspecified_life/gain_unspecified_life/1"
+            ),
+            (".", TERMINATOR)
+        ]
+    );
 }
 
 #[test]

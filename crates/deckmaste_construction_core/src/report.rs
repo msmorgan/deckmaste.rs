@@ -525,6 +525,7 @@ fn surface_feature_key(feature: macro_ron::v2::SurfaceFeature) -> &'static str {
         macro_ron::v2::SurfaceFeature::ThirdPersonSingular => "third_person_singular",
         macro_ron::v2::SurfaceFeature::Singular => "singular",
         macro_ron::v2::SurfaceFeature::Plural => "plural",
+        macro_ron::v2::SurfaceFeature::Participle => "participle",
         macro_ron::v2::SurfaceFeature::Fixed => "fixed",
     }
 }

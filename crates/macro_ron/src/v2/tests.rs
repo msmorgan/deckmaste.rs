@@ -199,17 +199,20 @@ fn nursery_and_graduated_sources_round_trip_without_legacy_translation() {
 #[test]
 fn morphology_uses_only_dumb_defaults_and_whole_surface_replacements() {
     let destroy = read_str(source_path("Destroy.ron"), DESTROY).unwrap();
-    assert_eq!(texts(&destroy), ["destroy", "destroys"]);
+    assert_eq!(texts(&destroy), ["destroy", "destroys", "destroyed"]);
 
     let scry = read_str(source_path("Scry.ron"), SCRY).unwrap();
-    assert_eq!(texts(&scry), ["scry", "scries"]);
+    assert_eq!(texts(&scry), ["scry", "scries", "scryed"]);
 
     let turn_face_up = read_str(
         source_path("TurnFaceUp.ron"),
         r#"KeywordAction(name:"TurnFaceUp",spelling:"turn face up",grammar:Verb(bare:"turn face up",third_person:"turns face up",valence:Transitive))"#,
     )
     .unwrap();
-    assert_eq!(texts(&turn_face_up), ["turn face up", "turns face up"]);
+    assert_eq!(
+        texts(&turn_face_up),
+        ["turn face up", "turns face up", "turn face uped"]
+    );
 
     for (name, singular) in [("Sheep", "sheep"), ("Merfolk", "Merfolk")] {
         let source = format!(
@@ -223,6 +226,35 @@ fn morphology_uses_only_dumb_defaults_and_whole_surface_replacements() {
         validation(r#"Type(name:"Player",spelling:"player",grammar:Noun(singular:"player",plural:"players"))"#),
         ValidationError::RedundantOverride { field: "plural", surface } if surface == "players"
     ));
+}
+
+#[test]
+fn verb_participles_use_one_regular_surface_and_explicit_whole_surface_overrides() {
+    let deal = read_str(
+        source_path("Deal.ron"),
+        r#"KeywordAction(
+            name:"Deal",
+            spelling:"deal",
+            grammar:Verb(
+                bare:"deal",
+                participle:"dealt",
+                valence:Transitive,
+            ),
+        )"#,
+    )
+    .expect("an irregular participle is a finite declaration surface override");
+    assert_eq!(texts(&deal), ["deal", "deals", "dealt"]);
+
+    let turn = read_str(
+        source_path("Turn.ron"),
+        r#"KeywordAction(
+            name:"Turn",
+            spelling:"turn",
+            grammar:Verb(bare:"turn",valence:Transitive),
+        )"#,
+    )
+    .expect("regular participles derive without a declaration callback");
+    assert_eq!(texts(&turn), ["turn", "turns", "turned"]);
 }
 
 #[test]
@@ -272,6 +304,12 @@ fn graduated_declaration_round_trips_and_normalizes() {
                 onset: Onset::Consonant,
                 onset_override: None,
             },
+            RealizedSurface {
+                feature: SurfaceFeature::Participle,
+                text: "scryed".to_owned(),
+                onset: Onset::Consonant,
+                onset_override: None,
+            },
         ]
     );
     assert!(!row.surfaces.iter().any(|surface| surface.text == "scrys"));
@@ -294,6 +332,12 @@ fn nursery_declaration_uses_dumb_verb_morphology() {
             RealizedSurface {
                 feature: SurfaceFeature::ThirdPersonSingular,
                 text: "destroys".to_owned(),
+                onset: Onset::Consonant,
+                onset_override: None,
+            },
+            RealizedSurface {
+                feature: SurfaceFeature::Participle,
+                text: "destroyed".to_owned(),
                 onset: Onset::Consonant,
                 onset_override: None,
             },

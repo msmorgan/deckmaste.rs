@@ -329,6 +329,7 @@ struct TerminalInfo {
     kind: TerminalKind,
     codec_atom: Option<CodecAtomClass>,
     agreement_verb: bool,
+    participle_verb: bool,
     variants: HashSet<String>,
     variant_order: Vec<String>,
 }
@@ -1845,7 +1846,7 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
             continue;
         };
         match recipe {
-            MorphologyRecipe::EnglishVerb => {}
+            MorphologyRecipe::EnglishVerb | MorphologyRecipe::EnglishParticiple => {}
             MorphologyRecipe::EnglishNoun => {
                 noun_providers.push((&lexeme.name, identifier_key(&lexeme.name)));
             }
@@ -2344,6 +2345,7 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
     for (index, (left, left_domain)) in verbs.iter().enumerate() {
         for (right, right_domain) in &verbs[index + 1..] {
             if left_domain.position != right_domain.position
+                || left_domain.feature != right_domain.feature
                 || left_domain.tail != right_domain.tail
             {
                 continue;
@@ -2392,6 +2394,7 @@ struct DeclarationVerbDomain {
     closed: Option<String>,
     position: String,
     kinds: BTreeSet<String>,
+    feature: String,
     tail: String,
 }
 
@@ -2400,6 +2403,7 @@ fn declaration_verb_domain(
 ) -> Option<DeclarationVerbDomain> {
     let position = source.position_slots.first()?;
     let kinds = source.kind_slots.first()?;
+    let feature = source.feature_slots.first()?;
     let tail = source.tail_slots.first()?;
     let tail = tail
         .atoms
@@ -2422,6 +2426,7 @@ fn declaration_verb_domain(
             .map(|slot| identifier_key(&slot.value)),
         position: identifier_key(&position.value),
         kinds: kinds.kinds.iter().map(identifier_key).collect(),
+        feature: identifier_key(&feature.value),
         tail: format!("[{tail}]"),
     })
 }
@@ -2551,13 +2556,13 @@ fn validate_declaration_verb_source(
         );
     }
     if let Some(feature) = feature
-        && feature != "Agreement"
+        && !matches!(identifier_key(feature).as_str(), "Agreement" | "Participle")
     {
         combine(
             errors,
             syn::Error::new(
                 feature.span(),
-                "declaration_verb feature must be `Agreement`",
+                "declaration_verb feature must be `Agreement` or `Participle`",
             ),
         );
     }
@@ -2589,14 +2594,22 @@ fn validate_declaration_verb_source(
                 ),
             ),
             Some(lexeme)
-                if lexeme_recipe(raw, lexeme)
-                    != Some(crate::morphology::MorphologyRecipe::EnglishVerb) =>
+                if feature.is_some_and(|feature| {
+                    let expected = match identifier_key(feature).as_str() {
+                        "Agreement" => Some(crate::morphology::MorphologyRecipe::EnglishVerb),
+                        "Participle" => {
+                            Some(crate::morphology::MorphologyRecipe::EnglishParticiple)
+                        }
+                        _ => None,
+                    };
+                    lexeme_recipe(raw, lexeme) != expected
+                }) =>
             {
                 combine(
                     errors,
                     syn::Error::new(
                         closed.span(),
-                        "declaration_verb closed branch must use Agreement-aware verb morphology",
+                        "declaration_verb closed branch morphology must match its feature axis",
                     ),
                 );
             }
@@ -3337,6 +3350,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     kind: TerminalKind::Vocab,
                     codec_atom: None,
                     agreement_verb: false,
+                    participle_verb: false,
                     variants,
                     variant_order,
                 });
@@ -3381,6 +3395,7 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                         .contains(&identifier_key(&lexeme.morphology))
                         .then_some(CodecAtomClass::Noun),
                     agreement_verb: false,
+                    participle_verb: false,
                     variants,
                     variant_order,
                 });
@@ -3415,8 +3430,14 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                     kind,
                     codec_atom: binding.codec_atom,
                     agreement_verb: matches!(
-                        binding.generated,
-                        Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(_))
+                        &binding.generated,
+                        Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe))
+                            if recipe.feature_slots.first().is_some_and(|slot| slot.value == "Agreement")
+                    ),
+                    participle_verb: matches!(
+                        &binding.generated,
+                        Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe))
+                            if recipe.feature_slots.first().is_some_and(|slot| slot.value == "Participle")
                     ),
                     variants: HashSet::new(),
                     variant_order: Vec::new(),
@@ -4186,6 +4207,7 @@ fn generated_name_inventory(
                         ParsedFeature::Cardinality => ("cardinality", "Cardinality"),
                         ParsedFeature::Number => ("number", "Number"),
                         ParsedFeature::Onset => ("onset", "Onset"),
+                        ParsedFeature::Participle => ("participle", "Participle"),
                         ParsedFeature::PossessiveEnding => {
                             ("possessive_ending", "PossessiveEnding")
                         }
@@ -4772,6 +4794,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Number => ParsedFeature::Number,
         Feature::Onset => ParsedFeature::Onset,
+        Feature::Participle => ParsedFeature::Participle,
         Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
     };
     raw.declarations.iter().any(|declaration| {
@@ -4808,6 +4831,7 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Number => ParsedFeature::Number,
         Feature::Onset => ParsedFeature::Onset,
+        Feature::Participle => ParsedFeature::Participle,
         Feature::PossessiveEnding => ParsedFeature::PossessiveEnding,
     };
     raw.declarations.iter().any(|declaration| {
@@ -5055,6 +5079,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     .then(|| (identifier_key(field), ParsedFeature::Number)),
                 ParsedFeature::Agreement
                 | ParsedFeature::Onset
+                | ParsedFeature::Participle
                 | ParsedFeature::PossessiveEnding => None,
             }
         }));
@@ -5987,7 +6012,7 @@ fn check_verb_role(
         Some(FieldKind::Lex(path)) => symbols
             .terminals
             .get(&path_name(path))
-            .is_some_and(|info| info.agreement_verb),
+            .is_some_and(|info| info.agreement_verb || info.participle_verb),
         Some(FieldKind::Identity(_)) => false,
         Some(FieldKind::Category(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
         | None => return,
@@ -5997,7 +6022,9 @@ fn check_verb_role(
             errors,
             syn::Error::new(
                 role.span(),
-                format!("verb role `{role}` must use an Agreement-aware declaration_verb terminal"),
+                format!(
+                    "verb role `{role}` must use an Agreement- or Participle-aware declaration_verb terminal"
+                ),
             ),
         );
     }
@@ -7859,6 +7886,19 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                 _ => None,
             };
             let Some(slot) = slot else { continue };
+            let participle_slot = fields
+                .get(&slot)
+                .and_then(|kind| match kind {
+                    FieldKind::Lex(path) => symbols.terminals.get(&path_name(path)),
+                    FieldKind::Category(_)
+                    | FieldKind::Identity(_)
+                    | FieldKind::Optional(_)
+                    | FieldKind::Sequence { .. } => None,
+                })
+                .is_some_and(|terminal| terminal.participle_verb);
+            if participle_slot {
+                continue;
+            }
             let direct_writer = writers.contains(&format!("{slot}.agreement"));
             let equality_writer = construction.equations.iter().any(|equation| {
                 matches!(
@@ -8034,6 +8074,12 @@ fn seal_category_render_capabilities(
                         | FormAtom::Circumfix(_) => return false,
                         FormAtom::Bound(_) => unreachable!("bound atom values cannot nest"),
                     };
+                    if construction.element.fields.iter().any(|field| {
+                        identifier_key(&field.name) == role
+                            && matches!(&field.kind, FieldKind::Lex(path) if terminal_is_participle_declaration(raw, &path_name(path)))
+                    }) {
+                        return false;
+                    }
                     let place = feature::FeaturePlace::Role {
                         field: syn::Ident::new(&role, construction.forms[0].name.span()),
                         feature: feature::Feature::Agreement,
@@ -8211,6 +8257,21 @@ fn seal_category_render_capabilities(
         capability.requires_context = context_required.contains(category);
     }
     capabilities
+}
+
+fn terminal_is_participle_declaration(raw: &Declarations, terminal: &str) -> bool {
+    raw.declarations.iter().any(|declaration| {
+        matches!(
+            declaration,
+            Declaration::Codec(binding)
+                if identifier_key(&binding.name) == terminal
+                    && matches!(
+                        &binding.generated,
+                        Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe))
+                            if recipe.feature_slots.first().is_some_and(|slot| slot.value == "Participle")
+                    )
+        )
+    })
 }
 
 fn guard_reads_realized_category_feature(
@@ -8425,11 +8486,16 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             providers.insert((terminal.clone(), ParsedFeature::Number));
             providers.insert((terminal, ParsedFeature::Cardinality));
         }
-        if matches!(
-            binding.generated,
-            Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(_))
-        ) {
-            providers.insert((identifier_key(&binding.name), ParsedFeature::Agreement));
+        if let Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe)) =
+            &binding.generated
+            && let Some(feature) = recipe.feature_slots.first()
+        {
+            let feature = match identifier_key(&feature.value).as_str() {
+                "Agreement" => ParsedFeature::Agreement,
+                "Participle" => ParsedFeature::Participle,
+                _ => continue,
+            };
+            providers.insert((identifier_key(&binding.name), feature));
         }
     }
     loop {
@@ -8470,6 +8536,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
+        ParsedFeature::Participle => "participle",
         ParsedFeature::PossessiveEnding => "possessive_ending",
     }
 }
@@ -8847,6 +8914,10 @@ fn validate_lowerable_backend_shapes(raw: &Declarations) -> syn::Result<()> {
     Ok(())
 }
 
+#[expect(
+    clippy::match_same_arms,
+    reason = "the finite feature matrix keeps each unsupported feature/value axis explicit"
+)]
 fn validate_lowerable_feature_compositions(
     raw: &Declarations,
     construction: &crate::Construction,
@@ -8948,6 +9019,21 @@ fn validate_lowerable_feature_compositions(
                     ..
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
+            ) => false,
+            (
+                ParsedFeaturePlace::Role {
+                    field,
+                    feature: ParsedFeature::Participle,
+                },
+                ParsedFeatureValue::Constant(_),
+            ) => matches!(fields.get(&identifier_key(field)), Some(FieldKind::Lex(_))),
+            (
+                ParsedFeaturePlace::Role {
+                    feature: ParsedFeature::Participle,
+                    ..
+                }
+                | ParsedFeaturePlace::Construction(ParsedFeature::Participle),
+                ParsedFeatureValue::FromRole(_),
             ) => false,
         };
         if !lowerable {
@@ -9123,6 +9209,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
+        ParsedFeature::Participle => "participle",
         ParsedFeature::PossessiveEnding => "possessive_ending",
     }
 }
@@ -10363,7 +10450,7 @@ pub(crate) mod tests {
                     tail = [];
                     feature = Agreement;
                 },
-                "closed branch must use Agreement-aware verb morphology",
+                "closed branch morphology must match its feature axis",
             ),
             (
                 quote! {
@@ -10472,7 +10559,7 @@ pub(crate) mod tests {
                     tail = [];
                     feature = Number;
                 },
-                "feature must be `Agreement`",
+                "feature must be `Agreement` or `Participle`",
             ),
             (
                 quote! {
@@ -13594,7 +13681,7 @@ pub(crate) mod tests {
         });
         assert!(
             projected
-                .contains("verb role `word` must use an Agreement-aware declaration_verb terminal")
+                .contains("verb role `word` must use an Agreement- or Participle-aware declaration_verb terminal")
                 && projected.contains(
                     "lexical role `word` does not have an exhaustive local number writer"
                 ),
@@ -13670,7 +13757,7 @@ pub(crate) mod tests {
         });
         assert!(
             message
-                .contains("verb role `word` must use an Agreement-aware declaration_verb terminal"),
+                .contains("verb role `word` must use an Agreement- or Participle-aware declaration_verb terminal"),
             "{message}"
         );
     }
@@ -13721,8 +13808,55 @@ pub(crate) mod tests {
         });
         assert!(
             non_verb
-                .contains("verb role `word` must use an Agreement-aware declaration_verb terminal"),
+                .contains("verb role `word` must use an Agreement- or Participle-aware declaration_verb terminal"),
             "{non_verb}"
+        );
+    }
+
+    #[test]
+    fn declaration_participle_axis_is_sealed_and_requires_matching_closed_morphology() {
+        crate::generate(quote! {
+            morphology EnglishParticiple {
+                feature = Participle;
+                recipe = english_participle;
+            }
+            lexeme ParticipleVerb using EnglishParticiple {
+                Deal = "deal" { Participle = "dealt", },
+                Turn = "turn",
+            }
+            codec PassiveHead {
+                generate declaration_verb {
+                    closed = ParticipleVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [ObjectNounPhrase];
+                    feature = Participle;
+                }
+            }
+            construction passive: Predicate {
+                element Passive { head: lex PassiveHead, }
+                form passive = verb(head);
+            }
+            root Predicate { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("the finite participle terminal compiles without a stored form tag");
+
+        let mismatch = error(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme FiniteVerb using EnglishVerb { Deal = "deal", }
+            codec PassiveHead {
+                generate declaration_verb {
+                    closed = FiniteVerb;
+                    position = Verb;
+                    kinds = [KeywordAction];
+                    tail = [ObjectNounPhrase];
+                    feature = Participle;
+                }
+            }
+        });
+        assert!(
+            mismatch.contains("closed branch morphology must match its feature axis"),
+            "{mismatch}"
         );
     }
 
@@ -14965,7 +15099,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 112);
+        assert_eq!(expansion.plan().items().len(), 113);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -15312,7 +15446,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 112);
+        assert_eq!(expansion.plan().items().len(), 113);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -15448,7 +15582,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 112);
+        assert_eq!(emission.items().len(), 113);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

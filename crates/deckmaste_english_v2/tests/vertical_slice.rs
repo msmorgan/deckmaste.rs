@@ -390,7 +390,7 @@ fn triggered(trigger_clause: FiniteClause, consequences: Vec<Sentence>) -> Trigg
     Triggered {
         trigger: TriggerPrefix::Finite(Finite {
             marker: TriggerMarker::Whenever,
-            clause: trigger_clause,
+            clause: Clause::Finite(trigger_clause),
         }),
         intervening_if: None,
         body: body(consequences),

@@ -120,7 +120,10 @@ pub(crate) fn emit(
                     continue;
                 };
                 debug_assert_eq!(row.source_index(), binding.source_index());
-                debug_assert_eq!(row.feature_axis(), crate::feature::Feature::Agreement);
+                debug_assert!(matches!(
+                    row.feature_axis(),
+                    crate::feature::Feature::Agreement | crate::feature::Feature::Participle
+                ));
                 let origin = row.origin().clone();
                 let verb = row.codec_ident();
                 let declaration = row.declaration_value_ident();
@@ -513,6 +516,7 @@ fn emit_lexeme_surface_helper(
     let (feature_ty, feature_argument) = match lexeme.morphology().feature() {
         crate::Feature::Agreement => (quote! { Agreement }, quote! { agreement }),
         crate::Feature::Number => (quote! { Number }, quote! { number }),
+        crate::Feature::Participle => (quote! { Participle }, quote! { participle }),
         crate::Feature::Cardinality | crate::Feature::Onset | crate::Feature::PossessiveEnding => {
             unreachable!("derived surface features are not morphology axes")
         }
@@ -529,6 +533,9 @@ fn emit_lexeme_surface_helper(
                 }
                 macro_ron::v2::SurfaceFeature::Singular => quote! { Number::Singular },
                 macro_ron::v2::SurfaceFeature::Plural => quote! { Number::Plural },
+                macro_ron::v2::SurfaceFeature::Participle => {
+                    quote! { Participle::Participle }
+                }
                 macro_ron::v2::SurfaceFeature::Fixed => {
                     return Err(syn::Error::new(
                         Span::call_site(),
