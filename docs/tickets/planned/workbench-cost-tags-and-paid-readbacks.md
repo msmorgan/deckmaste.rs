@@ -99,3 +99,5 @@ this round must not widen them.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-counter-distributive-residues (close, 2026-08-26):** "If life was paid" (Nahiri, the Unforgiving) reads back a CAST-TIME payment; no condition row reaches the payment channel. It is a paid-readback, so it lands here.
