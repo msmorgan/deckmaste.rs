@@ -135,11 +135,16 @@ mutual
 
   ||| The event algebra's shape, decided once: composition is carried by
   ||| the slots this vocabulary already has, not by operator constructors.
-  ||| The one operator row is `NthOccurrence`. Disjunction lives at the
-  ||| trigger header (`AltEvent`), where `headerCtx` reads back the
-  ||| announcement the two arms share; the header's `alt` slot is the one
-  ||| seat that never consults `eventName`, and a general row would leave
-  ||| that classifier naming one of two events. Negation is the subject
+  ||| The one operator row is `NthOccurrence`. Disjunction is a SEAT slot
+  ||| and never a `GameEvent` row: `eventName` is total, so a row would
+  ||| leave the classifier naming one of n events, while a seat's only
+  ||| name-keyed use (`interceptOk`) distributes over the arms instead.
+  ||| `AltEvent` is that slot at the trigger header, where `headerCtx`
+  ||| reads back the announcement the arms share. Its binary arity, and
+  ||| the two prospective seats that carry no such slot at all, are a
+  ||| scheduled widening: the corpus writes three-armed event
+  ||| disjunctions at the header, under a delayed trigger and under a
+  ||| replacement's `would`. Negation is the subject
   ||| predicate's `Not`, or `NotCond` over `Happened`; a conditioned event
   ||| is the header's intervening slot [CR#603.4]; a window is the
   ||| reader's `Lookback` or the header's `TriggerWindow`. Cause is never
@@ -256,6 +261,25 @@ mutual
     ||| -- spelling: with `ManyDice`, "[who] roll(s) one or more dice";
     ||| with `OneDie`, "[who] roll(s) a die".
     RollsDice : (who : Noun bs Player) -> (many : DiceBatch) -> GameEvent bs
+    ||| "When a player doesn't pay this enchantment's cumulative upkeep",
+    ||| "Whenever you pay this enchantment's cumulative upkeep": a stated
+    ||| cost's payment as a thing that happens [CR#118.1]. The two
+    ||| outcomes are one row under a `PaymentOutcome` slot lifting through
+    ||| `paymentEventName`, on `FlipEvent`'s model -- not a general
+    ||| negation over events, which the corpus attests at no other event.
+    ||| The cost is NAMED, by its keyword and the object that has it,
+    ||| never spelled as a `Cost`: a header watches a payment, it does not
+    ||| state one. [CR#118.10] applies each payment to one cost, so the
+    ||| bearer is singular; its zone is ungated because a keyword ability
+    ||| functions from the zones its own rule names [CR#113.6b], and those
+    ||| are not always the battlefield.
+    ||| It announces the payer, whom the tail reads back ("that player
+    ||| exiles all cards from their library").
+    ||| -- spelling: "[who] pay(s)/doesn't pay [whose]'s [keyword]"
+    PaysCost : (who : Noun bs Player) -> (out : PaymentOutcome) ->
+               (whose : Noun (nomIntro who) Object) -> (kw : Keyword) ->
+               {auto 0 kc : KeywordCost kw} ->
+               {auto 0 one : nounPlur whose = OneOf} -> GameEvent bs
     ||| The ordinal occurrence of an event: "When the fourth plan counter
     ||| is put on this enchantment", "Whenever you cast your first spell
     ||| during each opponent's turn". The ordinal names WHICH occurrence in
@@ -297,6 +321,7 @@ mutual
   eventName (Regenerates _) = Regeneration
   eventName (FlipEvent _ call) = flipEventName call
   eventName (RollsDice _ _) = DiceRoll
+  eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (NthOccurrence _ ev) = eventName ev
 
   ||| What an event pattern contributes before it happens — its announced
@@ -334,6 +359,7 @@ mutual
   eventIntro (Regenerates n) = nomIntro n
   eventIntro (FlipEvent who _) = nomIntro who
   eventIntro (RollsDice who _) = nomIntro who
+  eventIntro (PaysCost _ _ whose _) = nomIntro whose
   eventIntro (NthOccurrence _ ev) = eventIntro ev
 
   ||| The discourse after the event has happened, read by a trigger's
@@ -374,6 +400,7 @@ mutual
   eventAfter (Regenerates n) = selfSubjIntro n
   eventAfter (FlipEvent who _) = nomIntro who
   eventAfter (RollsDice who _) = outcomeB RollResult :: nomIntro who
+  eventAfter (PaysCost _ _ whose _) = nomIntro whose
   eventAfter (NthOccurrence _ ev) = eventAfter ev
 
   public export
@@ -403,6 +430,7 @@ mutual
   eventSubjectPlur (Regenerates n) = nounPlur n
   eventSubjectPlur (FlipEvent who _) = nounPlur who
   eventSubjectPlur (RollsDice who _) = nounPlur who
+  eventSubjectPlur (PaysCost who _ _ _) = nounPlur who
   eventSubjectPlur (NthOccurrence _ ev) = eventSubjectPlur ev
 
   ||| The context a delayed body reads: the event's own after-discourse
@@ -533,6 +561,10 @@ mutual
   public export
   data UsageLimit = OncePerTurn | OncePerGame
 
+  ||| The header's coordinated second event. Binary because the slot is,
+  ||| not because the English is: an n-ary arm list is this slot's decided
+  ||| shape, gated arm by arm and read back by `sameBindings`, and the
+  ||| same slot is what `Delayed` and `Intercepts` lack.
   public export
   data AltEvent : TriggerWord -> Maybe (GameEvent bs) -> Type where
     NoAlt : AltEvent w Nothing

@@ -644,3 +644,22 @@ youWonAFlipThisTurn = Happened FlipWin You Lookback.ThisTurn Nothing
 public export
 youRolledADieThisTurn : Condition []
 youRolledADieThisTurn = Happened DiceRoll You Lookback.ThisTurn Nothing
+
+||| "When a player doesn't pay this creature's flying, …"
+||| [CR#118.1] makes a cost an action or payment necessary to take another
+||| action; [CR#702.9a] states flying whole as an evasion ability and names
+||| no cost, so the phrase names nothing to pay.
+public export
+badPayCostlessKeyword : Unspellable (GameEvent []) (\ok =>
+  PaysCost (Macros.a AnyPlayer) Unpaid Macros.thisCreature Flying {kc = ok})
+badPayCostlessKeyword Oh impossible
+
+||| "if you paid a cost this turn"
+||| A payment is a payment OF a stated cost [CR#118.1], and the participial
+||| lookback carries only a kind-to-kind complement, which cannot name the
+||| keyword and the bearer that say which cost was paid. Bare, the clause
+||| names no event.
+public export
+badBarePaymentLookback : Unspellable (Condition []) (\ok =>
+  Happened CostPayment You Lookback.ThisTurn Nothing {sb = ok})
+badBarePaymentLookback MkLookbackSubject impossible

@@ -32,6 +32,7 @@ data EventName = Death | Departure | Destruction | DamageTaken
                | StatValueChange | Regeneration
                | FlipWin | FlipLoss
                | DiceRoll
+               | CostPayment | CostNonpayment
 
 public export
 statusEventName : StatusCat -> EventName
@@ -67,6 +68,29 @@ flipEventName LosesFlip = FlipLoss
 ||| read either way [CR#706.2].
 public export
 data DiceBatch = OneDie | ManyDice
+
+||| The two outcomes of a stated cost's payment, as two events.
+||| [CR#118.1] makes paying a cost an act a player carries out, and
+||| [CR#118.12] reads a following "if [a player] doesn't" as a check on
+||| whether that player chose to pay -- so declining is as determinate as
+||| paying, and [CR#702.24a] writes exactly that pair into cumulative
+||| upkeep. [CR#603.2] lets a header match a game event or a game state,
+||| which is what admits the declined arm. Two names on `flipEventName`'s
+||| model, so a name-keyed table can answer about each arm alone.
+public export
+data PaymentOutcome = Paid | Unpaid
+
+public export
+paymentEventName : PaymentOutcome -> EventName
+paymentEventName Paid = CostPayment
+paymentEventName Unpaid = CostNonpayment
+
+||| Which keyword names a cost a clause may watch being paid: the ones
+||| whose parameter IS a cost [CR#118.1]. A keyword with no cost parameter
+||| -- flying, menace -- names nothing payable.
+public export
+KeywordCost : Keyword -> Type
+KeywordCost k = So (keywordParamShape k == CostParam)
 
 public export
 sameEventName : EventName -> EventName -> Bool
@@ -132,6 +156,10 @@ sameEventName FlipLoss FlipLoss = True
 sameEventName FlipLoss _ = False
 sameEventName DiceRoll DiceRoll = True
 sameEventName DiceRoll _ = False
+sameEventName CostPayment CostPayment = True
+sameEventName CostPayment _ = False
+sameEventName CostNonpayment CostNonpayment = True
+sameEventName CostNonpayment _ = False
 
 public export
 sameLookback : Lookback -> Lookback -> Bool
@@ -211,6 +239,11 @@ eventHasMagnitude FlipLoss = False
 -- the roll itself, and how many dice were rolled is `EventCount`'s
 -- reading.
 eventHasMagnitude DiceRoll = False
+-- what is paid is the cost the clause NAMES, whose size is the cost's
+-- own [CR#118.1]; the paying happens in no number of its own, and
+-- [CR#702.24a] refuses a partial payment outright.
+eventHasMagnitude CostPayment = False
+eventHasMagnitude CostNonpayment = False
 
 public export
 data ReplUse = Repeatedly | NextTimeOnly
@@ -289,6 +322,15 @@ lookbackSubjectOk FlipLoss Player = True
 -- to roll.
 lookbackSubjectOk DiceRoll Object = False
 lookbackSubjectOk DiceRoll Player = True
+-- a payment is a payment OF a stated cost, and the participial lookback
+-- carries only a kind-to-kind complement, which cannot name the keyword
+-- and the bearer that say WHICH cost. A bare "who paid this turn" names
+-- no cost and so no event -- `bareLookbackOk`'s ground, reached one slot
+-- earlier because the complement can never be written at all.
+lookbackSubjectOk CostPayment Object = False
+lookbackSubjectOk CostPayment Player = False
+lookbackSubjectOk CostNonpayment Object = False
+lookbackSubjectOk CostNonpayment Player = False
 lookbackSubjectOk _ (Quality _) = False
 lookbackSubjectOk _ Outcome = False
 lookbackSubjectOk _ Gap = False

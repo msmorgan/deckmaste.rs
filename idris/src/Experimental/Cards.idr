@@ -8790,3 +8790,45 @@ searingBlaze =
         (Simultaneously
            [ DealDamage This (Lit 3) Macros.thatJoin
            , DealDamage This (Lit 3) (That (TypeW Creature)) ])))
+
+||| Thought Lash's trigger -- "When a player doesn't pay this enchantment's
+||| cumulative upkeep, that player exiles all cards from their library."
+||| The declined arm of `PaysCost`, whose announced payer the tail reads
+||| back.
+public export
+thoughtLashTrigger : Ability
+thoughtLashTrigger =
+  Macros.triggered When
+    (PaysCost (Macros.a AnyPlayer) Unpaid Macros.thisEnchantment CumulativeUpkeep)
+    (Does (That PlayerW) "Exile"
+          (Macros.move (Each (InZone (Macros.libraryOf They))) Macros.exileZ))
+
+||| Heart of Bogardan's header -- "When a player doesn't pay this
+||| enchantment's cumulative upkeep, …", the second carrier of the declined
+||| arm and the same event term Thought Lash writes. Its BODY is what does
+||| not write: "deals X damage to target player or planeswalker and each
+||| creature that player or that planeswalker's controller controls" needs
+||| the split read `splitOverPlaneswalker`, whose demonstrative may find
+||| only one singular player mention, and the header has already announced
+||| the non-payer. The card's blocker, not the row's.
+public export
+heartOfBogardanHeader : GameEvent []
+heartOfBogardanHeader =
+  PaysCost (Macros.a AnyPlayer) Unpaid Macros.thisEnchantment CumulativeUpkeep
+
+||| Hibernation's End's trigger -- "Whenever you pay this enchantment's
+||| cumulative upkeep, you may search your library for a creature card with
+||| mana value equal to the number of age counters on this enchantment, put
+||| it onto the battlefield, then shuffle." The paid arm.
+public export
+hibernationsEndTrigger : Ability
+hibernationsEndTrigger =
+  Macros.triggered Whenever
+    (PaysCost You Paid Macros.thisEnchantment CumulativeUpkeep)
+    (Macros.may You
+       (Sequentially
+          [ Macros.searchLibraryFor
+              (And [Macros.creature,
+                    Compare ManaValue Eq (CountersOn Age Macros.thisEnchantment)])
+          , Macros.putOntoBattlefield (That CardW)
+          , Macros.shuffle ]))
