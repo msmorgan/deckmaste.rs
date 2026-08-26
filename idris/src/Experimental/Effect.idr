@@ -907,6 +907,77 @@ mutual
     ResultsTable : (rows : List (RollRow bs)) ->
                    {auto 0 ne : IsSucc (rowCount rows)} ->
                    {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+    ||| "and ignore the lower roll", "and ignore all but the highest
+    ||| roll": the instruction that sets aside some of the rolls the same
+    ||| clause has just made. [CR#706.6] gives it its meaning outright --
+    ||| an ignored roll "is considered to have never happened", no
+    ||| ability triggers because of it and no effect applies to it -- and
+    ||| settles the tie the superlative can leave. Its own clause and not
+    ||| a slot on `RollDice`, on `ResultsTable`'s ground: the roll and
+    ||| what is done with its results are one ability [CR#706.3b] without
+    ||| being one node, and a roll may carry no ignore at all.
+    ||| It leaves the roll's mention standing rather than reminting it:
+    ||| the rolls that survive are the same roll the clause named, which
+    ||| is what a following `ResultsTable` or `TheResult` reads.
+    ||| The printed lines that write the instruction on the REPLACEMENT
+    ||| side ("If you would roll one or more dice, instead roll that many
+    ||| dice plus one and ignore the lowest roll") need more than this
+    ||| row: the replaced roll announces neither its die count nor its
+    ||| kind, so "that many dice" has no antecedent.
+    ||| -- spelling: "ignore the lowest/lower roll"; with `IgnoreAllBut`,
+    ||| "ignore all but the highest roll".
+    IgnoreRolls : (which : IgnoredRolls) ->
+                  {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+    ||| "increase or decrease the result by 1": [CR#706.2]'s modifier,
+    ||| the one the rule says may "come from other sources" rather than
+    ||| riding the rolling instruction itself. The direction is not a
+    ||| slot: every printed line writes the disjunction whole and leaves
+    ||| the choice to whoever applies it, and no line writes a
+    ||| one-directional shift, so a direction word here would name
+    ||| nothing the corpus says. Gated on the roll like every other read
+    ||| of it, and it mints nothing: [CR#706.2] makes the shifted number
+    ||| the result of that same roll, which `TheResult` already names.
+    ||| -- spelling: "increase or decrease the result by [amt]".
+    ShiftResult : (amt : Amount bs) ->
+                  {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+    ||| "Roll the planar die": Planechase's own die as a written
+    ||| instruction. Its own row and never a `RollDice` with a side
+    ||| count, because [CR#901.3a] gives the planar die one Planeswalker
+    ||| face, one chaos face and four blanks, which is not the die
+    ||| [CR#706.1a] describes ("N equally likely outcomes, numbered from
+    ||| 1 to N"). It announces no number for that reason: [CR#706.7] says
+    ||| any effect referring to a numerical result of a die roll "ignores
+    ||| the rolling of the planar die", so `TheResult`, `TheTotal` and
+    ||| `ResultsTable` are inapplicable to it by rule and this row mints
+    ||| nothing for them to read.
+    ||| The special action [CR#116.2i,901.9] is not this row. That one is
+    ||| granted to a player by the Planechase rules and is written on no
+    ||| card; this is the instruction a card's own ability gives.
+    ||| -- spelling: "[who] roll[s] the planar die".
+    RollPlanarDie : (who : Noun bs Player) -> Effect bs
+    ||| "and store those results on it": [CR#706.8a]'s noting of both the
+    ||| kind of die rolled and the result of each roll. Gated on the roll
+    ||| the same clause made, since those results are what it stores.
+    ||| The holder is singular because a stored result is stored ON a
+    ||| permanent and the rule notes it there.
+    ||| -- spelling: "store those results on [on]".
+    StoreResults : (on : Noun bs Object) ->
+                   {auto 0 one : nounPlur on = OneOf} ->
+                   {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+    ||| "reroll any number of this creature's stored results":
+    ||| [CR#706.8b]'s rerolling, which rolls one die of each noted kind
+    ||| and stores the new results in the old ones' place. No gate on a
+    ||| roll: the rolls it repeats are the ones already noted on the
+    ||| holder, which is why the rule can define it without a roll in the
+    ||| sentence, and [CR#706.8c] links this ability to the one that
+    ||| stored them. It mints nothing either -- the new results are
+    ||| stored, not left to read -- so `TheResult` finds nothing here.
+    ||| -- spelling: "[who] reroll[s] [q] of [whose]'s stored results".
+    RerollStored : (who : Noun bs Player) -> (q : Quantity (nomIntro who)) ->
+                   (whose : Noun (nomIntro who) Object) ->
+                   {auto 0 nz : NonZeroQ q} ->
+                   {auto 0 wf : WellFormedQ q} ->
+                   {auto 0 one : nounPlur whose = OneOf} -> Effect bs
     Continuously : (se : StaticEffect bs) -> (span : Maybe (Duration (staticIntro se))) ->
                    {auto 0 sp : SpanOk (staticKind se) span} ->
                    {auto 0 cl : ClauseStatic se} -> Effect bs
@@ -1190,6 +1261,11 @@ mutual
   heldUntilOk (FlipCoins _ _) = False
   heldUntilOk (RollDice _ _ _) = False
   heldUntilOk (ResultsTable _) = False
+  heldUntilOk (IgnoreRolls _) = False
+  heldUntilOk (ShiftResult _) = False
+  heldUntilOk (RollPlanarDie _) = False
+  heldUntilOk (StoreResults _) = False
+  heldUntilOk (RerollStored _ _ _) = False
   heldUntilOk (Continuously _ _) = False
   heldUntilOk (Throughout _ _) = False
   heldUntilOk (Create _ _ _ _) = False
@@ -1289,6 +1365,13 @@ mutual
   reflexEncloseUse (FlipCoins _ _) = EncReflexive
   reflexEncloseUse (RollDice _ _ _) = EncReflexive
   reflexEncloseUse (ResultsTable _) = EncNotOneAction
+  -- no PLAYER is written taking either action: the ignore and the
+  -- shift are stated of the roll the clause made.
+  reflexEncloseUse (IgnoreRolls _) = EncAgentless
+  reflexEncloseUse (ShiftResult _) = EncAgentless
+  reflexEncloseUse (RollPlanarDie _) = EncReflexive
+  reflexEncloseUse (StoreResults _) = EncAgentless
+  reflexEncloseUse (RerollStored _ _ _) = EncReflexive
   -- [CR#603.12] writes the reflexive over what a player did or didn't
   -- do, so a declined arm leaves one offered action to inflect.
   reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
@@ -1370,6 +1453,11 @@ mutual
   thisWayOutcomeOk (FlipCoins _ _) = True
   thisWayOutcomeOk (RollDice _ _ _) = True
   thisWayOutcomeOk (ResultsTable _) = True
+  thisWayOutcomeOk (IgnoreRolls _) = True
+  thisWayOutcomeOk (ShiftResult _) = True
+  thisWayOutcomeOk (RollPlanarDie _) = True
+  thisWayOutcomeOk (StoreResults _) = True
+  thisWayOutcomeOk (RerollStored _ _ _) = True
   thisWayOutcomeOk (Continuously _ _) = True
   thisWayOutcomeOk (Throughout _ _) = True
   thisWayOutcomeOk (Create _ _ _ _) = True
@@ -1460,6 +1548,12 @@ mutual
   costActionOk (FlipCoins who _) = costNounOk who
   costActionOk (RollDice who _ _) = costNounOk who
   costActionOk (ResultsTable _) = False
+  -- each reads the roll a clause before it made, which no cost has.
+  costActionOk (IgnoreRolls _) = False
+  costActionOk (ShiftResult _) = False
+  costActionOk (StoreResults _) = False
+  costActionOk (RollPlanarDie who) = costNounOk who
+  costActionOk (RerollStored who _ _) = costNounOk who
   costActionOk (Continuously _ _) = False
   costActionOk (Throughout _ _) = False
   costActionOk (Create agent _ _ _) = costNounOk agent
@@ -1588,6 +1682,11 @@ mutual
   effEq (FlipCoins _ _) _ = False
   effEq (RollDice _ _ _) _ = False
   effEq (ResultsTable _) _ = False
+  effEq (IgnoreRolls _) _ = False
+  effEq (ShiftResult _) _ = False
+  effEq (RollPlanarDie _) _ = False
+  effEq (StoreResults _) _ = False
+  effEq (RerollStored _ _ _) _ = False
   effEq (Continuously _ _) _ = False
   effEq (Throughout _ _) _ = False
   effEq (Create _ _ _ _) _ = False
@@ -1696,6 +1795,11 @@ mutual
   effIntro (FlipCoins who count) = outcomeB CoinFlipped :: amtIntro count
   effIntro (RollDice who count _) = outcomeB RollResult :: amtIntro count
   effIntro (ResultsTable rows) = bs
+  effIntro (IgnoreRolls _) = bs
+  effIntro (ShiftResult amt) = amtIntro amt
+  effIntro (RollPlanarDie who) = nomIntro who
+  effIntro (StoreResults on) = nomIntro on
+  effIntro (RerollStored _ _ whose) = nomIntro whose
   effIntro (Continuously se _) = staticIntro se
   effIntro (Throughout _ se) = staticIntro se
   effIntro (Create agent count spec riders) =
@@ -1779,6 +1883,11 @@ mutual
   preIntro (FlipCoins who count) = amtIntro count
   preIntro (RollDice who count _) = amtIntro count
   preIntro (ResultsTable rows) = bs
+  preIntro (IgnoreRolls _) = bs
+  preIntro (ShiftResult amt) = amtIntro amt
+  preIntro (RollPlanarDie who) = nomIntro who
+  preIntro (StoreResults on) = nomIntro on
+  preIntro (RerollStored _ _ whose) = nomIntro whose
   preIntro (Continuously se _) = staticIntro se
   preIntro (Throughout _ se) = staticIntro se
   preIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
@@ -1853,6 +1962,11 @@ mutual
   annIntro (FlipCoins who count) = amtIntro count
   annIntro (RollDice who count _) = amtIntro count
   annIntro (ResultsTable rows) = bs
+  annIntro (IgnoreRolls _) = bs
+  annIntro (ShiftResult amt) = amtIntro amt
+  annIntro (RollPlanarDie who) = nomIntro who
+  annIntro (StoreResults on) = nomIntro on
+  annIntro (RerollStored _ _ whose) = nomIntro whose
   annIntro (Continuously se _) = staticIntro se
   annIntro (Throughout _ se) = staticIntro se
   annIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
@@ -1967,6 +2081,14 @@ mutual
   deedDelta (FlipCoins _ _) = [outcomeB CoinFlipped]
   deedDelta (RollDice _ _ _) = [outcomeB RollResult]
   deedDelta (ResultsTable _) = []
+  -- an ignore takes rolls away and a shift restates one; neither
+  -- leaves a number the roll had not already left.
+  deedDelta (IgnoreRolls _) = []
+  deedDelta (ShiftResult _) = []
+  -- [CR#706.7]: no numerical result to announce.
+  deedDelta (RollPlanarDie _) = []
+  deedDelta (StoreResults _) = []
+  deedDelta (RerollStored _ _ _) = []
   deedDelta (Continuously se _) = []
   deedDelta (Throughout _ _) = []
   deedDelta (Create agent count spec riders) =

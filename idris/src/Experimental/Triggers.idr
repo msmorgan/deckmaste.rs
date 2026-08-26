@@ -133,6 +133,26 @@ mutual
   PutSource : {0 bs : Bindings} -> Maybe (EventSource bs) -> Type
   PutSource {bs} s = So (putSourceOk s)
 
+  ||| The result test, "Whenever you roll a 4 or higher": which
+  ||| results the header watches for. [CR#706.3a] writes the same three
+  ||| forms for a results table's left column -- a single number, a
+  ||| two-ended range, a one-ended "N+" -- and the printed headers
+  ||| write all three ("a 6", "a 1 or 2", "a 4 or higher"), so the test
+  ||| is the quantity vocabulary's literal range and needs nothing of
+  ||| its own. The gates are `RollRow`'s: a range whose floor tops its
+  ||| ceiling matches no result, and a die is numbered from 1
+  ||| [CR#706.1a], so a ceiling of zero matches none either.
+  ||| A test is not a third `DiceBatch` arm. The batch is the
+  ||| determiner the header writes, and a tested header may write
+  ||| either alongside it ("a 4 or higher on a die") or write the range
+  ||| in the determiner's place.
+  public export
+  data RollTest : Maybe (Quantity bs) -> Type where
+    AnyResult : RollTest Nothing
+    ResultIn : {auto 0 nz : NonZeroQ q} ->
+               {auto 0 wf : WellFormedQ q} ->
+               {auto 0 lt : So (quantLiteral q)} -> RollTest (Just q)
+
   ||| The event algebra's shape, decided once: composition is carried by
   ||| the slots this vocabulary already has, not by operator constructors.
   ||| The one operator row is `NthOccurrence`. Disjunction is a SEAT slot
@@ -260,7 +280,9 @@ mutual
     ||| result however the roll was called for.
     ||| -- spelling: with `ManyDice`, "[who] roll(s) one or more dice";
     ||| with `OneDie`, "[who] roll(s) a die".
-    RollsDice : (who : Noun bs Player) -> (many : DiceBatch) -> GameEvent bs
+    RollsDice : (who : Noun bs Player) -> (many : DiceBatch) ->
+                (res : Maybe (Quantity bs)) ->
+                {auto 0 rt : RollTest res} -> GameEvent bs
     ||| "When a player doesn't pay this enchantment's cumulative upkeep",
     ||| "Whenever you pay this enchantment's cumulative upkeep": a stated
     ||| cost's payment as a thing that happens [CR#118.1]. The two
@@ -320,7 +342,7 @@ mutual
   eventName (StatBecomes _ _ _) = StatValueChange
   eventName (Regenerates _) = Regeneration
   eventName (FlipEvent _ call) = flipEventName call
-  eventName (RollsDice _ _) = DiceRoll
+  eventName (RollsDice _ _ _) = DiceRoll
   eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (NthOccurrence _ ev) = eventName ev
 
@@ -358,7 +380,7 @@ mutual
   eventIntro (StatBecomes _ _ v) = amtIntro v
   eventIntro (Regenerates n) = nomIntro n
   eventIntro (FlipEvent who _) = nomIntro who
-  eventIntro (RollsDice who _) = nomIntro who
+  eventIntro (RollsDice who _ _) = nomIntro who
   eventIntro (PaysCost _ _ whose _) = nomIntro whose
   eventIntro (NthOccurrence _ ev) = eventIntro ev
 
@@ -399,7 +421,7 @@ mutual
   eventAfter (StatBecomes n _ v) = amtDelta v ++ selfSubjIntro n
   eventAfter (Regenerates n) = selfSubjIntro n
   eventAfter (FlipEvent who _) = nomIntro who
-  eventAfter (RollsDice who _) = outcomeB RollResult :: nomIntro who
+  eventAfter (RollsDice who _ _) = outcomeB RollResult :: nomIntro who
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
   eventAfter (NthOccurrence _ ev) = eventAfter ev
 
@@ -429,7 +451,7 @@ mutual
   eventSubjectPlur (StatBecomes n _ _) = nounPlur n
   eventSubjectPlur (Regenerates n) = nounPlur n
   eventSubjectPlur (FlipEvent who _) = nounPlur who
-  eventSubjectPlur (RollsDice who _) = nounPlur who
+  eventSubjectPlur (RollsDice who _ _) = nounPlur who
   eventSubjectPlur (PaysCost who _ _ _) = nounPlur who
   eventSubjectPlur (NthOccurrence _ ev) = eventSubjectPlur ev
 

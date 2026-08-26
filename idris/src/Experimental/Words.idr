@@ -629,6 +629,24 @@ data FlipCall = WinsFlip | LosesFlip
 public export
 data CoinFace = Heads | Tails
 
+||| Which end of a clause's rolls an ignore instruction names.
+||| [CR#706.6] writes the superlative form itself -- "If that player was
+||| instructed to ignore the lowest roll and multiple results are tied
+||| for the lowest, the player chooses one of those rolls to be ignored"
+||| -- so the extreme is what the rule settles, and the two ends are one
+||| pair on `CoinFace`'s model. "The lower roll" over two dice is the
+||| two-item spelling of the same end, not a third word.
+public export
+data RollExtreme = LowestRoll | HighestRoll
+
+||| Which rolls an ignore instruction sets aside [CR#706.6]: the extreme
+||| itself, or everything but it. Both arms are printed -- "ignore the
+||| lower roll" against "ignore all but the highest roll" -- and neither
+||| is a spelling of the other, since a clause that rolled more than two
+||| dice keeps a different number of rolls under each.
+public export
+data IgnoredRolls = IgnoreExtreme RollExtreme | IgnoreAllBut RollExtreme
+
 public export
 data Causer = AnEffect
 

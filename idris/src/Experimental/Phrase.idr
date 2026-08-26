@@ -290,6 +290,26 @@ mutual
     ||| arm left and one kind order serves every phrasing.
     Joined : {ka : Kind} -> {kb : Kind} -> (l : Predicate bs ka) ->
              (r : Predicate bs kb) -> Predicate bs (ka \/ kb)
+    ||| "each player whose coin comes up tails", "each creature whose
+    ||| coin comes up tails": the uncalled face read [CR#705.2]
+    ||| distributed over the members a clause flipped a coin for. The
+    ||| `FlipFace` condition reads the one coin a clause flipped and so
+    ||| takes no subject; this narrows a described set by each member's
+    ||| own coin, which is what a per-member flip ("each player flips a
+    ||| coin", "flip a coin for each creature") leaves to read. It is a
+    ||| description and not a condition for that reason alone -- the
+    ||| members it keeps are the ones whose coin showed the face.
+    ||| No player wins or loses a flip read this way [CR#705.2], so no
+    ||| call rides here either. Both kinds are printed and [CR#705.1]
+    ||| makes a coin a physical object no kind of referent owns, so the
+    ||| gate is the coarse one the join lattice gives: a coin flipped for
+    ||| an ability or a turn is a category error, and nothing narrower is
+    ||| written.
+    ||| -- spelling: "[dom] whose coin comes up [face]".
+    CoinCameUp : {k : Kind} -> (face : CoinFace) ->
+                 {auto 0 fl : So (coinFlipInScope bs)} ->
+                 {auto 0 rk : So (kindLte k (Object \/ Player))} ->
+                 Predicate bs k
     IsSource : Predicate bs Object
     AbilityHead : (cls : AbilityClass) -> Predicate bs Ability
     AbilityOf : (src : Noun bs Object) -> Predicate bs Ability
@@ -383,6 +403,7 @@ mutual
   seedZone (HasSupertype _) = Nothing
   seedZone (Named _) = Nothing
   seedZone (HasDesignation d) = designationSeedZone d
+  seedZone (CoinCameUp _) = Nothing
   seedZone (IsAttached _) = Just Battlefield
   seedZone IsToken = Just Battlefield
   seedZone (HasStatus _) = Just Battlefield
@@ -535,6 +556,7 @@ mutual
   hasHead (HasSupertype _) = False
   hasHead (Named _) = False
   hasHead (HasDesignation _) = False
+  hasHead (CoinCameUp _) = False
   hasHead (IsAttached _) = False
   hasHead Permanent = True
   hasHead IsToken = True
@@ -714,6 +736,9 @@ mutual
   predEq (Named _) _ = False
   predEq (HasDesignation a) (HasDesignation b) = a == b
   predEq (HasDesignation _) _ = False
+  predEq (CoinCameUp Heads) (CoinCameUp Heads) = True
+  predEq (CoinCameUp Tails) (CoinCameUp Tails) = True
+  predEq (CoinCameUp _) _ = False
   predEq (IsAttached a) (IsAttached b) = a == b
   predEq (IsAttached _) _ = False
   predEq Permanent Permanent = True
@@ -1156,6 +1181,7 @@ mutual
   predSays (HasSupertype _) = True
   predSays (Named _) = True
   predSays (HasDesignation _) = True
+  predSays (CoinCameUp _) = True
   predSays (IsAttached _) = True
   predSays Permanent = True
   predSays IsToken = True
@@ -1216,6 +1242,7 @@ mutual
   predNegFree (HasSupertype _) = True
   predNegFree (Named _) = True
   predNegFree (HasDesignation _) = True
+  predNegFree (CoinCameUp _) = True
   predNegFree (IsAttached _) = True
   predNegFree Permanent = True
   predNegFree IsToken = True
@@ -1512,6 +1539,7 @@ mutual
   predDelta (HasSupertype _) = []
   predDelta (Named src) = nameSrcDelta src
   predDelta (HasDesignation _) = []
+  predDelta (CoinCameUp _) = []
   predDelta (IsAttached _) = []
   predDelta (InZone z) = zoneDelta z
   predDelta (And ps) = predDeltaAll ps
@@ -1660,6 +1688,24 @@ mutual
     ||| single flip is 0 or 1 and is tolerated.
     CoinsShowing : (face : CoinFace) ->
                    {auto 0 fl : So (coinFlipInScope bs)} -> Amount bs
+    ||| "the greatest number of stored results on it of the same value":
+    ||| the largest group of a permanent's stored results sharing one
+    ||| value. [CR#706.8a] is what gives the phrase its two parts -- a
+    ||| stored result is noted information on a permanent, and "the
+    ||| result is the `value` of that stored result" -- so the read
+    ||| groups by that value and reports the biggest group's size. One
+    ||| row and not an `Aggregate`: the domain is noted numbers rather
+    ||| than a described set, so no `ProjAxis` names it and no predicate
+    ||| ranges over it. The holder is singular because a stored result is
+    ||| stored ON a permanent, and no rule sums two permanents' notes.
+    ||| The read presupposes nothing beyond the holder: [CR#706.8c] links
+    ||| the storing ability to the reading one, so a permanent whose text
+    ||| never stored anything is that link's business, not a gate here,
+    ||| and a permanent with no stored results reads zero.
+    ||| -- spelling: "the greatest number of stored results on [n] of the
+    ||| same value".
+    GreatestStoredMatch : (n : Noun bs Object) ->
+                          {auto 0 one : nounPlur n = OneOf} -> Amount bs
     GroupSize : {auto 0 ok : countManysAny bs = 1} -> Amount bs
     TheDifference : {auto 0 ok : countOnes Gap bs = 1} -> Amount bs
     ||| The letter, wherever the text writes it. It INTRODUCES the letter
@@ -1789,6 +1835,7 @@ mutual
   amtDelta TheResult = []
   amtDelta TheTotal = []
   amtDelta (CoinsShowing _) = []
+  amtDelta (GreatestStoredMatch _) = []
   amtDelta GroupSize = []
   amtDelta TheDifference = []
   amtDelta (LetterVal l) = letterDelta l bs
@@ -1818,6 +1865,7 @@ mutual
   amtIntro TheResult = bs
   amtIntro TheTotal = bs
   amtIntro (CoinsShowing _) = bs
+  amtIntro (GreatestStoredMatch _) = bs
   amtIntro GroupSize = bs
   amtIntro TheDifference = bs
   amtIntro (LetterVal l) = letterDelta l bs ++ bs
@@ -1855,6 +1903,7 @@ mutual
   amtPlur TheResult = ManyOf
   amtPlur TheTotal = ManyOf
   amtPlur (CoinsShowing _) = ManyOf
+  amtPlur (GreatestStoredMatch _) = ManyOf
   amtPlur GroupSize = ManyOf
   amtPlur TheDifference = ManyOf
   amtPlur (LetterVal _) = ManyOf
@@ -1884,6 +1933,7 @@ mutual
   writtenBound TheResult = False
   writtenBound TheTotal = False
   writtenBound (CoinsShowing _) = False
+  writtenBound (GreatestStoredMatch _) = False
   writtenBound GroupSize = False
   writtenBound TheDifference = False
   writtenBound (LetterVal _) = True
@@ -1938,6 +1988,7 @@ mutual
   -- how the coins came up is a fact about the flip, read like any other
   -- count of what happened (`EventCount`).
   readAmount (CoinsShowing _) = True
+  readAmount (GreatestStoredMatch _) = True
   readAmount GroupSize = False
   readAmount TheDifference = True
   -- the announced letter READS game state — the value its announcement
@@ -2383,6 +2434,35 @@ mutual
     ||| already named, "If it comes up tails, [e]."
     FlipFace : (face : CoinFace) ->
                {auto 0 fl : So (coinFlipInScope bs)} -> Condition bs
+    ||| "If any of those results was 10 or higher, …": the existential
+    ||| over the results of the dice one clause rolled. [CR#706.2] gives
+    ||| each die its own result and stops there, so a clause that rolled
+    ||| several left several numbers behind; `TheResult` reads one and
+    ||| `TheTotal` sums them, and neither asks whether SOME one of them
+    ||| clears a bound. The bound is written with a comparator and an
+    ||| amount, as `CompareAmt`'s is and unlike the roll header's
+    ||| striation range, because this one stands in a sentence ("was 10
+    ||| or higher") rather than in the determiner's place.
+    ||| Gated on the roll exactly as `TheResult` is, and it names no
+    ||| referent, so it introduces nothing. Over a single die it agrees
+    ||| with the plain comparison on `TheResult` and is tolerated
+    ||| overgeneration, named here at its zero.
+    ||| -- spelling: "if any of those results was [r] [bound]".
+    AnyResultIs : (r : Comparator) -> (bound : Amount bs) ->
+                  {auto 0 ok : countOutcomes RollResult bs = 1} ->
+                  Condition bs
+    ||| "If you rolled doubles, …": [CR#706.5] defines the phrase
+    ||| outright -- "A player has rolled doubles if the result of each of
+    ||| those rolls is equal to the other" -- so it is a read over the
+    ||| rolls one clause made and carries no bound of its own. It takes
+    ||| no subject for `TheTotal`'s reason: the rule's "those rolls" is
+    ||| the roll the clause already named, and the roller comes with it.
+    ||| The rule's own wording is about two rolls; a clause that rolled
+    ||| some other number leaves the phrase saying that every result
+    ||| equals every other, which is tolerated overgeneration.
+    ||| -- spelling: "if you rolled doubles".
+    RolledDoubles : {auto 0 ok : countOutcomes RollResult bs = 1} ->
+                    Condition bs
     NotCond : (c : Condition bs) -> Condition bs
     AndCond : (cs : List (Condition bs)) ->
               {auto 0 tw : TwoConjuncts cs} ->
@@ -2426,6 +2506,8 @@ mutual
   condNegated (DealtThisWay _) = False
   condNegated (FlipCalled _ _) = False
   condNegated (FlipFace _) = False
+  condNegated (AnyResultIs _ _) = False
+  condNegated RolledDoubles = False
   condNegated (NotCond _) = True
   condNegated (AndCond _) = False
 
@@ -2464,6 +2546,8 @@ mutual
   condDelta (DealtThisWay _) = []
   condDelta (FlipCalled _ _) = []
   condDelta (FlipFace _) = []
+  condDelta (AnyResultIs _ _) = []
+  condDelta RolledDoubles = []
   condDelta (NotCond c) = dropGaps (condDelta c)
   condDelta (AndCond cs) = condDeltaAll cs
 

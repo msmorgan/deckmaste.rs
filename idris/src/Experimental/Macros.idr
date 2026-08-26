@@ -1766,7 +1766,26 @@ youLoseACoinFlip = FlipEvent You LosesFlip
 ||| "Whenever you roll one or more dice, …" [CR#706.7]
 public export
 youRollDice : GameEvent bs
-youRollDice = RollsDice You ManyDice
+youRollDice = RollsDice You ManyDice Nothing
+
+||| "Whenever you roll a die, …" -- the singular determiner [CR#706.7].
+public export
+youRollADie : GameEvent bs
+youRollADie = RollsDice You OneDie Nothing
+
+||| "Whenever you roll a 4 or higher, …", "Whenever you roll a 6, …":
+||| the roll header carrying a result test [CR#706.3a].
+public export
+youRollResultIn : (q : Quantity bs) ->
+                  {auto 0 nz : NonZeroQ q} ->
+                  {auto 0 wf : WellFormedQ q} ->
+                  {auto 0 lt : So (quantLiteral q)} -> GameEvent bs
+youRollResultIn q = RollsDice You OneDie (Just q) {rt = ResultIn {nz} {wf} {lt}}
+
+||| "[lo] or higher" as a results range [CR#706.3a].
+public export
+orHigher : Nat -> Quantity bs
+orHigher lo = Range (Just lo) Nothing
 
 ||| "the total of those results" [CR#706.2]
 public export
