@@ -1263,6 +1263,7 @@ mod tests {
         "VerbPhrasePutInto",
         "VerbPhrasePutOnto",
         "VerbPhrasePutOn",
+        "VerbPhrasePutTo",
         "VerbPhraseReturnTo",
         "VerbPhraseEnterPostState",
         "VerbPhraseEnterLocation",

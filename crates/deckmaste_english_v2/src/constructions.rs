@@ -2589,6 +2589,14 @@ constructions! {
         derive agreement = verb.agreement;
         form put_on = verb(VerbLexeme::Put) object source destination;
     }
+    construction put_to: VerbPhrase {
+        element PutTo {
+            object: Object,
+            destination: ToDestination,
+        }
+        derive agreement = verb.agreement;
+        form put_to = verb(VerbLexeme::Put) object destination;
+    }
     construction return_to: VerbPhrase {
         element ReturnTo {
             object: Object,

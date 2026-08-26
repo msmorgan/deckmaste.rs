@@ -2727,6 +2727,7 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
             "PutInto",
             "PutOnto",
             "PutOn",
+            "PutTo",
             "ReturnTo",
             "EnterPostState",
             "EnterLocation",

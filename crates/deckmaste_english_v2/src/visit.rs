@@ -313,6 +313,7 @@ pub use crate::constructions::walk_put_counters;
 pub use crate::constructions::walk_put_into;
 pub use crate::constructions::walk_put_on;
 pub use crate::constructions::walk_put_onto;
+pub use crate::constructions::walk_put_to;
 pub use crate::constructions::walk_qualified_noun_phrase;
 pub use crate::constructions::walk_random_object;
 pub use crate::constructions::walk_reflexive_object;

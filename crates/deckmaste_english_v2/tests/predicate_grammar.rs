@@ -965,6 +965,7 @@ impl Visitor for MovementVisitor {
     trace_product!(visit_put_into, PutInto, walk_put_into, "PutInto");
     trace_product!(visit_put_onto, PutOnto, walk_put_onto, "PutOnto");
     trace_product!(visit_put_on, PutOn, walk_put_on, "PutOn");
+    trace_product!(visit_put_to, PutTo, walk_put_to, "PutTo");
     trace_product!(visit_return_to, ReturnTo, walk_return_to, "ReturnTo");
     trace_product!(
         visit_enter_post_state,
@@ -1769,6 +1770,7 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
     let context = context();
     for (text, permits_specificity) in [
         ("Put that card into your hand.", false),
+        ("Put that card to your hand.", false),
         (
             "Put target creature card from your graveyard onto the battlefield tapped under your control.",
             true,
@@ -1819,6 +1821,10 @@ fn location_state_and_object_control_frames_select_exact_products() {
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the literal per-family typed AST matrix is intentionally complete"
+)]
 fn movement_location_and_control_builds_retain_every_typed_role() {
     let parser = parser();
     let context = context();
@@ -1859,6 +1865,18 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
                 ..
             }),
             ..
+        })
+    ));
+    assert!(matches!(
+        imperative_atomic(&parser, &context, "Put that card to your hand."),
+        VerbPhrase::PutTo(PutTo {
+            object: Object::ObjectNominal(_),
+            destination: ToDestination::ToDestination(ToDestinationValue {
+                zone: ZoneReference::PossessedZone(PossessedZone {
+                    possessor: PossessiveDeterminerPronoun::Your,
+                    zone: Zone::Hand,
+                }),
+            }),
         })
     ));
     assert!(matches!(
@@ -1977,7 +1995,9 @@ fn movement_location_and_control_frames_reject_reciprocal_heads_prepositions_and
     let context = context();
     for text in [
         "Return that card into your hand.",
-        "Put that card to your hand.",
+        "Control that card to your hand.",
+        "Put that card from your hand.",
+        "Put that card to tapped.",
         "Put that card on your hand.",
         "Put that card onto your hand.",
         "Put that card into the battlefield.",
@@ -2034,6 +2054,20 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             (" that", "form:that_reference/that_reference/0"),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (" into", "form:into_destination/into_destination/0"),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (" hand", "vocab:Zone/Hand"),
+            (".", TERMINATOR)
+        ]
+    );
+    assert_family!(
+        "Put that card to your hand.",
+        false,
+        ["product:PutTo", "product:ToDestinationValue"],
+        [
+            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            (" that", "form:that_reference/that_reference/0"),
+            (" card", "lexeme:CommonNoun/Card/singular"),
+            (" to", "form:to_destination/to_destination/0"),
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
             (" hand", "vocab:Zone/Hand"),
             (".", TERMINATOR)

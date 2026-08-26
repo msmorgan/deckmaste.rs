@@ -8083,7 +8083,7 @@ mod tests {
             .iter()
             .map(|(item, origins)| (item.clone(), sha256_hex(origins.join("\0").as_bytes())))
             .collect::<Vec<_>>();
-        assert_eq!(fixture.len(), 1_408);
+        assert_eq!(fixture.len(), 1_410);
         assert_eq!(live_digests, fixture);
 
         let retained_headings = headings
@@ -8100,7 +8100,7 @@ mod tests {
                 .enumerate()
                 .find(|(_, (actual, expected))| actual != expected)
         );
-        assert_eq!(headings.len() - retained_headings.len(), 246);
+        assert_eq!(headings.len() - retained_headings.len(), 248);
         for expected_key in headings {
             let header = format!("// === {expected_key} ===");
             assert_eq!(output.matches(&header).count(), 1, "{expected_key}");
@@ -8171,7 +8171,7 @@ mod tests {
         assert_eq!(first, second);
 
         let parsed = syn::parse_file(&first).expect("comment headings preserve reparsable Rust");
-        assert_eq!(parsed.items.len(), 1_408);
+        assert_eq!(parsed.items.len(), 1_410);
     }
 
     #[test]

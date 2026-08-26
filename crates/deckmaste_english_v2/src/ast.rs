@@ -326,6 +326,7 @@ pub use crate::constructions::PutCounters;
 pub use crate::constructions::PutInto;
 pub use crate::constructions::PutOn;
 pub use crate::constructions::PutOnto;
+pub use crate::constructions::PutTo;
 pub use crate::constructions::QualifiedNounPhrase;
 pub use crate::constructions::RandomObject;
 pub use crate::constructions::ReflexiveObject;

@@ -3203,6 +3203,7 @@ mod tests {
                 "VerbPhrasePutOn",
                 "PutOnSourceOptionalAbsent",
                 "PutOnSourceOptionalPresent",
+                "VerbPhrasePutTo",
                 "VerbPhraseReturnTo",
                 "ReturnToSourceOptionalAbsent",
                 "ReturnToSourceOptionalPresent",

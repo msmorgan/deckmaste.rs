@@ -1335,6 +1335,7 @@ fn assert_complete_public_generated_type_inventory(file: &syn::File) {
             "PutInto",
             "PutOnto",
             "PutOn",
+            "PutTo",
             "ReturnTo",
             "EnterPostState",
             "EnterLocation",
