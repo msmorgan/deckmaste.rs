@@ -27,7 +27,6 @@ constructions! {
     vocab FaceOrientation { FaceUp = "face up", }
     vocab RequirementFrequency { EachCombat = "each combat", }
     vocab ObjectOrder { Any = "any", Random = "a random", }
-    vocab VoteLabel { Death = "death", Taxes = "taxes", }
     vocab PredicateDuration {
         ThisTurn = "this turn",
         UntilEndOfTurn = "until end of turn",
@@ -227,6 +226,7 @@ constructions! {
         Card = "card",
         Coin = "coin",
         Counter = "counter",
+        Death = "death",
         Controller = "controller",
         Opponent = "opponent",
         Owner = "owner",
@@ -234,6 +234,9 @@ constructions! {
         Player = "player",
         Source = "source",
         Spell = "spell",
+        Tax = "tax" {
+            Plural = "taxes",
+        },
         Token = "token",
         Hand = "hand",
         Die = "die" {
@@ -2769,17 +2772,27 @@ constructions! {
         form described_token_reference = "a" power_toughness lex(color)
             noun(subtype) noun(card_type) "token";
     }
-    construction vote_choice: VoteChoice {
-        element VoteChoiceValue { label: lex VoteLabel, }
-        form vote_choice = lex(label);
+    construction singular_common_noun_choice: CommonNounChoice {
+        element SingularCommonNounChoice { noun: lex CommonNoun, }
+        derive noun.number = Values::Singular;
+        derive number = Values::Singular;
+        form singular_common_noun_choice = noun(noun);
     }
-    construction vote_choice_list: NounPhrase {
-        element VoteChoiceList { choices: seq VoteChoice separated by " or ", }
+    construction plural_common_noun_choice: CommonNounChoice {
+        element PluralCommonNounChoice { noun: lex CommonNoun, }
+        derive noun.number = Values::Plural;
+        derive number = Values::Plural;
+        form plural_common_noun_choice = noun(noun);
+    }
+    construction common_noun_choice_list: NounPhrase {
+        element CommonNounChoiceList {
+            choices: seq CommonNounChoice separated by " or ",
+        }
         require len(choices) >= 2;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
-        form vote_choice_list = choices;
+        form common_noun_choice_list = choices;
     }
     construction possessive_self_reference: PossessiveOwner {
         element PossessiveSelfReference { spelling: identity SelfReferenceSpelling, }

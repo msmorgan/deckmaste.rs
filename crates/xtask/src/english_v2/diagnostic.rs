@@ -1047,7 +1047,7 @@ enum NonterminalKind {
     ExistentialClause,
     AmongPhrase,
     QuotedAbility,
-    VoteChoice,
+    CommonNounChoice,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1667,7 +1667,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ExistentialClause => NonterminalKind::ExistentialClause,
         NonterminalCategory::AmongPhrase => NonterminalKind::AmongPhrase,
         NonterminalCategory::QuotedAbility => NonterminalKind::QuotedAbility,
-        NonterminalCategory::VoteChoice => NonterminalKind::VoteChoice,
+        NonterminalCategory::CommonNounChoice => NonterminalKind::CommonNounChoice,
     }
 }
 

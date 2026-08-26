@@ -396,6 +396,49 @@ fn task9_quote_boundary_recurses_only_through_an_ordinary_ability() {
 }
 
 #[test]
+fn task9_quoted_plan10_interiors_remain_exact_ordinary_failures() {
+    let parser = parser();
+    let context = context();
+    let documents = [
+        r#"Artifacts you control have "Ward—Pay 2 life.""#,
+        r#"All creatures have "{2}: Put a +1/+1 counter on this creature. You gain 1 life. This creature shares its feelings. Activate only as a sorcery. (Creatures can continue to share their feelings.)""#,
+    ];
+    let observed = documents
+        .iter()
+        .map(|text| {
+            let analysis = parser.analyze(text, &context);
+            assert_ne!(
+                analysis.outcome(),
+                deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected,
+                "Plan 10 quote interior must not select: {text:?}",
+            );
+            if let Some(decision) = analysis.decision() {
+                assert!(decision.candidates().iter().all(|candidate| {
+                    !candidate
+                        .construction_path()
+                        .iter()
+                        .any(|identity| identity == "VerbPhraseQuotedAbilityPredicate")
+                }));
+            }
+            let error = analysis
+                .into_parse_result()
+                .expect_err("Plan 10 quote interior remains an ordinary failure");
+            let deckmaste_english_v2::parser::ParseError::Failure { span, .. } = error else {
+                panic!("Plan 10 quote interior has exact ordinary failure class: {error:?}")
+            };
+            (span.start, span.end, text[span.start..span.end].to_owned())
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        observed,
+        [
+            (28, 38, "Ward—Pay".to_owned()),
+            (94, 100, "shares".to_owned()),
+        ]
+    );
+}
+
+#[test]
 fn task9_closed_information_heads_parse_copy_and_flip_without_action_declarations() {
     let parser = parser();
     let context = context();
@@ -449,7 +492,7 @@ fn task9_exchange_uses_declared_object_valence_and_a_typed_control_reference() {
 }
 
 #[test]
-fn task9_vote_uses_declared_for_object_valence_and_typed_choice_labels() {
+fn task9_vote_uses_declared_for_object_valence_and_productive_common_noun_choices() {
     let parser = parser();
     let context = context();
     let text = "Starting with you, each player votes for death or taxes.";
@@ -466,6 +509,12 @@ fn task9_vote_uses_declared_for_object_valence_and_typed_choice_labels() {
     let ClauseAttachment::StartingWithYou(_) = attachment.as_ref() else {
         panic!("vote order stays a typed preposed clause attachment")
     };
+    let mut visitor = Task9ObjectVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["declared-for-object"]);
+
+    let productive = "Starting with you, each player votes for card or token.";
+    let ability = assert_selected(&parser, &context, productive);
     let mut visitor = Task9ObjectVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["declared-for-object"]);

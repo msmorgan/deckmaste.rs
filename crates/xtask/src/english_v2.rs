@@ -8243,7 +8243,6 @@ mod tests {
             "construction manner_predicate",
         ]);
         let task9_origin_names = BTreeSet::from([
-            "vocab VoteLabel",
             "codec ToObjectVerb",
             "codec ForObjectVerb",
             "construction starting_with_you",
@@ -8254,8 +8253,9 @@ mod tests {
             "construction maximum_hand_size_reference",
             "construction token_copy_reference",
             "construction described_token_reference",
-            "construction vote_choice",
-            "construction vote_choice_list",
+            "construction singular_common_noun_choice",
+            "construction plural_common_noun_choice",
+            "construction common_noun_choice_list",
             "construction positive_power_toughness_magnitude",
             "construction power_toughness_adjustment",
             "construction declared_to_object_predicate",
