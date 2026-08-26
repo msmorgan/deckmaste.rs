@@ -1655,8 +1655,8 @@ mutual
               (ObjectP (nounTy what) (Just Stack) Nothing (Just CopyOrigin))
       :: amtIntro times
   effIntro (ChooseNewTargets what) = nomIntro what
-  effIntro (Choose n Nothing) = nomIntro n
-  effIntro (Choose n (Just b)) = nounDelta b ++ nomIntro n
+  effIntro (Choose n Nothing) = chosenIntro n
+  effIntro (Choose n (Just b)) = nounDelta b ++ chosenIntro n
   effIntro (Move what to _) = moveIntro Nothing what (Just (zoneSort to))
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
@@ -1740,7 +1740,7 @@ mutual
   preIntro (CounterSpell what) = nomIntro what
   preIntro (CopyStack agent what times exc) = amtIntro times
   preIntro (ChooseNewTargets what) = nomIntro what
-  preIntro (Choose n _) = nomIntro n
+  preIntro (Choose n _) = chosenIntro n
   preIntro (Move what to _) = nomIntro what
   preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
   preIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
@@ -1813,7 +1813,7 @@ mutual
   annIntro (CounterSpell what) = nomIntro what
   annIntro (CopyStack agent what times exc) = amtIntro times
   annIntro (ChooseNewTargets what) = nomIntro what
-  annIntro (Choose n _) = nomIntro n
+  annIntro (Choose n _) = chosenIntro n
   annIntro (Move what to _) = nomIntro what
   annIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
   annIntro (ChangeLife who (Down a)) = lifeIntro (Down a)

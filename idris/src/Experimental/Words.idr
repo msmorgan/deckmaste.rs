@@ -1111,32 +1111,50 @@ countParts (b@(MkBinding PartD _ _ _) :: bs) =
   if kindLte Object b.kind then S (countParts bs) else countParts bs
 countParts (_ :: bs) = countParts bs
 
+||| "the rest" presupposes a set to be the rest OF and at least one part
+||| already taken out of it -- nothing taken, and the text would have
+||| written "them". The set is EITHER a group the text assembled ("one of
+||| them") or the description a choice partitioned as it resolved:
+||| [CR#608.2d] has the player announce a choice while applying the
+||| effect and forbids an option that is illegal or impossible, so the
+||| choice picks its members out of the described set and leaves the
+||| unchosen behind. A choice's set is never mentioned, so the assembled
+||| groups may number none; what may not be none is the part.
 public export
--- "the rest" presupposes one assembled group (nothing to be the rest OF
--- without it) and at least one part taken from it (nothing taken and the
--- text would have written "them").
 theRestOk : Bindings -> Bool
-theRestOk bs = countGroups bs == 1 && not (countParts bs == Z)
+theRestOk bs = countGroups bs <= 1 && not (countParts bs == Z)
 
+||| What a disposal of "the rest" spends: the remainder itself. The
+||| assembled group goes, and the parts stop being parts -- the members
+||| they name are still there to read, but nothing is outstanding, so a
+||| second "the rest" finds no partition to be the rest of. One
+||| disposition per remainder, in both shapes of the licence: the text's
+||| own group, and a choice's [CR#608.2d].
 public export
 groupSpent : Bindings -> Bindings
 groupSpent [] = []
-groupSpent (b@(MkBinding PartD _ _ _) :: bs) = b :: groupSpent bs
+groupSpent (MkBinding PartD k pl p :: bs) = MkBinding TheD k pl p :: groupSpent bs
 groupSpent (b :: bs) = if objGroup b then groupSpent bs else b :: groupSpent bs
+
+||| The binding "the rest" reads its description off: the assembled
+||| group when the text wrote one, and otherwise the part a choice took,
+||| which carries the description the choice was made under.
+public export
+restSource : Bindings -> Maybe Binding
+restSource [] = Nothing
+restSource (b@(MkBinding PartD _ _ _) :: bs) =
+  case restSource bs of
+    Just s => Just s
+    Nothing => if kindLte Object b.kind then Just b else Nothing
+restSource (b :: bs) = if objGroup b then Just b else restSource bs
 
 public export
 zoneOfGroup : Bindings -> Maybe Zone
-zoneOfGroup [] = Nothing
-zoneOfGroup (MkBinding PartD _ _ _ :: bs) = zoneOfGroup bs
-zoneOfGroup (b :: bs) =
-  if objGroup b then bindingZone b else zoneOfGroup bs
+zoneOfGroup bs = restSource bs >>= bindingZone
 
 public export
 tyOfGroup : Bindings -> Maybe CardType
-tyOfGroup [] = Nothing
-tyOfGroup (MkBinding PartD _ _ _ :: bs) = tyOfGroup bs
-tyOfGroup (b :: bs) =
-  if objGroup b then bindingTy b else tyOfGroup bs
+tyOfGroup bs = restSource bs >>= bindingTy
 
 public export
 anyTargeted : Kind -> Bindings -> Bool

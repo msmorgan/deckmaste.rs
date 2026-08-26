@@ -8832,3 +8832,86 @@ hibernationsEndTrigger =
                     Compare ManaValue Eq (CountersOn Age Macros.thisEnchantment)])
           , Macros.putOntoBattlefield (That CardW)
           , Macros.shuffle ]))
+
+-- The choice frame that licenses a later read: a choice announced as the
+-- effect applies [CR#608.2d] partitions the described set, and what it
+-- leaves behind -- the unchosen members, the margin of a comparison it
+-- carried -- is what the next clause names.
+
+||| Duneblast -- "Choose up to one creature. Destroy the rest." The choice
+||| is the partition: the creatures it did not pick are what "the rest"
+||| names, and no group mention stands between them and the phrase.
+public export
+duneblast : Effect []
+duneblast =
+  Sequentially [ Macros.choose (CountedGroup (Macros.upTo 1) Macros.creature)
+               , Macros.destroy TheRest ]
+
+public export
+duneblastCard : Card
+duneblastCard =
+  Macros.card "Duneblast"
+       (Just [Macros.generic 4, Macros.pip White, Macros.pip Black,
+              Macros.pip Green])
+       [] (MkTypeLine [] [Sorcery]) [Spell Cards.duneblast] Nothing
+
+||| Boreas Charger's description -- "an opponent who controls more lands
+||| than you". The member-relative comparison: the count on the left is
+||| taken on the opponent the phrase picks, the one on the right on the
+||| reader.
+public export
+opponentWithMoreLands : Predicate [] Player
+opponentWithMoreLands =
+  CompareOver Opponent
+    (CountOf (And [Macros.land, ControlledBy They]))
+    Greater
+    (CountOf (And [Macros.land, ControlledBy You]))
+
+||| Boreas Charger's first clause -- "choose an opponent who controls more
+||| lands than you". Its SECOND clause does not write: "search your library
+||| for a number of Plains cards equal to the difference" needs a counted
+||| search, and `Search` carries no count. The card's blocker, not the
+||| row's.
+public export
+boreasChargerChoice : Effect []
+boreasChargerChoice = Macros.choose (Macros.a Cards.opponentWithMoreLands)
+
+||| ...and the margin that choice leaves readable, which is what the
+||| unwritable clause would have spent.
+public export
+boreasChargerDifference : Amount (effIntro Cards.boreasChargerChoice)
+boreasChargerDifference = TheDifference
+
+||| Sandstone Oracle, whole -- "When this creature enters, choose an
+||| opponent. If that player has more cards in hand than you, draw cards
+||| equal to the difference." Here the comparison is the condition's, and
+||| the choice's part is only what "that player" reads back.
+public export
+sandstoneOracle : Card
+sandstoneOracle =
+  Macros.card "Sandstone Oracle" (Just [Macros.generic 7]) []
+       (MkTypeLine [creatureType "Sphinx"] [Artifact, Creature])
+       [ Macros.keyword Flying
+       , Macros.triggered When (Enters Macros.thisCreature)
+           (Sequentially
+              [ Macros.choose Macros.anOpponent
+              , If (CompareAmt (CountOf (InZone (Macros.handOf (That PlayerW))))
+                               Greater
+                               (CountOf (InZone (Macros.handOf You))))
+                   (Draw You TheDifference)
+                   Nothing ]) ]
+       (Just (4, 4))
+
+||| Slithermuse's trigger -- the same sentence off a leave-the-battlefield
+||| header. The whole card waits on evoke, which no keyword row writes.
+public export
+slithermuseTrigger : Ability
+slithermuseTrigger =
+  Macros.triggered When (Leaves Macros.thisCreature)
+    (Sequentially
+       [ Macros.choose Macros.anOpponent
+       , If (CompareAmt (CountOf (InZone (Macros.handOf (That PlayerW))))
+                        Greater
+                        (CountOf (InZone (Macros.handOf You))))
+            (Draw You TheDifference)
+            Nothing ])

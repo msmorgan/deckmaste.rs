@@ -491,7 +491,7 @@ thoseVerbedResolvesInPrefix bs v w ok =
 
 -- "the rest": the complement of the parts already taken from a group.
 
-||| `So (m == n)` is `m = n` for naturals; needed to open `theRestOk`.
+||| `So (m == n)` is `m = n` for naturals.
 public export
 natEqSo : (m, n : Nat) -> So (m == n) -> m = n
 natEqSo Z Z Oh = Refl
@@ -505,25 +505,33 @@ notZeroSucc : (n : Nat) -> So (not (n == Z)) -> (k : Nat ** n = S k)
 notZeroSucc Z Oh impossible
 notZeroSucc (S k) ok = (k ** Refl)
 
-||| "the rest" reads two facts about the prefix — one assembled group
-||| stands in it, and at least one part has been taken from that group —
-||| and neither is a fact about anything later.
+||| "the rest" reads two facts about the prefix — no more than one
+||| assembled group stands in it, and at least one part has been taken
+||| out of what the phrase is the rest OF — and neither is a fact about
+||| anything later.
 public export
 theRestReadsOnlyPrefix : (bs : Bindings) -> So (theRestOk bs) -> Noun bs Object
 theRestReadsOnlyPrefix bs ok = TheRest {bs} {ok}
 
-||| ...and both facts name bindings IN the prefix: the group the rest is
-||| the rest OF, and a part already taken from it.
+||| ...and the part it presupposes names a binding IN the prefix. The
+||| part alone: a choice's set is the description's extension, which no
+||| binding stands for [CR#608.2d], so a text may license the phrase with
+||| no group of its own.
 public export
 theRestResolvesInPrefix : (bs : Bindings) -> So (theRestOk bs) ->
-                          ((g : Binding ** (Elem g bs, So (groupOne g))),
-                           (p : Binding ** (Elem p bs, So (partOne p))))
+                          (p : Binding ** (Elem p bs, So (partOne p)))
 theRestResolvesInPrefix bs ok =
-  let (gOk, pOk) = soAnd {a = countGroups bs == 1} ok
-      gEq = natEqSo (countGroups bs) 1 gOk
+  let (_, pOk) = soAnd {a = countGroups bs <= 1} ok
       (k ** pEq) = notZeroSucc (countParts bs) pOk
-   in (countByWitness groupOne bs Z (trans (sym (countGroupsIsFold bs)) gEq),
-       countByWitness partOne bs k (trans (sym (countPartsIsFold bs)) pEq))
+   in countByWitness partOne bs k (trans (sym (countPartsIsFold bs)) pEq)
+
+||| ...and where the text DID assemble the group, that group is a binding
+||| in the prefix too.
+public export
+theRestGroupResolvesInPrefix : (bs : Bindings) -> countGroups bs = 1 ->
+                               (g : Binding ** (Elem g bs, So (groupOne g)))
+theRestGroupResolvesInPrefix bs gEq =
+  countByWitness groupOne bs Z (trans (sym (countGroupsIsFold bs)) gEq)
 
 
 -- "that much": the quantity an event-producing clause wrote.

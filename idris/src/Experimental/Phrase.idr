@@ -240,6 +240,29 @@ mutual
                   {auto 0 ex : IsExtremal op} ->
                   {auto 0 sc : projScope ax = k} ->
                   Predicate bs k
+    ||| "an opponent who controls more lands than you", "a player who has
+    ||| more cards in hand than you": the member-relative comparison.
+    ||| `Compare` reads one of the referent's OWN characteristics against
+    ||| a bound; this reads a whole AMOUNT taken on the referent, on
+    ||| `AggregateOver`'s element binder -- the domain binds one member
+    ||| (`TheD`, `OneOf`) and the measured side reads it back as
+    ||| `They`/`It`. The domain rides the row rather than being conjoined
+    ||| beside it for `Superlative`'s reason: the member the measurement
+    ||| is taken on is the domain's member, and nothing outside the row
+    ||| can bind it.
+    ||| The bound is read in the OUTER context, so "than you" is the
+    ||| reader's own count and no member leaks into it.
+    ||| It leaves the margin behind, as `CompareAmt` does: [CR#608.2h]
+    ||| settles both counts once, when the effect applies, so the amount
+    ||| by which one exceeds the other is a determinate number, and
+    ||| [CR#608.2c] is what lets the text after it name that number.
+    ||| -- spelling: "[dom] who/that [measure] more/fewer … than [bound]".
+    CompareOver : {k : Kind} -> (dom : Predicate bs k) ->
+                  {auto ph : Phrasal k} ->
+                  (measure : Amount (bindFor TheD OneOf ph dom
+                                       :: (predDelta dom ++ bs))) ->
+                  (r : Comparator) -> (bound : Amount bs) ->
+                  Predicate bs k
     InZone : ZoneExpr bs -> Predicate bs Object          -- zone clause "in/from [zone]" ([CR#109.2a])
     ExiledWith : (src : Noun bs Object) ->
                  {auto 0 ls : LinkSource src} -> Predicate bs Object
@@ -282,6 +305,7 @@ mutual
   seedTy (And ps) = seedTyAll ps
   seedTy (Or ps) = seedTyJoin ps
   seedTy (Joined l r) = joinSeed (seedTy l) (seedTy r)
+  seedTy (CompareOver dom _ _ _) = seedTy dom
   seedTy _ = Nothing
 
   ||| The head type per half of the phrase's kind. Only a joined head has
@@ -369,6 +393,7 @@ mutual
   -- spells cast earlier this turn that have long left the stack.
   seedZone (CastBy _) = Nothing
   seedZone (ExiledWith _) = Just Exile
+  seedZone (CompareOver dom _ _ _) = seedZone dom
   seedZone (And ps) = seedZoneAll ps
   seedZone (Or ps) = seedZoneJoin ps
   seedZone _ = Nothing
@@ -400,6 +425,7 @@ mutual
   seedsToken IsToken = True
   seedsToken (And ps) = seedsTokenAny ps
   seedsToken (Or ps) = seedsTokenAll ps
+  seedsToken (CompareOver dom _ _ _) = seedsToken dom
   seedsToken _ = False
 
   public export
@@ -439,6 +465,7 @@ mutual
   seedType (Compare c _ _) = comparedType c
   seedType (Superlative _ (CharAxis c) _) = comparedType c
   seedType (Superlative _ (PlayerStatAxis _) _) = Nothing
+  seedType (CompareOver dom _ _ _) = seedType dom
   seedType (HasSubtype s) = Just (subtypeType s)
   seedType (And ps) = seedTypeAll ps
   seedType (Or ps) = seedTypeJoin ps
@@ -516,6 +543,9 @@ mutual
   hasHead (Compare _ _ _) = False
   hasHead (CounterCompare _ _ _) = False
   hasHead (Superlative _ _ _) = False
+  -- the row writes its domain out ("an opponent who ..."), so the head
+  -- word is the domain's.
+  hasHead (CompareOver dom _ _ _) = hasHead dom
   hasHead (InZone _) = True
   hasHead (ExiledWith _) = True
   -- ANY member heads a conjunction, but EVERY alternative has to head a
@@ -706,6 +736,10 @@ mutual
   predEq (Superlative o a d) (Superlative p b e) =
     o == p && a == b && predEq d e
   predEq (Superlative _ _ _) _ = False
+  -- the two measurements live under their own domains' binders, so no
+  -- comparison of them is even well typed; the conservative answer is
+  -- the honest one.
+  predEq (CompareOver _ _ _ _) _ = False
   predEq (CastFrom z) (CastFrom w) = zoneSort z == zoneSort w
   predEq (CastFrom _) _ = False
   predEq (InZone z) (InZone w) = zoneSort z == zoneSort w
@@ -984,6 +1018,7 @@ mutual
   isComparison (Compare _ _ _) = True
   isComparison (Superlative _ _ _) = True
   isComparison (CounterCompare _ _ _) = True
+  isComparison (CompareOver _ _ _ _) = True
   isComparison _ = False
 
   public export
@@ -1129,6 +1164,7 @@ mutual
   predSays (Compare _ _ _) = True
   predSays (CounterCompare _ _ _) = True
   predSays (Superlative _ _ _) = True
+  predSays (CompareOver _ _ _ _) = True
   predSays (InZone _) = True
   predSays (And ps) = predSaysAny ps
   predSays (Or _) = True
@@ -1188,6 +1224,7 @@ mutual
   predNegFree (Compare _ _ _) = True
   predNegFree (CounterCompare _ _ _) = True
   predNegFree (Superlative _ _ _) = True
+  predNegFree (CompareOver _ _ _ _) = True
   predNegFree (InZone _) = True
   predNegFree (And ps) = predNegFreeAll ps
   predNegFree (Or ps) = predNegFreeAll ps
@@ -1483,6 +1520,10 @@ mutual
   predDelta (OtherThan n) = nounDelta n
   predDelta (Compare _ _ b) = amtDelta b
   predDelta (Superlative _ _ d) = predDelta d
+  -- the margin the comparison names, and the domain's own mentions; the
+  -- measurement is per-member, so its deltas stay inside, exactly as
+  -- `AggregateOver`'s body's do.
+  predDelta (CompareOver dom _ _ bound) = gapB :: (predDelta dom ++ amtDelta bound)
   predDelta (Joined l r) = predDelta l ++ predDelta r
   predDelta (CounterCompare _ _ b) = amtDelta b
   predDelta _ = []
@@ -1527,6 +1568,34 @@ mutual
   public export
   nomIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
   nomIntro n = nounDelta n ++ bs
+
+  ||| The determiner a CHOSEN mention of objects carries. A choice made
+  ||| as the effect applies partitions the described set -- [CR#608.2d]
+  ||| has the player announce it then and refuses an illegal option, so
+  ||| the members it picks come out of that set and the unchosen stay
+  ||| behind -- which is the same mark "one of them" leaves over a group
+  ||| the text assembled. Only the object side is marked, since only the
+  ||| object side has a complement to read.
+  public export
+  chosenDet : {0 k : Kind} -> Phrasal k -> Determiner -> Determiner
+  chosenDet PhObject _ = PartD
+  chosenDet _ d = d
+
+  ||| `nounDelta` for the mention a choice clause announces. A target is
+  ||| not this: it was chosen as the spell was cast [CR#601.2c], so a
+  ||| choice clause naming one partitions nothing and keeps its own
+  ||| determiner.
+  public export
+  chosenDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
+  chosenDelta (Indefinite m p {ph}) = bindFor (chosenDet ph AD) OneOf ph p :: predDelta p
+  chosenDelta (CountedGroup q p {ph}) =
+    bindFor (chosenDet ph CountD) (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
+  chosenDelta (NamesAgree _ grp) = chosenDelta grp
+  chosenDelta n = nounDelta n
+
+  public export
+  chosenIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
+  chosenIntro n = chosenDelta n ++ bs
 
   public export
   complementDelta : {bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->

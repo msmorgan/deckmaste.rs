@@ -663,3 +663,50 @@ public export
 badBarePaymentLookback : Unspellable (Condition []) (\ok =>
   Happened CostPayment You Lookback.ThisTurn Nothing {sb = ok})
 badBarePaymentLookback MkLookbackSubject impossible
+
+||| "Destroy the rest." with nothing chosen and no group assembled.
+||| Reading a choice's own partition as the licence [CR#608.2d] does not
+||| make the phrase free: what "the rest" is the rest OF must still have
+||| had something taken out of it.
+public export
+badRestWithoutAPartition : Unspellable (Noun [] Object) (\ok =>
+  TheRest {ok})
+badRestWithoutAPartition Oh impossible
+
+||| "Choose any number of target creatures. Destroy the rest."
+||| A target is chosen as the spell is cast [CR#601.2c], not while the
+||| effect is applied, so the clause naming one announces no
+||| resolution-time choice [CR#608.2d] and partitions nothing.
+public export
+badRestAfterTargetChoice : Unspellable (Effect []) (\ok =>
+  Sequentially [ Macros.choose (TargetGroup Macros.anyNumber Macros.creature)
+               , Macros.destroy (TheRest {ok}) ])
+badRestAfterTargetChoice Oh impossible
+
+||| The discourse after "Choose up to one creature. Destroy the rest."
+public export
+afterChoiceRestDisposed : Bindings
+afterChoiceRestDisposed =
+  effIntro (the (Effect [])
+    (Sequentially [ Macros.choose (CountedGroup (Macros.upTo 1) Macros.creature)
+                  , Macros.destroy TheRest ]))
+
+||| "Choose up to one creature. Destroy the rest. Destroy the rest."
+||| One disposition per remainder in the choice's shape too: the first
+||| disposal spends the partition, and the second phrase finds nothing
+||| outstanding to be the rest of.
+public export
+badChoiceRestDisposedTwice :
+  Unspellable (Noun ProofsG.afterChoiceRestDisposed Object) (\ok => TheRest {ok})
+badChoiceRestDisposedTwice Oh impossible
+
+||| "an opponent who controls more lands than they control"
+||| The member-relative comparison binds its member for the MEASURED side
+||| alone; the bound is read in the outer context, where no member of the
+||| description stands. A comparison whose two sides were both the
+||| member's would state nothing about which member the phrase picks.
+public export
+badMemberInComparisonBound : Unspellable (Predicate [] Player) (\ok =>
+  CompareOver Opponent (CountOf (And [Macros.land, ControlledBy You]))
+              Greater (CountOf (And [Macros.land, ControlledBy (They {ok})])))
+badMemberInComparisonBound Refl impossible
