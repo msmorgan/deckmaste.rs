@@ -30,6 +30,8 @@ modules = Semantics
         , Experimental.Events
         , Experimental.Phrase
         , Experimental.Triggers
+        , Experimental.Effect
+        , Experimental.Card
         , Experimental
         , Experimental.Macros
         , Experimental.Cards
