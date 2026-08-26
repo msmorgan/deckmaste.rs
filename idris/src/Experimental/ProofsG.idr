@@ -528,3 +528,28 @@ badCreatureHalfRead : Unspellable (Effect []) (\ok =>
     , Macros.discardsACard
         (Macros.thatSplitController (That (TypeW Creature) {ok = ok})) ])
 badCreatureHalfRead Refl impossible
+
+||| "Whenever a creature attacks a planeswalker or a creature"
+||| [CR#506.3] closes the set an attack may name, and a joined defender is
+||| attacked on EACH half's own account, so each half is asked about its
+||| own head type. The planeswalker half passes and the creature half does
+||| not; writing the halves the other way round changes nothing.
+public export
+badMixedAttackDefenderHalves : Unspellable (GameEvent []) (\ok =>
+  Attacks (Macros.a Macros.creature)
+          (OneDefender (Macros.a (Joined (HasType Planeswalker)
+                                         (HasType Creature))) {at = ok}))
+badMixedAttackDefenderHalves Oh impossible
+
+||| "This deals 3 damage to a land or a land."
+||| [CR#120.1] states the whole recipient set — battles, creatures,
+||| planeswalkers and players — and a joined phrase is dealt damage on each
+||| half's own account, so a half that names a card type must name one on
+||| the list. The repetition is not what refuses it: "a land or an
+||| enchantment" falls the same way, and a half naming NO type still passes:
+||| it names nothing off the set, which [CR#120.1a] bounds.
+public export
+badSameKindJoinDamage : Unspellable (Effect []) (\ok =>
+  DealDamage This (Lit 3)
+             (Macros.a (Joined (HasType Land) (HasType Land))) {rk = ok})
+badSameKindJoinDamage JoinTakes impossible

@@ -812,6 +812,39 @@ public export
 Bindings : Type
 Bindings = List Binding
 
+public export
+Eq CardType where
+  (==) Creature Creature = True
+  (==) Creature _ = False
+  (==) Artifact Artifact = True
+  (==) Artifact _ = False
+  (==) Land Land = True
+  (==) Land _ = False
+  (==) Enchantment Enchantment = True
+  (==) Enchantment _ = False
+  (==) Instant Instant = True
+  (==) Instant _ = False
+  (==) Sorcery Sorcery = True
+  (==) Sorcery _ = False
+  (==) Planeswalker Planeswalker = True
+  (==) Planeswalker _ = False
+  (==) Battle Battle = True
+  (==) Battle _ = False
+  (==) Kindred Kindred = True
+  (==) Kindred _ = False
+  (==) Conspiracy Conspiracy = True
+  (==) Conspiracy _ = False
+  (==) Dungeon Dungeon = True
+  (==) Dungeon _ = False
+  (==) Phenomenon Phenomenon = True
+  (==) Phenomenon _ = False
+  (==) Plane Plane = True
+  (==) Plane _ = False
+  (==) Scheme Scheme = True
+  (==) Scheme _ = False
+  (==) Vanguard Vanguard = True
+  (==) Vanguard _ = False
+
 ||| The zone a payload places its referent in. A join is placeless
 ||| unless one half places itself: only the Object half ever carries a
 ||| zone, so the join reports that half's, and a join with no Object half
@@ -828,7 +861,21 @@ payloadZone TurnRefP = Nothing
 payloadZone AbilityP = Nothing
 payloadZone (JoinP l r) = maybe (payloadZone r) Just (payloadZone l)
 
-||| The card type a payload names, read the same way as `payloadZone`.
+||| One head type for a two-half phrase: the type its halves agree on, and
+||| the typed half's where the other names none — a player half names no
+||| card type, so a cross-kind head still reports its object half's. Halves
+||| naming DIFFERENT types have no single head, and picking one would be
+||| arbitrary, so the collapse reports none and a gate that must ask each
+||| half reads the pair. This is `Or`'s rule for its disjuncts, weakened
+||| only where a half is silent.
+public export
+joinSeed : Maybe CardType -> Maybe CardType -> Maybe CardType
+joinSeed Nothing t = t
+joinSeed t Nothing = t
+joinSeed (Just t) (Just u) = if t == u then Just t else Nothing
+
+||| The card type a payload names, collapsed by `joinSeed` where the
+||| mention was joined.
 public export
 payloadTy : Payload k -> Maybe CardType
 payloadTy (ObjectP ty _ _ _) = ty
@@ -839,7 +886,7 @@ payloadTy GapP = Nothing
 payloadTy LetterP = Nothing
 payloadTy TurnRefP = Nothing
 payloadTy AbilityP = Nothing
-payloadTy (JoinP l r) = maybe (payloadTy r) Just (payloadTy l)
+payloadTy (JoinP l r) = joinSeed (payloadTy l) (payloadTy r)
 
 public export
 bindingZone : Binding -> Maybe Zone
@@ -848,6 +895,17 @@ bindingZone (MkBinding _ _ _ pl) = payloadZone pl
 public export
 bindingTy : Binding -> Maybe CardType
 bindingTy (MkBinding _ _ _ pl) = payloadTy pl
+
+||| The head type a phrase projects onto EACH half of its kind -- the
+||| description-side twin of `Payload`'s `JoinP` pair, and read the same
+||| way. A phrase that is not itself a join names ONE description, which
+||| every half of a joined kind then shares; a joined head names one per
+||| half. A gate that asks each half about its own type reads this, where
+||| one that wants a single answer reads the collapsing `seedTy`/`nounTy`.
+public export
+data HeadTy : Kind -> Type where
+  SoleTy : Maybe CardType -> HeadTy k
+  JoinTy : HeadTy ka -> HeadTy kb -> HeadTy (ka \/ kb)
 
 public export
 Eq OutcomeSort where
@@ -895,39 +953,6 @@ letterB l = MkBinding AD (LetterK l) OneOf LetterP
 public export
 qualityB : QualitySort -> Binding
 qualityB q = MkBinding AD (Quality q) OneOf QualityP
-
-public export
-Eq CardType where
-  (==) Creature Creature = True
-  (==) Creature _ = False
-  (==) Artifact Artifact = True
-  (==) Artifact _ = False
-  (==) Land Land = True
-  (==) Land _ = False
-  (==) Enchantment Enchantment = True
-  (==) Enchantment _ = False
-  (==) Instant Instant = True
-  (==) Instant _ = False
-  (==) Sorcery Sorcery = True
-  (==) Sorcery _ = False
-  (==) Planeswalker Planeswalker = True
-  (==) Planeswalker _ = False
-  (==) Battle Battle = True
-  (==) Battle _ = False
-  (==) Kindred Kindred = True
-  (==) Kindred _ = False
-  (==) Conspiracy Conspiracy = True
-  (==) Conspiracy _ = False
-  (==) Dungeon Dungeon = True
-  (==) Dungeon _ = False
-  (==) Phenomenon Phenomenon = True
-  (==) Phenomenon _ = False
-  (==) Plane Plane = True
-  (==) Plane _ = False
-  (==) Scheme Scheme = True
-  (==) Scheme _ = False
-  (==) Vanguard Vanguard = True
-  (==) Vanguard _ = False
 
 public export
 countOnes : Kind -> Bindings -> Nat
@@ -1818,6 +1843,20 @@ data DamageableTy : Maybe CardType -> Type where
   DamCreature : DamageableTy (Just Creature)
   DamPlaneswalker : DamageableTy (Just Planeswalker)
   DamBattle : DamageableTy (Just Battle)
+
+||| The same set read off ONE half of a joined phrase, where the half may
+||| also name no card type at all. [CR#120.1] states the whole recipient
+||| set, so a half that names a type must name one on it; a half that
+||| names none — "a permanent or player", Furnace of Rath — names nothing
+||| off the set, and [CR#120.1a] bounds the referent whichever object it
+||| turns out to be.
+public export
+damageableHalfTy : Maybe CardType -> Bool
+damageableHalfTy Nothing = True
+damageableHalfTy (Just Creature) = True
+damageableHalfTy (Just Planeswalker) = True
+damageableHalfTy (Just Battle) = True
+damageableHalfTy (Just _) = False
 
 public export
 data Phrasal : Kind -> Type where

@@ -253,8 +253,18 @@ mutual
   seedTy (HasType t) = Just t
   seedTy (And ps) = seedTyAll ps
   seedTy (Or ps) = seedTyJoin ps
-  seedTy (Joined l r) = maybe (seedTy r) Just (seedTy l)
+  seedTy (Joined l r) = joinSeed (seedTy l) (seedTy r)
   seedTy _ = Nothing
+
+  ||| The head type per half of the phrase's kind. Only a joined head has
+  ||| more than one to give; every other phrase names one description,
+  ||| which each half of a joined kind then shares. `And`/`Or` over a
+  ||| joined kind fold to one description through `seedTy`: a fold names
+  ||| the whole phrase's head, not one half's.
+  public export
+  seedTys : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> HeadTy k
+  seedTys (Joined l r) = JoinTy (seedTys l) (seedTys r)
+  seedTys p = SoleTy (seedTy p)
 
   public export
   seedTyAll : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Maybe CardType
@@ -287,6 +297,7 @@ mutual
   headTys : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List CardType
   headTys (And ps) = headTysAll ps
   headTys (Or ps) = headTysJoin ps
+  headTys (Joined l r) = headTys l ++ headTys r
   headTys p = optCT (seedTy p)
 
   public export
@@ -1161,16 +1172,21 @@ mutual
   ||| What each half of a joined phrase carries. A joined phrase places
   ||| nothing — [CR#400.1] makes a zone a place where objects can be and
   ||| [CR#109.1] lists what an object is, so a phrase that may denote a
-  ||| player names no zone — and the object half carries the head type the
-  ||| description named, which is what the demonstrative echo reads back.
+  ||| player names no zone — and each object half carries the head type
+  ||| ITS OWN description named, which is what the demonstrative echo
+  ||| reads back. The `Phrasal` and the `HeadTy` walk in lockstep, so no
+  ||| half can be handed the other's type; a phrase that named one
+  ||| description for the pair hands the same leaf to both.
   public export
-  joinHalfPayload : {k : Kind} -> Phrasal k -> Maybe CardType -> Payload k
-  joinHalfPayload PhObject ty = ObjectP ty Nothing Nothing Nothing
-  joinHalfPayload PhPlayer ty = PlayerP
-  joinHalfPayload {k = Quality q} PhQuality ty = QualityP
-  joinHalfPayload PhAbility ty = AbilityP
-  joinHalfPayload (PhJoin l r) ty =
-    JoinP (joinHalfPayload l ty) (joinHalfPayload r ty)
+  joinHalfPayload : {k : Kind} -> Phrasal k -> HeadTy k -> Payload k
+  joinHalfPayload PhObject (SoleTy ty) = ObjectP ty Nothing Nothing Nothing
+  joinHalfPayload PhPlayer _ = PlayerP
+  joinHalfPayload {k = Quality q} PhQuality _ = QualityP
+  joinHalfPayload PhAbility _ = AbilityP
+  joinHalfPayload (PhJoin l r) (JoinTy a b) =
+    JoinP (joinHalfPayload l a) (joinHalfPayload r b)
+  joinHalfPayload (PhJoin l r) (SoleTy ty) =
+    JoinP (joinHalfPayload l (SoleTy ty)) (joinHalfPayload r (SoleTy ty))
 
   public export
   bindFor : Determiner -> Plurality -> {k : Kind} -> Phrasal k -> Predicate bs k -> Binding
@@ -1184,11 +1200,10 @@ mutual
   bindFor det plur {k = Quality q} PhQuality p = MkBinding det (Quality q) plur QualityP
   bindFor det plur PhAbility p = MkBinding det Ability plur AbilityP
   -- the branch that used to CHOOSE a payload: it now fills one in, since
-  -- the kind fixes the shape and the description fixes the object half's
+  -- the kind fixes the shape and each half's own description fixes its
   -- type [CR#205.2a] — a class word naming no card type leaves none.
-  bindFor det plur (PhJoin l r) p =
-    MkBinding det k plur (JoinP (joinHalfPayload l (seedTy p))
-                                (joinHalfPayload r (seedTy p)))
+  bindFor det plur ph@(PhJoin l r) p =
+    MkBinding det k plur (joinHalfPayload ph (seedTys p))
 
   public export
   data Noun : Bindings -> Kind -> Type where
@@ -2301,16 +2316,21 @@ mutual
   attackableTy (Just Battle) = True
   attackableTy _ = False
 
-  ||| The same closed set read off a phrase's kind. A player is attackable
-  ||| however it is described; an object only at an attackable type; a
-  ||| joined phrase only when both halves are, so "that player or
-  ||| planeswalker" passes while "any target" [CR#115.4] does not -- its
+  ||| The same closed set read off a phrase's kind, ONE HALF AT A TIME. A
+  ||| player half is attackable however it is described; an object half
+  ||| only at an attackable type; a joined phrase only when both halves
+  ||| are, each against its OWN head type, so "a planeswalker or a
+  ||| creature" is refused where "that player or planeswalker" passes.
+  ||| A phrase that named one description for the pair is asked about it
+  ||| at every half, which is what "any target" [CR#115.4] fails: its
   ||| object half projects no single attackable type.
   public export
-  attackableKind : Kind -> Maybe CardType -> Bool
+  attackableKind : (k : Kind) -> HeadTy k -> Bool
   attackableKind Player _ = True
-  attackableKind Object t = attackableTy t
-  attackableKind (a \/ b) t = attackableKind a t && attackableKind b t
+  attackableKind Object (SoleTy t) = attackableTy t
+  attackableKind (a \/ b) (JoinTy l r) = attackableKind a l && attackableKind b r
+  attackableKind (a \/ b) (SoleTy t) =
+    attackableKind a (SoleTy t) && attackableKind b (SoleTy t)
   attackableKind _ _ = False
 
   ||| The phrase names something that can be attacked [CR#506.3]. The
@@ -2318,7 +2338,7 @@ mutual
   ||| closes out.
   public export
   Attackable : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
-  Attackable {k} n = So (attackableKind k (nounTy n))
+  Attackable {k} n = So (attackableKind k (nounTys n))
 
   public export
   data EventAgent : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
@@ -2516,22 +2536,35 @@ mutual
   MoveDestination : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Type
   MoveDestination {bs} n = So (moveDestOk n)
 
+  ||| [CR#120.1]'s recipient set read off a phrase's kind, one half at a
+  ||| time, as `attackableKind` reads [CR#506.3]'s. A player half takes
+  ||| damage however it is described; an object half at a damageable type
+  ||| and at no type at all, since a description naming none names nothing
+  ||| off the set and [CR#120.1a] bounds the referent.
+  public export
+  damageableKind : (k : Kind) -> HeadTy k -> Bool
+  damageableKind Player _ = True
+  damageableKind Object (SoleTy t) = damageableHalfTy t
+  damageableKind (a \/ b) (JoinTy l r) = damageableKind a l && damageableKind b r
+  damageableKind (a \/ b) (SoleTy t) =
+    damageableKind a (SoleTy t) && damageableKind b (SoleTy t)
+  damageableKind _ _ = False
+
   public export
   data DamageRecipient : Noun bs k -> Type where
     PlayerTakes : DamageRecipient {k = Player} n
     ||| A joined phrase is dealt damage on either half's account:
     ||| [CR#120.1] admits a battle, a creature, a planeswalker or a player
-    ||| and nothing else, and the phrase names an object description beside
-    ||| a player one. No zone is asked, because damage asks none —
-    ||| `ObjectTakes` asks for one only where the phrase has one to give.
-    ||| The row is the kind's: every noun at a joined kind, and no
-    ||| others. That is WIDER than the three rows it replaces, whose
-    ||| heads were a closed class enum or the deictic "you": a same-kind
-    ||| join such as `Joined (HasType Land) (HasType Land)` now passes
-    ||| without `ObjectTakes`'s type check. Overgeneration, tolerated:
-    ||| such a value has no English production and is refused at the
-    ||| boundary.
-    JoinTakes : DamageRecipient {k = ka \/ kb} n
+    ||| and nothing else, and every half must name something on that list.
+    ||| No zone is asked, because damage asks none — `ObjectTakes` asks for
+    ||| one only where the phrase has one to give. The object half is
+    ||| WIDER than `ObjectTakes`'s `DamageableTy`: a half naming no card
+    ||| type passes, since "a permanent or player" is attested and names
+    ||| nothing off the set, which [CR#120.1a] bounds. A half that DOES name a
+    ||| type must name a damageable one, so a same-kind join such as
+    ||| `Joined (HasType Land) (HasType Land)` is refused here.
+    JoinTakes : {auto 0 dm : So (damageableKind (ka \/ kb) (nounTys n))} ->
+                DamageRecipient {k = ka \/ kb} n
     ObjectTakes : {auto 0 field : OnBattlefield (nounZone n)} ->
                   {auto 0 dm : DamageableTy (nounTy n)} ->
                   DamageRecipient {k = Object} n
@@ -2721,6 +2754,25 @@ mutual
   nounTy (ControllerOf n) = Nothing
   nounTy (OwnerOf n) = Nothing
   nounTy (Designated _ _) = Nothing
+
+  ||| `nounTy`'s per-half twin: the head type the phrase projects onto EACH
+  ||| half of its kind. A determiner over a joined head passes the head's
+  ||| pair through, a mixed group takes one from each arm, and every other
+  ||| noun names one description — an anaphor included, since a binding
+  ||| remembers one type per mention and `nounTy` is what reads it back.
+  public export
+  nounTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> HeadTy k
+  nounTys (Each p) = seedTys p
+  nounTys (Indefinite m p) = seedTys p
+  nounTys (Definite p) = seedTys p
+  nounTys (TargetGroup q p) = seedTys p
+  nounTys (CountedGroup q p) = seedTys p
+  nounTys (AllOf p) = seedTys p
+  nounTys (EachOf grp) = nounTys grp
+  nounTys (NamesAgree _ grp) = nounTys grp
+  nounTys (SomeOf _ grp) = nounTys grp
+  nounTys (Both l r) = JoinTy (nounTys l) (nounTys r)
+  nounTys n = SoleTy (nounTy n)
 
   public export
   nounPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
