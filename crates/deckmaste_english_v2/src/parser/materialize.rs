@@ -997,7 +997,7 @@ mod tests {
     #[test]
     fn root_adapter_materialization_is_identity_over_one_semantic_child() {
         let value = BuildValue::Sentence(Sentence::Imperative(
-            Imperative::new(Predicate::Atomic(connive_phrase()))
+            Imperative::new(Predicate::Atomic(Box::new(connive_phrase())))
                 .expect("bare test predicate satisfies imperative agreement"),
         ));
         let adapter_children = [
@@ -1232,7 +1232,7 @@ mod tests {
             }),
         });
         let base = Sentence::Imperative(
-            Imperative::new(Predicate::Atomic(connive_phrase()))
+            Imperative::new(Predicate::Atomic(Box::new(connive_phrase())))
                 .expect("bare test predicate satisfies imperative agreement"),
         );
         let once = Sentence::WithWhere(WithWhere {

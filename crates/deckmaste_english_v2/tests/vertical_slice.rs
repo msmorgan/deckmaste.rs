@@ -317,7 +317,7 @@ fn damage(amount: Amount) -> VerbPhrase {
 }
 
 fn atomic(predicate: VerbPhrase) -> Predicate {
-    Predicate::Atomic(predicate)
+    Predicate::Atomic(Box::new(predicate))
 }
 
 fn imperative(predicate: VerbPhrase) -> Sentence {

@@ -96,10 +96,13 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        let Predicate::Atomic(VerbPhrase::TransitivePredicate(TransitivePredicate {
+        let Predicate::Atomic(predicate) = imperative.predicate() else {
+            panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
+        };
+        let VerbPhrase::TransitivePredicate(TransitivePredicate {
             head: TransitiveVerb::Declaration(_),
             object: Object::ObjectNominal(NominalObject { value }),
-        })) = imperative.predicate()
+        }) = predicate.as_ref()
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
@@ -1695,7 +1698,7 @@ fn variable_x() -> Amount {
 }
 
 fn atomic(predicate: VerbPhrase) -> Predicate {
-    Predicate::Atomic(predicate)
+    Predicate::Atomic(Box::new(predicate))
 }
 
 fn finite_clause(subject: Subject, predicate: VerbPhrase) -> FiniteClause {
@@ -2092,10 +2095,13 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
-    let Predicate::Atomic(VerbPhrase::TransitivePredicate(TransitivePredicate {
+    let Predicate::Atomic(predicate) = imperative.predicate() else {
+        panic!("explicit card name has its generated AST construction: {parsed:?}");
+    };
+    let VerbPhrase::TransitivePredicate(TransitivePredicate {
         head: TransitiveVerb::Declaration(_),
         object: Object::ObjectNominal(NominalObject { value }),
-    })) = imperative.predicate()
+    }) = predicate.as_ref()
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };

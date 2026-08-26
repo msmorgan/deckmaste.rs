@@ -3205,15 +3205,16 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
             ),
         })
     ));
+    let deckmaste_english_v2::ast::Predicate::Atomic(predicate) = predicate else {
+        panic!("gain-life comparison keeps an atomic predicate")
+    };
     assert!(matches!(
-        predicate,
-        deckmaste_english_v2::ast::Predicate::Atomic(VerbPhrase::GainLife(
-            deckmaste_english_v2::ast::GainLife {
-                amount: Amount::Variable(deckmaste_english_v2::ast::VariableAmount {
-                    variable: Variable::X,
-                }),
-            }
-        ))
+        predicate.as_ref(),
+        VerbPhrase::GainLife(deckmaste_english_v2::ast::GainLife {
+            amount: Amount::Variable(deckmaste_english_v2::ast::VariableAmount {
+                variable: Variable::X,
+            }),
+        })
     ));
 
     let mut visitor = NominalVisitor::default();

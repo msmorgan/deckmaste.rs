@@ -956,8 +956,13 @@ enum NonterminalKind {
     ObjectInfinitivePredicate,
     RequirementPredicate,
     AsThoughPredicate,
+    IntransitiveAsThoughPredicate,
+    TransitiveAsThoughPredicate,
     OrderedPredicate,
+    CounterfactualFiniteClause,
     CounterfactualStatusClause,
+    CounterfactualNegativeAbilityClause,
+    CounterfactualPastAbilityClause,
     PurposePredicate,
     DurationPredicate,
     InsteadPredicate,
@@ -1535,9 +1540,24 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::RequirementPredicate => NonterminalKind::RequirementPredicate,
         NonterminalCategory::AsThoughPredicate => NonterminalKind::AsThoughPredicate,
+        NonterminalCategory::IntransitiveAsThoughPredicate => {
+            NonterminalKind::IntransitiveAsThoughPredicate
+        }
+        NonterminalCategory::TransitiveAsThoughPredicate => {
+            NonterminalKind::TransitiveAsThoughPredicate
+        }
         NonterminalCategory::OrderedPredicate => NonterminalKind::OrderedPredicate,
+        NonterminalCategory::CounterfactualFiniteClause => {
+            NonterminalKind::CounterfactualFiniteClause
+        }
         NonterminalCategory::CounterfactualStatusClause => {
             NonterminalKind::CounterfactualStatusClause
+        }
+        NonterminalCategory::CounterfactualNegativeAbilityClause => {
+            NonterminalKind::CounterfactualNegativeAbilityClause
+        }
+        NonterminalCategory::CounterfactualPastAbilityClause => {
+            NonterminalKind::CounterfactualPastAbilityClause
         }
         NonterminalCategory::PurposePredicate => NonterminalKind::PurposePredicate,
         NonterminalCategory::DurationPredicate => NonterminalKind::DurationPredicate,

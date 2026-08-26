@@ -8119,7 +8119,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(prior.len(), 1_410);
         assert_eq!(task7.len(), 1_561);
-        assert_eq!(fixture.len(), 1_627);
+        assert_eq!(fixture.len(), 1_659);
         assert_eq!(live_digests, fixture);
         let live_by_item = live_digests.iter().cloned().collect::<BTreeMap<_, _>>();
         let live_origins_by_item = live.iter().cloned().collect::<BTreeMap<_, _>>();
@@ -8170,11 +8170,19 @@ mod tests {
             "vocab RequirementFrequency",
             "vocab ObjectOrder",
             "vocab PredicateDuration",
+            "vocab CounterfactualAbility",
+            "vocab CounterfactualNegativeAuxiliary",
+            "vocab CounterfactualPastPossession",
+            "abstract sum CounterfactualFiniteClause",
+            "abstract sum AsThoughPredicate",
             "construction object_infinitive_predicate",
             "construction requirement_predicate",
-            "construction as_though_predicate",
+            "construction intransitive_as_though_predicate",
+            "construction transitive_as_though_predicate",
             "construction ordered_predicate",
             "construction counterfactual_status_clause",
+            "construction counterfactual_negative_ability_clause",
+            "construction counterfactual_past_ability_clause",
             "construction purpose_predicate",
             "construction duration_predicate",
             "construction instead_predicate",
@@ -8216,7 +8224,7 @@ mod tests {
             .iter()
             .filter(|(item, _)| !task7_by_item.contains_key(item))
             .collect::<Vec<_>>();
-        assert_eq!(task8_new_rows.len(), 66);
+        assert_eq!(task8_new_rows.len(), 98);
         for (item, origins_digest) in task8_new_rows {
             assert_eq!(live_by_item.get(item), Some(origins_digest));
         }
@@ -8260,7 +8268,7 @@ mod tests {
                 .enumerate()
                 .find(|(_, (actual, expected))| actual != expected)
         );
-        assert_eq!(headings.len() - retained_headings.len(), 465);
+        assert_eq!(headings.len() - retained_headings.len(), 497);
         for expected_key in headings {
             let header = format!("// === {expected_key} ===");
             assert_eq!(output.matches(&header).count(), 1, "{expected_key}");

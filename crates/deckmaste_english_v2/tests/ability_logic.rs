@@ -1285,7 +1285,7 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
                     Subject::SubjectPronoun(PersonalSubject {
                         word: SubjectPronoun::You,
                     }),
-                    Predicate::Atomic(connive()),
+                    Predicate::Atomic(Box::new(connive())),
                 )
                 .expect("you and connive satisfy finite-clause agreement"),
             )),
@@ -1293,7 +1293,7 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
         intervening_if: None,
         body: AbilityBody::Sentences(
             Sentences::new(vec![Sentence::Imperative(
-                Imperative::new(Predicate::Atomic(connive()))
+                Imperative::new(Predicate::Atomic(Box::new(connive())))
                     .expect("connive satisfies bare imperative agreement"),
             )])
             .expect("linguistic body remains nonempty"),
@@ -2305,10 +2305,10 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
     else {
         panic!("mixed cost builds the positional SymbolRun/Loyalty/Clause AST")
     };
-    assert_eq!(
-        declared_action_name(cost_clause.predicate()),
-        Some("Destroy")
-    );
+    let Predicate::Atomic(cost_predicate) = cost_clause.predicate() else {
+        panic!("the clause cost stores its predicate in the shared algebra")
+    };
+    assert_eq!(declared_action_name(cost_predicate), Some("Destroy"));
     assert_eq!(
         symbols.symbols(),
         &[
@@ -2644,7 +2644,7 @@ fn auxiliaries_are_lexical_clause_structure_with_derived_bare_predicates() {
                             AuxiliaryFiniteClause::new(
                                 you_subject(),
                                 auxiliary,
-                                Predicate::Atomic(gain_life_predicate(2)),
+                                Predicate::Atomic(Box::new(gain_life_predicate(2))),
                             )
                             .expect("auxiliary clauses require a bare predicate"),
                         )),
@@ -2808,7 +2808,7 @@ fn assert_predicate_coordination(
     let Predicate::Coordination(coordination) = clause.predicate() else {
         panic!("predicate coordination has the staged declarative AST: {text}")
     };
-    let members = match (kind, coordination) {
+    let members = match (kind, coordination.as_ref()) {
         (CoordinationKind::And, PredicateCoordination::AndPredicateCoordination(value)) => {
             value.members()
         }
@@ -2961,11 +2961,11 @@ fn malformed_coordination_and_minimum_arity_are_rejected() {
         );
     }
 
-    assert!(AndPredicateCoordination::new(vec![gain_life_predicate(1)]).is_none());
+    assert!(AndPredicateCoordination::new(Box::new(vec![gain_life_predicate(1)])).is_none());
     assert!(
         AndClauseCoordination::new(vec![plain_finite(
             you_subject(),
-            Predicate::Atomic(gain_life_predicate(1)),
+            Predicate::Atomic(Box::new(gain_life_predicate(1))),
         )])
         .is_none()
     );
@@ -3559,7 +3559,7 @@ fn coordination_case_transitions_and_self_reference_reuse_existing_envelopes() {
 }
 
 fn connive_clause() -> FiniteClause {
-    plain_finite(you_subject(), Predicate::Atomic(connive()))
+    plain_finite(you_subject(), Predicate::Atomic(Box::new(connive())))
 }
 
 fn player_subject() -> Subject {
@@ -3591,7 +3591,7 @@ fn player_subject() -> Subject {
 }
 
 fn player_connive_clause() -> FiniteClause {
-    plain_finite(player_subject(), Predicate::Atomic(connive()))
+    plain_finite(player_subject(), Predicate::Atomic(Box::new(connive())))
 }
 
 fn tap_cost() -> ActivationCostComponent {
@@ -3606,7 +3606,7 @@ fn tap_cost() -> ActivationCostComponent {
 fn gain_clause(amount: u32) -> Clause {
     Clause::Finite(plain_finite(
         you_subject(),
-        Predicate::Atomic(gain_life_predicate(amount)),
+        Predicate::Atomic(Box::new(gain_life_predicate(amount))),
     ))
 }
 
@@ -3616,7 +3616,7 @@ fn attachment_products_have_an_intermediate_linguistic_stage_for_imperatives() {
     let context = context("Context Card", false);
     let expected = Sentence::Attached(Attached {
         attachment: ClauseAttachment::PreposedIfPredicate(
-            PreposedIfPredicate::new(connive_clause(), Predicate::Atomic(connive()))
+            PreposedIfPredicate::new(connive_clause(), Predicate::Atomic(Box::new(connive())))
                 .expect("the attached imperative predicate is bare"),
         ),
     });
@@ -4103,12 +4103,18 @@ impl Visitor for AttachmentEnvelopeVisitor {
             Predicate::Atomic(predicate) if declared_action_name(predicate) == Some("Connive") => {
                 self.0.push("Predicate:Connive");
             }
-            Predicate::Atomic(VerbPhrase::GainLife(GainLife {
-                amount:
-                    Amount::Number(NumberAmount {
-                        number: ScalarNumber { magnitude: 2 },
-                    }),
-            })) => self.0.push("Predicate:Gain2"),
+            Predicate::Atomic(predicate)
+                if matches!(
+                    predicate.as_ref(),
+                    VerbPhrase::GainLife(GainLife {
+                        amount: Amount::Number(NumberAmount {
+                            number: ScalarNumber { magnitude: 2 },
+                        }),
+                    })
+                ) =>
+            {
+                self.0.push("Predicate:Gain2");
+            }
             other => panic!("unexpected attachment predicate payload: {other:?}"),
         }
     }
@@ -4175,7 +4181,7 @@ fn conditional_attachment_root_scope_matrix_is_exact() {
     let parser = parser();
     let context = context("Context Card", false);
     let condition = connive_clause();
-    let gain = Predicate::Atomic(gain_life_predicate(2));
+    let gain = Predicate::Atomic(Box::new(gain_life_predicate(2)));
     let root_text = "If you connive, gain 2 life.";
     let root = assert_one_logic_candidate(&parser, &context, root_text);
 
@@ -4236,7 +4242,7 @@ fn conditional_attachment_trigger_scope_matrix_is_exact() {
     let parser = parser();
     let context = context("Context Card", false);
     let condition = connive_clause();
-    let gain = Predicate::Atomic(gain_life_predicate(2));
+    let gain = Predicate::Atomic(Box::new(gain_life_predicate(2)));
     let trigger_text = "Whenever a player connives, gain 2 life if you connive.";
     let trigger = assert_one_logic_candidate(&parser, &context, trigger_text);
 
@@ -4310,7 +4316,7 @@ fn conditional_attachment_activation_scope_matrix_is_exact() {
     let parser = parser();
     let context = context("Context Card", false);
     let condition = connive_clause();
-    let gain = Predicate::Atomic(gain_life_predicate(2));
+    let gain = Predicate::Atomic(Box::new(gain_life_predicate(2)));
     let activation_text = "{T}: If you connive, gain 2 life.";
     let activation = assert_one_logic_candidate(&parser, &context, activation_text);
     let Ability::Activated(activated) = &activation else {
@@ -4455,7 +4461,7 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
     let parser = parser();
     let context = context("Context Card", false);
     let condition = connive_clause();
-    let gain = Predicate::Atomic(gain_life_predicate(2));
+    let gain = Predicate::Atomic(Box::new(gain_life_predicate(2)));
 
     for (text, expected) in [
         (
@@ -4535,8 +4541,8 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
     assert_eq!(
         sequence.members(),
         [
-            Predicate::Atomic(gain_life_predicate(1)),
-            Predicate::Atomic(connive()),
+            Predicate::Atomic(Box::new(gain_life_predicate(1))),
+            Predicate::Atomic(Box::new(connive())),
         ],
     );
 
@@ -5727,7 +5733,10 @@ fn every_activation_modal_header_has_a_complete_ast_visit_and_literal_claim_orac
 
 fn modal_sentence(predicate: VerbPhrase) -> Sentence {
     Sentence::Declarative(Declarative {
-        clause: Clause::Finite(plain_finite(you_subject(), Predicate::Atomic(predicate))),
+        clause: Clause::Finite(plain_finite(
+            you_subject(),
+            Predicate::Atomic(Box::new(predicate)),
+        )),
     })
 }
 
@@ -6180,7 +6189,7 @@ fn full_self_reference_modal_body(context: &ParseContext<'_>) -> AbilityBody {
         Sentence::Declarative(Declarative {
             clause: Clause::Finite(plain_finite(
                 full_self_reference_subject(context),
-                Predicate::Atomic(gain_life_predicate(magnitude)),
+                Predicate::Atomic(Box::new(gain_life_predicate(magnitude))),
             )),
         })
     };

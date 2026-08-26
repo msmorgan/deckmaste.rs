@@ -28,6 +28,9 @@ constructions! {
     vocab RequirementFrequency { EachCombat = "each combat", }
     vocab ObjectOrder { Any = "any", Random = "a random", }
     vocab PredicateDuration { ThisTurn = "this turn", }
+    vocab CounterfactualAbility { Flash = "flash", Hexproof = "hexproof", }
+    vocab CounterfactualNegativeAuxiliary { Didnt = "didn't", }
+    vocab CounterfactualPastPossession { Had = "had", }
     vocab AtBoundary { Beginning = "the beginning of", End = "end of", }
     vocab TriggerMarker { When = "when", Whenever = "whenever", }
     vocab TurnOwnerPostmodifier {
@@ -447,6 +450,15 @@ constructions! {
         Loyalty,
         Clause: CostClause,
     }
+    abstract sum CounterfactualFiniteClause {
+        Status: CounterfactualStatusClause,
+        NegativeAbility: CounterfactualNegativeAbilityClause,
+        PastAbility: CounterfactualPastAbilityClause,
+    }
+    abstract sum AsThoughPredicate {
+        Intransitive: IntransitiveAsThoughPredicate,
+        Transitive: TransitiveAsThoughPredicate,
+    }
     abstract sum Predicate {
         Atomic: VerbPhrase,
         Coordination: PredicateCoordination,
@@ -690,7 +702,7 @@ constructions! {
         form loyalty = circumfix("[", value, "]");
     }
     construction cost_clause: ActivationCostComponent {
-        element CostClause { predicate: VerbPhrase, }
+        element CostClause { predicate: Predicate, }
         derive predicate.agreement = Values::Bare;
         form cost_clause = predicate;
     }
@@ -964,13 +976,22 @@ constructions! {
         derive agreement = head.agreement;
         form requirement_predicate = verb(head) lex(frequency) "if" "able";
     }
-    construction as_though_predicate: AsThoughPredicate {
-        element AsThoughPredicateValue {
+    construction intransitive_as_though_predicate: IntransitiveAsThoughPredicate {
+        element IntransitiveAsThoughPredicateValue {
             head: lex IntransitiveVerb,
-            condition: CounterfactualStatusClause,
+            condition: CounterfactualFiniteClause,
         }
         derive agreement = head.agreement;
-        form as_though_predicate = verb(head) "as" "though" condition;
+        form intransitive_as_though_predicate = verb(head) "as" "though" condition;
+    }
+    construction transitive_as_though_predicate: TransitiveAsThoughPredicate {
+        element TransitiveAsThoughPredicateValue {
+            head: lex TransitiveVerb,
+            object: Object,
+            condition: CounterfactualFiniteClause,
+        }
+        derive agreement = head.agreement;
+        form transitive_as_though_predicate = verb(head) object "as" "though" condition;
     }
     construction ordered_predicate: OrderedPredicate {
         element OrderedPredicateValue {
@@ -997,6 +1018,24 @@ constructions! {
         };
         derive subject.agreement = copula.agreement;
         form counterfactual_status_clause = subject lex(copula) lex(status);
+    }
+    construction counterfactual_negative_ability_clause: CounterfactualNegativeAbilityClause {
+        element CounterfactualNegativeAbilityClauseValue {
+            subject: Subject,
+            auxiliary: lex CounterfactualNegativeAuxiliary,
+            ability: lex CounterfactualAbility,
+        }
+        derive verb.agreement = Values::Bare;
+        form counterfactual_negative_ability_clause =
+            subject lex(auxiliary) verb(VerbLexeme::Have) lex(ability);
+    }
+    construction counterfactual_past_ability_clause: CounterfactualPastAbilityClause {
+        element CounterfactualPastAbilityClauseValue {
+            subject: Subject,
+            possession: lex CounterfactualPastPossession,
+            ability: lex CounterfactualAbility,
+        }
+        form counterfactual_past_ability_clause = subject lex(possession) lex(ability);
     }
     construction purpose_predicate: PurposePredicate {
         element PurposePredicateValue {

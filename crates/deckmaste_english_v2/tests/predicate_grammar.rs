@@ -3,8 +3,10 @@ use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::parser::ParseError;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::SelectionResolution;
+use deckmaste_english_v2::parser::TextSpan;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
 use macro_ron::v2::DeclarationIdentity;
@@ -65,6 +67,10 @@ fn environment() -> ParserEnvironment {
             "/synthetic/types/Artifact.ron",
             r#"Type(name:"Artifact",spelling:"artifact",grammar:Noun(singular:"artifact"))"#,
         ),
+        (
+            "/synthetic/types/Land.ron",
+            r#"Type(name:"Land",spelling:"land",grammar:Noun(singular:"land"))"#,
+        ),
     ]
     .into_iter()
     .map(|(path, source)| read_str(path, source).expect("synthetic keyword action is valid"));
@@ -104,7 +110,7 @@ fn imperative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) ->
     let Predicate::Atomic(predicate) = imperative.predicate() else {
         panic!("one predicate has an atomic envelope: {text:?}")
     };
-    predicate.clone()
+    *predicate.clone()
 }
 
 fn declarative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) -> VerbPhrase {
@@ -120,7 +126,7 @@ fn declarative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) -
     let Predicate::Atomic(predicate) = clause.predicate() else {
         panic!("one finite predicate has an atomic envelope: {text:?}")
     };
-    predicate.clone()
+    *predicate.clone()
 }
 
 fn exact_claim_trace(
@@ -229,8 +235,10 @@ fn shared_active_frames_reuse_core_and_declared_heads_across_sentence_shapes() {
     let Sentence::Imperative(imperative) = sentence else {
         panic!("bare predicate has an imperative envelope")
     };
-    let Predicate::Atomic(VerbPhrase::TransitivePredicate(predicate)) = imperative.predicate()
-    else {
+    let Predicate::Atomic(predicate) = imperative.predicate() else {
+        panic!("declared object verb has an atomic predicate envelope")
+    };
+    let VerbPhrase::TransitivePredicate(predicate) = predicate.as_ref() else {
         panic!("declared object verb uses the shared transitive product")
     };
     let TransitiveVerb::Declaration(head) = &predicate.head else {
@@ -244,8 +252,10 @@ fn shared_active_frames_reuse_core_and_declared_heads_across_sentence_shapes() {
     let Sentence::Imperative(imperative) = sentence else {
         panic!("bare predicate has an imperative envelope")
     };
-    let Predicate::Atomic(VerbPhrase::TransitivePredicate(predicate)) = imperative.predicate()
-    else {
+    let Predicate::Atomic(predicate) = imperative.predicate() else {
+        panic!("core object verb has an atomic predicate envelope")
+    };
+    let VerbPhrase::TransitivePredicate(predicate) = predicate.as_ref() else {
         panic!("core object verb uses the shared transitive product")
     };
     assert!(matches!(
@@ -1392,7 +1402,10 @@ fn typed_scalar_measure_counter_and_object_complements_select_exact_products() {
     let Sentence::Imperative(imperative) = sentence else {
         panic!("bare counter predicate has an imperative envelope")
     };
-    let Predicate::Atomic(VerbPhrase::PutCounters(predicate)) = imperative.predicate() else {
+    let Predicate::Atomic(predicate) = imperative.predicate() else {
+        panic!("put-counter syntax retains its atomic predicate envelope")
+    };
+    let VerbPhrase::PutCounters(predicate) = predicate.as_ref() else {
         panic!("put-counter syntax selects its exact typed product")
     };
     let CounterQuantity::FixedCounterQuantity(counters) = &predicate.counters else {
@@ -1427,7 +1440,10 @@ fn typed_scalar_measure_counter_and_object_complements_select_exact_products() {
     let Clause::Finite(FiniteClause::PlainFiniteClause(clause)) = &declarative.clause else {
         panic!("finite scalar predicate remains a plain finite clause")
     };
-    let Predicate::Atomic(VerbPhrase::DealDamageEqualTo(predicate)) = clause.predicate() else {
+    let Predicate::Atomic(predicate) = clause.predicate() else {
+        panic!("damage equality retains its atomic predicate envelope")
+    };
+    let VerbPhrase::DealDamageEqualTo(predicate) = predicate.as_ref() else {
         panic!("damage equality selects its exact typed product")
     };
     let ScalarEquality::ScalarEquality(equality) = &predicate.equality;
@@ -1607,7 +1623,7 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
     else {
         unreachable!()
     };
-    let ManaAmount::ManaAmount(mana) = *mana;
+    let ManaAmount::ManaAmount(mana) = mana;
     assert!(matches!(mana.run(), ActivationCostComponent::SymbolRun(_)));
 
     let VerbPhrase::TransitivePredicate(TransitivePredicate { object, .. }) =
@@ -3482,9 +3498,14 @@ impl Visitor for Task8Visitor {
         deckmaste_english_v2::visit::walk_requirement_predicate_value(self, value);
     }
 
-    fn visit_as_though_predicate_value(&mut self, value: &AsThoughPredicateValue) {
+    fn visit_as_though_predicate(&mut self, value: &AsThoughPredicate) {
         self.0.push("as-though");
-        deckmaste_english_v2::visit::walk_as_though_predicate_value(self, value);
+        deckmaste_english_v2::visit::walk_as_though_predicate(self, value);
+    }
+
+    fn visit_counterfactual_finite_clause(&mut self, value: &CounterfactualFiniteClause) {
+        self.0.push("counterfactual-finite");
+        deckmaste_english_v2::visit::walk_counterfactual_finite_clause(self, value);
     }
 
     fn visit_counterfactual_status_clause_value(
@@ -3493,6 +3514,22 @@ impl Visitor for Task8Visitor {
     ) {
         self.0.push("counterfactual-status");
         deckmaste_english_v2::visit::walk_counterfactual_status_clause_value(self, value);
+    }
+
+    fn visit_counterfactual_negative_ability_clause_value(
+        &mut self,
+        value: &CounterfactualNegativeAbilityClauseValue,
+    ) {
+        self.0.push("counterfactual-negative-ability");
+        deckmaste_english_v2::visit::walk_counterfactual_negative_ability_clause_value(self, value);
+    }
+
+    fn visit_counterfactual_past_ability_clause_value(
+        &mut self,
+        value: &CounterfactualPastAbilityClauseValue,
+    ) {
+        self.0.push("counterfactual-past-ability");
+        deckmaste_english_v2::visit::walk_counterfactual_past_ability_clause_value(self, value);
     }
 
     fn visit_ordered_predicate_value(&mut self, value: &OrderedPredicateValue) {
@@ -3539,7 +3576,11 @@ fn task8_infinitive_requirement_counterfactual_and_order_products_are_typed() {
         ),
         (
             "Tapped creatures you control can block as though they were untapped.",
-            &["as-though", "counterfactual-status"][..],
+            &[
+                "as-though",
+                "counterfactual-finite",
+                "counterfactual-status",
+            ][..],
             false,
         ),
         (
@@ -3553,6 +3594,184 @@ fn task8_infinitive_requirement_counterfactual_and_order_products_are_typed() {
         let mut visitor = Task8Visitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(visitor.0, expected, "exact typed products for {text:?}");
+    }
+}
+
+#[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the three counterfactual finite-clause frames share one exhaustive typed audit"
+)]
+fn task8_as_though_owns_the_attested_counterfactual_finite_family() {
+    let parser = parser();
+    let context = context();
+
+    for (text, expected) in [
+        (
+            "It can block as though it didn't have hexproof.",
+            &[
+                "as-though",
+                "counterfactual-finite",
+                "counterfactual-negative-ability",
+            ][..],
+        ),
+        (
+            "You can cast spells as though they had flash.",
+            &[
+                "as-though",
+                "counterfactual-finite",
+                "counterfactual-past-ability",
+            ][..],
+        ),
+        (
+            "Tapped creatures you control can block as though they were untapped.",
+            &[
+                "as-though",
+                "counterfactual-finite",
+                "counterfactual-status",
+            ][..],
+        ),
+    ] {
+        let ability = assert_selected(&parser, &context, text);
+        let mut visitor = Task8Visitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(
+            visitor.0, expected,
+            "typed counterfactual finite family for {text:?}"
+        );
+    }
+
+    assert_eq!(
+        exact_claim_trace(
+            &parser,
+            &context,
+            "It can block as though it didn't have hexproof."
+        ),
+        [
+            ("It".to_owned(), "vocab:SubjectPronoun/It".to_owned()),
+            (" can".to_owned(), "vocab:Auxiliary/Can".to_owned()),
+            (
+                " block".to_owned(),
+                "lexeme:CoreIntransitiveVerb/Block/bare".to_owned(),
+            ),
+            (
+                " as".to_owned(),
+                "form:intransitive_as_though_predicate/intransitive_as_though_predicate/1"
+                    .to_owned(),
+            ),
+            (
+                " though".to_owned(),
+                "form:intransitive_as_though_predicate/intransitive_as_though_predicate/2"
+                    .to_owned(),
+            ),
+            (" it".to_owned(), "vocab:SubjectPronoun/It".to_owned()),
+            (
+                " didn't".to_owned(),
+                "vocab:CounterfactualNegativeAuxiliary/Didnt".to_owned(),
+            ),
+            (" have".to_owned(), "lexeme:VerbLexeme/Have/bare".to_owned(),),
+            (
+                " hexproof".to_owned(),
+                "vocab:CounterfactualAbility/Hexproof".to_owned(),
+            ),
+            (
+                ".".to_owned(),
+                "structural:Sentences/sentences/terminator/0".to_owned(),
+            ),
+        ],
+    );
+    assert_eq!(
+        exact_claim_trace(
+            &parser,
+            &context,
+            "You can cast spells as though they had flash."
+        ),
+        [
+            ("You".to_owned(), "vocab:SubjectPronoun/You".to_owned()),
+            (" can".to_owned(), "vocab:Auxiliary/Can".to_owned()),
+            (
+                " cast".to_owned(),
+                "lexeme:keyword_action/Cast/bare".to_owned(),
+            ),
+            (
+                " spells".to_owned(),
+                "lexeme:CommonNoun/Spell/plural".to_owned(),
+            ),
+            (
+                " as".to_owned(),
+                "form:transitive_as_though_predicate/transitive_as_though_predicate/2".to_owned(),
+            ),
+            (
+                " though".to_owned(),
+                "form:transitive_as_though_predicate/transitive_as_though_predicate/3".to_owned(),
+            ),
+            (" they".to_owned(), "vocab:SubjectPronoun/They".to_owned(),),
+            (
+                " had".to_owned(),
+                "vocab:CounterfactualPastPossession/Had".to_owned(),
+            ),
+            (
+                " flash".to_owned(),
+                "vocab:CounterfactualAbility/Flash".to_owned(),
+            ),
+            (
+                ".".to_owned(),
+                "structural:Sentences/sentences/terminator/0".to_owned(),
+            ),
+        ],
+    );
+    assert_eq!(
+        exact_claim_trace(
+            &parser,
+            &context,
+            "Tapped creatures you control can block as though they were untapped."
+        ),
+        [
+            ("Tapped".to_owned(), "vocab:Status/Tapped".to_owned()),
+            (
+                " creatures".to_owned(),
+                "lexeme:type/Creature/plural".to_owned(),
+            ),
+            (" you".to_owned(), "vocab:SubjectPronoun/You".to_owned()),
+            (
+                " control".to_owned(),
+                "lexeme:VerbLexeme/Control/bare".to_owned(),
+            ),
+            (" can".to_owned(), "vocab:Auxiliary/Can".to_owned()),
+            (
+                " block".to_owned(),
+                "lexeme:CoreIntransitiveVerb/Block/bare".to_owned(),
+            ),
+            (
+                " as".to_owned(),
+                "form:intransitive_as_though_predicate/intransitive_as_though_predicate/1"
+                    .to_owned(),
+            ),
+            (
+                " though".to_owned(),
+                "form:intransitive_as_though_predicate/intransitive_as_though_predicate/2"
+                    .to_owned(),
+            ),
+            (" they".to_owned(), "vocab:SubjectPronoun/They".to_owned(),),
+            (" were".to_owned(), "vocab:FiniteCopula/Were".to_owned(),),
+            (" untapped".to_owned(), "vocab:Status/Untapped".to_owned(),),
+            (
+                ".".to_owned(),
+                "structural:Sentences/sentences/terminator/0".to_owned(),
+            ),
+        ],
+    );
+
+    for crossed in [
+        "It can block as though it didn't has hexproof.",
+        "It can block as though it did have hexproof.",
+        "You can cast spells as though they has flash.",
+        "Tapped creatures you control can block as though they was untapped.",
+    ] {
+        assert!(
+            parser.parse(crossed, &context).is_err(),
+            "counterfactual finite morphology and agreement reject {crossed:?}",
+        );
     }
 }
 
@@ -3666,4 +3885,114 @@ fn task8_attachment_movement_does_not_silently_change_scope() {
             "moved attachment must not silently reattach {text:?}: {analysis:?}"
         );
     }
+}
+
+#[test]
+fn task8_cost_position_reuses_the_typed_predicate_algebra() {
+    let parser = parser();
+    let context = context();
+    let text = "{1}, Discard a card instead: Draw a card.";
+    let ability = assert_selected_with_specificity(&parser, &context, text, true);
+    let Ability::Activated(activated) = &ability else {
+        panic!("the colon surface has the activated envelope")
+    };
+    let [
+        ActivationCostComponent::SymbolRun(_),
+        ActivationCostComponent::Clause(cost),
+    ] = activated.costs()
+    else {
+        panic!("the activated cost contains one symbol run and one typed clause")
+    };
+    assert!(matches!(cost.predicate(), Predicate::Instead(_)));
+    assert_eq!(
+        CostClause::new(Box::new(cost.predicate().clone())).as_ref(),
+        Some(cost.as_ref()),
+    );
+    assert_eq!(
+        Activated::new(activated.costs().to_vec(), activated.body.clone()).as_ref(),
+        Some(activated),
+    );
+
+    let mut visitor = Task8Visitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["instead"]);
+    assert_eq!(
+        exact_claim_trace(&parser, &context, text),
+        [
+            (
+                "{".to_owned(),
+                "form:symbol_run/symbol_run/0/prefix".to_owned(),
+            ),
+            ("1".to_owned(), "codec:ScalarNumber".to_owned()),
+            (
+                "}".to_owned(),
+                "form:symbol_run/symbol_run/0/suffix".to_owned(),
+            ),
+            (
+                ", ".to_owned(),
+                "structural:Activated/costs/separator/pair/0".to_owned(),
+            ),
+            (
+                "Discard".to_owned(),
+                "lexeme:keyword_action/Discard/bare".to_owned(),
+            ),
+            (" a".to_owned(), "form:indefinite_reference/a/0".to_owned(),),
+            (
+                " card".to_owned(),
+                "lexeme:CommonNoun/Card/singular".to_owned(),
+            ),
+            (
+                " instead".to_owned(),
+                "form:instead_predicate/instead_predicate/2".to_owned(),
+            ),
+            (": ".to_owned(), "form:activated/activated/1".to_owned(),),
+            ("Draw".to_owned(), "lexeme:VerbLexeme/Draw/bare".to_owned(),),
+            (
+                " a".to_owned(),
+                "form:singular_card_quantity/singular_card_quantity/0".to_owned(),
+            ),
+            (
+                " card".to_owned(),
+                "form:singular_card_quantity/singular_card_quantity/1".to_owned(),
+            ),
+            (
+                ".".to_owned(),
+                "structural:Sentences/sentences/terminator/0".to_owned(),
+            ),
+        ],
+    );
+
+    for crossed in [
+        "{1}, Discards a card instead: Draw a card.",
+        "{1}, discard a card instead: Draw a card.",
+    ] {
+        assert!(
+            parser.parse(crossed, &context).is_err(),
+            "cost position enforces bare agreement and document-internal case: {crossed:?}",
+        );
+    }
+}
+
+#[test]
+fn task8_object_internal_discarded_this_way_does_not_become_outer_manner() {
+    let parser = parser();
+    let context = context();
+    let text = "Target player discards two cards. Put up to one land card discarded this way onto the battlefield tapped under your control.";
+    let analysis = parser.analyze(text, &context);
+    assert!(analysis.selected().is_none(), "{analysis:?}");
+    assert!(analysis.decision().is_none(), "{analysis:?}");
+    let error = analysis
+        .into_parse_result()
+        .expect_err("object-internal participial syntax remains a later nominal boundary");
+    assert!(
+        matches!(
+            error,
+            ParseError::Failure {
+                span: TextSpan { start: 58, end: 67 },
+                ..
+            }
+        ),
+        "the exact unsupported constituent starts at `discarded`, not an outer manner attachment: {error:?}",
+    );
+    assert_eq!(&text[58..67], "discarded");
 }
