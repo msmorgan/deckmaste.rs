@@ -419,3 +419,5 @@ evidence bench `idris/src/Experimental/Cards.idr`. No Rust crate.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-payment-events-and-replacement-disjunction (close, 2026-08-26):** Heart of Bogardan's BODY is blocked card-level on demonstrative uniqueness — the header announces the non-payer, so the split read ("that player or that planeswalker's controller") finds a second singular player mention and `countWord PlayerW bs = 1` fails. A mention/uniqueness question, so it lands here.
