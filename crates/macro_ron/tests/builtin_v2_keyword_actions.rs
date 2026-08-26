@@ -352,3 +352,25 @@ fn shuffle_has_every_attested_representable_tail_shape() {
         }
     );
 }
+
+#[test]
+fn exile_declares_its_object_resultative_frame() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+
+    assert_eq!(
+        action(&declarations, "Exile").grammar().unwrap().recipe(),
+        &GrammarRecipe::Verb {
+            valence: VerbValence::Custom {
+                shapes: vec![
+                    vec![CustomTailAtom::ObjectNounPhrase],
+                    vec![
+                        CustomTailAtom::ObjectNounPhrase,
+                        CustomTailAtom::PredicativeComplement,
+                    ],
+                ],
+            },
+        }
+    );
+}

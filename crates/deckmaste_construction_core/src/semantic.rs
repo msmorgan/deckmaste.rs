@@ -763,6 +763,7 @@ pub(crate) enum VerbFrameAtom {
     Literal(String),
     Amount,
     ObjectNounPhrase,
+    PredicativeComplement,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -795,6 +796,10 @@ impl VerbFrameKey {
                             | (
                                 macro_ron::v2::CustomTailAtom::ObjectNounPhrase,
                                 VerbFrameAtom::ObjectNounPhrase,
+                            )
+                            | (
+                                macro_ron::v2::CustomTailAtom::PredicativeComplement,
+                                VerbFrameAtom::PredicativeComplement,
                             ) => true,
                             _ => false,
                         })
@@ -2032,6 +2037,12 @@ impl SemanticPlan {
             | ValueKindPlan::Lex(_)
             | ValueKindPlan::Identity(_) => None,
         };
+        if target
+            .as_deref()
+            .is_some_and(|category| self.category_requires_external_agreement(category))
+        {
+            return AgreementAuthorityPlan::Contextual;
+        }
         match (sequence, target) {
             (true, Some(target)) => AgreementAuthorityPlan::SequenceConstraint {
                 role: role.to_owned(),
@@ -5736,6 +5747,9 @@ impl DeclarationVerbPlan {
                     }
                     crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
                         VerbFrameAtom::ObjectNounPhrase
+                    }
+                    crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(_) => {
+                        VerbFrameAtom::PredicativeComplement
                     }
                 })
                 .collect(),

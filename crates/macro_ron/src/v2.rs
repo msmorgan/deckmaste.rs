@@ -323,6 +323,7 @@ pub enum CustomTailAtom {
     Literal(String),
     Amount,
     ObjectNounPhrase,
+    PredicativeComplement,
 }
 
 /// A category-safe declaration name.

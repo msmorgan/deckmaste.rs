@@ -270,6 +270,7 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                     Literal(&'static str),
                     Amount,
                     ObjectNounPhrase,
+                    PredicativeComplement,
                 }
             },
         ),
@@ -322,6 +323,10 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                                             | (
                                                 CustomTailAtom::ObjectNounPhrase,
                                                 VerbFrameAtom::ObjectNounPhrase,
+                                            )
+                                            | (
+                                                CustomTailAtom::PredicativeComplement,
+                                                VerbFrameAtom::PredicativeComplement,
                                             ) => true,
                                             _ => false,
                                         },

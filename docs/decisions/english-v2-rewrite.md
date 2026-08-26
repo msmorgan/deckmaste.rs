@@ -504,6 +504,42 @@ consumes the fixed axis. Neither the public AST nor authored constructions
 store a voice, tense, form tag, auxiliary sequence, or spelling. Agreement and
 Participle axes are reciprocally rejected at the codec boundary.
 
+**Plan 09 declaration-language and grammar-boundary amendment
+(2026-08-26):** English-v2 produces a linguistic AST. It owns English syntax,
+morphology, agreement, constituency, attachment, and lexical
+subcategorization. A separate downstream layer owns game-semantic
+interpretation. Oracle declarations may contribute open lexical vocabulary
+and linguistically normalized valence; corpus examples are evidence for an
+English construction, never authority for a game-semantic category or a
+card-specific grammar island. Printed notation and document segmentation are
+the only game-specific surfaces admitted directly by the grammar.
+
+This amendment supersedes Plan 09 Task 2's three-atom declaration-tail
+contract. `PredicativeComplement` is a fourth sealed tail atom, allowing a
+verb declaration to select a resultative complement; the formerly
+unrestricted any-verb resultative attachment is deleted. Repeated atom
+categories require compiler-only positional labels, which are erased before
+normalized frame-key matching and never enter generated AST or runtime data.
+Compositional preposition phrases are shared constituents; only genuinely
+verb-selected prepositions remain flat lexical subcategorization frames.
+
+The shared predicate algebra separates a nonrecursive base verb frame from
+typed adjunct layers. Coordination relays agreement into its members while
+exposing the same contextual agreement outward. Finite auxiliaries select
+bare complements; passive predicates compose an auxiliary/copula with a
+declared participle and do not store voice, tense, or form tags. Relative
+clauses express subject and object gaps as ordinary syntactic dependencies,
+including finite, modal, copular, and passive subject-gap forms. Ordinary
+noun phrases supply partitives, possessives, locatives, modifiers, and
+predicative nominals rather than resource-, zone-, controller-, or
+card-kind-specific categories.
+
+`target` remains a determiner. Productive noun uses such as *the target of*
+and *new targets* remain a named later boundary; admitting them requires an
+ordinary common-noun entry plus the already-ruling
+`common_noun_modifier` guard, not a damage-, distribution-, or
+counter-specific escape hatch.
+
 Declaration-backed noun recipes have explicit, category-safe declaration-kind
 domains and, for subtypes, exact subtype-family domains. More than one such
 terminal may exist only under distinct generated value types, and a

@@ -3,6 +3,9 @@ KeywordAction(
     spelling: "exile",
     grammar: Verb(
         bare: "exile",
-        valence: Transitive,
+        valence: Custom(shapes: [
+            [ObjectNounPhrase],
+            [ObjectNounPhrase, PredicativeComplement],
+        ]),
     ),
 )

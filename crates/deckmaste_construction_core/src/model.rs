@@ -426,6 +426,7 @@ pub enum DeclarationVerbTailAtomKindSource {
     Literal(LitStr),
     Amount(Ident),
     ObjectNounPhrase(Ident),
+    PredicativeComplement(Ident),
 }
 
 #[derive(Debug)]

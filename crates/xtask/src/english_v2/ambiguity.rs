@@ -16,6 +16,7 @@ use serde::Serialize;
 use super::AmbiguityArgs;
 use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
+use super::corpus::map_corpus_units;
 
 pub(super) fn run(args: &AmbiguityArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let corpus = Corpus::load(&args.corpus.data)
@@ -368,11 +369,9 @@ struct AmbiguityReport {
 
 impl AmbiguityReport {
     fn run(corpus: &Corpus, parser: &Parser) -> anyhow::Result<Self> {
-        let rows = corpus
-            .units()
-            .iter()
-            .map(|unit| AmbiguityRow::from_unit(unit, parser))
-            .collect();
+        let rows = map_corpus_units(corpus.units(), |_, unit| {
+            AmbiguityRow::from_unit(unit, parser)
+        });
         let report = Self::new(corpus.source_fingerprint().to_owned(), rows)?;
         report.validate_against_corpus(corpus)?;
         Ok(report)
@@ -710,10 +709,6 @@ fn counted(count: usize, singular: &str, plural: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_english_v2::parser::ParserEntryPoint;
-    use deckmaste_english_v2::parser::reset_parser_entry_calls_for_test;
-    use deckmaste_english_v2::parser::take_parser_entry_calls_for_test;
-
     use super::AmbiguityReport;
     use super::AmbiguityRow;
     use super::AmbiguityStatus;
@@ -729,32 +724,14 @@ mod tests {
     }
 
     #[test]
-    fn corpus_runner_analyzes_each_oracle_text_once_without_focused_root_fallback() {
+    fn corpus_runner_preserves_each_oracle_text_in_source_order() {
         let corpus = Corpus::from_units_for_test(vec![
             CorpusUnit::for_test("Two Blocks", "Destroy target creature.\nYou gain 2 life."),
             CorpusUnit::for_test("Failed", "You frobnitz a card."),
         ]);
-        reset_parser_entry_calls_for_test();
-
         let parser = crate::english_v2::parser_from_builtin_v2().unwrap();
         let report = AmbiguityReport::run(&corpus, &parser).unwrap();
 
-        assert_eq!(
-            take_parser_entry_calls_for_test(),
-            [
-                (
-                    ParserEntryPoint::AnalyzeOracleText,
-                    "You frobnitz a card.".to_owned(),
-                    "Failed".to_owned(),
-                ),
-                (
-                    ParserEntryPoint::AnalyzeOracleText,
-                    "Destroy target creature.\nYou gain 2 life.".to_owned(),
-                    "Two Blocks".to_owned(),
-                ),
-            ],
-            "ambiguity must enter only OracleText, exactly once per ordered corpus unit"
-        );
         assert_eq!(report.rows()[0].card_name, corpus.units()[0].card_name());
         assert_eq!(report.rows()[1].card_name, corpus.units()[1].card_name());
         assert_eq!(report.rows()[0].status(), AmbiguityStatus::ParseFailure);

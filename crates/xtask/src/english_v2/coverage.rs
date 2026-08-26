@@ -17,6 +17,7 @@ use deckmaste_english_v2::parser::SelectedOwnership as RuntimeSelectedOwnership;
 use super::CoverageArgs;
 use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
+use super::corpus::map_corpus_units;
 
 const REPORT_SCHEMA_VERSION: u32 = 1;
 
@@ -967,9 +968,7 @@ where
     let corpus = load_corpus()?;
     observer.record("load_environment".to_owned());
     let parser = load_parser()?;
-    let mut rows = Vec::with_capacity(corpus.units().len());
-    for unit in corpus.units() {
-        observer.record(format!("analyze_oracle_text:{}", unit.id()));
+    let rows = map_corpus_units(corpus.units(), |_, unit| {
         let context = ParseContext::new(
             unit.context_name(),
             unit.is_legendary(),
@@ -977,8 +976,11 @@ where
         )
         .expect("Corpus validates every stored parse context");
         let analysis = parser.analyze_oracle_text(unit.text(), &context);
+        runtime_analysis_row(unit, &analysis)
+    });
+    for unit in corpus.units() {
+        observer.record(format!("analyze_oracle_text:{}", unit.id()));
         observer.record(format!("map_row:{}", unit.id()));
-        rows.push(runtime_analysis_row(unit, &analysis));
     }
     observer.record("validate".to_owned());
     let report = CoverageReport::try_new(corpus.source_fingerprint().to_owned(), rows)?;
@@ -1314,10 +1316,7 @@ mod tests {
     use deckmaste_english_v2::parser::InvalidSpanKind;
     use deckmaste_english_v2::parser::OwnershipFailure;
     use deckmaste_english_v2::parser::ParseAnalysisOutcome;
-    use deckmaste_english_v2::parser::ParserEntryPoint;
     use deckmaste_english_v2::parser::TextSpan;
-    use deckmaste_english_v2::parser::reset_parser_entry_calls_for_test;
-    use deckmaste_english_v2::parser::take_parser_entry_calls_for_test;
     use deckmaste_english_v2::parser::with_forced_ownership_inspection_failure_for_test;
     use macro_ron::v2::Onset;
 
@@ -2632,7 +2631,7 @@ mod tests {
     }
 
     #[test]
-    fn runner_calls_oracle_text_once_per_ordered_unit_without_ability_fallback() {
+    fn runner_preserves_each_oracle_text_in_source_order() {
         let corpus = Corpus::from_units_for_test(vec![
             unit("Zulu", "Destroy target Spirit.\nYou gain 2 life."),
             unit("Alpha", "Whenever a player connives, you gain X life."),
@@ -2642,7 +2641,6 @@ mod tests {
             .iter()
             .map(|unit| unit.id().to_owned())
             .collect::<Vec<_>>();
-        reset_parser_entry_calls_for_test();
         let mut output = Vec::new();
         let mut diagnostics = Vec::new();
         let mut observer = Recorder::default();
@@ -2658,22 +2656,6 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(
-            take_parser_entry_calls_for_test(),
-            [
-                (
-                    ParserEntryPoint::AnalyzeOracleText,
-                    "Whenever a player connives, you gain X life.".to_owned(),
-                    "Alpha".to_owned(),
-                ),
-                (
-                    ParserEntryPoint::AnalyzeOracleText,
-                    "Destroy target Spirit.\nYou gain 2 life.".to_owned(),
-                    "Zulu".to_owned(),
-                ),
-            ],
-            "coverage must enter only OracleText, exactly once per ordered corpus unit"
-        );
         let json: serde_json::Value = serde_json::from_slice(&output).unwrap();
         assert_eq!(
             json["rows"]

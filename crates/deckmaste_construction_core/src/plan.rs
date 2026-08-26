@@ -1047,6 +1047,23 @@ mod tests {
         assert!(amount.frame_key().matches_valence(&VerbValence::Numerative));
         assert!(!amount.frame_key().matches_valence(&VerbValence::Transitive));
 
+        let predicative_plan = plan_for(quote::quote! { PredicativeComplement });
+        let (_, predicative) = predicative_plan
+            .runtime_declaration_verbs()
+            .next()
+            .expect("predicative declaration_verb remains one recipe");
+        assert_eq!(
+            predicative.frame_key().atoms(),
+            [crate::semantic::VerbFrameAtom::PredicativeComplement]
+        );
+        assert!(
+            predicative
+                .frame_key()
+                .matches_valence(&VerbValence::Custom {
+                    shapes: vec![vec![CustomTailAtom::PredicativeComplement]],
+                })
+        );
+
         let search_plan = plan_for(quote::quote! {
             location: ObjectNounPhrase,
             "for",

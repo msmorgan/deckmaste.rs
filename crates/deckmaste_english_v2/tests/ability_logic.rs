@@ -71,23 +71,42 @@ fn connive() -> VerbPhrase {
         DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
     )
     .expect("the builtin grammar declares intransitive Connive");
-    VerbPhrase::IntransitivePredicate(IntransitivePredicate {
-        head: IntransitiveVerb::Declaration(head),
+    VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+        frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
+            IntransitivePredicate {
+                head: IntransitiveVerb::Declaration(head),
+            },
+        )),
     })
 }
 
 fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
     match predicate {
-        VerbPhrase::IntransitivePredicate(IntransitivePredicate {
-            head: IntransitiveVerb::Declaration(head),
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+            frame:
+                BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
+                    IntransitivePredicate {
+                        head: IntransitiveVerb::Declaration(head),
+                    },
+                )),
         }) => Some(head.id().name()),
-        VerbPhrase::TransitivePredicate(TransitivePredicate {
-            head: TransitiveVerb::Declaration(head),
-            ..
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+            frame:
+                BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
+                    TransitivePredicate {
+                        head: TransitiveVerb::Declaration(head),
+                        ..
+                    },
+                )),
         }) => Some(head.id().name()),
-        VerbPhrase::NumerativePredicate(NumerativePredicate {
-            head: NumerativeVerb::Declaration(head),
-            ..
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+            frame:
+                BaseVerbFrame::NumerativeFrame(NumerativeFrame::NumerativePredicate(
+                    NumerativePredicate {
+                        head: NumerativeVerb::Declaration(head),
+                        ..
+                    },
+                )),
         }) => Some(head.id().name()),
         _ => None,
     }
@@ -387,13 +406,15 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
     let Ability::Triggered(Triggered { intervening_if, .. }) = &parsed else {
         panic!("the intervening condition owns an existential clause, pivot, and among-domain")
     };
-    let Some(ConditionClause::ExistentialCondition(ExistentialCondition::ExistentialCondition(
-        condition,
-    ))) = intervening_if.as_ref().as_ref()
+    let Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(condition))) =
+        intervening_if.as_ref().as_ref()
     else {
         panic!("the intervening condition owns an existential clause")
     };
-    let ExistentialClause::PluralExistentialClause(existential) = &condition.clause else {
+    let Clause::Finite(finite) = &condition.clause else {
+        panic!("the intervening condition owns a finite clause")
+    };
+    let FiniteClause::ExistentialFiniteClause(existential) = finite.as_ref() else {
         panic!("the intervening condition owns a plural existential clause")
     };
     assert!(matches!(
@@ -416,8 +437,8 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
 
     let construction_path = decision.candidates()[0].construction_path();
     for required in [
-        "ExistentialConditionExistentialCondition",
-        "ExistentialClausePluralExistentialClause",
+        "FiniteConditionFiniteCondition",
+        "FiniteClauseExistentialFiniteClause",
         "UnqualifiedReferenceCountComparisonReference",
         "PluralNominalCompoundModifiedPluralNominal",
         "AmongPhraseAmongPhrase",
@@ -437,13 +458,13 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
     for expected in [
         (
             TextSpan { start: 41, end: 44 },
-            "form:existential_condition/existential_condition/0",
+            "form:finite_condition/finite_condition/0",
         ),
         (
             TextSpan { start: 44, end: 50 },
-            "form:plural_existential_clause/plural_existential_clause/0",
+            "form:existential_finite_clause/existential_finite_clause/0",
         ),
-        (TextSpan { start: 50, end: 54 }, "lexeme:VerbLexeme/Be/bare"),
+        (TextSpan { start: 50, end: 54 }, "vocab:FiniteCopula/Are"),
         (
             TextSpan { start: 84, end: 90 },
             "form:among_phrase/among_phrase/0",
@@ -471,7 +492,7 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
                 start: 117,
                 end: 118,
             },
-            "form:existential_condition/existential_condition/2",
+            "form:finite_condition/finite_condition/2",
         ),
     ] {
         assert!(
@@ -514,24 +535,9 @@ impl Visitor for ExistentialStructureVisitor {
         deckmaste_english_v2::visit::walk_condition_clause(self, value);
     }
 
-    fn visit_existential_condition(&mut self, value: &ExistentialCondition) {
-        self.0.push("ExistentialCondition");
-        deckmaste_english_v2::visit::walk_existential_condition(self, value);
-    }
-
-    fn visit_existential_condition_value(&mut self, value: &ExistentialConditionValue) {
-        self.0.push("ExistentialConditionValue");
-        deckmaste_english_v2::visit::walk_existential_condition_value(self, value);
-    }
-
-    fn visit_existential_clause(&mut self, value: &ExistentialClause) {
-        self.0.push("ExistentialClause");
-        deckmaste_english_v2::visit::walk_existential_clause(self, value);
-    }
-
-    fn visit_plural_existential_clause(&mut self, value: &PluralExistentialClause) {
-        self.0.push("PluralExistentialClause");
-        deckmaste_english_v2::visit::walk_plural_existential_clause(self, value);
+    fn visit_existential_finite_clause(&mut self, value: &ExistentialFiniteClause) {
+        self.0.push("ExistentialFiniteClause");
+        deckmaste_english_v2::visit::walk_existential_finite_clause(self, value);
     }
 
     fn visit_compound_modified_plural_nominal(&mut self, value: &CompoundModifiedPluralNominal) {
@@ -621,10 +627,7 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
         visitor.0,
         [
             "ConditionClause",
-            "ExistentialCondition",
-            "ExistentialConditionValue",
-            "ExistentialClause",
-            "PluralExistentialClause",
+            "ExistentialFiniteClause",
             "CompoundModifiedPluralNominal",
             "CompoundNominalModifier",
             "CompoundModifierMember",
@@ -1250,10 +1253,7 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
     assert_eq!(variants("TriggerMarker"), ["When", "Whenever"]);
     assert_eq!(variants("TriggerPrefix"), ["Finite", "Temporal"]);
     assert_eq!(variants("AtPhrase"), ["AtPhrase"]);
-    assert_eq!(
-        variants("ConditionClause"),
-        ["FiniteCondition", "ExistentialCondition"]
-    );
+    assert_eq!(variants("ConditionClause"), ["FiniteCondition"]);
     assert_eq!(variants("FiniteCondition"), ["FiniteCondition"]);
     assert_eq!(variants("AtBoundary"), ["Beginning", "End"]);
     assert_eq!(
@@ -1997,7 +1997,12 @@ fn generated_activation_inventory_is_closed_typed_and_surface_free() {
     assert_eq!(variants("Ability"), ["Plain", "Triggered", "Activated"]);
     assert_eq!(
         variants("AbilityBody"),
-        ["Sentences", "PlainModal", "QuoteTerminatedStatement"]
+        [
+            "Sentences",
+            "ThenSentences",
+            "PlainModal",
+            "QuoteTerminatedStatement",
+        ]
     );
     assert_eq!(variants("ModalMode"), ["ModalMode"]);
     assert_eq!(
@@ -2580,22 +2585,19 @@ fn coordinated_predicate_identity(predicate: &CoordinatedPredicate) -> String {
 }
 
 fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
-    let NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference:
-            NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
-                reference:
-                    ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
-                        reference:
-                            ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
-                                reference,
-                            }),
-                    }),
-            }),
-    }) = noun_phrase
-    else {
+    let NounPhrase::QualifiedNounPhrase(qualified) = noun_phrase else {
         panic!("coordination subject uses the exact unqualified staging")
     };
-    reference
+    let NumericStage::UnqualifiedNumericStage(numeric) = qualified.reference.as_ref() else {
+        panic!("coordination subject uses the exact unqualified numeric stage")
+    };
+    let LocativeStage::UnqualifiedLocativeStage(locative) = numeric.reference.as_ref() else {
+        panic!("coordination subject uses the exact unqualified locative stage")
+    };
+    let ControllerStage::UnqualifiedControllerStage(controller) = &locative.reference else {
+        panic!("coordination subject uses the exact unqualified controller stage")
+    };
+    &controller.reference
 }
 
 fn subject_identity(subject: &Subject) -> &'static str {
@@ -2773,15 +2775,18 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
     assert_eq!(
         variants("VerbPhrase"),
         [
-            "IntransitivePredicate",
-            "TransitivePredicate",
-            "NumerativePredicate",
+            "ChooseInfinitivePredicate",
+            "DuringTurnPredicate",
+            "IntransitiveDuringTurnPredicate",
+            "BaseVerbPhrase",
             "DealDamage",
+            "DealDistributedDamage",
             "DealUnspecifiedDamage",
             "PreventDamage",
             "GainLife",
             "GainUnspecifiedLife",
             "DealDamageEqualTo",
+            "DealDamageToEqualTo",
             "GainLifeEqualTo",
             "LoseLife",
             "LoseLifeEqualTo",
@@ -2799,7 +2804,7 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
             "PutOn",
             "PutTo",
             "ReturnTo",
-            "EnterPostState",
+            "EnterResultative",
             "EnterWithCounters",
             "EnterLocation",
             "EnterControl",
@@ -3579,20 +3584,28 @@ fn connive_clause() -> FiniteClause {
     plain_finite(you_subject(), Predicate::Atomic(Box::new(connive())))
 }
 
+fn connive_condition_clause() -> Box<Clause> {
+    Box::new(Clause::Finite(Box::new(connive_clause())))
+}
+
 fn player_subject() -> Subject {
     Subject::SubjectNominal(NominalSubject {
         value: NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
-                reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
-                    reference: ControllerStage::UnqualifiedControllerStage(
-                        UnqualifiedControllerStage {
-                            reference: UnqualifiedReference::IndefiniteReference(
-                                IndefiniteReference {
-                                    nominal: SingularNominal::BareSingularNominal(
-                                        BareSingularNominal {
-                                            head: SingularHead::CommonSingularHead(
-                                                CommonSingularHead {
-                                                    noun: CommonNoun::Player,
+            reference: Box::new(NumericStage::UnqualifiedNumericStage(
+                UnqualifiedNumericStage {
+                    reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
+                        UnqualifiedLocativeStage {
+                            reference: ControllerStage::UnqualifiedControllerStage(
+                                UnqualifiedControllerStage {
+                                    reference: UnqualifiedReference::IndefiniteReference(
+                                        IndefiniteReference {
+                                            nominal: SingularNominal::BareSingularNominal(
+                                                BareSingularNominal {
+                                                    head: SingularHead::CommonSingularHead(
+                                                        CommonSingularHead {
+                                                            noun: CommonNoun::Player,
+                                                        },
+                                                    ),
                                                 },
                                             ),
                                         },
@@ -3600,9 +3613,9 @@ fn player_subject() -> Subject {
                                 },
                             ),
                         },
-                    ),
-                }),
-            }),
+                    )),
+                },
+            )),
         }),
     })
 }
@@ -3634,7 +3647,7 @@ fn attachment_products_have_an_intermediate_linguistic_stage_for_imperatives() {
     let expected = Sentence::Attached(Attached {
         attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
             PreposedIfPredicate::new(
-                connive_clause(),
+                connive_condition_clause(),
                 Box::new(Predicate::Atomic(Box::new(connive()))),
             )
             .expect("the attached imperative predicate is bare"),
@@ -3661,6 +3674,7 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
     let parser = parser();
     let context = context("Context Card", false);
     let condition = connive_clause();
+    let preposed_condition = connive_condition_clause();
     let body = gain_clause(2);
 
     for (text, expected) in [
@@ -3668,7 +3682,7 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
             "If you connive, you gain 2 life.",
             Sentence::Attached(Attached {
                 attachment: Box::new(ClauseAttachment::PreposedIf(Box::new(PreposedIf {
-                    condition: condition.clone(),
+                    condition: preposed_condition.clone(),
                     body: Box::new(body.clone()),
                 }))),
             }),
@@ -3698,7 +3712,7 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
             Sentence::Attached(Attached {
                 attachment: Box::new(ClauseAttachment::PreposedAsLongAs(Box::new(
                     PreposedAsLongAs {
-                        condition: condition.clone(),
+                        condition: preposed_condition.clone(),
                         body: Box::new(body.clone()),
                     },
                 ))),
@@ -4211,7 +4225,7 @@ fn assert_attachment_has_no_selection(
 fn conditional_attachment_root_scope_matrix_is_exact() {
     let parser = parser();
     let context = context("Context Card", false);
-    let condition = connive_clause();
+    let condition = connive_condition_clause();
     let gain = Predicate::Atomic(Box::new(gain_life_predicate(2)));
     let root_text = "If you connive, gain 2 life.";
     let root = assert_one_logic_candidate(&parser, &context, root_text);
@@ -4346,7 +4360,7 @@ fn conditional_attachment_trigger_scope_matrix_is_exact() {
 fn conditional_attachment_activation_scope_matrix_is_exact() {
     let parser = parser();
     let context = context("Context Card", false);
-    let condition = connive_clause();
+    let preposed_condition = connive_condition_clause();
     let gain = Predicate::Atomic(Box::new(gain_life_predicate(2)));
     let activation_text = "{T}: If you connive, gain 2 life.";
     let activation = assert_one_logic_candidate(&parser, &context, activation_text);
@@ -4364,7 +4378,7 @@ fn conditional_attachment_activation_scope_matrix_is_exact() {
         &AbilityBody::Sentences(
             Sentences::new(Box::new(vec![Sentence::Attached(Attached {
                 attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
-                    PreposedIfPredicate::new(condition, Box::new(gain))
+                    PreposedIfPredicate::new(preposed_condition, Box::new(gain))
                         .expect("the attached gain predicate is bare"),
                 ))),
             })]))
@@ -4492,6 +4506,7 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
     let parser = parser();
     let context = context("Context Card", false);
     let condition = connive_clause();
+    let preposed_condition = connive_condition_clause();
     let gain = Predicate::Atomic(Box::new(gain_life_predicate(2)));
 
     for (text, expected) in [
@@ -4512,7 +4527,7 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
         (
             "As long as you connive, gain 2 life.",
             ClauseAttachment::PreposedAsLongAsPredicate(Box::new(
-                PreposedAsLongAsPredicate::new(condition.clone(), Box::new(gain.clone()))
+                PreposedAsLongAsPredicate::new(preposed_condition.clone(), Box::new(gain.clone()))
                     .expect("the attached gain predicate is bare"),
             )),
         ),
@@ -4740,7 +4755,7 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
         "OrClauseCoordination.members",
         "AndOrClauseCoordination.members",
         "ThenSequence.members",
-        "ThenPredicateSequence.members",
+        "ThenPredicateSequenceValue.members",
     ] {
         assert!(
             report
@@ -4753,7 +4768,7 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
     assert_eq!(
         report.sequence_feature_roles(),
         [
-            "ThenPredicateSequence.members.agreement",
+            "ThenPredicateSequenceValue.members.agreement",
             "AndPredicateCoordination.members.agreement",
             "OrPredicateCoordination.members.agreement",
             "AndOrPredicateCoordination.members.agreement",
@@ -4845,6 +4860,30 @@ fn every_plain_modal_header_selects_independently_in_every_ability_envelope() {
             ModalChooser::Opponent,
             ModalChoiceBounds::ExactlyOne,
         ),
+        (
+            "An opponent chooses two",
+            "an opponent chooses two",
+            ModalChooser::Opponent,
+            ModalChoiceBounds::ExactlyTwo,
+        ),
+        (
+            "An opponent chooses one or both",
+            "an opponent chooses one or both",
+            ModalChooser::Opponent,
+            ModalChoiceBounds::OneToTwo,
+        ),
+        (
+            "An opponent chooses one or more",
+            "an opponent chooses one or more",
+            ModalChooser::Opponent,
+            ModalChoiceBounds::OneOrMore,
+        ),
+        (
+            "An opponent chooses up to one",
+            "an opponent chooses up to one",
+            ModalChooser::Opponent,
+            ModalChoiceBounds::ZeroToOne,
+        ),
     ] {
         for (envelope, header) in [
             ("root", root_header),
@@ -4854,8 +4893,8 @@ fn every_plain_modal_header_selects_independently_in_every_ability_envelope() {
             let text = wrapped_modal_text(envelope, header);
             let selected = assert_one_logic_candidate(&parser, &context, &text);
             let modal = selected_plain_modal(&selected, envelope);
-            assert_eq!(modal.chooser(), chooser, "{text}");
-            assert_eq!(modal.bounds(), bounds, "{text}");
+            assert_eq!(modal.chooser, chooser, "{text}");
+            assert_eq!(modal.bounds, bounds, "{text}");
             assert_eq!(modal.modes().len(), 2, "{text}");
             assert_eq!(
                 selected.render(&context, parser.environment()),
@@ -5169,7 +5208,7 @@ type ModalClaim = (usize, usize, &'static str);
 const ROOT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (0, 6, "vocab:ModalChooser/You"),
     (6, 10, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (10, 15, "form:plain_modal/exactly_one/2"),
+    (10, 15, "form:plain_modal/plain_modal/2"),
     (15, 19, "form:modal_mode/modal_mode/0"),
     (19, 22, "vocab:SubjectPronoun/You"),
     (22, 27, "lexeme:VerbLexeme/Gain/bare"),
@@ -5188,7 +5227,7 @@ const ROOT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
 const ROOT_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
     (0, 6, "vocab:ModalChooser/You"),
     (6, 10, "vocab:ModalChoiceBounds/ExactlyTwo"),
-    (10, 15, "form:plain_modal/exactly_two/2"),
+    (10, 15, "form:plain_modal/plain_modal/2"),
     (15, 19, "form:modal_mode/modal_mode/0"),
     (19, 22, "vocab:SubjectPronoun/You"),
     (22, 27, "lexeme:VerbLexeme/Gain/bare"),
@@ -5207,7 +5246,7 @@ const ROOT_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
 const ROOT_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
     (0, 6, "vocab:ModalChooser/You"),
     (6, 18, "vocab:ModalChoiceBounds/OneToTwo"),
-    (18, 23, "form:plain_modal/one_to_two/2"),
+    (18, 23, "form:plain_modal/plain_modal/2"),
     (23, 27, "form:modal_mode/modal_mode/0"),
     (27, 30, "vocab:SubjectPronoun/You"),
     (30, 35, "lexeme:VerbLexeme/Gain/bare"),
@@ -5226,7 +5265,7 @@ const ROOT_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
 const ROOT_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
     (0, 6, "vocab:ModalChooser/You"),
     (6, 18, "vocab:ModalChoiceBounds/OneOrMore"),
-    (18, 23, "form:plain_modal/one_or_more/2"),
+    (18, 23, "form:plain_modal/plain_modal/2"),
     (23, 27, "form:modal_mode/modal_mode/0"),
     (27, 30, "vocab:SubjectPronoun/You"),
     (30, 35, "lexeme:VerbLexeme/Gain/bare"),
@@ -5245,7 +5284,7 @@ const ROOT_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
 const ROOT_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
     (0, 6, "vocab:ModalChooser/You"),
     (6, 16, "vocab:ModalChoiceBounds/ZeroToOne"),
-    (16, 21, "form:plain_modal/zero_to_one/2"),
+    (16, 21, "form:plain_modal/plain_modal/2"),
     (21, 25, "form:modal_mode/modal_mode/0"),
     (25, 28, "vocab:SubjectPronoun/You"),
     (28, 33, "lexeme:VerbLexeme/Gain/bare"),
@@ -5264,7 +5303,7 @@ const ROOT_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
 const ROOT_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (0, 19, "vocab:ModalChooser/Opponent"),
     (19, 23, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (23, 28, "form:plain_modal/opponent_exactly_one/2"),
+    (23, 28, "form:plain_modal/plain_modal/2"),
     (28, 32, "form:modal_mode/modal_mode/0"),
     (32, 35, "vocab:SubjectPronoun/You"),
     (35, 40, "lexeme:VerbLexeme/Gain/bare"),
@@ -5296,7 +5335,7 @@ const TRIGGER_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (42, 43, "form:finite_condition/finite_condition/2"),
     (43, 50, "vocab:ModalChooser/You"),
     (50, 54, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (54, 59, "form:plain_modal/exactly_one/2"),
+    (54, 59, "form:plain_modal/plain_modal/2"),
     (59, 63, "form:modal_mode/modal_mode/0"),
     (63, 66, "vocab:SubjectPronoun/You"),
     (66, 71, "lexeme:VerbLexeme/Gain/bare"),
@@ -5328,7 +5367,7 @@ const TRIGGER_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
     (42, 43, "form:finite_condition/finite_condition/2"),
     (43, 50, "vocab:ModalChooser/You"),
     (50, 54, "vocab:ModalChoiceBounds/ExactlyTwo"),
-    (54, 59, "form:plain_modal/exactly_two/2"),
+    (54, 59, "form:plain_modal/plain_modal/2"),
     (59, 63, "form:modal_mode/modal_mode/0"),
     (63, 66, "vocab:SubjectPronoun/You"),
     (66, 71, "lexeme:VerbLexeme/Gain/bare"),
@@ -5360,7 +5399,7 @@ const TRIGGER_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
     (42, 43, "form:finite_condition/finite_condition/2"),
     (43, 50, "vocab:ModalChooser/You"),
     (50, 62, "vocab:ModalChoiceBounds/OneToTwo"),
-    (62, 67, "form:plain_modal/one_to_two/2"),
+    (62, 67, "form:plain_modal/plain_modal/2"),
     (67, 71, "form:modal_mode/modal_mode/0"),
     (71, 74, "vocab:SubjectPronoun/You"),
     (74, 79, "lexeme:VerbLexeme/Gain/bare"),
@@ -5392,7 +5431,7 @@ const TRIGGER_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
     (42, 43, "form:finite_condition/finite_condition/2"),
     (43, 50, "vocab:ModalChooser/You"),
     (50, 62, "vocab:ModalChoiceBounds/OneOrMore"),
-    (62, 67, "form:plain_modal/one_or_more/2"),
+    (62, 67, "form:plain_modal/plain_modal/2"),
     (67, 71, "form:modal_mode/modal_mode/0"),
     (71, 74, "vocab:SubjectPronoun/You"),
     (74, 79, "lexeme:VerbLexeme/Gain/bare"),
@@ -5424,7 +5463,7 @@ const TRIGGER_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
     (42, 43, "form:finite_condition/finite_condition/2"),
     (43, 50, "vocab:ModalChooser/You"),
     (50, 60, "vocab:ModalChoiceBounds/ZeroToOne"),
-    (60, 65, "form:plain_modal/zero_to_one/2"),
+    (60, 65, "form:plain_modal/plain_modal/2"),
     (65, 69, "form:modal_mode/modal_mode/0"),
     (69, 72, "vocab:SubjectPronoun/You"),
     (72, 77, "lexeme:VerbLexeme/Gain/bare"),
@@ -5456,7 +5495,7 @@ const TRIGGER_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (42, 43, "form:finite_condition/finite_condition/2"),
     (43, 63, "vocab:ModalChooser/Opponent"),
     (63, 67, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (67, 72, "form:plain_modal/opponent_exactly_one/2"),
+    (67, 72, "form:plain_modal/plain_modal/2"),
     (72, 76, "form:modal_mode/modal_mode/0"),
     (76, 79, "vocab:SubjectPronoun/You"),
     (79, 84, "lexeme:VerbLexeme/Gain/bare"),
@@ -5479,7 +5518,7 @@ const ACTIVATION_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (3, 5, "form:activated/activated/1"),
     (5, 11, "vocab:ModalChooser/You"),
     (11, 15, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (15, 20, "form:plain_modal/exactly_one/2"),
+    (15, 20, "form:plain_modal/plain_modal/2"),
     (20, 24, "form:modal_mode/modal_mode/0"),
     (24, 27, "vocab:SubjectPronoun/You"),
     (27, 32, "lexeme:VerbLexeme/Gain/bare"),
@@ -5502,7 +5541,7 @@ const ACTIVATION_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
     (3, 5, "form:activated/activated/1"),
     (5, 11, "vocab:ModalChooser/You"),
     (11, 15, "vocab:ModalChoiceBounds/ExactlyTwo"),
-    (15, 20, "form:plain_modal/exactly_two/2"),
+    (15, 20, "form:plain_modal/plain_modal/2"),
     (20, 24, "form:modal_mode/modal_mode/0"),
     (24, 27, "vocab:SubjectPronoun/You"),
     (27, 32, "lexeme:VerbLexeme/Gain/bare"),
@@ -5525,7 +5564,7 @@ const ACTIVATION_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
     (3, 5, "form:activated/activated/1"),
     (5, 11, "vocab:ModalChooser/You"),
     (11, 23, "vocab:ModalChoiceBounds/OneToTwo"),
-    (23, 28, "form:plain_modal/one_to_two/2"),
+    (23, 28, "form:plain_modal/plain_modal/2"),
     (28, 32, "form:modal_mode/modal_mode/0"),
     (32, 35, "vocab:SubjectPronoun/You"),
     (35, 40, "lexeme:VerbLexeme/Gain/bare"),
@@ -5548,7 +5587,7 @@ const ACTIVATION_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
     (3, 5, "form:activated/activated/1"),
     (5, 11, "vocab:ModalChooser/You"),
     (11, 23, "vocab:ModalChoiceBounds/OneOrMore"),
-    (23, 28, "form:plain_modal/one_or_more/2"),
+    (23, 28, "form:plain_modal/plain_modal/2"),
     (28, 32, "form:modal_mode/modal_mode/0"),
     (32, 35, "vocab:SubjectPronoun/You"),
     (35, 40, "lexeme:VerbLexeme/Gain/bare"),
@@ -5571,7 +5610,7 @@ const ACTIVATION_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
     (3, 5, "form:activated/activated/1"),
     (5, 11, "vocab:ModalChooser/You"),
     (11, 21, "vocab:ModalChoiceBounds/ZeroToOne"),
-    (21, 26, "form:plain_modal/zero_to_one/2"),
+    (21, 26, "form:plain_modal/plain_modal/2"),
     (26, 30, "form:modal_mode/modal_mode/0"),
     (30, 33, "vocab:SubjectPronoun/You"),
     (33, 38, "lexeme:VerbLexeme/Gain/bare"),
@@ -5594,7 +5633,7 @@ const ACTIVATION_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (3, 5, "form:activated/activated/1"),
     (5, 24, "vocab:ModalChooser/Opponent"),
     (24, 28, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (28, 33, "form:plain_modal/opponent_exactly_one/2"),
+    (28, 33, "form:plain_modal/plain_modal/2"),
     (33, 37, "form:modal_mode/modal_mode/0"),
     (37, 40, "vocab:SubjectPronoun/You"),
     (40, 45, "lexeme:VerbLexeme/Gain/bare"),
@@ -5894,7 +5933,7 @@ fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
         [
             (0, 6, "vocab:ModalChooser/You"),
             (6, 10, "vocab:ModalChoiceBounds/ExactlyOne"),
-            (10, 15, "form:plain_modal/exactly_one/2"),
+            (10, 15, "form:plain_modal/plain_modal/2"),
             (15, 19, "form:modal_mode/modal_mode/0"),
             (19, 22, "vocab:SubjectPronoun/You"),
             (22, 27, "lexeme:VerbLexeme/Gain/bare"),
@@ -5961,6 +6000,26 @@ fn modal_header_guard_selection_is_mutation_authenticated() {
             ModalChoiceBounds::ExactlyOne,
             "An opponent chooses one",
         ),
+        (
+            ModalChooser::Opponent,
+            ModalChoiceBounds::ExactlyTwo,
+            "An opponent chooses two",
+        ),
+        (
+            ModalChooser::Opponent,
+            ModalChoiceBounds::OneToTwo,
+            "An opponent chooses one or both",
+        ),
+        (
+            ModalChooser::Opponent,
+            ModalChoiceBounds::OneOrMore,
+            "An opponent chooses one or more",
+        ),
+        (
+            ModalChooser::Opponent,
+            ModalChoiceBounds::ZeroToOne,
+            "An opponent chooses up to one",
+        ),
     ] {
         let modal = PlainModal::new(chooser, bounds, Box::new(modes()))
             .expect("every admitted semantic header combination constructs");
@@ -5971,17 +6030,6 @@ fn modal_header_guard_selection_is_mutation_authenticated() {
             ability.render(&context, parser.environment()),
             modal_text(header),
             "mutating semantic chooser or bounds selects its one guarded surface",
-        );
-    }
-    for bounds in [
-        ModalChoiceBounds::ExactlyTwo,
-        ModalChoiceBounds::OneToTwo,
-        ModalChoiceBounds::OneOrMore,
-        ModalChoiceBounds::ZeroToOne,
-    ] {
-        assert!(
-            PlainModal::new(ModalChooser::Opponent, bounds, Box::new(modes())).is_none(),
-            "the opponent chooser is sealed to exactly one mode",
         );
     }
     assert!(
@@ -6188,15 +6236,19 @@ fn full_self_reference_subject(context: &ParseContext<'_>) -> Subject {
         .expect("every nonempty context licenses its exact full spelling");
     Subject::SubjectNominal(NominalSubject {
         value: NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-            reference: NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
-                reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
-                    reference: ControllerStage::UnqualifiedControllerStage(
-                        UnqualifiedControllerStage {
-                            reference: UnqualifiedReference::SelfReference(reference),
+            reference: Box::new(NumericStage::UnqualifiedNumericStage(
+                UnqualifiedNumericStage {
+                    reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
+                        UnqualifiedLocativeStage {
+                            reference: ControllerStage::UnqualifiedControllerStage(
+                                UnqualifiedControllerStage {
+                                    reference: UnqualifiedReference::SelfReference(reference),
+                                },
+                            ),
                         },
-                    ),
-                }),
-            }),
+                    )),
+                },
+            )),
         }),
     })
 }

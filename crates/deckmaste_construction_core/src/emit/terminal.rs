@@ -146,6 +146,9 @@ pub(crate) fn emit(
                         crate::semantic::VerbFrameAtom::ObjectNounPhrase => {
                             quote! { VerbFrameAtom::ObjectNounPhrase }
                         }
+                        crate::semantic::VerbFrameAtom::PredicativeComplement => {
+                            quote! { VerbFrameAtom::PredicativeComplement }
+                        }
                     })
                     .collect::<Vec<_>>();
                 items.push(GeneratedItem::new(

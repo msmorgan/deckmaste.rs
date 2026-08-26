@@ -568,6 +568,9 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     crate::semantic::VerbFrameAtom::ObjectNounPhrase => {
                         quote! { VerbFrameAtom::ObjectNounPhrase }
                     }
+                    crate::semantic::VerbFrameAtom::PredicativeComplement => {
+                        quote! { VerbFrameAtom::PredicativeComplement }
+                    }
                 })
                 .collect::<Vec<_>>();
             let closed_scan = codec.closed_lexeme().map(|closed| {

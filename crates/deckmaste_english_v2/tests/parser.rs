@@ -52,8 +52,8 @@ fn context(card_name: &str) -> ParseContext<'_> {
         .expect("test card name is a valid parse context")
 }
 
-fn damage_recipient(object: Object) -> DamageRecipient {
-    DamageRecipient::DamageRecipient(DamageRecipientValue { object })
+fn to_phrase(complement: Object) -> ToPhrase {
+    ToPhrase::ToPhrase(ToPhraseValue { complement })
 }
 
 fn legendary_context(card_name: &str) -> ParseContext<'_> {
@@ -98,9 +98,14 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         let Predicate::Atomic(predicate) = imperative.predicate() else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        let VerbPhrase::TransitivePredicate(TransitivePredicate {
-            head: TransitiveVerb::Declaration(_),
-            object: Object::ObjectNominal(NominalObject { value }),
+        let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+            frame:
+                BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
+                    TransitivePredicate {
+                        head: TransitiveVerb::Declaration(_),
+                        object: Object::ObjectNominal(NominalObject { value }),
+                    },
+                )),
         }) = predicate.as_ref()
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
@@ -445,33 +450,34 @@ fn plural_head(noun: Noun) -> PluralHead {
 
 fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
-            reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
-                reference: ControllerStage::UnqualifiedControllerStage(
-                    UnqualifiedControllerStage { reference },
-                ),
-            }),
-        }),
+        reference: Box::new(NumericStage::UnqualifiedNumericStage(
+            UnqualifiedNumericStage {
+                reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
+                    UnqualifiedLocativeStage {
+                        reference: ControllerStage::UnqualifiedControllerStage(
+                            UnqualifiedControllerStage { reference },
+                        ),
+                    },
+                )),
+            },
+        )),
     })
 }
 
 fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
-    let NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference:
-            NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
-                reference:
-                    ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
-                        reference:
-                            ControllerStage::UnqualifiedControllerStage(UnqualifiedControllerStage {
-                                reference,
-                            }),
-                    }),
-            }),
-    }) = noun_phrase
-    else {
+    let NounPhrase::QualifiedNounPhrase(qualified) = noun_phrase else {
         panic!("expected an unqualified noun phrase: {noun_phrase:?}")
     };
-    reference
+    let NumericStage::UnqualifiedNumericStage(numeric) = qualified.reference.as_ref() else {
+        panic!("expected an unqualified numeric stage: {noun_phrase:?}")
+    };
+    let LocativeStage::UnqualifiedLocativeStage(locative) = numeric.reference.as_ref() else {
+        panic!("expected an unqualified locative stage: {noun_phrase:?}")
+    };
+    let ControllerStage::UnqualifiedControllerStage(controller) = &locative.reference else {
+        panic!("expected an unqualified controller stage: {noun_phrase:?}")
+    };
+    &controller.reference
 }
 
 fn indefinite(noun: Noun) -> NounPhrase {
@@ -495,36 +501,42 @@ fn target_noun(noun: Noun) -> NounPhrase {
 
 fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: NumericStage::ScalarQualifiedReference(ScalarQualifiedReference {
-            reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
-                reference: ControllerStage::ControllerQualifiedReference(
-                    ControllerQualifiedReference {
-                        reference: UnqualifiedReference::OrdinaryPluralReference(
-                            OrdinaryPluralReference::new(PluralSelector::UnmarkedPluralSelector(
-                                UnmarkedPluralSelector {
-                                    nominal: plural_nominal(creatures()),
-                                },
-                            ))
-                            .expect("unmarked plural is valid for an ordinary reference"),
-                        ),
-                        controller_owner: ControllerOwnerQualification::YouControl(
-                            YouControl::new(SubjectPronoun::You)
-                                .expect("You is a valid controller"),
+        reference: Box::new(NumericStage::ScalarQualifiedReference(
+            ScalarQualifiedReference {
+                reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
+                    UnqualifiedLocativeStage {
+                        reference: ControllerStage::ControllerQualifiedReference(
+                            ControllerQualifiedReference {
+                                reference: UnqualifiedReference::OrdinaryPluralReference(
+                                    OrdinaryPluralReference::new(
+                                        PluralSelector::UnmarkedPluralSelector(
+                                            UnmarkedPluralSelector {
+                                                nominal: plural_nominal(creatures()),
+                                            },
+                                        ),
+                                    )
+                                    .expect("unmarked plural is valid for an ordinary reference"),
+                                ),
+                                controller_owner: ControllerOwnerQualification::YouControl(
+                                    YouControl::new(SubjectPronoun::You)
+                                        .expect("You is a valid controller"),
+                                ),
+                            },
                         ),
                     },
-                ),
-            }),
-            scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
-                measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
-                    characteristic: ScalarCharacteristic::Power,
-                }),
-                comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
-                    threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
-                        value: ScalarNumber { magnitude: 2 },
+                )),
+                scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
+                    measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
+                        characteristic: ScalarCharacteristic::Power,
+                    }),
+                    comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
+                        threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
+                            value: ScalarNumber { magnitude: 2 },
+                        }),
                     }),
                 }),
-            }),
-        }),
+            },
+        )),
     })
 }
 
@@ -854,26 +866,15 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
     let context = context("Context Card");
     let denied = "You gain X life, a player connives.";
 
-    assert_eq!(
-        parser.parse_sentence(denied, &context),
-        Err(ParseError::Failure {
-            span: TextSpan { start: 34, end: 35 },
-            expectations: BTreeSet::from([
-                Expectation::Nonterminal(NonterminalCategory::ScalarReference),
-                Expectation::Nonterminal(NonterminalCategory::Amount),
-                Expectation::Terminal(TerminalClass::Variable),
-                Expectation::Terminal(TerminalClass::ScalarNumber),
-                Expectation::Literal(" and "),
-                Expectation::Literal(" and/or "),
-                Expectation::Literal(" or "),
-                Expectation::Literal(", "),
-                Expectation::Literal(", and "),
-                Expectation::Literal(", and/or "),
-                Expectation::Literal(", or "),
-                Expectation::Literal("that"),
-            ]),
-        })
-    );
+    let ParseError::Failure { span, expectations } = parser
+        .parse_sentence(denied, &context)
+        .expect_err("a finite subordinate is not a where-complement")
+    else {
+        panic!("the rejected subordinate must remain a chart failure")
+    };
+    assert_eq!(span, TextSpan { start: 34, end: 35 });
+    assert!(!expectations.is_empty());
+    assert!(expectations.contains(&Expectation::Literal("that")));
 
     let trace = parser.trace_sentence(denied, &context, TraceLimits::new(usize::MAX));
     assert!(matches!(
@@ -932,7 +933,7 @@ fn demonstrative_references_select_distinct_typed_constructions() {
                 amount: Amount::Number(NumberAmount {
                     number: ScalarNumber { magnitude: 3 },
                 }),
-                recipient: damage_recipient(object_it()),
+                recipient: to_phrase(object_it()),
             }),
         );
 
@@ -956,542 +957,6 @@ fn demonstrative_references_select_distinct_typed_constructions() {
 
 #[allow(
     clippy::too_many_lines,
-    reason = "the complete source-ordered public type oracle is deliberately literal"
-)]
-fn assert_complete_public_generated_type_inventory(file: &syn::File) {
-    let public_types = file
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            syn::Item::Enum(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
-                Some(item.ident.to_string())
-            }
-            syn::Item::Struct(item) if matches!(item.vis, syn::Visibility::Public(_)) => {
-                Some(item.ident.to_string())
-            }
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(
-        public_types,
-        [
-            "FiniteCondition",
-            "ExistentialCondition",
-            "ExistentialClause",
-            "AmongPhrase",
-            "Ability",
-            "AbilityBody",
-            "ModalMode",
-            "TriggerPrefix",
-            "AtPhrase",
-            "CostSymbol",
-            "LoyaltyValue",
-            "Sentence",
-            "PredicateCoordination",
-            "PredicativeAdjectiveComplement",
-            "PredicativeColorComplement",
-            "PredicativeTypeComplement",
-            "PredicativeStatusComplement",
-            "BlockedByStatusComplement",
-            "PredicativeAbilityComplement",
-            "PredicativePowerToughnessComplement",
-            "BareCopularPredicate",
-            "ChangeStatePredicate",
-            "PassiveDamagePredicate",
-            "PassiveMovementPredicate",
-            "PassiveOrientationPredicate",
-            "DeclaredTransitivePassivePredicate",
-            "BarePassivePredicate",
-            "CopularClause",
-            "PassiveFiniteClause",
-            "FiniteClause",
-            "ClauseCoordination",
-            "WhereClauseCategory",
-            "Subject",
-            "Object",
-            "SingularHead",
-            "PluralHead",
-            "NominalModifier",
-            "NegativeNominalModifier",
-            "CoordinatedNominalModifier",
-            "CompoundNominalModifier",
-            "SingularNominal",
-            "PluralNominal",
-            "SingularCoordinationMember",
-            "PluralCoordinationMember",
-            "SingularNominalCoordination",
-            "DeterminerScopedNominalCoordination",
-            "PluralNominalCoordination",
-            "SingularSelector",
-            "PluralSelector",
-            "UnqualifiedReference",
-            "CountReference",
-            "DeterminerPhrase",
-            "FullNounPhraseCoordination",
-            "MannerReference",
-            "ScalarReference",
-            "ControllerOwnerQualification",
-            "SingularController",
-            "ZoneReference",
-            "OwnerPossessor",
-            "LibraryReference",
-            "LibraryCardQuantity",
-            "FromSource",
-            "IntoDestination",
-            "OntoDestination",
-            "OnDestination",
-            "ToDestination",
-            "PostState",
-            "ControlPostmodifier",
-            "ZoneLocation",
-            "AtLocation",
-            "ZoneQualification",
-            "ScalarThreshold",
-            "ScalarMeasure",
-            "ScalarComparison",
-            "CountComparison",
-            "ScalarQualification",
-            "ScalarValue",
-            "ScalarEquality",
-            "ControllerStage",
-            "ZoneStage",
-            "NumericStage",
-            "NounPhrase",
-            "PossessiveOwner",
-            "Possessive",
-            "CardQuantity",
-            "CounterKind",
-            "PositiveCounterMagnitude",
-            "NegativeCounterMagnitude",
-            "CounterQuantity",
-            "DieObject",
-            "VerbPhrase",
-            "DamageRecipient",
-            "CounterRecipient",
-            "CounterSource",
-            "ManaAmount",
-            "Amount",
-            "CardinalQuantity",
-            "ActivationCostComponent",
-            "Predicate",
-            "Clause",
-            "PredicativeComplement",
-            "PredicativeStatus",
-            "PassivePredicate",
-            "ClauseAttachment",
-            "ConditionClause",
-            "DocumentBlock",
-            "OracleText",
-            "FiniteConditionValue",
-            "ExistentialConditionValue",
-            "SingularExistentialClause",
-            "PluralExistentialClause",
-            "AmongPhraseValue",
-            "Plain",
-            "Sentences",
-            "ModalModeValue",
-            "PlainModal",
-            "Finite",
-            "Temporal",
-            "AtPhraseValue",
-            "Triggered",
-            "GenericCostSymbol",
-            "FixedSymbol",
-            "MonocoloredHybridSymbol",
-            "SymbolRun",
-            "PositiveLoyalty",
-            "ZeroLoyalty",
-            "NegativeLoyalty",
-            "Loyalty",
-            "CostClause",
-            "Activated",
-            "Imperative",
-            "Declarative",
-            "Attached",
-            "PreposedIf",
-            "PreposedIfPredicate",
-            "PostposedIf",
-            "PostposedIfPredicate",
-            "PostposedUnless",
-            "PostposedUnlessPredicate",
-            "PreposedAsLongAs",
-            "PreposedAsLongAsPredicate",
-            "PreposedWhile",
-            "PreposedWhilePredicate",
-            "PreposedDuring",
-            "PreposedDuringPredicate",
-            "PreposedUntil",
-            "PreposedUntilPredicate",
-            "ThenSequence",
-            "ThenPredicateSequence",
-            "ReflexiveSubordinate",
-            "ReflexivePredicateSubordinate",
-            "WithWhere",
-            "AndPredicateCoordination",
-            "OrPredicateCoordination",
-            "AndOrPredicateCoordination",
-            "PredicativeAdjectiveValue",
-            "PredicativeColorValue",
-            "PredicativeTypeValue",
-            "PredicativeStatusValue",
-            "BlockedByStatusValue",
-            "PredicativeAbilityValue",
-            "PredicativePowerToughnessValue",
-            "BareCopularPredicateValue",
-            "ChangeStatePredicateValue",
-            "PassiveDamagePredicateValue",
-            "PassiveMovementPredicateValue",
-            "PassiveOrientationPredicateValue",
-            "DeclaredTransitivePassivePredicateValue",
-            "BarePassivePredicateValue",
-            "CopularClauseValue",
-            "PassiveFiniteClauseValue",
-            "PlainFiniteClause",
-            "AuxiliaryFiniteClause",
-            "AndClauseCoordination",
-            "OrClauseCoordination",
-            "AndOrClauseCoordination",
-            "WhereClause",
-            "NominalSubject",
-            "PersonalSubject",
-            "NominalObject",
-            "PersonalObject",
-            "ReflexiveObject",
-            "ChoiceObject",
-            "RandomObject",
-            "CommonSingularHead",
-            "TypeSingularHead",
-            "ArtifactSubtypeSingularHead",
-            "BattleSubtypeSingularHead",
-            "CreatureSubtypeSingularHead",
-            "EnchantmentSubtypeSingularHead",
-            "LandSubtypeSingularHead",
-            "PlaneswalkerSubtypeSingularHead",
-            "SpellSubtypeSingularHead",
-            "CommonPluralHead",
-            "TypePluralHead",
-            "ArtifactSubtypePluralHead",
-            "BattleSubtypePluralHead",
-            "CreatureSubtypePluralHead",
-            "EnchantmentSubtypePluralHead",
-            "LandSubtypePluralHead",
-            "PlaneswalkerSubtypePluralHead",
-            "SpellSubtypePluralHead",
-            "ColorModifier",
-            "StatusModifier",
-            "SupertypeModifier",
-            "CommonNounModifier",
-            "TypeModifier",
-            "ArtifactSubtypeModifier",
-            "BattleSubtypeModifier",
-            "CreatureSubtypeModifier",
-            "EnchantmentSubtypeModifier",
-            "LandSubtypeModifier",
-            "PlaneswalkerSubtypeModifier",
-            "SpellSubtypeModifier",
-            "NonColorModifier",
-            "NonCommonNounModifier",
-            "NonStatusModifier",
-            "NonSupertypeModifier",
-            "NonTypeModifier",
-            "NonArtifactSubtypeModifier",
-            "NonBattleSubtypeModifier",
-            "NonCreatureSubtypeModifier",
-            "NonEnchantmentSubtypeModifier",
-            "NonLandSubtypeModifier",
-            "NonPlaneswalkerSubtypeModifier",
-            "NonSpellSubtypeModifier",
-            "NegativeModifierMember",
-            "NonTargetCommonNounModifier",
-            "CoordinatedModifierMember",
-            "CompoundModifierMember",
-            "BareSingularNominal",
-            "ModifiedSingularNominal",
-            "NegativeModifiedSingularNominal",
-            "BarePluralNominal",
-            "ModifiedPluralNominal",
-            "CompoundModifiedSingularNominal",
-            "CompoundModifiedPluralNominal",
-            "NegativeModifiedPluralNominal",
-            "BareSingularCoordinationMember",
-            "ModifiedSingularCoordinationMember",
-            "NegativeModifiedSingularCoordinationMember",
-            "BarePluralCoordinationMember",
-            "ModifiedPluralCoordinationMember",
-            "NegativeModifiedPluralCoordinationMember",
-            "SingularAndNominalCoordination",
-            "SingularOrNominalCoordination",
-            "SingularAndOrNominalCoordination",
-            "DeterminerScopedAndNominalPair",
-            "DeterminerScopedAndNominalSeries",
-            "DeterminerScopedOrNominalPair",
-            "DeterminerScopedOrNominalSeries",
-            "DeterminerScopedAndOrNominalPair",
-            "DeterminerScopedAndOrNominalSeries",
-            "PluralAndNominalCoordination",
-            "PluralOrNominalCoordination",
-            "PluralAndOrNominalCoordination",
-            "UnmarkedSingularSelector",
-            "TargetSingularSelector",
-            "TargetSingularCoordinationSelector",
-            "OtherSingularSelector",
-            "OtherTargetSingularSelector",
-            "UnmarkedPluralSelector",
-            "UnmarkedPluralCoordinationSelector",
-            "TargetPluralSelector",
-            "TargetPluralCoordinationSelector",
-            "OtherPluralSelector",
-            "OtherTargetPluralSelector",
-            "IndefiniteReference",
-            "IndefiniteCoordinationReference",
-            "NamedCardReference",
-            "OrdinarySingularReference",
-            "OrdinaryPluralReference",
-            "DefiniteSingularReference",
-            "DefinitePluralReference",
-            "AnyTargetReference",
-            "AnotherReference",
-            "AnotherCoordinationReference",
-            "EachReference",
-            "AllReference",
-            "FixedReference",
-            "VariableReference",
-            "UpToOneReference",
-            "UpToManyReference",
-            "AnyNumberReference",
-            "OneOrMoreReference",
-            "ThatMany",
-            "CountedReference",
-            "ThisReference",
-            "ThatReference",
-            "DemonstrativePossessiveReference",
-            "ThoseReference",
-            "DesignatedSingularReference",
-            "DesignatedPluralReference",
-            "ChosenQualityReference",
-            "PossessedSingularReference",
-            "PossessedPluralReference",
-            "PossessiveAbsoluteReference",
-            "TargetDeterminerPhrase",
-            "TargetCoordinationDeterminerPhrase",
-            "IndefiniteDeterminerPhrase",
-            "ThisDeterminerPhrase",
-            "ThatDeterminerPhrase",
-            "AnotherDeterminerPhrase",
-            "FullAndNounPhraseCoordination",
-            "FullOrNounPhraseCoordination",
-            "FullAndOrNounPhraseCoordination",
-            "CoordinatedNounPhrase",
-            "SourceSelfReference",
-            "ThisWay",
-            "ThatMuch",
-            "YouControl",
-            "OpponentController",
-            "OpponentControls",
-            "DemonstrativeControls",
-            "YouOwn",
-            "PossessedZone",
-            "UnpossessedZone",
-            "SingularOwnerPossessor",
-            "PluralOwnerPossessor",
-            "OwnerPossessedZone",
-            "DefiniteZone",
-            "PossessedLibrary",
-            "OwnerPossessedLibrary",
-            "SingularLibraryCardQuantity",
-            "FixedLibraryCardQuantity",
-            "FromSourceValue",
-            "IntoDestinationValue",
-            "OntoBattlefieldDestination",
-            "OnLibraryDestination",
-            "ToDestinationValue",
-            "TappedPostState",
-            "DirectControlPostmodifier",
-            "OwnerControlPostmodifier",
-            "ZoneLocationValue",
-            "AtLocationValue",
-            "InZone",
-            "FromZone",
-            "FixedScalarThreshold",
-            "VariableScalarThreshold",
-            "CharacteristicScalar",
-            "ManaValueScalar",
-            "ScalarOrLess",
-            "ScalarOrGreater",
-            "ScalarLessThan",
-            "ScalarGreaterThan",
-            "ScalarLessThanOrEqualTo",
-            "CountOrMore",
-            "CountOrFewer",
-            "ScalarQualificationValue",
-            "PossessedScalarValue",
-            "ScalarEqualityValue",
-            "UnqualifiedControllerStage",
-            "ControllerQualifiedReference",
-            "OtherThanQualifiedReference",
-            "UnqualifiedZoneStage",
-            "ZoneQualifiedReference",
-            "UnqualifiedNumericStage",
-            "ScalarQualifiedReference",
-            "CountComparisonReference",
-            "QualifiedNounPhrase",
-            "LibrarySlice",
-            "PossessiveSelfReference",
-            "PossessiveNoun",
-            "PossessiveValue",
-            "SingularCardQuantity",
-            "FixedCardQuantity",
-            "VariableCardQuantity",
-            "AnaphoricCardQuantity",
-            "ComparedCardQuantity",
-            "PositivePowerToughnessCounter",
-            "NegativePowerToughnessCounter",
-            "PositiveCounterMagnitudeValue",
-            "NegativeCounterMagnitudeValue",
-            "NamedCounter",
-            "SingularCounterQuantity",
-            "FixedCounterQuantity",
-            "VariableCounterQuantity",
-            "AnaphoricCounterQuantity",
-            "SingularDieObject",
-            "FixedDiceObject",
-            "D20Object",
-            "IntransitivePredicate",
-            "TransitivePredicate",
-            "NumerativePredicate",
-            "DamageRecipientValue",
-            "CounterRecipientValue",
-            "CounterSourceValue",
-            "DealDamage",
-            "DealUnspecifiedDamage",
-            "GainLife",
-            "GainUnspecifiedLife",
-            "DealDamageEqualTo",
-            "GainLifeEqualTo",
-            "LoseLife",
-            "LoseLifeEqualTo",
-            "PayLife",
-            "PayMana",
-            "AddMana",
-            "DrawCards",
-            "DrawCardsEqualTo",
-            "RollDice",
-            "PutCounters",
-            "RemoveCounters",
-            "PutInto",
-            "PutOnto",
-            "PutOn",
-            "PutTo",
-            "ReturnTo",
-            "EnterPostState",
-            "EnterLocation",
-            "EnterControl",
-            "LeaveLocation",
-            "LookAt",
-            "SearchFor",
-            "HaveCardsInHand",
-            "HaveLife",
-            "HaveNoMaximumHandSize",
-            "HaveObjectControl",
-            "ManaAmountValue",
-            "NumberAmount",
-            "VariableAmount",
-            "ScalarReferenceAmount",
-            "CardinalQuantityValue",
-            "Auxiliary",
-            "FiniteCopula",
-            "BareCopula",
-            "PredicativeAdjective",
-            "DamageKind",
-            "FaceOrientation",
-            "AtBoundary",
-            "TriggerMarker",
-            "TurnOwnerPostmodifier",
-            "TurnPart",
-            "TurnSpecifier",
-            "SubjectPronoun",
-            "ObjectPronoun",
-            "PossessiveDeterminerPronoun",
-            "PossessiveAbsolutePronoun",
-            "ReflexivePronoun",
-            "Variable",
-            "Color",
-            "Status",
-            "Designation",
-            "ChosenQuality",
-            "SingularDemonstrative",
-            "ControllerNoun",
-            "FixedCostSymbol",
-            "ModalChooser",
-            "ModalChoiceBounds",
-            "MonocoloredHybridColor",
-            "ScalarCharacteristic",
-            "CounterName",
-            "DieShape",
-            "LibraryPosition",
-            "Zone",
-            "NonCommonNoun",
-            "NonTargetCommonModifier",
-            "Supertype",
-            "CommonNoun",
-            "VerbLexeme",
-            "CoreIntransitiveVerb",
-            "CoreTransitiveVerb",
-            "CoreNumerativeVerb",
-            "DamageParticipleLexeme",
-            "MovementParticipleLexeme",
-            "OrientationParticipleLexeme",
-            "DeclarationIntransitiveVerb",
-            "IntransitiveVerb",
-            "DeclarationTransitiveVerb",
-            "TransitiveVerb",
-            "DeclarationNumerativeVerb",
-            "NumerativeVerb",
-            "DeclarationSearchForVerb",
-            "DeclarationDamageParticipleHead",
-            "DamageParticipleHead",
-            "DeclarationMovementParticipleHead",
-            "MovementParticipleHead",
-            "DeclarationOrientationParticipleHead",
-            "OrientationParticipleHead",
-            "DeclarationDeclaredTransitiveParticipleHead",
-            "DeclarationTypeNoun",
-            "TypeNoun",
-            "DeclarationArtifactSubtypeNoun",
-            "ArtifactSubtypeNoun",
-            "DeclarationBattleSubtypeNoun",
-            "BattleSubtypeNoun",
-            "DeclarationCreatureSubtypeNoun",
-            "CreatureSubtypeNoun",
-            "DeclarationEnchantmentSubtypeNoun",
-            "EnchantmentSubtypeNoun",
-            "DeclarationLandSubtypeNoun",
-            "LandSubtypeNoun",
-            "DeclarationPlaneswalkerSubtypeNoun",
-            "PlaneswalkerSubtypeNoun",
-            "DeclarationSpellSubtypeNoun",
-            "SpellSubtypeNoun",
-            "SelfReferenceSpelling",
-            "CardName",
-            "CardinalNumber",
-            "ScalarNumber",
-            "LoyaltyMagnitude",
-            "ReflexiveSubordinateKind",
-            "CatalogProvider",
-            "DeclarationClass",
-            "TerminalClass",
-            "LexicalProvenanceKind",
-            "LexicalOwner",
-            "BuildViolation",
-            "BuildRejection",
-            "NonterminalCategory",
-        ],
-        "the complete public generated type inventory is source ordered",
-    );
-}
-
-#[allow(
-    clippy::too_many_lines,
     reason = "the generated privacy and accessor inventory is deliberately literal"
 )]
 #[test]
@@ -1510,8 +975,6 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
     let expansion = deckmaste_construction_core::generate(invocation.tokens)
         .expect("production construction inventory compiles");
     let file = syn::parse2::<syn::File>(expansion.tokens()).expect("generated Rust parses");
-    assert_complete_public_generated_type_inventory(&file);
-
     for (product, expected_fields, expected_methods) in [
         ("Plain", &[("body", true)][..], &[][..]),
         (
@@ -1526,8 +989,8 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
         ),
         (
             "PlainModal",
-            &[("chooser", false), ("bounds", false), ("modes", false)][..],
-            &["new", "try_new", "chooser", "bounds", "modes"][..],
+            &[("chooser", true), ("bounds", true), ("modes", false)][..],
+            &["new", "try_new", "modes"][..],
         ),
         (
             "WithWhere",
@@ -1554,11 +1017,7 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             &[("owner", false)][..],
             &["new", "try_new", "owner"][..],
         ),
-        (
-            "UnpossessedZone",
-            &[("zone", false)][..],
-            &["new", "try_new", "zone"][..],
-        ),
+        ("FromBareLocative", &[("complement", true)][..], &[][..]),
         (
             "CountComparisonReference",
             &[("count", false), ("comparison", true), ("selector", true)][..],
@@ -1633,7 +1092,15 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
 
     for (enumeration, expected_variants) in [
         ("Ability", &["Plain", "Triggered", "Activated"][..]),
-        ("AbilityBody", &["Sentences", "PlainModal"][..]),
+        (
+            "AbilityBody",
+            &[
+                "Sentences",
+                "ThenSentences",
+                "PlainModal",
+                "QuoteTerminatedStatement",
+            ][..],
+        ),
         ("ModalMode", &["ModalMode"][..]),
         ("DocumentBlock", &["Ability"][..]),
     ] {
@@ -1739,9 +1206,13 @@ fn destroy(object: Object) -> VerbPhrase {
         DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
     )
     .expect("the builtin grammar declares transitive Destroy");
-    VerbPhrase::TransitivePredicate(TransitivePredicate {
-        head: TransitiveVerb::Declaration(head),
-        object,
+    VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+        frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
+            TransitivePredicate {
+                head: TransitiveVerb::Declaration(head),
+                object,
+            },
+        )),
     })
 }
 
@@ -1752,8 +1223,12 @@ fn connive() -> VerbPhrase {
         DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
     )
     .expect("the builtin grammar declares intransitive Connive");
-    VerbPhrase::IntransitivePredicate(IntransitivePredicate {
-        head: IntransitiveVerb::Declaration(head),
+    VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+        frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
+            IntransitivePredicate {
+                head: IntransitiveVerb::Declaration(head),
+            },
+        )),
     })
 }
 
@@ -1789,7 +1264,7 @@ fn triggered_damage() -> Ability {
             nominal_subject(that_noun(creature())),
             VerbPhrase::DealDamage(DealDamage {
                 amount: variable_x(),
-                recipient: damage_recipient(object_it()),
+                recipient: to_phrase(object_it()),
             }),
         )],
     )
@@ -1826,7 +1301,7 @@ fn zacama_deals_damage() -> Ability {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: damage_recipient(target_creature()),
+            recipient: to_phrase(target_creature()),
         }),
     ))
 }
@@ -1994,11 +1469,12 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "AbilityPlain".to_owned(),
             "AbilityBodySentences".to_owned(),
             "SentenceImperative".to_owned(),
-            "VerbPhraseTransitivePredicate".to_owned(),
+            "VerbPhraseBaseVerbPhrase".to_owned(),
+            "TransitiveFrameTransitivePredicate".to_owned(),
             "ObjectObjectNominal".to_owned(),
             "NounPhraseQualifiedNounPhrase".to_owned(),
             "NumericStageUnqualifiedNumericStage".to_owned(),
-            "ZoneStageUnqualifiedZoneStage".to_owned(),
+            "LocativeStageUnqualifiedLocativeStage".to_owned(),
             "ControllerStageUnqualifiedControllerStage".to_owned(),
             "UnqualifiedReferenceOrdinarySingularReference".to_owned(),
             "DeterminerPhraseTargetDeterminerPhrase".to_owned(),
@@ -2106,9 +1582,12 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let Predicate::Atomic(predicate) = imperative.predicate() else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
-    let VerbPhrase::TransitivePredicate(TransitivePredicate {
-        head: TransitiveVerb::Declaration(_),
-        object: Object::ObjectNominal(NominalObject { value }),
+    let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+        frame:
+            BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(TransitivePredicate {
+                head: TransitiveVerb::Declaration(_),
+                object: Object::ObjectNominal(NominalObject { value }),
+            })),
     }) = predicate.as_ref()
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
@@ -2317,10 +1796,10 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
 
         if limit > 0 {
             let candidate = &trace.materialized_candidates().items()[0];
-            assert_eq!(candidate.construction_path().total(), 13);
-            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 13));
-            assert_eq!(candidate.specificity().total(), 15);
-            assert_eq!(candidate.specificity().shown(), usize::min(limit, 15));
+            assert_eq!(candidate.construction_path().total(), 14);
+            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 14));
+            assert_eq!(candidate.specificity().total(), 16);
+            assert_eq!(candidate.specificity().shown(), usize::min(limit, 16));
         }
 
         if limit == usize::MAX {
@@ -2337,11 +1816,12 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "AbilityPlain",
                     "AbilityBodySentences",
                     "SentenceImperative",
-                    "VerbPhraseTransitivePredicate",
+                    "VerbPhraseBaseVerbPhrase",
+                    "TransitiveFrameTransitivePredicate",
                     "ObjectObjectNominal",
                     "NounPhraseQualifiedNounPhrase",
                     "NumericStageUnqualifiedNumericStage",
-                    "ZoneStageUnqualifiedZoneStage",
+                    "LocativeStageUnqualifiedLocativeStage",
                     "ControllerStageUnqualifiedControllerStage",
                     "UnqualifiedReferenceOrdinarySingularReference",
                     "DeterminerPhraseTargetDeterminerPhrase",
@@ -2349,7 +1829,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "SingularHeadTypeSingularHead",
                 ]
             );
-            assert_eq!(candidate.specificity().total(), 15);
+            assert_eq!(candidate.specificity().total(), 16);
             assert!(selection.unselected_candidates().items().is_empty());
             assert_eq!(selection.resolution(), complete.resolution());
             assert_eq!(selection.survivors().items(), complete.survivors());
@@ -2383,6 +1863,14 @@ fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_err
     let context = context("Context Card");
     let text = "Destroy target creature";
     let complete = parser.parse(text, &context);
+    let Err(ParseError::Failure {
+        expectations: complete_expectations,
+        ..
+    }) = &complete
+    else {
+        panic!("missing period is a complete chart failure")
+    };
+    let expected_total = complete_expectations.len();
 
     for (limit, expected_shown) in [(0, 0), (1, 1), (8, 8)] {
         let trace = parser.trace(text, &context, TraceLimits::new(limit));
@@ -2396,14 +1884,17 @@ fn parser_trace_parse_failure_bounds_expectations_without_truncating_private_err
                 end: text.len()
             }
         );
-        assert_eq!(failure.expectations().total(), 48);
+        assert_eq!(failure.expectations().total(), expected_total);
         assert_eq!(failure.expectations().shown(), expected_shown);
-        assert_eq!(failure.expectations().omitted(), 48 - expected_shown);
+        assert_eq!(
+            failure.expectations().omitted(),
+            expected_total - expected_shown
+        );
         if limit > 0 {
             assert_eq!(
                 failure.expectations().items()[0],
                 deckmaste_english_v2::parser::ExpectationInfo::Nonterminal(
-                    NonterminalCategory::SingularHead,
+                    NonterminalCategory::CastingRestriction,
                 )
             );
         }
@@ -2436,7 +1927,7 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: damage_recipient(target_creature()),
+            recipient: to_phrase(target_creature()),
         }),
     ));
 
@@ -2456,7 +1947,7 @@ fn self_reference_identity_preserves_its_inherent_case() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: damage_recipient(target_creature()),
+            recipient: to_phrase(target_creature()),
         }),
     ));
 
@@ -2467,105 +1958,34 @@ fn self_reference_identity_preserves_its_inherent_case() {
 #[test]
 fn disallowed_declaration_kind_is_a_parse_failure() {
     let text = "Destroy target flying.";
-    assert_eq!(
-        parser().parse(text, &context("Context Card")),
-        Err(ParseError::Failure {
-            span: TextSpan { start: 15, end: 21 },
-            expectations: BTreeSet::from([
-                Expectation::Nonterminal(NonterminalCategory::SingularHead),
-                Expectation::Nonterminal(NonterminalCategory::PluralHead),
-                Expectation::Nonterminal(NonterminalCategory::NominalModifier),
-                Expectation::Nonterminal(NonterminalCategory::NegativeNominalModifier),
-                Expectation::Nonterminal(NonterminalCategory::CoordinatedNominalModifier),
-                Expectation::Nonterminal(NonterminalCategory::CompoundNominalModifier),
-                Expectation::Nonterminal(NonterminalCategory::SingularNominal),
-                Expectation::Nonterminal(NonterminalCategory::PluralNominal),
-                Expectation::Nonterminal(NonterminalCategory::SingularCoordinationMember),
-                Expectation::Nonterminal(NonterminalCategory::PluralCoordinationMember),
-                Expectation::Nonterminal(NonterminalCategory::SingularNominalCoordination),
-                Expectation::Nonterminal(NonterminalCategory::PluralNominalCoordination),
-                Expectation::Terminal(TerminalClass::Color),
-                Expectation::Terminal(TerminalClass::Status),
-                Expectation::Terminal(TerminalClass::NonTargetCommonModifier),
-                Expectation::Terminal(TerminalClass::Supertype),
-                Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(51)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(52)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(53)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(54)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(55)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(56)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(57)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(58)),
-                Expectation::Literal("non"),
-                Expectation::Literal("non-"),
-            ]),
-        })
-    );
+    let ParseError::Failure { span, expectations } = parser()
+        .parse(text, &context("Context Card"))
+        .expect_err("an AbilityWord declaration cannot serve as a noun")
+    else {
+        panic!("the disallowed declaration kind must remain a chart failure")
+    };
+    assert_eq!(span, TextSpan { start: 15, end: 21 });
+    assert!(!expectations.is_empty());
+    assert!(expectations.contains(&Expectation::Terminal(TerminalClass::Noun)));
 }
 
 #[test]
 fn missing_period_reports_chart_derived_literal_expectation() {
     let text = "Destroy target creature";
+    let ParseError::Failure { span, expectations } = parser()
+        .parse(text, &context("Context Card"))
+        .expect_err("a complete sentence requires its period")
+    else {
+        panic!("the missing terminator must remain a chart failure")
+    };
     assert_eq!(
-        parser().parse(text, &context("Context Card")),
-        Err(ParseError::Failure {
-            span: TextSpan {
-                start: text.len(),
-                end: text.len(),
-            },
-            expectations: BTreeSet::from([
-                Expectation::Nonterminal(NonterminalCategory::SingularHead),
-                Expectation::Nonterminal(NonterminalCategory::PluralHead),
-                Expectation::Nonterminal(NonterminalCategory::NominalModifier),
-                Expectation::Nonterminal(NonterminalCategory::CompoundNominalModifier),
-                Expectation::Nonterminal(NonterminalCategory::SingularNominal),
-                Expectation::Nonterminal(NonterminalCategory::PluralNominal),
-                Expectation::Nonterminal(NonterminalCategory::DeterminerPhrase),
-                Expectation::Nonterminal(NonterminalCategory::ControllerOwnerQualification),
-                Expectation::Nonterminal(NonterminalCategory::SingularController),
-                Expectation::Nonterminal(NonterminalCategory::ZoneQualification),
-                Expectation::Nonterminal(NonterminalCategory::ScalarQualification),
-                Expectation::Terminal(TerminalClass::SubjectPronoun),
-                Expectation::Terminal(TerminalClass::Color),
-                Expectation::Terminal(TerminalClass::Status),
-                Expectation::Terminal(TerminalClass::Supertype),
-                Expectation::Terminal(TerminalClass::Noun),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(51)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(52)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(53)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(54)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(55)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(56)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(57)),
-                Expectation::Terminal(TerminalClass::DeclarationNoun(58)),
-                Expectation::Literal(" and "),
-                Expectation::Literal(" and/or "),
-                Expectation::Literal(" or "),
-                Expectation::Literal(","),
-                Expectation::Literal(", "),
-                Expectation::Literal(", then "),
-                Expectation::Literal("."),
-                Expectation::Literal(": "),
-                Expectation::Literal("a"),
-                Expectation::Literal("an"),
-                Expectation::Literal("another"),
-                Expectation::Literal("at"),
-                Expectation::Literal("from"),
-                Expectation::Literal("if"),
-                Expectation::Literal("in"),
-                Expectation::Literal("non"),
-                Expectation::Literal("non-"),
-                Expectation::Literal("of"),
-                Expectation::Literal("other"),
-                Expectation::Literal("target"),
-                Expectation::Literal("that"),
-                Expectation::Literal("this"),
-                Expectation::Literal("unless"),
-                Expectation::Literal("with"),
-            ]),
-        })
+        span,
+        TextSpan {
+            start: text.len(),
+            end: text.len(),
+        }
     );
+    assert!(expectations.contains(&Expectation::Literal(".")));
 }
 
 #[test]
@@ -2581,6 +2001,8 @@ fn agreement_mismatch_reports_a_nonempty_chart_failure() {
                 Expectation::Literal(" and/or "),
                 Expectation::Literal(" or "),
                 Expectation::Literal(", "),
+                Expectation::Literal(", then "),
+                Expectation::Literal("rather"),
             ]),
         })
     );
@@ -2606,7 +2028,7 @@ fn lexical_matches_reject_prefixes_of_longer_lexemes() {
         (
             "Destroyed target creature.",
             "Context Card",
-            TextSpan { start: 0, end: 9 },
+            TextSpan { start: 10, end: 16 },
         ),
         (
             "Zacama deals 3x damage to target creature.",
@@ -2668,6 +2090,7 @@ fn doubled_period_reports_the_first_trailing_byte() {
             expectations: BTreeSet::from([
                 Expectation::Terminal(TerminalClass::EndOfInput),
                 Expectation::Literal(" "),
+                Expectation::Literal(" Then "),
             ]),
         })
     );

@@ -2609,9 +2609,10 @@ fn render_construction_structural_field(
                         quote! { #helper(#value) }
                     }
                     None => {
-                        return Err(internal(
-                            "agreement-bearing sum role lacks an agreement writer",
-                        ));
+                        return Err(internal(&format!(
+                            "construction `{}` role `{role}` stores agreement-bearing sum `{sum}` but lacks an agreement writer",
+                            construction.construction_id(),
+                        )));
                     }
                 };
                 render_structural_value_with_feature(
@@ -3266,20 +3267,35 @@ fn role_agreement(
     role: &str,
     locals: &RenderLocals,
 ) -> syn::Result<Option<TokenStream>> {
-    let equation = validated.feature_equations(construction.construction_id()).iter().find(|equation| {
+    let equations = validated.feature_equations(construction.construction_id());
+    let equation = equations.iter().find(|equation| {
         matches!(equation.target(), FeaturePlace::Role { field, feature: Feature::Agreement } if identifier_key(field) == role)
     });
-    equation
-        .map(|equation| {
-            feature_expr(
-                validated,
-                construction,
-                equation.value(),
-                Feature::Agreement,
-                locals,
+    if let Some(equation) = equation {
+        return feature_expr(
+            validated,
+            construction,
+            equation.value(),
+            Feature::Agreement,
+            locals,
+        )
+        .map(Some);
+    }
+    Ok((!locals.category.is_empty()
+        && validated.category_requires_external_agreement(construction.category())
+        && equations.iter().any(|equation| {
+            matches!(
+                (equation.target(), equation.value()),
+                (
+                    FeaturePlace::Construction(Feature::Agreement),
+                    FeatureExpr::FromRole {
+                        role: source,
+                        feature: Feature::Agreement,
+                    },
+                ) if identifier_key(source) == role
             )
-        })
-        .transpose()
+        }))
+    .then(|| quote! { agreement }))
 }
 
 fn projected_verb_agreement(
@@ -4028,7 +4044,8 @@ fn canonical_lexical_feature_lowering<'a>(
         })
         .ok_or_else(|| {
             internal(&format!(
-                "lexical feature read `{role}.{}` lacks its exact local {} writer",
+                "construction `{}` lexical feature read `{role}.{}` lacks its exact local {} writer",
+                construction.construction_id(),
                 feature_name(feature),
                 feature_name(feature),
             ))

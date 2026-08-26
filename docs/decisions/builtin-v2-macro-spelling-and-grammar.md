@@ -121,9 +121,11 @@ Every `Verb` declaration stores one closed grammatical valence:
 The serialized `Custom` tail atom inventory is closed and finite:
 
 - `Literal(String)` matches one nonempty exact terminal span;
-- `Amount` admits the ordinary amount category; and
-- `ObjectNounPhrase` admits an ordinary object-position noun phrase. Here
-  "object" is a grammatical role, not the Magic rules term.
+- `Amount` admits the ordinary amount category;
+- `ObjectNounPhrase` admits an ordinary object-position noun phrase, where
+  "object" is a grammatical role rather than the Magic rules term; and
+- `PredicativeComplement` admits the ordinary predicative-complement
+  category.
 
 A custom shape is an ordered list of those atoms. The shape set must be finite
 and nonempty; an empty list is a valid individual shape for a no-tail
@@ -132,6 +134,17 @@ empty literals, and any atom or nesting operator outside this list are load
 errors. Optionality is represented by listing alternatives, not by an
 optional or repetition operator. Adding another category is a reviewed
 compiler/ADR change, not plugin data.
+
+An atom may carry a compiler-only label when the same atom category occurs
+more than once in one shape. Labels distinguish positions during source
+validation and are erased before normalized `VerbFrameKey` matching. An
+unlabelled repeated atom, a repeated label, mixed labelled and unlabelled
+occurrences of the same atom, and a labelled literal remain hard errors. No
+label reaches the AST, parser, renderer, claims, or normalized declaration
+rows. Flat tails are limited to lexical subcategorization: a verb-selected
+preposition such as *search ... for* may remain in its verb frame, but a
+preposition phrase with independently compositional meaning is a shared
+construction instead of a duplicated verb-local tail.
 
 `Custom` is not an arbitrary plugin grammar production and does not accept an
 untyped tail: it cannot add recursion, precedence, callbacks, or semantic

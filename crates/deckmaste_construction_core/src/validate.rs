@@ -2434,6 +2434,9 @@ fn declaration_verb_domain(
             crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
                 "ObjectNounPhrase".to_owned()
             }
+            crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(_) => {
+                "PredicativeComplement".to_owned()
+            }
         })
         .collect::<Vec<_>>()
         .join(", ");
@@ -2841,6 +2844,12 @@ fn validate_declaration_verb_tail(
                     .or_default()
                     .push(atom);
             }
+            crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(_) => {
+                nonliteral_occurrences
+                    .entry("PredicativeComplement".to_owned())
+                    .or_default()
+                    .push(atom);
+            }
         }
     }
     for (key, occurrences) in nonliteral_occurrences {
@@ -2849,7 +2858,8 @@ fn validate_declaration_verb_tail(
         }
         let span = match &occurrences[1].kind {
             crate::model::DeclarationVerbTailAtomKindSource::Amount(atom)
-            | crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom) => {
+            | crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom)
+            | crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom) => {
                 atom.span()
             }
             crate::model::DeclarationVerbTailAtomKindSource::Literal(_) => {
@@ -3127,7 +3137,11 @@ fn seal_category_feature_reads(
             ]
             .into_iter()
             .filter(|feature| {
-                raw_category_reads_feature(raw, category, *feature)
+                (raw_category_reads_feature(raw, category, *feature)
+                    && !(*feature == Feature::Agreement
+                        && category_render
+                            .get(category)
+                            .is_some_and(|capability| capability.requires_external_agreement())))
                     || raw_sequence_reads_inherent_category_feature(
                         raw,
                         category,
@@ -8224,7 +8238,25 @@ fn seal_category_render_capabilities(
                             )
                     })
             });
-            if passes_external_to_child || relays_external_sequence {
+            let relays_external_role = construction.equations.iter().any(|equation| {
+                let (
+                    ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
+                    ParsedFeatureValue::FromRole(source),
+                ) = (&equation.target, &equation.value)
+                else {
+                    return false;
+                };
+                source.feature == ParsedFeature::Agreement
+                    && construction.element.fields.iter().any(|field| {
+                        same_identifier(&field.name, &source.role)
+                            && matches!(&field.kind, FieldKind::Category(path) if {
+                                let source = path_name(path);
+                                agreement_contextual.contains(&source)
+                                    || contextual_sums.contains(&source)
+                            })
+                    })
+            });
+            if passes_external_to_child || relays_external_role || relays_external_sequence {
                 agreement_contextual.insert(path_name(&construction.category));
             }
         }
@@ -8500,7 +8532,17 @@ fn validate_contextual_agreement_uses(
                     } if same_identifier(field, role)
                 )
             });
-            if !has_writer {
+            let relays_output_from_role = construction.equations.iter().any(|equation| {
+                matches!(
+                    (&equation.target, &equation.value),
+                    (
+                        ParsedFeaturePlace::Construction(ParsedFeature::Agreement),
+                        ParsedFeatureValue::FromRole(source),
+                    ) if source.feature == ParsedFeature::Agreement
+                        && same_identifier(&source.role, role)
+                )
+            });
+            if !has_writer && !relays_output_from_role {
                 combine(
                     &mut errors,
                     syn::Error::new(
@@ -10682,7 +10724,7 @@ pub(crate) mod tests {
                     tail = [Clause];
                     feature = Agreement;
                 },
-                "tail atoms must be string literals, `Amount`, or `ObjectNounPhrase`",
+                "tail atoms must be string literals, `Amount`, `ObjectNounPhrase`, or `PredicativeComplement`",
             ),
             (
                 quote! {
@@ -10692,7 +10734,7 @@ pub(crate) mod tests {
                     feature = Agreement;
                     valence = Transitive;
                 },
-                "recipe accepts only `closed`, `position`, `kinds`, `tail`, and `feature` fields",
+                "recipe accepts only `closed`, `position`, `kinds`, `names`, `tail`, and `feature` fields",
             ),
         ] {
             let message = declaration_verb_source_error(&body);
@@ -13576,6 +13618,37 @@ pub(crate) mod tests {
         );
         crate::emit::build::emit(&plan)
             .expect("each checked category variant emits from its own Agreement source");
+    }
+
+    #[test]
+    fn contextual_category_relay_uses_the_enclosing_agreement_without_an_exact_helper() {
+        let plan = validate(quote! {
+            morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
+            lexeme Actions using EnglishVerb { Act = "act", }
+            construction contextual: Predicate {
+                element ContextualPredicate {}
+                derive agreement = verb.agreement;
+                form contextual = verb(Actions::Act);
+            }
+            construction adjunct: Predicate {
+                element AdjunctPredicate { predicate: Predicate, }
+                derive agreement = predicate.agreement;
+                form adjunct = predicate "again";
+            }
+            construction envelope: Root {
+                element Envelope { predicate: Predicate, }
+                derive predicate.agreement = Values::Bare;
+                form envelope = predicate;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("a contextual category can relay Agreement through a recursive envelope")
+        .into_semantic();
+
+        assert!(plan.category_requires_external_agreement("Predicate"));
+        assert!(!plan.category_reads_feature("Predicate", crate::feature::Feature::Agreement,));
+        crate::emit::render::emit(&plan)
+            .expect("contextual Agreement does not require an impossible exact feature helper");
     }
 
     #[test]

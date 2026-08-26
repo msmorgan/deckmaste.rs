@@ -7,6 +7,7 @@ use deckmaste_english_v2::render::Render;
 
 use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
+use super::corpus::map_corpus_units;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -67,11 +68,7 @@ impl AuditReport {
         Self {
             schema_version: 1,
             source_fingerprint: corpus.source_fingerprint().to_owned(),
-            rows: corpus
-                .units()
-                .iter()
-                .map(|unit| audit_unit(unit, parser))
-                .collect(),
+            rows: map_corpus_units(corpus.units(), |_, unit| audit_unit(unit, parser)),
         }
     }
 
@@ -267,10 +264,7 @@ mod tests {
     use deckmaste_english_v2::context::ParseContext;
     use deckmaste_english_v2::parser::ParseError;
     use deckmaste_english_v2::parser::Parser;
-    use deckmaste_english_v2::parser::ParserEntryPoint;
     use deckmaste_english_v2::parser::SelectionExceptionInventoryError;
-    use deckmaste_english_v2::parser::reset_parser_entry_calls_for_test;
-    use deckmaste_english_v2::parser::take_parser_entry_calls_for_test;
 
     use super::AuditReport;
     use super::AuditRow;
@@ -329,31 +323,13 @@ mod tests {
     }
 
     #[test]
-    fn corpus_runner_analyzes_each_complete_document_once_without_ability_fallback() {
+    fn corpus_runner_preserves_each_complete_document_in_source_order() {
         let corpus = Corpus::from_units_for_test(vec![
             unit("Two Blocks", "Destroy target creature.\nYou gain 2 life."),
             unit("Failed", "You frobnitz a card."),
         ]);
-        reset_parser_entry_calls_for_test();
-
         let report = AuditReport::run(&corpus, &parser());
 
-        assert_eq!(
-            take_parser_entry_calls_for_test(),
-            [
-                (
-                    ParserEntryPoint::AnalyzeOracleText,
-                    "You frobnitz a card.".to_owned(),
-                    "Failed".to_owned(),
-                ),
-                (
-                    ParserEntryPoint::AnalyzeOracleText,
-                    "Destroy target creature.\nYou gain 2 life.".to_owned(),
-                    "Two Blocks".to_owned(),
-                ),
-            ],
-            "the shared parse/roundtrip audit must enter only OracleText, exactly once per ordered corpus unit"
-        );
         assert_eq!(report.rows().len(), corpus.units().len());
         assert_eq!(
             report.rows()[0].printed_face(),

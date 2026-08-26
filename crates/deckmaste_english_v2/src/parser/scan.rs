@@ -903,6 +903,7 @@ impl ScanInput<'_> {
                 VerbFrameAtom::Literal(literal) => CustomTailAtom::Literal((*literal).to_owned()),
                 VerbFrameAtom::Amount => CustomTailAtom::Amount,
                 VerbFrameAtom::ObjectNounPhrase => CustomTailAtom::ObjectNounPhrase,
+                VerbFrameAtom::PredicativeComplement => CustomTailAtom::PredicativeComplement,
             })
             .collect::<Vec<_>>();
         let offset = self.position.byte_offset;
@@ -3157,7 +3158,7 @@ mod tests {
                 "ControllerStageUnqualifiedControllerStage",
                 "ControllerStageControllerQualifiedReference",
                 "ControllerStageOtherThanQualifiedReference",
-                "ZoneStageUnqualifiedZoneStage",
+                "LocativeStageUnqualifiedLocativeStage",
                 "ZoneStageZoneQualifiedReference",
                 "NumericStageUnqualifiedNumericStage",
                 "NumericStageScalarQualifiedReference",

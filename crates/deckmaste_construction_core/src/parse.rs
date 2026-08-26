@@ -1626,9 +1626,10 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                                     crate::model::DeclarationVerbTailAtomKindSource::Amount(atom)
                                 }
                                 "ObjectNounPhrase" => crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom),
+                                "PredicativeComplement" => crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom),
                                 _ => Err(syn::Error::new(
                                     atom.span(),
-                                    "declaration_verb tail atoms must be string literals, `Amount`, or `ObjectNounPhrase`",
+                                    "declaration_verb tail atoms must be string literals, `Amount`, `ObjectNounPhrase`, or `PredicativeComplement`",
                                 ))?,
                             }
                         };

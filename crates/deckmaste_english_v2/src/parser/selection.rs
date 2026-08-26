@@ -1229,7 +1229,7 @@ mod tests {
         "ControllerStageUnqualifiedControllerStage",
         "ControllerStageControllerQualifiedReference",
         "ControllerStageOtherThanQualifiedReference",
-        "ZoneStageUnqualifiedZoneStage",
+        "LocativeStageUnqualifiedLocativeStage",
         "ZoneStageZoneQualifiedReference",
         "NumericStageUnqualifiedNumericStage",
         "NumericStageScalarQualifiedReference",

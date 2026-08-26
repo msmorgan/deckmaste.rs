@@ -463,6 +463,7 @@ fn custom_valence_has_exact_finite_atom_shapes() {
                     CustomTailAtom::Literal("with".to_owned()),
                     CustomTailAtom::Amount,
                     CustomTailAtom::ObjectNounPhrase,
+                    CustomTailAtom::PredicativeComplement,
                 ],
             ],
         },
@@ -471,7 +472,7 @@ fn custom_valence_has_exact_finite_atom_shapes() {
         "Intransitive",
         "Transitive",
         "Numerative",
-        "Custom(shapes: [[], [Literal(\"with\"), Amount, ObjectNounPhrase]])",
+        "Custom(shapes: [[], [Literal(\"with\"), Amount, ObjectNounPhrase, PredicativeComplement]])",
     ]
     .into_iter()
     .enumerate()

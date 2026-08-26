@@ -8,10 +8,12 @@ use anyhow::ensure;
 use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v2::context::ParseContext;
 use macro_ron::v2::Onset;
+use rayon::prelude::*;
 use sha2::Digest;
 use sha2::Sha256;
 
 const ID_DOMAIN: &[u8] = b"deckmaste:english-v2:corpus-unit:v1";
+const MAX_CORPUS_UNIT_JOBS: usize = 4;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(super) struct CorpusUnit {
@@ -163,6 +165,44 @@ impl Corpus {
         );
         Ok(unit)
     }
+}
+
+pub(super) fn map_corpus_units<T: Send>(
+    units: &[CorpusUnit],
+    map: impl Fn(usize, &CorpusUnit) -> T + Send + Sync,
+) -> Vec<T> {
+    let available = std::thread::available_parallelism().map_or(1, usize::from);
+    map_corpus_units_with_workers(units, available, map)
+}
+
+fn map_corpus_units_with_workers<T: Send>(
+    units: &[CorpusUnit],
+    requested_workers: usize,
+    map: impl Fn(usize, &CorpusUnit) -> T + Send + Sync,
+) -> Vec<T> {
+    if units.is_empty() {
+        return Vec::new();
+    }
+    let jobs = corpus_unit_jobs(requested_workers, units.len());
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(jobs)
+        .thread_name(|index| format!("english-v2-corpus-{index}"))
+        .build()
+        .expect("bounded English-v2 corpus pool must build")
+        .install(|| {
+            units
+                .par_iter()
+                .enumerate()
+                .map(|(index, unit)| map(index, unit))
+                .collect()
+        })
+}
+
+fn corpus_unit_jobs(requested_workers: usize, units: usize) -> usize {
+    requested_workers
+        .min(MAX_CORPUS_UNIT_JOBS)
+        .min(units)
+        .max(1)
 }
 
 fn quoted(value: &str) -> String {
@@ -334,6 +374,9 @@ impl Corpus {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+    use std::sync::Mutex;
+    use std::sync::mpsc::sync_channel;
+    use std::time::Duration;
 
     use super::*;
 
@@ -343,6 +386,42 @@ mod tests {
         rows.into_iter()
             .map(|(name, onset)| (name.to_owned(), onset))
             .collect()
+    }
+
+    #[test]
+    fn corpus_unit_map_overlaps_work_and_preserves_source_order() {
+        let units = [
+            CorpusUnit::for_test("First", ""),
+            CorpusUnit::for_test("Second", ""),
+        ];
+        let (sender, receiver) = sync_channel(1);
+        let receiver = Mutex::new(receiver);
+
+        let results =
+            map_corpus_units_with_workers(&units, 2, |index, unit| match unit.card_name() {
+                "First" => format!(
+                    "{index}:{}",
+                    receiver
+                        .lock()
+                        .unwrap()
+                        .recv_timeout(Duration::from_secs(1))
+                        .unwrap()
+                ),
+                "Second" => {
+                    sender.send("released").unwrap();
+                    format!("{index}:second")
+                }
+                name => panic!("unexpected mapped corpus unit {name}"),
+            });
+
+        assert_eq!(results, ["0:released", "1:second"]);
+    }
+
+    #[test]
+    fn corpus_unit_map_caps_parser_concurrency() {
+        assert_eq!(corpus_unit_jobs(64, 100), MAX_CORPUS_UNIT_JOBS);
+        assert_eq!(corpus_unit_jobs(2, 100), 2);
+        assert_eq!(corpus_unit_jobs(64, 3), 3);
     }
 
     fn snapshot_onsets() -> BTreeMap<String, Onset> {

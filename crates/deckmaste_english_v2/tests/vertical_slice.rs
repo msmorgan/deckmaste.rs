@@ -205,13 +205,17 @@ fn plural_head(noun: Noun) -> PluralHead {
 
 fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: NumericStage::UnqualifiedNumericStage(UnqualifiedNumericStage {
-            reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
-                reference: ControllerStage::UnqualifiedControllerStage(
-                    UnqualifiedControllerStage { reference },
-                ),
-            }),
-        }),
+        reference: Box::new(NumericStage::UnqualifiedNumericStage(
+            UnqualifiedNumericStage {
+                reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
+                    UnqualifiedLocativeStage {
+                        reference: ControllerStage::UnqualifiedControllerStage(
+                            UnqualifiedControllerStage { reference },
+                        ),
+                    },
+                )),
+            },
+        )),
     })
 }
 
@@ -236,36 +240,42 @@ fn target_noun(noun: Noun) -> NounPhrase {
 
 fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
-        reference: NumericStage::ScalarQualifiedReference(ScalarQualifiedReference {
-            reference: ZoneStage::UnqualifiedZoneStage(UnqualifiedZoneStage {
-                reference: ControllerStage::ControllerQualifiedReference(
-                    ControllerQualifiedReference {
-                        reference: UnqualifiedReference::OrdinaryPluralReference(
-                            OrdinaryPluralReference::new(PluralSelector::UnmarkedPluralSelector(
-                                UnmarkedPluralSelector {
-                                    nominal: plural_nominal(creatures()),
-                                },
-                            ))
-                            .expect("unmarked plural is valid for an ordinary reference"),
-                        ),
-                        controller_owner: ControllerOwnerQualification::YouControl(
-                            YouControl::new(SubjectPronoun::You)
-                                .expect("You is a valid controller"),
+        reference: Box::new(NumericStage::ScalarQualifiedReference(
+            ScalarQualifiedReference {
+                reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
+                    UnqualifiedLocativeStage {
+                        reference: ControllerStage::ControllerQualifiedReference(
+                            ControllerQualifiedReference {
+                                reference: UnqualifiedReference::OrdinaryPluralReference(
+                                    OrdinaryPluralReference::new(
+                                        PluralSelector::UnmarkedPluralSelector(
+                                            UnmarkedPluralSelector {
+                                                nominal: plural_nominal(creatures()),
+                                            },
+                                        ),
+                                    )
+                                    .expect("unmarked plural is valid for an ordinary reference"),
+                                ),
+                                controller_owner: ControllerOwnerQualification::YouControl(
+                                    YouControl::new(SubjectPronoun::You)
+                                        .expect("You is a valid controller"),
+                                ),
+                            },
                         ),
                     },
-                ),
-            }),
-            scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
-                measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
-                    characteristic: ScalarCharacteristic::Power,
-                }),
-                comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
-                    threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
-                        value: ScalarNumber { magnitude: 2 },
+                )),
+                scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
+                    measure: ScalarMeasure::CharacteristicScalar(CharacteristicScalar {
+                        characteristic: ScalarCharacteristic::Power,
+                    }),
+                    comparison: ScalarComparison::ScalarOrLess(ScalarOrLess {
+                        threshold: ScalarThreshold::FixedScalarThreshold(FixedScalarThreshold {
+                            value: ScalarNumber { magnitude: 2 },
+                        }),
                     }),
                 }),
-            }),
-        }),
+            },
+        )),
     })
 }
 
@@ -307,13 +317,13 @@ fn it() -> Object {
     })
 }
 
-fn damage_recipient(object: Object) -> DamageRecipient {
-    DamageRecipient::DamageRecipient(DamageRecipientValue { object })
+fn to_phrase(complement: Object) -> ToPhrase {
+    ToPhrase::ToPhrase(ToPhraseValue { complement })
 }
 
 fn damage(amount: Amount) -> VerbPhrase {
     VerbPhrase::DealDamage(DealDamage {
-        recipient: damage_recipient(it()),
+        recipient: to_phrase(it()),
         amount,
     })
 }
@@ -361,9 +371,13 @@ fn destroy(object: Object) -> VerbPhrase {
         DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
     )
     .expect("the builtin grammar declares transitive Destroy");
-    VerbPhrase::TransitivePredicate(TransitivePredicate {
-        head: TransitiveVerb::Declaration(head),
-        object,
+    VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+        frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
+            TransitivePredicate {
+                head: TransitiveVerb::Declaration(head),
+                object,
+            },
+        )),
     })
 }
 
@@ -374,19 +388,33 @@ fn connive() -> VerbPhrase {
         DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
     )
     .expect("the builtin grammar declares intransitive Connive");
-    VerbPhrase::IntransitivePredicate(IntransitivePredicate {
-        head: IntransitiveVerb::Declaration(head),
+    VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+        frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
+            IntransitivePredicate {
+                head: IntransitiveVerb::Declaration(head),
+            },
+        )),
     })
 }
 
 fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
     match predicate {
-        VerbPhrase::IntransitivePredicate(IntransitivePredicate {
-            head: IntransitiveVerb::Declaration(head),
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+            frame:
+                BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
+                    IntransitivePredicate {
+                        head: IntransitiveVerb::Declaration(head),
+                    },
+                )),
         }) => Some(head.id().name()),
-        VerbPhrase::TransitivePredicate(TransitivePredicate {
-            head: TransitiveVerb::Declaration(head),
-            ..
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+            frame:
+                BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
+                    TransitivePredicate {
+                        head: TransitiveVerb::Declaration(head),
+                        ..
+                    },
+                )),
         }) => Some(head.id().name()),
         _ => None,
     }
@@ -776,7 +804,7 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: damage_recipient(target_creature()),
+            recipient: to_phrase(target_creature()),
         }),
     );
     assert_eq!(
@@ -801,7 +829,7 @@ fn the_same_self_reference_value_renders_from_two_card_contexts() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: damage_recipient(target_creature()),
+            recipient: to_phrase(target_creature()),
         }),
     );
 
@@ -939,7 +967,7 @@ fn visitor_reaches_every_vertical_slice_leaf() {
             amount: Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: damage_recipient(target_creature()),
+            recipient: to_phrase(target_creature()),
         }),
     );
 
