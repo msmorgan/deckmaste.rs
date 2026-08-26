@@ -21,7 +21,7 @@ data CardClass = PermanentCard | SpellCard
 public export
 cardClassOf : List CardType -> CardClass
 cardClassOf [] = PermanentCard
-cardClassOf (t :: ts) = if spellType t then SpellCard else cardClassOf ts
+cardClassOf (t :: ts) = if spellCardType t then SpellCard else cardClassOf ts
 
 public export
 anyPermanentType : List CardType -> Bool
@@ -31,7 +31,7 @@ anyPermanentType (t :: ts) = permanentType t || anyPermanentType ts
 public export
 anySpellType : List CardType -> Bool
 anySpellType [] = False
-anySpellType (t :: ts) = spellType t || anySpellType ts
+anySpellType (t :: ts) = spellCardType t || anySpellType ts
 
 public export
 hasNonKindredType : List CardType -> Bool
@@ -161,7 +161,7 @@ cardTextOk tys (a :: as) = cardAbilityOk (cardClassOf tys) a && cardTextOk tys a
 
 public export
 chapterLineOk : {0 bs : Bindings} -> List Subtype -> AbilityAt bs -> Bool
-chapterLineOk subs (Triggered _ (ChapterMark _) _ _ _ _ _) = elem Saga subs
+chapterLineOk subs (Triggered _ (ChapterMark _) _ _ _ _ _) = elem (enchantmentType "Saga") subs
 chapterLineOk subs (AbilityWord _ ab) = chapterLineOk subs ab
 chapterLineOk subs (AlsoForKeywords ab _) = chapterLineOk subs ab
 chapterLineOk _ _ = True
@@ -407,7 +407,7 @@ data AltFaceLaws : AltFace -> Type where
 ||| saying so would be unreachable.
 public export
 adventureInsetOk : TypeLine -> Bool
-adventureInsetOk l = elem Adventure l.subs
+adventureInsetOk l = elem (spellType "Adventure") l.subs
 
 public export
 AdventureInset : TypeLine -> Type

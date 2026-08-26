@@ -220,11 +220,11 @@ thisPlaneswalker = AsType Planeswalker This Nothing
 
 public export
 thisAura : Noun bs Object
-thisAura = AsType Enchantment This (Just Aura)
+thisAura = AsType Enchantment This (Just (enchantmentType "Aura"))
 
 public export
 thisEquipment : Noun bs Object
-thisEquipment = AsType Artifact This (Just Equipment)
+thisEquipment = AsType Artifact This (Just (artifactType "Equipment"))
 
 public export
 exiledWithThisArtifact : Predicate bs Object
@@ -1016,7 +1016,7 @@ monoHybridPip n c = Hybrid (Generic n) c
 
 public export
 phyrexianPip : Color -> ManaSymbol
-phyrexianPip c = PhyrexianMana c Nothing
+phyrexianPip c = Phyrexian c Nothing
 
 public export
 payLife : (who : Noun bs Player) -> (n : Nat) -> Cost bs
@@ -1518,7 +1518,7 @@ entersChoosingFrom n q d = EntersChoice n q (Just d) {zn}
 ||| "this Siege": the self-reference read at a subtype.
 public export
 thisSiege : Noun bs Object
-thisSiege = AsType Battle This (Just Siege)
+thisSiege = AsType Battle This (Just (battleType "Siege"))
 
 ||| "… that was dealt damage this turn": the bare lookback description.
 public export
