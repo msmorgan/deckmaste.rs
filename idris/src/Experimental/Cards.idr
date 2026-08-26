@@ -8056,6 +8056,91 @@ hypnoticSpecterDiscard : Effect [MkBinding TheD Player OneOf PlayerP]
 hypnoticSpecterDiscard = Macros.discardsACardAtRandom They
 
 
+||| Chance Encounter
+||| "Whenever you win a coin flip, put a luck counter on this enchantment.
+|||  At the beginning of your upkeep, if this enchantment has ten or more
+|||  luck counters on it, you win the game."
+public export
+chanceEncounter : Card
+chanceEncounter =
+  Macros.card "Chance Encounter"
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered Whenever Macros.youWinACoinFlip
+                          (PutCounters (Lit 1) Luck Macros.thisEnchantment)
+       , Macros.triggeredIf At
+                            (BeginningOf Upkeep (ByWord Yours))
+                            (CompareAmt (CountersOn Luck Macros.thisEnchantment)
+                                        AtLeast (Lit 10))
+                            (Concludes WinGame You) ]
+       Nothing
+
+||| Karplusan Minotaur's win arm: "Whenever you win a coin flip, this
+||| creature deals 1 damage to any target." Its lose arm writes "any target
+||| of an opponent's choice", which no mention shape carries -- the same
+||| chooser gap the at-random round ledgered, and outside the event row.
+||| Its cumulative upkeep belongs to the cost-and-payment ticket.
+public export
+karplusanMinotaurWinFlip : Ability
+karplusanMinotaurWinFlip =
+  Macros.triggered Whenever Macros.youWinACoinFlip
+                   (DealDamage Macros.thisCreature (Lit 1)
+                               (Macros.target Macros.anyTarget))
+
+||| Brazen Dwarf
+||| "Whenever you roll one or more dice, this creature deals 1 damage to
+||| each opponent."
+public export
+brazenDwarf : Card
+brazenDwarf =
+  Macros.card "Brazen Dwarf"
+       (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Dwarf", creatureType "Shaman"] [Creature])
+       [ Macros.triggered Whenever Macros.youRollDice
+                          (DealDamage Macros.thisCreature (Lit 1)
+                                      (Each Opponent)) ]
+       (Just (1, 3))
+
+||| Vexing Puzzlebox, first line: "Whenever you roll one or more dice, put a
+||| number of charge counters on this artifact equal to the result." The
+||| body reads the number the event announced [CR#706.2].
+public export
+vexingPuzzleboxCounters : Ability
+vexingPuzzleboxCounters =
+  Macros.triggered Whenever Macros.youRollDice
+                   (PutCounters Macros.theResult Charge Macros.thisArtifact)
+
+||| The Space Family Goblinson, first line: "Whenever you roll a die, put
+||| a +1/+1 counter on The Space Family Goblinson." The singular
+||| determiner beside Brazen Dwarf's plural one.
+public export
+spaceFamilyGoblinsonRoll : Ability
+spaceFamilyGoblinsonRoll =
+  Macros.triggered Whenever (RollsDice You OneDie)
+                   (PutCounters (Lit 1) Macros.plusOnePlusOne
+                                Macros.thisCreature)
+
+||| Ral Zarek's ultimate: "Flip five coins. Take an extra turn after this
+||| one for each coin that comes up heads." The count over the flipped
+||| coins, read off the flip the clause before it wrote.
+public export
+ralZarekUltimate : Effect []
+ralZarekUltimate =
+  Sequentially [Macros.flipCoins 5,
+                ExtraTurn You (Macros.coinsThatCameUp Heads)]
+
+||| Spark Fiend's upkeep roll: "roll two six-sided dice. If you rolled 7,
+||| sacrifice this creature." The total of the two dice, which no per-roll
+||| result gives [CR#706.2]. The line's remaining clauses read a total the
+||| card NOTED on itself, which is not written.
+public export
+sparkFiendUpkeepRoll : Effect []
+sparkFiendUpkeepRoll =
+  Sequentially [Macros.rollDice 2 6,
+                Macros.ifThen (CompareAmt Macros.theTotal Eq (Lit 7))
+                              (Macros.sacrifice You Macros.thisCreature)]
+
+
 ||| Wax // Wane, a split card [CR#709.1]: two faces on one card, each with its
 ||| own mana cost [CR#709.4b] and its own type line and text box [CR#709.4c].
 waxWane : Card

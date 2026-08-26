@@ -595,3 +595,52 @@ public export
 badPluralNextTurnSpan : Unspellable (Duration []) (\ok =>
   DuringNextTurnOf (Each Opponent) {one = ok})
 badPluralNextTurnSpan Refl impossible
+
+
+||| "Take an extra turn for each coin that comes up heads." with no coin
+||| flipped.
+||| [CR#705.2] gives the face to a coin some effect instructed a player to
+||| flip; with no flip written there is no coin to have come up either way.
+public export
+badCoinsShowingWithoutFlip : Unspellable (Effect []) (\ok =>
+  ExtraTurn You (CoinsShowing Heads {fl = ok}))
+badCoinsShowingWithoutFlip Oh impossible
+
+||| "If you rolled 7, sacrifice this creature." with no roll before it.
+||| [CR#706.2] makes a result the number a die the text rolled came up on,
+||| so a total over those results presupposes the roll, exactly as the
+||| singular result does.
+public export
+badTotalWithoutRoll : Unspellable (Effect []) (\ok =>
+  Macros.ifThen (CompareAmt (TheTotal {ok}) Eq (Lit 7))
+                (Macros.sacrifice You Macros.thisCreature))
+badTotalWithoutRoll Refl impossible
+
+||| "creature that won a coin flip this turn"
+||| [CR#705.2] has the player who flips the coin win or lose the flip and
+||| says no other player is involved, so what won one is a player and a
+||| creature never is.
+public export
+badCreatureWonFlip : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo FlipWin Lookback.ThisTurn Nothing {sb = ok})
+badCreatureWonFlip MkLookbackSubject impossible
+
+||| "the amount of dice you rolled this turn"
+||| [CR#706.2] makes the result a number the roll PRODUCED, read back off
+||| the roll, not an amount the rolling happened in; how many dice were
+||| rolled is a count and not a magnitude.
+public export
+badRollAsMagnitude : Unspellable (Amount []) (\ok =>
+  EventSum DiceRoll You Lookback.ThisTurn Nothing {qm = ok})
+badRollAsMagnitude Oh impossible
+
+||| The readings those pins leave standing, so none passes for want of a
+||| positive: a player's own won flip and rolled die are both looked back
+||| on ("if you rolled a die this turn").
+public export
+youWonAFlipThisTurn : Condition []
+youWonAFlipThisTurn = Happened FlipWin You Lookback.ThisTurn Nothing
+
+public export
+youRolledADieThisTurn : Condition []
+youRolledADieThisTurn = Happened DiceRoll You Lookback.ThisTurn Nothing
