@@ -28,6 +28,7 @@ modules = Semantics
         , Spec
         , Experimental.Words
         , Experimental.Events
+        , Experimental.Phrase
         , Experimental
         , Experimental.Macros
         , Experimental.Cards
