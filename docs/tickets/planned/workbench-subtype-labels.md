@@ -21,12 +21,17 @@ renaming the symbol to `PhyrexianMana`) is the shape's own symptom.
    [CR#205.3m] creature/Kindred sharing keep working over it. Study how
    `VerbLabel` landed as the open keyword-action vocabulary and mirror that
    shape.
-2. A decision, recorded in the ticket close, on the boundary: which subtype
-   classes stay structural constructors because the CR attaches per-member
-   meaning (Saga, Aura, Equipment, Curse, basic land types, Adventure, …) and
-   which follow creature types into the open form (planeswalker types are
-   names too; land types split — basics structural, nonbasic names open).
-   The boundary test is rules-meaning, never corpus counts.
+2. The boundary follows the plugin layer's settled model, not a fresh
+   decision: in `plugins/builtin/macros/` every subtype is already an open
+   vocabulary entry (one macro per subtype), and a rules-meaningful one
+   carries its meaning as a `confers:` list (Aura, Equipment, Fortification,
+   Saga, the basic land types via `macro/subtype/BasicLandType.ron`) — the
+   macros' own comments mark the subtype special *because* it confers. Per
+   the mirrors-v2 ruling the workbench takes that shape: subtype = label,
+   rules meaning = what the label confers, no structural constructor class
+   at all. Where the workbench gates currently index on a structural subtype
+   (e.g. `chapterLineOk`'s Saga check, `subsFitLine`), rework them to read
+   the label or its conferral data; record per gate how it was re-grounded.
 3. Migration of the existing creature-type constructors and their
    `subtypeType`/`Eq` rows, with Cards.idr/Proofs*.idr use sites updated.
    No witness lost, no pin silently passing.
