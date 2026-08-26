@@ -8915,3 +8915,136 @@ slithermuseTrigger =
                         (CountOf (InZone (Macros.handOf You))))
             (Draw You TheDifference)
             Nothing ])
+
+-- ---------------------------------------------------------------------------
+-- The distinct-kind count
+-- ---------------------------------------------------------------------------
+
+||| Tarmogoyf, whole definition line -- "Tarmogoyf's power is equal to the
+||| number of card types among cards in all graveyards and its toughness
+||| is equal to that number plus 1." The distinct-kind count at the
+||| definition's first slot; "all graveyards" is every player's own
+||| [CR#404.1], so the possessor is `AllPlayers` and not the bare zone.
+||| Barrowgoyf, Polygoyf, Pyrogoyf and Tarmogoyf Nest's token write the
+||| same line.
+public export
+tarmogoyfDefinition : Ability
+tarmogoyfDefinition =
+  Static (AndAlso
+    [ DefinesPt Macros.thisCreature PowerAlone
+        (DistinctCount CardTypeAxis
+           (AllOf (InZone (Macros.graveyardOf (PlayerGroup AllPlayers)))))
+    , DefinesPt Macros.thisCreature ToughnessAlone
+        (Plus ThatMuch (Lit 1)) ])
+
+||| Tarmogoyf's printed box -- "*/1+*".
+public export
+tarmogoyfBox : PrintedBox
+tarmogoyfBox = PtBox PrintedStar (PrintedStarPlus 1)
+
+||| Consuming Blob's definition -- "Consuming Blob's power is equal to the
+||| number of card types among cards in your graveyard and its toughness is
+||| equal to that number plus 1." The same line over ONE graveyard;
+||| Nethergoyf writes it too.
+public export
+consumingBlobDefinition : Ability
+consumingBlobDefinition =
+  Static (AndAlso
+    [ DefinesPt Macros.thisCreature PowerAlone
+        (DistinctCount CardTypeAxis
+           (AllOf (InZone (Macros.graveyardOf You))))
+    , DefinesPt Macros.thisCreature ToughnessAlone
+        (Plus ThatMuch (Lit 1)) ])
+
+||| Nighthawk Scavenger's definition -- "Nighthawk Scavenger's power is
+||| equal to 1 plus the number of card types among cards in your
+||| opponents' graveyards." One slot, an offset count, and the possessor
+||| written on the zone.
+public export
+nighthawkScavengerDefinition : Ability
+nighthawkScavengerDefinition =
+  Static (DefinesPt Macros.thisCreature PowerAlone
+    (Plus (Lit 1)
+          (DistinctCount CardTypeAxis
+             (AllOf (InZone (Macros.graveyardOf (PlayerGroup YourOpponents)))))))
+
+||| Lucid Dreams, whole -- "Draw X cards, where X is the number of card
+||| types among cards in your graveyard."
+public export
+lucidDreams : Card
+lucidDreams =
+  Macros.card "Lucid Dreams"
+       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ Draw You (LetterVal X)
+                  , Define X (DistinctCount CardTypeAxis
+                                (AllOf (InZone (Macros.graveyardOf You)))) ]) ]
+       Nothing
+
+||| Tribal Flames, whole -- "Domain — Tribal Flames deals X damage to any
+||| target, where X is the number of basic land types among lands you
+||| control." The subtype axis under its basic-only scope [CR#305.6].
+public export
+tribalFlames : Card
+tribalFlames =
+  Macros.card "Tribal Flames" (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [] [Sorcery])
+       [ AbilityWord Domain
+           (Spell (Sequentially
+                     [ DealDamage This (LetterVal X)
+                                  (Macros.target Macros.anyTarget)
+                     , Define X (DistinctCount (SubtypeAxis Land BasicOnly)
+                                   (AllOf (And [Macros.land,
+                                                ControlledBy You]))) ])) ]
+       Nothing
+
+||| Explosive Prodigy's trigger -- "Vivid — When this creature enters, it
+||| deals X damage to target creature an opponent controls, where X is the
+||| number of colors among permanents you control." The colour axis
+||| [CR#105.1].
+public export
+explosiveProdigyTrigger : Ability
+explosiveProdigyTrigger =
+  AbilityWord Vivid
+    (Macros.triggered When (Enters Macros.thisCreature)
+       (Sequentially
+          [ DealDamage It (LetterVal X)
+                       (Macros.target (And [Macros.creature,
+                                            ControlledBy Macros.anOpponent]))
+          , Define X (DistinctCount ColorAxis
+                        (AllOf (And [Permanent, ControlledBy You]))) ]))
+
+||| Korvold, Gleeful Glutton's combat trigger -- "Whenever Korvold deals
+||| combat damage to a player, put X +1/+1 counters on Korvold and draw X
+||| cards, where X is the number of permanent types among cards in your
+||| graveyard." The permanent-type axis [CR#110.4], a named six of
+||| [CR#205.2a]'s fifteen.
+public export
+korvoldCombatTrigger : Ability
+korvoldCombatTrigger =
+  Macros.triggered Whenever
+    (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
+    (Sequentially
+       [ PutCounters (LetterVal X) Macros.plusOnePlusOne Macros.thisCreature
+       , Draw You (LetterVal X)
+       , Define X (DistinctCount PermanentTypeAxis
+                     (AllOf (InZone (Macros.graveyardOf You)))) ])
+
+||| General Tazri's pump -- "{W}{U}{B}{R}{G}: Ally creatures you control
+||| get +X/+X until end of turn, where X is the number of colors among
+||| those creatures." The domain is a MENTION here, which the one `Noun`
+||| slot takes as it takes a description.
+public export
+generalTazriPump : Ability
+generalTazriPump =
+  Macros.activated
+    (Mana [Macros.pip White, Macros.pip Blue, Macros.pip Black,
+           Macros.pip Red, Macros.pip Green])
+    (Sequentially
+       [ Macros.gets (Each (And [Macros.creature,
+                                 HasSubtype (creatureType "Ally"),
+                                 ControlledBy You]))
+                     (PtUp (LetterVal X)) (PtUp (LetterVal X))
+                     (Just Macros.untilEndOfTurn)
+       , Define X (DistinctCount ColorAxis (Those (TypeW Creature))) ])

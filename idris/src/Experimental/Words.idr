@@ -559,6 +559,49 @@ Eq ProjAxis where
   (==) (PlayerStatAxis a) (PlayerStatAxis b) = a == b
   (==) (PlayerStatAxis _) _ = False
 
+||| Which of a card type's subtypes a distinct-kind count runs over.
+||| [CR#305.6] names the five basic land types and says an object writing
+||| "basic land type" means one of those, so the split belongs to the land
+||| type alone; no other card type's subtypes are divided this way.
+public export
+data SubtypeScope = AnySubtype | BasicOnly | NonbasicOnly
+
+public export
+subtypeScopeOk : CardType -> SubtypeScope -> Bool
+subtypeScopeOk _ AnySubtype = True
+subtypeScopeOk Land BasicOnly = True
+subtypeScopeOk Land NonbasicOnly = True
+subtypeScopeOk _ BasicOnly = False
+subtypeScopeOk _ NonbasicOnly = False
+
+||| The label set a distinct-kind count runs over. Its own vocabulary
+||| beside `ProjAxis`, not rows on it: a `ProjAxis` names ONE number per
+||| object, where [CR#205.2b] gives one object more than one card type at
+||| once and [CR#105.2] more than one colour, so an axis here names a SET
+||| and nothing sums or orders its values.
+||| `ValueAxis` is the same reading over a numeric characteristic -- "the
+||| number of different mana values among cards in your graveyard" counts
+||| the values, not the cards -- and is why a distinct count is not an
+||| `AggregateOp`: its result does not depend on the axis being numeric.
+public export
+data KindAxis : Type where
+  ||| "the number of card types among …" [CR#205.2a]
+  CardTypeAxis : KindAxis
+  ||| "the number of permanent types among …" [CR#110.4]
+  PermanentTypeAxis : KindAxis
+  ||| "the number of colors among …" [CR#105.1]
+  ColorAxis : KindAxis
+  ||| "the number of basic land types among …", "the number of creature
+  ||| types among …": the subtypes correlated to one card type [CR#205.3c].
+  SubtypeAxis : (host : CardType) -> (only : SubtypeScope) ->
+                {auto 0 sc : So (subtypeScopeOk host only)} -> KindAxis
+  ||| "the number of different mana values among …", "… different powers
+  ||| among …": the values a numeric characteristic takes, counted once
+  ||| each.
+  ValueAxis : Characteristic -> KindAxis
+  ||| "the number of different kinds of counters among …"
+  CounterKindAxis : KindAxis
+
 public export
 data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  | DamagePrevented | RollResult | CoinFlipped

@@ -710,3 +710,13 @@ badMemberInComparisonBound : Unspellable (Predicate [] Player) (\ok =>
   CompareOver Opponent (CountOf (And [Macros.land, ControlledBy You]))
               Greater (CountOf (And [Macros.land, ControlledBy (They {ok})])))
 badMemberInComparisonBound Refl impossible
+
+||| "the number of basic creature types among creatures you control"
+||| [CR#305.6] gives "basic land type" its only reading -- five of the land
+||| types -- and no other card type's subtypes are divided that way, so the
+||| scope has nothing to mean off the land type.
+public export
+badBasicCreatureTypeAxis : Unspellable (Amount []) (\ok =>
+  DistinctCount (SubtypeAxis Creature BasicOnly {sc = ok})
+                (AllOf Macros.creatureYouControl))
+badBasicCreatureTypeAxis Oh impossible

@@ -1750,6 +1750,29 @@ mutual
     CountOfGroup : {k : Kind} -> (grp : Noun bs k) ->
                    {auto 0 pl : nounPlur grp = ManyOf} ->
                    {auto 0 gm : GroupMention grp} -> Amount bs
+    ||| "the number of card types among cards in all graveyards", "the
+    ||| number of basic land types among lands you control": the count of
+    ||| the DISTINCT values an axis takes over a domain, where `CountOf`
+    ||| counts the domain's own members. The two readings come apart
+    ||| because one object carries more than one card type [CR#205.2b] and
+    ||| more than one colour [CR#105.2] -- Tarmogoyf counts card types,
+    ||| not cards.
+    ||| Its own head, not an `AggregateOp` row: [CR#205.2a]'s types and
+    ||| [CR#105.1]'s colours are not numbers, so no existing op folds them
+    ||| and no existing axis answers a distinct count. `KindAxis` names
+    ||| the label set for the same reason `ProjAxis` cannot -- a `ProjAxis`
+    ||| projects one number per object.
+    ||| The domain is a `Noun`, which reaches the description ("among
+    ||| cards in all graveyards", an `AllOf`) and the mention ("among
+    ||| those creatures") in one slot; no description/mention twin is
+    ||| minted, since one surface writes both.
+    ||| UNGATED on plurality: a single object still has a set of types
+    ||| [CR#205.2b] and of colours [CR#105.2], and the corpus writes that
+    ||| reading with its own words ("the number of colors that spell is").
+    ||| -- spelling: "the number of [axis] among [domain]", with
+    ||| "different" before an axis a sum could otherwise be read over;
+    ||| over one object, "the number of [axis] [domain] is".
+    DistinctCount : (ax : KindAxis) -> (dom : Noun bs Object) -> Amount bs
 
   public export
   amtDelta : {bs : Bindings} -> Amount bs -> List Binding
@@ -1778,6 +1801,7 @@ mutual
   amtDelta (AggregateOf _ _ grp) = nounDelta grp
   amtDelta (AggregateOver _ dom _) = predDelta dom
   amtDelta (CountOfGroup grp) = nounDelta grp
+  amtDelta (DistinctCount _ dom) = nounDelta dom
 
   public export
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
@@ -1806,6 +1830,7 @@ mutual
   amtIntro (AggregateOf _ _ grp) = nomIntro grp
   amtIntro (AggregateOver _ dom _) = predDelta dom ++ bs
   amtIntro (CountOfGroup grp) = nomIntro grp
+  amtIntro (DistinctCount _ dom) = nomIntro dom
 
   ||| An unwritten amount introduces nothing: the slot's absence is the
   ||| bare "all" spelling, not a mention a later clause could read.
@@ -1842,6 +1867,7 @@ mutual
   amtPlur (AggregateOf _ _ _) = ManyOf
   amtPlur (AggregateOver _ _ _) = ManyOf
   amtPlur (CountOfGroup _) = ManyOf
+  amtPlur (DistinctCount _ _) = ManyOf
 
   public export
   writtenBound : {0 bs : Bindings} -> Amount bs -> Bool
@@ -1870,6 +1896,7 @@ mutual
   writtenBound (AggregateOf _ _ _) = False
   writtenBound (AggregateOver _ _ _) = False
   writtenBound (CountOfGroup _) = False
+  writtenBound (DistinctCount _ _) = False
 
   public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
@@ -1926,6 +1953,7 @@ mutual
   readAmount (AggregateOf _ _ _) = True
   readAmount (AggregateOver _ _ _) = True
   readAmount (CountOfGroup _) = True
+  readAmount (DistinctCount _ _) = True
 
   public export
   ReadAmount : Amount bs -> Type
