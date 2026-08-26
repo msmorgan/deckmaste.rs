@@ -1743,15 +1743,25 @@ public export
 data OnBattlefield : Maybe Zone -> Type where
   OnField : OnBattlefield (Just Battlefield)
 
+||| How an entry-counter clause relates its number to the counters the
+||| object would otherwise enter with: the whole count (`Fresh`), extra
+||| ones beside it (`Additional`), or that many taken off it (`Fewer`).
+||| [CR#614.1c] makes each of the three one replacement effect over the
+||| same entry, so the mark is which arithmetic that effect writes.
+||| `Fewer` is compleated's reminder -- "enters with two fewer loyalty
+||| counters" -- where [CR#306.5b]'s printed loyalty is the count being
+||| reduced.
 public export
-data EntryCounterMark = Fresh | Additional
+data EntryCounterMark = Fresh | Additional | Fewer
 
 public export
 Eq EntryCounterMark where
   (==) Fresh Fresh = True
-  (==) Fresh Additional = False
-  (==) Additional Fresh = False
+  (==) Fresh _ = False
   (==) Additional Additional = True
+  (==) Additional _ = False
+  (==) Fewer Fewer = True
+  (==) Fewer _ = False
 
 public export
 data PlayerGroupWord = AllPlayers | YourOpponents
@@ -2768,6 +2778,9 @@ data CounterKind : Type where
   ||| kinds the ordinal counter headers name.
   Plan : CounterKind
   Hour : CounterKind
+  ||| Investigator's Journal's stored draws: an ordinary marker whose
+  ||| whole meaning is the ability that reads it [CR#122.1].
+  Suspect : CounterKind
 
 public export
 counterScope : CounterKind -> Kind
@@ -2789,6 +2802,7 @@ counterScope Shield = Object
 counterScope LoyaltyCounter = Object
 counterScope Plan = Object
 counterScope Hour = Object
+counterScope Suspect = Object
 
 public export
 Eq CounterKind where
@@ -2829,6 +2843,8 @@ Eq CounterKind where
   (==) Plan _ = False
   (==) Hour Hour = True
   (==) Hour _ = False
+  (==) Suspect Suspect = True
+  (==) Suspect _ = False
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where

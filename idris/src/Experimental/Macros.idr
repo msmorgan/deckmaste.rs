@@ -1305,6 +1305,12 @@ entersWithAdditionalCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
 entersWithAdditionalCounters n amt kind =
   EntersWithCounters n amt kind Additional
 
+||| "… enters with N fewer <kind> counters on it": compleated's reminder.
+public export
+entersWithFewerCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
+                          (kind : CounterKind) -> StaticEffect bs
+entersWithFewerCounters n amt kind = EntersWithCounters n amt kind Fewer
+
 ||| "Whenever <creature> attacks": no defender written.
 public export
 attacks : (n : Noun bs Object) ->
@@ -1363,15 +1369,17 @@ singleCounterEvent dir kind n =
   CounterEvent dir (Just kind) n OneCounter Nothing Nothing
 
 ||| "Whenever a counter is put on …" / "… removed from …": the kind-blind
-||| single counter.
+||| single counter. The holder may be a player, whose verb is "get".
 public export
-bareCounterEvent : (dir : CounterMove) -> (n : Noun bs Object) -> GameEvent bs
+bareCounterEvent : {k : Kind} -> (dir : CounterMove) -> (n : Noun bs k) ->
+                   GameEvent bs
 bareCounterEvent dir n = CounterEvent dir Nothing n OneCounter Nothing Nothing
 
 ||| "Whenever one or more counters are put on …" / "if one or more
-||| counters would be put on …": the kind-blind batch.
+||| counters would be put on …" / "if you would get one or more
+||| counters": the kind-blind batch, on either holder.
 public export
-manyBareCounterEvent : (dir : CounterMove) -> (n : Noun bs Object) ->
+manyBareCounterEvent : {k : Kind} -> (dir : CounterMove) -> (n : Noun bs k) ->
                        GameEvent bs
 manyBareCounterEvent dir n =
   CounterEvent dir Nothing n ManyCounters Nothing Nothing

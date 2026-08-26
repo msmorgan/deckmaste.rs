@@ -977,6 +977,17 @@ mutual
     GetsCounters : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
                    (kind : CounterKind) ->
                    {auto 0 sc : counterScope kind = Player} -> Effect bs
+    ||| `PutCountersOfThoseKinds`' player-side twin: the same kind-blind
+    ||| distributive written under the player's own verb. [CR#122.1]
+    ||| places a counter on an object OR a player, so a batch a player
+    ||| would get has kinds to range over exactly as an object's does,
+    ||| and the same single-announcement presupposition holds.
+    ||| -- spelling: "you get that many plus one of each of those kinds
+    ||| of counters instead" (Winding Constrictor).
+    GetsCountersOfThoseKinds : (who : Noun bs Player) ->
+                               (amt : Amount (nomIntro who)) ->
+                               {auto 0 ok : countOutcomes CountersPut bs = 1} ->
+                               Effect bs
     ||| Counters leave a player in a stated number as well as all at
     ||| once: [CR#728.1]'s own rules text has a player remove "one rad
     ||| counter from themselves", and printed removal lines count what
@@ -1133,6 +1144,7 @@ mutual
   heldUntilOk (SetStatus PhasedOut _) = True
   heldUntilOk (SetStatus _ _) = False
   heldUntilOk (GetsCounters _ _ _) = False
+  heldUntilOk (GetsCountersOfThoseKinds _ _) = False
   heldUntilOk (LosesCounters _ _ _) = False
   heldUntilOk (RemoveFromCombat _) = False
   heldUntilOk (BecomesBlocking _ _) = False
@@ -1224,6 +1236,7 @@ mutual
   -- agent form has no subject to inflect.
   reflexEncloseUse (SetStatus _ _) = EncAgentless
   reflexEncloseUse (GetsCounters _ _ _) = EncAgentless
+  reflexEncloseUse (GetsCountersOfThoseKinds _ _) = EncAgentless
   reflexEncloseUse (LosesCounters _ _ _) = EncAgentless
   reflexEncloseUse (RemoveFromCombat _) = EncAgentless
   reflexEncloseUse (BecomesBlocking _ _) = EncAgentless
@@ -1309,6 +1322,7 @@ mutual
   thisWayOutcomeOk (Fights _ _) = True
   thisWayOutcomeOk (SetStatus _ _) = True
   thisWayOutcomeOk (GetsCounters _ _ _) = True
+  thisWayOutcomeOk (GetsCountersOfThoseKinds _ _) = True
   thisWayOutcomeOk (LosesCounters _ _ _) = True
   thisWayOutcomeOk (RemoveFromCombat _) = True
   thisWayOutcomeOk (BecomesBlocking _ _) = True
@@ -1396,6 +1410,8 @@ mutual
   costActionOk (Fights a _) = costNounOk a
   costActionOk (SetStatus _ n) = costNounOk n
   costActionOk (GetsCounters who _ _) = costNounOk who
+  -- the distributive twin reads an announced batch, which no cost has.
+  costActionOk (GetsCountersOfThoseKinds _ _) = False
   costActionOk (LosesCounters who _ _) = costNounOk who
   costActionOk (RemoveFromCombat n) = costNounOk n
   costActionOk (BecomesBlocking n _) = costNounOk n
@@ -1504,10 +1520,16 @@ mutual
   effEq (Fights _ _) _ = False
   effEq (SetStatus v a) (SetStatus w b) = sameStatusVal v w && nounEqRef a b
   effEq (SetStatus _ _) _ = False
+  -- The two player-counter rows compare kind AND amount, and both narrow
+  -- to `You` to do it: an `Amount` is indexed by its subject's discourse,
+  -- so amounts under two different subjects are not the same type. `Draw`
+  -- narrows the same way for the same reason.
+  effEq (GetsCounters You x j) (GetsCounters You y l) = j == l && boundEq x y
   effEq (GetsCounters _ _ _) _ = False
-  effEq (LosesCounters a Nothing _) (LosesCounters b Nothing _) = nounEqRef a b
-  effEq (LosesCounters a (Just j) _) (LosesCounters b (Just l) _) =
-    nounEqRef a b && j == l
+  effEq (GetsCountersOfThoseKinds _ _) _ = False
+  effEq (LosesCounters You j Nothing) (LosesCounters You l Nothing) = j == l
+  effEq (LosesCounters You j (Just x)) (LosesCounters You l (Just y)) =
+    j == l && boundEq x y
   effEq (LosesCounters _ _ _) _ = False
   effEq (RemoveFromCombat a) (RemoveFromCombat b) = nounEqRef a b
   effEq (RemoveFromCombat _) _ = False
@@ -1614,6 +1636,7 @@ mutual
   effIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
   effIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
   effIntro (GetsCounters who amt _) = amtIntro amt
+  effIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   effIntro (LosesCounters who _ amt) = optAmtIntro amt
   effIntro (RemoveFromCombat n) = nomIntro n
   effIntro (BecomesBlocking _ what) = nomIntro what
@@ -1701,6 +1724,7 @@ mutual
   preIntro (ExtraTurn w count) = amtDelta count ++ nomIntro w
   preIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
   preIntro (GetsCounters who amt _) = amtIntro amt
+  preIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   preIntro (LosesCounters who _ amt) = optAmtIntro amt
   preIntro (RemoveFromCombat n) = nomIntro n
   preIntro (BecomesBlocking _ what) = nomIntro what
@@ -1773,6 +1797,7 @@ mutual
   annIntro (ExtraTurn w count) = turnRefB :: (amtDelta count ++ nomIntro w)
   annIntro (AdditionalPart _ _ count _) = amtDelta count ++ bs
   annIntro (GetsCounters who amt _) = amtIntro amt
+  annIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   annIntro (LosesCounters who _ amt) = optAmtIntro amt
   annIntro (RemoveFromCombat n) = nomIntro n
   annIntro (BecomesBlocking _ what) = nomIntro what
@@ -1883,6 +1908,7 @@ mutual
   deedDelta (ExtraTurn _ _) = []
   deedDelta (AdditionalPart _ _ _ _) = []
   deedDelta (GetsCounters _ _ _) = []
+  deedDelta (GetsCountersOfThoseKinds _ _) = []
   deedDelta (LosesCounters _ _ _) = []
   deedDelta (RemoveFromCombat _) = []
   deedDelta (BecomesBlocking _ _) = []

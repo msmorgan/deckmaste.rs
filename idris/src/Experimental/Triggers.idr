@@ -198,12 +198,19 @@ mutual
               {auto 0 dk : PutDest to} ->
               {auto 0 sk : PutSource from} ->
               {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} -> GameEvent bs
-    CounterEvent : (dir : CounterMove) -> (kind : Maybe CounterKind) ->
-                   (n : Noun bs Object) ->
+    ||| A counter arriving on or leaving its holder. The holder is
+    ||| kind-polymorphic because [CR#122.1] places a counter "on an
+    ||| object or player", and the kind gate keeps each counter word on
+    ||| its own side of that line. The player side spells the same event
+    ||| with the `get` verb -- Winding Constrictor's "if you would get one
+    ||| or more counters".
+    CounterEvent : {k : Kind} ->
+                   (dir : CounterMove) -> (kind : Maybe CounterKind) ->
+                   (n : Noun bs k) ->
                    (many : CounterBatch) ->
                    (by : Maybe (Noun bs Player)) ->
                    (cause : Maybe Causer) ->
-                   {auto 0 kn : CounterKindNamed Object kind} ->
+                   {auto 0 kn : CounterKindNamed k kind} ->
                    {auto 0 ag : EventAgent by} ->
                    {auto 0 cz : CausedBy cause by} -> GameEvent bs
     TokensCreated : (n : Noun bs Object) ->
