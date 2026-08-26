@@ -103,6 +103,10 @@ fn surfaces(declaration: &NormalizedDeclaration) -> Vec<(SurfaceFeature, &str)> 
 }
 
 #[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the nursery authority compares every normalized keyword-action declaration together"
+)]
 fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
@@ -162,6 +166,22 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
         &GrammarRecipe::Verb {
             valence: VerbValence::Intransitive,
         }
+    );
+
+    let regenerate = action(&declarations, "Regenerate");
+    assert_eq!(
+        regenerate.grammar().unwrap().recipe(),
+        &GrammarRecipe::Verb {
+            valence: VerbValence::Transitive,
+        }
+    );
+    assert_eq!(
+        surfaces(regenerate),
+        [
+            (SurfaceFeature::Bare, "regenerate"),
+            (SurfaceFeature::ThirdPersonSingular, "regenerates"),
+            (SurfaceFeature::Participle, "regenerated"),
+        ]
     );
 
     let scry = action(&declarations, "Scry");

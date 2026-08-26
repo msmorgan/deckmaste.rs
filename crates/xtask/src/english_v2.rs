@@ -598,6 +598,7 @@ mod tests {
     const PLAN09_PART_IV: &str = include_str!("english_v2/plan09_part_iv_witnesses.tsv");
     const PLAN09_TASK10_EXPANSION: &str = include_str!("english_v2/plan09_task10_expansion.tsv");
     const PLAN09_TASK10A_EXPANSION: &str = include_str!("english_v2/plan09_task10a_expansion.tsv");
+    const PLAN09_TASK10B_EXPANSION: &str = include_str!("english_v2/plan09_task10b_expansion.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8172,7 +8173,20 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "explicit Task 10B fixture refresh expands the complete production declaration"]
+    fn refresh_plan09_task10b_expansion_inventory() {
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let rendered = render_plan09_expansion_inventory(&expansion_inventory(&expansion))
+            .expect("Task 10B generated expansion inventory renders");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/english_v2/plan09_task10b_expansion.tsv");
+        fs::write(path, rendered).expect("Task 10B expansion fixture writes");
+    }
+
+    #[test]
     #[allow(
+        clippy::similar_names,
         clippy::too_many_lines,
         reason = "the authority audit compares each historical inventory and origin set together"
     )]
@@ -8193,6 +8207,7 @@ mod tests {
         let task9 = parse_plan09_task9_expansion_inventory();
         let task10 = parse_plan09_expansion_inventory(PLAN09_TASK10_EXPANSION);
         let task10a = parse_plan09_expansion_inventory(PLAN09_TASK10A_EXPANSION);
+        let task10b = parse_plan09_expansion_inventory(PLAN09_TASK10B_EXPANSION);
         let live = expansion_inventory(&expansion);
         let live_digests = live
             .iter()
@@ -8203,8 +8218,9 @@ mod tests {
         assert_eq!(fixture.len(), 1_659);
         assert_eq!(task9.len(), 1_733);
         assert_eq!(task10.len(), 1_790);
-        assert!(task10a.len() > task10.len());
-        assert_eq!(live_digests, task10a);
+        assert_eq!(task10a.len(), 1_792);
+        assert_eq!(task10b.len(), 1_851);
+        assert_eq!(live_digests, task10b);
         let live_origins_by_item = live.iter().cloned().collect::<BTreeMap<_, _>>();
         let prior_by_item = prior.iter().cloned().collect::<BTreeMap<_, _>>();
         let task7_new_rows = task7
@@ -8316,6 +8332,32 @@ mod tests {
         ]);
         let negative_magnitude_origins =
             BTreeSet::from(["construction negative_power_toughness_magnitude"]);
+        let task10b_origin_names = BTreeSet::from([
+            "vocab BareTargetDistributionBounds",
+            "vocab BoundedTargetDistributionBounds",
+            "vocab DistributionReplacement",
+            "abstract sum StateDurationBase",
+            "abstract sum DamageDistribution",
+            "abstract sum DistributionRecipient",
+            "construction state_duration_predicate",
+            "construction unnamed_singular_counter_quantity",
+            "construction unnamed_fixed_counter_quantity",
+            "construction unnamed_variable_counter_quantity",
+            "construction object_distribution_recipient",
+            "construction bare_target_distribution_recipient",
+            "construction bounded_target_distribution_recipient",
+            "construction chosen_damage_distribution",
+            "construction even_damage_distribution",
+            "construction counter_among_source",
+            "construction deal_distributed_damage",
+            "construction twice_variable_amount",
+            "construction variable_plus_amount",
+        ]);
+        let task10b_modified_origin_names = BTreeSet::from([
+            "construction positive_power_toughness_counter",
+            "construction negative_power_toughness_counter",
+            "construction named_counter",
+        ]);
         for task7_origin in &task7_origin_names {
             assert!(
                 live.iter()
@@ -8344,6 +8386,7 @@ mod tests {
                         && !task9_origin_names.contains(origin.as_str())
                         && !task10_origin_names.contains(origin.as_str())
                         && !negative_magnitude_origins.contains(origin.as_str())
+                        && !task10b_origin_names.contains(origin.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -8368,6 +8411,7 @@ mod tests {
                     !task9_origin_names.contains(origin.as_str())
                         && !task10_origin_names.contains(origin.as_str())
                         && !negative_magnitude_origins.contains(origin.as_str())
+                        && !task10b_origin_names.contains(origin.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -8398,6 +8442,7 @@ mod tests {
                 .iter()
                 .filter(|origin| !task10_origin_names.contains(origin.as_str()))
                 .filter(|origin| !negative_magnitude_origins.contains(origin.as_str()))
+                .filter(|origin| !task10b_origin_names.contains(origin.as_str()))
                 .cloned()
                 .collect::<Vec<_>>();
             assert_eq!(
@@ -8444,6 +8489,7 @@ mod tests {
             let retained_origins = live_origins
                 .iter()
                 .filter(|origin| !negative_magnitude_origins.contains(origin.as_str()))
+                .filter(|origin| !task10b_origin_names.contains(origin.as_str()))
                 .cloned()
                 .collect::<Vec<_>>();
             assert_eq!(
@@ -8469,6 +8515,50 @@ mod tests {
                 "Task 10A new item has exactly the authenticated construction origin: {item:?}",
             );
         }
+        let task10a_by_item = task10a.iter().cloned().collect::<BTreeMap<_, _>>();
+        let task10b_new_rows = task10b
+            .iter()
+            .filter(|(item, _)| !task10a_by_item.contains_key(item))
+            .collect::<Vec<_>>();
+        assert_eq!(task10b_new_rows.len(), 59);
+        assert_eq!(task10b.len(), task10a.len() + task10b_new_rows.len());
+        for (item, origins_digest) in &task10a {
+            let live_origins = live_origins_by_item
+                .get(item)
+                .unwrap_or_else(|| panic!("Task 10B retains Task 10A item {item:?}"));
+            let retained_origins = live_origins
+                .iter()
+                .filter(|origin| !task10b_origin_names.contains(origin.as_str()))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                sha256_hex(retained_origins.join("\0").as_bytes()),
+                *origins_digest,
+                "Task 10B retains exact Task 10A origins for {item:?}",
+            );
+        }
+        let allowed_task10b_origins = task10b_origin_names
+            .union(&task10b_modified_origin_names)
+            .copied()
+            .collect::<BTreeSet<_>>();
+        for (item, _) in task10b_new_rows {
+            let origins = live_origins_by_item
+                .get(item)
+                .unwrap_or_else(|| panic!("Task 10B new item is live: {item:?}"));
+            assert!(
+                origins
+                    .iter()
+                    .all(|origin| allowed_task10b_origins.contains(origin.as_str())),
+                "Task 10B new item has only authenticated origins: {item:?} {origins:?}",
+            );
+        }
+        for origin in &allowed_task10b_origins {
+            assert!(
+                live.iter()
+                    .any(|(_, origins)| origins.iter().any(|live_origin| live_origin == origin)),
+                "Task 10B origin is live: {origin:?}",
+            );
+        }
         for (item, origins_digest) in &prior {
             let live_origins = live_origins_by_item
                 .get(item)
@@ -8481,6 +8571,7 @@ mod tests {
                         && !task9_origin_names.contains(origin.as_str())
                         && !task10_origin_names.contains(origin.as_str())
                         && !negative_magnitude_origins.contains(origin.as_str())
+                        && !task10b_origin_names.contains(origin.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -8507,7 +8598,7 @@ mod tests {
         );
         assert_eq!(
             headings.len() - retained_headings.len(),
-            task10a.len() - EXPECTED_ITEM_KEYS.len()
+            task10b.len() - EXPECTED_ITEM_KEYS.len()
         );
         for expected_key in headings {
             let header = format!("// === {expected_key} ===");

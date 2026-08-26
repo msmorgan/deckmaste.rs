@@ -34,6 +34,16 @@ constructions! {
         ThisTurn = "this turn",
         UntilEndOfTurn = "until end of turn",
     }
+    vocab BareTargetDistributionBounds {
+        AnyNumberOf = "any number of",
+        OneOrTwo = "one or two",
+        OneTwoOrThree = "one, two, or three",
+    }
+    vocab BoundedTargetDistributionBounds {
+        OneOrTwo = "one or two",
+        OneTwoOrThree = "one, two, or three",
+    }
+    vocab DistributionReplacement { Instead = "instead", }
     vocab CounterfactualAbility { Flash = "flash", Hexproof = "hexproof", }
     vocab CounterfactualNegativeAuxiliary { Didnt = "didn't", }
     vocab CounterfactualPastPossession { Had = "had", }
@@ -179,7 +189,16 @@ constructions! {
         Green = "G",
     }
     vocab ScalarCharacteristic { Power = "power", Toughness = "toughness", }
-    vocab CounterName { Charge = "charge", Lore = "lore", Stun = "stun", Time = "time", }
+    vocab CounterName {
+        Charge = "charge",
+        Lore = "lore",
+        Loyalty = "loyalty",
+        Oil = "oil",
+        Spore = "spore",
+        Stun = "stun",
+        Time = "time",
+        Verse = "verse",
+    }
     vocab DieShape { SixSided = "six-sided", }
     vocab LibraryPosition { Top = "top", Bottom = "bottom", }
     vocab Zone {
@@ -523,6 +542,7 @@ constructions! {
         Ordered: OrderedPredicate,
         Purpose: PurposePredicate,
         Duration: DurationPredicate,
+        StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
         Manner: MannerPredicate,
     }
@@ -539,6 +559,7 @@ constructions! {
         Ordered: OrderedPredicate,
         Purpose: PurposePredicate,
         Duration: DurationPredicate,
+        StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
         Manner: MannerPredicate,
     }
@@ -573,6 +594,19 @@ constructions! {
         Movement: PassiveMovementPredicate,
         Orientation: PassiveOrientationPredicate,
         DeclaredTransitive: DeclaredTransitivePassivePredicate,
+    }
+    abstract sum StateDurationBase {
+        BareCopular: BareCopularPredicate,
+        BarePassive: BarePassivePredicate,
+    }
+    abstract sum DamageDistribution {
+        AsYouChoose: ChosenDamageDistribution,
+        Evenly: EvenDamageDistribution,
+    }
+    abstract sum DistributionRecipient {
+        Object: ObjectDistributionRecipient,
+        BareTargets: BareTargetDistributionRecipient,
+        BoundedTargets: BoundedTargetDistributionRecipient,
     }
     abstract sum ClauseAttachment {
         StartingWithYou,
@@ -1057,6 +1091,14 @@ constructions! {
         }
         derive agreement = Values::Bare;
         form bare_passive_predicate = lex(copula) predicate;
+    }
+    construction state_duration_predicate: StateDurationPredicate {
+        element StateDurationPredicateValue {
+            predicate: StateDurationBase,
+            duration: lex PredicateDuration,
+        }
+        derive agreement = predicate.agreement;
+        form state_duration_predicate = predicate lex(duration);
     }
     construction object_infinitive_predicate: ObjectInfinitivePredicate {
         element ObjectInfinitivePredicateValue {
@@ -2924,6 +2966,7 @@ constructions! {
             magnitudes: seq PositiveCounterMagnitude separated by "/",
         }
         require len(magnitudes) = 2;
+        derive onset = Values::Consonant;
         form positive_power_toughness_counter = magnitudes;
     }
     construction negative_power_toughness_counter: CounterKind {
@@ -2931,6 +2974,7 @@ constructions! {
             magnitudes: seq NegativeCounterMagnitude separated by "/",
         }
         require len(magnitudes) = 2;
+        derive onset = Values::Consonant;
         form negative_power_toughness_counter = magnitudes;
     }
     construction positive_counter_magnitude: PositiveCounterMagnitude {
@@ -2958,11 +3002,13 @@ constructions! {
     }
     construction named_counter: CounterKind {
         element NamedCounter { name: lex CounterName, }
+        derive onset = name.onset;
         form named_counter = lex(name);
     }
     construction singular_counter_quantity: CounterQuantity {
         element SingularCounterQuantity { kind: CounterKind, }
-        form singular_counter_quantity = "a" kind "counter";
+        form an when kind.onset is Vowel = "an" kind "counter";
+        form a otherwise = "a" kind "counter";
     }
     construction fixed_counter_quantity: CounterQuantity {
         element FixedCounterQuantity {
@@ -2985,6 +3031,19 @@ constructions! {
             kind: CounterKind,
         }
         form anaphoric_counter_quantity = count kind "counters";
+    }
+    construction unnamed_singular_counter_quantity: CounterQuantity {
+        element UnnamedSingularCounterQuantity {}
+        form unnamed_singular_counter_quantity = "a" "counter";
+    }
+    construction unnamed_fixed_counter_quantity: CounterQuantity {
+        element UnnamedFixedCounterQuantity { count: CardinalQuantity, }
+        require count.cardinality is TwoPlus;
+        form unnamed_fixed_counter_quantity = count "counters";
+    }
+    construction unnamed_variable_counter_quantity: CounterQuantity {
+        element UnnamedVariableCounterQuantity { count: lex Variable, }
+        form unnamed_variable_counter_quantity = lex(count) "counters";
     }
     construction singular_die_object: DieObject {
         element SingularDieObject { shape: opt lex DieShape, }
@@ -3021,6 +3080,37 @@ constructions! {
         element DamageRecipientValue { object: Object, }
         form damage_recipient = "to" object;
     }
+    construction object_distribution_recipient: DistributionRecipient {
+        element ObjectDistributionRecipient { object: Object, }
+        form object_distribution_recipient = object;
+    }
+    construction bare_target_distribution_recipient: DistributionRecipient {
+        element BareTargetDistributionRecipient {
+            bounds: lex BareTargetDistributionBounds,
+        }
+        form bare_target_distribution_recipient = lex(bounds) "targets";
+    }
+    construction bounded_target_distribution_recipient: DistributionRecipient {
+        element BoundedTargetDistributionRecipient {
+            bounds: lex BoundedTargetDistributionBounds,
+            selector: PluralSelector,
+        }
+        require any(
+            selector is TargetPluralSelector,
+            selector is TargetPluralCoordinationSelector
+        );
+        form bounded_target_distribution_recipient = lex(bounds) selector;
+    }
+    construction chosen_damage_distribution: DamageDistribution {
+        element ChosenDamageDistribution { recipient: DistributionRecipient, }
+        form chosen_damage_distribution =
+            "divided" "as" "you" "choose" "among" recipient;
+    }
+    construction even_damage_distribution: DamageDistribution {
+        element EvenDamageDistribution { recipient: DistributionRecipient, }
+        form even_damage_distribution =
+            "divided" "evenly" "," "rounded" "down" "," "among" recipient;
+    }
     construction damage_prevention_relative: DamagePreventionRelative {
         element DamagePreventionRelativeValue {
             auxiliary: lex Auxiliary,
@@ -3041,10 +3131,24 @@ constructions! {
         element CounterSourceValue { object: Object, }
         form counter_source = "from" object;
     }
+    construction counter_among_source: CounterSource {
+        element CounterAmongSource { among: AmongPhrase, }
+        form counter_among_source = "from" among;
+    }
     construction deal_damage: VerbPhrase {
         element DealDamage { amount: Amount, recipient: DamageRecipient, }
         derive agreement = verb.agreement;
         form deal_damage = verb(VerbLexeme::Deal) amount "damage" recipient;
+    }
+    construction deal_distributed_damage: VerbPhrase {
+        element DealDistributedDamage {
+            amount: Amount,
+            distribution: DamageDistribution,
+            replacement: opt lex DistributionReplacement,
+        }
+        derive agreement = verb.agreement;
+        form deal_distributed_damage =
+            verb(VerbLexeme::Deal) amount "damage" distribution lex(replacement);
     }
     construction deal_unspecified_damage: VerbPhrase {
         element DealUnspecifiedDamage {
@@ -3331,6 +3435,17 @@ constructions! {
     construction variable: Amount {
         element VariableAmount { variable: lex Variable, }
         form variable = lex(variable);
+    }
+    construction twice_variable_amount: Amount {
+        element TwiceVariableAmount { variable: lex Variable, }
+        form twice_variable_amount = "twice" lex(variable);
+    }
+    construction variable_plus_amount: Amount {
+        element VariablePlusAmount {
+            variable: lex Variable,
+            increment: lex ScalarNumber,
+        }
+        form variable_plus_amount = lex(variable) "plus" lex(increment);
     }
     construction scalar_reference_amount: Amount {
         element ScalarReferenceAmount { reference: ScalarReference, }

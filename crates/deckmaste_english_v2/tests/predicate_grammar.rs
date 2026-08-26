@@ -48,6 +48,10 @@ fn environment() -> ParserEnvironment {
             r#"KeywordAction(name:"Exile",spelling:"exile",grammar:Verb(bare:"exile",valence:Transitive))"#,
         ),
         (
+            "/synthetic/actions/Regenerate.ron",
+            r#"KeywordAction(name:"Regenerate",spelling:"regenerate",grammar:Verb(bare:"regenerate",participle:"regenerated",valence:Transitive))"#,
+        ),
+        (
             "/synthetic/actions/Cast.ron",
             r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",valence:Transitive))"#,
         ),
@@ -94,6 +98,10 @@ fn environment() -> ParserEnvironment {
         (
             "/synthetic/types/Sorcery.ron",
             r#"Type(name:"Sorcery",spelling:"sorcery",grammar:Noun(singular:"sorcery"))"#,
+        ),
+        (
+            "/synthetic/types/Planeswalker.ron",
+            r#"Type(name:"Planeswalker",spelling:"planeswalker",grammar:Noun(singular:"planeswalker"))"#,
         ),
         (
             "/synthetic/subtypes/Equipment.ron",
@@ -5036,4 +5044,269 @@ fn task8_object_internal_discarded_this_way_does_not_become_outer_manner() {
         "the exact unsupported constituent starts at `discarded`, not an outer manner attachment: {error:?}",
     );
     assert_eq!(&text[58..67], "discarded");
+}
+
+#[derive(Default)]
+struct Task10bVisitor(Vec<&'static str>);
+
+impl Visitor for Task10bVisitor {
+    fn visit_state_duration_predicate_value(&mut self, value: &StateDurationPredicateValue) {
+        self.0.push("state-duration");
+        deckmaste_english_v2::visit::walk_state_duration_predicate_value(self, value);
+    }
+
+    fn visit_declared_transitive_passive_predicate_value(
+        &mut self,
+        value: &DeclaredTransitivePassivePredicateValue,
+    ) {
+        self.0.push("declared-passive");
+        deckmaste_english_v2::visit::walk_declared_transitive_passive_predicate_value(self, value);
+    }
+
+    fn visit_deal_distributed_damage(&mut self, value: &DealDistributedDamage) {
+        self.0.push("distributed-damage");
+        deckmaste_english_v2::visit::walk_deal_distributed_damage(self, value);
+    }
+
+    fn visit_bare_target_distribution_recipient(
+        &mut self,
+        value: &BareTargetDistributionRecipient,
+    ) {
+        self.0.push("bare-target-distribution");
+        deckmaste_english_v2::visit::walk_bare_target_distribution_recipient(self, value);
+    }
+
+    fn visit_put_counters(&mut self, value: &PutCounters) {
+        self.0.push("put-counters");
+        deckmaste_english_v2::visit::walk_put_counters(self, value);
+    }
+
+    fn visit_remove_counters(&mut self, value: &RemoveCounters) {
+        self.0.push("remove-counters");
+        deckmaste_english_v2::visit::walk_remove_counters(self, value);
+    }
+
+    fn visit_declaration(&mut self, declaration: &DeclarationIdentity) {
+        if declaration.kind() == macro_ron::v2::DeclarationKind::KeywordAction
+            && declaration.name() == "Regenerate"
+        {
+            self.0.push("regenerate-declaration");
+        }
+    }
+}
+
+#[test]
+#[allow(
+    clippy::too_many_lines,
+    reason = "the positive authority checks all Task 10B typed frames, ASTs, visits, and claims together"
+)]
+fn task10b_passive_distribution_and_counter_frames_select_typed_products() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "It can't be regenerated.",
+        "It can't be regenerated this turn.",
+        "Target creature can't be blocked this turn.",
+        "It deals 2 damage divided as you choose among one or two targets.",
+        "It deals 3 damage divided as you choose among one, two, or three target attacking creatures.",
+        "It deals X damage divided as you choose among any number of target creatures.",
+        "It deals X damage divided as you choose among up to two target creatures and/or planeswalkers.",
+        "It deals twice X damage divided as you choose among them instead.",
+        "It deals X plus 1 damage divided as you choose among any number of targets.",
+        "It deals X damage divided evenly, rounded down, among any number of targets.",
+        "Put an oil counter on this creature.",
+        "Put two loyalty counters on a planeswalker you control.",
+        "Put a spore counter on target creature.",
+        "Put a verse counter on this creature.",
+        "Remove a counter from a nonland permanent you control.",
+        "Remove two counters from target permanent.",
+        "Remove X counters from among permanents you control.",
+        "Put an oil counter on this creature and remove a counter from target permanent.",
+    ] {
+        assert_selected_with_specificity(&parser, &context, text, true);
+    }
+
+    let Sentence::Declarative(declarative) = parser
+        .parse_sentence("It can't be regenerated this turn.", &context)
+        .expect("declared participle duration parses")
+    else {
+        unreachable!()
+    };
+    let Clause::Finite(finite) = declarative.clause.as_ref() else {
+        panic!("negative auxiliary retains its finite clause")
+    };
+    let FiniteClause::AuxiliaryFiniteClause(auxiliary) = finite.as_ref() else {
+        panic!("negative auxiliary retains its finite clause")
+    };
+    let Predicate::StateDuration(duration) = auxiliary.predicate() else {
+        panic!("passive duration retains its typed attachment")
+    };
+    let StateDurationPredicate::StateDurationPredicate(StateDurationPredicateValue {
+        predicate,
+        duration,
+    }) = duration.as_ref();
+    assert_eq!(*duration, PredicateDuration::ThisTurn);
+    let StateDurationBase::BarePassive(passive) = predicate.as_ref() else {
+        panic!("regeneration remains a passive state")
+    };
+    let BarePassivePredicate::BarePassivePredicate(BarePassivePredicateValue {
+        predicate: PassivePredicate::DeclaredTransitive(declared),
+        ..
+    }) = passive
+    else {
+        panic!("regeneration uses the open transitive-participle frame")
+    };
+    let DeclaredTransitivePassivePredicate::DeclaredTransitivePassivePredicate(
+        DeclaredTransitivePassivePredicateValue { head },
+    ) = declared;
+    let DeclaredTransitiveParticipleHead::Declaration(_) = head else {
+        panic!("regenerate is not duplicated as a core participle")
+    };
+
+    let VerbPhrase::DealDistributedDamage(distributed) = declarative_atomic(
+        &parser,
+        &context,
+        "It deals 2 damage divided as you choose among one or two targets.",
+    ) else {
+        panic!("damage division keeps its exact predicate product")
+    };
+    assert!(matches!(
+        distributed.distribution,
+        DamageDistribution::AsYouChoose(ChosenDamageDistribution {
+            recipient: DistributionRecipient::BareTargets(_),
+        })
+    ));
+
+    let VerbPhrase::PutCounters(PutCounters { counters, .. }) =
+        imperative_atomic(&parser, &context, "Put an oil counter on this creature.")
+    else {
+        unreachable!()
+    };
+    assert!(matches!(
+        counters,
+        CounterQuantity::SingularCounterQuantity(SingularCounterQuantity {
+            kind: CounterKind::NamedCounter(NamedCounter {
+                name: CounterName::Oil,
+            }),
+        })
+    ));
+
+    let VerbPhrase::RemoveCounters(RemoveCounters { counters, .. }) = imperative_atomic(
+        &parser,
+        &context,
+        "Remove a counter from a nonland permanent you control.",
+    ) else {
+        unreachable!()
+    };
+    assert!(matches!(
+        counters,
+        CounterQuantity::UnnamedSingularCounterQuantity(_)
+    ));
+
+    let mut visitor = Task10bVisitor::default();
+    let ability = assert_selected_with_specificity(
+        &parser,
+        &context,
+        "It can't be regenerated this turn. It deals 2 damage divided as you choose among one or two targets. Put an oil counter on this creature. Remove a counter from target permanent.",
+        true,
+    );
+    visitor.visit_ability(&ability);
+    assert_eq!(
+        visitor.0,
+        [
+            "state-duration",
+            "declared-passive",
+            "regenerate-declaration",
+            "distributed-damage",
+            "bare-target-distribution",
+            "put-counters",
+            "remove-counters",
+        ]
+    );
+
+    assert_eq!(
+        exact_claim_trace(
+            &parser,
+            &context,
+            "It deals 2 damage divided as you choose among one or two targets.",
+        ),
+        [
+            ("It".to_owned(), "vocab:SubjectPronoun/It".to_owned()),
+            (
+                " deals".to_owned(),
+                "lexeme:VerbLexeme/Deal/third_person_singular".to_owned()
+            ),
+            (" 2".to_owned(), "codec:ScalarNumber".to_owned()),
+            (
+                " damage".to_owned(),
+                "form:deal_distributed_damage/deal_distributed_damage/2".to_owned()
+            ),
+            (
+                " divided".to_owned(),
+                "form:chosen_damage_distribution/chosen_damage_distribution/0".to_owned()
+            ),
+            (
+                " as".to_owned(),
+                "form:chosen_damage_distribution/chosen_damage_distribution/1".to_owned()
+            ),
+            (
+                " you".to_owned(),
+                "form:chosen_damage_distribution/chosen_damage_distribution/2".to_owned()
+            ),
+            (
+                " choose".to_owned(),
+                "form:chosen_damage_distribution/chosen_damage_distribution/3".to_owned()
+            ),
+            (
+                " among".to_owned(),
+                "form:chosen_damage_distribution/chosen_damage_distribution/4".to_owned()
+            ),
+            (
+                " one or two".to_owned(),
+                "vocab:BareTargetDistributionBounds/OneOrTwo".to_owned()
+            ),
+            (
+                " targets".to_owned(),
+                "form:bare_target_distribution_recipient/bare_target_distribution_recipient/1"
+                    .to_owned()
+            ),
+            (
+                ".".to_owned(),
+                "structural:Sentences/sentences/terminator/0".to_owned()
+            ),
+        ]
+    );
+}
+
+#[test]
+fn task10b_frame_reciprocals_reject_crossed_morphology_and_boundaries() {
+    let parser = parser();
+    let context = context();
+    for text in [
+        "It can't regenerated.",
+        "It can't be regenerate.",
+        "It can't be regenerateed.",
+        "It can't be regenerated to this turn.",
+        "Target creature can't be blocks this turn.",
+        "It deals damage divided as you choose among one or two targets.",
+        "It deals 2 damages divided as you choose among one or two targets.",
+        "It deals 2 damage as you choose among one or two targets.",
+        "It deals 2 damage divided as you choose to one or two targets.",
+        "It deals 2 damage divided as you choose among target.",
+        "It deals 2 damage divided as you choose among one or two target.",
+        "It deals 2 damage divided evenly among all creatures you control.",
+        "It deals X damage divided evenly, rounded up, among any number of targets.",
+        "Put a oil counter on this creature.",
+        "Put an time counter on this creature.",
+        "Put two loyalty counter on a planeswalker you control.",
+        "Remove a counters from target permanent.",
+        "Put an oil counter from this creature.",
+        "Remove a counter on target permanent.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "crossed Task 10B frame must reject {text:?}",
+        );
+    }
 }

@@ -3,6 +3,7 @@ KeywordAction(
     spelling: "regenerate",
     grammar: Verb(
         bare: "regenerate",
+        participle: "regenerated",
         valence: Transitive,
     ),
 )

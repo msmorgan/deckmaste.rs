@@ -942,6 +942,9 @@ enum NonterminalKind {
     PredicativeComplement,
     PredicativeStatus,
     PassivePredicate,
+    StateDurationBase,
+    DamageDistribution,
+    DistributionRecipient,
     PredicativeAdjectiveComplement,
     PredicativeColorComplement,
     PredicativeTypeComplement,
@@ -959,6 +962,12 @@ enum NonterminalKind {
     PassiveOrientationPredicate,
     DeclaredTransitivePassivePredicate,
     BarePassivePredicate,
+    StateDurationPredicate,
+    ObjectDistributionRecipient,
+    BareTargetDistributionRecipient,
+    BoundedTargetDistributionRecipient,
+    ChosenDamageDistribution,
+    EvenDamageDistribution,
     ObjectInfinitivePredicate,
     RequirementPredicate,
     TransitiveRequirementPredicate,
@@ -1519,6 +1528,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PredicativeComplement => NonterminalKind::PredicativeComplement,
         NonterminalCategory::PredicativeStatus => NonterminalKind::PredicativeStatus,
         NonterminalCategory::PassivePredicate => NonterminalKind::PassivePredicate,
+        NonterminalCategory::StateDurationBase => NonterminalKind::StateDurationBase,
+        NonterminalCategory::DamageDistribution => NonterminalKind::DamageDistribution,
+        NonterminalCategory::DistributionRecipient => NonterminalKind::DistributionRecipient,
         NonterminalCategory::PredicativeAdjectiveComplement => {
             NonterminalKind::PredicativeAdjectiveComplement
         }
@@ -1560,6 +1572,18 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::DeclaredTransitivePassivePredicate
         }
         NonterminalCategory::BarePassivePredicate => NonterminalKind::BarePassivePredicate,
+        NonterminalCategory::StateDurationPredicate => NonterminalKind::StateDurationPredicate,
+        NonterminalCategory::ObjectDistributionRecipient => {
+            NonterminalKind::ObjectDistributionRecipient
+        }
+        NonterminalCategory::BareTargetDistributionRecipient => {
+            NonterminalKind::BareTargetDistributionRecipient
+        }
+        NonterminalCategory::BoundedTargetDistributionRecipient => {
+            NonterminalKind::BoundedTargetDistributionRecipient
+        }
+        NonterminalCategory::ChosenDamageDistribution => NonterminalKind::ChosenDamageDistribution,
+        NonterminalCategory::EvenDamageDistribution => NonterminalKind::EvenDamageDistribution,
         NonterminalCategory::ObjectInfinitivePredicate => {
             NonterminalKind::ObjectInfinitivePredicate
         }
