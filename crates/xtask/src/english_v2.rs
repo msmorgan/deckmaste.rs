@@ -8115,13 +8115,75 @@ mod tests {
         assert_eq!(fixture.len(), 1_561);
         assert_eq!(live_digests, fixture);
         let live_by_item = live_digests.iter().cloned().collect::<BTreeMap<_, _>>();
-        for (item, _) in prior {
+        let live_origins_by_item = live.iter().cloned().collect::<BTreeMap<_, _>>();
+        let prior_by_item = prior.iter().cloned().collect::<BTreeMap<_, _>>();
+        let task7_new_rows = fixture
+            .iter()
+            .filter(|(item, _)| !prior_by_item.contains_key(item))
+            .collect::<Vec<_>>();
+        assert_eq!(task7_new_rows.len(), 151);
+        assert_eq!(fixture.len(), prior.len() + task7_new_rows.len());
+        for (item, origins_digest) in task7_new_rows {
+            assert_eq!(live_by_item.get(item), Some(origins_digest));
+        }
+        let task7_origin_names = BTreeSet::from([
+            "vocab FiniteCopula",
+            "vocab BareCopula",
+            "vocab PredicativeAdjective",
+            "vocab DamageKind",
+            "vocab FaceOrientation",
+            "morphology EnglishParticiple",
+            "lexeme DamageParticipleLexeme",
+            "lexeme MovementParticipleLexeme",
+            "lexeme OrientationParticipleLexeme",
+            "codec DamageParticipleHead",
+            "codec MovementParticipleHead",
+            "codec OrientationParticipleHead",
+            "codec DeclaredTransitiveParticipleHead",
+            "abstract sum PredicativeComplement",
+            "abstract sum PredicativeStatus",
+            "abstract sum PassivePredicate",
+            "construction predicative_adjective",
+            "construction predicative_color",
+            "construction predicative_type",
+            "construction predicative_status",
+            "construction blocked_by_status",
+            "construction predicative_ability",
+            "construction predicative_power_toughness",
+            "construction bare_copular_predicate",
+            "construction change_state_predicate",
+            "construction passive_damage_predicate",
+            "construction passive_movement_predicate",
+            "construction passive_orientation_predicate",
+            "construction declared_transitive_passive_predicate",
+            "construction bare_passive_predicate",
+            "construction copular_clause",
+            "construction passive_finite_clause",
+            "construction deal_unspecified_damage",
+            "construction gain_unspecified_life",
+        ]);
+        for task7_origin in &task7_origin_names {
             assert!(
-                live_by_item.contains_key(&item),
-                "Task 7 retains prior generated item {item:?}",
+                live.iter()
+                    .any(|(_, origins)| origins.iter().any(|origin| origin == task7_origin)),
+                "Task 7 origin is live: {task7_origin:?}",
             );
         }
-        assert_eq!(live_by_item.len() - 1_410, 151);
+        for (item, origins_digest) in &prior {
+            let live_origins = live_origins_by_item
+                .get(item)
+                .unwrap_or_else(|| panic!("Task 7 retains prior generated item {item:?}"));
+            let retained_origins = live_origins
+                .iter()
+                .filter(|origin| !task7_origin_names.contains(origin.as_str()))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                sha256_hex(retained_origins.join("\0").as_bytes()),
+                *origins_digest,
+                "Task 7 retains the exact ordered prior origins for {item:?}",
+            );
+        }
 
         let retained_headings = headings
             .iter()

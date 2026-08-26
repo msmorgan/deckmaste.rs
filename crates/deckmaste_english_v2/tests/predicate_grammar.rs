@@ -388,73 +388,391 @@ fn copular_change_auxiliary_and_passive_minimal_pairs_select() {
 fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
     let parser = parser();
     let context = context();
-    for (text, old_start) in [
-        (
-            "Whenever this creature is dealt damage, it deals that much damage to you.",
-            23,
-        ),
-        (
-            "Whenever this creature is dealt damage, you gain 1 life.",
-            23,
-        ),
-        (
-            "Whenever this creature is dealt damage, it deals that much damage to each player.",
-            23,
-        ),
+    #[derive(Debug, Clone, Copy)]
+    enum IntegratedClause {
+        Damage(DamageKind),
+        Movement,
+        Orientation,
+        CopularCondition,
+    }
+
+    fn assert_selected_family(
+        parser: &Parser,
+        context: &ParseContext<'_>,
+        text: &str,
+        expected: IntegratedClause,
+        expected_claims: &[(&str, &str)],
+    ) {
+        let ability = assert_selected(parser, context, text);
+        match (&ability, expected) {
+            (
+                Ability::Triggered(Triggered {
+                    trigger:
+                        TriggerPrefix::Finite(Finite {
+                            marker: TriggerMarker::Whenever,
+                            clause:
+                                Clause::Passive(PassiveFiniteClause::PassiveFiniteClause(
+                                    PassiveFiniteClauseValue {
+                                        predicate:
+                                            PassivePredicate::Damage(
+                                                PassiveDamagePredicate::PassiveDamagePredicate(
+                                                    PassiveDamagePredicateValue { head, kind },
+                                                ),
+                                            ),
+                                        ..
+                                    },
+                                )),
+                        }),
+                    intervening_if: None,
+                    ..
+                }),
+                IntegratedClause::Damage(expected_kind),
+            ) => {
+                assert!(matches!(
+                    head,
+                    DamageParticipleHead::Lexeme(DamageParticipleLexeme::Deal)
+                ));
+                assert_eq!(*kind, expected_kind);
+            }
+            (
+                Ability::Triggered(Triggered {
+                    trigger:
+                        TriggerPrefix::Finite(Finite {
+                            marker: TriggerMarker::Whenever,
+                            clause:
+                                Clause::Passive(PassiveFiniteClause::PassiveFiniteClause(
+                                    PassiveFiniteClauseValue {
+                                        predicate: PassivePredicate::Movement(_),
+                                        ..
+                                    },
+                                )),
+                        }),
+                    intervening_if: None,
+                    ..
+                }),
+                IntegratedClause::Movement,
+            ) => {}
+            (
+                Ability::Triggered(Triggered {
+                    trigger:
+                        TriggerPrefix::Finite(Finite {
+                            marker: TriggerMarker::Whenever,
+                            clause:
+                                Clause::Passive(PassiveFiniteClause::PassiveFiniteClause(
+                                    PassiveFiniteClauseValue {
+                                        predicate: PassivePredicate::Orientation(_),
+                                        ..
+                                    },
+                                )),
+                        }),
+                    intervening_if: None,
+                    ..
+                }),
+                IntegratedClause::Orientation,
+            ) => {}
+            (
+                Ability::Triggered(Triggered {
+                    trigger: TriggerPrefix::Temporal(_),
+                    intervening_if:
+                        Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(
+                            FiniteConditionValue {
+                                clause:
+                                    Clause::Copular(CopularClause::CopularClause(CopularClauseValue {
+                                        complement: PredicativeComplement::Color(_),
+                                        ..
+                                    })),
+                            },
+                        ))),
+                    ..
+                }),
+                IntegratedClause::CopularCondition,
+            ) => {}
+            _ => panic!("wrong integrated clause family for {text:?}: {ability:#?}"),
+        }
+        assert_eq!(
+            exact_claim_trace(parser, context, text),
+            expected_claims
+                .iter()
+                .map(|(surface, owner)| ((*surface).to_owned(), (*owner).to_owned()))
+                .collect::<Vec<_>>(),
+            "exact integrated-clause claims for {text:?}",
+        );
+    }
+
+    macro_rules! selected {
+        ($text:literal, $family:expr, [$(($surface:literal, $owner:literal)),+ $(,)?]) => {
+            assert_selected_family(
+                &parser,
+                &context,
+                $text,
+                $family,
+                &[$(($surface, $owner)),+],
+            );
+        };
+    }
+
+    selected!(
+        "Whenever this creature is dealt damage, it deals that much damage to you.",
+        IntegratedClause::Damage(DamageKind::Ordinary),
+        [
+            ("Whenever", "vocab:TriggerMarker/Whenever"),
+            (" this", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" damage", "vocab:DamageKind/Ordinary"),
+            (",", "form:triggered/triggered/1"),
+            (" it", "vocab:SubjectPronoun/It"),
+            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" that", "form:that_much/that_much/0"),
+            (" much", "form:that_much/that_much/1"),
+            (" damage", "form:deal_damage/deal_damage/2"),
+            (" to", "form:damage_recipient/damage_recipient/0"),
+            (" you", "vocab:ObjectPronoun/You"),
+            (".", "structural:Sentences/sentences/terminator/0")
+        ]
+    );
+    selected!(
+        "Whenever this creature is dealt damage, you gain 1 life.",
+        IntegratedClause::Damage(DamageKind::Ordinary),
+        [
+            ("Whenever", "vocab:TriggerMarker/Whenever"),
+            (" this", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" damage", "vocab:DamageKind/Ordinary"),
+            (",", "form:triggered/triggered/1"),
+            (" you", "vocab:SubjectPronoun/You"),
+            (" gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" 1", "codec:ScalarNumber"),
+            (" life", "form:gain_life/gain_life/2"),
+            (".", "structural:Sentences/sentences/terminator/0")
+        ]
+    );
+    selected!(
+        "Whenever this creature is dealt damage, it deals that much damage to each player.",
+        IntegratedClause::Damage(DamageKind::Ordinary),
+        [
+            ("Whenever", "vocab:TriggerMarker/Whenever"),
+            (" this", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" damage", "vocab:DamageKind/Ordinary"),
+            (",", "form:triggered/triggered/1"),
+            (" it", "vocab:SubjectPronoun/It"),
+            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" that", "form:that_much/that_much/0"),
+            (" much", "form:that_much/that_much/1"),
+            (" damage", "form:deal_damage/deal_damage/2"),
+            (" to", "form:damage_recipient/damage_recipient/0"),
+            (" each", "form:each_reference/each_reference/0"),
+            (" player", "lexeme:CommonNoun/Player/singular"),
+            (".", "structural:Sentences/sentences/terminator/0")
+        ]
+    );
+
+    let later = [
         (
             "Whenever this creature is dealt damage, it deals that much damage to target opponent or planeswalker.",
-            23,
-        ),
-        (
-            "Whenever a creature is put into your graveyard from the battlefield, you gain 1 life.",
-            0,
-        ),
-        (
-            "Whenever a permanent is turned face up, this creature deals 1 damage to any target.",
-            21,
+            (88, 100, "planeswalker"),
         ),
         (
             "At the beginning of each player's end step, if that player didn't cast a spell this turn, this enchantment deals 2 damage to that player.",
-            59,
+            (84, 88, "turn"),
         ),
-        (
-            "Whenever this creature is dealt combat damage, you gain that much life.",
-            23,
-        ),
-        (
-            "Whenever this creature is dealt damage, each opponent gains that much life.",
-            23,
-        ),
-        (
-            "Whenever a creature is put into your graveyard from the battlefield, you gain 1 life.",
-            0,
-        ),
-        (
-            "Whenever this creature is dealt damage, it deals that much damage to any target.",
-            23,
-        ),
-        (
-            "Whenever a creature you control is put into your graveyard from the battlefield, you gain 1 life.",
-            0,
-        ),
-        (
-            "At the beginning of your upkeep, if all creatures are white, you gain 1 life.",
-            0,
-        ),
-    ] {
-        let analysis = parser.analyze(text, &context);
-        match analysis.into_parse_result() {
-            Ok(_) => {}
-            Err(
-                deckmaste_english_v2::parser::ParseError::Failure { span, .. }
-                | deckmaste_english_v2::parser::ParseError::BuildRejected { span, .. },
-            ) => assert!(
-                span.start > old_start,
-                "authenticated finite family moves beyond {old_start} for {text:?}: {span:?}",
-            ),
-            Err(error) => panic!("authenticated finite family has terminal outcome: {error:?}"),
-        }
+    ];
+    for (text, (expected_start, expected_end, expected_surface)) in later {
+        let error = parser
+            .analyze(text, &context)
+            .into_parse_result()
+            .expect_err("reviewed later witness remains an ordinary failure");
+        let deckmaste_english_v2::parser::ParseError::Failure { span, .. } = error else {
+            panic!("reviewed later witness has exact ordinary failure class: {error:?}")
+        };
+        assert_eq!(
+            (span.start, span.end),
+            (expected_start, expected_end),
+            "{text:?}"
+        );
+        assert_eq!(&text[span.start..span.end], expected_surface, "{text:?}");
     }
+
+    const MOVEMENT_TEXT: &str =
+        "Whenever a creature is put into your graveyard from the battlefield, you gain 1 life.";
+    const MOVEMENT_CLAIMS: &[(&str, &str)] = &[
+        ("Whenever", "vocab:TriggerMarker/Whenever"),
+        (" a", "form:indefinite_reference/a/0"),
+        (" creature", "lexeme:type/Creature/singular"),
+        (" is", "vocab:FiniteCopula/Is"),
+        (" put", "lexeme:MovementParticipleLexeme/Put/participle"),
+        (" into", "form:into_destination/into_destination/0"),
+        (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+        (" graveyard", "vocab:Zone/Graveyard"),
+        (" from", "form:from_source/from_source/0"),
+        (" the", "form:definite_zone/definite_zone/0"),
+        (" battlefield", "vocab:Zone/Battlefield"),
+        (",", "form:triggered/triggered/1"),
+        (" you", "vocab:SubjectPronoun/You"),
+        (" gain", "lexeme:VerbLexeme/Gain/bare"),
+        (" 1", "codec:ScalarNumber"),
+        (" life", "form:gain_life/gain_life/2"),
+        (".", "structural:Sentences/sentences/terminator/0"),
+    ];
+    assert_selected_family(
+        &parser,
+        &context,
+        MOVEMENT_TEXT,
+        IntegratedClause::Movement,
+        MOVEMENT_CLAIMS,
+    );
+    assert_selected_family(
+        &parser,
+        &context,
+        MOVEMENT_TEXT,
+        IntegratedClause::Movement,
+        MOVEMENT_CLAIMS,
+    );
+    selected!(
+        "Whenever a permanent is turned face up, this creature deals 1 damage to any target.",
+        IntegratedClause::Orientation,
+        [
+            ("Whenever", "vocab:TriggerMarker/Whenever"),
+            (" a", "form:indefinite_reference/a/0"),
+            (" permanent", "lexeme:CommonNoun/Permanent/singular"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (
+                " turned",
+                "lexeme:OrientationParticipleLexeme/Turn/participle"
+            ),
+            (" face up", "vocab:FaceOrientation/FaceUp"),
+            (",", "form:triggered/triggered/1"),
+            (" this", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" 1", "codec:ScalarNumber"),
+            (" damage", "form:deal_damage/deal_damage/2"),
+            (" to", "form:damage_recipient/damage_recipient/0"),
+            (" any", "form:any_target_reference/any_target_reference/0"),
+            (
+                " target",
+                "form:any_target_reference/any_target_reference/1"
+            ),
+            (".", "structural:Sentences/sentences/terminator/0")
+        ]
+    );
+    selected!(
+        "Whenever this creature is dealt combat damage, you gain that much life.",
+        IntegratedClause::Damage(DamageKind::Combat),
+        [
+            ("Whenever", "vocab:TriggerMarker/Whenever"),
+            (" this", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" combat damage", "vocab:DamageKind/Combat"),
+            (",", "form:triggered/triggered/1"),
+            (" you", "vocab:SubjectPronoun/You"),
+            (" gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" that", "form:that_much/that_much/0"),
+            (" much", "form:that_much/that_much/1"),
+            (" life", "form:gain_life/gain_life/2"),
+            (".", "structural:Sentences/sentences/terminator/0")
+        ]
+    );
+    selected!(
+        "Whenever this creature is dealt damage, each opponent gains that much life.",
+        IntegratedClause::Damage(DamageKind::Ordinary),
+        [
+            ("Whenever", "vocab:TriggerMarker/Whenever"),
+            (" this", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" damage", "vocab:DamageKind/Ordinary"),
+            (",", "form:triggered/triggered/1"),
+            (" each", "form:each_reference/each_reference/0"),
+            (" opponent", "lexeme:CommonNoun/Opponent/singular"),
+            (" gains", "lexeme:VerbLexeme/Gain/third_person_singular"),
+            (" that", "form:that_much/that_much/0"),
+            (" much", "form:that_much/that_much/1"),
+            (" life", "form:gain_life/gain_life/2"),
+            (".", "structural:Sentences/sentences/terminator/0")
+        ]
+    );
+    selected!(
+        "Whenever this creature is dealt damage, it deals that much damage to any target.",
+        IntegratedClause::Damage(DamageKind::Ordinary),
+        [
+            ("Whenever", "vocab:TriggerMarker/Whenever"),
+            (" this", "form:this_reference/this_reference/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" damage", "vocab:DamageKind/Ordinary"),
+            (",", "form:triggered/triggered/1"),
+            (" it", "vocab:SubjectPronoun/It"),
+            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" that", "form:that_much/that_much/0"),
+            (" much", "form:that_much/that_much/1"),
+            (" damage", "form:deal_damage/deal_damage/2"),
+            (" to", "form:damage_recipient/damage_recipient/0"),
+            (" any", "form:any_target_reference/any_target_reference/0"),
+            (
+                " target",
+                "form:any_target_reference/any_target_reference/1"
+            ),
+            (".", "structural:Sentences/sentences/terminator/0")
+        ]
+    );
+    selected!(
+        "Whenever a creature you control is put into your graveyard from the battlefield, you gain 1 life.",
+        IntegratedClause::Movement,
+        [
+            ("Whenever", "vocab:TriggerMarker/Whenever"),
+            (" a", "form:indefinite_reference/a/0"),
+            (" creature", "lexeme:type/Creature/singular"),
+            (" you", "vocab:SubjectPronoun/You"),
+            (" control", "lexeme:VerbLexeme/Control/bare"),
+            (" is", "vocab:FiniteCopula/Is"),
+            (" put", "lexeme:MovementParticipleLexeme/Put/participle"),
+            (" into", "form:into_destination/into_destination/0"),
+            (" your", "vocab:PossessiveDeterminerPronoun/Your"),
+            (" graveyard", "vocab:Zone/Graveyard"),
+            (" from", "form:from_source/from_source/0"),
+            (" the", "form:definite_zone/definite_zone/0"),
+            (" battlefield", "vocab:Zone/Battlefield"),
+            (",", "form:triggered/triggered/1"),
+            (" you", "vocab:SubjectPronoun/You"),
+            (" gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" 1", "codec:ScalarNumber"),
+            (" life", "form:gain_life/gain_life/2"),
+            (".", "structural:Sentences/sentences/terminator/0")
+        ]
+    );
+    selected!(
+        "At the beginning of your upkeep, if all creatures are white, you gain 1 life.",
+        IntegratedClause::CopularCondition,
+        [
+            ("At", "form:temporal/temporal/0"),
+            (" the beginning of", "vocab:AtBoundary/Beginning"),
+            (" your", "vocab:TurnSpecifier/Your"),
+            (" upkeep", "vocab:TurnPart/Upkeep"),
+            (",", "form:triggered/triggered/1"),
+            (" if", "form:finite_condition/finite_condition/0"),
+            (" all", "form:all_reference/all_reference/0"),
+            (" creatures", "lexeme:type/Creature/plural"),
+            (" are", "vocab:FiniteCopula/Are"),
+            (" white", "vocab:Color/White"),
+            (",", "form:finite_condition/finite_condition/2"),
+            (" you", "vocab:SubjectPronoun/You"),
+            (" gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" 1", "codec:ScalarNumber"),
+            (" life", "form:gain_life/gain_life/2"),
+            (".", "structural:Sentences/sentences/terminator/0")
+        ]
+    );
 }
 
 #[test]
