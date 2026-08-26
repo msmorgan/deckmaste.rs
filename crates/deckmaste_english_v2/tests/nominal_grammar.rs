@@ -3141,19 +3141,19 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     let analysis = parser.analyze(text, &context);
     let selected = analysis.selected().expect("former fixture selects");
 
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(paragraph),
-    }) = selected
-    else {
+    let Ability::Plain(Plain { body }) = selected else {
         panic!("former fixture remains a paragraph: {selected:?}");
+    };
+    let AbilityBody::Sentences(paragraph) = body.as_ref() else {
+        panic!("former fixture remains a sentence paragraph: {selected:?}");
     };
     let [Sentence::Declarative(declarative)] = paragraph.sentences() else {
         panic!("former fixture remains one declarative: {paragraph:?}");
     };
-    let deckmaste_english_v2::ast::Clause::Finite(
-        deckmaste_english_v2::ast::FiniteClause::PlainFiniteClause(clause),
-    ) = &declarative.clause
-    else {
+    let deckmaste_english_v2::ast::Clause::Finite(finite) = declarative.clause.as_ref() else {
+        panic!("former fixture remains a plain finite clause: {declarative:?}");
+    };
+    let deckmaste_english_v2::ast::FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
         panic!("former fixture remains a plain finite clause: {declarative:?}");
     };
     let finite_subject = clause.subject();

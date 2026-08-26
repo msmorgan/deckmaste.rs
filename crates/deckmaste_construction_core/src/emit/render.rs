@@ -2628,7 +2628,12 @@ fn render_construction_structural_field(
         }
         StructuralFieldKindPlan::Optional(kind) => {
             let render = render_structural_value(plan, kind, quote! { value }, root_names)?;
-            Ok(quote! { if let Some(value) = #value { #render } })
+            let optional = if field.is_recursive() {
+                quote! { #value.as_ref() }
+            } else {
+                value
+            };
+            Ok(quote! { if let Some(value) = #optional { #render } })
         }
         StructuralFieldKindPlan::Sequence { item, .. } => {
             let function = ident(&structural_sequence_renderer(

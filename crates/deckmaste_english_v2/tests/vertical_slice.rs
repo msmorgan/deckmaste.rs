@@ -286,7 +286,9 @@ fn nominal_subject(value: NounPhrase) -> Subject {
 }
 
 fn nominal_object(value: NounPhrase) -> Object {
-    Object::ObjectNominal(NominalObject { value })
+    Object::ObjectNominal(NominalObject {
+        value: Box::new(value),
+    })
 }
 
 fn subject_you() -> Subject {
@@ -322,30 +324,34 @@ fn atomic(predicate: VerbPhrase) -> Predicate {
 
 fn imperative(predicate: VerbPhrase) -> Sentence {
     Sentence::Imperative(
-        Imperative::new(atomic(predicate))
+        Imperative::new(Box::new(atomic(predicate)))
             .expect("the helper supplies a bare imperative predicate"),
     )
 }
 
 fn finite_clause(subject: Subject, predicate: VerbPhrase) -> FiniteClause {
     FiniteClause::PlainFiniteClause(
-        PlainFiniteClause::new(subject, atomic(predicate))
+        PlainFiniteClause::new(subject, Box::new(atomic(predicate)))
             .expect("the helper supplies matching subject-predicate agreement"),
     )
 }
 
 fn declarative(subject: Subject, predicate: VerbPhrase) -> Sentence {
     Sentence::Declarative(Declarative {
-        clause: Clause::Finite(finite_clause(subject, predicate)),
+        clause: Box::new(Clause::Finite(Box::new(finite_clause(subject, predicate)))),
     })
 }
 
 fn body(values: Vec<Sentence>) -> AbilityBody {
-    AbilityBody::Sentences(Sentences::new(values).expect("one or more sentences construct a body"))
+    AbilityBody::Sentences(
+        Sentences::new(Box::new(values)).expect("one or more sentences construct a body"),
+    )
 }
 
 fn plain(values: Vec<Sentence>) -> Ability {
-    Ability::Plain(Plain { body: body(values) })
+    Ability::Plain(Plain {
+        body: Box::new(body(values)),
+    })
 }
 
 fn destroy(object: Object) -> VerbPhrase {
@@ -390,10 +396,10 @@ fn triggered(trigger_clause: FiniteClause, consequences: Vec<Sentence>) -> Trigg
     Triggered {
         trigger: TriggerPrefix::Finite(Finite {
             marker: TriggerMarker::Whenever,
-            clause: Clause::Finite(trigger_clause),
+            clause: Box::new(Clause::Finite(Box::new(trigger_clause))),
         }),
-        intervening_if: None,
-        body: body(consequences),
+        intervening_if: Box::new(None),
+        body: Box::new(body(consequences)),
     }
 }
 
@@ -619,20 +625,20 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
     );
     let connive_sentence = imperative(connive());
 
-    assert!(Sentences::new(vec![]).is_none());
+    assert!(Sentences::new(Box::default()).is_none());
     let paragraph_sentences = vec![destroy, gain.clone()];
-    let paragraph = Sentences::new(paragraph_sentences.clone())
+    let paragraph = Sentences::new(Box::new(paragraph_sentences.clone()))
         .expect("a paragraph accepts one or more sentences");
     assert_eq!(paragraph.sentences(), paragraph_sentences.as_slice());
 
     let event = finite_clause(subject_you(), connive());
     assert!(
-        Sentences::new(vec![]).is_none(),
+        Sentences::new(Box::default()).is_none(),
         "an ability body is nonempty"
     );
     let triggered_effects = vec![connive_sentence, gain];
     let triggered = triggered(event, triggered_effects.clone());
-    let AbilityBody::Sentences(triggered_body) = &triggered.body else {
+    let AbilityBody::Sentences(triggered_body) = triggered.body.as_ref() else {
         panic!("the triggered fixture has an ordinary sentence body")
     };
     assert_eq!(triggered_body.sentences(), triggered_effects.as_slice());
@@ -650,7 +656,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
 
     let blocks = vec![
         DocumentBlock::Ability(Ability::Plain(Plain {
-            body: AbilityBody::Sentences(paragraph),
+            body: Box::new(AbilityBody::Sentences(paragraph)),
         })),
         DocumentBlock::Ability(Ability::Triggered(triggered)),
     ];
@@ -708,7 +714,7 @@ fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_eff
     let event = finite_clause(subject_you(), connive());
     let effect = imperative(connive());
     let value = triggered(event, vec![effect.clone()]);
-    let AbilityBody::Sentences(body) = value.body else {
+    let AbilityBody::Sentences(body) = *value.body else {
         panic!("the generated invariant fixture has an ordinary sentence body")
     };
     assert_eq!(body.sentences(), [effect]);

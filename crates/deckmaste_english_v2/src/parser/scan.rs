@@ -1445,6 +1445,7 @@ mod tests {
                         | VerbLexeme::Enter
                         | VerbLexeme::Draw
                         | VerbLexeme::Gain
+                        | VerbLexeme::Get
                         | VerbLexeme::Have
                         | VerbLexeme::Leave
                         | VerbLexeme::Look

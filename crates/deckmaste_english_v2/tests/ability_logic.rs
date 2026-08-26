@@ -42,6 +42,23 @@ fn parser() -> Parser {
     Parser::new(environment()).expect("required declarations are present")
 }
 
+fn plain_sentences(ability: &Ability) -> &Sentences {
+    let Ability::Plain(Plain { body }) = ability else {
+        panic!("expected a plain ability: {ability:?}")
+    };
+    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+        panic!("expected a sentence body: {ability:?}")
+    };
+    sentences
+}
+
+fn one_declarative_clause(ability: &Ability) -> &Clause {
+    let [Sentence::Declarative(declarative)] = plain_sentences(ability).sentences() else {
+        panic!("expected one declarative sentence: {ability:?}")
+    };
+    declarative.clause.as_ref()
+}
+
 fn context(card_name: &str, is_legendary: bool) -> ParseContext<'_> {
     ParseContext::new(card_name, is_legendary, Onset::Consonant)
         .expect("test card name is a valid parse context")
@@ -85,11 +102,11 @@ fn linguistic_bodies_enclose_plain_and_triggered_sentence_sequences() {
         .parse(plain_text, &plain_context)
         .expect("the ordinary sentence sequence parses as a plain ability");
 
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(plain_sentences),
-    }) = plain
-    else {
+    let Ability::Plain(Plain { body }) = plain else {
         panic!("plain sentence sequence has the linguistic ability-body shape")
+    };
+    let AbilityBody::Sentences(plain_sentences) = *body else {
+        panic!("plain ability has a sentence sequence")
     };
     assert_eq!(plain_sentences.sentences().len(), 1);
 
@@ -99,16 +116,20 @@ fn linguistic_bodies_enclose_plain_and_triggered_sentence_sequences() {
         .expect("the finite triggered sentence parses");
     let Ability::Triggered(Triggered {
         trigger: TriggerPrefix::Finite(finite),
-        intervening_if: None,
-        body: AbilityBody::Sentences(consequences),
+        intervening_if,
+        body,
     }) = triggered
     else {
         panic!("triggered ability stores its finite trigger and linguistic body")
     };
+    assert!(intervening_if.as_ref().is_none());
+    let AbilityBody::Sentences(consequences) = *body else {
+        panic!("triggered ability has a sentence sequence")
+    };
     assert_eq!(finite.marker, TriggerMarker::Whenever);
     assert!(matches!(
-        finite.clause,
-        Clause::Finite(FiniteClause::PlainFiniteClause(_))
+        finite.clause.as_ref(),
+        Clause::Finite(finite) if matches!(finite.as_ref(), FiniteClause::PlainFiniteClause(_))
     ));
     assert_eq!(consequences.sentences().len(), 1);
 }
@@ -363,17 +384,17 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
         .parse(controlled, &context)
         .expect("the preserved existential condition reaches the supported consequence");
     assert_eq!(parsed.render(&context, parser.environment()), controlled);
-    let Ability::Triggered(Triggered {
-        intervening_if:
-            Some(ConditionClause::ExistentialCondition(ExistentialCondition::ExistentialCondition(
-                ExistentialConditionValue {
-                    clause: ExistentialClause::PluralExistentialClause(existential),
-                },
-            ))),
-        ..
-    }) = &parsed
-    else {
+    let Ability::Triggered(Triggered { intervening_if, .. }) = &parsed else {
         panic!("the intervening condition owns an existential clause, pivot, and among-domain")
+    };
+    let Some(ConditionClause::ExistentialCondition(ExistentialCondition::ExistentialCondition(
+        condition,
+    ))) = intervening_if.as_ref().as_ref()
+    else {
+        panic!("the intervening condition owns an existential clause")
+    };
+    let ExistentialClause::PluralExistentialClause(existential) = &condition.clause else {
+        panic!("the intervening condition owns a plural existential clause")
     };
     assert!(matches!(
         existential.pivot(),
@@ -984,17 +1005,20 @@ fn finite_trigger_and_activation_boundaries_keep_structural_bytes_separate_from_
         .expect("the finite trigger witness selects")
         .clone();
     let Ability::Triggered(Triggered {
-        trigger:
-            TriggerPrefix::Finite(Finite {
-                marker: TriggerMarker::Whenever,
-                clause: Clause::Finite(FiniteClause::PlainFiniteClause(_)),
-            }),
-        intervening_if: None,
-        body: AbilityBody::Sentences(_),
+        trigger: TriggerPrefix::Finite(finite),
+        intervening_if,
+        body,
     }) = trigger
     else {
         panic!("a finite trigger stores the generated finite-clause branch")
     };
+    assert_eq!(finite.marker, TriggerMarker::Whenever);
+    assert!(matches!(
+        finite.clause.as_ref(),
+        Clause::Finite(clause) if matches!(clause.as_ref(), FiniteClause::PlainFiniteClause(_))
+    ));
+    assert!(intervening_if.as_ref().is_none());
+    assert!(matches!(body.as_ref(), AbilityBody::Sentences(_)));
     let trigger_ownership = trigger_analysis
         .ownership()
         .expect("the finite trigger witness has lexical ownership");
@@ -1043,22 +1067,24 @@ fn finite_trigger_and_activation_boundaries_keep_structural_bytes_separate_from_
         .expect("the finite intervening-if witness selects")
         .clone();
     let Ability::Triggered(Triggered {
-        trigger:
-            TriggerPrefix::Finite(Finite {
-                marker: TriggerMarker::Whenever,
-                clause: Clause::Finite(FiniteClause::PlainFiniteClause(_)),
-            }),
-        intervening_if:
-            Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(
-                FiniteConditionValue {
-                    clause: Clause::Finite(FiniteClause::PlainFiniteClause(_)),
-                },
-            ))),
-        body: AbilityBody::Sentences(_),
+        trigger: TriggerPrefix::Finite(finite),
+        intervening_if,
+        body,
     }) = intervening
     else {
         panic!("a finite intervening condition stays in the generated triggered envelope")
     };
+    assert_eq!(finite.marker, TriggerMarker::Whenever);
+    let Some(ConditionClause::FiniteCondition(finite_condition)) = intervening_if.as_ref().as_ref()
+    else {
+        panic!("a finite intervening condition remains present")
+    };
+    let FiniteCondition::FiniteCondition(condition) = finite_condition.as_ref();
+    assert!(matches!(
+        condition.clause.as_ref(),
+        Clause::Finite(clause) if matches!(clause.as_ref(), FiniteClause::PlainFiniteClause(_))
+    ));
+    assert!(matches!(body.as_ref(), AbilityBody::Sentences(_)));
     let intervening_ownership = intervening_analysis
         .ownership()
         .expect("the finite intervening-if witness has lexical ownership");
@@ -1280,29 +1306,29 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
     let value = Ability::Triggered(Triggered {
         trigger: TriggerPrefix::Finite(Finite {
             marker: TriggerMarker::Whenever,
-            clause: Clause::Finite(FiniteClause::PlainFiniteClause(
+            clause: Box::new(Clause::Finite(Box::new(FiniteClause::PlainFiniteClause(
                 PlainFiniteClause::new(
                     Subject::SubjectPronoun(PersonalSubject {
                         word: SubjectPronoun::You,
                     }),
-                    Predicate::Atomic(Box::new(connive())),
+                    Box::new(Predicate::Atomic(Box::new(connive()))),
                 )
                 .expect("you and connive satisfy finite-clause agreement"),
-            )),
+            )))),
         }),
-        intervening_if: None,
-        body: AbilityBody::Sentences(
-            Sentences::new(vec![Sentence::Imperative(
-                Imperative::new(Predicate::Atomic(Box::new(connive())))
+        intervening_if: Box::new(None),
+        body: Box::new(AbilityBody::Sentences(
+            Sentences::new(Box::new(vec![Sentence::Imperative(
+                Imperative::new(Box::new(Predicate::Atomic(Box::new(connive()))))
                     .expect("connive satisfies bare imperative agreement"),
-            )])
+            )]))
             .expect("linguistic body remains nonempty"),
-        ),
+        )),
     });
     let Ability::Triggered(triggered) = value else {
         unreachable!("literal constructs the triggered variant")
     };
-    let _: Option<ConditionClause> = triggered.intervening_if;
+    let _: Box<Option<ConditionClause>> = triggered.intervening_if;
 
     assert!(
         AtPhraseValue::new(
@@ -1426,32 +1452,32 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
         let parsed = assert_selected_trigger(&parser, &context, text);
         let Ability::Triggered(Triggered {
             trigger: TriggerPrefix::Finite(finite),
-            intervening_if: None,
+            intervening_if,
             ..
         }) = parsed
         else {
             panic!("finite trigger uses the finite generated prefix: {text}")
         };
+        assert!(intervening_if.as_ref().is_none());
         assert_eq!(finite.marker, marker);
         assert!(matches!(
-            finite.clause,
-            Clause::Finite(FiniteClause::PlainFiniteClause(_))
+            finite.clause.as_ref(),
+            Clause::Finite(clause) if matches!(clause.as_ref(), FiniteClause::PlainFiniteClause(_))
         ));
     }
 
     let temporal_text = "At the beginning of each player's draw step, you gain X life.";
     let temporal = assert_selected_trigger(&parser, &context, temporal_text);
     let Ability::Triggered(Triggered {
-        trigger:
-            TriggerPrefix::Temporal(Temporal {
-                phrase: AtPhrase::AtPhrase(phrase),
-            }),
-        intervening_if: None,
+        trigger: TriggerPrefix::Temporal(Temporal { phrase }),
+        intervening_if,
         ..
     }) = temporal
     else {
         panic!("At takes the dedicated temporal phrase")
     };
+    assert!(intervening_if.as_ref().is_none());
+    let AtPhrase::AtPhrase(phrase) = phrase;
     assert_eq!(phrase.boundary(), AtBoundary::Beginning);
     assert_eq!(phrase.specifier(), Some(&TurnSpecifier::EachPlayer));
     assert_eq!(phrase.part(), TurnPart::DrawStep);
@@ -1461,16 +1487,22 @@ fn finite_temporal_and_intervening_trigger_prefixes_have_dedicated_generated_sha
     let intervening = assert_selected_trigger(&parser, &context, intervening_text);
     let Ability::Triggered(Triggered {
         trigger: TriggerPrefix::Finite(_),
-        intervening_if:
-            Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(
-                FiniteConditionValue {
-                    clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
-                },
-            ))),
+        intervening_if,
         ..
     }) = intervening
     else {
         panic!("the immediate if clause has its dedicated finite-condition attachment")
+    };
+    let Some(ConditionClause::FiniteCondition(finite_condition)) = intervening_if.as_ref().as_ref()
+    else {
+        panic!("the immediate if clause is present")
+    };
+    let FiniteCondition::FiniteCondition(condition) = finite_condition.as_ref();
+    let Clause::Finite(finite) = condition.clause.as_ref() else {
+        panic!("the immediate if clause is finite")
+    };
+    let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
+        panic!("the immediate if clause is plain finite")
     };
     assert!(matches!(
         clause.subject(),
@@ -2324,7 +2356,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
         ],
     );
     assert_eq!(magnitude.magnitude, NonZeroU32::new(2).unwrap());
-    let AbilityBody::Sentences(sentences) = &activated.body else {
+    let AbilityBody::Sentences(sentences) = activated.body.as_ref() else {
         panic!("the activation witness has an ordinary sentence body")
     };
     assert_eq!(sentences.sentences().len(), 2);
@@ -2519,7 +2551,7 @@ fn you_subject() -> Subject {
 
 fn plain_finite(subject: Subject, predicate: Predicate) -> FiniteClause {
     FiniteClause::PlainFiniteClause(
-        PlainFiniteClause::new(subject, predicate)
+        PlainFiniteClause::new(subject, Box::new(predicate))
             .expect("the helper supplies matching subject-predicate agreement"),
     )
 }
@@ -2638,19 +2670,21 @@ fn auxiliaries_are_lexical_clause_structure_with_derived_bare_predicates() {
         assert_eq!(
             selected,
             Ability::Plain(Plain {
-                body: AbilityBody::Sentences(
-                    Sentences::new(vec![Sentence::Declarative(Declarative {
-                        clause: Clause::Finite(FiniteClause::AuxiliaryFiniteClause(
-                            AuxiliaryFiniteClause::new(
-                                you_subject(),
-                                auxiliary,
-                                Predicate::Atomic(Box::new(gain_life_predicate(2))),
+                body: Box::new(AbilityBody::Sentences(
+                    Sentences::new(Box::new(vec![Sentence::Declarative(Declarative {
+                        clause: Box::new(Clause::Finite(Box::new(
+                            FiniteClause::AuxiliaryFiniteClause(
+                                AuxiliaryFiniteClause::new(
+                                    you_subject(),
+                                    auxiliary,
+                                    Box::new(Predicate::Atomic(Box::new(gain_life_predicate(2)))),
+                                )
+                                .expect("auxiliary clauses require a bare predicate"),
                             )
-                            .expect("auxiliary clauses require a bare predicate"),
-                        )),
-                    })])
+                        ))),
+                    })]))
                     .expect("the independently built ability body is nonempty"),
-                ),
+                )),
             }),
             "the generated AST stores only the lexical auxiliary and atomic predicate",
         );
@@ -2791,19 +2825,11 @@ fn assert_predicate_coordination(
     expected_members: &[&str],
 ) {
     let selected = assert_one_logic_candidate(parser, context, text);
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(sentences),
-    }) = selected
-    else {
-        panic!("predicate coordination is a plain sentence body: {text}")
-    };
-    let [
-        Sentence::Declarative(Declarative {
-            clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
-        }),
-    ] = sentences.sentences()
-    else {
+    let Clause::Finite(finite) = one_declarative_clause(&selected) else {
         panic!("predicate coordination has the staged declarative AST: {text}")
+    };
+    let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
+        panic!("predicate coordination has a plain finite clause: {text}")
     };
     let Predicate::Coordination(coordination) = clause.predicate() else {
         panic!("predicate coordination has the staged declarative AST: {text}")
@@ -2863,21 +2889,10 @@ fn assert_clause_coordination(
     expected_members: &[&str],
 ) {
     let selected = assert_one_logic_candidate(parser, context, text);
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(sentences),
-    }) = selected
-    else {
-        panic!("clause coordination is a plain sentence body: {text}")
-    };
-    let [
-        Sentence::Declarative(Declarative {
-            clause: Clause::Coordination(coordination),
-        }),
-    ] = sentences.sentences()
-    else {
+    let Clause::Coordination(coordination) = one_declarative_clause(&selected) else {
         panic!("complete clauses coordinate above finite clauses: {text}")
     };
-    let members = match (kind, coordination) {
+    let members = match (kind, coordination.as_ref()) {
         (CoordinationKind::And, ClauseCoordination::AndClauseCoordination(value)) => {
             value.members()
         }
@@ -2963,27 +2978,19 @@ fn malformed_coordination_and_minimum_arity_are_rejected() {
 
     assert!(AndPredicateCoordination::new(Box::new(vec![gain_life_predicate(1)])).is_none());
     assert!(
-        AndClauseCoordination::new(vec![plain_finite(
+        AndClauseCoordination::new(Box::new(vec![plain_finite(
             you_subject(),
             Predicate::Atomic(Box::new(gain_life_predicate(1))),
-        )])
+        )]))
         .is_none()
     );
 
     let selected = assert_one_logic_candidate(&parser, &context, "You gain 1 life.");
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(sentences),
-    }) = selected
-    else {
-        panic!("one atomic clause remains a plain ability")
-    };
-    let [
-        Sentence::Declarative(Declarative {
-            clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
-        }),
-    ] = sentences.sentences()
-    else {
+    let Clause::Finite(finite) = one_declarative_clause(&selected) else {
         panic!("one atomic clause retains the plain finite-clause shape")
+    };
+    let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
+        panic!("one atomic clause remains plain finite")
     };
     assert!(matches!(clause.predicate(), Predicate::Atomic(_)));
 }
@@ -3094,18 +3101,10 @@ fn logic_visitors_follow_semantic_member_order() {
     let context = context("Context Card", false);
     let predicate_ability =
         assert_one_logic_candidate(&parser, &context, "You gain 1 life and connive.");
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(predicate_sentences),
-    }) = predicate_ability
-    else {
+    let Clause::Finite(finite) = one_declarative_clause(&predicate_ability) else {
         unreachable!()
     };
-    let [
-        Sentence::Declarative(Declarative {
-            clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
-        }),
-    ] = predicate_sentences.sentences()
-    else {
+    let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
         unreachable!()
     };
     let mut visitor = LogicVisitor::default();
@@ -3126,17 +3125,8 @@ fn logic_visitors_follow_semantic_member_order() {
         &context,
         "You gain 1 life and a player gains 2 life.",
     );
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(clause_sentences),
-    }) = clause_ability
-    else {
-        unreachable!()
-    };
-    let [Sentence::Declarative(Declarative { clause })] = clause_sentences.sentences() else {
-        unreachable!()
-    };
     let mut visitor = LogicVisitor::default();
-    visitor.visit_clause(clause);
+    visitor.visit_clause(one_declarative_clause(&clause_ability));
     assert_eq!(
         visitor.0,
         [
@@ -3157,18 +3147,10 @@ fn logic_visitors_follow_semantic_member_order() {
     );
 
     let auxiliary = assert_one_logic_candidate(&parser, &context, "You can't connive.");
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(auxiliary_sentences),
-    }) = auxiliary
-    else {
+    let Clause::Finite(finite) = one_declarative_clause(&auxiliary) else {
         unreachable!()
     };
-    let [
-        Sentence::Declarative(Declarative {
-            clause: Clause::Finite(FiniteClause::AuxiliaryFiniteClause(auxiliary)),
-        }),
-    ] = auxiliary_sentences.sentences()
-    else {
+    let FiniteClause::AuxiliaryFiniteClause(auxiliary) = finite.as_ref() else {
         unreachable!()
     };
     let mut visitor = LogicVisitor::default();
@@ -3604,10 +3586,10 @@ fn tap_cost() -> ActivationCostComponent {
 }
 
 fn gain_clause(amount: u32) -> Clause {
-    Clause::Finite(plain_finite(
+    Clause::Finite(Box::new(plain_finite(
         you_subject(),
         Predicate::Atomic(Box::new(gain_life_predicate(amount))),
-    ))
+    )))
 }
 
 #[test]
@@ -3615,16 +3597,21 @@ fn attachment_products_have_an_intermediate_linguistic_stage_for_imperatives() {
     let parser = parser();
     let context = context("Context Card", false);
     let expected = Sentence::Attached(Attached {
-        attachment: ClauseAttachment::PreposedIfPredicate(
-            PreposedIfPredicate::new(connive_clause(), Predicate::Atomic(Box::new(connive())))
-                .expect("the attached imperative predicate is bare"),
-        ),
+        attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
+            PreposedIfPredicate::new(
+                connive_clause(),
+                Box::new(Predicate::Atomic(Box::new(connive()))),
+            )
+            .expect("the attached imperative predicate is bare"),
+        ))),
     });
     let selected = assert_one_logic_candidate(&parser, &context, "If you connive, connive.");
     assert_eq!(
         selected,
         Ability::Plain(Plain {
-            body: AbilityBody::Sentences(Sentences::new(vec![expected]).expect("one sentence")),
+            body: Box::new(AbilityBody::Sentences(
+                Sentences::new(Box::new(vec![expected])).expect("one sentence"),
+            )),
         }),
         "the attachment lives between Sentence and its predicate/finite-clause payload",
     );
@@ -3645,61 +3632,68 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
         (
             "If you connive, you gain 2 life.",
             Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PreposedIf(PreposedIf {
+                attachment: Box::new(ClauseAttachment::PreposedIf(Box::new(PreposedIf {
                     condition: condition.clone(),
-                    body: body.clone(),
-                }),
+                    body: Box::new(body.clone()),
+                }))),
             }),
         ),
         (
             "You gain 2 life if you connive.",
             Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PostposedIf(PostposedIf {
-                    body: body.clone(),
+                attachment: Box::new(ClauseAttachment::PostposedIf(Box::new(PostposedIf {
+                    body: Box::new(body.clone()),
                     condition: condition.clone(),
-                }),
+                }))),
             }),
         ),
         (
             "You gain 2 life unless you connive.",
             Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PostposedUnless(PostposedUnless {
-                    body: body.clone(),
-                    condition: condition.clone(),
-                }),
+                attachment: Box::new(ClauseAttachment::PostposedUnless(Box::new(
+                    PostposedUnless {
+                        body: Box::new(body.clone()),
+                        condition: condition.clone(),
+                    },
+                ))),
             }),
         ),
         (
             "As long as you connive, you gain 2 life.",
             Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PreposedAsLongAs(PreposedAsLongAs {
-                    condition: condition.clone(),
-                    body: body.clone(),
-                }),
+                attachment: Box::new(ClauseAttachment::PreposedAsLongAs(Box::new(
+                    PreposedAsLongAs {
+                        condition: condition.clone(),
+                        body: Box::new(body.clone()),
+                    },
+                ))),
             }),
         ),
         (
             "While you connive, you gain 2 life.",
             Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PreposedWhile(PreposedWhile {
+                attachment: Box::new(ClauseAttachment::PreposedWhile(Box::new(PreposedWhile {
                     condition: condition.clone(),
-                    body: body.clone(),
-                }),
+                    body: Box::new(body.clone()),
+                }))),
             }),
         ),
         (
             "During you connive, you gain 2 life.",
             Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PreposedDuring(PreposedDuring {
+                attachment: Box::new(ClauseAttachment::PreposedDuring(Box::new(PreposedDuring {
                     condition: condition.clone(),
-                    body: body.clone(),
-                }),
+                    body: Box::new(body.clone()),
+                }))),
             }),
         ),
         (
             "Until you connive, you gain 2 life.",
             Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PreposedUntil(PreposedUntil { condition, body }),
+                attachment: Box::new(ClauseAttachment::PreposedUntil(Box::new(PreposedUntil {
+                    condition,
+                    body: Box::new(body),
+                }))),
             }),
         ),
     ] {
@@ -3707,9 +3701,10 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
         assert_eq!(
             selected,
             Ability::Plain(Plain {
-                body: AbilityBody::Sentences(
-                    Sentences::new(vec![expected]).expect("one conditional sentence is nonempty"),
-                ),
+                body: Box::new(AbilityBody::Sentences(
+                    Sentences::new(Box::new(vec![expected]))
+                        .expect("one conditional sentence is nonempty"),
+                )),
             }),
             "the surface has one independently specified position-specific AST: {text}",
         );
@@ -3736,19 +3731,12 @@ fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
     let context = context("Context Card", false);
     let ordered_text = "You gain 1 life, then you connive, then a player gains 2 life.";
     let ordered = assert_one_logic_candidate(&parser, &context, ordered_text);
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(sentences),
-    }) = ordered
-    else {
-        panic!("ordered clauses remain inside an ordinary linguistic body")
-    };
-    let [
-        Sentence::Attached(Attached {
-            attachment: ClauseAttachment::ThenSequence(sequence),
-        }),
-    ] = sentences.sentences()
+    let [Sentence::Attached(Attached { attachment })] = plain_sentences(&ordered).sentences()
     else {
         panic!("then stores an ordered finite-clause sequence rather than nested sentences")
+    };
+    let ClauseAttachment::ThenSequence(sequence) = attachment.as_ref() else {
+        panic!("then retains its dedicated attachment")
     };
     assert_eq!(
         sequence
@@ -3775,26 +3763,24 @@ fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
         ),
     ] {
         let selected = assert_one_logic_candidate(&parser, &context, text);
-        let Ability::Plain(Plain {
-            body: AbilityBody::Sentences(sentences),
-        }) = selected
-        else {
-            unreachable!()
-        };
         let [
             Sentence::Declarative(_),
-            Sentence::Attached(Attached {
-                attachment: ClauseAttachment::ReflexiveSubordinate(subordinate),
-            }),
-        ] = sentences.sentences()
+            Sentence::Attached(Attached { attachment }),
+        ] = plain_sentences(&selected).sentences()
         else {
             panic!("the reflexive subordinate is its own sentence shape: {text}")
+        };
+        let ClauseAttachment::ReflexiveSubordinate(subordinate) = attachment.as_ref() else {
+            panic!("the reflexive subordinate retains its attachment: {text}")
         };
         assert_eq!(
             subordinate.kind, kind,
             "the lexical subordinate kind is stored: {text}"
         );
-        assert_eq!(subordinate.body, Clause::Finite(connive_clause()));
+        assert_eq!(
+            subordinate.body.as_ref(),
+            &Clause::Finite(Box::new(connive_clause()))
+        );
     }
 
     for invalid in [
@@ -3820,18 +3806,21 @@ fn ordinary_trailing_if_is_not_trigger_intervening_if_and_keeps_its_own_bytes() 
 
     let ordinary_ability = assert_one_logic_candidate(&parser, &context, ordinary);
     let Ability::Triggered(Triggered {
-        intervening_if: None,
-        body: AbilityBody::Sentences(ordinary_body),
+        intervening_if,
+        body,
         ..
     }) = ordinary_ability
     else {
         panic!("ordinary trailing if belongs to the triggered body")
     };
+    assert!(intervening_if.as_ref().is_none());
+    let AbilityBody::Sentences(ordinary_body) = body.as_ref() else {
+        panic!("ordinary trailing if has a sentence body")
+    };
     assert!(matches!(
         ordinary_body.sentences(),
-        [Sentence::Attached(Attached {
-            attachment: ClauseAttachment::PostposedIf(_),
-        })]
+        [Sentence::Attached(Attached { attachment })]
+            if matches!(attachment.as_ref(), ClauseAttachment::PostposedIf(_))
     ));
 
     let intervening_analysis = parser.analyze(intervening, &context);
@@ -3855,12 +3844,19 @@ fn ordinary_trailing_if_is_not_trigger_intervening_if_and_keeps_its_own_bytes() 
         intervening
     );
     let Ability::Triggered(Triggered {
-        intervening_if: Some(ConditionClause::FiniteCondition(_)),
-        body: AbilityBody::Sentences(intervening_body),
+        intervening_if,
+        body,
         ..
     }) = intervening_ability
     else {
         panic!("intervening-if remains attached to the trigger envelope")
+    };
+    assert!(matches!(
+        intervening_if.as_ref().as_ref(),
+        Some(ConditionClause::FiniteCondition(_))
+    ));
+    let AbilityBody::Sentences(intervening_body) = body.as_ref() else {
+        panic!("intervening-if has a sentence body")
     };
     assert!(matches!(
         intervening_body.sentences(),
@@ -4188,15 +4184,15 @@ fn conditional_attachment_root_scope_matrix_is_exact() {
     assert_eq!(
         root,
         Ability::Plain(Plain {
-            body: AbilityBody::Sentences(
-                Sentences::new(vec![Sentence::Attached(Attached {
-                    attachment: ClauseAttachment::PreposedIfPredicate(
-                        PreposedIfPredicate::new(condition.clone(), gain.clone())
+            body: Box::new(AbilityBody::Sentences(
+                Sentences::new(Box::new(vec![Sentence::Attached(Attached {
+                    attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
+                        PreposedIfPredicate::new(condition.clone(), Box::new(gain.clone()))
                             .expect("the attached gain predicate is bare"),
-                    ),
-                })])
+                    ))),
+                })]))
                 .expect("one root sentence"),
-            ),
+            )),
         }),
     );
 
@@ -4251,18 +4247,18 @@ fn conditional_attachment_trigger_scope_matrix_is_exact() {
         Ability::Triggered(Triggered {
             trigger: TriggerPrefix::Finite(Finite {
                 marker: TriggerMarker::Whenever,
-                clause: Clause::Finite(player_connive_clause()),
+                clause: Box::new(Clause::Finite(Box::new(player_connive_clause()))),
             }),
-            intervening_if: None,
-            body: AbilityBody::Sentences(
-                Sentences::new(vec![Sentence::Attached(Attached {
-                    attachment: ClauseAttachment::PostposedIfPredicate(
-                        PostposedIfPredicate::new(gain, condition)
+            intervening_if: Box::new(None),
+            body: Box::new(AbilityBody::Sentences(
+                Sentences::new(Box::new(vec![Sentence::Attached(Attached {
+                    attachment: Box::new(ClauseAttachment::PostposedIfPredicate(Box::new(
+                        PostposedIfPredicate::new(Box::new(gain), condition)
                             .expect("the attached gain predicate is bare"),
-                    ),
-                })])
+                    ))),
+                })]))
                 .expect("one trigger-body sentence"),
-            ),
+            )),
         }),
         "the complete trigger envelope retains its prefix, absent intervening condition, and body",
     );
@@ -4329,14 +4325,14 @@ fn conditional_attachment_activation_scope_matrix_is_exact() {
         "the complete activation envelope retains its typed tap cost",
     );
     assert_eq!(
-        activated.body,
-        AbilityBody::Sentences(
-            Sentences::new(vec![Sentence::Attached(Attached {
-                attachment: ClauseAttachment::PreposedIfPredicate(
-                    PreposedIfPredicate::new(condition, gain)
+        activated.body.as_ref(),
+        &AbilityBody::Sentences(
+            Sentences::new(Box::new(vec![Sentence::Attached(Attached {
+                attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
+                    PreposedIfPredicate::new(condition, Box::new(gain))
                         .expect("the attached gain predicate is bare"),
-                ),
-            })])
+                ))),
+            })]))
             .expect("one post-colon sentence"),
         ),
         "the complete activation envelope retains its attachment body",
@@ -4466,77 +4462,64 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
     for (text, expected) in [
         (
             "Gain 2 life if you connive.",
-            ClauseAttachment::PostposedIfPredicate(
-                PostposedIfPredicate::new(gain.clone(), condition.clone())
+            ClauseAttachment::PostposedIfPredicate(Box::new(
+                PostposedIfPredicate::new(Box::new(gain.clone()), condition.clone())
                     .expect("the attached gain predicate is bare"),
-            ),
+            )),
         ),
         (
             "Gain 2 life unless you connive.",
-            ClauseAttachment::PostposedUnlessPredicate(
-                PostposedUnlessPredicate::new(gain.clone(), condition.clone())
+            ClauseAttachment::PostposedUnlessPredicate(Box::new(
+                PostposedUnlessPredicate::new(Box::new(gain.clone()), condition.clone())
                     .expect("the attached gain predicate is bare"),
-            ),
+            )),
         ),
         (
             "As long as you connive, gain 2 life.",
-            ClauseAttachment::PreposedAsLongAsPredicate(
-                PreposedAsLongAsPredicate::new(condition.clone(), gain.clone())
+            ClauseAttachment::PreposedAsLongAsPredicate(Box::new(
+                PreposedAsLongAsPredicate::new(condition.clone(), Box::new(gain.clone()))
                     .expect("the attached gain predicate is bare"),
-            ),
+            )),
         ),
         (
             "While you connive, gain 2 life.",
-            ClauseAttachment::PreposedWhilePredicate(
-                PreposedWhilePredicate::new(condition.clone(), gain.clone())
+            ClauseAttachment::PreposedWhilePredicate(Box::new(
+                PreposedWhilePredicate::new(condition.clone(), Box::new(gain.clone()))
                     .expect("the attached gain predicate is bare"),
-            ),
+            )),
         ),
         (
             "During you connive, gain 2 life.",
-            ClauseAttachment::PreposedDuringPredicate(
-                PreposedDuringPredicate::new(condition.clone(), gain.clone())
+            ClauseAttachment::PreposedDuringPredicate(Box::new(
+                PreposedDuringPredicate::new(condition.clone(), Box::new(gain.clone()))
                     .expect("the attached gain predicate is bare"),
-            ),
+            )),
         ),
         (
             "Until you connive, gain 2 life.",
-            ClauseAttachment::PreposedUntilPredicate(
-                PreposedUntilPredicate::new(condition.clone(), gain.clone())
+            ClauseAttachment::PreposedUntilPredicate(Box::new(
+                PreposedUntilPredicate::new(condition.clone(), Box::new(gain.clone()))
                     .expect("the attached gain predicate is bare"),
-            ),
+            )),
         ),
     ] {
         let selected = assert_one_logic_candidate(&parser, &context, text);
-        let Ability::Plain(Plain {
-            body: AbilityBody::Sentences(sentences),
-        }) = selected
-        else {
-            unreachable!()
-        };
         assert_eq!(
-            sentences.sentences(),
+            plain_sentences(&selected).sentences(),
             [Sentence::Attached(Attached {
-                attachment: expected
+                attachment: Box::new(expected)
             })],
             "each predicate attachment inhabits the single intermediate stage: {text}",
         );
     }
 
     let ordered = assert_one_logic_candidate(&parser, &context, "Gain 1 life, then connive.");
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(ordered_sentences),
-    }) = ordered
-    else {
-        unreachable!()
-    };
-    let [
-        Sentence::Attached(Attached {
-            attachment: ClauseAttachment::ThenPredicateSequence(sequence),
-        }),
-    ] = ordered_sentences.sentences()
+    let [Sentence::Attached(Attached { attachment })] = plain_sentences(&ordered).sentences()
     else {
         panic!("predicate ordering stores its members in the attachment stage")
+    };
+    let ClauseAttachment::ThenPredicateSequence(sequence) = attachment.as_ref() else {
+        panic!("predicate ordering retains its attachment")
     };
     assert_eq!(
         sequence.members(),
@@ -4551,20 +4534,12 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
         &context,
         "You gain 1 life. When you do, gain 2 life.",
     );
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(reflexive_sentences),
-    }) = reflexive
-    else {
-        unreachable!()
-    };
-    let [
-        _,
-        Sentence::Attached(Attached {
-            attachment: ClauseAttachment::ReflexivePredicateSubordinate(subordinate),
-        }),
-    ] = reflexive_sentences.sentences()
+    let [_, Sentence::Attached(Attached { attachment })] = plain_sentences(&reflexive).sentences()
     else {
         panic!("predicate reflexive subordinate stores its body in the attachment stage")
+    };
+    let ClauseAttachment::ReflexivePredicateSubordinate(subordinate) = attachment.as_ref() else {
+        panic!("predicate reflexive subordinate retains its attachment")
     };
     assert_eq!(subordinate.kind, ReflexiveSubordinateKind::WhenYouDo);
     assert_eq!(subordinate.body(), &gain);
@@ -4593,18 +4568,11 @@ fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names
         &ordinary,
         "You gain 1 life, then you connive, then a player gains 2 life.",
     );
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(sentences),
-    }) = ordered
+    let [Sentence::Attached(Attached { attachment })] = plain_sentences(&ordered).sentences()
     else {
         unreachable!()
     };
-    let [
-        Sentence::Attached(Attached {
-            attachment: ClauseAttachment::ThenSequence(sequence),
-        }),
-    ] = sentences.sentences()
-    else {
+    let ClauseAttachment::ThenSequence(sequence) = attachment.as_ref() else {
         unreachable!()
     };
     let mut visitor = AttachmentVisitor::default();
@@ -4630,19 +4598,11 @@ fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names
         &ordinary,
         "You gain 1 life. When you do, you connive.",
     );
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(sentences),
-    }) = reflexive
+    let [_, Sentence::Attached(Attached { attachment })] = plain_sentences(&reflexive).sentences()
     else {
         unreachable!()
     };
-    let [
-        _,
-        Sentence::Attached(Attached {
-            attachment: ClauseAttachment::ReflexiveSubordinate(subordinate),
-        }),
-    ] = sentences.sentences()
-    else {
+    let ClauseAttachment::ReflexiveSubordinate(subordinate) = attachment.as_ref() else {
         unreachable!()
     };
     let mut visitor = AttachmentVisitor::default();
@@ -4773,20 +4733,26 @@ fn wrapped_modal_text(envelope: &str, header: &str) -> String {
 }
 
 fn selected_plain_modal<'a>(ability: &'a Ability, envelope: &str) -> &'a PlainModal {
-    let (("root", Ability::Plain(Plain { body }))
-    | ("activation", Ability::Activated(Activated { body, .. }))
-    | (
-        "trigger",
-        Ability::Triggered(Triggered {
-            intervening_if: Some(ConditionClause::FiniteCondition(_)),
-            body,
-            ..
-        }),
-    )) = (envelope, ability)
-    else {
-        panic!("modal body did not retain its {envelope} envelope: {ability:?}")
+    let body = match (envelope, ability) {
+        ("root", Ability::Plain(Plain { body }))
+        | ("activation", Ability::Activated(Activated { body, .. })) => body,
+        (
+            "trigger",
+            Ability::Triggered(Triggered {
+                intervening_if,
+                body,
+                ..
+            }),
+        ) if matches!(
+            intervening_if.as_ref().as_ref(),
+            Some(ConditionClause::FiniteCondition(_))
+        ) =>
+        {
+            body
+        }
+        _ => panic!("modal body did not retain its {envelope} envelope: {ability:?}"),
     };
-    let AbilityBody::PlainModal(modal) = body else {
+    let AbilityBody::PlainModal(modal) = body.as_ref() else {
         panic!("the envelope contains the unchanged plain-modal body")
     };
     modal
@@ -4900,10 +4866,10 @@ fn expected_modal_body(chooser: ModalChooser, bounds: ModalChoiceBounds) -> Abil
         PlainModal::new(
             chooser,
             bounds,
-            vec![
+            Box::new(vec![
                 modal_mode(vec![modal_sentence(gain_life_predicate(1))]),
                 modal_mode(vec![modal_sentence(gain_life_predicate(2))]),
-            ],
+            ]),
         )
         .expect("the reviewed modal header and two nonempty modes construct"),
     )
@@ -4920,21 +4886,23 @@ fn expected_modal_envelope(
 
 fn expected_modal_envelope_with_body(envelope: &str, body: AbilityBody) -> Ability {
     match envelope {
-        "root" => Ability::Plain(Plain { body }),
+        "root" => Ability::Plain(Plain {
+            body: Box::new(body),
+        }),
         "trigger" => Ability::Triggered(Triggered {
             trigger: TriggerPrefix::Finite(Finite {
                 marker: TriggerMarker::Whenever,
-                clause: Clause::Finite(player_connive_clause()),
+                clause: Box::new(Clause::Finite(Box::new(player_connive_clause()))),
             }),
-            intervening_if: Some(ConditionClause::FiniteCondition(
+            intervening_if: Box::new(Some(ConditionClause::FiniteCondition(Box::new(
                 FiniteCondition::FiniteCondition(FiniteConditionValue {
-                    clause: Clause::Finite(connive_clause()),
+                    clause: Box::new(Clause::Finite(Box::new(connive_clause()))),
                 }),
-            )),
-            body,
+            )))),
+            body: Box::new(body),
         }),
         "activation" => Ability::Activated(
-            Activated::new(vec![tap_cost()], body)
+            Activated::new(Box::new(vec![tap_cost()]), Box::new(body))
                 .expect("the exact tap cost and modal body construct"),
         ),
         _ => panic!("unknown modal envelope {envelope}"),
@@ -5733,16 +5701,17 @@ fn every_activation_modal_header_has_a_complete_ast_visit_and_literal_claim_orac
 
 fn modal_sentence(predicate: VerbPhrase) -> Sentence {
     Sentence::Declarative(Declarative {
-        clause: Clause::Finite(plain_finite(
+        clause: Box::new(Clause::Finite(Box::new(plain_finite(
             you_subject(),
             Predicate::Atomic(Box::new(predicate)),
-        )),
+        )))),
     })
 }
 
 fn modal_mode(sentences: Vec<Sentence>) -> ModalMode {
     ModalMode::ModalMode(
-        ModalModeValue::new(sentences).expect("a modal mode has a nonempty sentence sequence"),
+        ModalModeValue::new(Box::new(sentences))
+            .expect("a modal mode has a nonempty sentence sequence"),
     )
 }
 
@@ -5819,20 +5788,20 @@ fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
     let text = "Choose one —\n• You gain 1 life. You connive.\n• You gain 2 life.";
     let selected = assert_one_logic_candidate(&parser, &context, text);
     let expected = Ability::Plain(Plain {
-        body: AbilityBody::PlainModal(
+        body: Box::new(AbilityBody::PlainModal(
             PlainModal::new(
                 ModalChooser::You,
                 ModalChoiceBounds::ExactlyOne,
-                vec![
+                Box::new(vec![
                     modal_mode(vec![
                         modal_sentence(gain_life_predicate(1)),
                         modal_sentence(connive()),
                     ]),
                     modal_mode(vec![modal_sentence(gain_life_predicate(2))]),
-                ],
+                ]),
             )
             .expect("two nonempty modes and a licensed header construct"),
-        ),
+        )),
     });
     assert_eq!(selected, expected);
     assert_eq!(selected.render(&context, parser.environment()), text);
@@ -5947,10 +5916,10 @@ fn modal_header_guard_selection_is_mutation_authenticated() {
             "An opponent chooses one",
         ),
     ] {
-        let modal = PlainModal::new(chooser, bounds, modes())
+        let modal = PlainModal::new(chooser, bounds, Box::new(modes()))
             .expect("every admitted semantic header combination constructs");
         let ability = Ability::Plain(Plain {
-            body: AbilityBody::PlainModal(modal),
+            body: Box::new(AbilityBody::PlainModal(modal)),
         });
         assert_eq!(
             ability.render(&context, parser.environment()),
@@ -5965,19 +5934,21 @@ fn modal_header_guard_selection_is_mutation_authenticated() {
         ModalChoiceBounds::ZeroToOne,
     ] {
         assert!(
-            PlainModal::new(ModalChooser::Opponent, bounds, modes()).is_none(),
+            PlainModal::new(ModalChooser::Opponent, bounds, Box::new(modes())).is_none(),
             "the opponent chooser is sealed to exactly one mode",
         );
     }
     assert!(
-        ModalModeValue::new(vec![]).is_none(),
+        ModalModeValue::new(Box::default()).is_none(),
         "a mode cannot lose its last sentence",
     );
     assert!(
         PlainModal::new(
             ModalChooser::You,
             ModalChoiceBounds::ExactlyOne,
-            vec![modal_mode(vec![modal_sentence(gain_life_predicate(1))])],
+            Box::new(vec![modal_mode(vec![modal_sentence(gain_life_predicate(
+                1
+            ))])]),
         )
         .is_none(),
         "a modal group cannot lose its second mode",
@@ -6187,17 +6158,20 @@ fn full_self_reference_subject(context: &ParseContext<'_>) -> Subject {
 fn full_self_reference_modal_body(context: &ParseContext<'_>) -> AbilityBody {
     let sentence = |magnitude| {
         Sentence::Declarative(Declarative {
-            clause: Clause::Finite(plain_finite(
+            clause: Box::new(Clause::Finite(Box::new(plain_finite(
                 full_self_reference_subject(context),
                 Predicate::Atomic(Box::new(gain_life_predicate(magnitude))),
-            )),
+            )))),
         })
     };
     AbilityBody::PlainModal(
         PlainModal::new(
             ModalChooser::You,
             ModalChoiceBounds::ExactlyOne,
-            vec![modal_mode(vec![sentence(1)]), modal_mode(vec![sentence(2)])],
+            Box::new(vec![
+                modal_mode(vec![sentence(1)]),
+                modal_mode(vec![sentence(2)]),
+            ]),
         )
         .expect("two full-self-reference modes construct"),
     )

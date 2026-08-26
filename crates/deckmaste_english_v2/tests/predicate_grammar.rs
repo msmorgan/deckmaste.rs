@@ -60,6 +60,18 @@ fn environment() -> ParserEnvironment {
             r#"KeywordAction(name:"Shuffle",spelling:"shuffle",grammar:Verb(bare:"shuffle",valence:Transitive))"#,
         ),
         (
+            "/synthetic/actions/Attach.ron",
+            r#"KeywordAction(name:"Attach",spelling:"attach",grammar:Verb(bare:"attach",third_person:"attaches",valence:Custom(shapes:[[ObjectNounPhrase,Literal("to"),ObjectNounPhrase]])))"#,
+        ),
+        (
+            "/synthetic/actions/Exchange.ron",
+            r#"KeywordAction(name:"Exchange",spelling:"exchange",grammar:Verb(bare:"exchange",valence:Custom(shapes:[[ObjectNounPhrase],[ObjectNounPhrase,Literal("with"),ObjectNounPhrase],[ObjectNounPhrase,Literal("for"),ObjectNounPhrase]])))"#,
+        ),
+        (
+            "/synthetic/actions/Vote.ron",
+            r#"KeywordAction(name:"Vote",spelling:"vote",grammar:Verb(bare:"vote",valence:Custom(shapes:[[],[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase]])))"#,
+        ),
+        (
             "/synthetic/types/Creature.ron",
             r#"Type(name:"Creature",spelling:"creature",grammar:Noun(singular:"creature"))"#,
         ),
@@ -70,6 +82,26 @@ fn environment() -> ParserEnvironment {
         (
             "/synthetic/types/Land.ron",
             r#"Type(name:"Land",spelling:"land",grammar:Noun(singular:"land"))"#,
+        ),
+        (
+            "/synthetic/types/Instant.ron",
+            r#"Type(name:"Instant",spelling:"instant",grammar:Noun(singular:"instant"))"#,
+        ),
+        (
+            "/synthetic/types/Sorcery.ron",
+            r#"Type(name:"Sorcery",spelling:"sorcery",grammar:Noun(singular:"sorcery"))"#,
+        ),
+        (
+            "/synthetic/subtypes/Equipment.ron",
+            r#"Subtype(category:Artifact,name:"Equipment",spelling:"Equipment",grammar:Noun(singular:"Equipment",plural:"Equipment"))"#,
+        ),
+        (
+            "/synthetic/subtypes/Sliver.ron",
+            r#"Subtype(category:Creature,name:"Sliver",spelling:"Sliver",grammar:Noun(singular:"Sliver"))"#,
+        ),
+        (
+            "/synthetic/subtypes/Goblin.ron",
+            r#"Subtype(category:Creature,name:"Goblin",spelling:"Goblin",grammar:Noun(singular:"Goblin"))"#,
         ),
     ]
     .into_iter()
@@ -120,7 +152,10 @@ fn declarative_atomic(parser: &Parser, context: &ParseContext<'_>, text: &str) -
     else {
         panic!("finite predicate has a declarative envelope: {text:?}")
     };
-    let Clause::Finite(FiniteClause::PlainFiniteClause(clause)) = &declarative.clause else {
+    let Clause::Finite(finite) = declarative.clause.as_ref() else {
+        panic!("one finite predicate has a plain finite clause: {text:?}")
+    };
+    let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
         panic!("one finite predicate has a plain finite clause: {text:?}")
     };
     let Predicate::Atomic(predicate) = clause.predicate() else {
@@ -201,6 +236,359 @@ fn assert_selected_with_specificity(
         "{text:?}"
     );
     selected.clone()
+}
+
+#[derive(Default)]
+struct Task9ObjectVisitor(Vec<&'static str>);
+
+impl Visitor for Task9ObjectVisitor {
+    fn visit_declared_to_object_predicate(&mut self, value: &DeclaredToObjectPredicate) {
+        self.0.push("declared-to-object");
+        deckmaste_english_v2::visit::walk_declared_to_object_predicate(self, value);
+    }
+
+    fn visit_declared_for_object_predicate(&mut self, value: &DeclaredForObjectPredicate) {
+        self.0.push("declared-for-object");
+        deckmaste_english_v2::visit::walk_declared_for_object_predicate(self, value);
+    }
+
+    fn visit_maximum_hand_size_reference(&mut self, value: &MaximumHandSizeReference) {
+        self.0.push("maximum-hand-size");
+        deckmaste_english_v2::visit::walk_maximum_hand_size_reference(self, value);
+    }
+
+    fn visit_predicative_scalar_value(&mut self, value: &PredicativeScalarValue) {
+        self.0.push("predicative-scalar");
+        deckmaste_english_v2::visit::walk_predicative_scalar_value(self, value);
+    }
+
+    fn visit_power_toughness_modifier(&mut self, value: &PowerToughnessModifier) {
+        self.0.push("power-toughness-modifier");
+        deckmaste_english_v2::visit::walk_power_toughness_modifier(self, value);
+    }
+
+    fn visit_token_copy_reference(&mut self, value: &TokenCopyReference) {
+        self.0.push("token-copy");
+        deckmaste_english_v2::visit::walk_token_copy_reference(self, value);
+    }
+
+    fn visit_described_token_reference(&mut self, value: &DescribedTokenReference) {
+        self.0.push("described-token");
+        deckmaste_english_v2::visit::walk_described_token_reference(self, value);
+    }
+
+    fn visit_get_power_toughness(&mut self, value: &GetPowerToughness) {
+        self.0.push("get-power-toughness");
+        deckmaste_english_v2::visit::walk_get_power_toughness(self, value);
+    }
+
+    fn visit_have_base_power_toughness(&mut self, value: &HaveBasePowerToughness) {
+        self.0.push("have-base-power-toughness");
+        deckmaste_english_v2::visit::walk_have_base_power_toughness(self, value);
+    }
+
+    fn visit_quoted_ability_predicate(&mut self, value: &QuotedAbilityPredicate) {
+        self.0.push("quoted-ability");
+        deckmaste_english_v2::visit::walk_quoted_ability_predicate(self, value);
+    }
+
+    fn visit_transitive_predicate(&mut self, value: &TransitivePredicate) {
+        match value.head {
+            TransitiveVerb::Lexeme(CoreTransitiveVerb::Copy) => self.0.push("copy"),
+            TransitiveVerb::Lexeme(CoreTransitiveVerb::Flip) => self.0.push("flip"),
+            TransitiveVerb::Lexeme(CoreTransitiveVerb::Lose) => self.0.push("lose-abilities"),
+            TransitiveVerb::Lexeme(CoreTransitiveVerb::Unattach) => self.0.push("unattach"),
+            _ => {}
+        }
+        if matches!(
+            &value.head,
+            TransitiveVerb::Declaration(head) if head.id().name() == "Exchange"
+        ) {
+            self.0.push("exchange");
+        }
+        deckmaste_english_v2::visit::walk_transitive_predicate(self, value);
+    }
+}
+
+#[test]
+fn task9_declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
+    let parser = parser();
+    let context = context();
+    let text = "Attach target Equipment to target creature.";
+    let ability = assert_selected(&parser, &context, text);
+    assert!(matches!(
+        imperative_atomic(&parser, &context, text),
+        VerbPhrase::DeclaredToObjectPredicate(DeclaredToObjectPredicate { .. })
+    ));
+
+    let mut visitor = Task9ObjectVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["declared-to-object"]);
+
+    assert_eq!(
+        exact_claim_trace(&parser, &context, text),
+        [
+            (
+                "Attach".to_owned(),
+                "lexeme:keyword_action/Attach/bare".to_owned(),
+            ),
+            (
+                " target".to_owned(),
+                "form:target_determiner_phrase/target_determiner_phrase/0".to_owned(),
+            ),
+            (
+                " Equipment".to_owned(),
+                "lexeme:artifact_subtype/Equipment/singular".to_owned(),
+            ),
+            (
+                " to".to_owned(),
+                "form:declared_to_object_predicate/declared_to_object_predicate/2".to_owned(),
+            ),
+            (
+                " target".to_owned(),
+                "form:target_determiner_phrase/target_determiner_phrase/0".to_owned(),
+            ),
+            (
+                " creature".to_owned(),
+                "lexeme:type/Creature/singular".to_owned(),
+            ),
+            (
+                ".".to_owned(),
+                "structural:Sentences/sentences/terminator/0".to_owned(),
+            ),
+        ],
+    );
+}
+
+#[test]
+fn task9_quote_boundary_recurses_only_through_an_ordinary_ability() {
+    let parser = parser();
+    let context = context();
+    let text = r#"All Slivers have "When this permanent enters, draw a card.""#;
+    let ability = assert_selected_with_specificity(&parser, &context, text, true);
+    let Ability::Plain(Plain { body }) = &ability else {
+        panic!("quoted complement witness has an ordinary ability envelope")
+    };
+    let AbilityBody::QuoteTerminatedStatement(statement) = body.as_ref() else {
+        panic!("quoted complement witness has the derived quote terminator envelope")
+    };
+    let VerbPhrase::QuotedAbilityPredicate(predicate) = statement.predicate() else {
+        panic!("quote terminator envelope is restricted to the shared quoted predicate")
+    };
+    let QuotedAbility::QuotedAbility(quoted) = predicate.ability.as_ref();
+    let Ability::Triggered(_) = quoted.ability.as_ref() else {
+        panic!("quoted complement stores the ordinary triggered ability AST")
+    };
+
+    let mut visitor = Task9ObjectVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["quoted-ability"]);
+    let claims = exact_claim_trace(&parser, &context, text);
+    assert!(
+        claims.iter().any(|(surface, owner)| {
+            surface == " \"" && owner == "form:quoted_ability/quoted_ability/0"
+        }),
+        "{claims:#?}",
+    );
+    assert!(claims.iter().any(|(surface, owner)| {
+        surface == "\"" && owner == "form:quoted_ability/quoted_ability/1/affix"
+    }));
+}
+
+#[test]
+fn task9_closed_information_heads_parse_copy_and_flip_without_action_declarations() {
+    let parser = parser();
+    let context = context();
+    for (text, expected_head, expected_visit) in [
+        (
+            "Copy target instant or sorcery spell.",
+            CoreTransitiveVerb::Copy,
+            "copy",
+        ),
+        ("Flip a coin.", CoreTransitiveVerb::Flip, "flip"),
+        (
+            "Unattach that Equipment.",
+            CoreTransitiveVerb::Unattach,
+            "unattach",
+        ),
+    ] {
+        let ability = assert_selected(&parser, &context, text);
+        let VerbPhrase::TransitivePredicate(predicate) = imperative_atomic(&parser, &context, text)
+        else {
+            panic!("{text:?} stores the shared transitive frame")
+        };
+        assert_eq!(
+            predicate.head,
+            TransitiveVerb::Lexeme(expected_head),
+            "{text:?}",
+        );
+        let mut visitor = Task9ObjectVisitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(visitor.0, [expected_visit], "{text:?}");
+    }
+}
+
+#[test]
+fn task9_exchange_uses_declared_object_valence_and_a_typed_control_reference() {
+    let parser = parser();
+    let context = context();
+    let text = "Exchange control of two target creatures.";
+    let ability = assert_selected(&parser, &context, text);
+    let VerbPhrase::TransitivePredicate(predicate) = imperative_atomic(&parser, &context, text)
+    else {
+        panic!("exchange uses the shared declared transitive frame")
+    };
+    let TransitiveVerb::Declaration(head) = &predicate.head else {
+        panic!("exchange retains its authored keyword-action identity")
+    };
+    assert_eq!(head.id().name(), "Exchange");
+    assert!(matches!(predicate.object, Object::ObjectNominal(_)));
+    let mut visitor = Task9ObjectVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["exchange"]);
+}
+
+#[test]
+fn task9_vote_uses_declared_for_object_valence_and_typed_choice_labels() {
+    let parser = parser();
+    let context = context();
+    let text = "Starting with you, each player votes for death or taxes.";
+    let ability = assert_selected(&parser, &context, text);
+    let Ability::Plain(Plain { body }) = &ability else {
+        panic!("vote witness has an ordinary ability envelope")
+    };
+    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+        panic!("vote witness has an ordinary sentence body")
+    };
+    let Sentence::Attached(Attached { attachment }) = &sentences.sentences()[0] else {
+        panic!("vote order stays a typed preposed clause attachment")
+    };
+    let ClauseAttachment::StartingWithYou(_) = attachment.as_ref() else {
+        panic!("vote order stays a typed preposed clause attachment")
+    };
+    let mut visitor = Task9ObjectVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["declared-for-object"]);
+}
+
+#[test]
+fn task9_maximum_hand_size_is_a_typed_copular_scalar_statement() {
+    let parser = parser();
+    let context = context();
+    let text = "Your maximum hand size is seven.";
+    let ability = assert_selected(&parser, &context, text);
+    let Ability::Plain(Plain { body }) = &ability else {
+        panic!("maximum hand size witness has an ordinary ability envelope")
+    };
+    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+        panic!("maximum hand size witness has an ordinary sentence body")
+    };
+    let Sentence::Declarative(declarative) = &sentences.sentences()[0] else {
+        panic!("maximum hand size witness is declarative")
+    };
+    let Clause::Copular(copular) = declarative.clause.as_ref() else {
+        panic!("maximum hand size witness is a copular clause")
+    };
+    let CopularClause::CopularClause(value) = copular.as_ref();
+    assert!(matches!(
+        value.complement.as_ref(),
+        PredicativeComplement::Scalar(_)
+    ));
+    let mut visitor = Task9ObjectVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["maximum-hand-size", "predicative-scalar"]);
+}
+
+#[test]
+fn task9_token_descriptions_share_typed_power_toughness_and_copy_constituents() {
+    let parser = parser();
+    let context = context();
+    for (text, expected_visit) in [
+        ("Create a 1/1 red Goblin creature token.", "described-token"),
+        (
+            "Create a token that's a copy of target creature.",
+            "token-copy",
+        ),
+    ] {
+        let ability = assert_selected(&parser, &context, text);
+        let VerbPhrase::TransitivePredicate(predicate) = imperative_atomic(&parser, &context, text)
+        else {
+            panic!("{text:?} uses Create's authored transitive frame")
+        };
+        let TransitiveVerb::Declaration(head) = &predicate.head else {
+            panic!("{text:?} retains Create's declaration identity")
+        };
+        assert_eq!(head.id().name(), "Create", "{text:?}");
+        let mut visitor = Task9ObjectVisitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(visitor.0, [expected_visit], "{text:?}");
+    }
+}
+
+#[test]
+fn task9_power_toughness_predicates_keep_modifier_and_base_value_frames_distinct() {
+    let parser = parser();
+    let context = context();
+    for (text, expected_visit) in [
+        (
+            "Target creature gets +3/+1 until end of turn.",
+            "get-power-toughness",
+        ),
+        (
+            "This creature has base power and toughness 4/4.",
+            "have-base-power-toughness",
+        ),
+    ] {
+        let ability = assert_selected(&parser, &context, text);
+        let mut visitor = Task9ObjectVisitor::default();
+        visitor.visit_ability(&ability);
+        assert_eq!(visitor.0, [expected_visit], "{text:?}");
+    }
+    assert!(matches!(
+        declarative_atomic(
+            &parser,
+            &context,
+            "Target creature gets +3/+1 until end of turn."
+        ),
+        VerbPhrase::GetPowerToughness(_)
+    ));
+    assert!(matches!(
+        declarative_atomic(
+            &parser,
+            &context,
+            "This creature has base power and toughness 4/4."
+        ),
+        VerbPhrase::HaveBasePowerToughness(_)
+    ));
+}
+
+#[test]
+fn task9_ordinary_ability_nouns_parse_while_keyword_interiors_remain_plan10() {
+    let parser = parser();
+    let context = context();
+    let text = "Target creature loses all abilities.";
+    let ability = assert_selected(&parser, &context, text);
+    let VerbPhrase::TransitivePredicate(predicate) = declarative_atomic(&parser, &context, text)
+    else {
+        panic!("ability removal uses the shared transitive frame")
+    };
+    assert!(matches!(
+        predicate.head,
+        TransitiveVerb::Lexeme(CoreTransitiveVerb::Lose)
+    ));
+    let mut visitor = Task9ObjectVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(visitor.0, ["lose-abilities"]);
+
+    for plan10_keyword_interior in [
+        "Target creature gains flying until end of turn.",
+        "Creatures you control have vigilance.",
+    ] {
+        assert!(
+            parser.parse(plan10_keyword_interior, &context).is_err(),
+            "bare keyword ability remains a Plan 10 boundary: {plan10_keyword_interior:?}",
+        );
+    }
 }
 
 #[test]
@@ -428,90 +816,72 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
         expected_claims: &[(&str, &str)],
     ) {
         let ability = assert_selected(parser, context, text);
-        match (&ability, expected) {
-            (
-                Ability::Triggered(Triggered {
-                    trigger:
-                        TriggerPrefix::Finite(Finite {
-                            marker: TriggerMarker::Whenever,
-                            clause:
-                                Clause::Passive(PassiveFiniteClause::PassiveFiniteClause(
-                                    PassiveFiniteClauseValue {
-                                        predicate:
-                                            PassivePredicate::Damage(
-                                                PassiveDamagePredicate::PassiveDamagePredicate(
-                                                    PassiveDamagePredicateValue { head, kind },
-                                                ),
-                                            ),
-                                        ..
-                                    },
-                                )),
-                        }),
-                    intervening_if: None,
-                    ..
-                }),
-                IntegratedClause::Damage(expected_kind),
-            ) => {
+        let Ability::Triggered(triggered) = &ability else {
+            panic!("integrated clause witness is triggered: {ability:#?}")
+        };
+        match expected {
+            IntegratedClause::Damage(expected_kind) => {
+                let TriggerPrefix::Finite(Finite { marker, clause }) = &triggered.trigger else {
+                    panic!("damage witness has a finite trigger: {ability:#?}")
+                };
+                assert_eq!(*marker, TriggerMarker::Whenever);
+                assert!(triggered.intervening_if.as_ref().is_none());
+                let Clause::Passive(passive) = clause.as_ref() else {
+                    panic!("damage witness has a passive clause: {ability:#?}")
+                };
+                let PassiveFiniteClause::PassiveFiniteClause(value) = passive;
+                let PassivePredicate::Damage(predicate) = &value.predicate else {
+                    panic!("damage witness has a passive damage predicate: {ability:#?}")
+                };
+                let PassiveDamagePredicate::PassiveDamagePredicate(PassiveDamagePredicateValue {
+                    head,
+                    kind,
+                }) = predicate;
                 assert!(matches!(
                     head,
                     DamageParticipleHead::Lexeme(DamageParticipleLexeme::Deal)
                 ));
                 assert_eq!(*kind, expected_kind);
             }
-            (
-                Ability::Triggered(Triggered {
-                    trigger:
-                        TriggerPrefix::Finite(Finite {
-                            marker: TriggerMarker::Whenever,
-                            clause:
-                                Clause::Passive(PassiveFiniteClause::PassiveFiniteClause(
-                                    PassiveFiniteClauseValue {
-                                        predicate: PassivePredicate::Movement(_),
-                                        ..
-                                    },
-                                )),
-                        }),
-                    intervening_if: None,
-                    ..
-                }),
-                IntegratedClause::Movement,
-            ) => {}
-            (
-                Ability::Triggered(Triggered {
-                    trigger:
-                        TriggerPrefix::Finite(Finite {
-                            marker: TriggerMarker::Whenever,
-                            clause:
-                                Clause::Passive(PassiveFiniteClause::PassiveFiniteClause(
-                                    PassiveFiniteClauseValue {
-                                        predicate: PassivePredicate::Orientation(_),
-                                        ..
-                                    },
-                                )),
-                        }),
-                    intervening_if: None,
-                    ..
-                }),
-                IntegratedClause::Orientation,
-            ) => {}
-            (
-                Ability::Triggered(Triggered {
-                    trigger: TriggerPrefix::Temporal(_),
-                    intervening_if:
-                        Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(
-                            FiniteConditionValue {
-                                clause:
-                                    Clause::Copular(CopularClause::CopularClause(CopularClauseValue {
-                                        complement: PredicativeComplement::Color(_),
-                                        ..
-                                    })),
-                            },
-                        ))),
-                    ..
-                }),
-                IntegratedClause::CopularCondition,
-            ) => {}
-            _ => panic!("wrong integrated clause family for {text:?}: {ability:#?}"),
+            IntegratedClause::Movement | IntegratedClause::Orientation => {
+                let TriggerPrefix::Finite(Finite { marker, clause }) = &triggered.trigger else {
+                    panic!("passive witness has a finite trigger: {ability:#?}")
+                };
+                assert_eq!(*marker, TriggerMarker::Whenever);
+                assert!(triggered.intervening_if.as_ref().is_none());
+                let Clause::Passive(passive) = clause.as_ref() else {
+                    panic!("passive witness has a passive clause: {ability:#?}")
+                };
+                let PassiveFiniteClause::PassiveFiniteClause(value) = passive;
+                assert!(
+                    matches!(
+                        (expected, &value.predicate),
+                        (IntegratedClause::Movement, PassivePredicate::Movement(_))
+                            | (
+                                IntegratedClause::Orientation,
+                                PassivePredicate::Orientation(_)
+                            )
+                    ),
+                    "wrong integrated passive family for {text:?}: {ability:#?}",
+                );
+            }
+            IntegratedClause::CopularCondition => {
+                assert!(matches!(triggered.trigger, TriggerPrefix::Temporal(_)));
+                let Some(ConditionClause::FiniteCondition(condition)) =
+                    triggered.intervening_if.as_ref().as_ref()
+                else {
+                    panic!("temporal witness has a finite condition: {ability:#?}")
+                };
+                let FiniteCondition::FiniteCondition(value) = condition.as_ref();
+                let Clause::Copular(copular) = value.clause.as_ref() else {
+                    panic!("temporal witness has a copular condition: {ability:#?}")
+                };
+                let CopularClause::CopularClause(value) = copular.as_ref();
+                assert!(matches!(
+                    value.complement.as_ref(),
+                    PredicativeComplement::Color(_)
+                ));
+            }
         }
         assert_eq!(
             exact_claim_trace(parser, context, text),
@@ -839,22 +1209,24 @@ fn task7_ast_keeps_each_linguistic_product_typed() {
         ("It is able to attack.", "ability"),
         ("They were 2/2.", "power-toughness"),
     ] {
-        let Sentence::Declarative(Declarative {
-            clause:
-                Clause::Copular(CopularClause::CopularClause(CopularClauseValue { complement, .. })),
-        }) = parser
+        let Sentence::Declarative(declarative) = parser
             .parse_sentence(text, &context)
             .unwrap_or_else(|error| panic!("copular AST parses {text:?}: {error:?}"))
         else {
             panic!("{text:?} stores a typed copular clause")
         };
-        let observed = match complement {
+        let Clause::Copular(copular) = declarative.clause.as_ref() else {
+            panic!("{text:?} stores a typed copular clause")
+        };
+        let CopularClause::CopularClause(CopularClauseValue { complement, .. }) = copular.as_ref();
+        let observed = match complement.as_ref() {
             PredicativeComplement::Adjective(_) => "adjective",
             PredicativeComplement::Color(_) => "color",
             PredicativeComplement::Type(_) => "type",
             PredicativeComplement::Status(_) => "status",
             PredicativeComplement::Ability(_) => "ability",
             PredicativeComplement::PowerToughness(_) => "power-toughness",
+            PredicativeComplement::Scalar(_) => "scalar",
         };
         assert_eq!(observed, expected);
     }
@@ -878,12 +1250,16 @@ fn task7_ast_keeps_each_linguistic_product_typed() {
         PredicativeComplement::Color(_)
     ));
 
-    let Sentence::Declarative(Declarative {
-        clause: Clause::Finite(FiniteClause::PlainFiniteClause(change)),
-    }) = parser
+    let Sentence::Declarative(declarative) = parser
         .parse_sentence("It becomes blocked by target creature.", &context)
         .expect("change-state predicate parses")
     else {
+        panic!("change-state predicate keeps its ordinary finite envelope")
+    };
+    let Clause::Finite(finite) = declarative.clause.as_ref() else {
+        panic!("change-state predicate keeps its ordinary finite envelope")
+    };
+    let FiniteClause::PlainFiniteClause(change) = finite.as_ref() else {
         panic!("change-state predicate keeps its ordinary finite envelope")
     };
     let Predicate::ChangeState(predicate) = change.predicate() else {
@@ -905,18 +1281,18 @@ fn task7_ast_keeps_each_linguistic_product_typed() {
         ("It is turned face up.", "orientation"),
         ("A spell was cast.", "declared"),
     ] {
-        let Sentence::Declarative(Declarative {
-            clause:
-                Clause::Passive(PassiveFiniteClause::PassiveFiniteClause(PassiveFiniteClauseValue {
-                    predicate,
-                    ..
-                })),
-        }) = parser
+        let Sentence::Declarative(declarative) = parser
             .parse_sentence(text, &context)
             .unwrap_or_else(|error| panic!("passive AST parses {text:?}: {error:?}"))
         else {
             panic!("{text:?} stores a typed finite passive clause")
         };
+        let Clause::Passive(passive) = declarative.clause.as_ref() else {
+            panic!("{text:?} stores a typed finite passive clause")
+        };
+        let PassiveFiniteClause::PassiveFiniteClause(PassiveFiniteClauseValue {
+            predicate, ..
+        }) = passive;
         let observed = match predicate {
             PassivePredicate::Damage(_) => "damage",
             PassivePredicate::Movement(_) => "movement",
@@ -1437,7 +1813,10 @@ fn typed_scalar_measure_counter_and_object_complements_select_exact_products() {
     let Sentence::Declarative(declarative) = sentence else {
         panic!("finite scalar predicate has a declarative envelope")
     };
-    let Clause::Finite(FiniteClause::PlainFiniteClause(clause)) = &declarative.clause else {
+    let Clause::Finite(finite) = declarative.clause.as_ref() else {
+        panic!("finite scalar predicate remains a plain finite clause")
+    };
+    let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
         panic!("finite scalar predicate remains a plain finite clause")
     };
     let Predicate::Atomic(predicate) = clause.predicate() else {
@@ -2907,23 +3286,28 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
             ..
         })
     ));
-    assert!(matches!(
-        imperative_atomic(
-            &parser,
-            &context,
-            "Look at the top two cards of your library."
-        ),
-        VerbPhrase::LookAt(LookAt {
-            location: AtLocation::AtLocation(AtLocationValue {
-                object: Object::ObjectNominal(NominalObject {
-                    value: NounPhrase::LibrarySlice(LibrarySlice {
-                        cards: LibraryCardQuantity::FixedLibraryCardQuantity(_),
-                        library: LibraryReference::PossessedLibrary(_),
-                        ..
-                    }),
-                }),
+    let VerbPhrase::LookAt(LookAt {
+        location:
+            AtLocation::AtLocation(AtLocationValue {
+                object: Object::ObjectNominal(nominal),
             }),
-        })
+    }) = imperative_atomic(
+        &parser,
+        &context,
+        "Look at the top two cards of your library.",
+    )
+    else {
+        panic!("look-at witness keeps its typed nominal object")
+    };
+    let NounPhrase::LibrarySlice(slice) = nominal.value.as_ref() else {
+        panic!("look-at witness keeps its typed library slice")
+    };
+    assert!(matches!(
+        (&slice.cards, &slice.library),
+        (
+            LibraryCardQuantity::FixedLibraryCardQuantity(_),
+            LibraryReference::PossessedLibrary(_)
+        )
     ));
     assert!(matches!(
         imperative_atomic(
@@ -3909,7 +4293,7 @@ fn task8_cost_position_reuses_the_typed_predicate_algebra() {
         Some(cost.as_ref()),
     );
     assert_eq!(
-        Activated::new(activated.costs().to_vec(), activated.body.clone()).as_ref(),
+        Activated::new(Box::new(activated.costs().to_vec()), activated.body.clone()).as_ref(),
         Some(activated),
     );
 

@@ -1015,7 +1015,12 @@ fn emit_construction_form_walker_calls(
                 }
                 StructuralFieldKindPlan::Optional(kind) => {
                     let visit = walk_structural_value(validated, kind, quote! { value })?;
-                    quote! { if let Some(value) = #value { #visit } }
+                    let optional = if structural.is_recursive() {
+                        quote! { #value.as_ref() }
+                    } else {
+                        value
+                    };
+                    quote! { if let Some(value) = #optional { #visit } }
                 }
                 StructuralFieldKindPlan::Sequence { .. } => {
                     let walker = ident(&structural_sequence_walker(

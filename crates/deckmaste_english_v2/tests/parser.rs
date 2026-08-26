@@ -62,13 +62,12 @@ fn legendary_context(card_name: &str) -> ParseContext<'_> {
 }
 
 fn single_paragraph(oracle_text: &OracleText) -> &Sentences {
-    let [
-        DocumentBlock::Ability(Ability::Plain(Plain {
-            body: AbilityBody::Sentences(sentences),
-        })),
-    ] = oracle_text.blocks.as_slice()
+    let [DocumentBlock::Ability(Ability::Plain(Plain { body }))] = oracle_text.blocks.as_slice()
     else {
         panic!("expected exactly one paragraph ability block: {oracle_text:?}");
+    };
+    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+        panic!("expected a sentence paragraph: {oracle_text:?}");
     };
     sentences
 }
@@ -87,11 +86,11 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         let parsed = parser
             .parse(text, &context)
             .unwrap_or_else(|error| panic!("{text} must parse: {error:?}"));
-        let Ability::Plain(Plain {
-            body: AbilityBody::Sentences(paragraph),
-        }) = &parsed
-        else {
+        let Ability::Plain(Plain { body }) = &parsed else {
             panic!("indefinite destroy is a paragraph")
+        };
+        let AbilityBody::Sentences(paragraph) = body.as_ref() else {
+            panic!("indefinite destroy is a sentence paragraph")
         };
         let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
@@ -369,15 +368,16 @@ fn oracle_text_lf_separates_blocks_without_flattening_or_storage() {
 
     assert_ne!(one_block, two_blocks);
     let [
-        DocumentBlock::Ability(Ability::Plain(Plain {
-            body: AbilityBody::Sentences(first),
-        })),
-        DocumentBlock::Ability(Ability::Plain(Plain {
-            body: AbilityBody::Sentences(second),
-        })),
+        DocumentBlock::Ability(Ability::Plain(Plain { body: first })),
+        DocumentBlock::Ability(Ability::Plain(Plain { body: second })),
     ] = two_blocks.blocks.as_slice()
     else {
         panic!("LF must preserve two paragraph blocks: {two_blocks:?}");
+    };
+    let (AbilityBody::Sentences(first), AbilityBody::Sentences(second)) =
+        (first.as_ref(), second.as_ref())
+    else {
+        panic!("LF must preserve two sentence paragraphs: {two_blocks:?}");
     };
     assert_eq!(first.sentences().len(), 1);
     assert_eq!(second.sentences().len(), 1);
@@ -545,7 +545,9 @@ fn nominal_subject(value: NounPhrase) -> Subject {
 }
 
 fn nominal_object(value: NounPhrase) -> Object {
-    Object::ObjectNominal(NominalObject { value })
+    Object::ObjectNominal(NominalObject {
+        value: Box::new(value),
+    })
 }
 
 fn subject_you() -> Subject {
@@ -738,14 +740,18 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     let triggered = triggered(event.clone(), vec![effect.clone()]);
     let Ability::Triggered(Triggered {
         trigger: TriggerPrefix::Finite(finite),
-        intervening_if: None,
-        body: AbilityBody::Sentences(body),
+        intervening_if,
+        body,
     }) = &triggered
     else {
         panic!("the linguistic triggered envelope is preserved")
     };
+    assert!(intervening_if.as_ref().is_none());
+    let AbilityBody::Sentences(body) = body.as_ref() else {
+        panic!("the linguistic triggered envelope has a sentence body")
+    };
     assert_eq!(finite.marker, TriggerMarker::Whenever);
-    assert_eq!(&finite.clause, &Clause::Finite(event));
+    assert_eq!(finite.clause.as_ref(), &Clause::Finite(Box::new(event)));
     assert_eq!(body.sentences(), std::slice::from_ref(&effect));
     let triggered_text = triggered.render(&plain_context, &environment);
     assert_eq!(parser.parse(&triggered_text, &plain_context), Ok(triggered));
@@ -1703,24 +1709,26 @@ fn atomic(predicate: VerbPhrase) -> Predicate {
 
 fn finite_clause(subject: Subject, predicate: VerbPhrase) -> FiniteClause {
     FiniteClause::PlainFiniteClause(
-        PlainFiniteClause::new(subject, atomic(predicate))
+        PlainFiniteClause::new(subject, Box::new(atomic(predicate)))
             .expect("the helper supplies matching subject-predicate agreement"),
     )
 }
 
 fn declarative(subject: Subject, predicate: VerbPhrase) -> Sentence {
     Sentence::Declarative(Declarative {
-        clause: Clause::Finite(finite_clause(subject, predicate)),
+        clause: Box::new(Clause::Finite(Box::new(finite_clause(subject, predicate)))),
     })
 }
 
 fn sentences(values: Vec<Sentence>) -> AbilityBody {
-    AbilityBody::Sentences(Sentences::new(values).expect("one or more sentences construct a body"))
+    AbilityBody::Sentences(
+        Sentences::new(Box::new(values)).expect("one or more sentences construct a body"),
+    )
 }
 
 fn paragraph(sentence: Sentence) -> Ability {
     Ability::Plain(Plain {
-        body: sentences(vec![sentence]),
+        body: Box::new(sentences(vec![sentence])),
     })
 }
 
@@ -1751,7 +1759,7 @@ fn connive() -> VerbPhrase {
 
 fn destroy_target_creature() -> Ability {
     paragraph(Sentence::Imperative(
-        Imperative::new(atomic(destroy(target_creature())))
+        Imperative::new(Box::new(atomic(destroy(target_creature()))))
             .expect("destroy is a valid bare imperative predicate"),
     ))
 }
@@ -1767,10 +1775,10 @@ fn triggered(trigger_clause: FiniteClause, consequences: Vec<Sentence>) -> Abili
     Ability::Triggered(Triggered {
         trigger: TriggerPrefix::Finite(Finite {
             marker: TriggerMarker::Whenever,
-            clause: Clause::Finite(trigger_clause),
+            clause: Box::new(Clause::Finite(Box::new(trigger_clause))),
         }),
-        intervening_if: None,
-        body: sentences(consequences),
+        intervening_if: Box::new(None),
+        body: Box::new(sentences(consequences)),
     })
 }
 
@@ -1838,17 +1846,17 @@ fn generic_root_api_preserves_types_and_sentence_root_metadata() {
     let trace: ParserTrace<Sentence> =
         parser.trace_sentence(text, &context, TraceLimits::new(usize::MAX));
 
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(expected),
-    }) = destroy_target_creature()
-    else {
+    let Ability::Plain(Plain { body }) = destroy_target_creature() else {
         panic!("the focused fixture is an ordinary paragraph");
+    };
+    let AbilityBody::Sentences(expected) = *body else {
+        panic!("the focused fixture has a sentence body");
     };
     let expected_sentence = expected.sentences()[0].clone();
     assert_eq!(
         ability.into_parse_result(),
         Ok(Ability::Plain(Plain {
-            body: AbilityBody::Sentences(expected.clone()),
+            body: Box::new(AbilityBody::Sentences(expected.clone())),
         }))
     );
     assert_eq!(sentence.into_parse_result(), Ok(expected_sentence.clone()));
@@ -1888,11 +1896,11 @@ fn generic_root_adapter_is_only_applied_at_the_outer_recursive_sentence_boundary
     let context = context("Context Card");
     let text =
         "You gain X life, where X is the number of creatures you control with power 2 or less.";
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(expected),
-    }) = gain_life_with_where()
-    else {
+    let Ability::Plain(Plain { body }) = gain_life_with_where() else {
         panic!("the recursive Sentence fixture is an ordinary paragraph");
+    };
+    let AbilityBody::Sentences(expected) = *body else {
+        panic!("the recursive Sentence fixture has a sentence body");
     };
     let expected = expected.sentences()[0].clone();
 
@@ -2086,11 +2094,11 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let parsed = parser
         .parse(text, &context)
         .expect("explicit card name parses");
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(paragraph),
-    }) = &parsed
-    else {
+    let Ability::Plain(Plain { body }) = &parsed else {
         panic!("named-card sentence is a paragraph: {parsed:?}");
+    };
+    let AbilityBody::Sentences(paragraph) = body.as_ref() else {
+        panic!("named-card sentence has a sentence body: {parsed:?}");
     };
     let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
@@ -2151,19 +2159,20 @@ fn bare_own_card_name_remains_unique_source_self_reference() {
     let text = "Seven Dwarves gains 2 life.";
     let analysis = parser.analyze(text, &context);
     let selected = analysis.selected().expect("source self-reference selects");
-    let Ability::Plain(Plain {
-        body: AbilityBody::Sentences(paragraph),
-    }) = selected
-    else {
+    let Ability::Plain(Plain { body }) = selected else {
         panic!("self-reference sentence is a paragraph: {selected:?}");
     };
-    let [
-        Sentence::Declarative(Declarative {
-            clause: Clause::Finite(FiniteClause::PlainFiniteClause(clause)),
-        }),
-    ] = paragraph.sentences()
-    else {
+    let AbilityBody::Sentences(paragraph) = body.as_ref() else {
+        panic!("self-reference sentence has a sentence body: {selected:?}");
+    };
+    let [Sentence::Declarative(declarative)] = paragraph.sentences() else {
         panic!("bare own card name remains source self-reference: {selected:?}");
+    };
+    let Clause::Finite(finite) = declarative.clause.as_ref() else {
+        panic!("bare own card name remains finite: {selected:?}");
+    };
+    let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
+        panic!("bare own card name remains a plain finite clause: {selected:?}");
     };
     let Subject::SubjectNominal(NominalSubject { value }) = clause.subject() else {
         panic!("bare own card name remains source self-reference: {selected:?}");

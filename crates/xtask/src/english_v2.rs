@@ -595,6 +595,7 @@ mod tests {
     const PLAN09_EXPANSION: &str = include_str!("english_v2/plan09_expansion.tsv");
     const PLAN09_TASK7_EXPANSION: &str = include_str!("english_v2/plan09_task7_expansion.tsv");
     const PLAN09_TASK8_EXPANSION: &str = include_str!("english_v2/plan09_task8_expansion.tsv");
+    const PLAN09_PART_IV: &str = include_str!("english_v2/plan09_part_iv_witnesses.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8056,6 +8057,23 @@ mod tests {
             .collect()
     }
 
+    fn parse_plan09_task9_expansion_inventory() -> Vec<(String, String)> {
+        PLAN09_PART_IV
+            .lines()
+            .filter(|line| line.starts_with("generated\t"))
+            .map(|line| {
+                let fields = line.split('\t').collect::<Vec<_>>();
+                let ["generated", item, origins_digest] = fields.as_slice() else {
+                    panic!("Task 9 generated row has three exact fields: {fields:?}");
+                };
+                (
+                    serde_json::from_str(item).expect("Task 9 generated item key is JSON"),
+                    (*origins_digest).to_owned(),
+                )
+            })
+            .collect()
+    }
+
     fn render_plan09_expansion_inventory(
         inventory: &[(String, Vec<String>)],
     ) -> Result<String, String> {
@@ -8094,6 +8112,40 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "explicit Task 9 fixture refresh expands the complete production declaration"]
+    fn refresh_plan09_task9_expansion_inventory() {
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let inventory = expansion_inventory(&expansion);
+        let mut rendered = PLAN09_PART_IV
+            .lines()
+            .take_while(|line| !line.starts_with("# expansion_schema="))
+            .collect::<Vec<_>>()
+            .join("\n");
+        writeln!(&mut rendered).expect("Task 9 fixture section terminates");
+        writeln!(&mut rendered, "# expansion_schema=1").expect("expansion schema renders");
+        writeln!(&mut rendered, "# generated_item_count={}", inventory.len())
+            .expect("expansion count renders");
+        writeln!(
+            &mut rendered,
+            "# expansion_columns=kind\titem_json\torigins_sha256"
+        )
+        .expect("expansion columns render");
+        for (item, origins) in inventory {
+            writeln!(
+                &mut rendered,
+                "generated\t{}\t{}",
+                serde_json::to_string(&item).expect("generated item encodes"),
+                sha256_hex(origins.join("\0").as_bytes()),
+            )
+            .expect("generated row renders");
+        }
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/english_v2/plan09_part_iv_witnesses.tsv");
+        fs::write(path, rendered).expect("Task 9 expansion fixture writes");
+    }
+
+    #[test]
     #[allow(
         clippy::too_many_lines,
         reason = "the authority audit compares each historical inventory and origin set together"
@@ -8112,6 +8164,7 @@ mod tests {
         let prior = parse_plan09_expansion_inventory(PLAN09_EXPANSION);
         let task7 = parse_plan09_expansion_inventory(PLAN09_TASK7_EXPANSION);
         let fixture = parse_plan09_expansion_inventory(PLAN09_TASK8_EXPANSION);
+        let task9 = parse_plan09_task9_expansion_inventory();
         let live = expansion_inventory(&expansion);
         let live_digests = live
             .iter()
@@ -8120,7 +8173,8 @@ mod tests {
         assert_eq!(prior.len(), 1_410);
         assert_eq!(task7.len(), 1_561);
         assert_eq!(fixture.len(), 1_659);
-        assert_eq!(live_digests, fixture);
+        assert_eq!(task9.len(), 1_733);
+        assert_eq!(live_digests, task9);
         let live_by_item = live_digests.iter().cloned().collect::<BTreeMap<_, _>>();
         let live_origins_by_item = live.iter().cloned().collect::<BTreeMap<_, _>>();
         let prior_by_item = prior.iter().cloned().collect::<BTreeMap<_, _>>();
@@ -8188,6 +8242,30 @@ mod tests {
             "construction instead_predicate",
             "construction manner_predicate",
         ]);
+        let task9_origin_names = BTreeSet::from([
+            "vocab VoteLabel",
+            "codec ToObjectVerb",
+            "codec ForObjectVerb",
+            "construction starting_with_you",
+            "construction predicative_scalar",
+            "construction library_object",
+            "construction power_toughness_modifier",
+            "construction control_of_reference",
+            "construction maximum_hand_size_reference",
+            "construction token_copy_reference",
+            "construction described_token_reference",
+            "construction vote_choice",
+            "construction vote_choice_list",
+            "construction positive_power_toughness_magnitude",
+            "construction power_toughness_adjustment",
+            "construction declared_to_object_predicate",
+            "construction declared_for_object_predicate",
+            "construction quoted_ability",
+            "construction quoted_ability_predicate",
+            "construction quote_terminated_statement",
+            "construction get_power_toughness",
+            "construction have_base_power_toughness",
+        ]);
         for task7_origin in &task7_origin_names {
             assert!(
                 live.iter()
@@ -8211,7 +8289,10 @@ mod tests {
                 .unwrap_or_else(|| panic!("Task 8 retains Task 7 generated item {item:?}"));
             let retained_origins = live_origins
                 .iter()
-                .filter(|origin| !task8_origin_names.contains(origin.as_str()))
+                .filter(|origin| {
+                    !task8_origin_names.contains(origin.as_str())
+                        && !task9_origin_names.contains(origin.as_str())
+                })
                 .cloned()
                 .collect::<Vec<_>>();
             assert_eq!(
@@ -8226,13 +8307,41 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(task8_new_rows.len(), 98);
         for (item, origins_digest) in task8_new_rows {
-            assert_eq!(live_by_item.get(item), Some(origins_digest));
+            let live_origins = live_origins_by_item
+                .get(item)
+                .unwrap_or_else(|| panic!("Task 9 retains Task 8 item {item:?}"));
+            let retained_origins = live_origins
+                .iter()
+                .filter(|origin| !task9_origin_names.contains(origin.as_str()))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                sha256_hex(retained_origins.join("\0").as_bytes()),
+                *origins_digest,
+                "Task 9 retains exact Task 8 origins for {item:?}",
+            );
         }
         for task8_origin in &task8_origin_names {
             assert!(
                 live.iter()
                     .any(|(_, origins)| origins.iter().any(|origin| origin == task8_origin)),
                 "Task 8 origin is live: {task8_origin:?}",
+            );
+        }
+        let fixture_by_item = fixture.iter().cloned().collect::<BTreeMap<_, _>>();
+        let task9_new_rows = task9
+            .iter()
+            .filter(|(item, _)| !fixture_by_item.contains_key(item))
+            .collect::<Vec<_>>();
+        assert_eq!(task9_new_rows.len(), 74);
+        for (item, origins_digest) in task9_new_rows {
+            assert_eq!(live_by_item.get(item), Some(origins_digest));
+        }
+        for task9_origin in &task9_origin_names {
+            assert!(
+                live.iter()
+                    .any(|(_, origins)| origins.iter().any(|origin| origin == task9_origin)),
+                "Task 9 origin is live: {task9_origin:?}",
             );
         }
         for (item, origins_digest) in &prior {
@@ -8244,6 +8353,7 @@ mod tests {
                 .filter(|origin| {
                     !task7_origin_names.contains(origin.as_str())
                         && !task8_origin_names.contains(origin.as_str())
+                        && !task9_origin_names.contains(origin.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -8268,7 +8378,7 @@ mod tests {
                 .enumerate()
                 .find(|(_, (actual, expected))| actual != expected)
         );
-        assert_eq!(headings.len() - retained_headings.len(), 497);
+        assert_eq!(headings.len() - retained_headings.len(), 571);
         for expected_key in headings {
             let header = format!("// === {expected_key} ===");
             assert_eq!(output.matches(&header).count(), 1, "{expected_key}");

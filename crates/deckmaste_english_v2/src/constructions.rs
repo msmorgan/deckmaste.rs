@@ -27,7 +27,11 @@ constructions! {
     vocab FaceOrientation { FaceUp = "face up", }
     vocab RequirementFrequency { EachCombat = "each combat", }
     vocab ObjectOrder { Any = "any", Random = "a random", }
-    vocab PredicateDuration { ThisTurn = "this turn", }
+    vocab VoteLabel { Death = "death", Taxes = "taxes", }
+    vocab PredicateDuration {
+        ThisTurn = "this turn",
+        UntilEndOfTurn = "until end of turn",
+    }
     vocab CounterfactualAbility { Flash = "flash", Hexproof = "hexproof", }
     vocab CounterfactualNegativeAuxiliary { Didnt = "didn't", }
     vocab CounterfactualPastPossession { Had = "had", }
@@ -221,6 +225,7 @@ constructions! {
             Plural = "abilities",
         },
         Card = "card",
+        Coin = "coin",
         Counter = "counter",
         Controller = "controller",
         Opponent = "opponent",
@@ -241,6 +246,9 @@ constructions! {
         Draw = "draw",
         Enter = "enter",
         Gain = "gain",
+        Get = "get" {
+            ThirdPersonSingular = "gets",
+        },
         Lose = "lose",
         Pay = "pay",
         Put = "put",
@@ -275,8 +283,16 @@ constructions! {
         Attack = "attack",
         Block = "block",
         Control = "control",
+        Copy = "copy" {
+            ThirdPersonSingular = "copies",
+        },
         Draw = "draw",
+        Flip = "flip",
+        Lose = "lose",
         Own = "own",
+        Unattach = "unattach" {
+            ThirdPersonSingular = "unattaches",
+        },
     }
     lexeme CoreNumerativeVerb using EnglishVerb { Draw = "draw", }
     lexeme DamageParticipleLexeme using EnglishParticiple {
@@ -323,6 +339,26 @@ constructions! {
                 "for",
                 sought: ObjectNounPhrase,
             ];
+            feature = Agreement;
+        }
+    }
+    codec ToObjectVerb {
+        generate declaration_verb {
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = [
+                object: ObjectNounPhrase,
+                "to",
+                complement: ObjectNounPhrase,
+            ];
+            feature = Agreement;
+        }
+    }
+    codec ForObjectVerb {
+        generate declaration_verb {
+            position = Verb;
+            kinds = [KeywordAction];
+            tail = ["for", object: ObjectNounPhrase];
             feature = Agreement;
         }
     }
@@ -487,6 +523,7 @@ constructions! {
         Status: PredicativeStatus,
         Ability: PredicativeAbilityComplement,
         PowerToughness: PredicativePowerToughnessComplement,
+        Scalar: PredicativeScalarComplement,
     }
     abstract sum PredicativeStatus {
         Plain: PredicativeStatusComplement,
@@ -499,6 +536,7 @@ constructions! {
         DeclaredTransitive: DeclaredTransitivePassivePredicate,
     }
     abstract sum ClauseAttachment {
+        StartingWithYou,
         PreposedIf,
         PreposedIfPredicate,
         PostposedIf,
@@ -736,6 +774,10 @@ constructions! {
         element PreposedIf { condition: FiniteClause, body: Clause, }
         form preposed_if = "if" condition "," body;
     }
+    construction starting_with_you: ClauseAttachment {
+        element StartingWithYou { body: Clause, }
+        form starting_with_you = "starting" "with" "you" "," body;
+    }
     construction preposed_if_predicate: ClauseAttachment {
         element PreposedIfPredicate { condition: FiniteClause, body: Predicate, }
         derive body.agreement = Values::Bare;
@@ -909,6 +951,10 @@ constructions! {
         }
         require len(magnitudes) = 2;
         form predicative_power_toughness = magnitudes;
+    }
+    construction predicative_scalar: PredicativeScalarComplement {
+        element PredicativeScalarValue { value: CardinalQuantity, }
+        form predicative_scalar = value;
     }
     construction bare_copular_predicate: BareCopularPredicate {
         element BareCopularPredicateValue {
@@ -1187,6 +1233,13 @@ constructions! {
         derive onset = value.onset;
         form object_nominal = value;
     }
+    construction library_object: Object {
+        element LibraryObject { library: LibraryReference, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form library_object = library;
+    }
     construction object_pronoun: Object {
         element PersonalObject { word: lex ObjectPronoun, }
         derive agreement = match word {
@@ -1405,6 +1458,13 @@ constructions! {
         derive number = Values::Singular;
         derive onset = color.onset;
         form color_modifier = lex(color);
+    }
+    construction power_toughness_modifier: NominalModifier {
+        element PowerToughnessModifier { value: PredicativePowerToughnessComplement, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form power_toughness_modifier = value;
     }
     construction status_modifier: NominalModifier {
         element StatusModifier { status: lex Status, }
@@ -2673,6 +2733,54 @@ constructions! {
         derive onset = Values::Consonant;
         form library_slice = "the" lex(position) cards "of" library;
     }
+    construction control_of_reference: NounPhrase {
+        element ControlOfReference { objects: NounPhrase, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form control_of_reference = "control" "of" objects;
+    }
+    construction maximum_hand_size_reference: NounPhrase {
+        element MaximumHandSizeReference { possessor: lex PossessiveDeterminerPronoun, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form maximum_hand_size_reference = lex(possessor) "maximum" "hand" "size";
+    }
+    construction token_copy_reference: NounPhrase {
+        element TokenCopyReference { source: Object, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form token_copy_reference = "a" "token" "that's" "a" "copy" "of" source;
+    }
+    construction described_token_reference: NounPhrase {
+        element DescribedTokenReference {
+            power_toughness: PredicativePowerToughnessComplement,
+            color: lex Color,
+            subtype: lex CreatureSubtypeNoun,
+            card_type: lex TypeNoun,
+        }
+        derive subtype.number = Values::Singular;
+        derive card_type.number = Values::Singular;
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form described_token_reference = "a" power_toughness lex(color)
+            noun(subtype) noun(card_type) "token";
+    }
+    construction vote_choice: VoteChoice {
+        element VoteChoiceValue { label: lex VoteLabel, }
+        form vote_choice = lex(label);
+    }
+    construction vote_choice_list: NounPhrase {
+        element VoteChoiceList { choices: seq VoteChoice separated by " or ", }
+        require len(choices) >= 2;
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form vote_choice_list = choices;
+    }
     construction possessive_self_reference: PossessiveOwner {
         element PossessiveSelfReference { spelling: identity SelfReferenceSpelling, }
         derive number = Values::Singular;
@@ -2741,6 +2849,17 @@ constructions! {
     construction negative_counter_magnitude: NegativeCounterMagnitude {
         element NegativeCounterMagnitudeValue { amount: Amount, }
         form negative_counter_magnitude = prefix("-", amount);
+    }
+    construction positive_power_toughness_magnitude: PowerToughnessAdjustmentMagnitude {
+        element PositivePowerToughnessMagnitude { amount: Amount, }
+        form positive_power_toughness_magnitude = prefix("+", amount);
+    }
+    construction power_toughness_adjustment: PowerToughnessAdjustment {
+        element PowerToughnessAdjustmentValue {
+            magnitudes: seq PowerToughnessAdjustmentMagnitude separated by "/",
+        }
+        require len(magnitudes) = 2;
+        form power_toughness_adjustment = magnitudes;
     }
     construction named_counter: CounterKind {
         element NamedCounter { name: lex CounterName, }
@@ -2993,10 +3112,59 @@ constructions! {
         derive agreement = head.agreement;
         form search_for = verb(head) location "for" sought;
     }
+    construction declared_to_object_predicate: VerbPhrase {
+        element DeclaredToObjectPredicate {
+            head: lex ToObjectVerb,
+            object: Object,
+            complement: Object,
+        }
+        derive agreement = head.agreement;
+        form declared_to_object_predicate = verb(head) object "to" complement;
+    }
+    construction declared_for_object_predicate: VerbPhrase {
+        element DeclaredForObjectPredicate {
+            head: lex ForObjectVerb,
+            object: Object,
+        }
+        derive agreement = head.agreement;
+        form declared_for_object_predicate = verb(head) "for" object;
+    }
+    construction quoted_ability: QuotedAbility {
+        element QuotedAbilityValue { ability: Ability, }
+        form quoted_ability = sentence_initial(" \"") suffix(ability, "\"");
+    }
+    construction quoted_ability_predicate: VerbPhrase {
+        element QuotedAbilityPredicate { ability: QuotedAbility, }
+        derive agreement = verb.agreement;
+        form quoted_ability_predicate = verb(VerbLexeme::Have) ability;
+    }
+    construction quote_terminated_statement: AbilityBody {
+        element QuoteTerminatedStatement {
+            subject: Subject,
+            predicate: VerbPhrase,
+        }
+        require predicate is QuotedAbilityPredicate;
+        derive predicate.agreement = subject.agreement;
+        form quote_terminated_statement = subject predicate;
+    }
     construction have_cards_in_hand: VerbPhrase {
         element HaveCardsInHand { cards: CardQuantity, }
         derive agreement = verb.agreement;
         form have_cards_in_hand = verb(VerbLexeme::Have) cards "in" "hand";
+    }
+    construction get_power_toughness: VerbPhrase {
+        element GetPowerToughness {
+            adjustment: PowerToughnessAdjustment,
+            duration: opt lex PredicateDuration,
+        }
+        derive agreement = verb.agreement;
+        form get_power_toughness = verb(VerbLexeme::Get) adjustment lex(duration);
+    }
+    construction have_base_power_toughness: VerbPhrase {
+        element HaveBasePowerToughness { value: PredicativePowerToughnessComplement, }
+        derive agreement = verb.agreement;
+        form have_base_power_toughness = verb(VerbLexeme::Have)
+            "base" "power" "and" "toughness" value;
     }
     construction have_life: VerbPhrase {
         element HaveLife { comparison: ScalarComparison, }

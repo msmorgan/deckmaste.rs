@@ -2475,6 +2475,14 @@ pub mod fixture {
             derive agreement = Values::ThirdPersonSingular;
             form third = "third";
         }
+        construction recursive_leaf: RecursiveNode {
+            element RecursiveLeaf {}
+            form recursive_leaf = "leaf";
+        }
+        construction recursive_optional: RecursiveNode {
+            element RecursiveOptional { child: opt RecursiveNode, }
+            form recursive_optional = "node" child;
+        }
         construction guarded: Child {
             element GuardedChild { mode: lex Mode, child: Child, }
             require any(
@@ -3656,6 +3664,29 @@ pub mod fixture {
                 identity: "spelling valid in context",
             },
         );
+    }
+
+    pub(super) fn assert_recursive_optional_renders_and_visits_through_generated_boxes() {
+        #[derive(Default)]
+        struct RecursiveVisitor(usize);
+
+        impl Visitor for RecursiveVisitor {
+            fn visit_recursive_leaf(&mut self, value: &RecursiveLeaf) {
+                self.0 += 1;
+                walk_recursive_leaf(self, value);
+            }
+        }
+
+        let value = RecursiveNode::RecursiveOptional(RecursiveOptional {
+            child: Box::new(Some(RecursiveNode::RecursiveLeaf(RecursiveLeaf))),
+        });
+        let mut writer = Writer::new();
+        render_recursive_node(&mut writer, &value);
+        assert_eq!(writer.finish(), "Node leaf");
+
+        let mut visitor = RecursiveVisitor::default();
+        visitor.visit_recursive_node(&value);
+        assert_eq!(visitor.0, 1);
     }
 
     pub(super) fn assert_guarded_form_partition_boundaries() {
@@ -7168,6 +7199,11 @@ fn outer_sum_preserves_selected_category_agreement_authority() {
 #[test]
 fn direct_sum_role_invokes_recursive_selected_agreement_authority() {
     fixture::assert_direct_sum_role_invokes_recursive_selected_agreement_authority();
+}
+
+#[test]
+fn recursive_optional_fields_render_and_visit_through_generated_boxes() {
+    fixture::assert_recursive_optional_renders_and_visits_through_generated_boxes();
 }
 
 #[test]

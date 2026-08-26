@@ -916,6 +916,7 @@ enum NonterminalKind {
     Sentence,
     Clause,
     ClauseAttachment,
+    StartingWithYou,
     PreposedIf,
     PreposedIfPredicate,
     PostposedIf,
@@ -946,6 +947,7 @@ enum NonterminalKind {
     BlockedByStatusComplement,
     PredicativeAbilityComplement,
     PredicativePowerToughnessComplement,
+    PredicativeScalarComplement,
     BareCopularPredicate,
     ChangeStatePredicate,
     PassiveDamagePredicate,
@@ -989,6 +991,8 @@ enum NonterminalKind {
     DamageRecipient,
     DieObject,
     ManaAmount,
+    PowerToughnessAdjustment,
+    PowerToughnessAdjustmentMagnitude,
     PositiveCounterMagnitude,
     NegativeCounterMagnitude,
     SingularHead,
@@ -1042,6 +1046,8 @@ enum NonterminalKind {
     ExistentialCondition,
     ExistentialClause,
     AmongPhrase,
+    QuotedAbility,
+    VoteChoice,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1476,6 +1482,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::Sentence => NonterminalKind::Sentence,
         NonterminalCategory::Clause => NonterminalKind::Clause,
         NonterminalCategory::ClauseAttachment => NonterminalKind::ClauseAttachment,
+        NonterminalCategory::StartingWithYou => NonterminalKind::StartingWithYou,
         NonterminalCategory::PreposedIf => NonterminalKind::PreposedIf,
         NonterminalCategory::PreposedIfPredicate => NonterminalKind::PreposedIfPredicate,
         NonterminalCategory::PostposedIf => NonterminalKind::PostposedIf,
@@ -1523,6 +1530,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::PredicativePowerToughnessComplement => {
             NonterminalKind::PredicativePowerToughnessComplement
+        }
+        NonterminalCategory::PredicativeScalarComplement => {
+            NonterminalKind::PredicativeScalarComplement
         }
         NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,
         NonterminalCategory::ChangeStatePredicate => NonterminalKind::ChangeStatePredicate,
@@ -1585,6 +1595,10 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::DamageRecipient => NonterminalKind::DamageRecipient,
         NonterminalCategory::DieObject => NonterminalKind::DieObject,
         NonterminalCategory::ManaAmount => NonterminalKind::ManaAmount,
+        NonterminalCategory::PowerToughnessAdjustment => NonterminalKind::PowerToughnessAdjustment,
+        NonterminalCategory::PowerToughnessAdjustmentMagnitude => {
+            NonterminalKind::PowerToughnessAdjustmentMagnitude
+        }
         NonterminalCategory::PositiveCounterMagnitude => NonterminalKind::PositiveCounterMagnitude,
         NonterminalCategory::NegativeCounterMagnitude => NonterminalKind::NegativeCounterMagnitude,
         NonterminalCategory::SingularHead => NonterminalKind::SingularHead,
@@ -1652,6 +1666,8 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::ExistentialCondition => NonterminalKind::ExistentialCondition,
         NonterminalCategory::ExistentialClause => NonterminalKind::ExistentialClause,
         NonterminalCategory::AmongPhrase => NonterminalKind::AmongPhrase,
+        NonterminalCategory::QuotedAbility => NonterminalKind::QuotedAbility,
+        NonterminalCategory::VoteChoice => NonterminalKind::VoteChoice,
     }
 }
 
