@@ -8231,3 +8231,318 @@ berserkersFrenzyLowRoll =
     [ Macros.choose (CountedGroup Macros.anyNumber Macros.creature)
     , Continuously (Deontic Them Require Block Agent NoDeonticPatient)
                    (Just Macros.thisTurn) ]
+
+-- The split-determiner union read. A union mention is read back either
+-- whole, by `thatJoin`, or one half at a time by the split read below; the
+-- two spellings share one antecedent, and Searing Blaze writes both.
+
+||| "target player or planeswalker": the union head the split read is
+||| written over, and the context its noun witnesses are read in.
+public export
+targetPlayerOrPlaneswalker : Noun bs (Object \/ Player)
+targetPlayerOrPlaneswalker =
+  Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker))
+
+||| "target opponent or planeswalker": the same head with the player half
+||| described, which the split read's player arm does not echo.
+public export
+targetOpponentOrPlaneswalker : Noun bs (Object \/ Player)
+targetOpponentOrPlaneswalker =
+  Macros.target (Macros.kindJoin Opponent (HasType Planeswalker))
+
+||| "each creature that player or that planeswalker's controller controls":
+||| the split read in the possessor slot of a description.
+public export
+eachCreatureThatSplitControls :
+  {bs : Bindings} ->
+  {auto 0 ck : countWord (TypeW Planeswalker) bs = 1} ->
+  {auto 0 pk : countWord PlayerW bs = 1} ->
+  Noun bs Object
+eachCreatureThatSplitControls =
+  Each (And [Macros.creature, ControlledBy (Macros.splitOverPlaneswalker {ck} {pk})])
+
+||| Lavalanche -- "deals X damage to target player or planeswalker and each
+||| creature that player or that planeswalker's controller controls."
+public export
+lavalanche : Effect []
+lavalanche =
+  Simultaneously
+    [ DealDamage This (LetterVal X) Cards.targetPlayerOrPlaneswalker
+    , DealDamage This (LetterVal X) Cards.eachCreatureThatSplitControls ]
+
+||| Flame Wave -- "deals 4 damage to target player or planeswalker and each
+||| creature that player or that planeswalker's controller controls."
+public export
+flameWave : Effect []
+flameWave =
+  Simultaneously
+    [ DealDamage This (Lit 4) Cards.targetPlayerOrPlaneswalker
+    , DealDamage This (Lit 4) Cards.eachCreatureThatSplitControls ]
+
+||| Chandra Nalaar's ultimate -- "deals 10 damage to target player or
+||| planeswalker and each creature that player or that planeswalker's
+||| controller controls."
+public export
+chandraNalaarUltimate : Effect []
+chandraNalaarUltimate =
+  Simultaneously
+    [ DealDamage This (Lit 10) Cards.targetPlayerOrPlaneswalker
+    , DealDamage This (Lit 10) Cards.eachCreatureThatSplitControls ]
+
+||| Chandra, Pyrogenius's ultimate -- "deals 6 damage to target player or
+||| planeswalker and each creature that player or that planeswalker's
+||| controller controls."
+public export
+chandraPyrogeniusUltimate : Effect []
+chandraPyrogeniusUltimate =
+  Simultaneously
+    [ DealDamage This (Lit 6) Cards.targetPlayerOrPlaneswalker
+    , DealDamage This (Lit 6) Cards.eachCreatureThatSplitControls ]
+
+||| Bonfire of the Damned -- "deals X damage to target player or
+||| planeswalker and each creature that player or that planeswalker's
+||| controller controls." The miracle cost is the card's, not this clause's.
+public export
+bonfireOfTheDamned : Effect []
+bonfireOfTheDamned =
+  Simultaneously
+    [ DealDamage This (LetterVal X) Cards.targetPlayerOrPlaneswalker
+    , DealDamage This (LetterVal X) Cards.eachCreatureThatSplitControls ]
+
+||| Chandra's Fury -- "deals 4 damage to target player or planeswalker and 1
+||| damage to each creature that player or that planeswalker's controller
+||| controls." The two halves of the union take different amounts.
+public export
+chandrasFury : Effect []
+chandrasFury =
+  Simultaneously
+    [ DealDamage This (Lit 4) Cards.targetPlayerOrPlaneswalker
+    , DealDamage This (Lit 1) Cards.eachCreatureThatSplitControls ]
+
+||| Heart of Bogardan's cumulative-upkeep trigger body -- "deals X damage to
+||| target player or planeswalker and each creature that player or that
+||| planeswalker's controller controls, where X is twice the number of age
+||| counters on this enchantment minus 2."
+public export
+heartOfBogardanBody : Effect []
+heartOfBogardanBody =
+  Sequentially
+    [ Simultaneously
+        [ DealDamage This (LetterVal X) Cards.targetPlayerOrPlaneswalker
+        , DealDamage This (LetterVal X) Cards.eachCreatureThatSplitControls ]
+    , Define X (Minus (Times 2 (CountersOn Age Macros.thisEnchantment)) (Lit 2)) ]
+
+||| Angrath, Minotaur Pirate's plus -- "Angrath deals 1 damage to target
+||| opponent or planeswalker and each creature that player or that
+||| planeswalker's controller controls." The player arm writes "player" over
+||| an antecedent that described the half as an opponent.
+public export
+angrathMinotaurPirateBolt : Effect []
+angrathMinotaurPirateBolt =
+  Simultaneously
+    [ DealDamage This (Lit 1) Cards.targetOpponentOrPlaneswalker
+    , DealDamage This (Lit 1) Cards.eachCreatureThatSplitControls ]
+
+||| Which of You Burns Brightest?'s body -- "this scheme deals X damage to
+||| target opponent or planeswalker and each creature that player or that
+||| planeswalker's controller controls." The {X} offer is the scheme
+||| trigger's, not this clause's.
+public export
+whichOfYouBurnsBrightestBody : Effect []
+whichOfYouBurnsBrightestBody =
+  Simultaneously
+    [ DealDamage This (LetterVal X) Cards.targetOpponentOrPlaneswalker
+    , DealDamage This (LetterVal X) Cards.eachCreatureThatSplitControls ]
+
+||| Chandra, Pyromaster's plus -- "deals 1 damage to target player or
+||| planeswalker and 1 damage to up to one target creature that player or
+||| that planeswalker's controller controls." The split read describes a
+||| SECOND target rather than a group.
+public export
+chandraPyromasterBolt : Effect []
+chandraPyromasterBolt =
+  Simultaneously
+    [ DealDamage This (Lit 1) Cards.targetPlayerOrPlaneswalker
+    , DealDamage This (Lit 1)
+        (TargetGroup (Macros.upTo 1)
+                     (And [Macros.creature,
+                           ControlledBy Macros.splitOverPlaneswalker])) ]
+
+||| Ravager of the Fells's transform trigger -- "deals 2 damage to target
+||| opponent or planeswalker and 2 damage to up to one target creature that
+||| player or that planeswalker's controller controls."
+public export
+ravagerOfTheFellsBolt : Effect []
+ravagerOfTheFellsBolt =
+  Simultaneously
+    [ DealDamage Macros.thisCreature (Lit 2) Cards.targetOpponentOrPlaneswalker
+    , DealDamage Macros.thisCreature (Lit 2)
+        (TargetGroup (Macros.upTo 1)
+                     (And [Macros.creature,
+                           ControlledBy Macros.splitOverPlaneswalker])) ]
+
+||| Soul of Shandalar's battlefield activation -- "deals 3 damage to target
+||| player or planeswalker and 3 damage to up to one target creature that
+||| player or that planeswalker's controller controls."
+public export
+soulOfShandalarBolt : Effect []
+soulOfShandalarBolt =
+  Simultaneously
+    [ DealDamage Macros.thisCreature (Lit 3) Cards.targetPlayerOrPlaneswalker
+    , DealDamage Macros.thisCreature (Lit 3)
+        (TargetGroup (Macros.upTo 1)
+                     (And [Macros.creature,
+                           ControlledBy Macros.splitOverPlaneswalker])) ]
+
+||| Soul of Shandalar's graveyard activation -- the same clause a second
+||| time, over the same union head; the card's two occurrences differ only
+||| in the ability's cost and source.
+public export
+soulOfShandalarGraveyardBolt : Effect []
+soulOfShandalarGraveyardBolt =
+  Simultaneously
+    [ DealDamage This (Lit 3) Cards.targetPlayerOrPlaneswalker
+    , DealDamage This (Lit 3)
+        (TargetGroup (Macros.upTo 1)
+                     (And [Macros.creature,
+                           ControlledBy Macros.splitOverPlaneswalker])) ]
+
+||| Blightning -- "deals 3 damage to target player or planeswalker. That
+||| player or that planeswalker's controller discards two cards." The split
+||| read in a clause's SUBJECT, where the group-A cards put it in a
+||| possessor.
+public export
+blightning : Effect []
+blightning =
+  Sequentially
+    [ DealDamage This (Lit 3) Cards.targetPlayerOrPlaneswalker
+    , Repeated (Lit 2) (Macros.discardsACard Macros.splitOverPlaneswalker) ]
+
+||| Rakdos's Return -- "deals X damage to target opponent or planeswalker.
+||| That player or that planeswalker's controller discards X cards." The
+||| player arm writes "player" over an antecedent that said "opponent".
+public export
+rakdossReturn : Effect []
+rakdossReturn =
+  Sequentially
+    [ DealDamage This (LetterVal X) Cards.targetOpponentOrPlaneswalker
+    , Repeated (LetterVal X) (Macros.discardsACard Macros.splitOverPlaneswalker) ]
+
+||| Nicol Bolas, Planeswalker's ultimate -- "deals 7 damage to target player
+||| or planeswalker. That player or that planeswalker's controller discards
+||| seven cards, then sacrifices seven permanents of their choice."
+public export
+nicolBolasUltimate : Effect []
+nicolBolasUltimate =
+  Sequentially
+    [ DealDamage This (Lit 7) Cards.targetPlayerOrPlaneswalker
+    , Repeated (Lit 7) (Macros.discardsACard Macros.splitOverPlaneswalker)
+    , Repeated (Lit 7) (Macros.sacrifice Macros.splitOverPlaneswalker
+                                         (Macros.a Permanent)) ]
+
+||| Pulse of the Forge -- "deals 4 damage to target player or planeswalker.
+||| Then if that player or that planeswalker's controller has more life than
+||| you, return Pulse of the Forge to its owner's hand." The split read as a
+||| comparison's subject.
+public export
+pulseOfTheForge : Effect []
+pulseOfTheForge =
+  Sequentially
+    [ DealDamage This (Lit 4) Cards.targetPlayerOrPlaneswalker
+    , If (CompareAmt (PlayerStatOf LifeTotal Macros.splitOverPlaneswalker)
+                     Greater (PlayerStatOf LifeTotal You))
+         (Macros.move This Macros.handZ)
+         Nothing ]
+
+||| Goblin Lyre's losing arm -- "this artifact deals damage to you equal to
+||| the number of creatures that opponent or that planeswalker's controller
+||| controls." The split read inside an amount, and the one occurrence whose
+||| player arm writes "opponent" rather than "player".
+public export
+goblinLyreLoseFlip : Effect []
+goblinLyreLoseFlip =
+  Sequentially
+    [ DealDamage Macros.thisArtifact (CountOf Macros.creatureYouControl)
+                 Cards.targetOpponentOrPlaneswalker
+    , DealDamage Macros.thisArtifact
+                 (CountOf (And [Macros.creature,
+                                ControlledBy Macros.splitOverPlaneswalker]))
+                 You ]
+
+||| Chain of Plasma's second sentence, subject only -- "Then that player or
+||| that permanent's controller may discard a card." The class arm over the
+||| class word [CR#115.4], which records no card type, so it writes the
+||| generic "permanent" instead of an echo. A `May` body cannot name its own
+||| decider once the decider is not `you`, so the offer is unwritten and the
+||| noun is witnessed in the context the first sentence leaves.
+public export
+chainOfPlasmaOfferee : Noun (nomIntro {bs = []} (Macros.target Macros.anyTarget)) Player
+chainOfPlasmaOfferee = Macros.splitOverPermanent
+
+||| Chain Lightning's second sentence, subject only -- "Then that player or
+||| that permanent's controller may pay {R}{R}." No effect row offers a bare
+||| cost payment, so the clause is unwritten; the noun is the same term over
+||| the same head as Chain of Plasma's.
+public export
+chainLightningPayer : Noun (nomIntro {bs = []} (Macros.target Macros.anyTarget)) Player
+chainLightningPayer = Macros.splitOverPermanent
+
+||| Flames of the Blood Hand's third sentence, subject only -- "If that
+||| player or that planeswalker's controller would gain life this turn, that
+||| player gains no life instead." No row replaces a life gain over a span,
+||| so the clause is unwritten and the noun is witnessed in the context the
+||| card's first sentence leaves.
+public export
+flamesOfTheBloodHandSubject :
+  Noun (nomIntro {bs = []} Cards.targetPlayerOrPlaneswalker) Player
+flamesOfTheBloodHandSubject = Macros.splitOverPlaneswalker
+
+||| Flaming Gambit's second sentence, subject only -- "That player or that
+||| planeswalker's controller may choose a creature they control and have
+||| Flaming Gambit deal that damage to it instead." Neither the redirection
+||| nor an offer naming its own decider is written, so the noun is witnessed
+||| in the context the first sentence leaves.
+public export
+flamingGambitOfferee :
+  Noun (nomIntro {bs = []} Cards.targetPlayerOrPlaneswalker) Player
+flamingGambitOfferee = Macros.splitOverPlaneswalker
+
+||| Quenchable Fire -- "deals 3 damage to target player or planeswalker. It
+||| deals an additional 3 damage to that player or planeswalker at the
+||| beginning of your next upkeep step unless that player or that
+||| planeswalker's controller pays {U} before that step." One union mention
+||| read BOTH ways in one sentence: `thatJoin` echoes it whole in the
+||| recipient slot and the split read names its halves in the payer slot.
+public export
+quenchableFire : Effect []
+quenchableFire =
+  Sequentially
+    [ DealDamage This (Lit 3) Cards.targetPlayerOrPlaneswalker
+    , Macros.delayed (BeginningOf Upkeep (ByWord Yours))
+        (Unless (DealDamage This (Lit 3) Macros.thatJoin)
+                Macros.splitOverPlaneswalker
+                (Mana [Macros.pip Blue])) ]
+
+||| Searing Blaze, both sentences -- "deals 1 damage to target player or
+||| planeswalker and 1 damage to target creature that player or that
+||| planeswalker's controller controls. Landfall — If you had a land enter
+||| the battlefield under your control this turn, … deals 3 damage to that
+||| player or planeswalker and 3 damage to that creature instead." The whole
+||| echo and the split read over ONE antecedent, which is what says the two
+||| spellings are one construction. The landfall CONDITION is unwritten: a
+||| replacement that applies only when a condition holds has no shape here,
+||| since an `If` around the replacement drops the clause it replaces.
+public export
+searingBlaze : Ability
+searingBlaze =
+  AbilityWord Landfall
+    (Spell
+      (Macros.insteadOf
+        (Simultaneously
+           [ DealDamage This (Lit 1) Cards.targetPlayerOrPlaneswalker
+           , DealDamage This (Lit 1)
+               (Macros.target (And [Macros.creature,
+                                    ControlledBy Macros.splitOverPlaneswalker])) ])
+        (Simultaneously
+           [ DealDamage This (Lit 3) Macros.thatJoin
+           , DealDamage This (Lit 3) (That (TypeW Creature)) ])))
