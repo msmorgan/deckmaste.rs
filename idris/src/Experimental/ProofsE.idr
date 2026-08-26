@@ -126,7 +126,7 @@ badAscribeKindred Oh impossible
 ||| [CR#205.1a] sorts subtypes into one set per card type, so an enchantment type carried by a land word names nothing.
 public export
 badAscribeForeignSubtype : Unspellable (Noun [] Object) (\ok =>
-  AsType Land This (Just Aura) {way = ok})
+  AsType Land This (Just (enchantmentType "Aura")) {way = ok})
 badAscribeForeignSubtype Oh impossible
 
 
@@ -321,7 +321,7 @@ badAnaphoricTokenAfterNonToken Refl impossible
 public export
 badStillOnSubtypeSet : Unspellable (StaticEffect []) (\ok =>
   SetsType (Macros.target Macros.creature)
-           (MkToken Nothing [] (MkTypeLine [Coward] []) [] Nothing)
+           (MkToken Nothing [] (MkTypeLine [creatureType "Coward"] []) [] Nothing)
            (Just Land) {ro = ok})
 badStillOnSubtypeSet Oh impossible
 
@@ -422,7 +422,7 @@ badSpellIndestructible Oh impossible
 public export
 badSiegeWithoutBattle : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
-       (MkTypeLine [Siege] [Kindred, Enchantment])
+       (MkTypeLine [battleType "Siege"] [Kindred, Enchantment])
        [KeywordAbility Flying Nothing] Nothing {ln = ok})
 badSiegeWithoutBattle MkCardLine impossible
 
@@ -432,7 +432,7 @@ badSiegeWithoutBattle MkCardLine impossible
 public export
 badKindredAlone : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2]) []
-       (MkTypeLine [Merfolk] [Kindred])
+       (MkTypeLine [creatureType "Merfolk"] [Kindred])
        [KeywordAbility Flying Nothing] Nothing {ln = ok})
 badKindredAlone MkCardLine impossible
 
@@ -451,7 +451,7 @@ badPlaneswalkerAttacks Participant impossible
 public export
 badTokenSpellAbility : Unspellable (Effect []) (\ok =>
   Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
-                                 (MkTypeLine [Soldier] [Creature])
+                                 (MkTypeLine [creatureType "Soldier"] [Creature])
                                  [Spell Macros.drawACard] Nothing) {ta = ok})
 badTokenSpellAbility Oh impossible
 
@@ -571,7 +571,7 @@ badTokenCopyAsCopyMention (Refl, _) impossible
 public export
 badOtherwiseReadsLeadingArm : Unspellable (Effect []) (\ok =>
   If (Exists Macros.creatureYouControl)
-     (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [Zombie]))
+     (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
      (Just (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsLeadingArm (Refl, _) impossible
 

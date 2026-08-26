@@ -290,7 +290,7 @@ badIfNotReadsMayBody Refl impossible
 ||| A subtype sits on one card type's own set [CR#205.1a], and this one is a creature type [CR#205.3m].
 public export
 badZombieArtifactToken : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [Black] (MkTypeLine [Zombie] [Artifact])
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [Black] (MkTypeLine [creatureType "Zombie"] [Artifact])
                           [] Nothing) {sf = ok})
 badZombieArtifactToken Oh impossible
 
@@ -299,7 +299,7 @@ badZombieArtifactToken Oh impossible
 ||| A token has only the characteristics its effect defines [CR#111.3]; a creature needs P/T [CR#208.1].
 public export
 badCreatureTokenNoPt : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [Soldier] [Creature]) [] Nothing) {tp = ok})
+  Macros.create (Lit 1) (MkToken Nothing [White] (MkTypeLine [creatureType "Soldier"] [Creature]) [] Nothing) {tp = ok})
 badCreatureTokenNoPt Oh impossible
 
 
@@ -342,7 +342,7 @@ badTokenDuplicateType Oh impossible
 ||| Same surface phrase: a color written twice is a word written twice.
 public export
 badTokenDuplicateColor : Unspellable (Effect []) (\ok =>
-  Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [Soldier]) {tc = ok})
+  Macros.create (Lit 1) (Macros.creatureTok 1 1 [White, White] [creatureType "Soldier"]) {tc = ok})
 badTokenDuplicateColor Oh impossible
 
 
@@ -350,7 +350,7 @@ badTokenDuplicateColor Oh impossible
 ||| A creature subtype has nowhere to sit on a land [CR#205.1a]; the line must name the card type.
 public export
 badBecomesZombieLand : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.land) (Macros.subtypesOnly [Zombie]) Nothing {af = ok})
+  Macros.becomes (Macros.target Macros.land) (Macros.subtypesOnly [creatureType "Zombie"]) Nothing {af = ok})
 badBecomesZombieLand Oh impossible
 
 
@@ -375,7 +375,7 @@ badBecomesOwnType Oh impossible
 ||| The "Otherwise" arm runs when the condition was false, so the clause it replaces never happened.
 public export
 badOtherwiseReadsIfArm : Unspellable (Effect []) (\ok =>
-  OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [Zombie]))
+  OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Black] [creatureType "Zombie"]))
      (Exists Macros.creatureYouControl)
      (Just (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok})))
 badOtherwiseReadsIfArm (Refl, _) impossible
@@ -444,7 +444,7 @@ badChooseYou BareChoice impossible
 ||| A conditioned clause is a hole: the condition may be false, and then its phrase named nothing.
 public export
 badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
-  Sequentially [OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier]))
+  Sequentially [OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
                    (Exists Macros.creatureYouControl)
                    Nothing,
                 PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
@@ -456,8 +456,8 @@ badConditionalArmAntecedent Refl impossible
 public export
 badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [May (Just You) (Macros.gainsLife You (Lit 1))
-                     (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier])))
-                     (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [Soldier]))),
+                     (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])))
+                     (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))),
                 PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
 badBothArmsAntecedent Refl impossible
 
@@ -543,7 +543,7 @@ badSimultaneousReadsOutcome Refl impossible
 ||| The offer turns on the choice to pay [CR#118.12], and a batch acts at once [CR#608.2f].
 public export
 badSimultaneousReadsMayDeed : Unspellable (Effect []) (\ok =>
-  Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant])),
+  Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])),
                   PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
 badSimultaneousReadsMayDeed Refl impossible
 
@@ -561,8 +561,8 @@ badSimultaneousReadsMayOutcome Refl impossible
 ||| A batch leaves every element's deed behind [CR#608.2f], so two creates leave no single "it".
 public export
 badBatchTwoCreatesThenIt : Unspellable (Effect []) (\ok =>
-  Sequentially [Simultaneously [Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Plant]),
-                               Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier])],
+  Sequentially [Simultaneously [Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"]),
+                               Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])],
                 PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
 badBatchTwoCreatesThenIt Refl impossible
 

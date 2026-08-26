@@ -175,7 +175,7 @@ badChosenBasicTypeOnCreature Oh impossible
 public export
 badCreaturesAreMountains : Unspellable (StaticEffect []) (\ok =>
   SetsType (AllOf Macros.creature)
-           (MkToken Nothing [] (Macros.basicLandLine [Mountain]) [] Nothing)
+           (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"]) [] Nothing)
            Nothing {af = ok})
 badCreaturesAreMountains Oh impossible
 
@@ -232,7 +232,7 @@ badChosenReadWrongSort Refl impossible
 ||| [CR#608.2c] runs the lines in the order written, so the parameter reads a colour nobody has chosen yet.
 public export
 badChosenProtectionBeforeChoice : Unspellable Card (\ok =>
-  Macros.card "" Nothing [] (MkTypeLine [Angel] [Creature])
+  Macros.card "" Nothing [] (MkTypeLine [creatureType "Angel"] [Creature])
        [ Static (Gains Macros.thisCreature
                        (KeywordAbility Protection (Just (ParamQuality (OfChosen Color {ok = ok})))))
        , Static (EntersChoice Macros.thisCreature Color Nothing) ]
@@ -296,7 +296,7 @@ badNameMatchWrongSort Refl impossible
 ||| [CR#205.3m] is the creature-type list, and the subtype catalog is wider than the sort.
 public export
 badNonCreatureTypeExclusion : Unspellable (ChoiceDomain CreatureType) (\ok =>
-  TypeOtherThan Equipment {ct = ok})
+  TypeOtherThan (artifactType "Equipment") {ct = ok})
 badNonCreatureTypeExclusion Refl impossible
 
 
@@ -473,7 +473,7 @@ badAltCostLoyaltySymbol AltPaymentWritten impossible
 public export
 badAltCostClause : Unspellable (Effect []) (\ok =>
   Continuously (AltCost (Just (Do (Macros.sacrifice You
-                  (Macros.a (And [Macros.land, HasSubtype Mountain]))))))
+                  (Macros.a (And [Macros.land, HasSubtype (landType "Mountain")]))))))
                Nothing {cl = ok})
 badAltCostClause Oh impossible
 

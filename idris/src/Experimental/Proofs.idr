@@ -107,7 +107,7 @@ badKeywordContradiction Oh impossible
 ||| Forest is a land type [CR#205.3i], so the conjunction contradicts itself.
 public export
 badForestNonland : Unspellable (Effect []) (\ok =>
-  SetStatus Tapped (Macros.target (And [HasSubtype Forest, Not Macros.land] {cf = ok})))
+  SetStatus Tapped (Macros.target (And [HasSubtype (landType "Forest"), Not Macros.land] {cf = ok})))
 badForestNonland Oh impossible
 
 
@@ -115,7 +115,7 @@ badForestNonland Oh impossible
 ||| The type line's distinctness is per WORD, not per line.
 public export
 badDuplicateSnow : Unspellable Card (\ok =>
-  Macros.card "" Nothing [Snow, Snow] (MkTypeLine [Forest] [Land]) [] Nothing {sp = ok})
+  Macros.card "" Nothing [Snow, Snow] (MkTypeLine [landType "Forest"] [Land]) [] Nothing {sp = ok})
 badDuplicateSnow Oh impossible
 
 

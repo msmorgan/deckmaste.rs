@@ -15,7 +15,7 @@ import Experimental.Unspellable
 public export
 badDistributedCreationIt : Unspellable (Effect []) (\ok =>
   Sequentially [Create (Each AnyPlayer) (Lit 1)
-                       (TokenWritten (Macros.creatureTok 1 1 [Green] [Plant])) [],
+                       (TokenWritten (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])) [],
                 PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
 badDistributedCreationIt Refl impossible
 
@@ -222,7 +222,7 @@ badWouldDieInGraveyard Oh impossible
 public export
 badInterceptReplacementAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [ Macros.nextTimeWouldInstead (Draws You)
-                                      (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Soldier]))
+                                      (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Soldier"]))
                                       (Just Macros.thisTurn)
                , Macros.sacrifice You (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}
                ])
@@ -418,7 +418,7 @@ badEmptyManaCost IsNonEmpty impossible
 ||| A hybrid Phyrexian symbol names two different colors [CR#107.4f].
 public export
 badSameColorPhyrexian : Unspellable ManaSymbol (\ok =>
-  PhyrexianMana White (Just White) {ds = ok})
+  Phyrexian White (Just White) {ds = ok})
 badSameColorPhyrexian Oh impossible
 
 
@@ -559,7 +559,7 @@ badAfterReflexiveReadsTrigger : Unspellable (Effect []) (\ok =>
   Sequentially [Reflexively (Does You "Mill" (Move (LibrarySlice OnTop (Lit 4) You)
                                                  Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)))
                             (Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
-                                                     (MkTypeLine [Soldier] [Creature])
+                                                     (MkTypeLine [creatureType "Soldier"] [Creature])
                                                      [] Nothing)),
                 SetStatus Tapped (That (TypeW Creature) {ok = Builtin.fst ok}) {ok = Builtin.snd ok}])
 badAfterReflexiveReadsTrigger (Refl, _) impossible

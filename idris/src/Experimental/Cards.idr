@@ -78,7 +78,7 @@ zombieInfestation =
   Macros.activated (Do (Macros.discardN (Lit 2)))
                    (Macros.create (Lit 1)
                       (MkToken (Just (Lit 2 ** Lit 2)) [Black]
-                               (MkTypeLine [Zombie] [Creature]) [] Nothing))
+                               (MkTypeLine [creatureType "Zombie"] [Creature]) [] Nothing))
 
 suspendedSentence : Effect []
 suspendedSentence = Sequentially [Macros.destroy (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent])),
@@ -306,32 +306,32 @@ yawgmothDemon =
 
 
 raiseTheAlarm : Effect []
-raiseTheAlarm = Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [Soldier])
+raiseTheAlarm = Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])
 
 additiveEvolution : Effect []
-additiveEvolution = Sequentially [Macros.create (Lit 1) (Macros.creatureTok 0 0 [Green, Blue] [Fractal]),
+additiveEvolution = Sequentially [Macros.create (Lit 1) (Macros.creatureTok 0 0 [Green, Blue] [creatureType "Fractal"]),
                                   PutCounters (Lit 3) Macros.plusOnePlusOne It]
 
 aviationPioneer : Effect []
 aviationPioneer =
-  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [Thopter] [Artifact, Creature])
+  Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [creatureType "Thopter"] [Artifact, Creature])
                           [Macros.keyword Flying] Nothing)
 
 fireNavyTrebuchet : Effect []
 fireNavyTrebuchet =
   Macros.createTappedAttacking (Lit 1)
-    (MkToken (Just (Lit 2 ** Lit 1)) [] (MkTypeLine [Construct] [Artifact, Creature])
+    (MkToken (Just (Lit 2 ** Lit 1)) [] (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
              [Macros.keyword Flying] (Just "Ballistic Boulder"))
 
 amassZombiesTwo : Effect []
 amassZombiesTwo =
-  Sequentially [If (Macros.notSo (Exists (And [HasSubtype Army, Macros.creature, ControlledBy You])))
-                   (Macros.create (Lit 1) (Macros.creatureTok 0 0 [Black] [Zombie, Army]))
+  Sequentially [If (Macros.notSo (Exists (And [HasSubtype (creatureType "Army"), Macros.creature, ControlledBy You])))
+                   (Macros.create (Lit 1) (Macros.creatureTok 0 0 [Black] [creatureType "Zombie", creatureType "Army"]))
                    Nothing,
-                Macros.choose (Macros.a (And [HasSubtype Army, Macros.creature, ControlledBy You])),
+                Macros.choose (Macros.a (And [HasSubtype (creatureType "Army"), Macros.creature, ControlledBy You])),
                 PutCounters (Lit 2) Macros.plusOnePlusOne (That (TypeW Creature)),
-                If (Macros.itIsntA (HasSubtype Zombie))
-                   (Macros.becomes It (Macros.subtypesOnly [Zombie]) Nothing)
+                If (Macros.itIsntA (HasSubtype (creatureType "Zombie")))
+                   (Macros.becomes It (Macros.subtypesOnly [creatureType "Zombie"]) Nothing)
                    Nothing]
 
 battlegrowth : Effect []
@@ -378,16 +378,16 @@ neurokTransmuter = Macros.becomes (Macros.target Macros.creature) (Macros.typesO
 
 cowardKiller : Effect []
 cowardKiller = Sequentially [Macros.cantBlock (Macros.target Macros.creature) (Just Macros.thisTurn),
-                             Macros.becomes (That (TypeW Creature)) (Macros.subtypesOnly [Coward])
+                             Macros.becomes (That (TypeW Creature)) (Macros.subtypesOnly [creatureType "Coward"])
                                      (Just Macros.untilEndOfTurn)]
 
 clavilenoPhrase : Predicate [] Object
-clavilenoPhrase = And [Macros.creature, Attacking, Not (HasSubtype Demon)]
+clavilenoPhrase = And [Macros.creature, Attacking, Not (HasSubtype (creatureType "Demon"))]
 
 unholyAnnex : Effect []
 unholyAnnex =
   Sequentially [Macros.drawACard,
-                If (Exists (And [HasSubtype Demon, ControlledBy You]))
+                If (Exists (And [HasSubtype (creatureType "Demon"), ControlledBy You]))
                    (Sequentially [Macros.losesLife (Each Opponent) (Lit 2),
                                   Macros.gainsLife You (Lit 2)])
                    (Just (Macros.losesLife You (Lit 2)))]
@@ -406,7 +406,7 @@ public export
 cheeringFanatic : Card
 cheeringFanatic =
   Macros.card "Cheering Fanatic" (Just [Macros.generic 1, Macros.pip Red]) []
-       (MkTypeLine [Goblin] [Creature])
+       (MkTypeLine [creatureType "Goblin"] [Creature])
        [ Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
                           (Sequentially
                      [ Macros.choose (Macros.a (Macros.quality CardName))
@@ -511,7 +511,7 @@ phyrexianInfiltrator =
 
 grismold : Effect []
 grismold = Create (Each AnyPlayer) (Lit 1)
-                  (TokenWritten (Macros.creatureTok 1 1 [Green] [Plant])) []
+                  (TokenWritten (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])) []
 
 sparkmagesGambit : Effect []
 sparkmagesGambit =
@@ -716,7 +716,7 @@ solitaryConfinement = Macros.mayElse You (Macros.discardsACard You) (Macros.sacr
 securityDetail : Ability
 securityDetail =
   Macros.activatedOnlyOnceIf (Mana [Macros.pip White, Macros.pip White])
-                             (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Soldier]))
+                             (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
                              OncePerTurn
                              (Macros.notSo (Exists (And [Macros.creature, ControlledBy You])))
 
@@ -846,7 +846,7 @@ preeminentCaptain : Ability
 preeminentCaptain =
   Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
     (Macros.may You (Macros.putOntoBattlefieldTappedAttacking
-                (Macros.a (And [HasSubtype Soldier, Macros.creature, InZone (Macros.handOf You)]))))
+                (Macros.a (And [HasSubtype (creatureType "Soldier"), Macros.creature, InZone (Macros.handOf You)]))))
 
 hymnOfRebirth : Effect []
 hymnOfRebirth =
@@ -867,7 +867,7 @@ silentAssassin =
 workhorse : Card
 workhorse =
   Macros.card "Workhorse" (Just [Macros.generic 6]) []
-       (MkTypeLine [Horse] [Artifact, Creature])
+       (MkTypeLine [creatureType "Horse"] [Artifact, Creature])
        [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 4) Macros.plusOnePlusOne)
        , Macros.activated (Do (RemoveCounters (Lit 1) (Just Macros.plusOnePlusOne) Macros.thisCreature))
                           (AddMana You (Lit 1) (Runs [[Colorless]]) []) ]
@@ -896,12 +896,12 @@ escapeToTheWilds =
 
 scatheZombies : Card
 scatheZombies = Macros.card "Scathe Zombies" (Just [Macros.generic 2, Macros.pip Black]) []
-                     (MkTypeLine [Zombie] [Creature]) [] (Just (2, 2))
+                     (MkTypeLine [creatureType "Zombie"] [Creature]) [] (Just (2, 2))
 
 rorixBladewing : Card
 rorixBladewing =
   Macros.card "Rorix Bladewing" (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red, Macros.pip Red])
-       [Legendary] (MkTypeLine [Dragon] [Creature])
+       [Legendary] (MkTypeLine [creatureType "Dragon"] [Creature])
        [Macros.keyword Flying, Macros.keyword Haste] (Just (6, 5))
 
 aladdinsRing : Card
@@ -983,7 +983,7 @@ aerialVolley =
 yotianSoldier : Card
 yotianSoldier =
   Macros.card "Yotian Soldier" (Just [Macros.generic 3]) []
-       (MkTypeLine [Soldier] [Artifact, Creature])
+       (MkTypeLine [creatureType "Soldier"] [Artifact, Creature])
        [Macros.keyword Vigilance] (Just (1, 4))
 
 ||| Pym Particles
@@ -999,17 +999,17 @@ voidChoice = Macros.choose (Macros.a (Macros.quality Number))
 
 basicLandCards : List Card
 basicLandCards =
-  [ Macros.card "Plains" Nothing [Basic] (MkTypeLine [Plains] [Land]) [] Nothing
-  , Macros.card "Island" Nothing [Basic] (MkTypeLine [Island] [Land]) [] Nothing
-  , Macros.card "Swamp" Nothing [Basic] (MkTypeLine [Swamp] [Land]) [] Nothing
-  , Macros.card "Mountain" Nothing [Basic] (MkTypeLine [Mountain] [Land]) [] Nothing
-  , Macros.card "Forest" Nothing [Basic] (MkTypeLine [Forest] [Land]) [] Nothing
+  [ Macros.card "Plains" Nothing [Basic] (MkTypeLine [landType "Plains"] [Land]) [] Nothing
+  , Macros.card "Island" Nothing [Basic] (MkTypeLine [landType "Island"] [Land]) [] Nothing
+  , Macros.card "Swamp" Nothing [Basic] (MkTypeLine [landType "Swamp"] [Land]) [] Nothing
+  , Macros.card "Mountain" Nothing [Basic] (MkTypeLine [landType "Mountain"] [Land]) [] Nothing
+  , Macros.card "Forest" Nothing [Basic] (MkTypeLine [landType "Forest"] [Land]) [] Nothing
   ]
 
 snowCoveredForest : Card
 snowCoveredForest =
   Macros.card "Snow-Covered Forest" Nothing [Basic, Snow]
-       (MkTypeLine [Forest] [Land]) [] Nothing
+       (MkTypeLine [landType "Forest"] [Land]) [] Nothing
 
 bladebrand : Effect []
 bladebrand =
@@ -1036,7 +1036,7 @@ songOfEarendil =
 deathByDragons : Effect []
 deathByDragons =
   Create (Each (And [AnyPlayer, OtherThan (Macros.target AnyPlayer)])) (Lit 1)
-         (TokenWritten (MkToken (Just (Lit 5 ** Lit 5)) [Red] (MkTypeLine [Dragon] [Creature])
+         (TokenWritten (MkToken (Just (Lit 5 ** Lit 5)) [Red] (MkTypeLine [creatureType "Dragon"] [Creature])
                                 [Macros.keyword Flying] Nothing)) []
 
 ||| Terrifying Presence
@@ -1444,7 +1444,7 @@ adantoVanguard =
 bloodshedFever : Card
 bloodshedFever =
   Macros.card "Bloodshed Fever" (Just [Macros.pip Red]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (Deontic (AttachHost Enchanted (TypeW Creature))
                          Require Attack Agent NoDeonticPatient) ]
@@ -1453,7 +1453,7 @@ bloodshedFever =
 brainwash : Card
 brainwash =
   Macros.card "Brainwash" (Just [Macros.pip White]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (Deontic (AttachHost Enchanted (TypeW Creature))
                          (GatedBy (Mana [Macros.generic 3])) Attack Agent NoDeonticPatient) ]
@@ -1467,7 +1467,7 @@ enkiraHostileScavenger =
 extraArms : Card
 extraArms =
   Macros.card "Extra Arms" (Just [Macros.generic 4, Macros.pip Red]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Macros.triggered Whenever (Macros.attacks (AttachHost Enchanted (TypeW Creature)))
                           (DealDamage It (Lit 2) (Macros.target Macros.anyTarget)) ]
@@ -1493,7 +1493,7 @@ phageTheUntouchable =
 platinumAngel : Card
 platinumAngel =
   Macros.card "Platinum Angel" (Just [Macros.generic 7]) []
-       (MkTypeLine [Angel] [Artifact, Creature])
+       (MkTypeLine [creatureType "Angel"] [Artifact, Creature])
        [ Macros.keyword Flying
        , Static (OutcomeGate CantLose You)
        , Static (OutcomeGate CantWin (PlayerGroup YourOpponents)) ]
@@ -1503,7 +1503,7 @@ abyssalPersecutor : Card
 abyssalPersecutor =
   Macros.card "Abyssal Persecutor"
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Demon] [Creature])
+       (MkTypeLine [creatureType "Demon"] [Creature])
        [ Macros.keyword Flying
        , Macros.keyword Trample
        , Static (OutcomeGate CantWin You)
@@ -1515,7 +1515,7 @@ smogElemental : Card
 smogElemental =
   Macros.card "Smog Elemental"
        (Just [Macros.generic 4, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Elemental] [Creature])
+       (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.keyword Flying
        , Static (Gets (AllOf (And [Macros.creature, HasKeyword Flying,
                                    ControlledBy (PlayerGroup YourOpponents)]))
@@ -1552,7 +1552,7 @@ felidarSovereign : Card
 felidarSovereign =
   Macros.card "Felidar Sovereign"
        (Just [Macros.generic 4, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Cat, Beast] [Creature])
+       (MkTypeLine [creatureType "Cat", creatureType "Beast"] [Creature])
        [ Macros.keyword Vigilance
        , Macros.keyword Lifelink
        , Macros.triggeredIf At
@@ -1566,7 +1566,7 @@ exquisiteArchangel : Card
 exquisiteArchangel =
   Macros.card "Exquisite Archangel"
        (Just [Macros.generic 5, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Angel] [Creature])
+       (MkTypeLine [creatureType "Angel"] [Creature])
        [ Macros.keyword Flying
        , Static (Intercepts (LosesGame You)
                             (Sequentially [Macros.exile Macros.thisCreature,
@@ -1596,7 +1596,7 @@ timelyReinforcements =
                   , If (CompareAmt (CountOf Macros.creatureYouControl) Less
                                    (CountOf (And [Macros.creature,
                                                   ControlledBy Macros.anOpponent])))
-                       (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [Soldier]))
+                       (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
                        Nothing ]) ]
        Nothing
 
@@ -1635,7 +1635,7 @@ gloriousEnforcer : Card
 gloriousEnforcer =
   Macros.card "Glorious Enforcer"
        (Just [Macros.generic 5, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Angel] [Creature])
+       (MkTypeLine [creatureType "Angel"] [Creature])
        [ Macros.keyword Flying
        , Macros.keyword Lifelink
        , Macros.triggeredIf At
@@ -1672,8 +1672,8 @@ krenko =
   Macros.activated TapSymbol
        (Sequentially
           [ Create You (LetterVal X)
-                   (TokenWritten (Macros.creatureTok 1 1 [Red] [Goblin])) []
-          , Define X (CountOf (And [HasSubtype Goblin, ControlledBy You])) ])
+                   (TokenWritten (Macros.creatureTok 1 1 [Red] [creatureType "Goblin"])) []
+          , Define X (CountOf (And [HasSubtype (creatureType "Goblin"), ControlledBy You])) ])
 
 chainReaction : Card
 chainReaction =
@@ -1723,11 +1723,11 @@ nightmarishEnd =
 adelbertSteiner : Card
 adelbertSteiner =
   Macros.card "Adelbert Steiner" (Just [Macros.generic 1, Macros.pip White])
-       [Legendary] (MkTypeLine [Human, Knight] [Creature])
+       [Legendary] (MkTypeLine [creatureType "Human", creatureType "Knight"] [Creature])
        [ Macros.keyword Lifelink
        , Static (Gets Macros.thisCreature
-               (PtUp (Macros.forEach (And [HasSubtype Equipment, ControlledBy You])))
-               (PtUp (Macros.forEach (And [HasSubtype Equipment, ControlledBy You])))) ]
+               (PtUp (Macros.forEach (And [HasSubtype (artifactType "Equipment"), ControlledBy You])))
+               (PtUp (Macros.forEach (And [HasSubtype (artifactType "Equipment"), ControlledBy You])))) ]
        (Just (2, 1))
 
 ||| Dokai, Weaver of Life
@@ -1738,14 +1738,14 @@ dokai =
        (Sequentially
           [ Macros.create (Lit 1)
               (Macros.creatureTokOf (LetterVal X) (LetterVal X)
-                                    [Green] [Elemental])
+                                    [Green] [creatureType "Elemental"])
           , Define X (CountOf (And [Macros.land, ControlledBy You])) ])
 
 
 deathsShadow : Card
 deathsShadow =
   Macros.card "Death's Shadow" (Just [Macros.pip Black]) []
-       (MkTypeLine [Avatar] [Creature])
+       (MkTypeLine [creatureType "Avatar"] [Creature])
        [ Static (AndAlso [ Gets Macros.thisCreature
                                 (PtDown (LetterVal X)) (PtDown (LetterVal X))
                          , Define X (PlayerStatOf LifeTotal You) ]) ]
@@ -1761,7 +1761,7 @@ stagBeetle : Card
 stagBeetle =
   Macros.card "Stag Beetle"
        (Just [Macros.generic 3, Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Insect] [Creature])
+       (MkTypeLine [creatureType "Insect"] [Creature])
        [ Static (AndAlso [ Macros.entersWithCounters Macros.thisCreature
                                                      (LetterVal X)
                                                      Macros.plusOnePlusOne
@@ -1786,7 +1786,7 @@ acceleratedMutation =
 carrionGrub : Card
 carrionGrub =
   Macros.card "Carrion Grub" (Just [Macros.generic 3, Macros.pip Black]) []
-       (MkTypeLine [Insect] [Creature])
+       (MkTypeLine [creatureType "Insect"] [Creature])
        [ Static (AndAlso [ Gets Macros.thisCreature
                                 (PtUp (LetterVal X)) (PtUp (Lit 0))
                          , Define X
@@ -1820,7 +1820,7 @@ ghalta : Card
 ghalta =
   Macros.card "Ghalta, Primal Hunger"
        (Just [Macros.generic 10, Macros.pip Green, Macros.pip Green]) [Legendary]
-       (MkTypeLine [Elder, Dinosaur] [Creature])
+       (MkTypeLine [creatureType "Elder", creatureType "Dinosaur"] [Creature])
        [ Static (AndAlso [ CostsToCast This (CostLess (LetterVal X))
                          , Define X
                              (Aggregate SumOf (CharAxis Power)
@@ -1869,7 +1869,7 @@ emeraldMedallion =
 foundryInspector : Card
 foundryInspector =
   Macros.card "Foundry Inspector" (Just [Macros.generic 3]) []
-       (MkTypeLine [Construct] [Artifact, Creature])
+       (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
        [ Static (CostsToCast (AllOf (And [Macros.artifact, Macros.spell, CastBy You]))
                              (CostLess (Lit 1))) ]
        (Just (3, 2))
@@ -1878,10 +1878,10 @@ daruWarchief : Card
 daruWarchief =
   Macros.card "Daru Warchief"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Human, Soldier] [Creature])
-       [ Static (CostsToCast (AllOf (And [HasSubtype Soldier, Macros.spell, CastBy You]))
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+       [ Static (CostsToCast (AllOf (And [HasSubtype (creatureType "Soldier"), Macros.spell, CastBy You]))
                              (CostLess (Lit 1)))
-       , Static (Gets (AllOf (And [HasSubtype Soldier, Macros.creature, ControlledBy You]))
+       , Static (Gets (AllOf (And [HasSubtype (creatureType "Soldier"), Macros.creature, ControlledBy You]))
                       (PtUp (Lit 1)) (PtUp (Lit 2))) ]
        (Just (1, 1))
 
@@ -1889,7 +1889,7 @@ grandArbiter : Card
 grandArbiter =
   Macros.card "Grand Arbiter Augustin IV"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [Human, Advisor] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Advisor"] [Creature])
        [ Static (CostsToCast (AllOf (And [ColorIs White, Macros.spell, CastBy You]))
                              (CostLess (Lit 1)))
        , Static (CostsToCast (AllOf (And [ColorIs Blue, Macros.spell, CastBy You]))
@@ -1904,7 +1904,7 @@ goblinElectromancer : Card
 goblinElectromancer =
   Macros.card "Goblin Electromancer"
        (Just [Macros.pip Blue, Macros.pip Red]) []
-       (MkTypeLine [Goblin, Wizard] [Creature])
+       (MkTypeLine [creatureType "Goblin", creatureType "Wizard"] [Creature])
        [ Static (CostsToCast (AllOf (And [Macros.instantOrSorcery, Macros.spell,
                                           CastBy You]))
                              (CostLess (Lit 1))) ]
@@ -1944,11 +1944,11 @@ auraOfSilence =
 youngPyromancer : Card
 youngPyromancer =
   Macros.card "Young Pyromancer" (Just [Macros.generic 1, Macros.pip Red]) []
-       (MkTypeLine [Human, Shaman] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Shaman"] [Creature])
        [ Macros.triggered Whenever
                           (Casts You (Macros.a (And [Macros.instantOrSorcery, Macros.spell])))
                           (Create You (Lit 1)
-                            (TokenWritten (Macros.creatureTok 1 1 [Red] [Elemental])) []) ]
+                            (TokenWritten (Macros.creatureTok 1 1 [Red] [creatureType "Elemental"])) []) ]
        (Just (2, 1))
 
 
@@ -1963,7 +1963,7 @@ inspiringStatuary =
 chiefEngineer : Card
 chiefEngineer =
   Macros.card "Chief Engineer" (Just [Macros.generic 1, Macros.pip Blue]) []
-       (MkTypeLine [Vedalken, Artificer] [Creature])
+       (MkTypeLine [creatureType "Vedalken", creatureType "Artificer"] [Creature])
        [ Static (Gains (AllOf (And [Macros.artifact, Macros.spell, CastBy You]))
                        (Macros.keyword Convoke)) ]
        (Just (1, 3))
@@ -1978,7 +1978,7 @@ prismariTheInspiration : Card
 prismariTheInspiration =
   Macros.card "Prismari, the Inspiration"
        (Just [Macros.generic 5, Macros.pip Blue, Macros.pip Red]) [Legendary]
-       (MkTypeLine [Elder, Dragon] [Creature])
+       (MkTypeLine [creatureType "Elder", creatureType "Dragon"] [Creature])
        [ Macros.keyword Flying
        , Macros.keywordCosting Ward (Macros.payLife You 5)
        , Static (Gains (AllOf (And [Macros.instantOrSorcery, Macros.spell, CastBy You]))
@@ -1989,14 +1989,14 @@ prismariTheInspiration =
 tomakulHonorGuard : Card
 tomakulHonorGuard =
   Macros.card "Tomakul Honor Guard" (Just [Macros.generic 1, Macros.pip Green]) []
-       (MkTypeLine [Human, Soldier] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ Macros.keywordCosting Ward (Mana [Macros.generic 2]) ]
        (Just (3, 1))
 
 repentantBlacksmith : Card
 repentantBlacksmith =
   Macros.card "Repentant Blacksmith" (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [Human] [Creature])
+       (MkTypeLine [creatureType "Human"] [Creature])
        [ Macros.keywordQuality Protection (ColorIs Red) ]
        (Just (1, 2))
 
@@ -2004,7 +2004,7 @@ repentantBlacksmith =
 maro : Card
 maro =
   Macros.cardOf "Maro" (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Elemental] [Creature])
+       (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Static (DefinesPt Macros.thisCreature BothEach
                            (CountOf (InZone (Macros.handOf You)))) ]
        (Just (PtBox PrintedStar PrintedStar))
@@ -2012,7 +2012,7 @@ maro =
 battleSquadron : Card
 battleSquadron =
   Macros.cardOf "Battle Squadron" (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [Goblin] [Creature])
+       (MkTypeLine [creatureType "Goblin"] [Creature])
        [ Macros.keyword Flying
        , Static (DefinesPt Macros.thisCreature BothEach
                            (CountOf Macros.creatureYouControl)) ]
@@ -2021,9 +2021,9 @@ battleSquadron =
 peopleOfTheWoods : Card
 peopleOfTheWoods =
   Macros.cardOf "People of the Woods" (Just [Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Human] [Creature])
+       (MkTypeLine [creatureType "Human"] [Creature])
        [ Static (DefinesPt Macros.thisCreature ToughnessAlone
-                           (CountOf (And [HasSubtype Forest, ControlledBy You]))) ]
+                           (CountOf (And [HasSubtype (landType "Forest"), ControlledBy You]))) ]
        (Just (PtBox (PrintedNum 1) PrintedStar))
 
 scourgeOfTheSkyclaves : Ability
@@ -2110,7 +2110,7 @@ eomerOfTheRiddermark : Card
 eomerOfTheRiddermark =
   Macros.card "Éomer of the Riddermark" (Just [Macros.generic 4, Macros.pip Red])
        [Legendary]
-       (MkTypeLine [Human, Knight] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Knight"] [Creature])
        [ Macros.keyword Haste
        , Macros.triggeredIf Whenever
                             (Macros.attacks Macros.thisCreature)
@@ -2118,7 +2118,7 @@ eomerOfTheRiddermark =
                                           Superlative MaxOf (CharAxis Power)
                                             (And [Macros.creature,
                                                   InZone Macros.battlefieldZ])]))
-                            (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [Human, Soldier])) ]
+                            (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Human", creatureType "Soldier"])) ]
        (Just (5, 4))
 
 ||| Consecrate // Consume
@@ -2134,7 +2134,7 @@ consume =
 coretapper : Card
 coretapper =
   Macros.card "Coretapper" (Just [Macros.generic 2]) []
-       (MkTypeLine [Myr] [Artifact, Creature])
+       (MkTypeLine [creatureType "Myr"] [Artifact, Creature])
        [ Macros.activated TapSymbol
                           (PutCounters (Lit 1) Charge (Macros.target Macros.artifact))
        , Macros.activated (Do (Macros.sacrifice You Macros.thisCreature))
@@ -2182,7 +2182,7 @@ celestialConvergence =
 angelicGift : Card
 angelicGift =
   Macros.card "Angelic Gift" (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Macros.triggered When (Enters Macros.thisAura) (Draw You (Lit 1))
        , Static (Gains (AttachHost Enchanted (TypeW Creature))
@@ -2192,7 +2192,7 @@ angelicGift =
 lionHeart : Card
 lionHeart =
   Macros.card "Lion Heart" (Just [Macros.generic 4]) []
-       (MkTypeLine [Equipment] [Artifact])
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Macros.triggered When (Enters Macros.thisEquipment)
                           (DealDamage It (Lit 2) (Macros.target Macros.anyTarget))
        , Static (Gets (AttachHost Equipped (TypeW Creature))
@@ -2203,7 +2203,7 @@ lionHeart =
 curseOfVengeance : Card
 curseOfVengeance =
   Macros.card "Curse of Vengeance" (Just [Macros.pip Black]) []
-       (MkTypeLine [Aura, Curse] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura", enchantmentType "Curse"] [Enchantment])
        [ Macros.keywordSubject Enchant AnyPlayer
        , Macros.triggered Whenever
                           (Casts (AttachHost Enchanted PlayerW) (Macros.a Macros.spell))
@@ -2219,7 +2219,7 @@ curseOfVengeance =
 consulsLieutenant : Card
 consulsLieutenant =
   Macros.card "Consul's Lieutenant" (Just [Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Human, Soldier] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ Macros.keyword FirstStrike
        , Macros.keywordNumber Renown (Lit 1)
        , Macros.triggeredIf Whenever
@@ -2249,7 +2249,7 @@ bombur : Card
 bombur =
   Macros.card "Bombur, Gentle Dreamer"
        (Just [Macros.generic 2, Macros.pip Red]) [Legendary]
-       (MkTypeLine [Dwarf, Bard] [Creature])
+       (MkTypeLine [creatureType "Dwarf", creatureType "Bard"] [Creature])
        [ Macros.keyword Storied
        , Static (Macros.unlessSo (Matches You (HasDesignation EnduringStory))
                                  (DoesntUntap Macros.thisCreature)) ]
@@ -2259,7 +2259,7 @@ bombur =
 passagewaySeer : Card
 passagewaySeer =
   Macros.card "Passageway Seer" (Just [Macros.generic 3, Macros.pip Black]) []
-       (MkTypeLine [Tiefling, Warlock] [Creature])
+       (MkTypeLine [creatureType "Tiefling", creatureType "Warlock"] [Creature])
        [ Macros.keyword Lifelink
        , Macros.triggered When (Enters Macros.thisCreature)
                           (Macros.gainsDesignation You TheInitiative Instructed)
@@ -2273,7 +2273,7 @@ deadeyeBrawler : Card
 deadeyeBrawler =
   Macros.card "Deadeye Brawler"
        (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Black]) []
-       (MkTypeLine [Human, Pirate] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Pirate"] [Creature])
        [ Macros.keyword Deathtouch
        , Macros.keyword Ascend
        , Macros.triggeredIf Whenever
@@ -2285,7 +2285,7 @@ deadeyeBrawler =
 chillerpillar : Card
 chillerpillar =
   Macros.card "Chillerpillar" (Just [Macros.generic 3, Macros.pip Blue]) [Snow]
-       (MkTypeLine [Insect] [Creature])
+       (MkTypeLine [creatureType "Insect"] [Creature])
        [ Macros.activated (Mana [Macros.generic 4, SnowMana, SnowMana])
                           (Macros.monstrosity (Lit 2))
        , Static (Macros.asLongAs (Matches Macros.thisCreature (HasDesignation Monstrous))
@@ -2314,7 +2314,7 @@ jushiApprentice =
 chainsaw : Card
 chainsaw =
   Macros.card "Chainsaw" (Just [Macros.generic 3]) []
-       (MkTypeLine [Equipment] [Artifact])
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Macros.triggered When (Enters Macros.thisEquipment)
                           (DealDamage It (Lit 3)
                                (TargetGroup (Macros.upTo 1) Macros.creature))
@@ -2371,7 +2371,7 @@ misterFantastic : Card
 misterFantastic =
   Macros.card "Mister Fantastic, Reed Richards"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [Human, Hero] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Hero"] [Creature])
        [ Macros.keyword Reach
        , Macros.triggered Whenever
                           (Enters (CountedGroup (Macros.atLeast 1)
@@ -2383,7 +2383,7 @@ misterFantastic =
 woodlandChampion : Card
 woodlandChampion =
   Macros.card "Woodland Champion" (Just [Macros.generic 1, Macros.pip Green]) []
-       (MkTypeLine [Elf, Scout] [Creature])
+       (MkTypeLine [creatureType "Elf", creatureType "Scout"] [Creature])
        [ Macros.triggered Whenever
                           (Enters (CountedGroup (Macros.atLeast 1)
                                          (And [IsToken, ControlledBy You])))
@@ -2395,7 +2395,7 @@ ingeniousArtillerist : Card
 ingeniousArtillerist =
   Macros.card "Ingenious Artillerist"
        (Just [Macros.generic 2, Macros.pip Red]) []
-       (MkTypeLine [Human, Artificer] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Artificer"] [Creature])
        [ Macros.triggered Whenever
                           (Enters (CountedGroup (Macros.atLeast 1)
                                          (And [Macros.artifact, ControlledBy You])))
@@ -2428,7 +2428,7 @@ undercoverButler : Card
 undercoverButler =
   Macros.card "Undercover Butler"
        (Just [Macros.generic 2, Macros.hybridPip Blue Black]) []
-       (MkTypeLine [Human, Rogue] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Rogue"] [Creature])
        [ Macros.triggered Whenever
                           (Macros.attacksPlayer Macros.thisCreature
                                          (Definite (And [AnyPlayer,
@@ -2442,7 +2442,7 @@ murmursFromBeyond : Card
 murmursFromBeyond =
   Macros.card "Murmurs from Beyond"
        (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Arcane] [Instant])
+       (MkTypeLine [spellType "Arcane"] [Instant])
        [ Spell (Sequentially
                   [ Macros.revealCards (Macros.topCards 3)
                   , Macros.chooses (Macros.a Opponent) (Macros.oneOf Them)
@@ -2455,7 +2455,7 @@ femerefEnchantress : Card
 femerefEnchantress =
   Macros.card "Femeref Enchantress"
        (Just [Macros.pip Green, Macros.pip White]) []
-       (MkTypeLine [Human, Druid] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Druid"] [Creature])
        [ Macros.triggered Whenever
                           (Macros.putIntoFrom (Macros.a Macros.enchantment)
                                        Macros.graveyardZ
@@ -2467,7 +2467,7 @@ voraciousBrood : Card
 voraciousBrood =
   Macros.card "Voracious Brood"
        (Just [Macros.generic 2, Macros.pip Green]) []
-       (MkTypeLine [Alien, Insect] [Creature])
+       (MkTypeLine [creatureType "Alien", creatureType "Insect"] [Creature])
        [ Static (Macros.entersWithCounters Macros.thisCreature
                    (Macros.forEach (And [Macros.creature,
                                          InZone (Macros.graveyardOf You)]))
@@ -2484,13 +2484,13 @@ herdBaloth : Card
 herdBaloth =
   Macros.card "Herd Baloth"
        (Just [Macros.generic 3, Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Beast] [Creature])
+       (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.triggered Whenever
                           (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
                                             Macros.thisCreature)
                           (Macros.may You
                       (Macros.create (Lit 1)
-                                     (Macros.creatureTok 4 4 [Green] [Beast]))) ]
+                                     (Macros.creatureTok 4 4 [Green] [creatureType "Beast"]))) ]
        (Just (4, 4))
 
 flourishingDefenses : Card
@@ -2505,7 +2505,7 @@ flourishingDefenses =
                           (Macros.may You
                       (Macros.create (Lit 1)
                                      (Macros.creatureTok 1 1 [Green]
-                                                         [Elf, Warrior]))) ]
+                                                         [creatureType "Elf", creatureType "Warrior"]))) ]
        Nothing
 
 rakshasaVizier : Card
@@ -2513,7 +2513,7 @@ rakshasaVizier =
   Macros.card "Rakshasa Vizier"
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Green,
               Macros.pip Blue]) []
-       (MkTypeLine [Demon] [Creature])
+       (MkTypeLine [creatureType "Demon"] [Creature])
        [ Macros.triggered Whenever
                           (Macros.putIntoFrom (CountedGroup (Macros.atLeast 1)
                                                      (InZone (Macros.graveyardOf You)))
@@ -2541,7 +2541,7 @@ duskLegionDuelist : Card
 duskLegionDuelist =
   Macros.card "Dusk Legion Duelist"
        (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [Vampire, Soldier] [Creature])
+       (MkTypeLine [creatureType "Vampire", creatureType "Soldier"] [Creature])
        [ Macros.keyword Vigilance
        , Macros.triggeredOnlyOnce Whenever
                                   (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
@@ -2554,7 +2554,7 @@ foeLiage : Card
 foeLiage =
   Macros.card "Foe-liage"
        (Just [Macros.generic 3, Macros.pip Green]) []
-       (MkTypeLine [Plant, Mutant] [Creature])
+       (MkTypeLine [creatureType "Plant", creatureType "Mutant"] [Creature])
        [ Macros.triggeredOnlyDuring Whenever
                                     (Enters (Macros.a Macros.land))
                                     (DuringWindow Turn (Just Yours))
@@ -2566,7 +2566,7 @@ lesserGargadon : Card
 lesserGargadon =
   Macros.card "Lesser Gargadon"
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [Beast] [Creature])
+       (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.triggeredOr Whenever
                             (Macros.attacks Macros.thisCreature)
                             (Blocks Macros.thisCreature Nothing)
@@ -2577,7 +2577,7 @@ colossalGraveReaver : Card
 colossalGraveReaver =
   Macros.card "Colossal Grave-Reaver"
        (Just [Macros.generic 6, Macros.pip Black, Macros.pip Green]) []
-       (MkTypeLine [Dragon] [Creature])
+       (MkTypeLine [creatureType "Dragon"] [Creature])
        [ Macros.keyword Flying
        , Macros.triggeredOr Whenever
                             (Enters Macros.thisCreature)
@@ -2600,7 +2600,7 @@ chubToad : Card
 chubToad =
   Macros.card "Chub Toad"
        (Just [Macros.generic 2, Macros.pip Green]) []
-       (MkTypeLine [Frog] [Creature])
+       (MkTypeLine [creatureType "Frog"] [Creature])
        [ Macros.triggeredOr Whenever
                             (Blocks Macros.thisCreature Nothing)
                             (BecomesBlocked Macros.thisCreature Nothing)
@@ -2617,7 +2617,7 @@ infernoElemental : Card
 infernoElemental =
   Macros.card "Inferno Elemental"
        (Just [Macros.generic 4, Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [Elemental] [Creature])
+       (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.triggeredOr Whenever
                             (Blocks Macros.thisCreature (Just (Macros.a Macros.creature)))
                             (BecomesBlocked Macros.thisCreature
@@ -2797,7 +2797,7 @@ shalaiAndHallar =
   Macros.card "Shalai and Hallar"
        (Just [Macros.generic 1, Macros.pip Red, Macros.pip Green, Macros.pip White])
        [Legendary]
-       (MkTypeLine [Angel, Elf] [Creature])
+       (MkTypeLine [creatureType "Angel", creatureType "Elf"] [Creature])
        [ Macros.keyword Flying
        , Macros.keyword Vigilance
        , Macros.triggered Whenever
@@ -2818,7 +2818,7 @@ divineVisitation =
                                               You)
                    (Macros.create GroupSize
                                   (MkToken (Just (Lit 4 ** Lit 4)) [White]
-                                           (MkTypeLine [Angel] [Creature])
+                                           (MkTypeLine [creatureType "Angel"] [Creature])
                                            [Macros.keyword Flying, Macros.keyword Vigilance]
                                              Nothing))
                    Repeatedly) ]
@@ -2857,7 +2857,7 @@ adrixAndNev : Card
 adrixAndNev =
   Macros.card "Adrix and Nev, Twincasters"
        (Just [Macros.generic 2, Macros.pip Green, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [Merfolk, Wizard] [Creature])
+       (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
        [ Macros.keywordCosting Ward (Mana [Macros.generic 2])
        , Static (Intercepts
                    (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) IsToken) You)
@@ -2886,23 +2886,23 @@ mishrasFactory =
                           (Continuously
                       (SetsType Macros.thisLand
                                 (MkToken (Just (Lit 2 ** Lit 2)) []
-                                         (MkTypeLine [AssemblyWorker] [Artifact, Creature])
+                                         (MkTypeLine [creatureType "AssemblyWorker"] [Artifact, Creature])
                                          [] Nothing)
                                 (Just Land))
                       (Just Macros.untilEndOfTurn))
        , Macros.activated TapSymbol
-                          (Macros.gets (Macros.target (And [Macros.creature, HasSubtype AssemblyWorker]))
+                          (Macros.gets (Macros.target (And [Macros.creature, HasSubtype (creatureType "AssemblyWorker")]))
                                 (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn)) ]
        Nothing
 
 windZendikon : Card
 windZendikon =
   Macros.card "Wind Zendikon" (Just [Macros.pip Blue]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.land
        , Static (SetsType (AttachHost Enchanted (TypeW Land))
                           (MkToken (Just (Lit 2 ** Lit 2)) [Blue]
-                                   (MkTypeLine [Elemental] [Creature])
+                                   (MkTypeLine [creatureType "Elemental"] [Creature])
                                    [Macros.keyword Flying] Nothing)
                           (Just Land)) ]
        Nothing
@@ -2941,7 +2941,7 @@ turnToFrog =
        [ Spell (Continuously
                   (AndAlso [ LosesAllAbilities (Macros.target Macros.creature)
                            , SetsType It (MkToken Nothing [Blue]
-                                                  (MkTypeLine [Frog] []) [] Nothing)
+                                                  (MkTypeLine [creatureType "Frog"] []) [] Nothing)
                                       Nothing
                            , HasBasePt It (Lit 1) (Lit 1) ])
                   (Just Macros.untilEndOfTurn)) ]
@@ -2959,7 +2959,7 @@ humility =
 arcaneFlight : Card
 arcaneFlight =
   Macros.card "Arcane Flight" (Just [Macros.pip Blue]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
                                 (PtUp (Lit 1)) (PtUp (Lit 1))
@@ -2969,7 +2969,7 @@ arcaneFlight =
 bootsOfSpeed : Card
 bootsOfSpeed =
   Macros.card "Boots of Speed" (Just [Macros.pip Red]) []
-       (MkTypeLine [Equipment] [Artifact])
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Static (AndAlso [ Gets (AttachHost Equipped (TypeW Creature))
                                 (PtUp (Lit 1)) (PtUp (Lit 0))
                          , Gains It (Macros.keyword Haste) ])
@@ -2979,7 +2979,7 @@ bootsOfSpeed =
 aetherTunnel : Card
 aetherTunnel =
   Macros.card "Aether Tunnel" (Just [Macros.generic 1, Macros.pip Blue]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
                                 (PtUp (Lit 1)) (PtUp (Lit 0))
@@ -2989,11 +2989,11 @@ aetherTunnel =
 frogify : Card
 frogify =
   Macros.card "Frogify" (Just [Macros.generic 1, Macros.pip Blue]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature))
                          , SetsType It (MkToken Nothing [Blue]
-                                                (MkTypeLine [Frog] [Creature]) [] Nothing)
+                                                (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing)
                                     Nothing
                          , HasBasePt It (Lit 1) (Lit 1) ]) ]
        Nothing
@@ -3002,11 +3002,11 @@ frogify =
 darksteelMutation : Card
 darksteelMutation =
   Macros.card "Darksteel Mutation" (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso [ SetsType (AttachHost Enchanted (TypeW Creature))
                                     (MkToken Nothing []
-                                             (MkTypeLine [Insect] [Artifact, Creature])
+                                             (MkTypeLine [creatureType "Insect"] [Artifact, Creature])
                                              [] Nothing)
                                     Nothing
                          , HasBasePt It (Lit 0) (Lit 1)
@@ -3017,12 +3017,12 @@ darksteelMutation =
 kenrithsTransformation : Card
 kenrithsTransformation =
   Macros.card "Kenrith's Transformation" (Just [Macros.generic 1, Macros.pip Green]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Macros.triggered When (Enters Macros.thisAura) (Draw You (Lit 1))
        , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature))
                          , SetsType It (MkToken Nothing [Green]
-                                                (MkTypeLine [Elk] [Creature]) [] Nothing)
+                                                (MkTypeLine [creatureType "Elk"] [Creature]) [] Nothing)
                                     Nothing
                          , HasBasePt It (Lit 3) (Lit 3) ]) ]
        Nothing
@@ -3030,13 +3030,13 @@ kenrithsTransformation =
 amphibianDownpour : Card
 amphibianDownpour =
   Macros.card "Amphibian Downpour" (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keyword Flash
        , Macros.keyword Storm
        , Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso [ LosesAllAbilities (AttachHost Enchanted (TypeW Creature))
                          , SetsType It (MkToken Nothing [Blue]
-                                                (MkTypeLine [Frog] [Creature]) [] Nothing)
+                                                (MkTypeLine [creatureType "Frog"] [Creature]) [] Nothing)
                                     Nothing
                          , HasBasePt It (Lit 1) (Lit 1) ]) ]
        Nothing
@@ -3045,10 +3045,10 @@ amphibianDownpour =
 lignify : Card
 lignify =
   Macros.card "Lignify" (Just [Macros.generic 1, Macros.pip Green]) []
-       (MkTypeLine [Treefolk, Aura] [Kindred, Enchantment])
+       (MkTypeLine [creatureType "Treefolk", enchantmentType "Aura"] [Kindred, Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso [ SetsType (AttachHost Enchanted (TypeW Creature))
-                                    (MkToken Nothing [] (MkTypeLine [Treefolk] [])
+                                    (MkToken Nothing [] (MkTypeLine [creatureType "Treefolk"] [])
                                              [] Nothing)
                                     Nothing
                          , HasBasePt It (Lit 0) (Lit 4)
@@ -3064,12 +3064,12 @@ invasionOfDominaria : Card
 invasionOfDominaria =
   Transforming
     (MkFace "Invasion of Dominaria" (Just [Macros.generic 2, Macros.pip White]) []
-            (MkTypeLine [Siege] [Battle])
+            (MkTypeLine [battleType "Siege"] [Battle])
             [ Macros.triggered When (Enters Macros.thisSiege)
                                (Sequentially [ ChangeLife You (Up (Lit 4))
                                              , Draw You (Lit 1) ]) ]
             (Macros.defenseBox 5))
-    (MkAltFace "Serra Faithkeeper" [] (MkTypeLine [Angel] [Creature])
+    (MkAltFace "Serra Faithkeeper" [] (MkTypeLine [creatureType "Angel"] [Creature])
                [ Macros.keyword Flying, Macros.keyword Vigilance ]
                (Macros.printedBox (Just (4, 4))))
 
@@ -3077,7 +3077,7 @@ invasionOfDominaria =
 causticTar : Card
 causticTar =
   Macros.card "Caustic Tar" (Just [Macros.generic 4, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.land
        , Static (Gains (AttachHost Enchanted (TypeW Land))
                        (Macros.activated TapSymbol
@@ -3095,7 +3095,7 @@ ragingRavine =
                           (Continuously
                       (SetsType Macros.thisLand
                                 (MkToken (Just (Lit 3 ** Lit 3)) [Red, Green]
-                                         (MkTypeLine [Elemental] [Creature])
+                                         (MkTypeLine [creatureType "Elemental"] [Creature])
                                          [ Macros.triggered Whenever
                                                             (Macros.attacks Macros.thisCreature)
                                                             (PutCounters (Lit 1)
@@ -3113,7 +3113,7 @@ ajanisEmblem =
   GetsEmblem You
     [ Macros.triggered At (BeginningOf EndStep (ByWord Yours))
                        (Macros.create (Lit 3)
-                   (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [Cat] [Creature])
+                   (MkToken (Just (Lit 1 ** Lit 1)) [White] (MkTypeLine [creatureType "Cat"] [Creature])
                             [Macros.keyword Lifelink] Nothing)) ]
 
 ||| Saheeli, Filigree Master
@@ -3129,7 +3129,7 @@ saheelisEmblem =
 jaceBeleren : Card
 jaceBeleren =
   Macros.cardOf "Jace Beleren" (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue])
-       [Legendary] (MkTypeLine [Jace] [Planeswalker])
+       [Legendary] (MkTypeLine [planeswalkerType "Jace"] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 2)) (Draw (Each AnyPlayer) (Lit 1))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 1))
                           (Macros.drawsACard (Macros.target AnyPlayer))
@@ -3141,9 +3141,9 @@ elspethSunsChampion : Card
 elspethSunsChampion =
   Macros.cardOf "Elspeth, Sun's Champion"
        (Just [Macros.generic 4, Macros.pip White, Macros.pip White])
-       [Legendary] (MkTypeLine [Elspeth] [Planeswalker])
+       [Legendary] (MkTypeLine [planeswalkerType "Elspeth"] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
-                          (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [Soldier]))
+                          (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 3))
                           (Macros.destroy (AllOf (And [Macros.creature,
                                                 Compare Power AtLeast (Lit 4)])))
@@ -3165,7 +3165,7 @@ elspethsTalentGrant : StaticEffect []
 elspethsTalentGrant =
   Gains (AttachHost Enchanted (TypeW Planeswalker))
         (Macros.activated (LoyaltySymbol (LoyaltyUp 1))
-                          (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [Soldier])))
+                          (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])))
 
 
 opt : Card
@@ -3199,7 +3199,7 @@ crystalBall =
 nefariousImp : Card
 nefariousImp =
   Macros.card "Nefarious Imp" (Just [Macros.generic 2, Macros.pip Black]) []
-       (MkTypeLine [Imp] [Creature])
+       (MkTypeLine [creatureType "Imp"] [Creature])
        [ Macros.keyword Flying
        , Macros.triggered Whenever
                           (Leaves (CountedGroup (Macros.atLeast 1)
@@ -3211,7 +3211,7 @@ saheeliFiligreeMaster : Card
 saheeliFiligreeMaster =
   Macros.cardOf "Saheeli, Filigree Master"
        (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Red])
-       [Legendary] (MkTypeLine [Saheeli] [Planeswalker])
+       [Legendary] (MkTypeLine [planeswalkerType "Saheeli"] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                           (Sequentially
                       [ Does You "Scry" (Macros.lookAt (Macros.topCards 1))
@@ -3224,7 +3224,7 @@ saheeliFiligreeMaster =
                           (Sequentially
                       [ Macros.create (Lit 2)
                           (MkToken (Just (Lit 1 ** Lit 1)) []
-                                   (MkTypeLine [Thopter] [Artifact, Creature])
+                                   (MkTypeLine [creatureType "Thopter"] [Artifact, Creature])
                                    [Macros.keyword Flying] Nothing)
                       , Macros.gainsHaste Them (Just Macros.untilEndOfTurn) ])
        , Macros.activated (LoyaltySymbol (LoyaltyDown 4))
@@ -3358,7 +3358,7 @@ meletisCharlatan : Card
 meletisCharlatan =
   Macros.card "Meletis Charlatan"
        (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Human, Wizard] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated (Compound [Mana [Macros.generic 2, Macros.pip Blue], TapSymbol])
                           (Sequentially
                       [ CopyStack
@@ -3383,9 +3383,9 @@ tawnosTheToymaker : Card
 tawnosTheToymaker =
   Macros.card "Tawnos, the Toymaker"
        (Just [Macros.generic 3, Macros.pip Green, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [Human, Artificer] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Artificer"] [Creature])
        [ Macros.triggered Whenever
-                          (Casts You (Macros.a (And [Or [HasSubtype Beast, HasSubtype Bird],
+                          (Casts You (Macros.a (And [Or [HasSubtype (creatureType "Beast"), HasSubtype (creatureType "Bird")],
                                               Macros.creature, Macros.spell])))
                           (Macros.may You
                       (CopyStack You It (Lit 1)
@@ -3396,7 +3396,7 @@ public export
 etherealHaze : Card
 etherealHaze =
   Macros.card "Ethereal Haze" (Just [Macros.pip White]) []
-       (MkTypeLine [Arcane] [Instant])
+       (MkTypeLine [spellType "Arcane"] [Instant])
        [ Spell (Macros.preventAllBy AnyDamage Everywhere
                                     (AllOf Macros.creature) (Just Macros.thisTurn)) ]
        Nothing
@@ -3405,7 +3405,7 @@ public export
 defang : Card
 defang =
   Macros.card "Defang" (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (Prevents AnyDamage AllOfIt Everywhere
                           (Just (AttachHost Enchanted (TypeW Creature))) Nothing) ]
@@ -3439,7 +3439,7 @@ excruciator : Card
 excruciator =
   Macros.card "Excruciator"
        (Just [Macros.generic 6, Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [Avatar] [Creature])
+       (MkTypeLine [creatureType "Avatar"] [Creature])
        [ Static (CantPrevent AnyDamage Everywhere (Just Macros.thisCreature)) ]
        (Just (7, 7))
 
@@ -3473,20 +3473,20 @@ gideonAllyOfZendikar : Card
 gideonAllyOfZendikar =
   Macros.cardOf "Gideon, Ally of Zendikar"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) [Legendary]
-       (MkTypeLine [Gideon] [Planeswalker])
+       (MkTypeLine [planeswalkerType "Gideon"] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                           (Sequentially
                       [ Continuously
                           (SetsType Macros.thisPlaneswalker
                                     (MkToken (Just (Lit 5 ** Lit 5)) []
-                                             (MkTypeLine [Human, Soldier, Ally] [Creature])
+                                             (MkTypeLine [creatureType "Human", creatureType "Soldier", creatureType "Ally"] [Creature])
                                              [Macros.keyword Indestructible] Nothing)
                                     (Just Planeswalker))
                           (Just Macros.untilEndOfTurn)
                       , Macros.preventAll AnyDamage (Macros.shieldingIt It)
                                           (Just Macros.thisTurn) ])
        , Macros.activated (LoyaltySymbol LoyaltyZero)
-                          (Macros.create (Lit 1) (Macros.creatureTok 2 2 [White] [Knight, Ally]))
+                          (Macros.create (Lit 1) (Macros.creatureTok 2 2 [White] [creatureType "Knight", creatureType "Ally"]))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 4))
                           (GetsEmblem You [Static (Gets (AllOf Macros.creatureYouControl)
                                                  (PtUp (Lit 1)) (PtUp (Lit 1)))]) ]
@@ -3508,7 +3508,7 @@ public export
 pariah : Card
 pariah =
   Macros.card "Pariah" (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (Redirects AnyDamage AllOfIt (Macros.shieldingIt You) Nothing
                            (AttachHost Enchanted (TypeW Creature))) ]
@@ -3519,7 +3519,7 @@ martyrsOfKorlis : Card
 martyrsOfKorlis =
   Macros.card "Martyrs of Korlis"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Human] [Creature])
+       (MkTypeLine [creatureType "Human"] [Creature])
        [ Static (Macros.asLongAs (Matches Macros.thisCreature (HasStatus Untapped))
                                  (Redirects AnyDamage AllOfIt (Macros.shieldingIt You)
                                           (Just (AllOf Macros.artifact))
@@ -3530,7 +3530,7 @@ public export
 wardOfPiety : Card
 wardOfPiety =
   Macros.card "Ward of Piety" (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Macros.activated (Mana [Macros.generic 1, Macros.pip White])
                           (Continuously
@@ -3544,7 +3544,7 @@ public export
 mirrorwoodTreefolk : Card
 mirrorwoodTreefolk =
   Macros.card "Mirrorwood Treefolk" (Just [Macros.generic 3, Macros.pip Green]) []
-       (MkTypeLine [Treefolk] [Creature])
+       (MkTypeLine [creatureType "Treefolk"] [Creature])
        [ Macros.activated (Mana [Macros.generic 2, Macros.pip Red, Macros.pip White])
                           (Continuously
                       (RedirectsFrom AnyDamage Unattributed
@@ -3557,7 +3557,7 @@ public export
 stormwildCapridor : Card
 stormwildCapridor =
   Macros.card "Stormwild Capridor" (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [Bird, Goat] [Creature])
+       (MkTypeLine [creatureType "Bird", creatureType "Goat"] [Creature])
        [ Macros.keyword Flying
        , Static (PreventsFrom NoncombatOnly Unattributed
                               (Macros.shieldingIt Macros.thisCreature)
@@ -3587,7 +3587,7 @@ daughterOfAutumn : Card
 daughterOfAutumn =
   Macros.card "Daughter of Autumn"
        (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) [Legendary]
-       (MkTypeLine [Avatar] [Creature])
+       (MkTypeLine [creatureType "Avatar"] [Creature])
        [ Macros.activated (Mana [Macros.pip White])
                           (Continuously
                       (Redirects AnyDamage (TheNext (Lit 1))
@@ -3645,7 +3645,7 @@ public export
 candlesGlow : Card
 candlesGlow =
   Macros.card "Candles' Glow" (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [Arcane] [Instant])
+       (MkTypeLine [spellType "Arcane"] [Instant])
        [ Spell (Continuously
                   (Prevents AnyDamage (TheNext (Lit 3))
                             (Macros.shieldingIt (Macros.target Macros.anyTarget))
@@ -3935,7 +3935,7 @@ ghostsOfTheInnocent : Card
 ghostsOfTheInnocent =
   Macros.card "Ghosts of the Innocent"
        (Just [Macros.generic 5, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Spirit] [Creature])
+       (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Static (Scales AnyDamage (Macros.a Macros.source)
                         (Macros.shieldingIt
                            (Macros.a (Macros.kindJoin AnyPlayer Permanent)))
@@ -3947,7 +3947,7 @@ fireServant : Card
 fireServant =
   Macros.card "Fire Servant"
        (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [Elemental] [Creature])
+       (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Static (Scales AnyDamage
                         (Macros.a (And [Macros.instantOrSorcery, ColorIs Red,
                                         ControlledBy You]))
@@ -3985,7 +3985,7 @@ public export
 platedPegasus : Card
 platedPegasus =
   Macros.card "Plated Pegasus" (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [Pegasus] [Creature])
+       (MkTypeLine [creatureType "Pegasus"] [Creature])
        [ Macros.keyword Flash
        , Macros.keyword Flying
        , Static (PreventsFrom AnyDamage
@@ -4002,7 +4002,7 @@ unstableShapeshifter : Card
 unstableShapeshifter =
   Macros.card "Unstable Shapeshifter"
        (Just [Macros.generic 3, Macros.pip Blue]) []
-       (MkTypeLine [Shapeshifter] [Creature])
+       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
        [ Macros.triggered Whenever
                           (Enters (Macros.a (And [Macros.creature, OtherThan This])))
                           (Continuously
@@ -4040,7 +4040,7 @@ spitemare =
   Macros.card "Spitemare"
        (Just [Macros.generic 2, Macros.hybridPip Red White,
               Macros.hybridPip Red White]) []
-       (MkTypeLine [Elemental] [Creature])
+       (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.triggered Whenever
                           (IsDealtDamage Macros.thisCreature)
                           (DealDamage It ThatMuch (Macros.target Macros.anyTarget)) ]
@@ -4050,7 +4050,7 @@ public export
 grollub : Card
 grollub =
   Macros.card "Grollub" (Just [Macros.generic 2, Macros.pip Black]) []
-       (MkTypeLine [Beast] [Creature])
+       (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.triggered Whenever
                           (IsDealtDamage Macros.thisCreature)
                           (Macros.gainsLife (Each Opponent) ThatMuch) ]
@@ -4060,7 +4060,7 @@ public export
 moggManiac : Card
 moggManiac =
   Macros.card "Mogg Maniac" (Just [Macros.generic 1, Macros.pip Red]) []
-       (MkTypeLine [Goblin] [Creature])
+       (MkTypeLine [creatureType "Goblin"] [Creature])
        [ Macros.triggered Whenever
                           (IsDealtDamage Macros.thisCreature)
                           (DealDamage It ThatMuch
@@ -4083,7 +4083,7 @@ public export
 spitefulShadows : Card
 spitefulShadows =
   Macros.card "Spiteful Shadows" (Just [Macros.generic 1, Macros.pip Black]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Macros.triggered Whenever
                           (IsDealtDamage (AttachHost Enchanted (TypeW Creature)))
@@ -4094,7 +4094,7 @@ public export
 bindingAgony : Card
 bindingAgony =
   Macros.card "Binding Agony" (Just [Macros.generic 1, Macros.pip Black]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Macros.triggered Whenever
                           (IsDealtDamage (AttachHost Enchanted (TypeW Creature)))
@@ -4107,12 +4107,12 @@ darienKingOfKjeldor : Card
 darienKingOfKjeldor =
   Macros.card "Darien, King of Kjeldor"
        (Just [Macros.generic 4, Macros.pip White, Macros.pip White]) [Legendary]
-       (MkTypeLine [Human, Soldier] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ Macros.triggered Whenever
                           (IsDealtDamage You)
                           (Macros.may You
                       (Macros.create ThatMuch
-                                     (Macros.creatureTok 1 1 [White] [Soldier]))) ]
+                                     (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))) ]
        (Just (3, 3))
 
 public export
@@ -4120,12 +4120,12 @@ livingHive : Card
 livingHive =
   Macros.card "Living Hive"
        (Just [Macros.generic 6, Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Elemental, Insect] [Creature])
+       (MkTypeLine [creatureType "Elemental", creatureType "Insect"] [Creature])
        [ Macros.keyword Trample
        , Macros.triggered Whenever
                           (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
                           (Macros.create ThatMuch
-                                  (Macros.creatureTok 1 1 [Green] [Insect])) ]
+                                  (Macros.creatureTok 1 1 [Green] [creatureType "Insect"])) ]
        (Just (6, 6))
 
 ||| "Whenever this creature is dealt damage, it deals that much damage to
@@ -4140,7 +4140,7 @@ screamingNemesis : Card
 screamingNemesis =
   Macros.card "Screaming Nemesis"
        (Just [Macros.generic 2, Macros.pip Red]) []
-       (MkTypeLine [Spirit] [Creature])
+       (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.keyword Haste
        , Macros.triggered Whenever
                           (IsDealtDamage Macros.thisCreature)
@@ -4166,7 +4166,7 @@ sonicShrieker =
   Macros.card "Sonic Shrieker"
        (Just [Macros.generic 2, Macros.pip Red, Macros.pip White,
               Macros.pip Black]) []
-       (MkTypeLine [Dragon] [Creature])
+       (MkTypeLine [creatureType "Dragon"] [Creature])
        [ Macros.keyword Flying
        , Macros.triggered When
                           (Enters Macros.thisCreature)
@@ -4200,7 +4200,7 @@ public export
 giantCindermaw : Card
 giantCindermaw =
   Macros.card "Giant Cindermaw" (Just [Macros.generic 2, Macros.pip Red]) []
-       (MkTypeLine [Dinosaur, Beast] [Creature])
+       (MkTypeLine [creatureType "Dinosaur", creatureType "Beast"] [Creature])
        [ Macros.keyword Trample
        , Static (PlayerCant GainsLife (PlayerGroup AllPlayers)) ]
        (Just (4, 3))
@@ -4257,7 +4257,7 @@ grievousWoundLifeLock : Card
 grievousWoundLifeLock =
   Macros.card "Grievous Wound"
        (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant AnyPlayer
        , Static (PlayerCant GainsLife (AttachHost Enchanted PlayerW)) ]
        Nothing
@@ -4275,7 +4275,7 @@ bloodMoon =
   Macros.card "Blood Moon" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
        [ Static (SetsType (AllOf (And [Macros.land, Not (HasSupertype Basic)]))
-                          (MkToken Nothing [] (Macros.basicLandLine [Mountain])
+                          (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"])
                                    [] Nothing)
                           Nothing) ]
        Nothing
@@ -4284,9 +4284,9 @@ public export
 magusOfTheMoon : Card
 magusOfTheMoon =
   Macros.card "Magus of the Moon" (Just [Macros.generic 2, Macros.pip Red]) []
-       (MkTypeLine [Human, Wizard] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Static (SetsType (AllOf (And [Macros.land, Not (HasSupertype Basic)]))
-                          (MkToken Nothing [] (Macros.basicLandLine [Mountain])
+                          (MkToken Nothing [] (Macros.basicLandLine [landType "Mountain"])
                                    [] Nothing)
                           Nothing) ]
        (Just (2, 2))
@@ -4296,9 +4296,9 @@ harbingerOfTheSeas : Card
 harbingerOfTheSeas =
   Macros.card "Harbinger of the Seas"
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
-       (MkTypeLine [Merfolk, Wizard] [Creature])
+       (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
        [ Static (SetsType (AllOf (And [Macros.land, Not (HasSupertype Basic)]))
-                          (MkToken Nothing [] (Macros.basicLandLine [Island])
+                          (MkToken Nothing [] (Macros.basicLandLine [landType "Island"])
                                    [] Nothing)
                           Nothing) ]
        (Just (2, 2))
@@ -4307,11 +4307,11 @@ public export
 lushGrowth : Card
 lushGrowth =
   Macros.card "Lush Growth" (Just [Macros.pip Green]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.land
        , Static (SetsType (AttachHost Enchanted (TypeW Land))
                           (MkToken Nothing []
-                                   (Macros.basicLandLine [Mountain, Forest, Plains])
+                                   (Macros.basicLandLine [landType "Mountain", landType "Forest", landType "Plains"])
                                    [] Nothing)
                           Nothing) ]
        Nothing
@@ -4322,14 +4322,14 @@ yavimayaCradleOfGrowth =
   Macros.card "Yavimaya, Cradle of Growth" Nothing [Legendary]
        (MkTypeLine [] [Land])
        [ Static (BecomesAlso (AllOf Macros.land)
-                             (MkToken Nothing [] (Macros.basicLandLine [Forest]) [] Nothing)) ]
+                             (MkToken Nothing [] (Macros.basicLandLine [landType "Forest"]) [] Nothing)) ]
        Nothing
 
 public export
 reefShaman : Card
 reefShaman =
   Macros.card "Reef Shaman" (Just [Macros.pip Blue]) []
-       (MkTypeLine [Merfolk, Shaman] [Creature])
+       (MkTypeLine [creatureType "Merfolk", creatureType "Shaman"] [Creature])
        [ Macros.activated TapSymbol
                           (Continuously (SetsChosenBasicType (Macros.target Macros.land))
                                  (Just Macros.untilEndOfTurn)) ]
@@ -4339,7 +4339,7 @@ public export
 grixisIllusionist : Card
 grixisIllusionist =
   Macros.card "Grixis Illusionist" (Just [Macros.pip Blue]) []
-       (MkTypeLine [Human, Wizard] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated TapSymbol
                           (Continuously
                       (SetsChosenBasicType
@@ -4397,7 +4397,7 @@ public export
 rootGreevil : Card
 rootGreevil =
   Macros.card "Root Greevil" (Just [Macros.generic 3, Macros.pip Green]) []
-       (MkTypeLine [Beast] [Creature])
+       (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.activated (Compound [Mana [Macros.generic 2, Macros.pip Green],
                               TapSymbol,
                               Do (Macros.sacrifice You Macros.thisCreature)])
@@ -4410,7 +4410,7 @@ riptideChronologist : Card
 riptideChronologist =
   Macros.card "Riptide Chronologist"
        (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) []
-       (MkTypeLine [Human, Wizard] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated (Compound [Mana [Macros.pip Blue],
                               Do (Macros.sacrifice You Macros.thisCreature)])
                           (SetStatus Untapped
@@ -4534,7 +4534,7 @@ voiceOfAll : Card
 voiceOfAll =
   Macros.card "Voice of All"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Angel] [Creature])
+       (MkTypeLine [creatureType "Angel"] [Creature])
        [ Macros.keyword Flying
        , Static (Macros.entersChoosing Macros.thisCreature Color)
        , Static (Gains Macros.thisCreature
@@ -4545,9 +4545,9 @@ public export
 wardSliver : Card
 wardSliver =
   Macros.card "Ward Sliver" (Just [Macros.generic 4, Macros.pip White]) []
-       (MkTypeLine [Sliver] [Creature])
+       (MkTypeLine [creatureType "Sliver"] [Creature])
        [ Static (Macros.entersChoosing Macros.thisCreature Color)
-       , Static (Gains (AllOf (HasSubtype Sliver))
+       , Static (Gains (AllOf (HasSubtype (creatureType "Sliver")))
                        (Macros.keywordQuality Protection (OfChosen Color))) ]
        (Just (2, 2))
 
@@ -4556,7 +4556,7 @@ chromaticArmor : Card
 chromaticArmor =
   Macros.card "Chromatic Armor"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip Blue]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (Macros.entersChoosing Macros.thisAura Color)
        , Static (Prevents AnyDamage AllOfIt
@@ -4579,7 +4579,7 @@ public export
 adaptiveAutomaton : Card
 adaptiveAutomaton =
   Macros.card "Adaptive Automaton" (Just [Macros.generic 3]) []
-       (MkTypeLine [Construct] [Artifact, Creature])
+       (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
        [ Static (Macros.entersChoosing Macros.thisCreature CreatureType)
        , Static (AddsChosenQuality Macros.thisCreature (OfChosen CreatureType))
        , Static (Gets (AllOf (And [Macros.creature, ControlledBy You,
@@ -4592,7 +4592,7 @@ public export
 mistformDreamer : Card
 mistformDreamer =
   Macros.card "Mistform Dreamer" (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Illusion] [Creature])
+       (MkTypeLine [creatureType "Illusion"] [Creature])
        [ Macros.keyword Flying
        , Macros.activated (Mana [Macros.generic 1])
                           (Continuously
@@ -4668,7 +4668,7 @@ public export
 magusOfTheScroll : Card
 magusOfTheScroll =
   Macros.card "Magus of the Scroll" (Just [Macros.pip Red]) []
-       (MkTypeLine [Human, Wizard] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated (Compound [Mana [Macros.generic 3], TapSymbol])
                           (Sequentially
                       [ Macros.choose (Macros.a (Macros.quality CardName))
@@ -4684,10 +4684,10 @@ public export
 imagecrafter : Card
 imagecrafter =
   Macros.card "Imagecrafter" (Just [Macros.pip Blue]) []
-       (MkTypeLine [Human, Wizard] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated TapSymbol
            (Sequentially
-              [ Macros.choose (Macros.a (Macros.qualityFrom CreatureType (TypeOtherThan Wall)))
+              [ Macros.choose (Macros.a (Macros.qualityFrom CreatureType (TypeOtherThan (creatureType "Wall"))))
               , Continuously (SetsChosenQuality (Macros.target Macros.creature)
                                                 (OfChosen CreatureType))
                              (Just Macros.untilEndOfTurn) ]) ]
@@ -4700,7 +4700,7 @@ unnaturalSelection =
        (MkTypeLine [] [Enchantment])
        [ Macros.activated (Mana [Macros.generic 1])
            (Sequentially
-              [ Macros.choose (Macros.a (Macros.qualityFrom CreatureType (TypeOtherThan Wall)))
+              [ Macros.choose (Macros.a (Macros.qualityFrom CreatureType (TypeOtherThan (creatureType "Wall"))))
               , Continuously (SetsChosenQuality (Macros.target Macros.creature)
                                                 (OfChosen CreatureType))
                              (Just Macros.untilEndOfTurn) ]) ]
@@ -4712,7 +4712,7 @@ standardize =
   Macros.card "Standardize" (Just [Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-              [ Macros.choose (Macros.a (Macros.qualityFrom CreatureType (TypeOtherThan Wall)))
+              [ Macros.choose (Macros.a (Macros.qualityFrom CreatureType (TypeOtherThan (creatureType "Wall"))))
               , Continuously (SetsChosenQuality (Each Macros.creature)
                                                 (OfChosen CreatureType))
                              (Just Macros.untilEndOfTurn) ]) ]
@@ -4722,7 +4722,7 @@ public export
 silverquillSilencer : Card
 silverquillSilencer =
   Macros.card "Silverquill Silencer" (Just [Macros.pip White, Macros.pip Black]) []
-       (MkTypeLine [Human, Cleric] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
        [ Static (Macros.entersChoosingFrom Macros.thisCreature
                                            CardName
                                            (NameOfCard (Not (HasType Land))))
@@ -4777,7 +4777,7 @@ public export
 meddlingMage : Card
 meddlingMage =
   Macros.card "Meddling Mage" (Just [Macros.pip White, Macros.pip Blue]) []
-       (MkTypeLine [Human, Wizard] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Static (Macros.entersChoosingFrom Macros.thisCreature
                                            CardName
                                            (NameOfCard (Not (HasType Land))))
@@ -4843,7 +4843,7 @@ sphinxOfTheChimes : Card
 sphinxOfTheChimes =
   Macros.card "Sphinx of the Chimes"
        (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Blue]) []
-       (MkTypeLine [Sphinx] [Creature])
+       (MkTypeLine [creatureType "Sphinx"] [Creature])
        [ Macros.keyword Flying
        , Macros.activated
            (Do (Macros.discards You
@@ -4861,7 +4861,7 @@ public export
 chromeReplicator : Card
 chromeReplicator =
   Macros.card "Chrome Replicator" (Just [Macros.generic 5]) []
-       (MkTypeLine [Construct] [Artifact, Creature])
+       (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
        [ Macros.triggeredIf When (Enters Macros.thisCreature)
            (ExistsGroup (Macros.withTheSameName
                            (CountedGroup (Macros.atLeast 2)
@@ -4869,7 +4869,7 @@ chromeReplicator =
                                                Not IsToken, ControlledBy You]))))
            (Macros.create (Lit 1)
               (MkToken (Just (Lit 4 ** Lit 4)) []
-                       (MkTypeLine [Construct] [Artifact, Creature])
+                       (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
                        [] Nothing)) ]
        (Just (4, 4))
 
@@ -4939,14 +4939,14 @@ historyOfBenalia : Card
 historyOfBenalia =
   Macros.card "History of Benalia"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Saga] [Enchantment])
+       (MkTypeLine [enchantmentType "Saga"] [Enchantment])
        [ Macros.triggered When (ChapterMark [ChapterI, ChapterII])
            (Macros.create (Lit 1)
               (MkToken (Just (Lit 2 ** Lit 2)) [White]
-                       (MkTypeLine [Knight] [Creature])
+                       (MkTypeLine [creatureType "Knight"] [Creature])
                        [Macros.keyword Vigilance] Nothing))
        , Macros.triggered When (ChapterMark [ChapterIII])
-           (Macros.gets (AllOf (And [HasSubtype Knight, ControlledBy You]))
+           (Macros.gets (AllOf (And [HasSubtype (creatureType "Knight"), ControlledBy You]))
                         (PtUp (Lit 2)) (PtUp (Lit 1))
                         (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -4956,7 +4956,7 @@ vault75MiddleSchool : Card
 vault75MiddleSchool =
   Macros.card "Vault 75: Middle School"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Saga] [Enchantment])
+       (MkTypeLine [enchantmentType "Saga"] [Enchantment])
        [ Macros.triggered When (ChapterMark [ChapterI])
            (Macros.exile (AllOf (And [Macros.creature,
                                       Compare Power AtLeast (Lit 4)])))
@@ -4970,10 +4970,10 @@ keldonWarcaller : Card
 keldonWarcaller =
   Macros.card "Keldon Warcaller"
        (Just [Macros.generic 1, Macros.pip Red]) []
-       (MkTypeLine [Human, Warrior] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Warrior"] [Creature])
        [ Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
            (PutCounters (Lit 1) Lore
-                        (Macros.target (And [HasSubtype Saga, ControlledBy You]))) ]
+                        (Macros.target (And [HasSubtype (enchantmentType "Saga"), ControlledBy You]))) ]
        (Just (2, 2))
 
 public export
@@ -4981,9 +4981,9 @@ foundingOfOmashu : Card
 foundingOfOmashu =
   Macros.card "Founding of Omashu"
        (Just [Macros.generic 2, Macros.pip Red]) []
-       (MkTypeLine [Saga] [Enchantment])
+       (MkTypeLine [enchantmentType "Saga"] [Enchantment])
        [ Macros.triggered When (ChapterMark [ChapterI])
-           (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [Ally]))
+           (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Ally"]))
        , Macros.triggered When (ChapterMark [ChapterII])
            (Macros.mayThen You (Macros.discardsACard You) Macros.drawACard)
        , Macros.triggered When (ChapterMark [ChapterIII])
@@ -5004,7 +5004,7 @@ public export
 shimmerMyr : Card
 shimmerMyr =
   Macros.card "Shimmer Myr" (Just [Macros.generic 3]) []
-       (MkTypeLine [Myr] [Artifact, Creature])
+       (MkTypeLine [creatureType "Myr"] [Artifact, Creature])
        [ Macros.keyword Flash
        , Static (Macros.mayCastAsThough You
                                         (AllOf (And [Macros.spell, HasType Artifact]))
@@ -5015,10 +5015,10 @@ public export
 quickSliver : Card
 quickSliver =
   Macros.card "Quick Sliver" (Just [Macros.generic 1, Macros.pip Green]) []
-       (MkTypeLine [Sliver] [Creature])
+       (MkTypeLine [creatureType "Sliver"] [Creature])
        [ Macros.keyword Flash
        , Static (Macros.mayCastAsThough (Macros.a AnyPlayer)
-                                        (AllOf (And [Macros.spell, HasSubtype Sliver]))
+                                        (AllOf (And [Macros.spell, HasSubtype (creatureType "Sliver")]))
                                         HadFlash) ]
        (Just (1, 1))
 
@@ -5050,12 +5050,12 @@ gisaAndGeralf : Card
 gisaAndGeralf =
   Macros.card "Gisa and Geralf"
        (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Black]) [Legendary]
-       (MkTypeLine [Human, Wizard] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.triggered When (Enters Macros.thisCreature)
            (Macros.mills You (Lit 4) You)
        , Static (Macros.mayCastFromLimited You
                                            (Macros.a (And [Macros.spell, HasType Creature,
-                                                           HasSubtype Zombie]))
+                                                           HasSubtype (creatureType "Zombie")]))
                                            (Macros.graveyardOf You)
                                            OnceEachYourTurn) ]
        (Just (4, 4))
@@ -5092,7 +5092,7 @@ public export
 goblinSpy : Card
 goblinSpy =
   Macros.card "Goblin Spy" (Just [Macros.pip Red]) []
-       (MkTypeLine [Goblin, Rogue] [Creature])
+       (MkTypeLine [creatureType "Goblin", creatureType "Rogue"] [Creature])
        [ Static (Visibility Reveal You TopOfLibrary) ]
        (Just (1, 1))
 
@@ -5101,7 +5101,7 @@ garruksHorde : Card
 garruksHorde =
   Macros.card "Garruk's Horde"
        (Just [Macros.generic 5, Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Beast] [Creature])
+       (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.keyword Trample
        , Static (Visibility Reveal You TopOfLibrary)
        , Static castCreatureSpellsFromTop ]
@@ -5124,7 +5124,7 @@ magusOfTheFuture =
   Macros.card "Magus of the Future"
        (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Blue,
               Macros.pip Blue]) []
-       (MkTypeLine [Human, Wizard] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Static (Visibility Reveal You TopOfLibrary)
        , Static playLandsAndCastSpellsFromTop ]
        (Just (2, 3))
@@ -5134,7 +5134,7 @@ courserOfKruphix : Card
 courserOfKruphix =
   Macros.card "Courser of Kruphix"
        (Just [Macros.generic 1, Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Centaur] [Enchantment, Creature])
+       (MkTypeLine [creatureType "Centaur"] [Enchantment, Creature])
        [ Static (Visibility Reveal You TopOfLibrary)
        , Static (Macros.mayPlayFrom You (AllOf Macros.land) Macros.onTopZ)
        , Macros.triggered Whenever
@@ -5155,7 +5155,7 @@ wanderingEye : Card
 wanderingEye =
   Macros.card "Wandering Eye"
        (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Illusion] [Creature])
+       (MkTypeLine [creatureType "Illusion"] [Creature])
        [ Macros.keyword Flying
        , Static (Visibility Reveal (PlayerGroup AllPlayers) WholeHand) ]
        (Just (1, 3))
@@ -5165,10 +5165,10 @@ korlessaScaleSinger : Card
 korlessaScaleSinger =
   Macros.card "Korlessa, Scale Singer"
        (Just [Macros.pip Green, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [Dragon, Bard] [Creature])
+       (MkTypeLine [creatureType "Dragon", creatureType "Bard"] [Creature])
        [ Static (Visibility LookAt You TopOfLibrary)
        , Static (Macros.mayCastFrom You
-                                    (AllOf (And [Macros.spell, HasSubtype Dragon]))
+                                    (AllOf (And [Macros.spell, HasSubtype (creatureType "Dragon")]))
                                     Macros.onTopZ) ]
        (Just (1, 4))
 
@@ -5223,7 +5223,7 @@ oracleOfMulDaya : Card
 oracleOfMulDaya =
   Macros.card "Oracle of Mul Daya"
        (Just [Macros.generic 3, Macros.pip Green]) []
-       (MkTypeLine [Elf, Shaman] [Creature])
+       (MkTypeLine [creatureType "Elf", creatureType "Shaman"] [Creature])
        [ Static (MayPlayAdditionalLands You (Macros.exactly 1))
        , Static (Visibility Reveal You TopOfLibrary)
        , Static (Macros.mayPlayFrom You (AllOf Macros.land) Macros.onTopZ) ]
@@ -5234,7 +5234,7 @@ azusaLostButSeeking : Card
 azusaLostButSeeking =
   Macros.card "Azusa, Lost but Seeking"
        (Just [Macros.generic 2, Macros.pip Green]) [Legendary]
-       (MkTypeLine [Human, Monk] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Monk"] [Creature])
        [ Static (MayPlayAdditionalLands You (Macros.exactly 2)) ]
        (Just (1, 2))
 
@@ -5290,7 +5290,7 @@ dryadOfTheIlysianGrove : Card
 dryadOfTheIlysianGrove =
   Macros.card "Dryad of the Ilysian Grove"
        (Just [Macros.generic 2, Macros.pip Green]) []
-       (MkTypeLine [Nymph, Dryad] [Enchantment, Creature])
+       (MkTypeLine [creatureType "Nymph", creatureType "Dryad"] [Enchantment, Creature])
        [ Static (MayPlayAdditionalLands You (Macros.exactly 1))
        , Static (AddsEveryType (AllOf (And [Macros.land, ControlledBy You]))
                                BasicLandSpace) ]
@@ -5301,7 +5301,7 @@ mistformUltimus : Card
 mistformUltimus =
   Macros.card "Mistform Ultimus"
        (Just [Macros.generic 3, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [Illusion] [Creature])
+       (MkTypeLine [creatureType "Illusion"] [Creature])
        [ Static (AddsEveryType Macros.thisCreature CreatureSpace) ]
        (Just (3, 3))
 
@@ -5309,7 +5309,7 @@ public export
 amorphousAxe : Card
 amorphousAxe =
   Macros.card "Amorphous Axe" (Just [Macros.generic 2]) []
-       (MkTypeLine [Equipment] [Artifact])
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Static (AndAlso
            [ Gets (AttachHost Equipped (TypeW Creature)) (PtUp (Lit 3))
                   (PtUp (Lit 0))
@@ -5322,7 +5322,7 @@ public export
 runedStalactite : Card
 runedStalactite =
   Macros.card "Runed Stalactite" (Just [Macros.generic 1]) []
-       (MkTypeLine [Equipment] [Artifact])
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
        [ Static (AndAlso
            [ Gets (AttachHost Equipped (TypeW Creature)) (PtUp (Lit 1))
                   (PtUp (Lit 1))
@@ -5335,7 +5335,7 @@ public export
 arachnoform : Card
 arachnoform =
   Macros.card "Arachnoform" (Just [Macros.generic 1, Macros.pip Green]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso
            [ Gets (AttachHost Enchanted (TypeW Creature)) (PtUp (Lit 2))
@@ -5350,7 +5350,7 @@ nyleasPresence : Card
 nyleasPresence =
   Macros.card "Nylea's Presence"
        (Just [Macros.generic 1, Macros.pip Green]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.land
        , Macros.triggered When (Enters Macros.thisAura) Macros.drawACard
        , Static (AddsEveryType (AttachHost Enchanted (TypeW Land))
@@ -5428,7 +5428,7 @@ blindingAngel : Card
 blindingAngel =
   Macros.card "Blinding Angel"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Angel] [Creature])
+       (MkTypeLine [creatureType "Angel"] [Creature])
        [ Macros.keyword Flying
        , Macros.triggered Whenever
            (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
@@ -5469,7 +5469,7 @@ wormfangManta : Card
 wormfangManta =
   Macros.card "Wormfang Manta"
        (Just [Macros.generic 5, Macros.pip Blue, Macros.pip Blue]) []
-       (MkTypeLine [Nightmare, Fish, Beast] [Creature])
+       (MkTypeLine [creatureType "Nightmare", creatureType "Fish", creatureType "Beast"] [Creature])
        [ Macros.keyword Flying
        , Macros.triggered When (Enters Macros.thisCreature) (SkipsNext You Turn (Lit 1))
        , Macros.triggered When (Leaves Macros.thisCreature) (ExtraTurn You (Lit 1)) ]
@@ -5544,7 +5544,7 @@ hellkiteCharger : Card
 hellkiteCharger =
   Macros.card "Hellkite Charger"
        (Just [Macros.generic 4, Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [Dragon] [Creature])
+       (MkTypeLine [creatureType "Dragon"] [Creature])
        [ Macros.keyword Flying
        , Macros.keyword Haste
        , Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
@@ -5573,9 +5573,9 @@ grumgully : Card
 grumgully =
   Macros.card "Grumgully, the Generous"
        (Just [Macros.generic 1, Macros.pip Red, Macros.pip Green]) [Legendary]
-       (MkTypeLine [Goblin, Shaman] [Creature])
+       (MkTypeLine [creatureType "Goblin", creatureType "Shaman"] [Creature])
        [Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, ControlledBy You,
-                                                                Not (HasSubtype Human),
+                                                                Not (HasSubtype (creatureType "Human")),
                                                                 OtherThan Macros.thisCreature]))
                                                     (Lit 1)
                                                     Macros.plusOnePlusOne)]
@@ -5586,7 +5586,7 @@ dragonstormGlobe : Card
 dragonstormGlobe =
   Macros.card "Dragonstorm Globe" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
-       [ Static (Macros.entersWithAdditionalCounters (Each (And [HasSubtype Dragon, ControlledBy You]))
+       [ Static (Macros.entersWithAdditionalCounters (Each (And [HasSubtype (creatureType "Dragon"), ControlledBy You]))
                                                      (Lit 1)
                                                      Macros.plusOnePlusOne)
        , Macros.activated TapSymbol (AddMana You (Lit 1) (AnyColor SameColor) []) ]
@@ -5596,8 +5596,8 @@ public export
 sageOfFables : Card
 sageOfFables =
   Macros.card "Sage of Fables" (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Merfolk, Wizard] [Creature])
-       [ Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, HasSubtype Wizard, ControlledBy You,
+       (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
+       [ Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, HasSubtype (creatureType "Wizard"), ControlledBy You,
                                                                  OtherThan Macros.thisCreature]))
                                                      (Lit 1)
                                                      Macros.plusOnePlusOne)
@@ -5611,7 +5611,7 @@ public export
 metallicMimic : Card
 metallicMimic =
   Macros.card "Metallic Mimic" (Just [Macros.generic 2]) []
-       (MkTypeLine [Shapeshifter] [Artifact, Creature])
+       (MkTypeLine [creatureType "Shapeshifter"] [Artifact, Creature])
        [ Static (Macros.entersChoosing Macros.thisCreature CreatureType)
        , Static (AddsChosenQuality Macros.thisCreature (OfChosen CreatureType))
        , Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, ControlledBy You,
@@ -5655,7 +5655,7 @@ public export
 phyrexianRevoker : Card
 phyrexianRevoker =
   Macros.card "Phyrexian Revoker" (Just [Macros.generic 2]) []
-       (MkTypeLine [Horror] [Artifact, Creature])
+       (MkTypeLine [creatureType "Horror"] [Artifact, Creature])
        [ Static (Macros.entersChoosingFrom Macros.thisCreature
                                            CardName
                                            (NameOfCard (Not (HasType Land))))
@@ -5670,7 +5670,7 @@ voidstoneGargoyle : Card
 voidstoneGargoyle =
   Macros.card "Voidstone Gargoyle"
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Gargoyle] [Creature])
+       (MkTypeLine [creatureType "Gargoyle"] [Creature])
        [ Macros.keyword Flying
        , Static (Macros.entersChoosingFrom Macros.thisCreature
                                            CardName
@@ -5730,7 +5730,7 @@ public export
 clarionConqueror : Card
 clarionConqueror =
   Macros.card "Clarion Conqueror" (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [Dragon] [Creature])
+       (MkTypeLine [creatureType "Dragon"] [Creature])
        [ Macros.keyword Flying
        , Static (ObjectCant Activated
                    (AllOf (And [ AbilityHead AnyActivated
@@ -5779,9 +5779,9 @@ public export
 bureauHeadmaster : Card
 bureauHeadmaster =
   Macros.card "Bureau Headmaster" (Just [Macros.pip Red, Macros.pip White]) []
-       (MkTypeLine [Human, Assassin] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Assassin"] [Creature])
        [ Static (CostsToCast
-                   (AllOf (And [Macros.spell, HasSubtype Equipment, CastBy You]))
+                   (AllOf (And [Macros.spell, HasSubtype (artifactType "Equipment"), CastBy You]))
                    (CostLess (Lit 1)))
        , Static (CostsToCast
                    (AllOf (And [AbilityHead (KeywordClass Equip), ActivatedBy You]))
@@ -5792,7 +5792,7 @@ public export
 demotion : Card
 demotion =
   Macros.card "Demotion" (Just [Macros.pip White]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso
            [ Deontic (AttachHost Enchanted (TypeW Creature)) Forbid Block Agent NoDeonticPatient
@@ -5804,7 +5804,7 @@ public export
 vipersKiss : Card
 vipersKiss =
   Macros.card "Viper's Kiss" (Just [Macros.pip Black]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (AndAlso
            [ Gets (AttachHost Enchanted (TypeW Creature)) (PtDown (Lit 1)) (PtDown (Lit 1))
@@ -5816,7 +5816,7 @@ public export
 stupefyingTouch : Card
 stupefyingTouch =
   Macros.card "Stupefying Touch" (Just [Macros.generic 1, Macros.pip Blue]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Macros.triggered When (Enters Macros.thisAura) (Draw You (Lit 1))
        , Static (ObjectCant Activated
@@ -5837,7 +5837,7 @@ linvalaKeeperOfSilence : Card
 linvalaKeeperOfSilence =
   Macros.card "Linvala, Keeper of Silence"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) [Legendary]
-       (MkTypeLine [Angel] [Creature])
+       (MkTypeLine [creatureType "Angel"] [Creature])
        [ Macros.keyword Flying
        , Static (ObjectCant Activated
                    (AllOf (And [ AbilityHead AnyActivated
@@ -5849,7 +5849,7 @@ public export
 eidolonOfObstruction : Card
 eidolonOfObstruction =
   Macros.card "Eidolon of Obstruction" (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [Spirit] [Enchantment, Creature])
+       (MkTypeLine [creatureType "Spirit"] [Enchantment, Creature])
        [ Macros.keyword FirstStrike
        , Static (CostsToCast
                    (AllOf (And [ AbilityHead LoyaltyClass
@@ -5877,7 +5877,7 @@ crash =
   Macros.card "Crash" (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
        [ Static (AltCost (Just (Do (Macros.sacrifice You
-                   (Macros.a (And [Macros.land, HasSubtype Mountain]))))))
+                   (Macros.a (And [Macros.land, HasSubtype (landType "Mountain")]))))))
        , Spell (Macros.destroy (Macros.target Macros.artifact)) ]
        Nothing
 
@@ -5888,9 +5888,9 @@ moggSalvage =
        (MkTypeLine [] [Instant])
        [ Static (Macros.asLongAs
                    (AndCond
-                      [ Exists (And [Macros.land, HasSubtype Island,
+                      [ Exists (And [Macros.land, HasSubtype (landType "Island"),
                                      ControlledBy Macros.anOpponent])
-                      , Exists (And [Macros.land, HasSubtype Mountain,
+                      , Exists (And [Macros.land, HasSubtype (landType "Mountain"),
                                      ControlledBy You]) ])
                    (AltCost Nothing))
        , Spell (Macros.destroy (Macros.target Macros.artifact)) ]
@@ -5902,7 +5902,7 @@ abolish =
   Macros.card "Abolish" (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Instant])
        [ Static (AltCost (Just (Do (Macros.discards You
-                   (Macros.a (And [HasSubtype Plains, InZone Macros.handZ]))))))
+                   (Macros.a (And [HasSubtype (landType "Plains"), InZone Macros.handZ]))))))
        , Spell (Macros.destroy (Macros.target (Or [Macros.artifact,
                                                    Macros.enchantment]))) ]
        Nothing
@@ -5914,7 +5914,7 @@ gush =
        (MkTypeLine [] [Instant])
        [ Static (AltCost (Just (Do (Macros.move
                    (CountedGroup (Macros.exactly 2)
-                                 (And [Macros.land, HasSubtype Island,
+                                 (And [Macros.land, HasSubtype (landType "Island"),
                                        ControlledBy You]))
                    Macros.handZ))))
        , Spell (Macros.drawCards 2) ]
@@ -5953,9 +5953,9 @@ massacre =
        (MkTypeLine [] [Sorcery])
        [ Static (Macros.asLongAs
                    (AndCond
-                      [ Exists (And [Macros.land, HasSubtype Plains,
+                      [ Exists (And [Macros.land, HasSubtype (landType "Plains"),
                                      ControlledBy Macros.anOpponent])
-                      , Exists (And [Macros.land, HasSubtype Swamp,
+                      , Exists (And [Macros.land, HasSubtype (landType "Swamp"),
                                      ControlledBy You]) ])
                    (AltCost Nothing))
        , Spell (Continuously
@@ -5967,12 +5967,12 @@ public export
 kyrenLegate : Card
 kyrenLegate =
   Macros.card "Kyren Legate" (Just [Macros.generic 1, Macros.pip Red]) []
-       (MkTypeLine [Goblin] [Creature])
+       (MkTypeLine [creatureType "Goblin"] [Creature])
        [ Static (Macros.asLongAs
                    (AndCond
-                      [ Exists (And [Macros.land, HasSubtype Plains,
+                      [ Exists (And [Macros.land, HasSubtype (landType "Plains"),
                                      ControlledBy Macros.anOpponent])
-                      , Exists (And [Macros.land, HasSubtype Mountain,
+                      , Exists (And [Macros.land, HasSubtype (landType "Mountain"),
                                      ControlledBy You]) ])
                    (AltCost Nothing))
        , Macros.keyword Haste ]
@@ -5984,7 +5984,7 @@ rouse =
   Macros.card "Rouse" (Just [Macros.generic 1, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
        [ Static (Macros.asLongAs
-                   (Exists (And [Macros.land, HasSubtype Swamp, ControlledBy You]))
+                   (Exists (And [Macros.land, HasSubtype (landType "Swamp"), ControlledBy You]))
                    (AltCost (Just (Do (ChangeLife You (Down (Lit 2)))))))
        , Spell (Continuously
                   (Gets (Macros.target Macros.creature) (PtUp (Lit 2)) (PtUp (Lit 0)))
@@ -5996,7 +5996,7 @@ demonOfDeathsGate : Card
 demonOfDeathsGate =
   Macros.card "Demon of Death's Gate"
        (Just [Macros.generic 6, Macros.pip Black, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Demon] [Creature])
+       (MkTypeLine [creatureType "Demon"] [Creature])
        [ Static (AltCost (Just (Compound
                    [ Do (ChangeLife You (Down (Lit 6)))
                    , Do (Macros.sacrifice You
@@ -6014,7 +6014,7 @@ thwart =
        (MkTypeLine [] [Instant])
        [ Static (AltCost (Just (Do (Macros.move
                    (CountedGroup (Macros.exactly 3)
-                                 (And [Macros.land, HasSubtype Island,
+                                 (And [Macros.land, HasSubtype (landType "Island"),
                                        ControlledBy You]))
                    Macros.handZ))))
        , Spell (Macros.counterSpell (Macros.target Macros.spell)) ]
@@ -6025,7 +6025,7 @@ theLadyOfOtariaLine : StaticEffect []
 theLadyOfOtariaLine =
   AltCost (Just (Do (SetStatus Tapped
             (CountedGroup (Macros.exactly 3)
-                          (And [Macros.creature, HasSubtype Dwarf,
+                          (And [Macros.creature, HasSubtype (creatureType "Dwarf"),
                                 ControlledBy You, HasStatus Untapped])))))
 
 public export
@@ -6033,7 +6033,7 @@ shiningShoal : Card
 shiningShoal =
   Macros.card "Shining Shoal"
        (Just [Variable, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Arcane] [Instant])
+       (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs White,
                                    Compare ManaValue Eq (LetterVal X),
@@ -6053,7 +6053,7 @@ disruptingShoal : Card
 disruptingShoal =
   Macros.card "Disrupting Shoal"
        (Just [Variable, Macros.pip Blue, Macros.pip Blue]) []
-       (MkTypeLine [Arcane] [Instant])
+       (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Blue,
                                    Compare ManaValue Eq (LetterVal X),
@@ -6094,7 +6094,7 @@ blazingShoal : Card
 blazingShoal =
   Macros.card "Blazing Shoal"
        (Just [Variable, Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [Arcane] [Instant])
+       (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Red,
                                    Compare ManaValue Eq (LetterVal X),
@@ -6108,7 +6108,7 @@ sickeningShoal : Card
 sickeningShoal =
   Macros.card "Sickening Shoal"
        (Just [Variable, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Arcane] [Instant])
+       (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Black,
                                    Compare ManaValue Eq (LetterVal X),
@@ -6122,7 +6122,7 @@ nourishingShoal : Card
 nourishingShoal =
   Macros.card "Nourishing Shoal"
        (Just [Variable, Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Arcane] [Instant])
+       (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Green,
                                    Compare ManaValue Eq (LetterVal X),
@@ -6228,7 +6228,7 @@ public export
 drudgeSkeletons : Card
 drudgeSkeletons =
   Macros.card "Drudge Skeletons" (Just [Macros.generic 1, Macros.pip Black]) []
-       (MkTypeLine [Skeleton] [Creature])
+       (MkTypeLine [creatureType "Skeleton"] [Creature])
        [ Macros.activated (Mana [Macros.pip Black]) (Regenerate Macros.thisCreature) ]
        (Just (1, 1))
 
@@ -6236,7 +6236,7 @@ public export
 asphodelWanderer : Card
 asphodelWanderer =
   Macros.card "Asphodel Wanderer" (Just [Macros.pip Black]) []
-       (MkTypeLine [Skeleton, Soldier] [Creature])
+       (MkTypeLine [creatureType "Skeleton", creatureType "Soldier"] [Creature])
        [ Macros.activated (Mana [Macros.generic 2, Macros.pip Black])
                           (Regenerate Macros.thisCreature) ]
        (Just (1, 1))
@@ -6257,7 +6257,7 @@ public export
 matopiGolem : Card
 matopiGolem =
   Macros.card "Matopi Golem" (Just [Macros.generic 5]) []
-       (MkTypeLine [Golem] [Artifact, Creature])
+       (MkTypeLine [creatureType "Golem"] [Artifact, Creature])
        [ Macros.activated (Mana [Macros.generic 1])
                           (ThisWay (Regenerate Macros.thisCreature)
                             (Regenerates Macros.thisCreature)
@@ -6273,7 +6273,7 @@ infernoOfTheStarMounts : Card
 infernoOfTheStarMounts =
   Macros.card "Inferno of the Star Mounts"
        (Just [Macros.generic 4, Macros.pip Red, Macros.pip Red]) [Legendary]
-       (MkTypeLine [Dragon] [Creature])
+       (MkTypeLine [creatureType "Dragon"] [Creature])
        [ Static (ObjectCant Countered This)
        , Macros.keyword Flying
        , Macros.keyword Haste
@@ -6301,7 +6301,7 @@ snuffOut =
   Macros.card "Snuff Out" (Just [Macros.generic 3, Macros.pip Black]) []
        (MkTypeLine [] [Instant])
        [ Static (Macros.asLongAs
-                   (Exists (And [Macros.land, HasSubtype Swamp,
+                   (Exists (And [Macros.land, HasSubtype (landType "Swamp"),
                                  ControlledBy You]))
                    (AltCost (Just (Do (ChangeLife You (Down (Lit 4)))))))
        , Spell (CantBe (Macros.destroy (Macros.target
@@ -6344,7 +6344,7 @@ phyrexianRebirth =
                   , Create You (Lit 1)
                            (TokenWritten
                               (MkToken (Just (LetterVal X ** LetterVal X)) []
-                                       (MkTypeLine [Phyrexian, Horror]
+                                       (MkTypeLine [creatureType "Phyrexian", creatureType "Horror"]
                                                    [Artifact, Creature])
                                        [] Nothing))
                            []
@@ -6403,7 +6403,7 @@ public export
 mirageMesa : Card
 mirageMesa =
   Macros.card "Mirage Mesa" Nothing []
-       (MkTypeLine [Desert] [Land])
+       (MkTypeLine [landType "Desert"] [Land])
        [ Static (Macros.entersTapped Macros.thisLand)
        , Static (Macros.entersChoosing Macros.thisLand Color)
        , Macros.activated TapSymbol
@@ -6414,7 +6414,7 @@ public export
 crossroadsVillage : Card
 crossroadsVillage =
   Macros.card "Crossroads Village" Nothing []
-       (MkTypeLine [Town] [Land])
+       (MkTypeLine [landType "Town"] [Land])
        [ Static (Macros.entersTapped Macros.thisLand)
        , Static (Macros.entersChoosing Macros.thisLand Color)
        , Macros.activated TapSymbol
@@ -6483,8 +6483,8 @@ bramblewoodParagon : Card
 bramblewoodParagon =
   Macros.card "Bramblewood Paragon"
        (Just [Macros.generic 1, Macros.pip Green]) []
-       (MkTypeLine [Elf, Warrior] [Creature])
-       [ Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, HasSubtype Warrior, ControlledBy You,
+       (MkTypeLine [creatureType "Elf", creatureType "Warrior"] [Creature])
+       [ Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, HasSubtype (creatureType "Warrior"), ControlledBy You,
                                                                  OtherThan Macros.thisCreature]))
                                                      (Lit 1)
                                                      Macros.plusOnePlusOne)
@@ -6498,9 +6498,9 @@ oonasBlackguard : Card
 oonasBlackguard =
   Macros.card "Oona's Blackguard"
        (Just [Macros.generic 1, Macros.pip Black]) []
-       (MkTypeLine [Faerie, Rogue] [Creature])
+       (MkTypeLine [creatureType "Faerie", creatureType "Rogue"] [Creature])
        [ Macros.keyword Flying
-       , Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, HasSubtype Rogue, ControlledBy You,
+       , Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, HasSubtype (creatureType "Rogue"), ControlledBy You,
                                                                  OtherThan Macros.thisCreature]))
                                                      (Lit 1)
                                                      Macros.plusOnePlusOne)
@@ -6551,7 +6551,7 @@ hunterOfEyeblights : Card
 hunterOfEyeblights =
   Macros.card "Hunter of Eyeblights"
        (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Elf, Assassin] [Creature])
+       (MkTypeLine [creatureType "Elf", creatureType "Assassin"] [Creature])
        [ Macros.triggered When (Enters Macros.thisCreature)
                           (PutCounters (Lit 1) Macros.plusOnePlusOne
                       (Macros.target Macros.creatureYouDontControl))
@@ -6565,7 +6565,7 @@ pridemalkin : Card
 pridemalkin =
   Macros.card "Pridemalkin"
        (Just [Macros.generic 2, Macros.pip Green]) []
-       (MkTypeLine [Cat] [Creature])
+       (MkTypeLine [creatureType "Cat"] [Creature])
        [ Macros.triggered When (Enters Macros.thisCreature)
                           (PutCounters (Lit 1) Macros.plusOnePlusOne
                       (Macros.target Macros.creatureYouControl))
@@ -6593,7 +6593,7 @@ aboroth : Card
 aboroth =
   Macros.card "Aboroth"
        (Just [Macros.generic 4, Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Elemental] [Creature])
+       (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.keywordCosting CumulativeUpkeep
                                (Do (PutCounters (Lit 1) Macros.minusOneMinusOne
                                       Macros.thisCreature)) ]
@@ -6604,7 +6604,7 @@ shelteringAncient : Card
 shelteringAncient =
   Macros.card "Sheltering Ancient"
        (Just [Macros.generic 1, Macros.pip Green]) []
-       (MkTypeLine [Treefolk] [Creature])
+       (MkTypeLine [creatureType "Treefolk"] [Creature])
        [ Macros.keyword Trample
        , Macros.keywordCosting CumulativeUpkeep
                                (Do (PutCounters (Lit 1) Macros.plusOnePlusOne
@@ -6617,7 +6617,7 @@ polarKraken : Card
 polarKraken =
   Macros.card "Polar Kraken"
        (Just [Macros.generic 8, Macros.pip Blue, Macros.pip Blue, Macros.pip Blue]) []
-       (MkTypeLine [Kraken] [Creature])
+       (MkTypeLine [creatureType "Kraken"] [Creature])
        [ Macros.keyword Trample
        , Static (Macros.entersTapped Macros.thisCreature)
        , Macros.keywordCosting CumulativeUpkeep (Do (Macros.sacrifice You (Macros.a Macros.land))) ]
@@ -6628,7 +6628,7 @@ yavimayaAnts : Card
 yavimayaAnts =
   Macros.card "Yavimaya Ants"
        (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
-       (MkTypeLine [Insect] [Creature])
+       (MkTypeLine [creatureType "Insect"] [Creature])
        [ Macros.keyword Trample
        , Macros.keyword Haste
        , Macros.keywordCosting CumulativeUpkeep (Mana [Macros.pip Green, Macros.pip Green]) ]
@@ -6639,7 +6639,7 @@ illusionaryForces : Card
 illusionaryForces =
   Macros.card "Illusionary Forces"
        (Just [Macros.generic 3, Macros.pip Blue]) []
-       (MkTypeLine [Illusion] [Creature])
+       (MkTypeLine [creatureType "Illusion"] [Creature])
        [ Macros.keyword Flying
        , Macros.keywordCosting CumulativeUpkeep (Mana [Macros.pip Blue]) ]
        (Just (4, 4))
@@ -6649,7 +6649,7 @@ vexingSphinx : Card
 vexingSphinx =
   Macros.card "Vexing Sphinx"
        (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
-       (MkTypeLine [Sphinx] [Creature])
+       (MkTypeLine [creatureType "Sphinx"] [Creature])
        [ Macros.keyword Flying
        , Macros.keywordCosting CumulativeUpkeep (Do (Macros.discardsACard You))
        , Macros.triggered When (Dies Macros.thisCreature)
@@ -6660,7 +6660,7 @@ public export
 manaChains : Card
 manaChains =
   Macros.card "Mana Chains" (Just [Macros.pip Blue]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (Gains (AttachHost Enchanted (TypeW Creature))
                        (Macros.keywordCosting CumulativeUpkeep (Mana [Macros.generic 1]))) ]
@@ -6679,7 +6679,7 @@ odricLunarchMarshal : Card
 odricLunarchMarshal =
   Macros.card "Odric, Lunarch Marshal"
        (Just [Macros.generic 3, Macros.pip White]) [Legendary]
-       (MkTypeLine [Human, Soldier] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ AlsoForKeywords
            (Macros.triggeredIf At
                                (BeginningOf Combat (ByWord EachPlayers))
@@ -6718,7 +6718,7 @@ urborgScavengers : Card
 urborgScavengers =
   Macros.card "Urborg Scavengers"
        (Just [Macros.generic 2, Macros.pip Black]) []
-       (MkTypeLine [Spirit] [Creature])
+       (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.triggeredOr Whenever
                             (Enters Macros.thisCreature)
                             (Macros.attacks Macros.thisCreature)
@@ -6739,7 +6739,7 @@ sengirVampire : Card
 sengirVampire =
   Macros.card "Sengir Vampire"
        (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Vampire] [Creature])
+       (MkTypeLine [creatureType "Vampire"] [Creature])
        [ Macros.keyword Flying
        , Macros.triggered Whenever
            (Dies (Macros.a (And [Macros.creature,
@@ -6753,7 +6753,7 @@ public export
 wickedAkuba : Card
 wickedAkuba =
   Macros.card "Wicked Akuba" (Just [Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Spirit] [Creature])
+       (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.activated (Mana [Macros.pip Black])
            (Macros.losesLife
               (Macros.target (And [AnyPlayer,
@@ -6767,7 +6767,7 @@ public export
 fyndhornDruid : Card
 fyndhornDruid =
   Macros.card "Fyndhorn Druid" (Just [Macros.generic 2, Macros.pip Green]) []
-       (MkTypeLine [Elf, Druid] [Creature])
+       (MkTypeLine [creatureType "Elf", creatureType "Druid"] [Creature])
        [ Macros.triggeredIf When
                             (Dies Macros.thisCreature)
                             (Macros.happened BlockedDeclaration It Lookback.ThisTurn)
@@ -6778,7 +6778,7 @@ public export
 dreamThief : Card
 dreamThief =
   Macros.card "Dream Thief" (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Faerie, Rogue] [Creature])
+       (MkTypeLine [creatureType "Faerie", creatureType "Rogue"] [Creature])
        [ Macros.keyword Flying
        , Macros.triggered When (Enters Macros.thisCreature)
            (OnlyIf Macros.drawACard
@@ -6792,7 +6792,7 @@ public export
 brightspearZealot : Card
 brightspearZealot =
   Macros.card "Brightspear Zealot" (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [Human, Soldier] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ Macros.keyword Vigilance
        , Static (Macros.asLongAs
            (CompareAmt (Macros.eventCountInvolving SpellCast
@@ -6807,19 +6807,19 @@ public export
 deepwayNavigator : Card
 deepwayNavigator =
   Macros.card "Deepway Navigator" (Just [Macros.pip White, Macros.pip Blue]) []
-       (MkTypeLine [Merfolk, Wizard] [Creature])
+       (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
        [ Macros.keyword Flash
        , Macros.triggered When (Enters Macros.thisCreature)
            (SetStatus Untapped
-              (Each (And [HasSubtype Merfolk, ControlledBy You,
+              (Each (And [HasSubtype (creatureType "Merfolk"), ControlledBy You,
                           OtherThan Macros.thisCreature])))
        , Static (Macros.asLongAs
            (Macros.happenedInvolving AttackDeclaration
                                      You
                                      Lookback.ThisTurn
                                      (CountedGroup (Macros.atLeast 3)
-                                        (HasSubtype Merfolk)))
-           (Gets (AllOf (And [HasSubtype Merfolk, ControlledBy You]))
+                                        (HasSubtype (creatureType "Merfolk"))))
+           (Gets (AllOf (And [HasSubtype (creatureType "Merfolk"), ControlledBy You]))
                  (PtUp (Lit 1)) (PtUp (Lit 0)))) ]
        (Just (2, 2))
 
@@ -6836,18 +6836,18 @@ idolOfOblivion =
                                                           (Macros.a IsToken))
        , Macros.activated (Compound [Mana [Macros.generic 8], TapSymbol,
                               Do (Macros.sacrifice You Macros.thisArtifact)])
-           (Macros.create (Lit 1) (Macros.creatureTok 10 10 [] [Eldrazi])) ]
+           (Macros.create (Lit 1) (Macros.creatureTok 10 10 [] [creatureType "Eldrazi"])) ]
        Nothing
 
 public export
 mildManneredLibrarian : Card
 mildManneredLibrarian =
   Macros.card "Mild-Mannered Librarian" (Just [Macros.pip Green]) []
-       (MkTypeLine [Human] [Creature])
+       (MkTypeLine [creatureType "Human"] [Creature])
        [ Macros.activatedOnlyOnce (Mana [Macros.generic 3, Macros.pip Green])
                                   (Sequentially
                                      [ Continuously (SetsType Macros.thisCreature
-                                         (MkToken Nothing [] (Macros.subtypesOnly [Werewolf]) [] Nothing)
+                                         (MkToken Nothing [] (Macros.subtypesOnly [creatureType "Werewolf"]) [] Nothing)
                                          Nothing) Nothing
                                      , PutCounters (Lit 2) Macros.plusOnePlusOne It
                                      , Macros.drawACard ])
@@ -6871,7 +6871,7 @@ public export
 ashZealot : Card
 ashZealot =
   Macros.card "Ash Zealot" (Just [Macros.pip Red, Macros.pip Red]) []
-       (MkTypeLine [Human, Warrior] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Warrior"] [Creature])
        [ Macros.keyword FirstStrike
        , Macros.keyword Haste
        , Macros.triggered Whenever
@@ -6895,7 +6895,7 @@ public export
 coalStoker : Card
 coalStoker =
   Macros.card "Coal Stoker" (Just [Macros.generic 3, Macros.pip Red]) []
-       (MkTypeLine [Elemental] [Creature])
+       (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.triggeredIf When
                             (Enters Macros.thisCreature)
                             (Matches It (CastFrom (Macros.handOf You)))
@@ -6907,7 +6907,7 @@ vegaTheWatcher : Card
 vegaTheWatcher =
   Macros.card "Vega, the Watcher"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip Blue]) [Legendary]
-       (MkTypeLine [Bird, Spirit] [Creature])
+       (MkTypeLine [creatureType "Bird", creatureType "Spirit"] [Creature])
        [ Macros.keyword Flying
        , Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
@@ -6919,9 +6919,9 @@ public export
 patricianGeist : Card
 patricianGeist =
   Macros.card "Patrician Geist" (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Spirit, Knight] [Creature])
+       (MkTypeLine [creatureType "Spirit", creatureType "Knight"] [Creature])
        [ Macros.keyword Flying
-       , Static (Gets (AllOf (And [HasSubtype Spirit, ControlledBy You,
+       , Static (Gets (AllOf (And [HasSubtype (creatureType "Spirit"), ControlledBy You,
                                    OtherThan Macros.thisCreature]))
                       (PtUp (Lit 1)) (PtUp (Lit 1)))
        , Static (CostsToCast
@@ -6952,7 +6952,7 @@ public export
 shatteredEgo : Card
 shatteredEgo =
   Macros.card "Shattered Ego" (Just [Macros.pip Blue]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant Macros.creature
        , Static (Gets (AttachHost Enchanted (TypeW Creature))
                       (PtDown (Lit 3)) (PtDown (Lit 0)))
@@ -6965,7 +6965,7 @@ public export
 gandalfWhiteRider : Card
 gandalfWhiteRider =
   Macros.card "Gandalf, White Rider" (Just [Macros.generic 3, Macros.pip White])
-       [Legendary] (MkTypeLine [Avatar, Wizard] [Creature])
+       [Legendary] (MkTypeLine [creatureType "Avatar", creatureType "Wizard"] [Creature])
        [ Macros.keyword Vigilance
        , Macros.triggered Whenever (Casts You (Macros.a Macros.spell))
                           (Sequentially
@@ -7001,7 +7001,7 @@ public export
 kamiOfTerribleSecrets : Card
 kamiOfTerribleSecrets =
   Macros.card "Kami of Terrible Secrets" (Just [Macros.generic 3, Macros.pip Black]) []
-       (MkTypeLine [Spirit] [Creature])
+       (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.triggeredIf When
                             (Enters Macros.thisCreature)
                             (AndCond [ Exists (And [Macros.artifact, ControlledBy You])
@@ -7013,7 +7013,7 @@ public export
 bloodfireEnforcers : Card
 bloodfireEnforcers =
   Macros.card "Bloodfire Enforcers" (Just [Macros.generic 3, Macros.pip Red]) []
-       (MkTypeLine [Human, Monk] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Monk"] [Creature])
        [ Static (Macros.asLongAs
                    (AndCond [ Exists (And [Macros.instant, InZone (Macros.graveyardOf You)])
                             , Exists (And [Macros.sorcery, InZone (Macros.graveyardOf You)]) ])
@@ -7062,7 +7062,7 @@ public export
 fettergeist : Card
 fettergeist =
   Macros.card "Fettergeist" (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Spirit] [Creature])
+       (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.keyword Flying
        , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
            (Macros.mayElse You
@@ -7076,7 +7076,7 @@ public export
 megatherium : Card
 megatherium =
   Macros.card "Megatherium" (Just [Macros.generic 2, Macros.pip Green]) []
-       (MkTypeLine [Beast] [Creature])
+       (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.keyword Trample
        , Macros.triggered When (Enters Macros.thisCreature)
            (Macros.mayElse You
@@ -7090,21 +7090,21 @@ riseFromTheGrave : Effect []
 riseFromTheGrave =
   Sequentially [Macros.putOntoBattlefieldUnderYourControl (Macros.target (And [Macros.creature, InZone (ZoneAt Graveyard Bare)])),
                 Macros.becomesAs (That (TypeW Creature))
-                                 (MkToken Nothing [Black] (MkTypeLine [Zombie] []) [] Nothing)
+                                 (MkToken Nothing [Black] (MkTypeLine [creatureType "Zombie"] []) [] Nothing)
                                  Nothing]
 
 public export
 dreadSlaver : Card
 dreadSlaver =
   Macros.card "Dread Slaver" (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
-       (MkTypeLine [Zombie, Horror] [Creature])
+       (MkTypeLine [creatureType "Zombie", creatureType "Horror"] [Creature])
        [ Macros.triggered When (Dies (Macros.a (And [Macros.creature,
                                               Macros.happenedToInvolving DamageTaken
                                                                          Lookback.ThisTurn
                                                                          Macros.thisCreature])))
            (Sequentially [Macros.putOntoBattlefieldUnderYourControl It,
                           Macros.becomesAs (That (TypeW Creature))
-                                           (MkToken Nothing [Black] (MkTypeLine [Zombie] []) [] Nothing)
+                                           (MkToken Nothing [Black] (MkTypeLine [creatureType "Zombie"] []) [] Nothing)
                                            Nothing]) ]
        (Just (3, 5))
 
@@ -7114,7 +7114,7 @@ stormOfSouls =
   Sequentially [Macros.move (AllOf (And [Macros.creature, InZone (Macros.graveyardOf You)]))
                             Macros.battlefieldZ,
                 Macros.becomesAs Them
-                                 (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [Spirit] [])
+                                 (MkToken (Just (Lit 1 ** Lit 1)) [] (MkTypeLine [creatureType "Spirit"] [])
                                           [Macros.keyword Flying] Nothing)
                                  Nothing,
                 Macros.exile This]
@@ -7125,7 +7125,7 @@ everAfter =
   Sequentially [Macros.move (TargetGroup (Macros.upTo 2) (And [Macros.creature, InZone (Macros.graveyardOf You)]))
                             Macros.battlefieldZ,
                 Macros.becomesAs (Those (TypeW Creature))
-                                 (MkToken Nothing [Black] (MkTypeLine [Zombie] []) [] Nothing)
+                                 (MkToken Nothing [Black] (MkTypeLine [creatureType "Zombie"] []) [] Nothing)
                                  Nothing,
                 Macros.move This Macros.onBottomZ]
 
@@ -7133,16 +7133,16 @@ public export
 infernalVessel : Card
 infernalVessel =
   Macros.card "Infernal Vessel" (Just [Macros.generic 2, Macros.pip Black]) []
-       (MkTypeLine [Human, Cleric] [Creature])
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
        [ Macros.triggeredIf When
                             (Dies Macros.thisCreature)
-                            (Macros.itIsntA (HasSubtype Demon))
+                            (Macros.itIsntA (HasSubtype (creatureType "Demon")))
                             (Sequentially [Macros.returnToBattlefieldWithCounters It
                                                                                   (OwnerOf It)
                                                                                   (Lit 2)
                                                                                   Macros.plusOnePlusOne,
                                            Macros.becomesAs It
-                                                            (MkToken Nothing [] (MkTypeLine [Demon] []) [] Nothing)
+                                                            (MkToken Nothing [] (MkTypeLine [creatureType "Demon"] []) [] Nothing)
                                                             Nothing]) ]
        (Just (2, 1))
 
@@ -7156,7 +7156,7 @@ answeredPrayers =
                           If (NotCond (Matches Macros.thisEnchantment Macros.creature))
                              (Macros.becomesAs Macros.thisEnchantment
                                                (MkToken (Just (Lit 3 ** Lit 3)) []
-                                                        (MkTypeLine [Angel] [Creature])
+                                                        (MkTypeLine [creatureType "Angel"] [Creature])
                                                         [Macros.keyword Flying] Nothing)
                                                (Just Macros.untilEndOfTurn))
                              Nothing]) ]
@@ -7195,7 +7195,7 @@ descentOfTheDragons =
                 ForEachOf (Macros.thoseVerbedThisWay "Destroy" (TypeW Creature))
                           (Create (ControllerOf It) (Lit 1)
                                   (TokenWritten (MkToken (Just (Lit 4 ** Lit 4)) [Red]
-                                                         (MkTypeLine [Dragon] [Creature])
+                                                         (MkTypeLine [creatureType "Dragon"] [Creature])
                                                          [Macros.keyword Flying] Nothing))
                                   [])]
 
@@ -7250,7 +7250,7 @@ cultivatorColossus =
   Macros.cardOf "Cultivator Colossus"
        (Just [Macros.generic 4, Macros.pip Green, Macros.pip Green,
               Macros.pip Green]) []
-       (MkTypeLine [Plant, Beast] [Creature])
+       (MkTypeLine [creatureType "Plant", creatureType "Beast"] [Creature])
        [ Macros.keyword Trample
        , Static (DefinesPt Macros.thisCreature BothEach
                            (CountOf (And [Macros.land, ControlledBy You])))
@@ -7290,7 +7290,7 @@ public export
 shuFarmer : Card
 shuFarmer =
   Macros.card "Shu Farmer" (Just [Macros.generic 1, Macros.pip White]) []
-       (MkTypeLine [Human] [Creature])
+       (MkTypeLine [creatureType "Human"] [Creature])
        [ Macros.activatedOnlyDuring TapSymbol
                                     (Macros.gainsLife You (Lit 1))
                                     (BeforePoint AttackersDeclared (Just Yours)) ]
@@ -7309,12 +7309,12 @@ elspethsTalent : Card
 elspethsTalent =
   Macros.card "Elspeth's Talent"
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
-       (MkTypeLine [Aura] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject Enchant (HasType Planeswalker)
        , Static (Gains (AttachHost Enchanted (TypeW Planeswalker))
                        (Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                                          (Macros.create (Lit 3)
-                                     (Macros.creatureTok 1 1 [White] [Soldier]))))
+                                     (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))))
        , Macros.triggered Whenever
                           (Activates You loyaltyAbilityOfEnchanted)
                           (Continuously
@@ -7341,7 +7341,7 @@ public export
 curseOfTheBloodyTome : Card
 curseOfTheBloodyTome =
   Macros.card "Curse of the Bloody Tome" (Just [Macros.generic 2, Macros.pip Blue]) []
-       (MkTypeLine [Aura, Curse] [Enchantment])
+       (MkTypeLine [enchantmentType "Aura", enchantmentType "Curse"] [Enchantment])
        [ Macros.keywordSubject Enchant AnyPlayer
        , Macros.triggered At
                           (Macros.beginningOfPossessed Upkeep (AttachHost Enchanted PlayerW))
@@ -7375,7 +7375,7 @@ public export
 cryptLurker : Card
 cryptLurker =
   Macros.card "Crypt Lurker" (Just [Macros.generic 3, Macros.pip Black]) []
-       (MkTypeLine [Horror] [Creature])
+       (MkTypeLine [creatureType "Horror"] [Creature])
        [ Macros.triggered When (Enters Macros.thisCreature)
            (Macros.mayThen You
               (Macros.chooseOne
@@ -7585,7 +7585,7 @@ brimazAttackToken =
   Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
     (Create You (Lit 1)
                    (TokenWritten (MkToken (Just (Lit 1 ** Lit 1)) [White]
-                                   (MkTypeLine [Cat, Soldier] [Creature])
+                                   (MkTypeLine [creatureType "Cat", creatureType "Soldier"] [Creature])
                                    [Macros.keyword Vigilance] Nothing))
                    [EntersAttacking])
 
@@ -7897,13 +7897,13 @@ contrabandLivestock =
      Macros.resultsTable
        [Macros.rollRow (Macros.fromTo 1 9)
           (Create (ControllerOf It) (Lit 1)
-                  (TokenWritten (Macros.creatureTok 4 4 [Green] [Ox])) []),
+                  (TokenWritten (Macros.creatureTok 4 4 [Green] [creatureType "Ox"])) []),
         Macros.rollRow (Macros.fromTo 10 19)
           (Create (ControllerOf It) (Lit 1)
-                  (TokenWritten (Macros.creatureTok 2 2 [Green] [Boar])) []),
+                  (TokenWritten (Macros.creatureTok 2 2 [Green] [creatureType "Boar"])) []),
         Macros.rollRow (Macros.exactly 20)
           (Create (ControllerOf It) (Lit 1)
-                  (TokenWritten (Macros.creatureTok 0 1 [White] [Goat])) [])]]
+                  (TokenWritten (Macros.creatureTok 0 1 [White] [creatureType "Goat"])) [])]]
 
 ||| Hypnotic Specter, second line's body: "…, that player discards a card
 ||| at random." The header is NOT written: "this creature deals damage to
@@ -7950,10 +7950,10 @@ merfolkSecretkeeper : Card
 merfolkSecretkeeper =
   Adventurer
     (MkFace "Merfolk Secretkeeper" (Just [Macros.pip Blue]) []
-            (MkTypeLine [Merfolk, Wizard] [Creature]) []
+            (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature]) []
             (Macros.printedBox (Just (0, 4))))
     (MkFace "Venture Deeper" (Just [Macros.pip Blue]) []
-            (MkTypeLine [Adventure] [Sorcery])
+            (MkTypeLine [spellType "Adventure"] [Sorcery])
             [ Spell (Macros.mills (Macros.target AnyPlayer) (Lit 4) They) ]
             Nothing)
 
@@ -7965,17 +7965,17 @@ orochiEggwatcher : Card
 orochiEggwatcher =
   FlipCard
     (MkFace "Orochi Eggwatcher" (Just [Macros.generic 2, Macros.pip Green]) []
-            (MkTypeLine [Snake, Shaman] [Creature])
+            (MkTypeLine [creatureType "Snake", creatureType "Shaman"] [Creature])
             [ Macros.activated
                 (Compound [Mana [Macros.generic 2, Macros.pip Green], TapSymbol])
                 (Sequentially
-                   [ Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [Snake])
+                   [ Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Snake"])
                    , Macros.ifThen (CompareAmt (CountOf Macros.creatureYouControl)
                                                AtLeast (Lit 10))
                                    (SetStatus Flipped Macros.thisCreature) ]) ]
             (Macros.printedBox (Just (1, 1))))
     (MkAltFace "Shidako, Broodmistress" [Legendary]
-               (MkTypeLine [Snake, Shaman] [Creature])
+               (MkTypeLine [creatureType "Snake", creatureType "Shaman"] [Creature])
                [ Macros.activated
                    (Compound [ Mana [Macros.pip Green]
                              , Do (Macros.sacrifice You (Macros.a Macros.creature)) ])
@@ -7997,7 +7997,7 @@ orochiEggwatcher =
 public export
 planeswalkerBackWithoutLoyalty : AltFace
 planeswalkerBackWithoutLoyalty =
-  MkAltFace "" [Legendary] (MkTypeLine [Arlinn] [Planeswalker]) [] Nothing
+  MkAltFace "" [Legendary] (MkTypeLine [planeswalkerType "Arlinn"] [Planeswalker]) [] Nothing
 
 public export
 planeswalkerBackWithoutLoyaltyOk : AltFaceLaws Cards.planeswalkerBackWithoutLoyalty
@@ -8049,9 +8049,9 @@ aspectOfWolf =
     [ Gets (AttachHost Enchanted (TypeW Creature))
            (PtUp (LetterVal X)) (PtUp (LetterVal Y))
     , Define X (Half RoundDown
-                 (CountOf (And [HasSubtype Forest, ControlledBy You])))
+                 (CountOf (And [HasSubtype (landType "Forest"), ControlledBy You])))
     , Define Y (Half RoundUp
-                 (CountOf (And [HasSubtype Forest, ControlledBy You]))) ])
+                 (CountOf (And [HasSubtype (landType "Forest"), ControlledBy You]))) ])
 
 ||| Jaws of Defeat -- "Whenever a creature you control enters, target
 ||| opponent loses life equal to the difference between that creature's
@@ -8092,7 +8092,7 @@ skullsporeNexusTrigger =
        (Macros.creatureTokOf
           (AggregateOf SumOf (CharAxis Power) (Those CardW))
           (AggregateOf SumOf (CharAxis Power) (Those CardW))
-          [Green] [Fungus, Dinosaur]))
+          [Green] [creatureType "Fungus", creatureType "Dinosaur"]))
 
 ||| Investigator's Journal's count -- "the greatest number of creatures a
 ||| player controls". The element-binder fold's measured phrase; the whole

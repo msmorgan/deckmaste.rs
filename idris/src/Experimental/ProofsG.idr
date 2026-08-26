@@ -185,7 +185,7 @@ badBareCountScaledMana Oh impossible
 public export
 badNamedAddition : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
-                   (MkToken Nothing [] (MkTypeLine [Zombie] []) [] (Just "Bob"))
+                   (MkToken Nothing [] (MkTypeLine [creatureType "Zombie"] []) [] (Just "Bob"))
                    Nothing {un = ok})
 badNamedAddition Oh impossible
 
@@ -195,7 +195,7 @@ badNamedAddition Oh impossible
 public export
 badRepeatedAdditionColor : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
-                   (MkToken Nothing [Black, Black] (MkTypeLine [Zombie] []) [] Nothing)
+                   (MkToken Nothing [Black, Black] (MkTypeLine [creatureType "Zombie"] []) [] Nothing)
                    Nothing {cd = ok})
 badRepeatedAdditionColor Oh impossible
 
@@ -429,7 +429,7 @@ badNoughtSidedDie ItIsSucc impossible
 ||| [CR#209.1] has each planeswalker card print a loyalty number in its lower right corner.
 public export
 badPlaneswalkerNoLoyalty : Unspellable Card (\ok =>
-  Macros.card "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [Jace] [Planeswalker])
+  Macros.card "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [planeswalkerType "Jace"] [Planeswalker])
        [] Nothing {bx = ok})
 badPlaneswalkerNoLoyalty MkCardBox impossible
 
@@ -437,7 +437,7 @@ badPlaneswalkerNoLoyalty MkCardBox impossible
 ||| [CR#209.1] and [CR#208.1] name the same lower right corner, so one face writes one of the two.
 public export
 badPlaneswalkerPtBox : Unspellable Card (\ok =>
-  Macros.cardOf "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [Jace] [Planeswalker])
+  Macros.cardOf "" (Just [Macros.pip Blue]) [Legendary] (MkTypeLine [planeswalkerType "Jace"] [Planeswalker])
        [] (Macros.printedBox (Just (3, 3))) {bx = ok})
 badPlaneswalkerPtBox MkCardBox impossible
 
@@ -446,7 +446,7 @@ badPlaneswalkerPtBox MkCardBox impossible
 public export
 badBattleNoDefense : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2, Macros.pip White]) []
-       (MkTypeLine [Siege] [Battle]) [] Nothing {bx = ok})
+       (MkTypeLine [battleType "Siege"] [Battle]) [] Nothing {bx = ok})
 badBattleNoDefense MkCardBox impossible
 
 ||| an adventurer card whose inset frame is a plain instant, naming no Adventure
