@@ -2104,7 +2104,7 @@ data ManaSymbol : Type where
   Simple : SimpleManaSymbol -> ManaSymbol
   Hybrid : (l : SimpleManaSymbol) -> (r : Color) ->
            {auto 0 ds : HalvesDistinct l r} -> ManaSymbol
-  PhyrexianMana : (c : Color) -> (d : Maybe Color) ->
+  Phyrexian : (c : Color) -> (d : Maybe Color) ->
                   {auto 0 ds : PhyrexianDistinct c d} -> ManaSymbol
   Variable : ManaSymbol
   SnowMana : ManaSymbol
@@ -2171,363 +2171,80 @@ loyaltyAnnouncesX (LoyaltyDown _) = False
 loyaltyAnnouncesX LoyaltyDownX = True
 loyaltyAnnouncesX LoyaltyZero = False
 
+||| An open subtype: its printed name and the card type whose subtype set it
+||| belongs to. [CR#205.1a] names those sets -- creature, land, artifact,
+||| enchantment, planeswalker and spell types -- [CR#205.3q] adds the battle
+||| type, and [CR#205.3c] correlates each subtype word to its own card type,
+||| so the pair is the whole word. The sets are OPEN: [CR#205.3m] is the
+||| creature list, and it is amended set by set. So a subtype is DATA and
+||| never a constructor -- where a subtype carries rules meaning, that
+||| meaning is what it confers on its bearer, and a gate reads the label or
+||| the conferral, never a constructor of its own.
 public export
-data Subtype = Zombie | Army | Soldier | Thopter | Construct | Fractal
-             | Coward | Demon | Angel | Elemental | Plant | Dragon | Plains | Island | Swamp
-             | Mountain | Forest | Goblin | Equipment | Avatar | Insect
-             | Elder | Dinosaur | Human | Advisor | Wizard | Shaman | Merfolk
-             | Vedalken | Artificer | Knight | Myr | Elk | Treefolk
-             | Jace | Elspeth | Saheeli
-             | Imp
-             | Sliver
-             | Wall
-             | Cleric
-             | Illusion
-             | Siege
-             | Aura | Curse
-             | Tiefling | Warlock | Pirate
-             | Cat | Beast | Dwarf | Bard
-             | Hero
-             | Elf | Scout
-             | Rogue | Arcane
-             | Druid | Alien | Warrior
-             | Vampire | Mutant
-             | AssemblyWorker | Ooze
-             | Frog
-             | Horse
-             | Bird
-             | Ally | Gideon
-             | Goat | Ox | Boar
-             | Spirit
-             | Shapeshifter
-             | Saga
-             | Centaur
-             | Monk
-             | Nymph | Dryad
-             | Nightmare | Fish
-             | Horror | Gargoyle | Assassin
-             | Skeleton | Golem
-             | Town | Desert
-             | Pegasus
-             | Faerie
-             | Snake
-             | Adventure
-             | Arlinn
-             | Kraken | Sphinx
-             | Werewolf | Eldrazi
-             | Fungus
-             | Phyrexian
+data Subtype : Type where
+  MkSubtype : (host : CardType) -> (label : String) -> Subtype
 
-public export
-Eq Subtype where
-  (==) Goblin Goblin = True
-  (==) Goblin _ = False
-  (==) Equipment Equipment = True
-  (==) Equipment _ = False
-  (==) Avatar Avatar = True
-  (==) Avatar _ = False
-  (==) Insect Insect = True
-  (==) Insect _ = False
-  (==) Elder Elder = True
-  (==) Elder _ = False
-  (==) Dinosaur Dinosaur = True
-  (==) Dinosaur _ = False
-  (==) Horror Horror = True
-  (==) Horror _ = False
-  (==) Gargoyle Gargoyle = True
-  (==) Gargoyle _ = False
-  (==) Phyrexian Phyrexian = True
-  (==) Phyrexian _ = False
-  (==) Assassin Assassin = True
-  (==) Assassin _ = False
-  (==) Skeleton Skeleton = True
-  (==) Skeleton _ = False
-  (==) Golem Golem = True
-  (==) Golem _ = False
-  (==) Town Town = True
-  (==) Town _ = False
-  (==) Desert Desert = True
-  (==) Desert _ = False
-  (==) Pegasus Pegasus = True
-  (==) Pegasus _ = False
-  (==) Faerie Faerie = True
-  (==) Faerie _ = False
-  (==) Snake Snake = True
-  (==) Snake _ = False
-  (==) Adventure Adventure = True
-  (==) Adventure _ = False
-  (==) Arlinn Arlinn = True
-  (==) Arlinn _ = False
-  (==) Kraken Kraken = True
-  (==) Kraken _ = False
-  (==) Sphinx Sphinx = True
-  (==) Sphinx _ = False
-  (==) Werewolf Werewolf = True
-  (==) Werewolf _ = False
-  (==) Eldrazi Eldrazi = True
-  (==) Eldrazi _ = False
-  (==) Fungus Fungus = True
-  (==) Fungus _ = False
-  (==) Goat Goat = True
-  (==) Goat _ = False
-  (==) Ox Ox = True
-  (==) Ox _ = False
-  (==) Boar Boar = True
-  (==) Boar _ = False
-  (==) Spirit Spirit = True
-  (==) Spirit _ = False
-  (==) Shapeshifter Shapeshifter = True
-  (==) Shapeshifter _ = False
-  (==) Centaur Centaur = True
-  (==) Centaur _ = False
-  (==) Monk Monk = True
-  (==) Monk _ = False
-  (==) Nymph Nymph = True
-  (==) Nymph _ = False
-  (==) Dryad Dryad = True
-  (==) Dryad _ = False
-  (==) Nightmare Nightmare = True
-  (==) Nightmare _ = False
-  (==) Fish Fish = True
-  (==) Fish _ = False
-  (==) Saga Saga = True
-  (==) Saga _ = False
-  (==) Human Human = True
-  (==) Human _ = False
-  (==) Advisor Advisor = True
-  (==) Advisor _ = False
-  (==) Wizard Wizard = True
-  (==) Wizard _ = False
-  (==) Merfolk Merfolk = True
-  (==) Merfolk _ = False
-  (==) Shaman Shaman = True
-  (==) Shaman _ = False
-  (==) Vedalken Vedalken = True
-  (==) Vedalken _ = False
-  (==) Artificer Artificer = True
-  (==) Artificer _ = False
-  (==) Zombie Zombie = True
-  (==) Zombie _ = False
-  (==) Army Army = True
-  (==) Army _ = False
-  (==) Soldier Soldier = True
-  (==) Soldier _ = False
-  (==) Knight Knight = True
-  (==) Knight _ = False
-  (==) Myr Myr = True
-  (==) Myr _ = False
-  (==) Elk Elk = True
-  (==) Elk _ = False
-  (==) Treefolk Treefolk = True
-  (==) Treefolk _ = False
-  (==) Siege Siege = True
-  (==) Siege _ = False
-  (==) Imp Imp = True
-  (==) Imp _ = False
-  (==) Saheeli Saheeli = True
-  (==) Saheeli _ = False
-  (==) Jace Jace = True
-  (==) Jace _ = False
-  (==) Elspeth Elspeth = True
-  (==) Elspeth _ = False
-  (==) Thopter Thopter = True
-  (==) Thopter _ = False
-  (==) Construct Construct = True
-  (==) Construct _ = False
-  (==) Fractal Fractal = True
-  (==) Fractal _ = False
-  (==) Coward Coward = True
-  (==) Coward _ = False
-  (==) Demon Demon = True
-  (==) Demon _ = False
-  (==) Illusion Illusion = True
-  (==) Illusion _ = False
-  (==) Sliver Sliver = True
-  (==) Sliver _ = False
-  (==) Wall Wall = True
-  (==) Wall _ = False
-  (==) Cleric Cleric = True
-  (==) Cleric _ = False
-  (==) Angel Angel = True
-  (==) Angel _ = False
-  (==) Elemental Elemental = True
-  (==) Elemental _ = False
-  (==) Plant Plant = True
-  (==) Plant _ = False
-  (==) Dragon Dragon = True
-  (==) Dragon _ = False
-  (==) Plains Plains = True
-  (==) Plains _ = False
-  (==) Island Island = True
-  (==) Island _ = False
-  (==) Swamp Swamp = True
-  (==) Swamp _ = False
-  (==) Mountain Mountain = True
-  (==) Mountain _ = False
-  (==) Forest Forest = True
-  (==) Forest _ = False
-  (==) Aura Aura = True
-  (==) Aura _ = False
-  (==) Curse Curse = True
-  (==) Curse _ = False
-  (==) Tiefling Tiefling = True
-  (==) Tiefling _ = False
-  (==) Warlock Warlock = True
-  (==) Warlock _ = False
-  (==) Pirate Pirate = True
-  (==) Pirate _ = False
-  (==) Cat Cat = True
-  (==) Cat _ = False
-  (==) Beast Beast = True
-  (==) Beast _ = False
-  (==) Dwarf Dwarf = True
-  (==) Dwarf _ = False
-  (==) Bard Bard = True
-  (==) Bard _ = False
-  (==) Hero Hero = True
-  (==) Hero _ = False
-  (==) Elf Elf = True
-  (==) Elf _ = False
-  (==) Scout Scout = True
-  (==) Scout _ = False
-  (==) Rogue Rogue = True
-  (==) Rogue _ = False
-  (==) Druid Druid = True
-  (==) Druid _ = False
-  (==) Alien Alien = True
-  (==) Alien _ = False
-  (==) Warrior Warrior = True
-  (==) Warrior _ = False
-  (==) Vampire Vampire = True
-  (==) Vampire _ = False
-  (==) Mutant Mutant = True
-  (==) Mutant _ = False
-  (==) AssemblyWorker AssemblyWorker = True
-  (==) AssemblyWorker _ = False
-  (==) Ooze Ooze = True
-  (==) Ooze _ = False
-  (==) Frog Frog = True
-  (==) Frog _ = False
-  (==) Horse Horse = True
-  (==) Horse _ = False
-  (==) Bird Bird = True
-  (==) Bird _ = False
-  (==) Ally Ally = True
-  (==) Ally _ = False
-  (==) Gideon Gideon = True
-  (==) Gideon _ = False
-  (==) Arcane Arcane = True
-  (==) Arcane _ = False
-
+||| The card type whose set the subtype belongs to. A projection of the
+||| word's own sort, not a table a new subtype has to extend.
 public export
 subtypeType : Subtype -> CardType
-subtypeType Zombie = Creature
-subtypeType Army = Creature
-subtypeType Soldier = Creature
-subtypeType Knight = Creature
-subtypeType Myr = Creature
-subtypeType Elk = Creature
-subtypeType Treefolk = Creature
-subtypeType Siege = Battle
-subtypeType Imp = Creature
-subtypeType Saheeli = Planeswalker
-subtypeType Jace = Planeswalker
-subtypeType Elspeth = Planeswalker
-subtypeType Thopter = Creature
-subtypeType Construct = Creature
-subtypeType Fractal = Creature
-subtypeType Coward = Creature
-subtypeType Demon = Creature
-subtypeType Illusion = Creature
-subtypeType Sliver = Creature
-subtypeType Wall = Creature
-subtypeType Cleric = Creature
-subtypeType Angel = Creature
-subtypeType Elemental = Creature
-subtypeType Plant = Creature
-subtypeType Dragon = Creature
-subtypeType Plains = Land
-subtypeType Island = Land
-subtypeType Swamp = Land
-subtypeType Mountain = Land
-subtypeType Forest = Land
-subtypeType Goblin = Creature
-subtypeType Equipment = Artifact
-subtypeType Avatar = Creature
-subtypeType Insect = Creature
-subtypeType Elder = Creature
-subtypeType Dinosaur = Creature
-subtypeType Horror = Creature
-subtypeType Gargoyle = Creature
-subtypeType Phyrexian = Creature
-subtypeType Assassin = Creature
-subtypeType Skeleton = Creature
-subtypeType Golem = Creature
-subtypeType Town = Land
-subtypeType Desert = Land
-subtypeType Pegasus = Creature
-subtypeType Faerie = Creature
-subtypeType Kraken = Creature
-subtypeType Sphinx = Creature
-subtypeType Werewolf = Creature
-subtypeType Eldrazi = Creature
-subtypeType Fungus = Creature
-subtypeType Goat = Creature
-subtypeType Ox = Creature
-subtypeType Boar = Creature
-subtypeType Spirit = Creature
-subtypeType Shapeshifter = Creature
-subtypeType Centaur = Creature
-subtypeType Monk = Creature
-subtypeType Nymph = Creature
-subtypeType Dryad = Creature
-subtypeType Nightmare = Creature
-subtypeType Fish = Creature
-subtypeType Saga = Enchantment
-subtypeType Human = Creature
-subtypeType Advisor = Creature
-subtypeType Wizard = Creature
-subtypeType Merfolk = Creature
-subtypeType Shaman = Creature
-subtypeType Vedalken = Creature
-subtypeType Artificer = Creature
-subtypeType Aura = Enchantment
-subtypeType Curse = Enchantment
-subtypeType Tiefling = Creature
-subtypeType Warlock = Creature
-subtypeType Pirate = Creature
-subtypeType Cat = Creature
-subtypeType Beast = Creature
-subtypeType Dwarf = Creature
-subtypeType Bard = Creature
-subtypeType Hero = Creature
-subtypeType Elf = Creature
-subtypeType Scout = Creature
-subtypeType Rogue = Creature
-subtypeType Druid = Creature
-subtypeType Alien = Creature
-subtypeType Warrior = Creature
-subtypeType Vampire = Creature
-subtypeType Mutant = Creature
-subtypeType AssemblyWorker = Creature
-subtypeType Ooze = Creature
-subtypeType Frog = Creature
-subtypeType Horse = Creature
-subtypeType Bird = Creature
-subtypeType Ally = Creature
-subtypeType Gideon = Planeswalker
-subtypeType Snake = Creature
-subtypeType Arcane = Instant
-subtypeType Adventure = Instant
-subtypeType Arlinn = Planeswalker
+subtypeType (MkSubtype host _) = host
+
+||| The name the type line prints [CR#205.3b].
+public export
+subtypeLabel : Subtype -> String
+subtypeLabel (MkSubtype _ label) = label
+
+||| Both fields. [CR#205.3c] correlates a subtype word to one card type, so
+||| on a well-formed line the host is redundant -- reading it keeps a
+||| mis-sorted label out of another set's gate.
+public export
+Eq Subtype where
+  (==) (MkSubtype h1 l1) (MkSubtype h2 l2) = h1 == h2 && l1 == l2
+
+||| A subtype's set, applied to the word: `creatureType "Zombie"`,
+||| `landType "Forest"`. Naming a subtype is writing one of these, and that
+||| is the whole cost of a new one.
+public export
+creatureType : String -> Subtype
+creatureType n = MkSubtype Creature n
 
 public export
+landType : String -> Subtype
+landType n = MkSubtype Land n
+
+public export
+artifactType : String -> Subtype
+artifactType n = MkSubtype Artifact n
+
+public export
+enchantmentType : String -> Subtype
+enchantmentType n = MkSubtype Enchantment n
+
+public export
+planeswalkerType : String -> Subtype
+planeswalkerType n = MkSubtype Planeswalker n
+
+public export
+battleType : String -> Subtype
+battleType n = MkSubtype Battle n
+
+||| [CR#205.3k] gives instants and sorceries one shared set, which
+||| `subtypeType`'s single answer cannot say; a spell type files under
+||| Instant and `subsFitLine` reads either card type back.
+public export
+spellType : String -> Subtype
+spellType n = MkSubtype Instant n
+
+||| [CR#305.6] names the five basic land types by enumeration, so this one
+||| set is closed where the rest are open.
+public export
 data BasicLandType : Subtype -> Type where
-  PlainsBasic   : BasicLandType Plains
-  IslandBasic   : BasicLandType Island
-  SwampBasic    : BasicLandType Swamp
-  MountainBasic : BasicLandType Mountain
-  ForestBasic   : BasicLandType Forest
+  PlainsBasic   : BasicLandType (landType "Plains")
+  IslandBasic   : BasicLandType (landType "Island")
+  SwampBasic    : BasicLandType (landType "Swamp")
+  MountainBasic : BasicLandType (landType "Mountain")
+  ForestBasic   : BasicLandType (landType "Forest")
 
 public export
 data TypeSpace = BasicLandSpace | LandSpace | CreatureSpace
@@ -3228,25 +2945,27 @@ permanentType Plane = False
 permanentType Scheme = False
 permanentType Vanguard = False
 
+||| The card types a spell has. Named apart from `spellType`, which builds
+||| [CR#205.3k]'s spell types -- those are subtypes.
 public export
-spellType : CardType -> Bool
-spellType Instant = True
-spellType Sorcery = True
-spellType Creature = False
-spellType Artifact = False
-spellType Land = False
-spellType Enchantment = False
-spellType Planeswalker = False
-spellType Battle = False
-spellType Kindred = False
+spellCardType : CardType -> Bool
+spellCardType Instant = True
+spellCardType Sorcery = True
+spellCardType Creature = False
+spellCardType Artifact = False
+spellCardType Land = False
+spellCardType Enchantment = False
+spellCardType Planeswalker = False
+spellCardType Battle = False
+spellCardType Kindred = False
 -- A spell is a card on the stack [CR#112.1]; the command-zone types
 -- never reach it [CR#311.2,312.2,313.2,314.2,315.3,309.2c].
-spellType Conspiracy = False
-spellType Dungeon = False
-spellType Phenomenon = False
-spellType Plane = False
-spellType Scheme = False
-spellType Vanguard = False
+spellCardType Conspiracy = False
+spellCardType Dungeon = False
+spellCardType Phenomenon = False
+spellCardType Plane = False
+spellCardType Scheme = False
+spellCardType Vanguard = False
 
 public export
 placeableTy : Maybe CardType -> Bool
