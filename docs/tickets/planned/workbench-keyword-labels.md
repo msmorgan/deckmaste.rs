@@ -8,6 +8,12 @@ needs: []
 > standing scope fence. **Do not claim this ticket while that exclusion stands**
 > unless the user lifts it *for the conversion alone*. This is a conversion of the
 > carrier, not a licence to work the fenced-off keyword residues.
+>
+> **LIFTED (user, 2026-08-26), for the conversion alone.** Direction: OPEN,
+> per the subtype-labels and keyword-action rulings (meaning in data, label
+> as data, vocabulary open). The round still writes the [CR#702]
+> counter-argument down as this ticket demands; the fenced keyword residues
+> stay fenced.
 
 ## Context
 
