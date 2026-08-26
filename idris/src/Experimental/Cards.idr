@@ -2747,6 +2747,38 @@ captainMarvelSameKinds =
        (Macros.a (Macros.otherCreature Macros.thisCreature)))
     (Macros.may You (PutCountersOfThoseKinds ThatMuch Macros.thisCreature))
 
+||| Denry Klin, Editor in Chief (trigger) — "Whenever a nontoken creature
+||| you control enters, if Denry Klin has counters on it, put the same
+||| number of each kind of counter on that creature": the copy-read whose
+||| source the effect clause leaves unwritten. [CR#201.5] fixes a
+||| self-name to the object the text is on, so the source is a referent
+||| the spelling elides rather than an anaphor over the intervening "if",
+||| whose own job [CR#603.4] gives it: a condition checked at trigger and
+||| again at resolution. The card's entry line, "your choice of a +1/+1, first
+||| strike, or vigilance counter", has no row: no entry mark chooses its
+||| kind.
+denryKlinSameKinds : Ability
+denryKlinSameKinds =
+  Macros.triggeredIf Whenever
+    (Enters (Macros.a (And [Macros.nontoken, Macros.creatureYouControl])))
+    (Matches Macros.thisCreature (HasCounters Nothing))
+    (PutSameCounters Macros.thisCreature (That (TypeW Creature)))
+
+||| Star Pupil — "When this creature dies, put its counters on target
+||| creature you control": the same row with its source written out, and
+||| the family's dominant spelling. `It` names a creature that has left
+||| the battlefield, the case [CR#122.8] is written for.
+starPupil : Card
+starPupil =
+  Macros.card "Star Pupil" (Just [Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
+       [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 1)
+                                           Macros.plusOnePlusOne)
+       , Macros.triggered When (Dies Macros.thisCreature)
+                          (PutSameCounters It
+                             (Macros.target Macros.creatureYouControl)) ]
+       (Just (0, 0))
+
 ||| Stalwart Successor's header — "Whenever one or more counters are put on
 ||| a creature you control": the kind-blind batch on the trigger side,
 ||| benched at the event level; the

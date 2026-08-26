@@ -961,6 +961,26 @@ mutual
                    {auto 0 cm : CounterMemory src} ->
                    {auto 0 md : MoveDestination dst} ->
                    {auto 0 pm : PerMember dst} -> Effect bs
+    ||| The counter COPY-read: as many counters of each kind as [src]
+    ||| holds are put on [dst], and [src] keeps its own. [CR#122.8] and
+    ||| [CR#122.9] write this operation out in rules text and say in so
+    ||| many words that it is NOT a move [CR#122.5] -- "the player puts
+    ||| the same number of each kind of counter the first object had onto
+    ||| the second object". That is the whole gate story: [CR#122.5]'s
+    ||| impossibility list bounds a move, so `src` carries no
+    ||| `CounterMemory` (the rule is written FOR a source that has left
+    ||| the battlefield, and `CountersOn` already reads a dead referent's
+    ||| counters) and `dst` no `MoveDestination`. Kind-blind and
+    ||| amount-fixed: what `src` holds is both the kinds and the counts,
+    ||| so neither is a slot. A plural `src` is tolerated -- nothing in
+    ||| [CR#122.1] makes summing two holders' counters meaningless -- and
+    ||| nothing writes one.
+    ||| -- spelling: "put its counters on [dst]"; where an intervening
+    ||| "if" has already named the source, "put the same number of each
+    ||| kind of counter on [dst]" (Denry Klin) -- one node, two spellings.
+    PutSameCounters : (src : Noun bs Object) ->
+                      (dst : Noun (nomIntro src) Object) ->
+                      {auto 0 pm : PerMember dst} -> Effect bs
     ||| The distributive counter-kind anaphor: the replacement body that
     ||| puts a derived number of counters OF THE ANNOUNCED BATCH'S KINDS on
     ||| its recipient. Presupposes exactly one announced batch, the same
@@ -1177,6 +1197,7 @@ mutual
   heldUntilOk (PutCounters _ _ _) = False
   heldUntilOk (RemoveCounters _ _ _) = False
   heldUntilOk (MoveCounters _ _ _ _) = False
+  heldUntilOk (PutSameCounters _ _) = False
   heldUntilOk (PutCountersOfThoseKinds _ _) = False
   heldUntilOk (Enact _ (Move _ _ _)) = True
   heldUntilOk (Enact _ _) = False
@@ -1256,6 +1277,7 @@ mutual
   reflexEncloseUse (PutCounters _ _ _) = EncReflexive    -- 8
   reflexEncloseUse (RemoveCounters _ _ _) = EncReflexive -- 7
   reflexEncloseUse (MoveCounters _ _ _ _) = EncReflexive
+  reflexEncloseUse (PutSameCounters _ _) = EncReflexive
   reflexEncloseUse (PutCountersOfThoseKinds _ _) = EncReflexive
   reflexEncloseUse (Move _ _ _) = EncReflexive       -- 3
   reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
@@ -1355,6 +1377,7 @@ mutual
   thisWayOutcomeOk (PutCounters _ _ _) = True
   thisWayOutcomeOk (RemoveCounters _ _ _) = True
   thisWayOutcomeOk (MoveCounters _ _ _ _) = True
+  thisWayOutcomeOk (PutSameCounters _ _) = True
   thisWayOutcomeOk (PutCountersOfThoseKinds _ _) = True
   thisWayOutcomeOk (Enact _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
@@ -1444,6 +1467,7 @@ mutual
   costActionOk (PutCounters _ _ on) = costNounOk on
   costActionOk (RemoveCounters _ _ from) = costNounOk from
   costActionOk (MoveCounters _ _ src dst) = costNounOk src && costNounOk dst
+  costActionOk (PutSameCounters src dst) = costNounOk src && costNounOk dst
   -- the distributive kind anaphor reads an announced batch; no cost
   -- announces one, so the clause instructs nothing at payment.
   costActionOk (PutCountersOfThoseKinds _ _) = False
@@ -1571,6 +1595,7 @@ mutual
   effEq (PutCounters _ _ _) _ = False
   effEq (RemoveCounters _ _ _) _ = False
   effEq (MoveCounters _ _ _ _) _ = False
+  effEq (PutSameCounters _ _) _ = False
   effEq (PutCountersOfThoseKinds _ _) _ = False
   effEq (Enact v e) (Enact w f) = v == w && effEq e f
   effEq (Enact _ _) _ = False
@@ -1683,6 +1708,7 @@ mutual
   effIntro (Distribute (DistributedCounters _) amt among) = nomIntro among
   effIntro (RemoveCounters amt kind from) = nomIntro from
   effIntro (MoveCounters amt kind src dst) = nomIntro dst
+  effIntro (PutSameCounters src dst) = nomIntro dst
   effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   effIntro (Enact v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
   effIntro (Enact v (SetStatus _ n)) = stampIntro (Just v) n
@@ -1760,6 +1786,7 @@ mutual
   preIntro (PutCounters amt kind on) = nomIntro on
   preIntro (RemoveCounters amt kind from) = nomIntro from
   preIntro (MoveCounters amt kind src dst) = nomIntro dst
+  preIntro (PutSameCounters src dst) = nomIntro dst
   preIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   preIntro (Enact v (Move what to _)) = nomIntro what
   preIntro (Enact _ e) = preIntro e
@@ -1833,6 +1860,7 @@ mutual
   annIntro (PutCounters amt kind on) = nomIntro on
   annIntro (RemoveCounters amt kind from) = nomIntro from
   annIntro (MoveCounters amt kind src dst) = nomIntro dst
+  annIntro (PutSameCounters src dst) = nomIntro dst
   annIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   annIntro (Enact v (Move what to _)) = nomIntro what
   annIntro (Enact _ e) = annIntro e
@@ -1948,6 +1976,7 @@ mutual
   deedDelta (PutCounters amt kind on) = []
   deedDelta (RemoveCounters amt kind from) = []
   deedDelta (MoveCounters amt kind src dst) = []
+  deedDelta (PutSameCounters src dst) = []
   deedDelta (PutCountersOfThoseKinds amt on) = []
   deedDelta (Enact v (Move what to _)) = []
   deedDelta (Enact _ e) = deedDelta e
