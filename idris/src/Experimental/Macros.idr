@@ -73,6 +73,44 @@ public export
 thatJoin : {auto 0 ok : countWord JoinW bs = 1} -> Noun bs (Object \/ Player)
 thatJoin = That JoinW {ok}
 
+||| "that player or that planeswalker's controller", "that player or that
+||| permanent's controller": the SPLIT read of a union mention, naming each
+||| half in turn where `thatJoin` echoes the whole. A union target is an
+||| object and/or a player [CR#115.1], so the player arm reads the player
+||| half directly and the class arm reads the object half through its
+||| controller; between them the two arms name a player whichever half the
+||| target turned out to be. The class arm is written out by the caller
+||| because the card writes its own echo word there.
+||| -- spelling: "that player or " then the class arm's possessive.
+public export
+thatSplitController : (cls : Noun bs Object) ->
+                      {auto 0 one : nounPlur cls = OneOf} ->
+                      {auto 0 pk : countWord PlayerW bs = 1} ->
+                      Noun bs Player
+thatSplitController cls = EitherOf (That PlayerW {ok = pk}) (ControllerOf cls {one})
+
+||| "that player or that planeswalker's controller": the split read over a
+||| union head whose object half named its card type, so the class arm
+||| echoes that word.
+||| -- spelling: "that player or that planeswalker's controller".
+public export
+splitOverPlaneswalker : {bs : Bindings} ->
+                        {auto 0 ck : countWord (TypeW Planeswalker) bs = 1} ->
+                        {auto 0 pk : countWord PlayerW bs = 1} ->
+                        Noun bs Player
+splitOverPlaneswalker = thatSplitController (That (TypeW Planeswalker) {ok = ck}) {pk}
+
+||| "that player or that permanent's controller": the split read over the
+||| class word [CR#115.4], whose object half named no card type, so the
+||| class arm writes the generic word instead of an echo.
+||| -- spelling: "that player or that permanent's controller".
+public export
+splitOverPermanent : {bs : Bindings} ->
+                     {auto 0 ck : countWord PermanentW bs = 1} ->
+                     {auto 0 pk : countWord PlayerW bs = 1} ->
+                     Noun bs Player
+splitOverPermanent = thatSplitController (That PermanentW {ok = ck}) {pk}
+
 
 public export
 battlefieldZ : ZoneExpr bs

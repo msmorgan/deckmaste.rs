@@ -1440,6 +1440,24 @@ mkStamp : Maybe VerbLabel -> Maybe Zone -> Maybe Stamp
 mkStamp Nothing oldZn = Nothing
 mkStamp (Just v) oldZn = Just (MkStamp v (onFieldZone oldZn))
 
+||| Which word reaches ONE HALF of a union mention, where `JoinW` reads
+||| the whole. The two halves take DIFFERENT gates. The class half ECHOES
+||| what its antecedent recorded, and the echo is a function: an object
+||| half that named a card type is reached by that type's word and no
+||| other, and one that named none is reached by the generic `PermanentW`,
+||| which is honest for a class word [CR#115.4] because its three object
+||| choices are all permanent types [CR#110.4]. The player half echoes
+||| nothing -- `PlayerP` records no describing word -- so the one row
+||| serves an antecedent that said "player" and one that said "opponent"
+||| alike.
+public export
+halfReaches : NounWord -> Payload k -> Bool
+halfReaches w (JoinP l r) = halfReaches w l || halfReaches w r
+halfReaches (TypeW t) (ObjectP ty _ _ _) = tyIs t ty
+halfReaches PermanentW (ObjectP ty _ _ _) = isNothing ty
+halfReaches PlayerW PlayerP = True
+halfReaches _ _ = False
+
 public export
 wordReaches : NounWord -> Binding -> Bool
 wordReaches (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _ _)) = onFieldZone zn && tyIs t ty
@@ -1450,7 +1468,7 @@ wordReaches (TypeW t) (MkBinding _ _ _ GapP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ LetterP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ TurnRefP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ AbilityP) = False
-wordReaches (TypeW t) (MkBinding _ _ _ (JoinP _ _)) = False
+wordReaches (TypeW t) (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches (TypeW t) pl
 wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _)) = isCardZone zn
 wordReaches CardW (MkBinding _ _ _ PlayerP) = False
 wordReaches CardW (MkBinding _ _ _ QualityP) = False
@@ -1478,7 +1496,7 @@ wordReaches PlayerW (MkBinding _ _ _ GapP) = False
 wordReaches PlayerW (MkBinding _ _ _ LetterP) = False
 wordReaches PlayerW (MkBinding _ _ _ TurnRefP) = False
 wordReaches PlayerW (MkBinding _ _ _ AbilityP) = False
-wordReaches PlayerW (MkBinding _ _ _ (JoinP _ _)) = False
+wordReaches PlayerW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PlayerW pl
 wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn _ _)) = onFieldZone zn
 wordReaches PermanentW (MkBinding _ _ _ PlayerP) = False
 wordReaches PermanentW (MkBinding _ _ _ QualityP) = False
@@ -1487,7 +1505,7 @@ wordReaches PermanentW (MkBinding _ _ _ GapP) = False
 wordReaches PermanentW (MkBinding _ _ _ LetterP) = False
 wordReaches PermanentW (MkBinding _ _ _ TurnRefP) = False
 wordReaches PermanentW (MkBinding _ _ _ AbilityP) = False
-wordReaches PermanentW (MkBinding _ _ _ (JoinP _ _)) = False
+wordReaches PermanentW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PermanentW pl
 wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
   onFieldZone zn && isTokenOrigin og
 wordReaches TokenW (MkBinding _ _ _ PlayerP) = False

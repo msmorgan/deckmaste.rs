@@ -517,3 +517,14 @@ badAmountRollRow : Unspellable (Effect []) (\ok =>
                 ResultsTable [MkRollRow (UpToOf (LetterVal X))
                                         Macros.drawACard {lt = ok}]])
 badAmountRollRow Oh impossible
+
+||| "This deals 3 damage to target player or planeswalker. That player or that creature's controller discards a card."
+||| A union mention's targets are the objects and/or players its head describes [CR#115.1], and this head's object half can only be a planeswalker, so the split read's class arm names nothing.
+public export
+badCreatureHalfRead : Unspellable (Effect []) (\ok =>
+  Sequentially
+    [ DealDamage This (Lit 3)
+        (Macros.target (Macros.kindJoin AnyPlayer (HasType Planeswalker)))
+    , Macros.discardsACard
+        (Macros.thatSplitController (That (TypeW Creature) {ok = ok})) ])
+badCreatureHalfRead Refl impossible

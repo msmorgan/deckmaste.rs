@@ -1227,6 +1227,20 @@ mutual
     ||| description, and a determiner over it goes through `bindFor`.
     Both : {ka : Kind} -> {kb : Kind} -> (l : Noun bs ka) ->
            (r : Noun (nomIntro l) kb) -> Noun bs (ka \/ kb)
+    ||| "that player or that planeswalker's controller": two mentions of
+    ||| the SAME kind coordinated by "or", denoting whichever of them
+    ||| denotes. The fourth coordination, beside the cross-kind noun
+    ||| conjunction `Both`, the cross-kind head `Joined`, and the same-kind
+    ||| predicate `Or`. A union target is an object and/or a player
+    ||| [CR#115.1], so a clause that names each half instead of echoing the
+    ||| whole needs one arm per half, and the disjunction is what makes the
+    ||| pair total again. Both arms are read in the SAME context — they are
+    ||| alternatives, not a sequence — and the pair writes no joint
+    ||| binding, for `Both`'s reason: no constructor builds a `Payload k`
+    ||| out of an arbitrary mention.
+    ||| -- spelling: the two arms joined by "or".
+    EitherOf : (l : Noun bs k) -> (r : Noun bs k) ->
+               {auto 0 ag : nounPlur l = nounPlur r} -> Noun bs k
     LibrarySlice : (pos : LibPos) -> (amt : Amount bs) ->
                    (whose : Noun bs Player) ->
                    {auto 0 sp : SlicePossessor whose} ->
@@ -1295,6 +1309,7 @@ mutual
   nounEqRef (AllOf _) _ = False
   nounEqRef (EachOf _) _ = False
   nounEqRef (Both _ _) _ = False
+  nounEqRef (EitherOf _ _) _ = False
   nounEqRef (LibrarySlice _ _ _) _ = False
   nounEqRef (SomeOf _ _) _ = False
   nounEqRef (NamesAgree _ _) _ = False
@@ -1354,6 +1369,7 @@ mutual
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   nounDelta (EachOf grp) = nounDelta grp
   nounDelta (Both l r) = nounDelta r ++ nounDelta l
+  nounDelta (EitherOf l r) = nounDelta l ++ nounDelta r
   nounDelta (LibrarySlice pos amt whose) =
     MkBinding TheD Object (outputPlur (nounPlur whose) (amtPlur amt))
               (ObjectP Nothing (Just Library) Nothing Nothing)
@@ -1848,6 +1864,7 @@ mutual
   anchorPhrase (AllOf _) = False
   anchorPhrase (EachOf _) = False
   anchorPhrase (Both _ _) = False
+  anchorPhrase (EitherOf l r) = anchorPhrase l && anchorPhrase r
   anchorPhrase (LibrarySlice _ _ _) = False
   anchorPhrase (SomeOf _ _) = False
   anchorPhrase (NamesAgree _ grp) = anchorPhrase grp
@@ -1891,6 +1908,7 @@ mutual
   choosable (AllOf _) = False
   choosable (EachOf _) = False
   choosable (Both _ _) = False
+  choosable (EitherOf _ _) = False
   choosable (LibrarySlice _ _ _) = False
   choosable (SomeOf _ _) = False
   choosable (NamesAgree _ grp) = choosable grp
@@ -1941,6 +1959,7 @@ mutual
   groupMention (AllOf _) = False
   groupMention (EachOf _) = False
   groupMention (Both _ _) = False
+  groupMention (EitherOf _ _) = False
   groupMention (LibrarySlice _ _ _) = True
   groupMention (SomeOf _ _) = False
   groupMention (NamesAgree _ grp) = groupMention grp
@@ -2382,6 +2401,7 @@ mutual
   costNounOk (EachOf grp) = costNounOk grp
   costNounOk (NamesAgree _ grp) = costNounOk grp
   costNounOk (Both _ _) = False
+  costNounOk (EitherOf l r) = costNounOk l && costNounOk r
   costNounOk (LibrarySlice _ _ _) = True
   costNounOk (SomeOf _ grp) = costNounOk grp
   costNounOk TheRest = True
@@ -2412,6 +2432,7 @@ mutual
   nounIsYou (EachOf _) = False
   nounIsYou (NamesAgree _ _) = False
   nounIsYou (Both _ _) = False
+  nounIsYou (EitherOf _ _) = False
   nounIsYou (LibrarySlice _ _ _) = False
   nounIsYou (SomeOf _ _) = False
   nounIsYou TheRest = False
@@ -2442,6 +2463,7 @@ mutual
   nounTargeted (EachOf grp) = nounTargeted grp
   nounTargeted (NamesAgree _ grp) = nounTargeted grp
   nounTargeted (Both l r) = nounTargeted l || nounTargeted r
+  nounTargeted (EitherOf l r) = nounTargeted l || nounTargeted r
   nounTargeted (LibrarySlice _ _ _) = False
   nounTargeted (SomeOf _ grp) = nounTargeted grp
   nounTargeted TheRest = False
@@ -2616,6 +2638,7 @@ mutual
   moveIntro p (EachOf grp) z = moveIntro p grp z
   moveIntro p (NamesAgree _ grp) z = moveIntro p grp z
   moveIntro p nn@(Both _ _) z = nomIntro nn
+  moveIntro p nn@(EitherOf _ _) z = nomIntro nn
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(SomeOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p TheRest z = groupSpent bs
@@ -2650,6 +2673,7 @@ mutual
   nounZone (EachOf grp) = nounZone grp
   nounZone (NamesAgree _ grp) = nounZone grp
   nounZone (Both _ _) = Nothing
+  nounZone (EitherOf _ _) = Nothing
   nounZone (LibrarySlice _ _ _) = Just Library
   nounZone (SomeOf _ grp) = nounZone grp
   nounZone TheRest = zoneOfGroup bs
@@ -2682,6 +2706,7 @@ mutual
   nounTy (EachOf grp) = nounTy grp
   nounTy (NamesAgree _ grp) = nounTy grp
   nounTy (Both _ _) = Nothing
+  nounTy (EitherOf _ _) = Nothing
   nounTy (LibrarySlice _ _ _) = Nothing
   nounTy (SomeOf _ grp) = nounTy grp
   nounTy TheRest = tyOfGroup bs
@@ -2712,6 +2737,7 @@ mutual
   nounPlur (EachOf grp) = ManyOf
   nounPlur (NamesAgree _ grp) = nounPlur grp
   nounPlur (Both _ _) = ManyOf
+  nounPlur (EitherOf l r) = nounPlur l
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
   nounPlur (SomeOf q _) = quantPlur q
   nounPlur TheRest = ManyOf
