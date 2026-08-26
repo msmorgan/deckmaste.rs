@@ -26,6 +26,9 @@ constructions! {
     vocab DamageKind { Ordinary = "damage", Combat = "combat damage", }
     vocab FaceOrientation { FaceUp = "face up", }
     vocab RequirementFrequency { EachCombat = "each combat", }
+    vocab FlexibleManaKind { Color = "color", Type = "type", }
+    vocab StepModifier { Untap = "untap", }
+    vocab MassCommonNoun { Damage = "damage", }
     vocab ObjectOrder { Any = "any", Random = "a random", }
     vocab PredicateDuration {
         ThisTurn = "this turn",
@@ -225,8 +228,11 @@ constructions! {
         },
         Card = "card",
         Coin = "coin",
+        Color = "color",
         Counter = "counter",
+        Damage = "damage",
         Death = "death",
+        Draw = "draw",
         Controller = "controller",
         Opponent = "opponent",
         Owner = "owner",
@@ -234,6 +240,7 @@ constructions! {
         Player = "player",
         Source = "source",
         Spell = "spell",
+        Step = "step",
         Tax = "tax" {
             Plural = "taxes",
         },
@@ -254,6 +261,7 @@ constructions! {
         },
         Lose = "lose",
         Pay = "pay",
+        Prevent = "prevent",
         Put = "put",
         Remove = "remove",
         Roll = "roll",
@@ -285,6 +293,7 @@ constructions! {
     lexeme CoreTransitiveVerb using EnglishVerb {
         Attack = "attack",
         Block = "block",
+        Choose = "choose",
         Control = "control",
         Copy = "copy" {
             ThirdPersonSingular = "copies",
@@ -293,6 +302,8 @@ constructions! {
         Flip = "flip",
         Lose = "lose",
         Own = "own",
+        Prevent = "prevent",
+        Skip = "skip",
         Unattach = "unattach" {
             ThirdPersonSingular = "unattaches",
         },
@@ -305,6 +316,7 @@ constructions! {
         Put = "put" { Participle = "put", },
     }
     lexeme OrientationParticipleLexeme using EnglishParticiple { Turn = "turn", }
+    lexeme PreventionParticipleLexeme using EnglishParticiple { Prevent = "prevent", }
 
     codec IntransitiveVerb {
         generate declaration_verb {
@@ -394,6 +406,7 @@ constructions! {
     }
     codec DeclaredTransitiveParticipleHead {
         generate declaration_verb {
+            closed = PreventionParticipleLexeme;
             position = Verb;
             kinds = [KeywordAction];
             tail = [ObjectNounPhrase];
@@ -498,6 +511,21 @@ constructions! {
         Intransitive: IntransitiveAsThoughPredicate,
         Transitive: TransitiveAsThoughPredicate,
     }
+    abstract sum CoordinatedPredicate {
+        Atomic: VerbPhrase,
+        BareCopular: BareCopularPredicate,
+        ChangeState: ChangeStatePredicate,
+        BarePassive: BarePassivePredicate,
+        Cause: ObjectInfinitivePredicate,
+        Requirement: RequirementPredicate,
+        TransitiveRequirement: TransitiveRequirementPredicate,
+        AsThough: AsThoughPredicate,
+        Ordered: OrderedPredicate,
+        Purpose: PurposePredicate,
+        Duration: DurationPredicate,
+        Instead: InsteadPredicate,
+        Manner: MannerPredicate,
+    }
     abstract sum Predicate {
         Atomic: VerbPhrase,
         Coordination: PredicateCoordination,
@@ -506,6 +534,7 @@ constructions! {
         BarePassive: BarePassivePredicate,
         Cause: ObjectInfinitivePredicate,
         Requirement: RequirementPredicate,
+        TransitiveRequirement: TransitiveRequirementPredicate,
         AsThough: AsThoughPredicate,
         Ordered: OrderedPredicate,
         Purpose: PurposePredicate,
@@ -519,6 +548,11 @@ constructions! {
         Copular: CopularClause,
         Passive: PassiveFiniteClause,
     }
+    abstract sum CoordinatedClause {
+        Finite: FiniteClause,
+        Copular: CopularClause,
+        Passive: PassiveFiniteClause,
+    }
     abstract sum PredicativeComplement {
         Adjective: PredicativeAdjectiveComplement,
         Color: PredicativeColorComplement,
@@ -527,10 +561,12 @@ constructions! {
         Ability: PredicativeAbilityComplement,
         PowerToughness: PredicativePowerToughnessComplement,
         Scalar: PredicativeScalarComplement,
+        AllColors: PredicativeAllColorsComplement,
     }
     abstract sum PredicativeStatus {
         Plain: PredicativeStatusComplement,
         BlockedBy: BlockedByStatusComplement,
+        BlockedExceptBy: BlockedExceptByStatusComplement,
     }
     abstract sum PassivePredicate {
         Damage: PassiveDamagePredicate,
@@ -546,6 +582,7 @@ constructions! {
         PostposedIfPredicate,
         PostposedUnless,
         PostposedUnlessPredicate,
+        PreposedAs,
         PreposedAsLongAs,
         PreposedAsLongAsPredicate,
         PreposedWhile,
@@ -804,6 +841,11 @@ constructions! {
         derive body.agreement = Values::Bare;
         form postposed_unless_predicate = body "unless" condition;
     }
+    construction preposed_as: ClauseAttachment {
+        element PreposedAs { condition: FiniteClause, body: Predicate, }
+        derive body.agreement = Values::Bare;
+        form preposed_as = "as" condition "," body;
+    }
     construction preposed_as_long_as: ClauseAttachment {
         element PreposedAsLongAs { condition: FiniteClause, body: Clause, }
         form preposed_as_long_as = "as" "long" "as" condition "," body;
@@ -883,7 +925,7 @@ constructions! {
     }
     construction and_predicate_coordination: PredicateCoordination {
         element AndPredicateCoordination {
-            members: seq VerbPhrase separated by position {
+            members: seq CoordinatedPredicate separated by position {
                 pair = " and ";
                 first = ", ";
                 middle = ", ";
@@ -896,7 +938,7 @@ constructions! {
     }
     construction or_predicate_coordination: PredicateCoordination {
         element OrPredicateCoordination {
-            members: seq VerbPhrase separated by position {
+            members: seq CoordinatedPredicate separated by position {
                 pair = " or ";
                 first = ", ";
                 middle = ", ";
@@ -909,7 +951,7 @@ constructions! {
     }
     construction and_or_predicate_coordination: PredicateCoordination {
         element AndOrPredicateCoordination {
-            members: seq VerbPhrase separated by position {
+            members: seq CoordinatedPredicate separated by position {
                 pair = " and/or ";
                 first = ", ";
                 middle = ", ";
@@ -943,6 +985,10 @@ constructions! {
         element BlockedByStatusValue { agent: Object, }
         form blocked_by_status = "blocked" "by" agent;
     }
+    construction blocked_except_by_status: BlockedExceptByStatusComplement {
+        element BlockedExceptByStatusValue { agent: Object, }
+        form blocked_except_by_status = "blocked" "except" "by" agent;
+    }
     construction predicative_ability: PredicativeAbilityComplement {
         element PredicativeAbilityValue { predicate: Predicate, }
         derive predicate.agreement = Values::Bare;
@@ -958,6 +1004,10 @@ constructions! {
     construction predicative_scalar: PredicativeScalarComplement {
         element PredicativeScalarValue { value: CardinalQuantity, }
         form predicative_scalar = value;
+    }
+    construction all_colors: PredicativeAllColorsComplement {
+        element AllColorsValue {}
+        form all_colors = "all" "colors";
     }
     construction bare_copular_predicate: BareCopularPredicate {
         element BareCopularPredicateValue {
@@ -1024,6 +1074,16 @@ constructions! {
         }
         derive agreement = head.agreement;
         form requirement_predicate = verb(head) lex(frequency) "if" "able";
+    }
+    construction transitive_requirement_predicate: TransitiveRequirementPredicate {
+        element TransitiveRequirementPredicateValue {
+            head: lex TransitiveVerb,
+            object: Object,
+            duration: opt lex PredicateDuration,
+        }
+        derive agreement = head.agreement;
+        form transitive_requirement_predicate =
+            verb(head) object lex(duration) "if" "able";
     }
     construction intransitive_as_though_predicate: IntransitiveAsThoughPredicate {
         element IntransitiveAsThoughPredicateValue {
@@ -1168,7 +1228,7 @@ constructions! {
     }
     construction and_clause_coordination: ClauseCoordination {
         element AndClauseCoordination {
-            members: seq FiniteClause separated by position {
+            members: seq CoordinatedClause separated by position {
                 pair = " and ";
                 first = ", ";
                 middle = ", ";
@@ -1180,7 +1240,7 @@ constructions! {
     }
     construction or_clause_coordination: ClauseCoordination {
         element OrClauseCoordination {
-            members: seq FiniteClause separated by position {
+            members: seq CoordinatedClause separated by position {
                 pair = " or ";
                 first = ", ";
                 middle = ", ";
@@ -1192,7 +1252,7 @@ constructions! {
     }
     construction and_or_clause_coordination: ClauseCoordination {
         element AndOrClauseCoordination {
-            members: seq FiniteClause separated by position {
+            members: seq CoordinatedClause separated by position {
                 pair = " and/or ";
                 first = ", ";
                 middle = ", ";
@@ -1490,6 +1550,13 @@ constructions! {
         derive number = Values::Singular;
         derive onset = noun.onset;
         form common_noun_modifier = noun(noun);
+    }
+    construction step_modifier: NominalModifier {
+        element StepModifierValue { modifier: lex StepModifier, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = modifier.onset;
+        form step_modifier = lex(modifier);
     }
     construction type_modifier: NominalModifier {
         element TypeModifier { noun: lex TypeNoun, }
@@ -2092,6 +2159,13 @@ constructions! {
         derive onset = phrase.onset;
         form ordinary_singular_reference = phrase;
     }
+    construction mass_common_noun_reference: UnqualifiedReference {
+        element MassCommonNounReference { noun: lex MassCommonNoun, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = noun.onset;
+        form mass_common_noun_reference = lex(noun);
+    }
     construction ordinary_plural_reference: UnqualifiedReference {
         element OrdinaryPluralReference { selector: PluralSelector, }
         require any(
@@ -2527,6 +2601,10 @@ constructions! {
         element FromSourceValue { zone: ZoneReference, }
         form from_source = "from" zone;
     }
+    construction from_anywhere: FromSource {
+        element FromAnywhere {}
+        form from_anywhere = "from" "anywhere";
+    }
     construction into_destination: IntoDestination {
         element IntoDestinationValue { zone: ZoneReference, }
         require any(
@@ -2939,6 +3017,18 @@ constructions! {
         element DamageRecipientValue { object: Object, }
         form damage_recipient = "to" object;
     }
+    construction damage_prevention_relative: DamagePreventionRelative {
+        element DamagePreventionRelativeValue {
+            auxiliary: lex Auxiliary,
+            copula: lex BareCopula,
+            participle: lex DamageParticipleHead,
+            recipient: DamageRecipient,
+        }
+        require auxiliary is Would;
+        require copula is Be;
+        form damage_prevention_relative =
+            "that" lex(auxiliary) lex(copula) verb(participle) recipient;
+    }
     construction counter_recipient: CounterRecipient {
         element CounterRecipientValue { object: Object, }
         form counter_recipient = "on" object;
@@ -2959,6 +3049,16 @@ constructions! {
         }
         derive agreement = verb.agreement;
         form deal_unspecified_damage = verb(VerbLexeme::Deal) lex(kind) recipient;
+    }
+    construction prevent_damage: VerbPhrase {
+        element PreventDamage {
+            amount: Amount,
+            relative: DamagePreventionRelative,
+            duration: lex PredicateDuration,
+        }
+        derive agreement = verb.agreement;
+        form prevent_damage = verb(VerbLexeme::Prevent)
+            "the" "next" amount "damage" relative lex(duration);
     }
     construction gain_life: VerbPhrase {
         element GainLife { amount: Amount, }
@@ -3007,6 +3107,14 @@ constructions! {
         element AddMana { mana: ManaAmount, }
         derive agreement = verb.agreement;
         form add_mana = verb(VerbLexeme::Add) mana;
+    }
+    construction flexible_mana: VerbPhrase {
+        element FlexibleMana {
+            amount: CardinalQuantity,
+            kind: lex FlexibleManaKind,
+        }
+        derive agreement = verb.agreement;
+        form flexible_mana = verb(VerbLexeme::Add) amount "mana" "of" "any" lex(kind);
     }
     construction draw_cards: VerbPhrase {
         element DrawCards { cards: CardQuantity, }
@@ -3091,6 +3199,14 @@ constructions! {
         element EnterPostState { post_state: PostState, }
         derive agreement = verb.agreement;
         form enter_post_state = verb(VerbLexeme::Enter) post_state;
+    }
+    construction enter_with_counters: VerbPhrase {
+        element EnterWithCounters {
+            counters: CounterQuantity,
+            recipient: CounterRecipient,
+        }
+        derive agreement = verb.agreement;
+        form enter_with_counters = verb(VerbLexeme::Enter) "with" counters recipient;
     }
     construction enter_location: VerbPhrase {
         element EnterLocation {

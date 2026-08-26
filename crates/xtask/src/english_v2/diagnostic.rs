@@ -917,6 +917,7 @@ enum NonterminalKind {
     Clause,
     ClauseAttachment,
     StartingWithYou,
+    PreposedAs,
     PreposedIf,
     PreposedIfPredicate,
     PostposedIf,
@@ -936,6 +937,7 @@ enum NonterminalKind {
     ReflexiveSubordinate,
     ReflexivePredicateSubordinate,
     Predicate,
+    CoordinatedPredicate,
     PredicateCoordination,
     PredicativeComplement,
     PredicativeStatus,
@@ -945,9 +947,11 @@ enum NonterminalKind {
     PredicativeTypeComplement,
     PredicativeStatusComplement,
     BlockedByStatusComplement,
+    BlockedExceptByStatusComplement,
     PredicativeAbilityComplement,
     PredicativePowerToughnessComplement,
     PredicativeScalarComplement,
+    PredicativeAllColorsComplement,
     BareCopularPredicate,
     ChangeStatePredicate,
     PassiveDamagePredicate,
@@ -957,6 +961,7 @@ enum NonterminalKind {
     BarePassivePredicate,
     ObjectInfinitivePredicate,
     RequirementPredicate,
+    TransitiveRequirementPredicate,
     AsThoughPredicate,
     IntransitiveAsThoughPredicate,
     TransitiveAsThoughPredicate,
@@ -973,6 +978,7 @@ enum NonterminalKind {
     PassiveFiniteClause,
     FiniteClause,
     ClauseCoordination,
+    CoordinatedClause,
     WhereClauseCategory,
     Subject,
     Object,
@@ -989,6 +995,7 @@ enum NonterminalKind {
     CounterRecipient,
     CounterSource,
     DamageRecipient,
+    DamagePreventionRelative,
     DieObject,
     ManaAmount,
     PowerToughnessAdjustment,
@@ -1483,6 +1490,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::Clause => NonterminalKind::Clause,
         NonterminalCategory::ClauseAttachment => NonterminalKind::ClauseAttachment,
         NonterminalCategory::StartingWithYou => NonterminalKind::StartingWithYou,
+        NonterminalCategory::PreposedAs => NonterminalKind::PreposedAs,
         NonterminalCategory::PreposedIf => NonterminalKind::PreposedIf,
         NonterminalCategory::PreposedIfPredicate => NonterminalKind::PreposedIfPredicate,
         NonterminalCategory::PostposedIf => NonterminalKind::PostposedIf,
@@ -1506,6 +1514,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::ReflexivePredicateSubordinate
         }
         NonterminalCategory::Predicate => NonterminalKind::Predicate,
+        NonterminalCategory::CoordinatedPredicate => NonterminalKind::CoordinatedPredicate,
         NonterminalCategory::PredicateCoordination => NonterminalKind::PredicateCoordination,
         NonterminalCategory::PredicativeComplement => NonterminalKind::PredicativeComplement,
         NonterminalCategory::PredicativeStatus => NonterminalKind::PredicativeStatus,
@@ -1525,6 +1534,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::BlockedByStatusComplement => {
             NonterminalKind::BlockedByStatusComplement
         }
+        NonterminalCategory::BlockedExceptByStatusComplement => {
+            NonterminalKind::BlockedExceptByStatusComplement
+        }
         NonterminalCategory::PredicativeAbilityComplement => {
             NonterminalKind::PredicativeAbilityComplement
         }
@@ -1533,6 +1545,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::PredicativeScalarComplement => {
             NonterminalKind::PredicativeScalarComplement
+        }
+        NonterminalCategory::PredicativeAllColorsComplement => {
+            NonterminalKind::PredicativeAllColorsComplement
         }
         NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,
         NonterminalCategory::ChangeStatePredicate => NonterminalKind::ChangeStatePredicate,
@@ -1549,6 +1564,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::ObjectInfinitivePredicate
         }
         NonterminalCategory::RequirementPredicate => NonterminalKind::RequirementPredicate,
+        NonterminalCategory::TransitiveRequirementPredicate => {
+            NonterminalKind::TransitiveRequirementPredicate
+        }
         NonterminalCategory::AsThoughPredicate => NonterminalKind::AsThoughPredicate,
         NonterminalCategory::IntransitiveAsThoughPredicate => {
             NonterminalKind::IntransitiveAsThoughPredicate
@@ -1577,6 +1595,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PassiveFiniteClause => NonterminalKind::PassiveFiniteClause,
         NonterminalCategory::FiniteClause => NonterminalKind::FiniteClause,
         NonterminalCategory::ClauseCoordination => NonterminalKind::ClauseCoordination,
+        NonterminalCategory::CoordinatedClause => NonterminalKind::CoordinatedClause,
         NonterminalCategory::WhereClauseCategory => NonterminalKind::WhereClauseCategory,
         NonterminalCategory::Subject => NonterminalKind::Subject,
         NonterminalCategory::Object => NonterminalKind::Object,
@@ -1593,6 +1612,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::CounterRecipient => NonterminalKind::CounterRecipient,
         NonterminalCategory::CounterSource => NonterminalKind::CounterSource,
         NonterminalCategory::DamageRecipient => NonterminalKind::DamageRecipient,
+        NonterminalCategory::DamagePreventionRelative => NonterminalKind::DamagePreventionRelative,
         NonterminalCategory::DieObject => NonterminalKind::DieObject,
         NonterminalCategory::ManaAmount => NonterminalKind::ManaAmount,
         NonterminalCategory::PowerToughnessAdjustment => NonterminalKind::PowerToughnessAdjustment,

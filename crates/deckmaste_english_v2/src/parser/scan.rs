@@ -1451,6 +1451,7 @@ mod tests {
                         | VerbLexeme::Look
                         | VerbLexeme::Lose
                         | VerbLexeme::Pay
+                        | VerbLexeme::Prevent
                         | VerbLexeme::Put
                         | VerbLexeme::Remove
                         | VerbLexeme::Return

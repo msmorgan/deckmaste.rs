@@ -596,6 +596,7 @@ mod tests {
     const PLAN09_TASK7_EXPANSION: &str = include_str!("english_v2/plan09_task7_expansion.tsv");
     const PLAN09_TASK8_EXPANSION: &str = include_str!("english_v2/plan09_task8_expansion.tsv");
     const PLAN09_PART_IV: &str = include_str!("english_v2/plan09_part_iv_witnesses.tsv");
+    const PLAN09_TASK10_EXPANSION: &str = include_str!("english_v2/plan09_task10_expansion.tsv");
     type ClosedLexemeDeclarations = std::collections::BTreeSet<String>;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -8146,6 +8147,18 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "explicit Task 10 fixture refresh expands the complete production declaration"]
+    fn refresh_plan09_task10_expansion_inventory() {
+        let expansion = expansion_from_source(PRODUCTION_SOURCE)
+            .expect("production declaration expands from the sealed semantic plan");
+        let rendered = render_plan09_expansion_inventory(&expansion_inventory(&expansion))
+            .expect("Task 10 generated expansion inventory renders");
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/english_v2/plan09_task10_expansion.tsv");
+        fs::write(path, rendered).expect("Task 10 expansion fixture writes");
+    }
+
+    #[test]
     #[allow(
         clippy::too_many_lines,
         reason = "the authority audit compares each historical inventory and origin set together"
@@ -8165,6 +8178,7 @@ mod tests {
         let task7 = parse_plan09_expansion_inventory(PLAN09_TASK7_EXPANSION);
         let fixture = parse_plan09_expansion_inventory(PLAN09_TASK8_EXPANSION);
         let task9 = parse_plan09_task9_expansion_inventory();
+        let task10 = parse_plan09_expansion_inventory(PLAN09_TASK10_EXPANSION);
         let live = expansion_inventory(&expansion);
         let live_digests = live
             .iter()
@@ -8174,8 +8188,8 @@ mod tests {
         assert_eq!(task7.len(), 1_561);
         assert_eq!(fixture.len(), 1_659);
         assert_eq!(task9.len(), 1_733);
-        assert_eq!(live_digests, task9);
-        let live_by_item = live_digests.iter().cloned().collect::<BTreeMap<_, _>>();
+        assert!(task10.len() > task9.len());
+        assert_eq!(live_digests, task10);
         let live_origins_by_item = live.iter().cloned().collect::<BTreeMap<_, _>>();
         let prior_by_item = prior.iter().cloned().collect::<BTreeMap<_, _>>();
         let task7_new_rows = task7
@@ -8266,6 +8280,25 @@ mod tests {
             "construction get_power_toughness",
             "construction have_base_power_toughness",
         ]);
+        let task10_origin_names = BTreeSet::from([
+            "vocab FlexibleManaKind",
+            "vocab StepModifier",
+            "vocab MassCommonNoun",
+            "lexeme PreventionParticipleLexeme",
+            "abstract sum CoordinatedPredicate",
+            "abstract sum CoordinatedClause",
+            "construction preposed_as",
+            "construction blocked_except_by_status",
+            "construction all_colors",
+            "construction transitive_requirement_predicate",
+            "construction step_modifier",
+            "construction from_anywhere",
+            "construction mass_common_noun_reference",
+            "construction damage_prevention_relative",
+            "construction prevent_damage",
+            "construction flexible_mana",
+            "construction enter_with_counters",
+        ]);
         for task7_origin in &task7_origin_names {
             assert!(
                 live.iter()
@@ -8292,6 +8325,7 @@ mod tests {
                 .filter(|origin| {
                     !task8_origin_names.contains(origin.as_str())
                         && !task9_origin_names.contains(origin.as_str())
+                        && !task10_origin_names.contains(origin.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -8312,7 +8346,10 @@ mod tests {
                 .unwrap_or_else(|| panic!("Task 9 retains Task 8 item {item:?}"));
             let retained_origins = live_origins
                 .iter()
-                .filter(|origin| !task9_origin_names.contains(origin.as_str()))
+                .filter(|origin| {
+                    !task9_origin_names.contains(origin.as_str())
+                        && !task10_origin_names.contains(origin.as_str())
+                })
                 .cloned()
                 .collect::<Vec<_>>();
             assert_eq!(
@@ -8334,14 +8371,40 @@ mod tests {
             .filter(|(item, _)| !fixture_by_item.contains_key(item))
             .collect::<Vec<_>>();
         assert_eq!(task9_new_rows.len(), 74);
-        for (item, origins_digest) in task9_new_rows {
-            assert_eq!(live_by_item.get(item), Some(origins_digest));
+        for (item, origins_digest) in &task9 {
+            let live_origins = live_origins_by_item
+                .get(item)
+                .unwrap_or_else(|| panic!("Task 10 retains Task 9 item {item:?}"));
+            let retained_origins = live_origins
+                .iter()
+                .filter(|origin| !task10_origin_names.contains(origin.as_str()))
+                .cloned()
+                .collect::<Vec<_>>();
+            assert_eq!(
+                sha256_hex(retained_origins.join("\0").as_bytes()),
+                *origins_digest,
+                "Task 10 retains exact Task 9 origins for {item:?}",
+            );
         }
         for task9_origin in &task9_origin_names {
             assert!(
                 live.iter()
                     .any(|(_, origins)| origins.iter().any(|origin| origin == task9_origin)),
                 "Task 9 origin is live: {task9_origin:?}",
+            );
+        }
+        let task9_by_item = task9.iter().cloned().collect::<BTreeMap<_, _>>();
+        let task10_new_rows = task10
+            .iter()
+            .filter(|(item, _)| !task9_by_item.contains_key(item))
+            .collect::<Vec<_>>();
+        assert!(!task10_new_rows.is_empty());
+        assert_eq!(task10.len(), task9.len() + task10_new_rows.len());
+        for task10_origin in &task10_origin_names {
+            assert!(
+                live.iter()
+                    .any(|(_, origins)| origins.iter().any(|origin| origin == task10_origin)),
+                "Task 10 origin is live: {task10_origin:?}",
             );
         }
         for (item, origins_digest) in &prior {
@@ -8354,6 +8417,7 @@ mod tests {
                     !task7_origin_names.contains(origin.as_str())
                         && !task8_origin_names.contains(origin.as_str())
                         && !task9_origin_names.contains(origin.as_str())
+                        && !task10_origin_names.contains(origin.as_str())
                 })
                 .cloned()
                 .collect::<Vec<_>>();
@@ -8378,7 +8442,10 @@ mod tests {
                 .enumerate()
                 .find(|(_, (actual, expected))| actual != expected)
         );
-        assert_eq!(headings.len() - retained_headings.len(), 571);
+        assert_eq!(
+            headings.len() - retained_headings.len(),
+            task10.len() - EXPECTED_ITEM_KEYS.len()
+        );
         for expected_key in headings {
             let header = format!("// === {expected_key} ===");
             assert_eq!(output.matches(&header).count(), 1, "{expected_key}");

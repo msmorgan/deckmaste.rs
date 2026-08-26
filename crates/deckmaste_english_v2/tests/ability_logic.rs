@@ -1995,7 +1995,10 @@ fn generated_activation_inventory_is_closed_typed_and_surface_free() {
     };
 
     assert_eq!(variants("Ability"), ["Plain", "Triggered", "Activated"]);
-    assert_eq!(variants("AbilityBody"), ["Sentences", "PlainModal"]);
+    assert_eq!(
+        variants("AbilityBody"),
+        ["Sentences", "PlainModal", "QuoteTerminatedStatement"]
+    );
     assert_eq!(variants("ModalMode"), ["ModalMode"]);
     assert_eq!(
         variants("ModalChooser"),
@@ -2569,6 +2572,13 @@ fn predicate_identity(predicate: &VerbPhrase) -> String {
     }
 }
 
+fn coordinated_predicate_identity(predicate: &CoordinatedPredicate) -> String {
+    let CoordinatedPredicate::Atomic(predicate) = predicate else {
+        panic!("legacy coordination witness has an atomic predicate payload: {predicate:?}")
+    };
+    predicate_identity(predicate)
+}
+
 fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
     let NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
         reference:
@@ -2629,6 +2639,13 @@ fn finite_clause_identity(clause: &FiniteClause) -> String {
         subject_identity(subject),
         predicate_identity(predicate)
     )
+}
+
+fn coordinated_clause_identity(clause: &CoordinatedClause) -> String {
+    let CoordinatedClause::Finite(clause) = clause else {
+        panic!("legacy coordination witness has a finite clause payload: {clause:?}")
+    };
+    finite_clause_identity(clause)
 }
 
 fn assert_one_logic_candidate(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Ability {
@@ -2761,6 +2778,7 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
             "NumerativePredicate",
             "DealDamage",
             "DealUnspecifiedDamage",
+            "PreventDamage",
             "GainLife",
             "GainUnspecifiedLife",
             "DealDamageEqualTo",
@@ -2770,6 +2788,7 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
             "PayLife",
             "PayMana",
             "AddMana",
+            "FlexibleMana",
             "DrawCards",
             "DrawCardsEqualTo",
             "RollDice",
@@ -2781,12 +2800,18 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
             "PutTo",
             "ReturnTo",
             "EnterPostState",
+            "EnterWithCounters",
             "EnterLocation",
             "EnterControl",
             "LeaveLocation",
             "LookAt",
             "SearchFor",
+            "DeclaredToObjectPredicate",
+            "DeclaredForObjectPredicate",
+            "QuotedAbilityPredicate",
             "HaveCardsInHand",
+            "GetPowerToughness",
+            "HaveBasePowerToughness",
             "HaveLife",
             "HaveNoMaximumHandSize",
             "HaveObjectControl",
@@ -2847,7 +2872,10 @@ fn assert_predicate_coordination(
         _ => panic!("coordinator meaning is stored independently of punctuation: {text}"),
     };
     assert_eq!(
-        members.iter().map(predicate_identity).collect::<Vec<_>>(),
+        members
+            .iter()
+            .map(coordinated_predicate_identity)
+            .collect::<Vec<_>>(),
         expected_members,
         "the AST preserves every predicate payload in source order: {text}",
     );
@@ -2905,7 +2933,7 @@ fn assert_clause_coordination(
     assert_eq!(
         members
             .iter()
-            .map(finite_clause_identity)
+            .map(coordinated_clause_identity)
             .collect::<Vec<_>>(),
         expected_members,
         "the AST preserves every complete finite-clause payload in source order: {text}",
@@ -2976,12 +3004,19 @@ fn malformed_coordination_and_minimum_arity_are_rejected() {
         );
     }
 
-    assert!(AndPredicateCoordination::new(Box::new(vec![gain_life_predicate(1)])).is_none());
     assert!(
-        AndClauseCoordination::new(Box::new(vec![plain_finite(
-            you_subject(),
-            Predicate::Atomic(Box::new(gain_life_predicate(1))),
-        )]))
+        AndPredicateCoordination::new(Box::new(vec![CoordinatedPredicate::Atomic(Box::new(
+            gain_life_predicate(1),
+        ))]))
+        .is_none()
+    );
+    assert!(
+        AndClauseCoordination::new(Box::new(vec![CoordinatedClause::Finite(Box::new(
+            plain_finite(
+                you_subject(),
+                Predicate::Atomic(Box::new(gain_life_predicate(1))),
+            ),
+        ))]))
         .is_none()
     );
 

@@ -44,6 +44,10 @@ fn environment() -> ParserEnvironment {
             r#"KeywordAction(name:"Create",spelling:"create",grammar:Verb(bare:"create",valence:Transitive))"#,
         ),
         (
+            "/synthetic/actions/Exile.ron",
+            r#"KeywordAction(name:"Exile",spelling:"exile",grammar:Verb(bare:"exile",valence:Transitive))"#,
+        ),
+        (
             "/synthetic/actions/Cast.ron",
             r#"KeywordAction(name:"Cast",spelling:"cast",grammar:Verb(bare:"cast",participle:"cast",valence:Transitive))"#,
         ),
@@ -102,6 +106,10 @@ fn environment() -> ParserEnvironment {
         (
             "/synthetic/subtypes/Goblin.ron",
             r#"Subtype(category:Creature,name:"Goblin",spelling:"Goblin",grammar:Noun(singular:"Goblin"))"#,
+        ),
+        (
+            "/synthetic/subtypes/Forest.ron",
+            r#"Subtype(category:Land,name:"Forest",spelling:"Forest",grammar:Noun(singular:"Forest"))"#,
         ),
     ]
     .into_iter()
@@ -236,6 +244,419 @@ fn assert_selected_with_specificity(
         "{text:?}"
     );
     selected.clone()
+}
+
+#[derive(Default)]
+struct Task10Visitor(Vec<&'static str>);
+
+impl Visitor for Task10Visitor {
+    fn visit_transitive_requirement_predicate_value(
+        &mut self,
+        value: &TransitiveRequirementPredicateValue,
+    ) {
+        self.0.push("transitive-requirement");
+        deckmaste_english_v2::visit::walk_transitive_requirement_predicate_value(self, value);
+    }
+
+    fn visit_blocked_except_by_status_value(&mut self, value: &BlockedExceptByStatusValue) {
+        self.0.push("blocked-except-by");
+        deckmaste_english_v2::visit::walk_blocked_except_by_status_value(self, value);
+    }
+
+    fn visit_flexible_mana(&mut self, value: &FlexibleMana) {
+        self.0.push("flexible-mana");
+        deckmaste_english_v2::visit::walk_flexible_mana(self, value);
+    }
+
+    fn visit_all_colors_value(&mut self, value: &AllColorsValue) {
+        self.0.push("all-colors");
+        deckmaste_english_v2::visit::walk_all_colors_value(self, value);
+    }
+
+    fn visit_from_anywhere(&mut self, value: &FromAnywhere) {
+        self.0.push("from-anywhere");
+        deckmaste_english_v2::visit::walk_from_anywhere(self, value);
+    }
+
+    fn visit_enter_with_counters(&mut self, value: &EnterWithCounters) {
+        self.0.push("enter-with-counters");
+        deckmaste_english_v2::visit::walk_enter_with_counters(self, value);
+    }
+
+    fn visit_preposed_as(&mut self, value: &PreposedAs) {
+        self.0.push("as-clause");
+        deckmaste_english_v2::visit::walk_preposed_as(self, value);
+    }
+
+    fn visit_prevent_damage(&mut self, value: &PreventDamage) {
+        self.0.push("prevent-damage");
+        deckmaste_english_v2::visit::walk_prevent_damage(self, value);
+    }
+
+    fn visit_predicate_coordination(&mut self, value: &PredicateCoordination) {
+        self.0.push("predicate-coordination");
+        deckmaste_english_v2::visit::walk_predicate_coordination(self, value);
+    }
+
+    fn visit_clause_coordination(&mut self, value: &ClauseCoordination) {
+        self.0.push("clause-coordination");
+        deckmaste_english_v2::visit::walk_clause_coordination(self, value);
+    }
+}
+
+fn task10_visits(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Vec<&'static str> {
+    task10_visits_with_specificity(parser, context, text, false)
+}
+
+fn task10_visits_with_specificity(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+    permits_specificity: bool,
+) -> Vec<&'static str> {
+    let ability = assert_selected_with_specificity(parser, context, text, permits_specificity);
+    let mut visitor = Task10Visitor::default();
+    visitor.visit_ability(&ability);
+    visitor.0
+}
+
+#[test]
+fn task10_builds_keep_new_products_in_the_existing_typed_algebra() {
+    let parser = parser();
+    let context = context();
+
+    let flexible_mana = VerbPhrase::FlexibleMana(FlexibleMana {
+        amount: CardinalQuantity::Cardinal(CardinalQuantityValue {
+            number: CardinalNumber { magnitude: 1 },
+        }),
+        kind: FlexibleManaKind::Color,
+    });
+    let expected = Sentence::Imperative(
+        Imperative::new(Box::new(Predicate::Atomic(Box::new(flexible_mana.clone()))))
+            .expect("flexible mana is a valid bare imperative predicate"),
+    );
+    let text = "Add one mana of any color.";
+    assert_eq!(parser.parse_sentence(text, &context), Ok(expected.clone()));
+    assert_eq!(expected.render(&context, parser.environment()), text);
+    assert_eq!(imperative_atomic(&parser, &context, text), flexible_mana,);
+    assert_eq!(
+        exact_claim_trace(&parser, &context, text),
+        [
+            ("Add".to_owned(), "lexeme:VerbLexeme/Add/bare".to_owned()),
+            (" one".to_owned(), "codec:CardinalNumber".to_owned()),
+            (
+                " mana".to_owned(),
+                "form:flexible_mana/flexible_mana/2".to_owned(),
+            ),
+            (
+                " of".to_owned(),
+                "form:flexible_mana/flexible_mana/3".to_owned(),
+            ),
+            (
+                " any".to_owned(),
+                "form:flexible_mana/flexible_mana/4".to_owned(),
+            ),
+            (
+                " color".to_owned(),
+                "vocab:FlexibleManaKind/Color".to_owned(),
+            ),
+            (
+                ".".to_owned(),
+                "structural:Sentences/sentences/terminator/0".to_owned(),
+            ),
+        ],
+    );
+
+    let Sentence::Declarative(requirement) = parser
+        .parse_sentence(
+            "Target creature attacks target opponent this turn if able.",
+            &context,
+        )
+        .expect("transitive combat requirement parses")
+    else {
+        panic!("transitive requirement has a declarative envelope")
+    };
+    let Clause::Finite(requirement) = requirement.clause.as_ref() else {
+        panic!("transitive requirement has an ordinary finite clause")
+    };
+    let FiniteClause::PlainFiniteClause(requirement) = requirement.as_ref() else {
+        panic!("transitive requirement has an ordinary finite clause")
+    };
+    assert!(matches!(
+        requirement.predicate(),
+        Predicate::TransitiveRequirement(_)
+    ));
+
+    let Sentence::Declarative(all_colors) = parser
+        .parse_sentence("This permanent is all colors.", &context)
+        .expect("all-colors complement parses")
+    else {
+        panic!("all-colors complement has a declarative envelope")
+    };
+    let Clause::Copular(all_colors) = all_colors.clause.as_ref() else {
+        panic!("all-colors complement uses the ordinary copular clause")
+    };
+    let CopularClause::CopularClause(CopularClauseValue { complement, .. }) = all_colors.as_ref();
+    assert!(matches!(
+        complement.as_ref(),
+        PredicativeComplement::AllColors(_)
+    ));
+
+    let as_ability = assert_selected(
+        &parser,
+        &context,
+        "As this artifact enters, choose a color.",
+    );
+    let Ability::Plain(Plain { body }) = as_ability else {
+        panic!("as-entry witness has an ordinary ability envelope")
+    };
+    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+        panic!("as-entry witness has an ordinary sentence body")
+    };
+    let [Sentence::Attached(Attached { attachment })] = sentences.sentences() else {
+        panic!("as-entry witness has one typed attached sentence")
+    };
+    assert!(matches!(
+        attachment.as_ref(),
+        ClauseAttachment::PreposedAs(_)
+    ));
+
+    let coordinated = assert_selected(
+        &parser,
+        &context,
+        "This permanent is all colors and this creature becomes tapped.",
+    );
+    let Ability::Plain(Plain { body }) = coordinated else {
+        panic!("clause coordination has an ordinary ability envelope")
+    };
+    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+        panic!("clause coordination has an ordinary sentence body")
+    };
+    let [Sentence::Declarative(declarative)] = sentences.sentences() else {
+        panic!("clause coordination has one declarative sentence")
+    };
+    let Clause::Coordination(coordination) = declarative.clause.as_ref() else {
+        panic!("new clause families share the n-ary coordination product")
+    };
+    let ClauseCoordination::AndClauseCoordination(coordination) = coordination.as_ref() else {
+        panic!("the witness retains its and coordinator")
+    };
+    assert!(matches!(
+        coordination.members(),
+        [CoordinatedClause::Copular(_), CoordinatedClause::Finite(_)]
+    ));
+}
+
+#[test]
+fn task10_combat_frames_keep_active_valence_passive_agents_and_if_able_distinct() {
+    let parser = parser();
+    let context = context();
+
+    for (text, expected_path_member) in [
+        (
+            "Whenever this creature attacks, draw a card.",
+            "VerbPhraseIntransitivePredicate",
+        ),
+        (
+            "Whenever this creature attacks a player, draw a card.",
+            "VerbPhraseTransitivePredicate",
+        ),
+        (
+            "Whenever this creature blocks a creature, draw a card.",
+            "VerbPhraseTransitivePredicate",
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        assert_selected_with_specificity(&parser, &context, text, true);
+        let decision = analysis
+            .decision()
+            .expect("combat witness has a selection decision");
+        let ordinal = decision
+            .selected()
+            .expect("combat witness has a selected production derivation");
+        let selected = decision
+            .candidates()
+            .iter()
+            .find(|candidate| candidate.ordinal() == ordinal)
+            .expect("selected ordinal names one production derivation");
+        assert!(
+            selected
+                .construction_path()
+                .iter()
+                .any(|name| name == expected_path_member),
+            "{text:?}: {selected:?}",
+        );
+    }
+
+    assert_eq!(
+        task10_visits_with_specificity(
+            &parser,
+            &context,
+            "Whenever this creature blocks or becomes blocked by a creature, draw a card.",
+            true,
+        ),
+        ["predicate-coordination"],
+    );
+    assert_eq!(
+        task10_visits(
+            &parser,
+            &context,
+            "Target creature attacks target opponent this turn if able.",
+        ),
+        ["transitive-requirement"],
+    );
+    assert_eq!(
+        task10_visits(
+            &parser,
+            &context,
+            "This creature can't be blocked except by two or more creatures.",
+        ),
+        ["blocked-except-by"],
+    );
+
+    for crossed in [
+        "Whenever this creature block a creature, draw a card.",
+        "Target creature attack target opponent this turn if able.",
+        "This creature can't be blocked except two or more creatures.",
+    ] {
+        assert!(
+            parser.parse(crossed, &context).is_err(),
+            "combat agreement and passive-agent syntax reject {crossed:?}",
+        );
+    }
+}
+
+#[test]
+fn task10_damage_life_mana_and_continuous_state_use_typed_ordinary_products() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "This creature deals 3 damage to any target.",
+        "You gain 3 life.",
+        "Target opponent loses 2 life.",
+        "Pay 4 life.",
+        "Add {R}{R}{R}.",
+        "Other creatures you control get +1/+1.",
+        "This creature becomes tapped.",
+    ] {
+        assert_selected(&parser, &context, text);
+    }
+    assert_eq!(
+        task10_visits(&parser, &context, "Add one mana of any color."),
+        ["flexible-mana"],
+    );
+    assert_eq!(
+        task10_visits(&parser, &context, "This permanent is all colors."),
+        ["all-colors"],
+    );
+    assert_eq!(
+        task10_visits(
+            &parser,
+            &context,
+            "This permanent is all colors and this creature becomes tapped.",
+        ),
+        ["clause-coordination", "all-colors"],
+    );
+
+    for crossed in [
+        "Add one mana of any colors.",
+        "This permanent is all color.",
+        "This creature become tapped.",
+    ] {
+        assert!(
+            parser.parse(crossed, &context).is_err(),
+            "resource and continuous-state morphology reject {crossed:?}",
+        );
+    }
+}
+
+#[test]
+fn task10_replacement_entry_and_skip_surfaces_reuse_clause_and_predicate_algebra() {
+    let parser = parser();
+    let context = context();
+
+    assert_eq!(
+        task10_visits(
+            &parser,
+            &context,
+            "If a card would be put into your graveyard from anywhere, exile it instead.",
+        ),
+        ["from-anywhere"],
+    );
+    assert_eq!(
+        task10_visits(
+            &parser,
+            &context,
+            "This creature enters with two +1/+1 counters on it.",
+        ),
+        ["enter-with-counters"],
+    );
+    assert_eq!(
+        task10_visits(
+            &parser,
+            &context,
+            "As this artifact enters, choose a color.",
+        ),
+        ["as-clause"],
+    );
+    assert_selected(&parser, &context, "Players skip their untap steps.");
+    assert_selected_with_specificity(
+        &parser,
+        &context,
+        "If a player would draw a card, that player skips that draw instead.",
+        true,
+    );
+
+    for crossed in [
+        "If a card would be put into your graveyard anywhere, exile it instead.",
+        "This creature enters two +1/+1 counters on it.",
+        "As this artifact enters choose a color.",
+        "Players skips their untap steps.",
+    ] {
+        assert!(
+            parser.parse(crossed, &context).is_err(),
+            "replacement and skip boundaries reject {crossed:?}",
+        );
+    }
+}
+
+#[test]
+fn task10_prevention_restriction_requirement_permission_exception_and_if_able_remain_linguistic() {
+    let parser = parser();
+    let context = context();
+
+    assert_eq!(
+        task10_visits(
+            &parser,
+            &context,
+            "Prevent the next 3 damage that would be dealt to target creature this turn.",
+        ),
+        ["prevent-damage"],
+    );
+    for text in [
+        "If a source would deal damage to this creature, prevent that damage.",
+        "Damage can't be prevented.",
+        "This creature can't attack or block.",
+        "This creature attacks each combat if able.",
+        "You may cast spells as though they had flash.",
+        "This creature can't attack unless you control a Forest.",
+        "This creature can't be blocked except by two or more creatures.",
+    ] {
+        assert_selected(&parser, &context, text);
+    }
+
+    for crossed in [
+        "Prevent next 3 damage that would be dealt to target creature this turn.",
+        "Damage can't be prevent.",
+        "This creature attacks each combat able.",
+        "This creature can't attack unless control a Forest.",
+    ] {
+        assert!(
+            parser.parse(crossed, &context).is_err(),
+            "prevention and deontic surface boundaries reject {crossed:?}",
+        );
+    }
 }
 
 #[derive(Default)]
@@ -1276,6 +1697,7 @@ fn task7_ast_keeps_each_linguistic_product_typed() {
             PredicativeComplement::Ability(_) => "ability",
             PredicativeComplement::PowerToughness(_) => "power-toughness",
             PredicativeComplement::Scalar(_) => "scalar",
+            PredicativeComplement::AllColors(_) => "all-colors",
         };
         assert_eq!(observed, expected);
     }
