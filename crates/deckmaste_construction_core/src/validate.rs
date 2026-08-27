@@ -2758,16 +2758,11 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
             {
                 continue;
             }
-            let names_overlap = match (&left_domain.names, &right_domain.names) {
-                (None, None) => true,
-                (Some(left), Some(right)) => left.intersection(right).next().is_some(),
-                (None, Some(_)) | (Some(_), None) => false,
-            };
             let closed_overlap = left_domain
                 .closed
                 .as_ref()
                 .is_some_and(|left_closed| right_domain.closed.as_ref() == Some(left_closed));
-            if names_overlap {
+            if left_domain.closed.is_none() && right_domain.closed.is_none() {
                 combine(
                     errors,
                     syn::Error::new(
@@ -2801,7 +2796,6 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
 struct DeclarationVerbDomain {
     closed: Option<String>,
     position: String,
-    names: Option<BTreeSet<String>>,
     feature: String,
     tail: String,
 }
@@ -2815,7 +2809,8 @@ fn declaration_verb_domain(
     let tail = tail
         .atoms
         .iter()
-        .map(|atom| match &atom.kind {
+        .map(|atom| {
+            let key = match &atom.kind {
             crate::model::DeclarationVerbTailAtomKindSource::Literal(literal) => {
                 format!("Literal({:?})", literal.value())
             }
@@ -2826,6 +2821,11 @@ fn declaration_verb_domain(
             crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(_) => {
                 "PredicativeComplement".to_owned()
             }
+            crate::model::DeclarationVerbTailAtomKindSource::Role(role) => {
+                format!("Role({})", identifier_key(role))
+            }
+            };
+            if atom.optional { format!("{key}?") } else { key }
         })
         .collect::<Vec<_>>()
         .join(", ");
@@ -2835,10 +2835,6 @@ fn declaration_verb_domain(
             .first()
             .map(|slot| identifier_key(&slot.value)),
         position: identifier_key(&position.value),
-        names: source
-            .name_slots
-            .first()
-            .map(|slot| slot.names.iter().map(identifier_key).collect()),
         feature: identifier_key(&feature.value),
         tail: format!("[{tail}]"),
     })
@@ -2957,7 +2953,6 @@ fn validate_declaration_verb_source(
         "declaration_verb",
         errors,
     );
-    validate_declaration_verb_names(source, errors);
     validate_declaration_verb_tail(source, errors);
 
     if let Some(position) = position
@@ -3034,49 +3029,6 @@ fn validate_declaration_verb_source(
                     "declaration_verb closed branch must name a lexeme declaration",
                 ),
             ),
-        }
-    }
-}
-
-fn validate_declaration_verb_names(
-    source: &crate::model::DeclarationVerbSource,
-    errors: &mut Option<syn::Error>,
-) {
-    let names = match source.name_slots.as_slice() {
-        [] => return,
-        [slot, rest @ ..] => {
-            for duplicate in rest {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        duplicate.slot.span(),
-                        "duplicate declaration_verb field `names`",
-                    ),
-                );
-            }
-            slot
-        }
-    };
-    if names.names.is_empty() {
-        combine(
-            errors,
-            syn::Error::new(
-                names.slot.span(),
-                "declaration_verb name filter cannot be empty",
-            ),
-        );
-    }
-    let mut seen = HashSet::new();
-    for name_source in &names.names {
-        let name = identifier_key(name_source);
-        if !seen.insert(name.clone()) {
-            combine(
-                errors,
-                syn::Error::new(
-                    name_source.span(),
-                    format!("duplicate declaration_verb name `{name}`"),
-                ),
-            );
         }
     }
 }
@@ -3175,6 +3127,12 @@ fn validate_declaration_verb_tail(
                     .or_default()
                     .push(atom);
             }
+            crate::model::DeclarationVerbTailAtomKindSource::Role(role) => {
+                nonliteral_occurrences
+                    .entry(format!("Role({})", identifier_key(role)))
+                    .or_default()
+                    .push(atom);
+            }
         }
     }
     for (key, occurrences) in nonliteral_occurrences {
@@ -3184,7 +3142,8 @@ fn validate_declaration_verb_tail(
         let span = match &occurrences[1].kind {
             crate::model::DeclarationVerbTailAtomKindSource::Amount(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom)
-            | crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom) => {
+            | crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom)
+            | crate::model::DeclarationVerbTailAtomKindSource::Role(atom) => {
                 atom.span()
             }
             crate::model::DeclarationVerbTailAtomKindSource::Literal(_) => {

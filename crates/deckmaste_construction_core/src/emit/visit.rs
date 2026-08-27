@@ -445,6 +445,14 @@ fn visitor_methods(
             ) {}
         });
     }
+    if !terminals.declaration_verbs.is_empty() {
+        methods.push(quote! {
+            fn visit_verb_inventory(
+                &mut self,
+                _verb: &crate::environment::VerbInventoryRef,
+            ) {}
+        });
+    }
     methods
 }
 
@@ -475,7 +483,10 @@ fn emit_declaration_verb_value_walker(codec: &DeclarationVerbPlan) -> GeneratedI
         },
         quote! {
             pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, declaration: &#ty) {
-                visitor.visit_declaration(declaration.id());
+                visitor.visit_verb_inventory(declaration.reference());
+                if let crate::environment::VerbInventoryRef::Declaration(id) = declaration.reference() {
+                    visitor.visit_declaration(id);
+                }
             }
         },
         vec![codec.origin().clone()],

@@ -660,6 +660,14 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     crate::semantic::VerbFrameAtom::PredicativeComplement => {
                         quote! { VerbFrameAtom::PredicativeComplement }
                     }
+                    crate::semantic::VerbFrameAtom::Role(role) => {
+                        let role = syn::LitStr::new(role, Span::call_site());
+                        quote! { VerbFrameAtom::Role(#role) }
+                    }
+                    crate::semantic::VerbFrameAtom::OptionalRole(role) => {
+                        let role = syn::LitStr::new(role, Span::call_site());
+                        quote! { VerbFrameAtom::OptionalRole(#role) }
+                    }
                 })
                 .collect::<Vec<_>>();
             let closed_scan = codec.closed_lexeme().map(|closed| {
@@ -719,13 +727,6 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             } else {
                 quote! { declaration }
             };
-            let allowed_names = codec.names();
-            let declaration_filter = quote! {
-                let allowed_names: &[&str] = &[#(#allowed_names),*];
-                if !allowed_names.is_empty() && !allowed_names.contains(&id.name()) {
-                    continue;
-                }
-            };
             match codec.feature_axis() {
                 crate::feature::Feature::Agreement => quote! {
                     Lexical::DeclarationVerb(#terminal_index, wanted) => {
@@ -738,7 +739,7 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         {
                             continue;
                         }
-                        for (end, id) in input.declaration_verb_readings(
+                        for (end, reading) in input.declaration_verb_readings(
                             input.position.byte_offset,
                             &frame,
                             match agreement {
@@ -746,17 +747,15 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                 Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
                             },
                         ) {
-                            #declaration_filter
+                            let reference = reading.reference().clone();
                             let feature = match agreement {
                                 Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
                                 Agreement::ThirdPersonSingular => {
                                     ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular
                                 }
                             };
-                            let onset = input.environment
-                                .onset(&id, feature)
-                                .expect("normalized declaration verb reading carries onset");
-                            let Some(declaration) = #declaration::new(input.environment, id) else {
+                            let onset = reading.onset();
+                            let Some(declaration) = #declaration::new(input.environment, reference) else {
                                 continue;
                             };
                             matches.push(LexicalMatch {
@@ -778,16 +777,13 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         let mut matches = Vec::new();
                         #closed_scan
                         let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
-                    for (end, id) in input.declaration_verb_readings(
+                    for (end, reading) in input.declaration_verb_readings(
                         input.position.byte_offset,
                         &frame,
                             ::macro_ron::v2::SurfaceFeature::Participle,
                         ) {
-                            #declaration_filter
-                            let onset = input.environment
-                                .onset(&id, ::macro_ron::v2::SurfaceFeature::Participle)
-                                .expect("normalized declaration verb reading carries onset");
-                            let Some(declaration) = #declaration::new(input.environment, id) else { continue; };
+                            let onset = reading.onset();
+                            let Some(declaration) = #declaration::new(input.environment, reading.reference().clone()) else { continue; };
                             matches.push(LexicalMatch { end, value: Leaf::#verb {
                                 verb: #open_value,
                                 onset,

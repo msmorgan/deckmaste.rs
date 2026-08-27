@@ -6,6 +6,7 @@ use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::environment::VerbInventoryRef;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
@@ -201,7 +202,10 @@ fn parser_build_has_no_fixed_keyword_requirements_and_constructors_fail_closed()
     ])
     .unwrap();
     let wrong_id = DeclarationId::new(DeclarationKind::KeywordAction, "Destroy");
-    assert!(DeclarationTransitiveVerb::new(&wrong_recipe, wrong_id).is_none());
+    assert!(
+        DeclarationTransitiveVerb::new(&wrong_recipe, VerbInventoryRef::Declaration(wrong_id))
+            .is_none()
+    );
     Parser::new(wrong_recipe).expect("wrong recipes do not become fixed parser requirements");
 
     let missing_feature = environment_from([
@@ -216,7 +220,13 @@ fn parser_build_has_no_fixed_keyword_requirements_and_constructors_fail_closed()
     ])
     .unwrap();
     let missing_id = DeclarationId::new(DeclarationKind::KeywordAction, "Destroy");
-    assert!(DeclarationTransitiveVerb::new(&missing_feature, missing_id).is_none());
+    assert!(
+        DeclarationTransitiveVerb::new(
+            &missing_feature,
+            VerbInventoryRef::Declaration(missing_id),
+        )
+        .is_none()
+    );
     Parser::new(missing_feature)
         .expect("missing agreement surfaces do not become fixed parser requirements");
 }

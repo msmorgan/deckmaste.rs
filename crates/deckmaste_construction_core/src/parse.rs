@@ -1817,7 +1817,6 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
     if recipe == "declaration_verb" {
         let mut closed_slots = Vec::new();
         let mut position_slots = Vec::new();
-        let mut name_slots = Vec::new();
         let mut tail_slots = Vec::new();
         let mut feature_slots = Vec::new();
         while !content.is_empty() {
@@ -1825,17 +1824,6 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
             let slot = content.call(Ident::parse_any)?;
             content.parse::<Token![=]>()?;
             match slot.to_string().as_str() {
-                "names" => {
-                    let names_content;
-                    bracketed!(names_content in content);
-                    let names = Punctuated::<Ident, Token![,]>::parse_terminated_with(
-                        &names_content,
-                        Ident::parse_any,
-                    )?
-                    .into_iter()
-                    .collect();
-                    name_slots.push(crate::model::DeclarationVerbNamesSource { slot, names });
-                }
                 "tail" => {
                     let tail_content;
                     bracketed!(tail_content in content);
@@ -1860,13 +1848,14 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                                 }
                                 "ObjectNounPhrase" => crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom),
                                 "PredicativeComplement" => crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom),
-                                _ => Err(syn::Error::new(
-                                    atom.span(),
-                                    "declaration_verb tail atoms must be string literals, `Amount`, `ObjectNounPhrase`, or `PredicativeComplement`",
-                                ))?,
+                                _ => crate::model::DeclarationVerbTailAtomKindSource::Role(atom),
                             }
                         };
-                        Ok(crate::model::DeclarationVerbTailAtomSource { label, kind })
+                        let optional = input.parse::<Token![?]>().is_ok();
+                        if optional && matches!(kind, crate::model::DeclarationVerbTailAtomKindSource::Literal(_)) {
+                            return Err(syn::Error::new(input.span(), "declaration_verb tail literals cannot be optional"));
+                        }
+                        Ok(crate::model::DeclarationVerbTailAtomSource { label, optional, kind })
                     })?
                     .into_iter()
                     .collect();
@@ -1885,7 +1874,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 _ => {
                     return Err(syn::Error::new(
                         slot.span(),
-                        "declaration_verb recipe accepts only `closed`, `position`, `names`, `tail`, and `feature` fields",
+                        "declaration_verb recipe accepts only `closed`, `position`, `tail`, and `feature` fields",
                     ));
                 }
             }
@@ -1896,7 +1885,6 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 recipe,
                 closed_slots,
                 position_slots,
-                name_slots,
                 tail_slots,
                 feature_slots,
             },
@@ -4009,14 +3997,17 @@ mod tests {
             [
                 crate::DeclarationVerbTailAtomSource {
                     label: None,
+                    optional: false,
                     kind: crate::DeclarationVerbTailAtomKindSource::Literal(literal),
                 },
                 crate::DeclarationVerbTailAtomSource {
                     label: None,
+                    optional: false,
                     kind: crate::DeclarationVerbTailAtomKindSource::Amount(_),
                 },
                 crate::DeclarationVerbTailAtomSource {
                     label: None,
+                    optional: false,
                     kind: crate::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_),
                 },
             ] if literal.value() == "with"

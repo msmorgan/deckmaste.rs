@@ -50,7 +50,6 @@ use crate::constructions::PrefixPosition;
 use crate::constructions::RULES;
 use crate::constructions::RuleId;
 use crate::constructions::ScanPosition;
-use crate::constructions::VerbFrameAtom;
 use crate::constructions::VerbFrameKey;
 use crate::constructions::scan_lexical;
 use crate::context::ParseContext;
@@ -999,22 +998,10 @@ impl ScanInput<'_> {
         start: usize,
         frame: &VerbFrameKey,
         feature: SurfaceFeature,
-    ) -> Vec<(usize, DeclarationId)> {
-        use macro_ron::v2::CustomTailAtom;
-
+    ) -> Vec<(usize, crate::environment::VerbInventoryReading)> {
         if start != self.position.byte_offset {
             return Vec::new();
         }
-        let frame = frame
-            .atoms()
-            .iter()
-            .map(|atom| match atom {
-                VerbFrameAtom::Literal(literal) => CustomTailAtom::Literal((*literal).to_owned()),
-                VerbFrameAtom::Amount => CustomTailAtom::Amount,
-                VerbFrameAtom::ObjectNounPhrase => CustomTailAtom::ObjectNounPhrase,
-                VerbFrameAtom::PredicativeComplement => CustomTailAtom::PredicativeComplement,
-            })
-            .collect::<Vec<_>>();
         let offset = self.position.byte_offset;
         let initial = matches!(
             self.position.case,
@@ -1052,19 +1039,19 @@ impl ScanInput<'_> {
             let candidate = &surface_text[..relative_end];
             let readings = if initial {
                 self.environment
-                    .initial_declaration_verb_readings(candidate, feature, &frame)
+                    .initial_verb_inventory_readings(candidate, feature, *frame)
             } else {
                 self.environment
-                    .declaration_verb_readings(candidate, feature, &frame)
+                    .verb_inventory_readings(candidate, feature, *frame)
             };
             results.extend(
                 readings
                     .into_iter()
-                    .map(|reading| (end, reading.id().clone())),
+                .map(|reading| (end, reading)),
             );
         }
-        results.sort();
-        results.dedup();
+        results.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.reference().cmp(right.1.reference())));
+        results.dedup_by(|left, right| left.0 == right.0 && left.1.reference() == right.1.reference());
         results
     }
 }

@@ -146,7 +146,6 @@ pub(crate) fn emit(
                 let origin = row.origin().clone();
                 let verb = row.codec_ident();
                 let declaration = row.declaration_value_ident();
-                let position = crate::emit::grammar_position(row.position());
                 let frame_atoms = row
                     .frame_key()
                     .atoms()
@@ -163,6 +162,14 @@ pub(crate) fn emit(
                         crate::semantic::VerbFrameAtom::PredicativeComplement => {
                             quote! { VerbFrameAtom::PredicativeComplement }
                         }
+                        crate::semantic::VerbFrameAtom::Role(role) => {
+                            let role = syn::LitStr::new(role, Span::call_site());
+                            quote! { VerbFrameAtom::Role(#role) }
+                        }
+                        crate::semantic::VerbFrameAtom::OptionalRole(role) => {
+                            let role = syn::LitStr::new(role, Span::call_site());
+                            quote! { VerbFrameAtom::OptionalRole(#role) }
+                        }
                     })
                     .collect::<Vec<_>>();
                 items.push(GeneratedItem::new(
@@ -170,7 +177,7 @@ pub(crate) fn emit(
                     quote! {
                         #[derive(Debug, Clone, PartialEq, Eq)]
                         pub struct #declaration {
-                            id: ::macro_ron::v2::DeclarationIdentity,
+                            reference: crate::environment::VerbInventoryRef,
                         }
                     },
                     vec![origin.clone()],
@@ -184,17 +191,10 @@ pub(crate) fn emit(
                         impl #declaration {
                             pub fn new(
                                 environment: &crate::environment::ParserEnvironment,
-                                id: ::macro_ron::v2::DeclarationIdentity,
+                                reference: crate::environment::VerbInventoryRef,
                             ) -> Option<Self> {
-                                let recipe = environment.grammar_recipe(&id)?;
-                                if recipe.position() != #position {
-                                    return None;
-                                }
-                                let ::macro_ron::v2::GrammarRecipe::Verb { valence } = recipe else {
-                                    return None;
-                                };
                                 let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
-                                if !frame.matches_valence(valence) {
+                                if !environment.verb_frame_licenses(&reference, frame) {
                                     return None;
                                 }
                                 [
@@ -202,13 +202,14 @@ pub(crate) fn emit(
                                     ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
                                 ]
                                 .into_iter()
-                                .all(|feature| environment.surface(&id, feature).is_some())
-                                .then_some(Self { id })
+                                .all(|feature| environment.verb_inventory_surface(&reference, feature).is_some())
+                                .then_some(Self { reference })
                             }
 
-                            pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
-                                &self.id
+                            pub fn reference(&self) -> &crate::environment::VerbInventoryRef {
+                                &self.reference
                             }
+
                         }
                     },
                     vec![origin.clone()],

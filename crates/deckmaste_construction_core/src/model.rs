@@ -468,7 +468,6 @@ pub struct DeclarationVerbSource {
     pub recipe: Ident,
     pub closed_slots: Vec<GeneratedIdentSlot>,
     pub position_slots: Vec<GeneratedIdentSlot>,
-    pub name_slots: Vec<DeclarationVerbNamesSource>,
     pub tail_slots: Vec<DeclarationVerbTailSource>,
     pub feature_slots: Vec<GeneratedIdentSlot>,
 }
@@ -480,12 +479,6 @@ pub struct DeclarationVerbKindsSource {
 }
 
 #[derive(Debug)]
-pub struct DeclarationVerbNamesSource {
-    pub slot: Ident,
-    pub names: Vec<Ident>,
-}
-
-#[derive(Debug)]
 pub struct DeclarationVerbTailSource {
     pub slot: Ident,
     pub atoms: Vec<DeclarationVerbTailAtomSource>,
@@ -494,6 +487,7 @@ pub struct DeclarationVerbTailSource {
 #[derive(Debug)]
 pub struct DeclarationVerbTailAtomSource {
     pub label: Option<Ident>,
+    pub optional: bool,
     pub kind: DeclarationVerbTailAtomKindSource,
 }
 
@@ -503,6 +497,9 @@ pub enum DeclarationVerbTailAtomKindSource {
     Amount(Ident),
     ObjectNounPhrase(Ident),
     PredicativeComplement(Ident),
+    /// A compiler-side grammar role.  These atoms are deliberately separate
+    /// from macro-RON's small plugin-facing `CustomTailAtom` vocabulary.
+    Role(Ident),
 }
 
 #[derive(Debug)]

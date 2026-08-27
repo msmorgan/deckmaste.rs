@@ -812,6 +812,8 @@ pub(crate) enum VerbFrameAtom {
     Amount,
     ObjectNounPhrase,
     PredicativeComplement,
+    Role(String),
+    OptionalRole(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -849,6 +851,9 @@ impl VerbFrameKey {
                                 macro_ron::v2::CustomTailAtom::PredicativeComplement,
                                 VerbFrameAtom::PredicativeComplement,
                             ) => true,
+                            // Rich construction roles are core-inventory
+                            // frames. Plugin Custom tails intentionally keep
+                            // their closed atom vocabulary.
                             _ => false,
                         })
             }),
@@ -863,8 +868,6 @@ pub(crate) struct DeclarationVerbPlan {
     codec_ident: syn::Ident,
     declaration_value_ident: syn::Ident,
     closed_lexeme: Option<syn::Ident>,
-    position: macro_ron::v2::GrammarPosition,
-    names: Vec<String>,
     frame_key: VerbFrameKey,
     feature_axis: Feature,
 }
@@ -6257,6 +6260,13 @@ impl DeclarationVerbPlan {
                     crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(_) => {
                         VerbFrameAtom::PredicativeComplement
                     }
+                    crate::model::DeclarationVerbTailAtomKindSource::Role(role) => {
+                        if atom.optional {
+                            VerbFrameAtom::OptionalRole(identifier_key(role))
+                        } else {
+                            VerbFrameAtom::Role(identifier_key(role))
+                        }
+                    }
                 })
                 .collect(),
         );
@@ -6269,12 +6279,6 @@ impl DeclarationVerbPlan {
                 source.name.span(),
             ),
             closed_lexeme: recipe.closed_slots.first().map(|slot| slot.value.clone()),
-            position: macro_ron::v2::GrammarPosition::Verb,
-            names: recipe
-                .name_slots
-                .first()
-                .map(|slot| slot.names.iter().map(identifier_key).collect())
-                .unwrap_or_default(),
             frame_key,
             feature_axis: match identifier_key(
                 &recipe
@@ -6316,12 +6320,9 @@ impl DeclarationVerbPlan {
         self.closed_lexeme.as_ref()
     }
 
-    pub(crate) fn position(&self) -> macro_ron::v2::GrammarPosition {
-        self.position
-    }
-
-    pub(crate) fn names(&self) -> &[String] {
-        &self.names
+    #[cfg(test)]
+    pub(crate) const fn position(&self) -> macro_ron::v2::GrammarPosition {
+        macro_ron::v2::GrammarPosition::Verb
     }
 
     pub(crate) fn frame_key(&self) -> &VerbFrameKey {

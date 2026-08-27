@@ -311,6 +311,8 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                     Amount,
                     ObjectNounPhrase,
                     PredicativeComplement,
+                    Role(&'static str),
+                    OptionalRole(&'static str),
                 }
             },
         ),
@@ -1945,20 +1947,28 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                         #(#closed_owner_arms)*
                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
                             verb: #declaration_pattern, agreement, ..
-                        }) => Some(LexicalOwner::declaration_owner(
-                            declaration.id().clone(), match agreement {
+                        }) => Some(match declaration.reference() {
+                            crate::environment::VerbInventoryRef::Core(identity) => LexicalOwner::static_owner(
+                                LexicalProvenanceKind::Lexeme,
+                                identity.owner_id(),
+                            ),
+                            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), match agreement {
                                 Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
                                 Agreement::ThirdPersonSingular => ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
-                            },
-                        )),
+                            }),
+                        }),
                     },
                     crate::feature::Feature::Participle => quote! {
                         #(#closed_owner_arms)*
                         (LexicalOwnerTemplate::DeclarationVerb(#terminal_index), Leaf::#verb {
                             verb: #declaration_pattern, ..
-                        }) => Some(LexicalOwner::declaration_owner(
-                            declaration.id().clone(), ::macro_ron::v2::SurfaceFeature::Participle,
-                        )),
+                        }) => Some(match declaration.reference() {
+                            crate::environment::VerbInventoryRef::Core(identity) => LexicalOwner::static_owner(
+                                LexicalProvenanceKind::Lexeme,
+                                identity.owner_id(),
+                            ),
+                            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), ::macro_ron::v2::SurfaceFeature::Participle),
+                        }),
                     },
                     _ => unreachable!("validated declaration verb feature axis is closed"),
                 }

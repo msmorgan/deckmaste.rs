@@ -3310,7 +3310,7 @@ fn render_declaration_verb_atom(
                 #verb::Declaration(declaration) => {
                     #method_writer.word(
                         environment
-                            .surface(declaration.id(), #feature)
+                            .verb_inventory_surface(declaration.reference(), #feature)
                             .expect("stored declaration verb remains in its parser environment"),
                     );
                 }
@@ -3320,7 +3320,7 @@ fn render_declaration_verb_atom(
     Ok(quote! {
         #method_writer.word(
             environment
-                .surface((#value).id(), #feature)
+                .verb_inventory_surface((#value).reference(), #feature)
                 .expect("stored declaration verb remains in its parser environment"),
         );
     })
@@ -3385,15 +3385,29 @@ fn declaration_verb_owner(
         return Ok(quote! {
             match (#value, #axis_value) {
                 #(#arms,)*
-                (#verb::Declaration(declaration), _) => LexicalOwner::declaration_owner(
-                    declaration.id().clone(),
-                    #feature,
-                ),
+                (#verb::Declaration(declaration), _) => match declaration.reference() {
+                    crate::environment::VerbInventoryRef::Core(_) => LexicalOwner::static_owner(
+                        LexicalProvenanceKind::Lexeme,
+                        environment.verb_inventory_owner_id(declaration.reference())
+                            .expect("a core inventory verb has a stable owner"),
+                    ),
+                    crate::environment::VerbInventoryRef::Declaration(id) => {
+                        LexicalOwner::declaration_owner(id.clone(), #feature)
+                    }
+                },
             }
         });
     }
     Ok(quote! {
-        LexicalOwner::declaration_owner((#value).id().clone(), #feature)
+        match (#value).reference() {
+            crate::environment::VerbInventoryRef::Core(_) => LexicalOwner::static_owner(
+                LexicalProvenanceKind::Lexeme,
+                environment
+                    .verb_inventory_owner_id((#value).reference())
+                    .expect("a core inventory verb has a stable owner"),
+            ),
+            crate::environment::VerbInventoryRef::Declaration(id) => LexicalOwner::declaration_owner(id.clone(), #feature),
+        }
     })
 }
 
@@ -4159,8 +4173,8 @@ fn lexical_onset_expr(
                         match (#role_value, #agreement) {
                             #(#closed_arms,)*
                             (#verb::Declaration(declaration), agreement) => environment
-                                .onset(
-                                    declaration.id(),
+                                .verb_inventory_onset(
+                                    declaration.reference(),
                                     match agreement {
                                         Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
                                         Agreement::ThirdPersonSingular => {
@@ -4182,8 +4196,8 @@ fn lexical_onset_expr(
                         match #role_value {
                             #(#closed_arms,)*
                             #verb::Declaration(declaration) => environment
-                                .onset(
-                                    declaration.id(),
+                                .verb_inventory_onset(
+                                    declaration.reference(),
                                     ::macro_ron::v2::SurfaceFeature::Participle,
                                 )
                                 .expect("stored declaration verb remains in its normalized parser environment"),
@@ -4210,7 +4224,7 @@ fn lexical_onset_expr(
         };
         return Ok(quote! {
             environment
-                .onset((#role_value).id(), #feature)
+                .verb_inventory_onset((#role_value).reference(), #feature)
                 .expect("stored declaration verb remains in its normalized parser environment")
         });
     }

@@ -20,6 +20,8 @@ use macro_ron::v2::SurfaceFeature;
 use macro_ron::v2::VerbValence;
 
 use crate::constructions::CatalogProvider;
+use crate::constructions::VerbFrameAtom;
+use crate::constructions::VerbFrameKey;
 use crate::orthography::initial_surface;
 
 /// One declaration and its validated grammar metadata.
@@ -30,6 +32,63 @@ pub struct DeclarationRecord {
     surfaces: Vec<(SurfaceFeature, Onset, Arc<str>)>,
     determinative: Option<DeterminativeRecord>,
     provenance: PathBuf,
+}
+
+/// Stable identity of an ordinary core verb inventory row. This is not a
+/// declaration kind: core verbs never masquerade as plugin declarations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum CoreVerbIdentity {
+    Deal,
+    Gain,
+    Lose,
+}
+
+impl CoreVerbIdentity {
+    pub const fn owner_id(self) -> &'static str {
+        match self {
+            Self::Deal => "core-verb:Deal",
+            Self::Gain => "core-verb:Gain",
+            Self::Lose => "core-verb:Lose",
+        }
+    }
+}
+
+/// The normalized source of one grammar verb reading.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum VerbInventoryRef {
+    Core(CoreVerbIdentity),
+    Declaration(DeclarationId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VerbProvenance<'a> {
+    Core(CoreVerbIdentity),
+    Declaration(&'a Path),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CoreVerbRecord {
+    identity: CoreVerbIdentity,
+    valence: VerbValence,
+    frames: Vec<Vec<VerbFrameAtom>>,
+    surfaces: Vec<(SurfaceFeature, Onset, Arc<str>)>,
+    provenance: CoreVerbIdentity,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct VerbInventoryReading {
+    reference: VerbInventoryRef,
+    onset: Onset,
+}
+
+impl VerbInventoryReading {
+    pub(crate) fn reference(&self) -> &VerbInventoryRef {
+        &self.reference
+    }
+
+    pub(crate) const fn onset(&self) -> Onset {
+        self.onset
+    }
 }
 
 /// The normalized selection and realization facts for one declaration-backed
@@ -345,6 +404,7 @@ struct EnvironmentData {
     determinative_surface_byte_limit: usize,
     initial_determinative_surface_byte_limit: usize,
     catalog_providers: BTreeMap<CatalogProvider, CatalogProviderData>,
+    core_verbs: Vec<CoreVerbRecord>,
 }
 
 #[cfg(test)]
@@ -568,6 +628,7 @@ impl ParserEnvironment {
                 determinative_surface_byte_limit,
                 initial_determinative_surface_byte_limit,
                 catalog_providers: frozen_catalog_providers,
+                core_verbs: core_verb_seed_records(),
             }),
         })
     }
@@ -613,16 +674,143 @@ impl ParserEnvironment {
         )
     }
 
-    pub(crate) fn initial_declaration_verb_readings(
+    /// Returns whether one inventory row licenses a generated frame. Core
+    /// rows carry rich compiler-side frames; plugin rows retain the sealed
+    /// macro-RON valence vocabulary.
+    #[must_use]
+    pub(crate) fn verb_frame_licenses(&self, reference: &VerbInventoryRef, frame: VerbFrameKey) -> bool {
+        match reference {
+            VerbInventoryRef::Core(identity) => self.data.core_verbs.iter().any(|record| {
+                record.identity == *identity
+                    && record.frames.iter().any(|candidate| candidate.as_slice() == frame.atoms())
+            }),
+            VerbInventoryRef::Declaration(id) => self
+                .declaration(id.kind(), id.name())
+                .and_then(DeclarationRecord::valence)
+                .is_some_and(|valence| frame.matches_valence(valence)),
+        }
+    }
+
+    pub(crate) fn verb_inventory_surface(
+        &self,
+        reference: &VerbInventoryRef,
+        feature: SurfaceFeature,
+    ) -> Option<&str> {
+        match reference {
+            VerbInventoryRef::Core(identity) => self.data.core_verbs.iter().find(|record| record.identity == *identity)?.surfaces.iter().find_map(|(candidate, _, surface)| (*candidate == feature).then_some(surface.as_ref())),
+            VerbInventoryRef::Declaration(id) => self.surface(id, feature),
+        }
+    }
+
+    pub(crate) fn verb_inventory_onset(
+        &self,
+        reference: &VerbInventoryRef,
+        feature: SurfaceFeature,
+    ) -> Option<Onset> {
+        match reference {
+            VerbInventoryRef::Core(identity) => self.data.core_verbs.iter().find(|record| record.identity == *identity)?.surfaces.iter().find_map(|(candidate, onset, _)| (*candidate == feature).then_some(*onset)),
+            VerbInventoryRef::Declaration(id) => self.onset(id, feature),
+        }
+    }
+
+    pub(crate) fn verb_inventory_owner_id(
+        &self,
+        reference: &VerbInventoryRef,
+    ) -> Option<&'static str> {
+        match self.verb_inventory_provenance(reference)? {
+            VerbProvenance::Core(identity) => Some(identity.owner_id()),
+            VerbProvenance::Declaration(path) => {
+                let _ = path;
+                None
+            }
+        }
+    }
+
+    fn verb_inventory_provenance<'a>(
+        &'a self,
+        reference: &VerbInventoryRef,
+    ) -> Option<VerbProvenance<'a>> {
+        match reference {
+            VerbInventoryRef::Core(identity) => self
+                .data
+                .core_verbs
+                .iter()
+                .find(|record| record.identity == *identity)
+                .map(|record| VerbProvenance::Core(record.provenance)),
+            VerbInventoryRef::Declaration(id) => self
+                .declaration(id.kind(), id.name())
+                .map(|record| VerbProvenance::Declaration(record.provenance())),
+        }
+    }
+
+    pub(crate) fn verb_inventory_readings(
         &self,
         surface: &str,
         feature: SurfaceFeature,
-        frame: &[CustomTailAtom],
-    ) -> Vec<&DeclarationReading> {
-        self.filter_declaration_verb_readings(
-            self.initial_readings(GrammarPosition::Verb, surface),
+        frame: VerbFrameKey,
+    ) -> Vec<VerbInventoryReading> {
+        self.verb_inventory_readings_from(
+            self.readings(GrammarPosition::Verb, surface),
+            surface,
             feature,
             frame,
+            false,
+        )
+    }
+
+    fn verb_inventory_readings_from(
+        &self,
+        declaration_readings: &[DeclarationReading],
+        surface: &str,
+        feature: SurfaceFeature,
+        frame: VerbFrameKey,
+        initial: bool,
+    ) -> Vec<VerbInventoryReading> {
+        let mut result = declaration_readings
+            .iter()
+            .filter(|reading| reading.feature() == feature)
+            .map(|reading| VerbInventoryReading {
+                reference: VerbInventoryRef::Declaration(reading.id().clone()),
+                onset: reading.onset(),
+            })
+            .filter(|reading| self.verb_frame_licenses(&reading.reference, frame))
+            .collect::<Vec<_>>();
+        result.extend(self.data.core_verbs.iter().filter_map(|record| {
+            record
+                .frames
+                .iter()
+                .any(|candidate| candidate.as_slice() == frame.atoms())
+                .then(|| {
+                    record.surfaces.iter().find(|(candidate, _, text)| {
+                        *candidate == feature
+                            && if initial {
+                                initial_surface(text) == surface
+                            } else {
+                                text.as_ref() == surface
+                            }
+                    })
+                })
+                .flatten()
+                .map(|(_, onset, _)| VerbInventoryReading {
+                    reference: VerbInventoryRef::Core(record.identity),
+                    onset: *onset,
+                })
+        }));
+        result
+    }
+
+    pub(crate) fn initial_verb_inventory_readings(
+        &self,
+        surface: &str,
+        feature: SurfaceFeature,
+        frame: VerbFrameKey,
+    ) -> Vec<VerbInventoryReading> {
+        self.verb_inventory_readings_from(
+            self.initial_readings(GrammarPosition::Verb, surface),
+            surface,
+            feature,
+            frame,
+            true,
         )
     }
 
@@ -842,6 +1030,98 @@ fn valence_licenses_frame(valence: &VerbValence, frame: &[CustomTailAtom]) -> bo
         VerbValence::Numerative => frame == [CustomTailAtom::Amount],
         VerbValence::Custom { shapes } => shapes.iter().any(|shape| shape.as_slice() == frame),
     }
+}
+
+fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
+    use CustomTailAtom::Literal;
+    use CustomTailAtom::ObjectNounPhrase;
+    use VerbFrameAtom::OptionalRole;
+    use VerbFrameAtom::Role;
+
+    let seed = |_name: &str,
+                bare: &str,
+                third_person: &str,
+                valence: VerbValence,
+                identity: CoreVerbIdentity,
+                frames: Vec<Vec<VerbFrameAtom>>| CoreVerbRecord {
+        identity,
+        valence,
+        surfaces: vec![
+            (SurfaceFeature::Bare, Onset::Consonant, Arc::from(bare)),
+            (
+                SurfaceFeature::ThirdPersonSingular,
+                Onset::Consonant,
+                Arc::from(third_person),
+            ),
+        ],
+        frames,
+        provenance: identity,
+    };
+
+    vec![
+        seed(
+            "Deal",
+            "deal",
+            "deals",
+            VerbValence::Custom {
+                shapes: vec![vec![CustomTailAtom::Amount, Literal("damage".to_owned()), ObjectNounPhrase]],
+            },
+            CoreVerbIdentity::Deal,
+            vec![
+                vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("damage"), Role("ToPhrase")],
+                vec![
+                    Role("DistributedDamageAmount"),
+                    VerbFrameAtom::Literal("damage"),
+                    Role("DamageDistribution"),
+                    OptionalRole("DistributionReplacement"),
+                ],
+                vec![Role("DamageKind"), OptionalRole("ToPhrase")],
+                vec![
+                    VerbFrameAtom::Literal("damage"),
+                    Role("ScalarEquality"),
+                    Role("ToPhrase"),
+                ],
+                vec![
+                    VerbFrameAtom::Literal("damage"),
+                    Role("ToPhrase"),
+                    Role("ScalarEquality"),
+                ],
+            ],
+        ),
+        seed(
+            "Gain",
+            "gain",
+            "gains",
+            VerbValence::Custom {
+                shapes: vec![vec![CustomTailAtom::Amount, Literal("life".to_owned())]],
+            },
+            CoreVerbIdentity::Gain,
+            vec![
+                vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
+                vec![VerbFrameAtom::Literal("life")],
+                vec![
+                    VerbFrameAtom::Literal("life"),
+                    Role("ScalarEquality"),
+                ],
+            ],
+        ),
+        seed(
+            "Lose",
+            "lose",
+            "loses",
+            VerbValence::Custom {
+                shapes: vec![vec![CustomTailAtom::Amount, Literal("life".to_owned())]],
+            },
+            CoreVerbIdentity::Lose,
+            vec![
+                vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
+                vec![
+                    VerbFrameAtom::Literal("life"),
+                    Role("ScalarEquality"),
+                ],
+            ],
+        ),
+    ]
 }
 
 #[cfg(test)]
