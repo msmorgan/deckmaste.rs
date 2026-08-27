@@ -345,6 +345,20 @@ What the report adds beyond what is scheduled above:
   decision this region owes; the qualified-cast and activation-prohibition
   entries above are two of them arriving one at a time.
 
+  **RULED (user, 2026-08-27): unify — and the deed slot is a LABEL, not an
+  enum row.** One deontic carrier holds the full modal algebra
+  (May/Can't/Must/Gate) for every deed; but the deeds do NOT become rows of a
+  closed `Deed` enum — that would mint a second act vocabulary parallel to the
+  open `VerbLabel` one (the user's challenge, and the shape the verb/subtype/
+  keyword conversions retired). The deed slot is an open `VerbLabel` behind the
+  fail-closed `KnownVerb` gate; per-deed parameter shapes (Block's count,
+  Cast's what/from/window, Target's by-source/by-spell agent) are label-keyed
+  facts/slots in the `verbFacts` mold, never constructor arguments on a closed
+  enum. The existing `Deed = Attack | Block` retires into labels;
+  `PlayerCant`/`ObjectCant` retire into (or respell over) the unified carrier.
+  Exhaustiveness is traded for the gate, the established price of every open
+  vocabulary here.
+
 ## Routed ledger items
 
 Items from closed round tickets that this ticket owns. One line each, citing
