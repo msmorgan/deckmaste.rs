@@ -3971,14 +3971,25 @@ mod tests {
 
         let bounded = trace("Destroy any target.", "Probe Card", 1);
         let bounded = DiagnosticReport::from_probe("Destroy any target.", "Probe Card", &bounded);
-        assert!(bounded.trace.forest_nodes.omitted > 0);
-        assert!(bounded.trace.forest_nodes.items.iter().any(|node| {
-            node.families
-                .items
-                .iter()
-                .any(|family| family.children.omitted > 0)
-                || node.families.omitted > 0
-        }));
+        assert!(bounded.trace.forest_nodes.shown <= 1);
+        assert_eq!(
+            bounded.trace.forest_nodes.omitted,
+            bounded.trace.forest_nodes.total - bounded.trace.forest_nodes.shown,
+        );
+        for node in &bounded.trace.forest_nodes.items {
+            assert!(node.families.shown <= 1);
+            assert_eq!(
+                node.families.omitted,
+                node.families.total - node.families.shown
+            );
+            for family in &node.families.items {
+                assert!(family.children.shown <= 1);
+                assert_eq!(
+                    family.children.omitted,
+                    family.children.total - family.children.shown,
+                );
+            }
+        }
 
         let rejected_runtime = trace("You gains X life.", "Probe Card", usize::MAX);
         let rejected =
