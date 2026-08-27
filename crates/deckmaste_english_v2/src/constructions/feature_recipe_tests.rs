@@ -38,16 +38,16 @@ mod coordination_feature_recipes {
         })
     }
 
-    fn target_determinative(number: Number) -> Determinative {
+    fn determinative(number: Number) -> Determinative {
         match number {
-            Number::Singular => Determinative::SingularSimpleDeterminative(
-                SingularSimpleDeterminative::new(SimpleDeterminative::Target)
-                    .expect("target licenses a singular nominal"),
-            ),
-            Number::Plural => Determinative::PluralSimpleDeterminative(
-                PluralSimpleDeterminative::new(SimpleDeterminative::Target)
-                    .expect("target licenses a plural nominal"),
-            ),
+            Number::Singular => {
+                Determinative::SingularSimpleDeterminative(SingularSimpleDeterminative {
+                    head: DeterminativeHead::Closed(DeterminativeHeadLemma::Target),
+                })
+            }
+            Number::Plural => Determinative::PluralSimpleDeterminative(PluralSimpleDeterminative {
+                head: DeterminativeHead::Closed(DeterminativeHeadLemma::All),
+            }),
         }
     }
 
@@ -61,7 +61,7 @@ mod coordination_feature_recipes {
     #[test]
     fn coordination_scopes_derive_exact_number_and_agreement() {
         let singular_shared = noun_phrase(determined(
-            target_determinative(Number::Singular),
+            determinative(Number::Singular),
             Nominal::SingularCoordinationNominalValue(SingularCoordinationNominalValue {
                 coordination: SingularNominalCoordination::SingularOrNominalCoordination(
                     SingularOrNominalCoordination::new(vec![
@@ -73,7 +73,7 @@ mod coordination_feature_recipes {
             }),
         ));
         let plural_shared = noun_phrase(determined(
-            target_determinative(Number::Plural),
+            determinative(Number::Plural),
             Nominal::PluralCoordinationNominalValue(PluralCoordinationNominalValue {
                 coordination: PluralNominalCoordination::PluralOrNominalCoordination(
                     PluralOrNominalCoordination::new(vec![
@@ -89,13 +89,13 @@ mod coordination_feature_recipes {
                 coordination: FullNounPhraseCoordination::FullAndNounPhraseCoordination(
                     FullAndNounPhraseCoordination::new(Box::new(vec![
                         determined(
-                            target_determinative(Number::Singular),
+                            determinative(Number::Singular),
                             Nominal::SingularNominalValue(SingularNominalValue {
                                 nominal: singular_nominal(CommonNoun::Player),
                             }),
                         ),
                         determined(
-                            target_determinative(Number::Singular),
+                            determinative(Number::Singular),
                             Nominal::SingularNominalValue(SingularNominalValue {
                                 nominal: singular_nominal(CommonNoun::Opponent),
                             }),
@@ -142,10 +142,7 @@ mod reference_onset_recipes {
         noun_phrase(UnqualifiedReference::DeterminedNominal(
             DeterminedNominal::new(
                 Determiner::Headed(Determinative::VariableQuantifyingDeterminer(
-                    VariableQuantifyingDeterminer {
-                        count,
-                        marker: None,
-                    },
+                    VariableQuantifyingDeterminer { count },
                 )),
                 Nominal::PluralNominalValue(PluralNominalValue {
                     nominal: PluralNominal::BarePluralNominal(BarePluralNominal {

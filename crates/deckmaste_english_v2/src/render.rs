@@ -177,11 +177,7 @@ mod tests {
                 .collect::<Vec<_>>(),
             [
                 (0, 7, "lexeme:keyword_action/Destroy/bare"),
-                (
-                    7,
-                    14,
-                    "form:target_determiner_phrase/target_determiner_phrase/0",
-                ),
+                (7, 14, "determinative:DeterminativeHead/Target"),
                 (14, 23, "lexeme:type/Creature/singular"),
                 (23, 24, "structural:Sentences/sentences/terminator/0"),
             ]

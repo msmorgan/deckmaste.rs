@@ -888,6 +888,7 @@ mod tests {
     use crate::ast::SingularNominal;
     use crate::ast::Subject;
     use crate::ast::SubjectPronoun;
+    use crate::ast::UnqualifiedReference;
     use crate::ast::VerbPhrase;
     use crate::ast::WhereClause;
     use crate::ast::WhereClauseCategory;
@@ -899,7 +900,11 @@ mod tests {
     use crate::constructions::Nominal;
     use crate::constructions::Number;
     use crate::constructions::Onset;
-    use crate::constructions::SimpleDeterminative;
+    use crate::constructions::DeterminerNumber;
+    use crate::constructions::DeterminativeHead;
+    use crate::constructions::DeterminativeHeadLemma;
+    use crate::constructions::FusedHeadLicense;
+    use crate::constructions::NominalLicense;
     use crate::constructions::SingularNominalValue;
     use crate::constructions::SingularSimpleDeterminative;
     use crate::context::ParseContext;
@@ -1079,22 +1084,22 @@ mod tests {
     }
 
     #[test]
-    fn determined_nominal_build_rejects_mismatched_frozen_article_onsets() {
+    fn determined_nominal_build_derives_reference_onset_from_nominal() {
         let parse_context = context("Context Card");
-        let children = |article, onset| {
+        let children = |determiner_onset, nominal_onset| {
             let determiner = Determinative::SingularSimpleDeterminative(
-                SingularSimpleDeterminative::new(article)
-                    .expect("a/an are singular determinatives"),
+                SingularSimpleDeterminative {
+                    head: DeterminativeHead::Closed(DeterminativeHeadLemma::IndefiniteArticle),
+                },
             );
-            let determiner_onset = match article {
-                SimpleDeterminative::A => Onset::Consonant,
-                SimpleDeterminative::An => Onset::Vowel,
-                _ => unreachable!("fixture only exercises the indefinite articles"),
-            };
             [
                 BuildValue::Determinative(
                     determiner,
                     Agreement::ThirdPersonSingular,
+                    Number::Singular,
+                    DeterminerNumber::SingularOnly,
+                    FusedHeadLicense::NominalOnly,
+                    NominalLicense::CountNominal,
                     determiner_onset,
                 ),
                 BuildValue::Nominal(
@@ -1106,45 +1111,32 @@ mod tests {
                         }),
                     }),
                     Agreement::ThirdPersonSingular,
-                    onset,
+                    Number::Singular,
+                    nominal_onset,
                 ),
             ]
         };
 
-        assert!(
-            super::build_checked(
-                RuleId::UnqualifiedReferenceDeterminedNominalDetPresent,
-                &children(SimpleDeterminative::An, Onset::Vowel),
-                &parse_context,
-            )
-            .expect("matching vowel onset is a checked build")
-            .is_some()
-        );
-        assert!(
-            super::build_checked(
-                RuleId::UnqualifiedReferenceDeterminedNominalDetPresent,
-                &children(SimpleDeterminative::A, Onset::Consonant),
-                &parse_context,
-            )
-            .expect("matching consonant onset is a checked build")
-            .is_some()
-        );
-        assert_eq!(
-            super::build_checked(
-                RuleId::UnqualifiedReferenceDeterminedNominalDetPresent,
-                &children(SimpleDeterminative::An, Onset::Consonant),
-                &parse_context,
-            ),
-            Ok(None)
-        );
-        assert_eq!(
-            super::build_checked(
-                RuleId::UnqualifiedReferenceDeterminedNominalDetPresent,
-                &children(SimpleDeterminative::A, Onset::Vowel),
-                &parse_context,
-            ),
-            Ok(None)
-        );
+        for (determiner_onset, nominal_onset) in [
+            (Onset::Vowel, Onset::Vowel),
+            (Onset::Consonant, Onset::Consonant),
+            (Onset::Vowel, Onset::Consonant),
+            (Onset::Consonant, Onset::Vowel),
+        ] {
+            assert!(matches!(
+                super::build_checked(
+                    RuleId::UnqualifiedReferenceDeterminedNominalDetPresent,
+                    &children(determiner_onset, nominal_onset),
+                    &parse_context,
+                ),
+                Ok(Some(BuildValue::UnqualifiedReference(
+                    UnqualifiedReference::DeterminedNominal(_),
+                    Agreement::ThirdPersonSingular,
+                    Number::Singular,
+                    onset,
+                ))) if onset == nominal_onset
+            ));
+        }
 
         let identity_context = context("Artifact Avatar");
         assert!(matches!(
@@ -1155,7 +1147,7 @@ mod tests {
                 ))],
                 &identity_context,
             ),
-            Ok(Some(BuildValue::UnqualifiedReference(_, _, Onset::Vowel)))
+            Ok(Some(BuildValue::UnqualifiedReference(_, _, _, Onset::Vowel)))
         ));
     }
 
@@ -1684,7 +1676,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::UnqualifiedReference),
                 RulePosition::Nonterminal(Category::Determinative),
                 RulePosition::Nonterminal(Category::Nominal),
-                RulePosition::Lexical(Lexical::SimpleDeterminative),
+                RulePosition::Lexical(Lexical::DeclarationDeterminative(92)),
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
@@ -1715,7 +1707,7 @@ mod tests {
                 ),
                 (
                     crate::parser::TextSpan { start: 7, end: 14 },
-                    "vocab:SimpleDeterminative/Target",
+                    "determinative:DeterminativeHead/Target",
                 ),
                 (
                     crate::parser::TextSpan { start: 14, end: 23 },
