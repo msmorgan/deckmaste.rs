@@ -506,6 +506,41 @@ constructions! {
             feature = Agreement;
         }
     }
+    codec EnterResultativeVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [PredicativeComplement];
+            feature = Agreement;
+        }
+    }
+    codec EnterWithCountersVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = ["with", CounterQuantity, OnPhrase];
+            feature = Agreement;
+        }
+    }
+    codec EnterLocationVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [Object, PredicativeComplement?, ControlPostmodifier?];
+            feature = Agreement;
+        }
+    }
+    codec EnterControlVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [ControlPostmodifier];
+            feature = Agreement;
+        }
+    }
+    codec LookAtVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = ["at", Object];
+            feature = Agreement;
+        }
+    }
     codec DamageParticipleHead {
         generate declaration_verb {
             position = Verb;
@@ -4256,41 +4291,38 @@ constructions! {
         form return_to = verb(head) object source destination result control;
     }
     construction enter_resultative: VerbPhrase {
-        element EnterResultative { result: PredicativeComplement, }
-        derive agreement = verb.agreement;
-        form enter_resultative = verb(VerbLexeme::Enter) result;
+        element EnterResultative { head: lex EnterResultativeVerb, result: PredicativeComplement, }
+        derive agreement = head.agreement;
+        form enter_resultative = verb(head) result;
     }
     construction enter_with_counters: VerbPhrase {
         element EnterWithCounters {
+            head: lex EnterWithCountersVerb,
             counters: CounterQuantity,
             recipient: OnPhrase,
         }
-        derive agreement = verb.agreement;
-        form enter_with_counters = verb(VerbLexeme::Enter) "with" counters recipient;
+        derive agreement = head.agreement;
+        form enter_with_counters = verb(head) "with" counters recipient;
     }
     construction enter_location: VerbPhrase {
         element EnterLocation {
+            head: lex EnterLocationVerb,
             location: Object,
             result: opt PredicativeComplement,
             control: opt ControlPostmodifier,
         }
-        derive agreement = verb.agreement;
-        form enter_location = verb(VerbLexeme::Enter) location result control;
+        derive agreement = head.agreement;
+        form enter_location = verb(head) location result control;
     }
     construction enter_control: VerbPhrase {
-        element EnterControl { control: ControlPostmodifier, }
-        derive agreement = verb.agreement;
-        form enter_control = verb(VerbLexeme::Enter) control;
-    }
-    construction leave_location: VerbPhrase {
-        element LeaveLocation { location: Object, }
-        derive agreement = verb.agreement;
-        form leave_location = verb(VerbLexeme::Leave) location;
+        element EnterControl { head: lex EnterControlVerb, control: ControlPostmodifier, }
+        derive agreement = head.agreement;
+        form enter_control = verb(head) control;
     }
     construction look_at: VerbPhrase {
-        element LookAt { object: Object, }
-        derive agreement = verb.agreement;
-        form look_at = verb(VerbLexeme::Look) "at" object;
+        element LookAt { head: lex LookAtVerb, object: Object, }
+        derive agreement = head.agreement;
+        form look_at = verb(head) "at" object;
     }
     construction declared_to_object_predicate: VerbPhrase {
         element DeclaredToObjectPredicate {

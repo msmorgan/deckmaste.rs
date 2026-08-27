@@ -344,6 +344,12 @@ impl Visitor for PredicateVisitor {
         deckmaste_english_v2::visit::walk_enter_with_counters(self, value);
     }
 
+    fn visit_verb_inventory(&mut self, verb: &VerbInventoryRef) {
+        if matches!(verb, VerbInventoryRef::Core(CoreVerbIdentity::Enter)) {
+            self.0.push("enter-head");
+        }
+    }
+
     fn visit_preposed_as(&mut self, value: &PreposedAs) {
         self.0.push("as-clause");
         deckmaste_english_v2::visit::walk_preposed_as(self, value);
@@ -659,7 +665,7 @@ fn replacement_entry_and_skip_surfaces_reuse_clause_and_predicate_algebra() {
             &context,
             "This creature enters with two +1/+1 counters on it.",
         ),
-        ["enter-with-counters"],
+        ["enter-with-counters", "enter-head"],
     );
     assert_eq!(
         parse_and_visit(
@@ -667,7 +673,7 @@ fn replacement_entry_and_skip_surfaces_reuse_clause_and_predicate_algebra() {
             &context,
             "As this artifact enters, choose a color.",
         ),
-        ["as-clause"],
+        ["as-clause", "enter-head"],
     );
     assert_selected(&parser, &context, "Players skip their untap steps.");
     assert_selected_with_specificity(
@@ -4294,12 +4300,6 @@ impl Visitor for MovementVisitor {
         walk_enter_control,
         "EnterControl"
     );
-    trace_product!(
-        visit_leave_location,
-        LeaveLocation,
-        walk_leave_location,
-        "LeaveLocation"
-    );
     trace_product!(visit_look_at, LookAt, walk_look_at, "LookAt");
     trace_product!(
         visit_declared_object_for_object_frame,
@@ -4314,6 +4314,21 @@ impl Visitor for MovementVisitor {
         walk_have_object_control,
         "HaveObjectControl"
     );
+
+    fn visit_verb_inventory(&mut self, verb: &VerbInventoryRef) {
+        match verb {
+            VerbInventoryRef::Core(CoreVerbIdentity::Enter) => {
+                self.0.push("verb:Core(Enter)".to_owned());
+            }
+            VerbInventoryRef::Core(CoreVerbIdentity::Leave) => {
+                self.0.push("verb:Core(Leave)".to_owned());
+            }
+            VerbInventoryRef::Core(CoreVerbIdentity::Look) => {
+                self.0.push("verb:Core(Look)".to_owned());
+            }
+            _ => {}
+        }
+    }
 }
 
 #[test]
@@ -5248,6 +5263,7 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
             && matches!(result.as_ref(), Some(PredicativeComplement::Status(_)))
     ));
     let VerbPhrase::LookAt(LookAt {
+        head,
         object: Object::ObjectNominal(nominal),
     }) = imperative_atomic(
         &parser,
@@ -5257,6 +5273,10 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
     else {
         panic!("look-at witness keeps its typed nominal object")
     };
+    assert!(matches!(
+        head.reference(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Look)
+    ));
     let NounPhrase::PositionalPartitive(partitive) = nominal.value.as_ref() else {
         panic!("look-at witness keeps its typed positional partitive")
     };
@@ -5296,8 +5316,18 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
 
     assert!(matches!(
         declarative_atomic(&parser, &context, "This creature enters tapped."),
-        VerbPhrase::EnterResultative(EnterResultative { result })
-            if matches!(result.as_ref(), PredicativeComplement::Status(_))
+        VerbPhrase::EnterResultative(EnterResultative { head, result })
+            if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Enter))
+                && matches!(result.as_ref(), PredicativeComplement::Status(_))
+    ));
+    assert!(matches!(
+        declarative_atomic(
+            &parser,
+            &context,
+            "This creature enters with two +1/+1 counters on it."
+        ),
+        VerbPhrase::EnterWithCounters(EnterWithCounters { head, .. })
+            if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Enter))
     ));
     assert!(matches!(
         declarative_atomic(
@@ -5306,10 +5336,11 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
             "This creature enters the battlefield under your control."
         ),
         VerbPhrase::EnterLocation(EnterLocation {
+            head,
             location: Object::ObjectNominal(_),
             control: Some(ControlPostmodifier::DirectControlPostmodifier(_)),
             ..
-        })
+        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Enter))
     ));
     assert!(matches!(
         declarative_atomic(
@@ -5318,14 +5349,20 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
             "This creature enters under your control."
         ),
         VerbPhrase::EnterControl(EnterControl {
+            head,
             control: ControlPostmodifier::DirectControlPostmodifier(_),
-        })
+        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Enter))
     ));
     assert!(matches!(
         declarative_atomic(&parser, &context, "This creature leaves the battlefield."),
-        VerbPhrase::LeaveLocation(LeaveLocation {
-            location: Object::ObjectNominal(_),
-        })
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+            frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
+                TransitivePredicate {
+                    head,
+                    object: Object::ObjectNominal(_),
+                }
+            )),
+        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Leave))
     ));
     assert_selected_with_specificity(
         &parser,
@@ -5571,14 +5608,18 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     assert_family!(
         "This creature enters tapped.",
         false,
-        ["product:EnterResultative", "product:PredicativeStatusValue"],
+        [
+            "product:EnterResultative",
+            "verb:Core(Enter)",
+            "product:PredicativeStatusValue"
+        ],
         [
             (
                 "This",
                 "determinative:DeterminativeHead/ProximalDemonstrative",
             ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
+            (" enters", "core-verb:Enter"),
             (" tapped", "vocab:Status/Tapped"),
             (".", TERMINATOR)
         ]
@@ -5586,14 +5627,18 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     assert_family!(
         "This creature enters the battlefield under your control.",
         false,
-        ["product:EnterLocation", "product:DirectControlPostmodifier"],
+        [
+            "product:EnterLocation",
+            "verb:Core(Enter)",
+            "product:DirectControlPostmodifier"
+        ],
         [
             (
                 "This",
                 "determinative:DeterminativeHead/ProximalDemonstrative",
             ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
+            (" enters", "core-verb:Enter"),
             (
                 " the",
                 "determinative:DeterminativeHead/DefiniteArticle"
@@ -5614,14 +5659,18 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     assert_family!(
         "This creature enters under your control.",
         false,
-        ["product:EnterControl", "product:DirectControlPostmodifier"],
+        [
+            "product:EnterControl",
+            "verb:Core(Enter)",
+            "product:DirectControlPostmodifier"
+        ],
         [
             (
                 "This",
                 "determinative:DeterminativeHead/ProximalDemonstrative",
             ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
+            (" enters", "core-verb:Enter"),
             (
                 " under",
                 "form:direct_control_postmodifier/direct_control_postmodifier/0"
@@ -5637,14 +5686,14 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     assert_family!(
         "This creature leaves the battlefield.",
         true,
-        ["product:LeaveLocation"],
+        ["product:TransitivePredicate", "verb:Core(Leave)"],
         [
             (
                 "This",
                 "determinative:DeterminativeHead/ProximalDemonstrative",
             ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" leaves", "lexeme:VerbLexeme/Leave/third_person_singular"),
+            (" leaves", "core-verb:Leave"),
             (
                 " the",
                 "determinative:DeterminativeHead/DefiniteArticle"
@@ -5658,11 +5707,12 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         [
             "product:LookAt",
+            "verb:Core(Look)",
             "product:PositionalPartitive",
             "product:FixedPartitiveSelection"
         ],
         [
-            ("Look", "lexeme:VerbLexeme/Look/bare"),
+            ("Look", "core-verb:Look"),
             (" at", "form:look_at/look_at/1"),
             (" the", "form:positional_partitive/positional_partitive/0"),
             (" top", "vocab:EdgePosition/Top"),
