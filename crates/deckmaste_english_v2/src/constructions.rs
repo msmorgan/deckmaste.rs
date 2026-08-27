@@ -44,11 +44,12 @@ constructions! {
     vocab ComparativeQuantifier { Fewer = "fewer", More = "more", }
     vocab ScalarDegree { Equal = "equal", Lesser = "lesser", Greater = "greater", }
     vocab AttributiveAdjective {
+        feature ModifierLicense = Unrestricted;
         Additional = "additional",
         FaceDown = "face-down",
         Maximum = "maximum",
         Other = "other",
-        Target = "target",
+        Target = "target" { feature ModifierLicense = LocalDeterminer; },
     }
     vocab ContractedPerfectSubject { Youve = "you've", Theyve = "they've", }
     vocab ContractedCopularSubject {
@@ -2303,6 +2304,7 @@ constructions! {
     }
     construction color_modifier: NominalModifier {
         element ColorModifier { color: lex Color, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = color.onset;
@@ -2310,6 +2312,7 @@ constructions! {
     }
     construction attributive_adjective_modifier: NominalModifier {
         element AttributiveAdjectiveModifier { adjective: lex AttributiveAdjective, }
+        derive modifier_license = adjective.modifier_license;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = match adjective {
@@ -2323,6 +2326,7 @@ constructions! {
     }
     construction counter_kind_modifier: NominalModifier {
         element CounterKindModifier { kind: CounterKind, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = kind.onset;
@@ -2330,6 +2334,7 @@ constructions! {
     }
     construction power_toughness_modifier: NominalModifier {
         element PowerToughnessModifier { value: PredicativePowerToughnessComplement, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
@@ -2337,6 +2342,7 @@ constructions! {
     }
     construction status_modifier: NominalModifier {
         element StatusModifier { status: lex Status, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = status.onset;
@@ -2344,6 +2350,7 @@ constructions! {
     }
     construction reduced_relative_modifier: NominalModifier {
         element ReducedRelativeModifier { head: lex DeclaredTransitiveParticipleHead, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = head.onset;
@@ -2351,6 +2358,7 @@ constructions! {
     }
     construction supertype_modifier: NominalModifier {
         element SupertypeModifier { supertype: lex Supertype, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = supertype.onset;
@@ -2359,6 +2367,7 @@ constructions! {
     construction common_noun_modifier: NominalModifier {
         element CommonNounModifier { noun: lex CommonNoun, }
         require noun.compoundability is Compoundable;
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2367,6 +2376,7 @@ constructions! {
     }
     construction step_modifier: NominalModifier {
         element StepModifierValue { modifier: lex StepModifier, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = modifier.onset;
@@ -2374,6 +2384,7 @@ constructions! {
     }
     construction type_modifier: NominalModifier {
         element TypeModifier { noun: lex TypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2382,6 +2393,7 @@ constructions! {
     }
     construction artifact_subtype_modifier: NominalModifier {
         element ArtifactSubtypeModifier { noun: lex ArtifactSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2390,6 +2402,7 @@ constructions! {
     }
     construction battle_subtype_modifier: NominalModifier {
         element BattleSubtypeModifier { noun: lex BattleSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2398,6 +2411,7 @@ constructions! {
     }
     construction creature_subtype_modifier: NominalModifier {
         element CreatureSubtypeModifier { noun: lex CreatureSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2406,6 +2420,7 @@ constructions! {
     }
     construction enchantment_subtype_modifier: NominalModifier {
         element EnchantmentSubtypeModifier { noun: lex EnchantmentSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2414,6 +2429,7 @@ constructions! {
     }
     construction land_subtype_modifier: NominalModifier {
         element LandSubtypeModifier { noun: lex LandSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2422,6 +2438,7 @@ constructions! {
     }
     construction planeswalker_subtype_modifier: NominalModifier {
         element PlaneswalkerSubtypeModifier { noun: lex PlaneswalkerSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2430,6 +2447,7 @@ constructions! {
     }
     construction spell_subtype_modifier: NominalModifier {
         element SpellSubtypeModifier { noun: lex SpellSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2438,6 +2456,7 @@ constructions! {
     }
     construction non_color_modifier: NominalModifier {
         element NonColorModifier { color: lex Color, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
@@ -2445,6 +2464,7 @@ constructions! {
     }
     construction non_common_noun_modifier: NominalModifier {
         element NonCommonNounModifier { noun: lex NonCommonNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
@@ -2452,6 +2472,7 @@ constructions! {
     }
     construction non_status_modifier: NominalModifier {
         element NonStatusModifier { status: lex Status, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
@@ -2459,6 +2480,7 @@ constructions! {
     }
     construction non_supertype_modifier: NominalModifier {
         element NonSupertypeModifier { supertype: lex Supertype, }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
@@ -2466,6 +2488,7 @@ constructions! {
     }
     construction non_type_modifier: NominalModifier {
         element NonTypeModifier { noun: lex TypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2474,6 +2497,7 @@ constructions! {
     }
     construction non_artifact_subtype_modifier: NominalModifier {
         element NonArtifactSubtypeModifier { noun: lex ArtifactSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2482,6 +2506,7 @@ constructions! {
     }
     construction non_battle_subtype_modifier: NominalModifier {
         element NonBattleSubtypeModifier { noun: lex BattleSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2490,6 +2515,7 @@ constructions! {
     }
     construction non_creature_subtype_modifier: NominalModifier {
         element NonCreatureSubtypeModifier { noun: lex CreatureSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2498,6 +2524,7 @@ constructions! {
     }
     construction non_enchantment_subtype_modifier: NominalModifier {
         element NonEnchantmentSubtypeModifier { noun: lex EnchantmentSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2506,6 +2533,7 @@ constructions! {
     }
     construction non_land_subtype_modifier: NominalModifier {
         element NonLandSubtypeModifier { noun: lex LandSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2514,6 +2542,7 @@ constructions! {
     }
     construction non_planeswalker_subtype_modifier: NominalModifier {
         element NonPlaneswalkerSubtypeModifier { noun: lex PlaneswalkerSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2522,6 +2551,7 @@ constructions! {
     }
     construction non_spell_subtype_modifier: NominalModifier {
         element NonSpellSubtypeModifier { noun: lex SpellSubtypeNoun, }
+        derive modifier_license = Values::Unrestricted;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2548,6 +2578,7 @@ constructions! {
     }
     construction coordinated_modifier_member: CoordinatedNominalModifier {
         element CoordinatedModifierMember { value: NominalModifier, }
+        require value.modifier_license is Unrestricted;
         require any(
             value is AttributiveAdjectiveModifier,
             value is ColorModifier,
@@ -2584,6 +2615,7 @@ constructions! {
             rest: seq CoordinatedNominalModifier separated by " and ",
         }
         require len(rest) >= 1;
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = first.onset;
@@ -2608,6 +2640,7 @@ constructions! {
             first: CoordinatedNominalModifier,
             tail: SerialAndModifierTail,
         }
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = first.onset;
@@ -2619,6 +2652,7 @@ constructions! {
             rest: seq CoordinatedNominalModifier separated by " or ",
         }
         require len(rest) >= 1;
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = first.onset;
@@ -2630,6 +2664,7 @@ constructions! {
             rest: seq CoordinatedNominalModifier separated by " and/or ",
         }
         require len(rest) >= 1;
+        derive modifier_license = Values::Unrestricted;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = first.onset;
@@ -2720,7 +2755,7 @@ constructions! {
     }
     construction negative_modified_singular_coordination_member: SingularCoordinationMember {
         element NegativeModifiedSingularCoordinationMember {
-            leading: opt NominalModifier,
+            leading: opt CoordinatedNominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
             head: SingularHead,
         }
@@ -2749,7 +2784,7 @@ constructions! {
     }
     construction negative_modified_plural_coordination_member: PluralCoordinationMember {
         element NegativeModifiedPluralCoordinationMember {
-            leading: opt NominalModifier,
+            leading: opt CoordinatedNominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
             head: PluralHead,
         }
@@ -2890,6 +2925,30 @@ constructions! {
         derive nominal_form = coordination.nominal_form;
         derive onset = coordination.onset;
         form plural_coordination_nominal_value = coordination;
+    }
+    construction modified_singular_coordination_nominal_value: Nominal {
+        element ModifiedSingularCoordinationNominalValue {
+            first: NominalModifier,
+            rest: seq NominalModifier separated by " ",
+            coordination: SingularNominalCoordination,
+        }
+        derive agreement = coordination.agreement;
+        derive number = coordination.number;
+        derive nominal_form = coordination.nominal_form;
+        derive onset = first.onset;
+        form modified_singular_coordination_nominal_value = first rest coordination;
+    }
+    construction modified_plural_coordination_nominal_value: Nominal {
+        element ModifiedPluralCoordinationNominalValue {
+            first: NominalModifier,
+            rest: seq NominalModifier separated by " ",
+            coordination: PluralNominalCoordination,
+        }
+        derive agreement = coordination.agreement;
+        derive number = coordination.number;
+        derive nominal_form = coordination.nominal_form;
+        derive onset = first.onset;
+        form modified_plural_coordination_nominal_value = first rest coordination;
     }
     construction unmarked_singular_selector: SingularSelector {
         element UnmarkedSingularSelector { nominal: SingularNominal, }
