@@ -695,6 +695,7 @@ fn validate_sequence_feature_roles(
                     ParsedFeature::Onset => Feature::Onset,
                     ParsedFeature::Cardinality
                     | ParsedFeature::Compoundability
+                    | ParsedFeature::ModifierLicense
                     | ParsedFeature::DeterminerNumber
                     | ParsedFeature::FusedHeadLicense
                     | ParsedFeature::NominalForm
@@ -1874,10 +1875,12 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
             Declaration::Lexeme(lexeme) => {
                 validate_lexeme_declaration_shape(lexeme, &mut independent_errors);
             }
+            Declaration::Vocab(vocab) => {
+                validate_vocab_declaration_shape(vocab, &mut independent_errors);
+            }
             Declaration::Construction(_)
             | Declaration::AbstractProduct(_)
             | Declaration::AbstractSum(_)
-            | Declaration::Vocab(_)
             | Declaration::Codec(_)
             | Declaration::Identity(_)
             | Declaration::Root(_) => {}
@@ -1950,14 +1953,52 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
     finish(errors)
 }
 
+fn validate_vocab_declaration_shape(
+    vocab: &crate::model::Vocab,
+    errors: &mut Option<syn::Error>,
+) {
+    let mut feature_defaults = HashSet::new();
+    for default in &vocab.feature_defaults {
+        if default.feature != crate::model::Feature::ModifierLicense {
+            combine(errors, syn::Error::new(default.value.span(), "closed vocab metadata supports only ModifierLicense"));
+        }
+        if !feature_defaults.insert(default.feature) {
+            combine(errors, syn::Error::new(default.value.span(), "duplicate vocab feature default"));
+        }
+        if crate::feature::Feature::from(default.feature).member(&default.value).is_err() {
+            combine(errors, syn::Error::new(default.value.span(), "invalid vocab feature default"));
+        }
+    }
+    for variant in &vocab.variants {
+        let mut feature_overrides = HashSet::new();
+        for override_ in &variant.feature_overrides {
+            if override_.feature != crate::model::Feature::ModifierLicense {
+                combine(errors, syn::Error::new(override_.value.span(), "closed vocab metadata supports only ModifierLicense"));
+            }
+            if !feature_defaults.contains(&override_.feature) {
+                combine(errors, syn::Error::new(override_.value.span(), "vocab feature override requires a vocab-level default"));
+            }
+            if !feature_overrides.insert(override_.feature) {
+                combine(errors, syn::Error::new(override_.value.span(), "duplicate vocab feature override"));
+            }
+            if crate::feature::Feature::from(override_.feature).member(&override_.value).is_err() {
+                combine(errors, syn::Error::new(override_.value.span(), "invalid vocab feature override"));
+            }
+        }
+    }
+}
+
 fn validate_lexeme_declaration_shape(
     lexeme: &crate::model::Lexeme,
     errors: &mut Option<syn::Error>,
 ) {
     let mut feature_defaults = HashSet::new();
     for default in &lexeme.feature_defaults {
-        if default.feature != crate::model::Feature::Compoundability {
-            combine(errors, syn::Error::new(default.value.span(), "closed lexeme metadata supports only Compoundability"));
+        if !matches!(
+            default.feature,
+            crate::model::Feature::Compoundability | crate::model::Feature::ModifierLicense
+        ) {
+            combine(errors, syn::Error::new(default.value.span(), "closed lexeme metadata supports only Compoundability and ModifierLicense"));
         }
         if !feature_defaults.insert(default.feature) {
             combine(errors, syn::Error::new(default.value.span(), "duplicate lexeme feature default"));
@@ -2008,8 +2049,11 @@ fn validate_lexeme_declaration_shape(
         }
         let mut feature_overrides = HashSet::new();
         for override_ in &member.feature_overrides {
-            if override_.feature != crate::model::Feature::Compoundability {
-                combine(errors, syn::Error::new(override_.value.span(), "closed lexeme metadata supports only Compoundability"));
+            if !matches!(
+                override_.feature,
+                crate::model::Feature::Compoundability | crate::model::Feature::ModifierLicense
+            ) {
+                combine(errors, syn::Error::new(override_.value.span(), "closed lexeme metadata supports only Compoundability and ModifierLicense"));
             }
             if !feature_defaults.contains(&override_.feature) {
                 combine(errors, syn::Error::new(override_.value.span(), "lexeme feature override requires a lexeme-level default"));
@@ -4586,6 +4630,7 @@ fn generated_name_inventory(
                         ParsedFeature::Agreement => ("agreement", "Agreement"),
                         ParsedFeature::Cardinality => ("cardinality", "Cardinality"),
                         ParsedFeature::Compoundability => ("compoundability", "Compoundability"),
+                        ParsedFeature::ModifierLicense => ("modifier_license", "ModifierLicense"),
                         ParsedFeature::DeterminerNumber => {
                             ("determiner_number", "DeterminerNumber")
                         }
@@ -5186,6 +5231,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
+        Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
         Feature::NominalForm => ParsedFeature::NominalForm,
@@ -5236,6 +5282,7 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
+        Feature::ModifierLicense => ParsedFeature::ModifierLicense,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
         Feature::NominalForm => ParsedFeature::NominalForm,
@@ -5490,6 +5537,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     .then(|| (identifier_key(field), ParsedFeature::Number)),
                 ParsedFeature::Agreement
                 | ParsedFeature::Compoundability
+                | ParsedFeature::ModifierLicense
                 | ParsedFeature::DeterminerNumber
                 | ParsedFeature::FusedHeadLicense
                 | ParsedFeature::NominalForm
@@ -8985,11 +9033,17 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
                 providers.insert((identifier_key(&lexeme.name), default.feature));
             }
         }
+        if let Declaration::Vocab(vocab) = declaration {
+            for default in &vocab.feature_defaults {
+                providers.insert((identifier_key(&vocab.name), default.feature));
+            }
+        }
     }
     for (category, constructions) in categories {
         for feature in [
             ParsedFeature::Agreement,
             ParsedFeature::Cardinality,
+            ParsedFeature::ModifierLicense,
             ParsedFeature::DeterminerNumber,
             ParsedFeature::FusedHeadLicense,
             ParsedFeature::NominalForm,
@@ -9080,6 +9134,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
+        ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
         ParsedFeature::NominalForm => "nominal_form",
@@ -9542,6 +9597,7 @@ fn validate_lowerable_feature_compositions(
                     | ParsedFeature::FusedHeadLicense
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
+                    | ParsedFeature::ModifierLicense
                 ),
                 ParsedFeatureValue::FromRole(source),
             ) => role_feature_is_constructible(
@@ -9593,7 +9649,8 @@ fn validate_lowerable_feature_compositions(
                         ParsedFeature::DeterminerNumber
                         | ParsedFeature::FusedHeadLicense
                         | ParsedFeature::NominalForm
-                        | ParsedFeature::NominalLicense,
+                        | ParsedFeature::NominalLicense
+                        | ParsedFeature::ModifierLicense,
                     ..
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
@@ -9793,6 +9850,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
+        ParsedFeature::ModifierLicense => "modifier_license",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::FusedHeadLicense => "fused_head_license",
         ParsedFeature::NominalForm => "nominal_form",
@@ -13028,6 +13086,51 @@ pub(crate) mod tests {
         assert!(
             parse_only.contains("parse-only morphology feature state `verb.agreement`"),
             "{parse_only}"
+        );
+    }
+
+    #[test]
+    fn modifier_license_vocab_metadata_flows_through_derivation_and_role_guard() {
+        let expansion = crate::generate(quote! {
+            vocab Modifiers {
+                feature ModifierLicense = Unrestricted;
+                Creature = "creature",
+                Target = "target" { feature ModifierLicense = LocalDeterminer; },
+            }
+            construction modifier: Modifier {
+                element ModifierNode { modifier: lex Modifiers, }
+                require modifier.modifier_license is LocalDeterminer;
+                derive modifier_license = modifier.modifier_license;
+                form modifier = lex(modifier);
+            }
+            root Modifier { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("modifier-license fixture generates");
+        let emitted = expansion.tokens().to_string();
+        assert!(
+            emitted.contains("enum ModifierLicense { Unrestricted , LocalDeterminer }"),
+            "{emitted}"
+        );
+        assert!(
+            emitted.contains("fn modifier_license_modifiers"),
+            "{emitted}"
+        );
+        assert!(
+            emitted.contains("Modifiers :: Creature => ModifierLicense :: Unrestricted"),
+            "{emitted}"
+        );
+        assert!(
+            emitted.contains("Modifiers :: Target => ModifierLicense :: LocalDeterminer"),
+            "{emitted}"
+        );
+        assert!(
+            emitted.contains("matches ! (modifier_license_modifiers (modifier) , ModifierLicense :: LocalDeterminer)"),
+            "{emitted}"
+        );
+        assert!(emitted.contains("Lexical :: Modifiers"), "{emitted}");
+        assert!(
+            emitted.contains("ModifierNode :: try_new (* modifiers)"),
+            "{emitted}"
         );
     }
 

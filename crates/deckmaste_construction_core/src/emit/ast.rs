@@ -917,9 +917,7 @@ fn resolve_constructor_feature(
     } else if let crate::feature::FeaturePlace::Role { field, feature } = place {
         let stored = construction.field(&identifier_key(field))?;
         if stored.kind() == ConstructionFieldKind::Lex
-            && plan
-                .lexeme(stored.terminal())
-                .is_some_and(|lexeme| lexeme.feature_members(*feature).is_some())
+            && plan.terminal_has_feature(stored.terminal(), *feature)
         {
             let function = emitted_ident(
                 &format!("{}_{}", feature.key(), crate::identifier::snake_case(stored.terminal())),
@@ -1005,6 +1003,8 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
         crate::feature::FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
         crate::feature::FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
+        crate::feature::FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
+        crate::feature::FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
         crate::feature::FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         crate::feature::FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         crate::feature::FeatureValue::Both => quote! { DeterminerNumber::Both },

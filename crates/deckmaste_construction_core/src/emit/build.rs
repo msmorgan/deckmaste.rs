@@ -315,10 +315,7 @@ fn emit_arm_from_plan(
                         value
                     } else {
                         let field = row.field(guard_role)?;
-                        let Some(lexeme) = plan.lexeme(field.terminal()) else {
-                            return Err(internal("form guard feature role has no lowered value"));
-                        };
-                        if lexeme.feature_members(*feature).is_none() {
+                        if !plan.terminal_has_feature(field.terminal(), *feature) {
                             return Err(internal("form guard feature role has no lowered value"));
                         }
                         let value = lowering.field_values.get(guard_role).ok_or_else(|| {
@@ -450,12 +447,7 @@ fn lower_checked_field_arguments(
                     Ok(quote! { #helper(&#value) })
                 }
                 crate::semantic::ConstructionFieldKind::Lex => {
-                    let Some(lexeme) = plan.lexeme(source.terminal()) else {
-                        return Err(internal(
-                            "checked lexical field feature has no lowered value",
-                        ));
-                    };
-                    if lexeme.feature_members(*feature).is_none() {
+                    if !plan.terminal_has_feature(source.terminal(), *feature) {
                         return Err(internal(
                             "checked lexical field feature has no lowered value",
                         ));
@@ -3441,6 +3433,16 @@ fn resolve_feature_place(
                 | FeaturePlace::Role { feature: Feature::Compoundability, .. } => {
                     return Err(internal("compoundability is closed lexeme metadata, not an equation value"));
                 }
+                FeaturePlace::Construction(Feature::ModifierLicense)
+                | FeaturePlace::Role { feature: Feature::ModifierLicense, .. } => {
+                    let ty = ident(terminal_for_role(row, role)?);
+                    let arms = arms.iter().map(|(variant, value)| {
+                        let variant = variant.value();
+                        let value = feature_value(*value);
+                        quote! { #ty::#variant => #value }
+                    });
+                    ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
+                }
                 FeaturePlace::Construction(
                     Feature::DeterminerNumber
                     | Feature::FusedHeadLicense
@@ -3619,6 +3621,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
         FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
         FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
+        FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
+        FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },

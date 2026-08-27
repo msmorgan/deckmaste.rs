@@ -784,6 +784,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "agreement" => Some(Feature::Agreement),
         "cardinality" => Some(Feature::Cardinality),
         "compoundability" => Some(Feature::Compoundability),
+        "modifier_license" => Some(Feature::ModifierLicense),
         "determiner_number" => Some(Feature::DeterminerNumber),
         "fused_head_license" => Some(Feature::FusedHeadLicense),
         "nominal_form" => Some(Feature::NominalForm),
@@ -799,6 +800,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
 fn lexeme_feature_from_ident(ident: &Ident) -> Option<Feature> {
     (ident == "Compoundability")
         .then_some(Feature::Compoundability)
+        .or_else(|| (ident == "ModifierLicense").then_some(Feature::ModifierLicense))
         .or_else(|| feature_from_ident(ident))
 }
 
@@ -1148,16 +1150,45 @@ fn parse_vocab(input: ParseStream<'_>) -> syn::Result<Vocab> {
     let name = input.parse()?;
     let content;
     braced!(content in input);
+    let mut feature_defaults = Vec::new();
     let mut variants = Vec::new();
     while !content.is_empty() {
         reject_doc_comment(&content)?;
+        if content.peek(keyword::feature) {
+            content.parse::<keyword::feature>()?;
+            let feature_ident = content.call(Ident::parse_any)?;
+            let feature = lexeme_feature_from_ident(&feature_ident)
+                .ok_or_else(|| syn::Error::new(feature_ident.span(), "unknown vocab feature"))?;
+            content.parse::<Token![=]>()?;
+            let value = content.call(Ident::parse_any)?;
+            feature_defaults.push(crate::model::LexemeFeatureDefault { feature, value });
+            content.parse::<Token![;]>()?;
+            continue;
+        }
         let name = content.parse()?;
         content.parse::<Token![=]>()?;
         let word = content.parse()?;
-        variants.push(VocabVariant { name, word });
+        let mut feature_overrides = Vec::new();
+        if content.peek(syn::token::Brace) {
+            let overrides_content;
+            braced!(overrides_content in content);
+            while !overrides_content.is_empty() {
+                reject_doc_comment(&overrides_content)?;
+                overrides_content.parse::<keyword::feature>()?;
+                let feature_ident = overrides_content.call(Ident::parse_any)?;
+                let feature = lexeme_feature_from_ident(&feature_ident).ok_or_else(|| {
+                    syn::Error::new(feature_ident.span(), "unknown vocab feature")
+                })?;
+                overrides_content.parse::<Token![=]>()?;
+                let value = overrides_content.call(Ident::parse_any)?;
+                feature_overrides.push(crate::model::LexemeFeatureOverride { feature, value });
+                overrides_content.parse::<Token![;]>()?;
+            }
+        }
+        variants.push(VocabVariant { name, word, feature_overrides });
         content.parse::<Token![,]>()?;
     }
-    Ok(Vocab { name, variants })
+    Ok(Vocab { name, feature_defaults, variants })
 }
 
 fn parse_morphology(input: ParseStream<'_>) -> syn::Result<Morphology> {

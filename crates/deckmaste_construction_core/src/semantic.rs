@@ -1172,6 +1172,7 @@ pub(crate) struct VocabPlan {
     name: syn::Ident,
     name_key: String,
     variants: Vec<VocabVariantPlan>,
+    features: Vec<LexemeFeaturePlan>,
 }
 
 #[derive(Debug)]
@@ -1845,6 +1846,18 @@ impl SemanticPlan {
         self.terminals.iter().find_map(|terminal| match terminal {
             TerminalPlan::Lexeme(lexeme) if lexeme.name() == name => Some(lexeme),
             _ => None,
+        })
+    }
+
+    pub(crate) fn terminal_has_feature(&self, name: &str, feature: Feature) -> bool {
+        self.terminals.iter().any(|terminal| match terminal {
+            TerminalPlan::Vocab(vocab) if vocab.name() == name => {
+                vocab.feature_members(feature).is_some()
+            }
+            TerminalPlan::Lexeme(lexeme) if lexeme.name() == name => {
+                lexeme.feature_members(feature).is_some()
+            }
+            _ => false,
         })
     }
 
@@ -5362,6 +5375,26 @@ impl TerminalPlan {
 
 impl VocabPlan {
     fn from_source(source_index: usize, source: &crate::Vocab) -> syn::Result<Self> {
+        let mut features = Vec::new();
+        for default in &source.feature_defaults {
+            let feature = Feature::from(default.feature);
+            let default_value = feature.member(&default.value)?;
+            let members = source
+                .variants
+                .iter()
+                .map(|variant| {
+                    let value = variant
+                        .feature_overrides
+                        .iter()
+                        .find(|override_| override_.feature == default.feature)
+                        .map(|override_| feature.member(&override_.value))
+                        .transpose()?
+                        .unwrap_or(default_value);
+                    Ok((identifier_key(&variant.name), value))
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            features.push(LexemeFeaturePlan { feature, members });
+        }
         Ok(Self {
             source_index,
             name: source.name.clone(),
@@ -5384,6 +5417,7 @@ impl VocabPlan {
                     })
                 })
                 .collect::<syn::Result<Vec<_>>>()?,
+            features,
         })
     }
 
@@ -5397,6 +5431,13 @@ impl VocabPlan {
 
     pub(crate) fn variants(&self) -> &[VocabVariantPlan] {
         &self.variants
+    }
+
+    pub(crate) fn feature_members(&self, feature: Feature) -> Option<&[(String, FeatureValue)]> {
+        self.features
+            .iter()
+            .find(|row| row.feature == feature)
+            .map(|row| row.members.as_slice())
     }
 
     #[allow(

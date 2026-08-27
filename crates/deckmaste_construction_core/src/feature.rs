@@ -12,6 +12,7 @@ pub(crate) enum Feature {
     Agreement,
     Cardinality,
     Compoundability,
+    ModifierLicense,
     DeterminerNumber,
     FusedHeadLicense,
     NominalForm,
@@ -38,6 +39,8 @@ pub(crate) enum FeatureValue {
     TwoPlus,
     Compoundable,
     NonCompoundable,
+    Unrestricted,
+    LocalDeterminer,
     SingularOnly,
     PluralOnly,
     Both,
@@ -96,6 +99,9 @@ impl Feature {
             Self::Compoundability => {
                 &[FeatureValue::Compoundable, FeatureValue::NonCompoundable]
             }
+            Self::ModifierLicense => {
+                &[FeatureValue::Unrestricted, FeatureValue::LocalDeterminer]
+            }
             Self::DeterminerNumber => &[
                 FeatureValue::SingularOnly,
                 FeatureValue::PluralOnly,
@@ -143,6 +149,7 @@ impl Feature {
             Self::Agreement => "agreement",
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
+            Self::ModifierLicense => "modifier_license",
             Self::DeterminerNumber => "determiner_number",
             Self::FusedHeadLicense => "fused_head_license",
             Self::NominalForm => "nominal_form",
@@ -172,6 +179,8 @@ impl FeatureValue {
             Self::TwoPlus => "TwoPlus",
             Self::Compoundable => "Compoundable",
             Self::NonCompoundable => "NonCompoundable",
+            Self::Unrestricted => "Unrestricted",
+            Self::LocalDeterminer => "LocalDeterminer",
             Self::SingularOnly => "SingularOnly",
             Self::PluralOnly => "PluralOnly",
             Self::Both => "Both",
@@ -317,6 +326,7 @@ impl Feature {
             Self::Agreement => "agreement",
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
+            Self::ModifierLicense => "modifier_license",
             Self::DeterminerNumber => "determiner_number",
             Self::FusedHeadLicense => "fused_head_license",
             Self::NominalForm => "nominal_form",
@@ -347,6 +357,8 @@ impl FeatureValue {
             Self::TwoPlus => "TwoPlus",
             Self::Compoundable => "Compoundable",
             Self::NonCompoundable => "NonCompoundable",
+            Self::Unrestricted => "Unrestricted",
+            Self::LocalDeterminer => "LocalDeterminer",
             Self::SingularOnly => "SingularOnly",
             Self::PluralOnly => "PluralOnly",
             Self::Both => "Both",
@@ -401,6 +413,8 @@ pub(crate) fn lower_constant(
         (model::Feature::Cardinality, "TwoPlus") => FeatureValue::TwoPlus,
         (model::Feature::Compoundability, "Compoundable") => FeatureValue::Compoundable,
         (model::Feature::Compoundability, "NonCompoundable") => FeatureValue::NonCompoundable,
+        (model::Feature::ModifierLicense, "Unrestricted") => FeatureValue::Unrestricted,
+        (model::Feature::ModifierLicense, "LocalDeterminer") => FeatureValue::LocalDeterminer,
         (model::Feature::DeterminerNumber, "SingularOnly") => FeatureValue::SingularOnly,
         (model::Feature::DeterminerNumber, "PluralOnly") => FeatureValue::PluralOnly,
         (model::Feature::DeterminerNumber, "Both") => FeatureValue::Both,
@@ -432,6 +446,12 @@ pub(crate) fn lower_constant(
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not a compoundability value"),
+            ));
+        }
+        (model::Feature::ModifierLicense, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a modifier-license value"),
             ));
         }
         (model::Feature::DeterminerNumber, _) => {
@@ -492,6 +512,7 @@ impl From<model::Feature> for Feature {
             model::Feature::Agreement => Self::Agreement,
             model::Feature::Cardinality => Self::Cardinality,
             model::Feature::Compoundability => Self::Compoundability,
+            model::Feature::ModifierLicense => Self::ModifierLicense,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
             model::Feature::FusedHeadLicense => Self::FusedHeadLicense,
             model::Feature::NominalForm => Self::NominalForm,

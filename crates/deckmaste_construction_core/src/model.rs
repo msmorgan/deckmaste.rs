@@ -233,6 +233,7 @@ pub enum Feature {
     Agreement,
     Cardinality,
     Compoundability,
+    ModifierLicense,
     DeterminerNumber,
     FusedHeadLicense,
     NominalForm,
@@ -322,6 +323,7 @@ pub enum VerbOperand {
 #[derive(Debug)]
 pub struct Vocab {
     pub name: Ident,
+    pub feature_defaults: Vec<LexemeFeatureDefault>,
     pub variants: Vec<VocabVariant>,
 }
 
@@ -329,6 +331,7 @@ pub struct Vocab {
 pub struct VocabVariant {
     pub name: Ident,
     pub word: LitStr,
+    pub feature_overrides: Vec<LexemeFeatureOverride>,
 }
 
 #[derive(Debug)]
