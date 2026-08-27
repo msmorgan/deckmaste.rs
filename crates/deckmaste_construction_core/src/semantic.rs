@@ -816,27 +816,44 @@ pub(crate) enum VerbFrameAtom {
     OptionalRole(String),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum VerbFrameClass {
+    Predicate,
+    Auxiliary,
+    ProVerb,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct VerbFrameKey(Vec<VerbFrameAtom>);
+pub(crate) struct VerbFrameKey {
+    class: VerbFrameClass,
+    atoms: Vec<VerbFrameAtom>,
+}
 
 impl VerbFrameKey {
     pub(crate) fn atoms(&self) -> &[VerbFrameAtom] {
-        &self.0
+        &self.atoms
+    }
+
+    pub(crate) const fn class(&self) -> VerbFrameClass {
+        self.class
     }
 
     #[cfg(test)]
     pub(crate) fn matches_valence(&self, valence: &macro_ron::v2::VerbValence) -> bool {
         use macro_ron::v2::VerbValence;
 
+        if self.class != VerbFrameClass::Predicate {
+            return false;
+        }
         match valence {
-            VerbValence::Intransitive => self.0.is_empty(),
-            VerbValence::Transitive => self.0 == [VerbFrameAtom::ObjectNounPhrase],
-            VerbValence::Numerative => self.0 == [VerbFrameAtom::Amount],
+            VerbValence::Intransitive => self.atoms.is_empty(),
+            VerbValence::Transitive => self.atoms == [VerbFrameAtom::ObjectNounPhrase],
+            VerbValence::Numerative => self.atoms == [VerbFrameAtom::Amount],
             VerbValence::Custom { shapes } => shapes.iter().any(|shape| {
-                shape.len() == self.0.len()
+                shape.len() == self.atoms.len()
                     && shape
                         .iter()
-                        .zip(&self.0)
+                        .zip(&self.atoms)
                         .all(|(source, planned)| match (source, planned) {
                             (
                                 macro_ron::v2::CustomTailAtom::Literal(source),
@@ -6240,8 +6257,17 @@ impl DeclarationVerbPlan {
         else {
             unreachable!("validated generated codec has the declaration_verb recipe")
         };
-        let frame_key = VerbFrameKey(
-            recipe
+        let frame_key = VerbFrameKey {
+            class: recipe.class_slots.first().map_or(
+                VerbFrameClass::Predicate,
+                |slot| match identifier_key(&slot.value).as_str() {
+                    "Predicate" => VerbFrameClass::Predicate,
+                    "Auxiliary" => VerbFrameClass::Auxiliary,
+                    "ProVerb" => VerbFrameClass::ProVerb,
+                    _ => unreachable!("validated declaration_verb class is sealed"),
+                },
+            ),
+            atoms: recipe
                 .tail_slots
                 .first()
                 .expect("validated declaration_verb has one tail")
@@ -6281,7 +6307,7 @@ impl DeclarationVerbPlan {
                     }
                 })
                 .collect(),
-        );
+        };
         Self {
             source_index,
             origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),

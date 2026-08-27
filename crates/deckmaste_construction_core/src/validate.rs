@@ -2754,6 +2754,7 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
         for (right, right_domain) in &verbs[index + 1..] {
             if left_domain.position != right_domain.position
                 || left_domain.feature != right_domain.feature
+                || left_domain.class != right_domain.class
                 || left_domain.tail != right_domain.tail
             {
                 continue;
@@ -2768,8 +2769,12 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
                     syn::Error::new(
                         right.name.span(),
                         format!(
-                            "declaration_verb domains `{}` and `{}` overlap at `{}/{}`",
-                            left.name, right.name, left_domain.position, left_domain.tail
+                            "declaration_verb domains `{}` and `{}` overlap at `{}/{}/{}`",
+                            left.name,
+                            right.name,
+                            left_domain.position,
+                            left_domain.class,
+                            left_domain.tail
                         ),
                     ),
                 );
@@ -2783,8 +2788,12 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
                     syn::Error::new(
                         right.name.span(),
                         format!(
-                            "declaration_verb domains `{}` and `{}` overlap at closed `{closed}`/{}/{}",
-                            left.name, right.name, left_domain.position, left_domain.tail
+                            "declaration_verb domains `{}` and `{}` overlap at closed `{closed}`/{}/{}/{}",
+                            left.name,
+                            right.name,
+                            left_domain.position,
+                            left_domain.class,
+                            left_domain.tail
                         ),
                     ),
                 );
@@ -2796,6 +2805,7 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
 struct DeclarationVerbDomain {
     closed: Option<String>,
     position: String,
+    class: String,
     feature: String,
     tail: String,
 }
@@ -2835,6 +2845,10 @@ fn declaration_verb_domain(
             .first()
             .map(|slot| identifier_key(&slot.value)),
         position: identifier_key(&position.value),
+        class: source.class_slots.first().map_or_else(
+            || "Predicate".to_owned(),
+            |slot| identifier_key(&slot.value),
+        ),
         feature: identifier_key(&feature.value),
         tail: format!("[{tail}]"),
     })
@@ -2939,6 +2953,21 @@ fn validate_declaration_verb_source(
             Some(&slot.value)
         }
     };
+    let class = match source.class_slots.as_slice() {
+        [] => None,
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate declaration_verb field `class`",
+                    ),
+                );
+            }
+            Some(&slot.value)
+        }
+    };
     let position = validate_single_ident_slot(
         &source.position_slots,
         &source.recipe,
@@ -2971,6 +3000,20 @@ fn validate_declaration_verb_source(
             syn::Error::new(
                 feature.span(),
                 "declaration_verb feature must be `Agreement` or `Participle`",
+            ),
+        );
+    }
+    if let Some(class) = class
+        && !matches!(
+            identifier_key(class).as_str(),
+            "Predicate" | "Auxiliary" | "ProVerb"
+        )
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                class.span(),
+                "declaration_verb class must be `Predicate`, `Auxiliary`, or `ProVerb`",
             ),
         );
     }
@@ -11172,6 +11215,25 @@ pub(crate) mod tests {
             ),
             (
                 quote! {
+                    class = Auxiliary;
+                    class = ProVerb;
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb field `class`",
+            ),
+            (
+                quote! {
+                    class = Infinitive;
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                },
+                "class must be `Predicate`, `Auxiliary`, or `ProVerb`",
+            ),
+            (
+                quote! {
                     closed = Missing;
                     position = Verb;
                     tail = [];
@@ -11212,7 +11274,7 @@ pub(crate) mod tests {
                     tail = [];
                     feature = Agreement;
                 },
-                "declaration_verb recipe accepts only `closed`, `position`, `names`, `tail`, and `feature` fields",
+                "declaration_verb recipe accepts only `closed`, `class`, `position`, `tail`, and `feature` fields",
             ),
             (
                 quote! {
@@ -11294,7 +11356,38 @@ pub(crate) mod tests {
                     feature = Agreement;
                     valence = Transitive;
                 },
-                "recipe accepts only `closed`, `position`, `names`, `tail`, and `feature` fields",
+                "recipe accepts only `closed`, `class`, `position`, `tail`, and `feature` fields",
+            ),
+        ] {
+            let message = declaration_verb_source_error(&body);
+            assert!(
+                message.contains(expected),
+                "expected {expected:?} in {message}"
+            );
+        }
+    }
+
+    #[test]
+    fn declaration_verb_class_validation_is_sealed() {
+        for (body, expected) in [
+            (
+                quote! {
+                    class = Auxiliary;
+                    class = ProVerb;
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                },
+                "duplicate declaration_verb field `class`",
+            ),
+            (
+                quote! {
+                    class = Infinitive;
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                },
+                "class must be `Predicate`, `Auxiliary`, or `ProVerb`",
             ),
         ] {
             let message = declaration_verb_source_error(&body);
@@ -11329,7 +11422,7 @@ pub(crate) mod tests {
             .to_string();
         assert!(
             error.contains(
-                "declaration_verb domains `FirstVerb` and `LaterVerb` overlap at `Verb/[Amount]`"
+                "declaration_verb domains `FirstVerb` and `LaterVerb` overlap at `Verb/Predicate/[Amount]`"
             ),
             "{error}"
         );
@@ -11356,7 +11449,7 @@ pub(crate) mod tests {
             .to_string();
         assert!(
             error.contains(
-                "declaration_verb domains `FirstSearchVerb` and `LaterSearchVerb` overlap at `Verb/[ObjectNounPhrase, Literal(\"for\"), ObjectNounPhrase]`"
+                "declaration_verb domains `FirstSearchVerb` and `LaterSearchVerb` overlap at `Verb/Predicate/[ObjectNounPhrase, Literal(\"for\"), ObjectNounPhrase]`"
             ),
             "{error}"
         );
@@ -11380,6 +11473,35 @@ pub(crate) mod tests {
         .expect("disjoint declaration_verb recipes parse");
         super::validate_generated_codecs(&disjoint)
             .expect("different exact tails are structurally disjoint");
+
+        let class_disjoint = crate::parse_declarations(quote! {
+            codec PredicateVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                }
+            }
+            codec AuxiliaryVerb {
+                generate declaration_verb {
+                    class = Auxiliary;
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                }
+            }
+            codec ProVerb {
+                generate declaration_verb {
+                    class = ProVerb;
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                }
+            }
+        })
+        .expect("sealed declaration_verb classes parse");
+        super::validate_generated_codecs(&class_disjoint)
+            .expect("identical tails in distinct verb-frame classes do not overlap");
     }
 
     #[test]

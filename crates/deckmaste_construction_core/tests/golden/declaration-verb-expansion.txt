@@ -1,21 +1,17 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclarationTransitiveVerb {
-    id: ::macro_ron::v2::DeclarationIdentity,
+    reference: crate::environment::VerbInventoryRef,
 }
 impl DeclarationTransitiveVerb {
     pub fn new(
         environment: &crate::environment::ParserEnvironment,
-        id: ::macro_ron::v2::DeclarationIdentity,
+        reference: crate::environment::VerbInventoryRef,
     ) -> Option<Self> {
-        let recipe = environment.grammar_recipe(&id)?;
-        if recipe.position() != ::macro_ron::v2::GrammarPosition::Verb {
-            return None;
-        }
-        let ::macro_ron::v2::GrammarRecipe::Verb { valence } = recipe else {
-            return None;
-        };
-        let frame = VerbFrameKey::new(&[VerbFrameAtom::ObjectNounPhrase]);
-        if !frame.matches_valence(valence) {
+        let frame = VerbFrameKey::with_class(
+            VerbFrameClass::Predicate,
+            &[VerbFrameAtom::ObjectNounPhrase],
+        );
+        if !environment.verb_frame_licenses(&reference, frame) {
             return None;
         }
         [
@@ -23,11 +19,13 @@ impl DeclarationTransitiveVerb {
             ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular,
         ]
             .into_iter()
-            .all(|feature| environment.surface(&id, feature).is_some())
-            .then_some(Self { id })
+            .all(|feature| {
+                environment.verb_inventory_surface(&reference, feature).is_some()
+            })
+            .then_some(Self { reference })
     }
-    pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
-        &self.id
+    pub fn reference(&self) -> &crate::environment::VerbInventoryRef {
+        &self.reference
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]

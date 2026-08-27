@@ -1022,6 +1022,10 @@ mod tests {
         assert_eq!(object.position(), macro_ron::v2::GrammarPosition::Verb);
         assert_eq!(object.feature_axis(), crate::feature::Feature::Agreement);
         assert_eq!(
+            object.frame_key().class(),
+            crate::semantic::VerbFrameClass::Predicate
+        );
+        assert_eq!(
             object.frame_key().atoms(),
             [crate::semantic::VerbFrameAtom::ObjectNounPhrase]
         );
@@ -1160,6 +1164,73 @@ mod tests {
                 .frame_key()
                 .matches_valence(&VerbValence::Intransitive)
         );
+    }
+
+    #[test]
+    fn declaration_verb_frame_classes_are_sealed_and_semantic() {
+        use macro_ron::v2::VerbValence;
+
+        let plan = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                codec PredicateVerb {
+                    generate declaration_verb {
+                        position = Verb;
+                        tail = [];
+                        feature = Agreement;
+                    }
+                }
+                codec AuxiliaryVerb {
+                    generate declaration_verb {
+                        class = Auxiliary;
+                        position = Verb;
+                        tail = [];
+                        feature = Agreement;
+                    }
+                }
+                codec ProVerb {
+                    generate declaration_verb {
+                        class = ProVerb;
+                        position = Verb;
+                        tail = [];
+                        feature = Agreement;
+                    }
+                }
+                construction only: Root {
+                    element Only {}
+                    form only = "only";
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("sealed declaration_verb classes parse"),
+        )
+        .expect("identical tails in distinct classes validate")
+        .into_semantic();
+        let recipes = plan
+            .runtime_declaration_verbs()
+            .map(|(_, recipe)| recipe)
+            .collect::<Vec<_>>();
+        assert_eq!(recipes.len(), 3);
+        assert_eq!(
+            recipes[0].frame_key().class(),
+            crate::semantic::VerbFrameClass::Predicate
+        );
+        assert_eq!(
+            recipes[1].frame_key().class(),
+            crate::semantic::VerbFrameClass::Auxiliary
+        );
+        assert_eq!(
+            recipes[2].frame_key().class(),
+            crate::semantic::VerbFrameClass::ProVerb
+        );
+        assert!(recipes[0]
+            .frame_key()
+            .matches_valence(&VerbValence::Intransitive));
+        assert!(!recipes[1]
+            .frame_key()
+            .matches_valence(&VerbValence::Intransitive));
+        assert!(!recipes[2]
+            .frame_key()
+            .matches_valence(&VerbValence::Intransitive));
     }
 
     #[test]
@@ -2044,6 +2115,46 @@ mod tests {
             actual,
             include_str!("../tests/golden/declaration-verb-expansion.txt")
         );
+    }
+
+    #[test]
+    fn declaration_verb_expansion_carries_explicit_frame_classes() {
+        let expansion = crate::generate(quote::quote! {
+            codec AuxiliaryVerb {
+                generate declaration_verb {
+                    class = Auxiliary;
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                }
+            }
+            codec ProVerb {
+                generate declaration_verb {
+                    class = ProVerb;
+                    position = Verb;
+                    tail = [];
+                    feature = Agreement;
+                }
+            }
+            construction only: Root {
+                element Only {}
+                form only = "only";
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("explicit declaration verb classes generate");
+        assert_eq!(
+            enum_variants(generated_item(&expansion, "VerbFrameClass")),
+            ["Predicate", "Auxiliary", "ProVerb"]
+        );
+        let emitted = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(emitted.contains("VerbFrameClass :: Auxiliary"), "{emitted}");
+        assert!(emitted.contains("VerbFrameClass :: ProVerb"), "{emitted}");
     }
 
     #[test]

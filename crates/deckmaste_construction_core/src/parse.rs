@@ -1816,6 +1816,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
     }
     if recipe == "declaration_verb" {
         let mut closed_slots = Vec::new();
+        let mut class_slots = Vec::new();
         let mut position_slots = Vec::new();
         let mut tail_slots = Vec::new();
         let mut feature_slots = Vec::new();
@@ -1861,11 +1862,12 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                     .collect();
                     tail_slots.push(crate::model::DeclarationVerbTailSource { slot, atoms });
                 }
-                "closed" | "position" | "feature" => {
+                "closed" | "class" | "position" | "feature" => {
                     let value = content.call(Ident::parse_any)?;
                     let row = crate::model::GeneratedIdentSlot { slot, value };
                     match row.slot.to_string().as_str() {
                         "closed" => closed_slots.push(row),
+                        "class" => class_slots.push(row),
                         "position" => position_slots.push(row),
                         "feature" => feature_slots.push(row),
                         _ => unreachable!("matched declaration_verb identifier slot"),
@@ -1874,7 +1876,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 _ => {
                     return Err(syn::Error::new(
                         slot.span(),
-                        "declaration_verb recipe accepts only `closed`, `position`, `tail`, and `feature` fields",
+                        "declaration_verb recipe accepts only `closed`, `class`, `position`, `tail`, and `feature` fields",
                     ));
                 }
             }
@@ -1884,6 +1886,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
             crate::model::DeclarationVerbSource {
                 recipe,
                 closed_slots,
+                class_slots,
                 position_slots,
                 tail_slots,
                 feature_slots,
@@ -3975,6 +3978,7 @@ mod tests {
                 codec TransitiveVerb {
                     generate declaration_verb {
                         closed = CoreTransitiveVerb;
+                        class = Auxiliary;
                         position = Verb;
                         tail = ["with", Amount, ObjectNounPhrase];
                         feature = Agreement;
@@ -3991,6 +3995,7 @@ mod tests {
             panic!("the codec retains a typed declaration_verb recipe")
         };
         assert_eq!(source.closed_slots[0].value, "CoreTransitiveVerb");
+        assert_eq!(source.class_slots[0].value, "Auxiliary");
         assert_eq!(source.position_slots[0].value, "Verb");
         assert!(matches!(
             source.tail_slots[0].atoms.as_slice(),
@@ -4040,6 +4045,7 @@ mod tests {
         let Some(crate::GeneratedCodecRecipe::DeclarationVerb(source)) = &binding.generated else {
             panic!("the codec retains a typed declaration_verb recipe")
         };
+        assert!(source.class_slots.is_empty(), "Predicate is the source default");
         let [location, literal, sought] = source.tail_slots[0].atoms.as_slice() else {
             panic!("the exact labeled Search tail is preserved")
         };

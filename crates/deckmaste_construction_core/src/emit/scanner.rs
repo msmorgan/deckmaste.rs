@@ -644,6 +644,17 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         .map(|(terminal_index, codec)| {
             let verb = codec.codec_ident();
             let declaration = codec.declaration_value_ident();
+            let frame_class = match codec.frame_key().class() {
+                crate::semantic::VerbFrameClass::Predicate => {
+                    quote! { VerbFrameClass::Predicate }
+                }
+                crate::semantic::VerbFrameClass::Auxiliary => {
+                    quote! { VerbFrameClass::Auxiliary }
+                }
+                crate::semantic::VerbFrameClass::ProVerb => {
+                    quote! { VerbFrameClass::ProVerb }
+                }
+            };
             let frame_atoms = codec
                 .frame_key()
                 .atoms()
@@ -732,7 +743,10 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     Lexical::DeclarationVerb(#terminal_index, wanted) => {
                     let mut matches = Vec::new();
                     #closed_scan
-                    let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
+                    let frame = VerbFrameKey::with_class(
+                        #frame_class,
+                        &[#(#frame_atoms),*],
+                    );
                     for agreement in [Agreement::Bare, Agreement::ThirdPersonSingular] {
                         if !matches!(wanted, FeatureConstraint::Any)
                             && !matches!(wanted, FeatureConstraint::Exact(expected) if expected == agreement)
@@ -776,7 +790,10 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     Lexical::DeclarationParticiple(#terminal_index) => {
                         let mut matches = Vec::new();
                         #closed_scan
-                        let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
+                        let frame = VerbFrameKey::with_class(
+                            #frame_class,
+                            &[#(#frame_atoms),*],
+                        );
                     for (end, reading) in input.declaration_verb_readings(
                         input.position.byte_offset,
                         &frame,

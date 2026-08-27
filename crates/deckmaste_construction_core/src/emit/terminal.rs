@@ -146,6 +146,17 @@ pub(crate) fn emit(
                 let origin = row.origin().clone();
                 let verb = row.codec_ident();
                 let declaration = row.declaration_value_ident();
+                let frame_class = match row.frame_key().class() {
+                    crate::semantic::VerbFrameClass::Predicate => {
+                        quote! { VerbFrameClass::Predicate }
+                    }
+                    crate::semantic::VerbFrameClass::Auxiliary => {
+                        quote! { VerbFrameClass::Auxiliary }
+                    }
+                    crate::semantic::VerbFrameClass::ProVerb => {
+                        quote! { VerbFrameClass::ProVerb }
+                    }
+                };
                 let frame_atoms = row
                     .frame_key()
                     .atoms()
@@ -193,7 +204,10 @@ pub(crate) fn emit(
                                 environment: &crate::environment::ParserEnvironment,
                                 reference: crate::environment::VerbInventoryRef,
                             ) -> Option<Self> {
-                                let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
+                                let frame = VerbFrameKey::with_class(
+                                    #frame_class,
+                                    &[#(#frame_atoms),*],
+                                );
                                 if !environment.verb_frame_licenses(&reference, frame) {
                                     return None;
                                 }

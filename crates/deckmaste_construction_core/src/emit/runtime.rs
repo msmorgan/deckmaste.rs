@@ -303,6 +303,17 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
     vec![
         named_type(
+            "VerbFrameClass",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+                pub(crate) enum VerbFrameClass {
+                    Predicate,
+                    Auxiliary,
+                    ProVerb,
+                }
+            },
+        ),
+        named_type(
             "VerbFrameAtom",
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -321,6 +332,7 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
                 pub(crate) struct VerbFrameKey {
+                    class: VerbFrameClass,
                     atoms: &'static [VerbFrameAtom],
                 }
             },
@@ -331,7 +343,18 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
             quote! {
                 impl VerbFrameKey {
                     pub(crate) const fn new(atoms: &'static [VerbFrameAtom]) -> Self {
-                        Self { atoms }
+                        Self::with_class(VerbFrameClass::Predicate, atoms)
+                    }
+
+                    pub(crate) const fn with_class(
+                        class: VerbFrameClass,
+                        atoms: &'static [VerbFrameAtom],
+                    ) -> Self {
+                        Self { class, atoms }
+                    }
+
+                    pub(crate) const fn class(self) -> VerbFrameClass {
+                        self.class
                     }
 
                     pub(crate) const fn atoms(self) -> &'static [VerbFrameAtom] {
@@ -345,6 +368,9 @@ fn emit_declaration_verb_frame_types() -> Vec<GeneratedItem> {
                         use ::macro_ron::v2::CustomTailAtom;
                         use ::macro_ron::v2::VerbValence;
 
+                        if self.class != VerbFrameClass::Predicate {
+                            return false;
+                        }
                         match valence {
                             VerbValence::Intransitive => self.atoms.is_empty(),
                             VerbValence::Transitive => {

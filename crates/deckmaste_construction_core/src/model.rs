@@ -467,6 +467,7 @@ pub struct DeclarationNounKindSource {
 pub struct DeclarationVerbSource {
     pub recipe: Ident,
     pub closed_slots: Vec<GeneratedIdentSlot>,
+    pub class_slots: Vec<GeneratedIdentSlot>,
     pub position_slots: Vec<GeneratedIdentSlot>,
     pub tail_slots: Vec<DeclarationVerbTailSource>,
     pub feature_slots: Vec<GeneratedIdentSlot>,
