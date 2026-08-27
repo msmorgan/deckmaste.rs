@@ -141,7 +141,7 @@ spell = InZone stackZ
 ||| A one-faced card, spelled as its face's six printed parts.
 public export
 cardOf : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
-         (line : TypeLine) -> (text : AbilitySeq []) ->
+         (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
          (box : Maybe PrintedBox) ->
          {auto 0 ln : CardLine line} ->
          {auto 0 sp : CardSupers supers} ->
@@ -173,7 +173,7 @@ defenseBox n = Just (DefenseBox (PrintedNum n))
 
 public export
 card : (name : String) -> (cost : Maybe ManaCost) -> (supers : List Supertype) ->
-       (line : TypeLine) -> (text : AbilitySeq []) ->
+       (line : TypeLine) -> (text : AbilitySeq (costLetters cost)) ->
        (stats : Maybe (Integer, Integer)) ->
        {auto 0 ln : CardLine line} ->
        {auto 0 sp : CardSupers supers} ->

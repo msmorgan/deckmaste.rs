@@ -11100,3 +11100,43 @@ eachPlayerBindsNoSingular = Refl
 public export
 eachPlayerBindsAGroup : countManys Player (nomIntro (Each {bs = []} AnyPlayer)) = 1
 eachPlayerBindsAGroup = Refl
+
+--------------------------------------------------------------------------------
+-- The card's own cost letters, in the telescope its text elaborates against.
+--------------------------------------------------------------------------------
+
+||| Prosperity -- "{X}{U} Sorcery: Each player draws X cards." The printed
+||| cost writes the variable symbol, so the face hands its text one letter
+||| already bound.
+public export
+prosperityCostLetters :
+  costLetters (Just [Variable, Macros.pip Blue]) = [letterB X]
+prosperityCostLetters = Refl
+
+||| ...and the text's "X" mints nothing of its own there: it READS the
+||| cost's letter, which is the whole content of [CR#107.3i] at this seat.
+public export
+prosperityTextReadsCostLetter :
+  amtDelta (LetterVal X {bs = costLetters (Just [Variable, Macros.pip Blue])}) = []
+prosperityTextReadsCostLetter = Refl
+
+||| ...where the same "X" against the empty telescope the face used to hand
+||| it minted its OWN binding. Two letters where the card prints one; that
+||| is the gap the index closes.
+public export
+textAloneOnceMintedItsOwnLetter :
+  amtDelta (LetterVal X {bs = []}) = [letterB X]
+textAloneOnceMintedItsOwnLetter = Refl
+
+||| A cost that writes no variable symbol hands its text the empty
+||| telescope, so every card that was writable before is writable
+||| unchanged.
+public export
+noVariableSymbolNoLetter :
+  costLetters (Just [Macros.generic 1, Macros.pip Blue]) = []
+noVariableSymbolNoLetter = Refl
+
+||| ...and so does a face with no printed cost at all [CR#202.3a].
+public export
+noCostNoLetter : costLetters Nothing = []
+noCostNoLetter = Refl

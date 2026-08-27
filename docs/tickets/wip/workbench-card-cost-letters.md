@@ -51,3 +51,51 @@ proof obligation `Card.text`'s new index incurs, evidence bench
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## As landed
+
+`CardFace.text : AbilitySeq (costLetters cost)`, exactly as the ticket
+specified, and every card already benched typechecks under it unchanged.
+
+- `Words.idr`: `costLetters : Maybe ManaCost -> Bindings` — `[letterB X]`
+  where the printed cost writes the variable symbol, `[]` otherwise. ONE
+  letter, not a set: [CR#107.3p] gives Y the same rules as X, but
+  `ManaSymbol`'s variable arm is unlettered and no printed mana cost writes
+  a second variable.
+- `Card.idr`: the `CardFace.text` field is now indexed by its own cost's
+  letters; `CardText`, `CardChapters` and `CardBox` are generalized from
+  `AbilitySeq []` to `AbilitySeq bs`. `AltFace.text` stays at `[]`: a
+  nonmodal back face prints no cost [CR#202.3a] and a flip half's
+  alternative characteristics apply only on the battlefield [CR#710.2],
+  where [CR#107.3g] treats `{X}` as 0.
+- `Macros.idr`: `cardOf` and `card` take `AbilitySeq (costLetters cost)`.
+- Pins (`Cards.idr`): `prosperityCostLetters`,
+  `prosperityTextReadsCostLetter` (the text's "X" now mints nothing — it
+  reads the cost's), `textAloneOnceMintedItsOwnLetter` (the same "X" against
+  the old empty telescope minted a second binding — the gap, as a term),
+  `noVariableSymbolNoLetter` and `noCostNoLetter` (why nothing else moved).
+- `docs/decisions/oracle-text-is-forward-anaphoric.md`'s obligation clause is
+  rewritten from "not yet threaded" to what landed, since the tracked
+  decision would otherwise be stale the moment this commits.
+
+**DEVIATION — [CR#107.3k] is not the rule this mechanism rests on.** The
+ticket and the ADR clause both said "[CR#107.3k] is the rule to read first".
+Read in full it says the opposite of what a card-level scope wants: *"If an
+object's activated ability has an {X}, [-X], or X in its activation cost, the
+value of X for that ability is INDEPENDENT of any other values of X chosen
+for that object …"* — and it closes by declaring itself an exception to
+[CR#107.3i]. It is the exception that BOUNDS the threading, not its licence. The rules that license it are
+[CR#107.3a] (the caster announces X as the spell is cast, and any X in the
+spell's mana cost equals that value while it is on the stack) and
+[CR#107.3i] ("Normally, all instances of X on an object have the same value
+at any given time"). Both are cited at the field and in `costLetters`, with
+[CR#107.3k] and [CR#107.3j] recorded there as the exceptions.
+
+**Measured, tolerated overgeneration.** The face's telescope reaches an
+activated ability written inside the text, so a `{X}` activation cost on an
+`{X}`-cost card would read the face's letter where [CR#107.3k] wants an
+independent one. Reachable but small: 3 supported cards (Chamber Sentry,
+Defenders of Humanity, Wren's Run Hydra). Fixing it belongs to the ability's
+own telescope — where an activation cost's `{X}` already mints into
+`costIntro` — not to the face law, so it is recorded rather than taken.
+**Remainder for the coordinator.**

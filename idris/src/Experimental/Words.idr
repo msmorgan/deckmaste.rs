@@ -3060,6 +3060,31 @@ manaHasX [] = False
 manaHasX (Variable :: _) = True
 manaHasX (_ :: ms) = manaHasX ms
 
+||| The letters a printed mana cost brings into scope for the text that
+||| shares the object with it. [CR#107.3a] has the caster announce the
+||| value of X as the spell is cast and fixes any X in the spell's mana
+||| cost at that value while it is on the stack; [CR#107.3i] then makes
+||| every instance of X on the object share it. So a card whose cost
+||| writes the variable symbol hands its text a letter already bound,
+||| which is precisely what Prosperity's "X" reads.
+|||
+||| ONE letter, not a set: [CR#107.3p] gives Y the same rules as X, but no
+||| printed mana cost writes it -- `ManaSymbol`'s variable arm is
+||| unlettered, and a second variable in one cost has no symbol to be
+||| spelled with.
+|||
+||| The scope is the object's, and its two [CR#107.3] exceptions are NOT
+||| this function's to state. [CR#107.3k] makes an activated ability's own
+||| activation-cost X independent of the object's, so a card whose text
+||| activates for {X} must not read this letter for that ability's cost;
+||| [CR#107.3j] does the same for a gained ability. Both are facts about
+||| where an ability's cost gets its value, which is the ability's own
+||| telescope and not the face's.
+public export
+costLetters : Maybe ManaCost -> Bindings
+costLetters Nothing = []
+costLetters (Just c) = if manaHasX c then [letterB X] else []
+
 public export
 ManaRun : ManaCost -> Type
 ManaRun c = NonEmpty c

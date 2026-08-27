@@ -252,15 +252,16 @@ data CardLine : TypeLine -> Type where
                {auto 0 sf : So (subsFitLine l.subs l.tys)} -> CardLine l
 
 public export
-CardText : TypeLine -> AbilitySeq [] -> Type
+CardText : {0 bs : Bindings} -> TypeLine -> AbilitySeq bs -> Type
 CardText l as = So (cardTextOk l.tys as)
 
 public export
-CardChapters : TypeLine -> AbilitySeq [] -> Type
+CardChapters : {0 bs : Bindings} -> TypeLine -> AbilitySeq bs -> Type
 CardChapters l as = So (chapterFrameOk l.subs as)
 
 public export
-data CardBox : TypeLine -> AbilitySeq [] -> Maybe PrintedBox -> Type where
+data CardBox : {0 bs : Bindings} -> TypeLine -> AbilitySeq bs ->
+               Maybe PrintedBox -> Type where
   MkCardBox : {0 box : Maybe PrintedBox} ->
               {auto 0 ok : So (cardBoxOk l.tys as box)} -> CardBox l as box
 
@@ -313,11 +314,16 @@ CardCost l c = So (cardCostOk l.tys c)
 ||| writes none; what separates these faces from `AltFace` is having a cost
 ||| slot at all.
 |||
-||| Its text is its own `AbilitySeq []`, so no face's words read a binding
-||| another face introduced. That is not a convenience: a face's
-||| characteristics exist only while that face is the one in play
-||| [CR#712.8f,709.3b,715.3b], so there is no moment at which one face's
-||| clause could resolve against the other's antecedent.
+||| Its text is typed at ITS OWN cost's letters and nothing else, so no
+||| face's words read a binding another face introduced. That is not a
+||| convenience: a face's characteristics exist only while that face is
+||| the one in play [CR#712.8f,709.3b,715.3b], so there is no moment at
+||| which one face's clause could resolve against the other's antecedent.
+||| The telescope is `costLetters cost` rather than `[]` because
+||| [CR#107.3i] makes every instance of X on the object one value, and the
+||| value the caster announced [CR#107.3a] lives in the cost -- so
+||| Prosperity's printed "{X}" and its text's "X" are one binding rather
+||| than two spellings, which is what the empty telescope could not say.
 public export
 record CardFace where
   constructor MkFace
@@ -325,7 +331,7 @@ record CardFace where
   cost : Maybe ManaCost
   supers : List Supertype
   line : TypeLine
-  text : AbilitySeq []
+  text : AbilitySeq (costLetters cost)
   box : Maybe PrintedBox
 
 ||| A printed face that writes no mana cost at all. Two layouts print one:

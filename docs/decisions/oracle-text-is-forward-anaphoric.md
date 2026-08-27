@@ -152,10 +152,18 @@ reads it. It mints the OPEN form, because [CR#107.3c] reads "an {X}, [-X], or X
 in its cost and/or its text" together and lets the text define the value of a
 letter the cost wrote; only an undefined one falls to its controller's
 announcement [CR#107.3a]. No printed line does both, and a count is not a
-refusal. A card's own mana cost is not yet threaded — a `Spell` effect is typed
-at `[]`, so Prosperity's `{X}` and its text X are one variable in prose only,
-and the text X is an introduction. Closing that means typing a card's text at
-its cost's letters, and [CR#107.3k] is the rule to read first.
+refusal. A card's own mana cost is threaded the same way: `CardFace.text` is
+typed at `costLetters cost`, so a face whose printed cost writes the variable
+symbol hands its text that letter already bound and Prosperity's `{X}` and its
+text X are one binding rather than two spellings. [CR#107.3a] is where the value
+comes from — the caster announces it as the spell is cast — and [CR#107.3i] is
+what makes the text's X the same one. The face states the object's scope and
+not its exceptions: [CR#107.3k] gives an activated ability's own activation-cost
+X a value independent of the object's, and [CR#107.3j] does the same for a
+gained ability. Both are the ability's telescope to state, and neither is
+enforced today — measured at 3 supported cards that write an `{X}` activation
+cost on an `{X}`-cost card (Chamber Sentry, Defenders of Humanity, Wren's Run
+Hydra), recorded as tolerated overgeneration.
 
 This supersedes the scoping constructor a definition-first `WhereLetter` used
 to be (`docs/tickets/done/workbench-conditional-and-coordination.md`) and the
