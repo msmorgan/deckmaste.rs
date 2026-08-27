@@ -432,3 +432,5 @@ Standard constraints apply.
 - **Routed from workbench-amount-ceiling-read (close, 2026-08-26):** "Discard up to two cards, then draw that many" (12 carriers) — a set ceiling plus a magnitude the discard clause must ANNOUNCE for "that many" to read; a mention/announcement gap, so it lands here.
 
 - **Routed from workbench-event-zone-1-verbed-event (close, 2026-08-26):** the plural at-random determiner — "two cards at random" (Tourach's whole-card blocker): `Indefinite` carries `ChoiceMode` but is singular; `CountedGroup` counts but has no mode slot. A determiner/mention gap, so it lands here. Also: the counted-group SIZE as a readable amount ("that many" over a counted group — Screeching Scorchbeast, The Wise Mothman, Bruvac's "twice that many") if no other ticket owns it after the grep at routing time.
+
+- **Routed from workbench-event-zone-2-event-subjects (close, 2026-08-26):** intervening conditions announce NOTHING (`condDelta (Happened …) = []`), so a trigger body cannot read the condition's subject back as "it" (Whirling Dervish, Dunerider Outlaw print exactly that). An announcement gap, so it lands here.

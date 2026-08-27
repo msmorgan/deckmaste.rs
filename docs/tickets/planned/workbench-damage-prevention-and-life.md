@@ -324,3 +324,5 @@ evidence bench `idris/src/Experimental/Cards.idr`.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-event-zone-2-event-subjects (close, 2026-08-26):** the PROSPECTIVE dealer-side damage row — "Whenever [source] deals damage to [X]" outside combat has no `GameEvent` row (`DamageDealing` landed retrospective-only; its `interceptOk`/`spanEventOk` cells are stated but unreached). Unmeasured; measure before minting. Missing damage GameEvent rows are this ticket's, so it lands here.

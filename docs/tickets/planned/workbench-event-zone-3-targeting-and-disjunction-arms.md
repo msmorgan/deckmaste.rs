@@ -260,3 +260,5 @@ sub-round 1** — its pin was architectural and the discard family is 96
 lines, the largest single unblock in the bundle.
 
 Standard constraints apply.
+
+- **Routed from workbench-event-zone-2-event-subjects (close, 2026-08-26):** `DamageTaken` with a JOINED-kind subject — The Fallen's "each opponent and planeswalker it has dealt damage to this game" is a victim-side relative clause at `Player \/ Object`; same joined-complement machinery this round measures. It lands here.
