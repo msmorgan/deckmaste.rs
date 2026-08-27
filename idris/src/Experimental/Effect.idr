@@ -2211,16 +2211,18 @@ mutual
   paramShapeOf (Just (ParamNumber _)) = NumberParam
 
   public export
-  keywordParamFits : {0 bs : Bindings} -> Keyword -> Maybe (KeywordParam bs) -> Bool
-  keywordParamFits k p = keywordParamShape k == paramShapeOf p
+  keywordParamFits : {0 bs : Bindings} -> KeywordLabel -> Maybe (KeywordParam bs) -> Bool
+  -- Knownness is folded in, so this ONE gate refuses a typo as well as a
+  -- mismatched parameter: an unknown word has no parameter shape to fit.
+  keywordParamFits k p = knownKeyword k && keywordParamShape k == paramShapeOf p
 
   public export
-  KeywordParamFits : Keyword -> Maybe (KeywordParam bs) -> Type
+  KeywordParamFits : KeywordLabel -> Maybe (KeywordParam bs) -> Type
   KeywordParamFits {bs} k p = So (keywordParamFits k p)
 
   public export
   data AbilityAt : Bindings -> Type where
-    KeywordAbility : (k : Keyword) ->
+    KeywordAbility : (k : KeywordLabel) ->
                      (param : Maybe (KeywordParam bs)) ->
                      {auto 0 pf : KeywordParamFits k param} -> AbilityAt bs
     Activated : (cost : Cost bs) ->
@@ -2244,7 +2246,7 @@ mutual
     Static : (se : StaticEffect bs) ->
              {auto 0 ut : Untargeting se} -> AbilityAt bs
     Spell : (eff : Effect bs) -> AbilityAt bs
-    AlsoForKeywords : (ab : AbilityAt bs) -> (ks : List Keyword) ->
+    AlsoForKeywords : (ab : AbilityAt bs) -> (ks : List KeywordLabel) ->
                       {auto 0 ex : KeywordExtendable ab} ->
                       {auto 0 lk : KeywordListOk ab ks} -> AbilityAt bs
     ||| [CR#207.2c]: an ability word prefixes an ability of any kind and has
@@ -2279,26 +2281,26 @@ mutual
   Untargeting {bs} se = So (not (anyTargetedAt (staticIntro se)))
 
   public export
-  lineKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe Keyword
+  lineKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe KeywordLabel
   lineKeyword (Static se) = statKeyword se
   lineKeyword (Triggered _ _ _ _ _ _ eff) = effKeyword eff
   lineKeyword _ = Nothing
 
   public export
-  statKeyword : {0 bs : Bindings} -> StaticEffect bs -> Maybe Keyword
+  statKeyword : {0 bs : Bindings} -> StaticEffect bs -> Maybe KeywordLabel
   statKeyword (Conditionally _ se _) = statKeyword se
   statKeyword (OnlyWhile se _ _) = statKeyword se
   statKeyword (Gains _ ab) = grantedKeyword ab
   statKeyword _ = Nothing
 
   public export
-  effKeyword : {0 bs : Bindings} -> Effect bs -> Maybe Keyword
+  effKeyword : {0 bs : Bindings} -> Effect bs -> Maybe KeywordLabel
   effKeyword (Continuously se _) = statKeyword se
   effKeyword (Throughout _ se) = statKeyword se
   effKeyword _ = Nothing
 
   public export
-  grantedKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe Keyword
+  grantedKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe KeywordLabel
   grantedKeyword (KeywordAbility k Nothing) =
     if keywordParamless k then Just k else Nothing
   grantedKeyword _ = Nothing
@@ -2310,7 +2312,7 @@ mutual
     Just _ => True
 
   public export
-  keywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List Keyword -> Bool
+  keywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List KeywordLabel -> Bool
   keywordListOk ab ks = case lineKeyword ab of
     Nothing => False
     Just base => not (isNil ks) && allParamless ks && distinctKeywords ks &&
@@ -2318,12 +2320,12 @@ mutual
 
 
   public export
-  allParamless : List Keyword -> Bool
+  allParamless : List KeywordLabel -> Bool
   allParamless [] = True
   allParamless (k :: ks) = keywordParamless k && allParamless ks
 
   public export
-  distinctKeywords : List Keyword -> Bool
+  distinctKeywords : List KeywordLabel -> Bool
   distinctKeywords [] = True
   distinctKeywords (k :: ks) = not (elem k ks) && distinctKeywords ks
 
@@ -2332,7 +2334,7 @@ mutual
   KeywordExtendable {bs} ab = So (keywordExtendableOk ab)
 
   public export
-  KeywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List Keyword -> Type
+  KeywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List KeywordLabel -> Type
   KeywordListOk {bs} ab ks = So (keywordListOk ab ks)
 
   ||| [CR#613.1f] applies ability-adding effects over abilities as such,

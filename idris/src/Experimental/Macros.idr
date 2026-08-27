@@ -578,9 +578,9 @@ gains n a d = Continuously (Gains n a) d
 
 public export
 gainsHaste : (n : Noun bs Object) -> (d : Maybe (Duration (selfSubjIntro n))) ->
-             {auto 0 ok : GrantSubject (KeywordAbility Haste Nothing) n} ->
+             {auto 0 ok : GrantSubject (KeywordAbility "Haste" Nothing) n} ->
              {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
-gainsHaste n d = gains n (KeywordAbility Haste Nothing) d
+gainsHaste n d = gains n (KeywordAbility "Haste" Nothing) d
 
 public export
 plusOnePlusOne : CounterKind
@@ -592,7 +592,7 @@ minusOneMinusOne = BoostCounter (Down 1) (Down 1)
 
 public export
 flyingCounter : CounterKind
-flyingCounter = KeywordCounter Flying
+flyingCounter = KeywordCounter "Flying"
 
 
 public export
@@ -1095,7 +1095,7 @@ losesAllCounters who kind = LosesCounters who kind Nothing {pk}
 
 ||| "Flying", "Trample": a keyword written with no parameter.
 public export
-keyword : {0 bs : Bindings} -> (kw : Keyword) ->
+keyword : {0 bs : Bindings} -> (kw : KeywordLabel) ->
           {auto 0 pf : KeywordParamFits {bs} kw
                          (the (Maybe (KeywordParam bs)) Nothing)} ->
           AbilityAt bs
@@ -1103,7 +1103,7 @@ keyword kw = KeywordAbility kw Nothing {pf}
 
 ||| "Enchant creature": a keyword whose parameter is a subject phrase.
 public export
-keywordSubject : {0 bs : Bindings} -> {k : Kind} -> (kw : Keyword) ->
+keywordSubject : {0 bs : Bindings} -> {k : Kind} -> (kw : KeywordLabel) ->
                  (p : Predicate [] k) ->
                  {auto 0 pf : KeywordParamFits {bs} kw
                                 (Just (ParamSubject {bs} p))} ->
@@ -1112,7 +1112,7 @@ keywordSubject kw p = KeywordAbility kw (Just (ParamSubject p)) {pf}
 
 ||| "Equip {2}", "Ward {2}": a keyword whose parameter is a cost.
 public export
-keywordCosting : {0 bs : Bindings} -> (kw : Keyword) -> (c : Cost []) ->
+keywordCosting : {0 bs : Bindings} -> (kw : KeywordLabel) -> (c : Cost []) ->
                  {auto 0 pf : KeywordParamFits {bs} kw
                                 (Just (ParamCost {bs} c))} ->
                  AbilityAt bs
@@ -1120,14 +1120,14 @@ keywordCosting kw c = KeywordAbility kw (Just (ParamCost c)) {pf}
 
 ||| "Protection from red": a keyword whose parameter is a quality.
 public export
-keywordQuality : (kw : Keyword) -> (q : Predicate bs Object) ->
+keywordQuality : (kw : KeywordLabel) -> (q : Predicate bs Object) ->
                  {auto 0 pf : KeywordParamFits kw (Just (ParamQuality q))} ->
                  AbilityAt bs
 keywordQuality kw q = KeywordAbility kw (Just (ParamQuality q)) {pf}
 
 ||| "Renown 1": a keyword whose parameter is a written number.
 public export
-keywordNumber : {0 bs : Bindings} -> (kw : Keyword) -> (amt : Amount []) ->
+keywordNumber : {0 bs : Bindings} -> (kw : KeywordLabel) -> (amt : Amount []) ->
                 {auto 0 pf : KeywordParamFits {bs} kw
                                (Just (ParamNumber {bs} amt))} ->
                 AbilityAt bs

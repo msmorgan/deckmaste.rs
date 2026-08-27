@@ -40,7 +40,7 @@ badPoisonCounterDescription Refl impossible
 ||| [CR#702.24a] states the keyword as "Cumulative upkeep [cost]", so the parameter is never absent.
 public export
 badBareCumulativeUpkeep : Unspellable Ability (\ok =>
-  KeywordAbility CumulativeUpkeep Nothing {pf = ok})
+  KeywordAbility "CumulativeUpkeep" Nothing {pf = ok})
 badBareCumulativeUpkeep Oh impossible
 
 
@@ -49,7 +49,7 @@ badBareCumulativeUpkeep Oh impossible
 public export
 badCumulativeUpkeepOnSpell : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [KeywordAbility CumulativeUpkeep (Just (ParamCost (Mana [Macros.generic 2])))] Nothing {tx = ok})
+       [KeywordAbility "CumulativeUpkeep" (Just (ParamCost (Mana [Macros.generic 2])))] Nothing {tx = ok})
 badCumulativeUpkeepOnSpell Oh impossible
 
 
@@ -57,7 +57,7 @@ badCumulativeUpkeepOnSpell Oh impossible
 ||| [CR#122.1b] closes the keyword-counter list by enumeration, and cumulative upkeep is not on it.
 public export
 badCumulativeUpkeepCounter : Unspellable CounterKind (\ok =>
-  KeywordCounter CumulativeUpkeep {ok = ok})
+  KeywordCounter "CumulativeUpkeep" {ok = ok})
 badCumulativeUpkeepCounter Oh impossible
 
 
@@ -67,7 +67,7 @@ public export
 badKeywordListOnPlainLine : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Gets (AllOf Macros.creatureYouControl)
                                 (PtUp (Lit 1)) (PtUp (Lit 1))))
-                  [Menace, Trample]
+                  ["Menace", "Trample"]
                   {ex = Builtin.fst ok, lk = Builtin.snd ok})
 badKeywordListOnPlainLine (Oh, _) impossible
 
@@ -78,8 +78,8 @@ public export
 badEmptyKeywordList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
-                                           HasKeyword Flying]))
-                             (Gains Macros.thisCreature (KeywordAbility Flying Nothing)) AsLongAs))
+                                           HasKeyword "Flying"]))
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing)) AsLongAs))
                   [] {lk = ok})
 badEmptyKeywordList Oh impossible
 
@@ -90,9 +90,9 @@ public export
 badKeywordListRepeatingBase : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
-                                           HasKeyword Flying]))
-                             (Gains Macros.thisCreature (KeywordAbility Flying Nothing)) AsLongAs))
-                  [Menace, Flying, Trample] {lk = ok})
+                                           HasKeyword "Flying"]))
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing)) AsLongAs))
+                  ["Menace", "Flying", "Trample"] {lk = ok})
 badKeywordListRepeatingBase Oh impossible
 
 
@@ -264,7 +264,7 @@ badPossessedMonarch Refl impossible
 ||| [CR#702.84a] states the keyword as "Unearth [cost]", so the parameter is never absent.
 public export
 badBareUnearth : Unspellable Ability (\ok =>
-  KeywordAbility Unearth Nothing {pf = ok})
+  KeywordAbility "Unearth" Nothing {pf = ok})
 badBareUnearth Oh impossible
 
 
@@ -272,7 +272,7 @@ badBareUnearth Oh impossible
 ||| [CR#702.81a] writes retrace bare, so no cost stands beside the word.
 public export
 badCostedRetrace : Unspellable Ability (\ok =>
-  KeywordAbility Retrace (Just (ParamCost (Mana [Macros.generic 1])))
+  KeywordAbility "Retrace" (Just (ParamCost (Mana [Macros.generic 1])))
                  {pf = ok})
 badCostedRetrace Oh impossible
 
@@ -282,7 +282,7 @@ badCostedRetrace Oh impossible
 public export
 badUnearthOnSpellCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility Unearth (Just (ParamCost (Mana [Macros.pip Black])))] Nothing {tx = ok})
+       [KeywordAbility "Unearth" (Just (ParamCost (Mana [Macros.pip Black])))] Nothing {tx = ok})
 badUnearthOnSpellCard Oh impossible
 
 
@@ -292,7 +292,7 @@ public export
 badFlashbackOnPermanentCard : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Artifact])
-       [KeywordAbility Flashback (Just (ParamCost (Mana [Macros.generic 2, Macros.pip Blue])))]
+       [KeywordAbility "Flashback" (Just (ParamCost (Mana [Macros.generic 2, Macros.pip Blue])))]
        Nothing {tx = ok})
 badFlashbackOnPermanentCard Oh impossible
 
@@ -302,7 +302,7 @@ badFlashbackOnPermanentCard Oh impossible
 public export
 badWarpGrantInGraveyard : Unspellable Ability (\ok =>
   Static (Gains (AllOf (And [Macros.creature, InZone (Macros.graveyardOf You)]))
-                (Macros.keywordCosting Warp (Mana [Macros.generic 2]))
+                (Macros.keywordCosting "Warp" (Mana [Macros.generic 2]))
                 {ok = ok}))
 badWarpGrantInGraveyard Oh impossible
 
@@ -703,7 +703,7 @@ badZeroRollTest MaxAtLeastOne impossible
 ||| no cost, so the phrase names nothing to pay.
 public export
 badPayCostlessKeyword : Unspellable (GameEvent []) (\ok =>
-  PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisCreature Flying {kc = ok})
+  PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisCreature "Flying" {kc = ok})
 badPayCostlessKeyword Oh impossible
 
 ||| "if you paid a cost this turn"
@@ -779,7 +779,7 @@ badBasicCreatureTypeAxis Oh impossible
 ||| keyword whose parameter is a cost.
 public export
 badBareEcho : Unspellable Ability (\ok =>
-  KeywordAbility Echo Nothing {pf = ok})
+  KeywordAbility "Echo" Nothing {pf = ok})
 badBareEcho Oh impossible
 
 ||| The discourse after "Whenever this creature's cumulative upkeep is
@@ -788,7 +788,7 @@ public export
 afterPassivePayment : Bindings
 afterPassivePayment =
   eventAfter (the (GameEvent [])
-    (PaysCost Nothing Paid Macros.thisCreature CumulativeUpkeep))
+    (PaysCost Nothing Paid Macros.thisCreature "CumulativeUpkeep"))
 
 ||| "Whenever this creature's cumulative upkeep is paid, that player …"
 ||| [CR#702.24a] fixes WHO pays a cumulative upkeep, so the passive omits
@@ -807,7 +807,7 @@ public export
 afterKeywordCostPayment : Bindings
 afterKeywordCostPayment =
   eventAfter (the (GameEvent [])
-    (PaysCost (Just You) Paid Macros.thisEnchantment CumulativeUpkeep))
+    (PaysCost (Just You) Paid Macros.thisEnchantment "CumulativeUpkeep"))
 
 ||| "Whenever you pay this enchantment's cumulative upkeep, put that many
 ||| counters on it."

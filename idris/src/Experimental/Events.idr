@@ -90,7 +90,7 @@ paymentEventName Unpaid = CostNonpayment
 ||| whose parameter IS a cost [CR#118.1]. A keyword with no cost parameter
 ||| -- flying, menace -- names nothing payable.
 public export
-KeywordCost : Keyword -> Type
+KeywordCost : KeywordLabel -> Type
 KeywordCost k = So (keywordParamShape k == CostParam)
 
 public export

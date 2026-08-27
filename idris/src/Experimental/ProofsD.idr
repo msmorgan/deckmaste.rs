@@ -41,7 +41,7 @@ badStaticOnSorcery Oh impossible
 public export
 badKeywordOnInstant : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip Red]) [] (MkTypeLine [] [Instant])
-       [KeywordAbility Flying Nothing] Nothing {tx = ok})
+       [KeywordAbility "Flying" Nothing] Nothing {tx = ok})
 badKeywordOnInstant Oh impossible
 
 

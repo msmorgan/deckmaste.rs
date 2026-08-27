@@ -317,7 +317,7 @@ mutual
     ||| -- spelling: voiced, "[who] pay(s)/doesn't pay [whose]'s
     ||| [keyword]"; unvoiced, "[whose]'s [keyword] is/isn't paid".
     PaysCost : (who : Maybe (Noun bs Player)) -> (out : PaymentOutcome) ->
-               (whose : Noun (payerIntro who) Object) -> (kw : Keyword) ->
+               (whose : Noun (payerIntro who) Object) -> (kw : KeywordLabel) ->
                {auto 0 kc : KeywordCost kw} ->
                {auto 0 one : nounPlur whose = OneOf} -> GameEvent bs
     ||| "Whenever you pay life" (Font of Agonies): a life payment as a

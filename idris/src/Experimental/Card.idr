@@ -45,90 +45,26 @@ typesCombinable tys =
     && (not (elem Kindred tys) || hasNonKindredType tys)
 
 ||| Which card class may print a keyword on itself. This is not
-||| `keywordStackRegime`'s question re-asked: that table says from which
-||| zone a keyword's ability functions, this one says whether the word
+||| `keywordStackRegime`'s question re-asked: that field says from which
+||| zone a keyword's ability functions, this pair says whether the word
 ||| can sit on the card at all, and the two would disagree even if every
-||| cell agreed today. Flash is the case that used to look like a
+||| row agreed today. Flash is the case that used to look like a
 ||| disagreement: [CR#702.8a] says only that flash functions in any zone
 ||| the card could be played from, and restricts the word to no card
 ||| type, so an instant or sorcery may carry it. On an instant the word
 ||| grants what the card already has — redundant, which is not the same
 ||| as meaningless — and a sorcery carrying it is not redundant at all.
+||| The words a card class may not print are each some rule's:
+||| [CR#702.84a] and [CR#702.49a] put the card onto the battlefield,
+||| which [CR#110.4] denies an instant or sorcery card, so unearth and
+||| ninjutsu sit on no spell card, and echo is the same shape --
+||| [CR#702.30a] speaks of “this permanent”. [CR#702.34a] permits the
+||| flashback cast only if the resulting spell is an instant or sorcery,
+||| so flashback is the one word no permanent card prints.
 public export
-keywordCardOk : CardClass -> Keyword -> Bool
-keywordCardOk PermanentCard Haste = True
-keywordCardOk PermanentCard Flying = True
-keywordCardOk PermanentCard Trample = True
-keywordCardOk PermanentCard Vigilance = True
-keywordCardOk PermanentCard Deathtouch = True
-keywordCardOk PermanentCard DoubleStrike = True
-keywordCardOk PermanentCard FirstStrike = True
-keywordCardOk SpellCard Haste = False
-keywordCardOk SpellCard Flying = False
-keywordCardOk SpellCard Trample = False
-keywordCardOk SpellCard Vigilance = False
-keywordCardOk SpellCard Deathtouch = False
-keywordCardOk SpellCard DoubleStrike = False
-keywordCardOk SpellCard FirstStrike = False
-keywordCardOk PermanentCard Reach = True
-keywordCardOk SpellCard Reach = False
-keywordCardOk PermanentCard Convoke = True
-keywordCardOk PermanentCard Improvise = True
-keywordCardOk PermanentCard Storm = True
-keywordCardOk PermanentCard Lifelink = True
-keywordCardOk SpellCard Convoke = True
-keywordCardOk SpellCard Improvise = True
-keywordCardOk SpellCard Storm = True
-keywordCardOk SpellCard Lifelink = False
-keywordCardOk PermanentCard Ward = True
-keywordCardOk PermanentCard Protection = True
-keywordCardOk SpellCard Ward = False
-keywordCardOk SpellCard Protection = False
-keywordCardOk PermanentCard Enchant = True
-keywordCardOk PermanentCard Equip = True
-keywordCardOk PermanentCard Storied = True
-keywordCardOk PermanentCard Renown = True
-keywordCardOk SpellCard Enchant = False
-keywordCardOk SpellCard Equip = False
-keywordCardOk SpellCard Storied = False
-keywordCardOk SpellCard Renown = False
-keywordCardOk PermanentCard Indestructible = True
-keywordCardOk SpellCard Indestructible = False
-keywordCardOk PermanentCard Flash = True
-keywordCardOk SpellCard Flash = True
-keywordCardOk PermanentCard Ascend = True
-keywordCardOk SpellCard Ascend = True
-keywordCardOk PermanentCard CumulativeUpkeep = True
-keywordCardOk SpellCard CumulativeUpkeep = False
--- [CR#702.30a] speaks of "this permanent", and [CR#110.4] denies an
--- instant or sorcery card ever being one.
-keywordCardOk PermanentCard Echo = True
-keywordCardOk SpellCard Echo = False
-keywordCardOk PermanentCard Hexproof = True
-keywordCardOk SpellCard Hexproof = False
-keywordCardOk PermanentCard Menace = True
-keywordCardOk SpellCard Menace = False
-keywordCardOk PermanentCard Skulk = True
-keywordCardOk SpellCard Skulk = False
--- [CR#702.84a] and [CR#702.49a] put the card onto the battlefield, which
--- [CR#110.4] denies an instant or sorcery card; [CR#702.34a] permits the
--- flashback cast only if the resulting spell is an instant or sorcery.
-keywordCardOk PermanentCard Unearth = True
-keywordCardOk SpellCard Unearth = False
-keywordCardOk PermanentCard Ninjutsu = True
-keywordCardOk SpellCard Ninjutsu = False
-keywordCardOk PermanentCard Flashback = False
-keywordCardOk SpellCard Flashback = True
-keywordCardOk PermanentCard Dredge = True
-keywordCardOk SpellCard Dredge = True
-keywordCardOk PermanentCard Retrace = True
-keywordCardOk SpellCard Retrace = True
-keywordCardOk PermanentCard Cycling = True
-keywordCardOk SpellCard Cycling = True
-keywordCardOk PermanentCard Miracle = True
-keywordCardOk SpellCard Miracle = True
-keywordCardOk PermanentCard Warp = True
-keywordCardOk SpellCard Warp = True
+keywordCardOk : CardClass -> KeywordLabel -> Bool
+keywordCardOk PermanentCard k = maybe False onPermanentCard (keywordFactsFor k)
+keywordCardOk SpellCard k = maybe False onSpellCard (keywordFactsFor k)
 
 public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool

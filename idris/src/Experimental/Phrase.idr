@@ -154,7 +154,7 @@ mutual
     -- no first ability for this one to be linked to.
     OfYourChoice : (q : QualitySort) ->
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
-    HasKeyword : (k : Keyword) -> 
+    HasKeyword : (k : KeywordLabel) -> {auto 0 kn : KnownKeyword k} ->
                  Predicate bs Object
     ControlledBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
     CastBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object

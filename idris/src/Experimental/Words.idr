@@ -1965,66 +1965,32 @@ targetablePhrasal (JoinTgt l r) =
   PhJoin (targetablePhrasal l) (targetablePhrasal r)
 
 
-||| The last group functions away from the battlefield, each rule naming
-||| its own zone [CR#113.6b]: a graveyard for unearth [CR#702.84a],
-||| flashback [CR#702.34a], dredge [CR#702.52a] and retrace [CR#702.81a];
-||| a hand for cycling [CR#702.29a], ninjutsu [CR#702.49a] and miracle
-||| [CR#702.94a]; the stack for warp [CR#702.185a].
+||| The NAME a card prints where an ability's whole text would otherwise
+||| go: "flying", "ward {2}", "dredge 3". [CR#702.1] states the NOTATION,
+||| not a set -- an object "lists only the name of the ability as a
+||| keyword", and the keyword's own rule states what the word means. So
+||| the meaning lives in the rule the word names, exactly as a keyword
+||| ACTION's meaning lives in the body its macro expands; the label says
+||| only which one.
+|||
+||| That makes the vocabulary OPEN. [CR#702]'s numbered sections look like
+||| a closed enumeration and are not one: a level symbol [CR#711.2], a
+||| chapter symbol [CR#714.2] and a class level bar [CR#716.2] are each
+||| "a keyword ability" stated outside [CR#702] altogether, and this
+||| grammar already writes one of them -- `ChapterMark` [CR#107.15]. A
+||| word needs no [CR#702] entry to be a keyword, so a new keyword is a
+||| new row of data, never a core enum arm plus a coverage re-decide.
+|||
+||| The label is still typo-checked at every gate that writes one,
+||| against `keywordFacts` -- one DATA row per word, carrying what the
+||| word's own rule says and its spelling cannot.
 public export
-data Keyword = Haste | Flying | Trample | Vigilance | Deathtouch
-             | DoubleStrike | FirstStrike | Reach
-             | Convoke | Improvise | Storm | Lifelink
-             | Ward | Protection
-             | Enchant | Equip | Ascend | Storied | Renown
-             | Indestructible | Flash
-             | CumulativeUpkeep | Echo
-             | Hexproof | Menace | Skulk
-             | Unearth | Flashback | Dredge | Retrace
-             | Cycling | Ninjutsu | Miracle | Warp
+KeywordLabel : Type
+KeywordLabel = String
 
 public export
 data KeywordParamShape = NoParam | CostParam | QualityParam | SubjectParam
                        | NumberParam
-
-public export
-keywordParamShape : Keyword -> KeywordParamShape
-keywordParamShape Haste = NoParam
-keywordParamShape Flying = NoParam
-keywordParamShape Trample = NoParam
-keywordParamShape Vigilance = NoParam
-keywordParamShape Deathtouch = NoParam
-keywordParamShape DoubleStrike = NoParam
-keywordParamShape FirstStrike = NoParam
-keywordParamShape Reach = NoParam
-keywordParamShape Convoke = NoParam
-keywordParamShape Improvise = NoParam
-keywordParamShape Storm = NoParam
-keywordParamShape Lifelink = NoParam
-keywordParamShape Ward = CostParam
-keywordParamShape Protection = QualityParam
-keywordParamShape Enchant = SubjectParam
-keywordParamShape Equip = CostParam
-keywordParamShape Ascend = NoParam
-keywordParamShape Storied = NoParam
-keywordParamShape Renown = NumberParam
-keywordParamShape Indestructible = NoParam
-keywordParamShape Flash = NoParam
-keywordParamShape CumulativeUpkeep = CostParam
--- [CR#702.30a] writes the keyword as "Echo [cost]".
-keywordParamShape Echo = CostParam
-keywordParamShape Hexproof = NoParam
-keywordParamShape Menace = NoParam
-keywordParamShape Skulk = NoParam
--- Each rule writes its own parameter: "Unearth [cost]" [CR#702.84a],
--- "Dredge N" [CR#702.52a], a bare "Retrace" [CR#702.81a].
-keywordParamShape Unearth = CostParam
-keywordParamShape Flashback = CostParam
-keywordParamShape Dredge = NumberParam
-keywordParamShape Retrace = NoParam
-keywordParamShape Cycling = CostParam
-keywordParamShape Ninjutsu = CostParam
-keywordParamShape Miracle = CostParam
-keywordParamShape Warp = CostParam
 
 public export
 Eq KeywordParamShape where
@@ -2039,83 +2005,145 @@ Eq KeywordParamShape where
   (==) NumberParam NumberParam = True
   (==) NumberParam _ = False
 
+||| When a keyword's ability acts, for the keywords that act before the
+||| object carrying them has resolved.
 public export
-keywordParamless : Keyword -> Bool
-keywordParamless k = keywordParamShape k == NoParam
+data StackRegime = AtCasting | AtResolution
 
 public export
-Eq Keyword where
-  (==) Haste Haste = True
-  (==) Haste _ = False
-  (==) Flying Flying = True
-  (==) Flying _ = False
-  (==) Trample Trample = True
-  (==) Trample _ = False
-  (==) Vigilance Vigilance = True
-  (==) Vigilance _ = False
-  (==) Deathtouch Deathtouch = True
-  (==) Deathtouch _ = False
-  (==) DoubleStrike DoubleStrike = True
-  (==) DoubleStrike _ = False
-  (==) FirstStrike FirstStrike = True
-  (==) FirstStrike _ = False
-  (==) Reach Reach = True
-  (==) Reach _ = False
-  (==) Convoke Convoke = True
-  (==) Convoke _ = False
-  (==) Improvise Improvise = True
-  (==) Improvise _ = False
-  (==) Storm Storm = True
-  (==) Storm _ = False
-  (==) Lifelink Lifelink = True
-  (==) Lifelink _ = False
-  (==) Ward Ward = True
-  (==) Ward _ = False
-  (==) Protection Protection = True
-  (==) Protection _ = False
-  (==) Enchant Enchant = True
-  (==) Enchant _ = False
-  (==) Equip Equip = True
-  (==) Equip _ = False
-  (==) Ascend Ascend = True
-  (==) Ascend _ = False
-  (==) Storied Storied = True
-  (==) Storied _ = False
-  (==) Renown Renown = True
-  (==) Renown _ = False
-  (==) Indestructible Indestructible = True
-  (==) Indestructible _ = False
-  (==) Flash Flash = True
-  (==) Flash _ = False
-  (==) CumulativeUpkeep CumulativeUpkeep = True
-  (==) CumulativeUpkeep _ = False
-  (==) Echo Echo = True
-  (==) Echo _ = False
-  (==) Hexproof Hexproof = True
-  (==) Hexproof _ = False
-  (==) Menace Menace = True
-  (==) Menace _ = False
-  (==) Skulk Skulk = True
-  (==) Skulk _ = False
-  (==) Unearth Unearth = True
-  (==) Unearth _ = False
-  (==) Flashback Flashback = True
-  (==) Flashback _ = False
-  (==) Dredge Dredge = True
-  (==) Dredge _ = False
-  (==) Retrace Retrace = True
-  (==) Retrace _ = False
-  (==) Cycling Cycling = True
-  (==) Cycling _ = False
-  (==) Ninjutsu Ninjutsu = True
-  (==) Ninjutsu _ = False
-  (==) Miracle Miracle = True
-  (==) Miracle _ = False
-  (==) Warp Warp = True
-  (==) Warp _ = False
+Eq StackRegime where
+  (==) AtCasting AtCasting = True
+  (==) AtCasting _ = False
+  (==) AtResolution AtResolution = True
+  (==) AtResolution _ = False
+
+||| What a keyword's own rule says that the printed word cannot. Every
+||| field is that rule speaking, and adding a row obliges nothing
+||| anywhere else.
+public export
+record KeywordFacts where
+  constructor MkKeywordFacts
+  ||| the word as a card prints it
+  word : KeywordLabel
+  ||| the parameter the keyword's own rule writes after the word --
+  ||| "Ward [cost]" [CR#702.21a], "Dredge N" [CR#702.52a]. Flying's rule
+  ||| writes no slot [CR#702.9a], so the word stands bare.
+  paramShape : KeywordParamShape
+  ||| whether [CR#122.1b]'s keyword-counter list names the word. That
+  ||| rule closes ITS list by enumeration -- flying, first strike,
+  ||| double strike, deathtouch, decayed, exalted, haste, hexproof,
+  ||| indestructible, lifelink, menace, reach, shadow, trample and
+  ||| vigilance, and variants of those -- so every `False` here is the
+  ||| rule's and not a gap.
+  counterEligible : Bool
+  ||| when the ability acts relative to the stack, where it acts before
+  ||| its object resolves; `Nothing` where the question does not arise
+  regime : Maybe StackRegime
+  ||| whether a permanent card may print the word
+  onPermanentCard : Bool
+  ||| whether an instant or sorcery card may print it. `Card.idr`'s
+  ||| `keywordCardOk` reads this pair and says why the question is not
+  ||| `regime`'s re-asked.
+  onSpellCard : Bool
+
+||| The keyword vocabulary, open by construction: a row is a word and
+||| what its rule says about it.
+|||
+||| The last group's abilities function away from the battlefield, each
+||| rule naming its own zone [CR#113.6b]: a graveyard for unearth
+||| [CR#702.84a], flashback [CR#702.34a], dredge [CR#702.52a] and retrace
+||| [CR#702.81a]; a hand for cycling [CR#702.29a], ninjutsu [CR#702.49a]
+||| and miracle [CR#702.94a]; the stack for warp [CR#702.185a].
+public export
+keywordFacts : List KeywordFacts
+keywordFacts =
+  --                                  param        ctr   regime              perm  spell
+  [ MkKeywordFacts "Haste"            NoParam      True  Nothing             True  False
+  , MkKeywordFacts "Flying"           NoParam      True  Nothing             True  False
+  , MkKeywordFacts "Trample"          NoParam      True  Nothing             True  False
+  , MkKeywordFacts "Vigilance"        NoParam      True  Nothing             True  False
+  , MkKeywordFacts "Deathtouch"       NoParam      True  (Just AtResolution) True  False
+  , MkKeywordFacts "DoubleStrike"     NoParam      True  Nothing             True  False
+  , MkKeywordFacts "FirstStrike"      NoParam      True  Nothing             True  False
+  , MkKeywordFacts "Reach"            NoParam      True  Nothing             True  False
+  , MkKeywordFacts "Convoke"          NoParam      False (Just AtCasting)    True  True
+  , MkKeywordFacts "Improvise"        NoParam      False (Just AtCasting)    True  True
+  , MkKeywordFacts "Storm"            NoParam      False (Just AtCasting)    True  True
+  , MkKeywordFacts "Lifelink"         NoParam      True  (Just AtResolution) True  False
+  , MkKeywordFacts "Ward"             CostParam    False Nothing             True  False
+  , MkKeywordFacts "Protection"       QualityParam False Nothing             True  False
+  , MkKeywordFacts "Enchant"          SubjectParam False Nothing             True  False
+  , MkKeywordFacts "Equip"            CostParam    False Nothing             True  False
+  , MkKeywordFacts "Ascend"           NoParam      False Nothing             True  True
+  , MkKeywordFacts "Storied"          NoParam      False Nothing             True  False
+  , MkKeywordFacts "Renown"           NumberParam  False Nothing             True  False
+  , MkKeywordFacts "Indestructible"   NoParam      True  Nothing             True  False
+  , MkKeywordFacts "Flash"            NoParam      False (Just AtCasting)    True  True
+  , MkKeywordFacts "CumulativeUpkeep" CostParam    False Nothing             True  False
+  , MkKeywordFacts "Echo"             CostParam    False Nothing             True  False
+  , MkKeywordFacts "Hexproof"         NoParam      True  Nothing             True  False
+  , MkKeywordFacts "Menace"           NoParam      True  Nothing             True  False
+  , MkKeywordFacts "Skulk"            NoParam      False Nothing             True  False
+  , MkKeywordFacts "Bushido"          NumberParam  False Nothing             True  False
+  , MkKeywordFacts "Unearth"          CostParam    False Nothing             True  False
+  , MkKeywordFacts "Flashback"        CostParam    False Nothing             False True
+  , MkKeywordFacts "Dredge"           NumberParam  False Nothing             True  True
+  , MkKeywordFacts "Retrace"          NoParam      False Nothing             True  True
+  , MkKeywordFacts "Cycling"          CostParam    False Nothing             True  True
+  , MkKeywordFacts "Ninjutsu"         CostParam    False Nothing             True  False
+  , MkKeywordFacts "Miracle"          CostParam    False Nothing             True  True
+  , MkKeywordFacts "Warp"             CostParam    False (Just AtCasting)    True  True
+  ]
 
 public export
-data AbilityClass = AnyActivated | LoyaltyClass | KeywordClass Keyword
+keywordFactsIn : KeywordLabel -> List KeywordFacts -> Maybe KeywordFacts
+keywordFactsIn k [] = Nothing
+keywordFactsIn k (f :: fs) = if word f == k then Just f else keywordFactsIn k fs
+
+public export
+keywordFactsFor : KeywordLabel -> Maybe KeywordFacts
+keywordFactsFor k = keywordFactsIn k keywordFacts
+
+||| The membership gate: typo-safety without a per-word type. Every
+||| reader below is fail-closed on an unknown word, so a gate that
+||| consumes one of them needs no separate knownness check.
+public export
+knownKeyword : KeywordLabel -> Bool
+knownKeyword k = isJust (keywordFactsFor k)
+
+public export
+KnownKeyword : KeywordLabel -> Type
+KnownKeyword k = So (knownKeyword k)
+
+public export
+keywordParamShape : KeywordLabel -> KeywordParamShape
+keywordParamShape k = maybe NoParam paramShape (keywordFactsFor k)
+
+||| Known AND written bare: an unknown word is not a parameterless
+||| keyword, it is no keyword.
+public export
+keywordParamless : KeywordLabel -> Bool
+keywordParamless k =
+  maybe False (\f => paramShape f == NoParam) (keywordFactsFor k)
+
+public export
+keywordCounterOk : KeywordLabel -> Bool
+keywordCounterOk k = maybe False counterEligible (keywordFactsFor k)
+
+public export
+KeywordCounterEligible : KeywordLabel -> Type
+KeywordCounterEligible k = So (keywordCounterOk k)
+
+public export
+keywordStackRegime : KeywordLabel -> Maybe StackRegime
+keywordStackRegime k = keywordFactsFor k >>= regime
+
+public export
+data AbilityClass : Type where
+  AnyActivated : AbilityClass
+  LoyaltyClass : AbilityClass
+  KeywordClass : (k : KeywordLabel) -> {auto 0 kn : KnownKeyword k} ->
+                 AbilityClass
 
 public export
 Eq AbilityClass where
@@ -2404,100 +2432,6 @@ namespace Counter
     (==) (Up _) _ = False
     (==) (Down a) (Down b) = a == b
     (==) (Down _) _ = False
-
-||| [CR#122.1b] closes the keyword-counter list by enumeration — flying,
-||| first strike, double strike, deathtouch, decayed, exalted, haste,
-||| hexproof, indestructible, lifelink, menace, reach, shadow, trample and
-||| vigilance, and variants of those — so every zero here is that rule's.
-public export
-keywordCounterOk : Keyword -> Bool
-keywordCounterOk Haste = True
-keywordCounterOk Flying = True
-keywordCounterOk Trample = True
-keywordCounterOk Vigilance = True
-keywordCounterOk Deathtouch = True
-keywordCounterOk DoubleStrike = True
-keywordCounterOk FirstStrike = True
-keywordCounterOk Reach = True
-keywordCounterOk Convoke = False
-keywordCounterOk Improvise = False
-keywordCounterOk Storm = False
-keywordCounterOk Lifelink = True
-keywordCounterOk Ward = False
-keywordCounterOk Protection = False
-keywordCounterOk Enchant = False
-keywordCounterOk Equip = False
-keywordCounterOk Ascend = False
-keywordCounterOk Storied = False
-keywordCounterOk Renown = False
-keywordCounterOk Indestructible = True
-keywordCounterOk Flash = False
-keywordCounterOk CumulativeUpkeep = False
-keywordCounterOk Echo = False
-keywordCounterOk Hexproof = True
-keywordCounterOk Menace = True
-keywordCounterOk Skulk = False
-keywordCounterOk Unearth = False
-keywordCounterOk Flashback = False
-keywordCounterOk Dredge = False
-keywordCounterOk Retrace = False
-keywordCounterOk Cycling = False
-keywordCounterOk Ninjutsu = False
-keywordCounterOk Miracle = False
-keywordCounterOk Warp = False
-
-public export
-KeywordCounterEligible : Keyword -> Type
-KeywordCounterEligible k = So (keywordCounterOk k)
-
-public export
-data StackRegime = AtCasting | AtResolution
-
-public export
-Eq StackRegime where
-  (==) AtCasting AtCasting = True
-  (==) AtCasting _ = False
-  (==) AtResolution AtResolution = True
-  (==) AtResolution _ = False
-
-public export
-keywordStackRegime : Keyword -> Maybe StackRegime
-keywordStackRegime Haste = Nothing
-keywordStackRegime Flying = Nothing
-keywordStackRegime Trample = Nothing
-keywordStackRegime Vigilance = Nothing
-keywordStackRegime DoubleStrike = Nothing
-keywordStackRegime FirstStrike = Nothing
-keywordStackRegime Reach = Nothing
-keywordStackRegime Convoke = Just AtCasting
-keywordStackRegime Improvise = Just AtCasting
-keywordStackRegime Storm = Just AtCasting
-keywordStackRegime Deathtouch = Just AtResolution
-keywordStackRegime Lifelink = Just AtResolution
-keywordStackRegime Ward = Nothing
-keywordStackRegime Protection = Nothing
-keywordStackRegime Enchant = Nothing
-keywordStackRegime Equip = Nothing
-keywordStackRegime Ascend = Nothing
-keywordStackRegime Storied = Nothing
-keywordStackRegime Renown = Nothing
-keywordStackRegime Indestructible = Nothing
-keywordStackRegime Flash = Just AtCasting
-keywordStackRegime CumulativeUpkeep = Nothing
-keywordStackRegime Echo = Nothing
-keywordStackRegime Hexproof = Nothing
-keywordStackRegime Menace = Nothing
-keywordStackRegime Skulk = Nothing
--- [CR#702.185a] puts warp's two statics on the stack; the graveyard and
--- hand keywords name a zone off it.
-keywordStackRegime Unearth = Nothing
-keywordStackRegime Flashback = Nothing
-keywordStackRegime Dredge = Nothing
-keywordStackRegime Retrace = Nothing
-keywordStackRegime Cycling = Nothing
-keywordStackRegime Ninjutsu = Nothing
-keywordStackRegime Miracle = Nothing
-keywordStackRegime Warp = Just AtCasting
 
 ||| [CR#205.4a] closes the supertypes by enumeration at five, so this
 ||| catalog ports the rule's whole set — the same discipline `Color` and
@@ -2840,7 +2774,8 @@ data CounterKind : Type where
   BoostCounter : Counter.Delta -> Counter.Delta -> CounterKind
   Stun : CounterKind
   Time : CounterKind
-  KeywordCounter : (k : Keyword) -> {auto 0 ok : KeywordCounterEligible k} -> CounterKind
+  KeywordCounter : (k : KeywordLabel) ->
+                   {auto 0 ok : KeywordCounterEligible k} -> CounterKind
   Charge : CounterKind
   Omen : CounterKind
   Spite : CounterKind

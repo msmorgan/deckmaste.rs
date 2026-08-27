@@ -98,8 +98,8 @@ badDisjunctAntecedent Refl impossible
 ||| A keyword beside its own negation contradicts.
 public export
 badKeywordContradiction : Unspellable (Effect []) (\ok =>
-  SetStatus Tapped (Macros.target (And [Macros.creature, HasKeyword Flying,
-                            Not (HasKeyword Flying)] {cf = ok})))
+  SetStatus Tapped (Macros.target (And [Macros.creature, HasKeyword "Flying",
+                            Not (HasKeyword "Flying")] {cf = ok})))
 badKeywordContradiction Oh impossible
 
 
