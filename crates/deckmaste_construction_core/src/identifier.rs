@@ -19,7 +19,6 @@ pub(crate) const CARDINALITY_TYPE: &str = "Cardinality";
 pub(crate) const DETERMINER_NUMBER_TYPE: &str = "DeterminerNumber";
 pub(crate) const NOMINAL_FORM_TYPE: &str = "NominalForm";
 pub(crate) const NOMINAL_LICENSE_TYPE: &str = "NominalLicense";
-pub(crate) const ONSET_LICENSE_TYPE: &str = "OnsetLicense";
 pub(crate) const NUMBER_TYPE: &str = "Number";
 pub(crate) const ONSET_TYPE: &str = "Onset";
 pub(crate) const POSSESSIVE_ENDING_TYPE: &str = "PossessiveEnding";
@@ -50,7 +49,6 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     DETERMINER_NUMBER_TYPE,
     NOMINAL_FORM_TYPE,
     NOMINAL_LICENSE_TYPE,
-    ONSET_LICENSE_TYPE,
     NUMBER_TYPE,
     ONSET_TYPE,
     POSSESSIVE_ENDING_TYPE,

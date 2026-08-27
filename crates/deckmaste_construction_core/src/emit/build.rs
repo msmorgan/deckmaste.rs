@@ -769,6 +769,14 @@ fn lower_terminal_value(
                 expression: quote! { #binding.clone() },
             })
         }
+        AtomTerminal::DeclarationDeterminative { plan, .. } => {
+            let leaf = plan.codec_ident();
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { value: #binding, onset: _, number_license: _, nominal_license: _ }) },
+                expression: quote! { #binding.clone() },
+            })
+        }
         AtomTerminal::DeclarationTerm {
             terminal_index,
             plan,
@@ -2028,6 +2036,19 @@ fn lower_terminal_role(
                 .insert(identifier_key(&role), quote! { #value.clone() });
             return Ok(());
         }
+        AtomTerminal::DeclarationDeterminative { plan, .. } => {
+            let leaf = plan.codec_ident();
+            let value = lowering.binders.allocate(&identifier_key(&role));
+            let onset = lowering.binders.allocate(&format!("{}_onset", identifier_key(&role)));
+            let number_license = lowering.binders.allocate(&format!("{}_number_license", identifier_key(&role)));
+            let nominal_license = lowering.binders.allocate(&format!("{}_nominal_license", identifier_key(&role)));
+            lowering.role_features.insert((identifier_key(&role), Feature::Onset), LocalFeatureValue::Bound(onset.clone()));
+            lowering.role_features.insert((identifier_key(&role), Feature::DeterminerNumber), LocalFeatureValue::Bound(number_license.clone()));
+            lowering.role_features.insert((identifier_key(&role), Feature::NominalLicense), LocalFeatureValue::Bound(nominal_license.clone()));
+            lowering.patterns.push(quote! { BuildValue::Leaf(Leaf::#leaf { value: #value, onset: #onset, number_license: #number_license, nominal_license: #nominal_license }) });
+            lowering.field_values.insert(identifier_key(&role), quote! { #value.clone() });
+            return Ok(());
+        }
         AtomTerminal::DeclarationTerm {
             terminal_index,
             plan,
@@ -3056,14 +3077,12 @@ fn resolve_feature_place(
                     Feature::DeterminerNumber
                     | Feature::NominalForm
                     | Feature::NominalLicense
-                    | Feature::OnsetLicense,
                 )
                 | FeaturePlace::Role {
                     feature:
                         Feature::DeterminerNumber
                         | Feature::NominalForm
-                        | Feature::NominalLicense
-                        | Feature::OnsetLicense,
+                        | Feature::NominalLicense,
                     ..
                 } => {
                     let ty = ident(terminal_for_role(row, role)?);
@@ -3233,9 +3252,6 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::PluralCoordination => quote! { NominalForm::PluralCoordination },
         FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
         FeatureValue::LicensedBareSingularNoun => quote! { NominalLicense::BareSingularNoun },
-        FeatureValue::AnyOnset => quote! { OnsetLicense::AnyOnset },
-        FeatureValue::ConsonantOnset => quote! { OnsetLicense::ConsonantOnset },
-        FeatureValue::VowelOnset => quote! { OnsetLicense::VowelOnset },
     }
 }
 fn vocab_argument(name: &str) -> String {

@@ -381,18 +381,34 @@ impl ParserEnvironment {
                 });
             }
 
-            let (recipe, surfaces) = match declaration.grammar() {
-                Some(grammar) => (
-                    Some(grammar.recipe().clone()),
-                    collect_surfaces(
-                        &id,
-                        grammar
-                            .surfaces()
+            let (recipe, surfaces, determinative) = match declaration.grammar() {
+                Some(grammar) => {
+                    let determinative = grammar.determinative().map(|row| DeterminativeRecord {
+                        number_license: row.number_license(),
+                        nominal_license: row.nominal_license(),
+                        realizations: row
+                            .realizations()
                             .iter()
-                            .map(|surface| (surface.feature(), surface.onset(), surface.text())),
-                    )?,
-                ),
-                None => (None, Vec::new()),
+                            .map(|realization| DeterminativeRealizationRecord {
+                                surface: Arc::from(realization.surface()),
+                                onset: realization.onset(),
+                                phrase_number: realization.phrase_number(),
+                                following_onset: realization.following_onset(),
+                            })
+                            .collect(),
+                    });
+                    (
+                        Some(grammar.recipe().clone()),
+                        collect_surfaces(
+                            &id,
+                            grammar.surfaces().iter().map(|surface| {
+                                (surface.feature(), surface.onset(), surface.text())
+                            }),
+                        )?,
+                        determinative,
+                    )
+                }
+                None => (None, Vec::new(), None),
             };
             records_by_name.insert(
                 Arc::from(id.name()),
@@ -400,6 +416,7 @@ impl ParserEnvironment {
                     id,
                     recipe,
                     surfaces,
+                    determinative,
                     provenance,
                 },
             );
@@ -411,41 +428,72 @@ impl ParserEnvironment {
             BTreeMap::<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>::new();
         let mut running_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
         let mut initial_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
+        let mut determinative_readings =
+            BTreeMap::<Arc<str>, Vec<DeterminativeReading>>::new();
+        let mut initial_determinative_readings =
+            BTreeMap::<Arc<str>, Vec<DeterminativeReading>>::new();
+        let mut determinative_surface_byte_limit = 0;
+        let mut initial_determinative_surface_byte_limit = 0;
         for records_by_name in records.values() {
             for record in records_by_name.values() {
-                let Some(recipe) = &record.recipe else {
-                    continue;
-                };
-                let position = recipe.position();
-                for (feature, onset, surface) in &record.surfaces {
-                    let initial = initial_surface(surface);
-                    let reading = DeclarationReading {
-                        id: record.id.clone(),
-                        position,
-                        feature: *feature,
-                        surface: Arc::clone(surface),
-                        onset: *onset,
-                    };
-                    readings
-                        .entry(position)
-                        .or_default()
-                        .entry(Arc::clone(surface))
-                        .or_default()
-                        .push(reading.clone());
-                    running_surface_byte_limits
-                        .entry(position)
-                        .and_modify(|limit| *limit = (*limit).max(surface.len()))
-                        .or_insert(surface.len());
-                    initial_readings
-                        .entry(position)
-                        .or_default()
-                        .entry(Arc::from(initial.as_str()))
-                        .or_default()
-                        .push(reading);
-                    initial_surface_byte_limits
-                        .entry(position)
-                        .and_modify(|limit| *limit = (*limit).max(initial.len()))
-                        .or_insert(initial.len());
+                if let Some(recipe) = &record.recipe {
+                    let position = recipe.position();
+                    for (feature, onset, surface) in &record.surfaces {
+                        let initial = initial_surface(surface);
+                        let reading = DeclarationReading {
+                            id: record.id.clone(),
+                            position,
+                            feature: *feature,
+                            surface: Arc::clone(surface),
+                            onset: *onset,
+                        };
+                        readings
+                            .entry(position)
+                            .or_default()
+                            .entry(Arc::clone(surface))
+                            .or_default()
+                            .push(reading.clone());
+                        running_surface_byte_limits
+                            .entry(position)
+                            .and_modify(|limit| *limit = (*limit).max(surface.len()))
+                            .or_insert(surface.len());
+                        initial_readings
+                            .entry(position)
+                            .or_default()
+                            .entry(Arc::from(initial.as_str()))
+                            .or_default()
+                            .push(reading);
+                        initial_surface_byte_limits
+                            .entry(position)
+                            .and_modify(|limit| *limit = (*limit).max(initial.len()))
+                            .or_insert(initial.len());
+                    }
+                }
+                if let Some(determinative) = &record.determinative {
+                    for realization in &determinative.realizations {
+                        let initial = initial_surface(&realization.surface);
+                        let reading = DeterminativeReading {
+                            id: record.id.clone(),
+                            surface: Arc::clone(&realization.surface),
+                            onset: realization.onset,
+                            number_license: determinative.number_license,
+                            nominal_license: determinative.nominal_license,
+                            phrase_number: realization.phrase_number,
+                            following_onset: realization.following_onset,
+                        };
+                        determinative_readings
+                            .entry(Arc::clone(&realization.surface))
+                            .or_default()
+                            .push(reading.clone());
+                        determinative_surface_byte_limit =
+                            determinative_surface_byte_limit.max(realization.surface.len());
+                        initial_determinative_readings
+                            .entry(Arc::from(initial.as_str()))
+                            .or_default()
+                            .push(reading);
+                        initial_determinative_surface_byte_limit =
+                            initial_determinative_surface_byte_limit.max(initial.len());
+                    }
                 }
             }
         }
@@ -496,6 +544,10 @@ impl ParserEnvironment {
                 initial_readings,
                 running_surface_byte_limits,
                 initial_surface_byte_limits,
+                determinative_readings,
+                initial_determinative_readings,
+                determinative_surface_byte_limit,
+                initial_determinative_surface_byte_limit,
                 catalog_providers: frozen_catalog_providers,
             }),
         })
@@ -583,6 +635,60 @@ impl ParserEnvironment {
             .get(&position)
             .and_then(|by_surface| by_surface.get(surface))
             .map_or(&[], Vec::as_slice)
+    }
+
+    /// Returns every declaration-backed Determinative reading for one exact
+    /// running-text surface.
+    #[must_use]
+    pub fn determinative_readings(&self, surface: &str) -> &[DeterminativeReading] {
+        self.data
+            .determinative_readings
+            .get(surface)
+            .map_or(&[], Vec::as_slice)
+    }
+
+    pub(crate) fn initial_determinative_readings(
+        &self,
+        surface: &str,
+    ) -> &[DeterminativeReading] {
+        self.data
+            .initial_determinative_readings
+            .get(surface)
+            .map_or(&[], Vec::as_slice)
+    }
+
+    pub(crate) fn determinative_surface_byte_limit(&self) -> usize {
+        self.data.determinative_surface_byte_limit
+    }
+
+    pub(crate) fn initial_determinative_surface_byte_limit(&self) -> usize {
+        self.data.initial_determinative_surface_byte_limit
+    }
+
+    /// Derives the unique surface of a stored declaration-backed
+    /// Determinative lemma for the following phrase.
+    #[must_use]
+    pub fn determinative_surface(
+        &self,
+        id: &DeclarationId,
+        phrase_number: DeterminativePhraseNumber,
+        following_onset: Onset,
+    ) -> Option<&str> {
+        let row = self
+            .declaration(id.kind(), id.name())?
+            .determinative
+            .as_ref()?;
+        row.realizations
+            .iter()
+            .find(|realization| {
+                realization
+                    .phrase_number
+                    .is_none_or(|expected| expected == phrase_number)
+                    && realization
+                        .following_onset
+                        .is_none_or(|expected| expected == following_onset)
+            })
+            .map(|realization| realization.surface.as_ref())
     }
 
     pub(crate) fn running_surface_byte_limit(&self, position: GrammarPosition) -> usize {
@@ -801,6 +907,40 @@ mod tests {
                 feature: SurfaceFeature::Bare,
             }
         );
+    }
+
+    #[test]
+    fn supplemental_determinative_rows_are_indexed_apart_from_keyword_surfaces() {
+        let environment = canonical_test_environment();
+        let keyword = environment.readings(GrammarPosition::FixedKeyword, "equip");
+        assert_eq!(keyword.len(), 1);
+        assert_eq!(keyword[0].feature(), SurfaceFeature::Fixed);
+
+        let [reading] = environment.determinative_readings("equipped") else {
+            panic!("Equip contributes one supplemental Determinative reading")
+        };
+        assert_eq!(reading.id().kind(), DeclarationKind::KeywordAbility);
+        assert_eq!(reading.id().name(), "Equip");
+        assert_eq!(
+            reading.number_license(),
+            DeterminativeNumberLicense::SingularOnly
+        );
+        assert_eq!(
+            reading.nominal_license(),
+            DeterminativeNominalLicense::BareSingularNoun
+        );
+        assert_eq!(
+            environment.determinative_surface(
+                reading.id(),
+                DeterminativePhraseNumber::Singular,
+                Onset::Consonant,
+            ),
+            Some("equipped")
+        );
+        assert!(environment.determinative_readings("equip").is_empty());
+        assert!(environment
+            .readings(GrammarPosition::FixedKeyword, "equipped")
+            .is_empty());
     }
 
     #[test]

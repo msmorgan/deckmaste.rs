@@ -14,7 +14,6 @@ pub(crate) enum Feature {
     DeterminerNumber,
     NominalForm,
     NominalLicense,
-    OnsetLicense,
     Number,
     Onset,
     Participle,
@@ -46,9 +45,6 @@ pub(crate) enum FeatureValue {
     PluralCoordination,
     CountNominal,
     LicensedBareSingularNoun,
-    AnyOnset,
-    ConsonantOnset,
-    VowelOnset,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -108,11 +104,6 @@ impl Feature {
                 FeatureValue::CountNominal,
                 FeatureValue::LicensedBareSingularNoun,
             ],
-            Self::OnsetLicense => &[
-                FeatureValue::AnyOnset,
-                FeatureValue::ConsonantOnset,
-                FeatureValue::VowelOnset,
-            ],
             Self::Number => &[FeatureValue::Singular, FeatureValue::Plural],
             Self::Onset => &[FeatureValue::Consonant, FeatureValue::Vowel],
             Self::Participle => &[FeatureValue::Participle],
@@ -144,7 +135,6 @@ impl Feature {
             Self::DeterminerNumber => "determiner_number",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
-            Self::OnsetLicense => "onset_license",
             Self::Number => "number",
             Self::Onset => "onset",
             Self::Participle => "participle",
@@ -179,9 +169,6 @@ impl FeatureValue {
             Self::PluralCoordination => "PluralCoordination",
             Self::CountNominal => "CountNominal",
             Self::LicensedBareSingularNoun => "BareSingularNoun",
-            Self::AnyOnset => "AnyOnset",
-            Self::ConsonantOnset => "ConsonantOnset",
-            Self::VowelOnset => "VowelOnset",
         }
     }
 }
@@ -316,7 +303,6 @@ impl Feature {
             Self::DeterminerNumber => "determiner_number",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
-            Self::OnsetLicense => "onset_license",
             Self::Number => "number",
             Self::Onset => "onset",
             Self::Participle => "participle",
@@ -352,9 +338,6 @@ impl FeatureValue {
             Self::PluralCoordination => "PluralCoordination",
             Self::CountNominal => "CountNominal",
             Self::LicensedBareSingularNoun => "BareSingularNoun",
-            Self::AnyOnset => "AnyOnset",
-            Self::ConsonantOnset => "ConsonantOnset",
-            Self::VowelOnset => "VowelOnset",
         }
     }
 }
@@ -407,9 +390,6 @@ pub(crate) fn lower_constant(
         (model::Feature::NominalLicense, "BareSingularNoun") => {
             FeatureValue::LicensedBareSingularNoun
         }
-        (model::Feature::OnsetLicense, "AnyOnset") => FeatureValue::AnyOnset,
-        (model::Feature::OnsetLicense, "ConsonantOnset") => FeatureValue::ConsonantOnset,
-        (model::Feature::OnsetLicense, "VowelOnset") => FeatureValue::VowelOnset,
         (model::Feature::Agreement, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -438,12 +418,6 @@ pub(crate) fn lower_constant(
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not a nominal-license value"),
-            ));
-        }
-        (model::Feature::OnsetLicense, _) => {
-            return Err(syn::Error::new_spanned(
-                path,
-                format!("`{name}` is not an onset-license value"),
             ));
         }
         (model::Feature::Number, _) => {
@@ -482,7 +456,6 @@ impl From<model::Feature> for Feature {
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
             model::Feature::NominalForm => Self::NominalForm,
             model::Feature::NominalLicense => Self::NominalLicense,
-            model::Feature::OnsetLicense => Self::OnsetLicense,
             model::Feature::Number => Self::Number,
             model::Feature::Onset => Self::Onset,
             model::Feature::Participle => Self::Participle,

@@ -77,6 +77,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             TerminalPlan::SignedDecimal(row) => signed_decimal = Some(row),
             TerminalPlan::UnsignedNumber(row) => unsigned_numbers.push(row),
             TerminalPlan::DeclarationNoun(row) => declaration_nouns.push(row),
+            TerminalPlan::DeclarationDeterminative(_) => {}
             TerminalPlan::DeclarationTerm(row) => declaration_terms.push(row),
         }
     }
@@ -1434,6 +1435,7 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
             | TerminalPlan::SignedDecimal(_)
             | TerminalPlan::UnsignedNumber(_)
             | TerminalPlan::DeclarationNoun(_)
+            | TerminalPlan::DeclarationDeterminative(_)
             | TerminalPlan::DeclarationTerm(_) => {}
         }
     }

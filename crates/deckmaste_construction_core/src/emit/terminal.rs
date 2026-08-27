@@ -444,6 +444,20 @@ pub(crate) fn emit(
                     vec![origin],
                 ));
             }
+            TerminalPlan::DeclarationDeterminative(row) => {
+                let origin = row.origin().clone();
+                let ty = row.codec_ident();
+                let lemma = row.lemma_ident();
+                let variants = row.closed().iter().map(|member| member.lemma());
+                let allowed = row.kinds().iter().map(|kind| crate::emit::declaration_kind(*kind));
+                items.push(GeneratedItem::new(ItemKey::named_type(lemma.to_string()), quote! {
+                    #[derive(Debug, Clone, Copy, PartialEq, Eq)] pub enum #lemma { #(#variants),* }
+                }, vec![origin.clone()]));
+                items.push(GeneratedItem::new(ItemKey::named_type(ty.to_string()), quote! {
+                    #[derive(Debug, Clone, PartialEq, Eq)] pub enum #ty { Closed(#lemma), Declared(::macro_ron::v2::DeclarationIdentity) }
+                    impl #ty { pub(crate) fn declared(id: ::macro_ron::v2::DeclarationIdentity) -> Option<Self> { matches!(id.kind(), #(#allowed)|*).then_some(Self::Declared(id)) } }
+                }, vec![origin]));
+            }
             TerminalPlan::DeclarationTerm(row) => {
                 let origin = row.origin().clone();
                 let term = row.codec_ident();
@@ -570,7 +584,6 @@ fn emit_lexeme_surface_helper(
         | crate::Feature::DeterminerNumber
         | crate::Feature::NominalForm
         | crate::Feature::NominalLicense
-        | crate::Feature::OnsetLicense
         | crate::Feature::Onset
         | crate::Feature::PossessiveEnding => {
             unreachable!("derived surface features are not morphology axes")

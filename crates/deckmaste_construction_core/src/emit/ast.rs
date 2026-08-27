@@ -1011,9 +1011,6 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::LicensedBareSingularNoun => {
             quote! { NominalLicense::BareSingularNoun }
         }
-        crate::feature::FeatureValue::AnyOnset => quote! { OnsetLicense::AnyOnset },
-        crate::feature::FeatureValue::ConsonantOnset => quote! { OnsetLicense::ConsonantOnset },
-        crate::feature::FeatureValue::VowelOnset => quote! { OnsetLicense::VowelOnset },
     }
 }
 
@@ -1963,7 +1960,6 @@ mod tests {
                 "NominalLicense",
                 "Number",
                 "Onset",
-                "OnsetLicense",
                 "Participle",
                 "PossessiveEnding",
                 "FeatureConstraint",

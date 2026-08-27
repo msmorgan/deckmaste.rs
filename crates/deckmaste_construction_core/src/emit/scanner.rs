@@ -230,6 +230,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         .then(|| quote! { Lexical::CatalogIdentity(_) => Vec::new(), });
     let verb_lexeme_arm = verb_lexeme_arm(plan);
     let declaration_noun_arms = declaration_noun_arms(plan);
+    let declaration_determinative_arms = declaration_determinative_arms(plan);
+    let unknown_declaration_determinative_arm = (!declaration_determinative_arms.is_empty())
+        .then(|| quote! { Lexical::DeclarationDeterminative(_) => Vec::new(), });
     let unknown_declaration_noun_arm = (!declaration_noun_arms.is_empty())
         .then(|| quote! { Lexical::DeclarationNoun(_, _) => Vec::new(), });
     let declaration_term_arms = declaration_term_arms(plan);
@@ -314,6 +317,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 #verb_lexeme_arm
                 #(#declaration_noun_arms,)*
                 #unknown_declaration_noun_arm
+                #(#declaration_determinative_arms,)*
+                #unknown_declaration_determinative_arm
                 #(#declaration_term_arms,)*
                 #unknown_declaration_term_arm
                 #(#declaration_verb_arms,)*
@@ -368,6 +373,33 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             plan.runtime_scanner_origins(),
         ),
     ]
+}
+
+fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
+    plan.runtime_declaration_determinatives().map(|(terminal_index, codec)| {
+        let ty = codec.codec_ident();
+        let lemma = codec.lemma_ident();
+        let closed = codec.closed().iter().flat_map(|member| member.realizations().iter().map(move |realization| {
+            let surface = syn::LitStr::new(realization.surface(), Span::call_site());
+            let onset = ::macro_ron::v2::normalize_surface_onset(realization.surface(), None)
+                .expect("validated declaration_determinative realization has an onset");
+            let onset = crate::emit::onset(onset);
+            let member_name = member.lemma();
+            let number = match member.number_license() {
+                ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => quote! { DeterminerNumber::SingularOnly },
+                ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => quote! { DeterminerNumber::PluralOnly },
+                ::macro_ron::v2::DeterminativeNumberLicense::Both => quote! { DeterminerNumber::Both },
+            };
+            let nominal = match member.nominal_license() {
+                ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => quote! { NominalLicense::CountNominal },
+                ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => quote! { NominalLicense::BareSingularNoun },
+            };
+            quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, number_license: #number, nominal_license: #nominal }, owner: None }); } }
+        }));
+        {
+            quote! { Lexical::DeclarationDeterminative(#terminal_index) => { let mut matches = Vec::new(); #(#closed)* for (end, reading) in input.declaration_determinative_readings(terminal.right_boundary) { let Some(value) = #ty::declared(reading.id().clone()) else { continue; }; let number_license = match reading.number_license() { ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => DeterminerNumber::SingularOnly, ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => DeterminerNumber::PluralOnly, ::macro_ron::v2::DeterminativeNumberLicense::Both => DeterminerNumber::Both }; let nominal_license = match reading.nominal_license() { ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => NominalLicense::CountNominal, ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => NominalLicense::BareSingularNoun }; matches.push(LexicalMatch { end, value: Leaf::#ty { value, onset: reading.onset(), number_license, nominal_license }, owner: None }); } matches } }
+        }
+    }).collect()
 }
 
 fn verb_lexeme_arm(plan: &SemanticPlan) -> Option<TokenStream> {
@@ -511,7 +543,6 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             | crate::feature::Feature::DeterminerNumber
             | crate::feature::Feature::NominalForm
             | crate::feature::Feature::NominalLicense
-            | crate::feature::Feature::OnsetLicense
             | crate::feature::Feature::Onset
             | crate::feature::Feature::Participle
             | crate::feature::Feature::PossessiveEnding => {

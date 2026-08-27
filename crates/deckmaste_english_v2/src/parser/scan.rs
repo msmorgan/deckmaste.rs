@@ -55,6 +55,7 @@ use crate::constructions::VerbFrameKey;
 use crate::constructions::scan_lexical;
 use crate::context::ParseContext;
 use crate::environment::DeclarationId;
+use crate::environment::DeterminativeReading;
 use crate::environment::ParserEnvironment;
 use crate::orthography::initial_surface;
 
@@ -934,6 +935,61 @@ impl ScanInput<'_> {
             }));
         }
         results.sort();
+        results.dedup();
+        results
+    }
+
+    pub(crate) fn declaration_determinative_readings(
+        &self,
+        right_boundary: LexicalBoundary,
+    ) -> Vec<(usize, DeterminativeReading)> {
+        let offset = self.position.byte_offset;
+        let initial = matches!(
+            self.position.case,
+            CasePosition::DocumentInitial | CasePosition::SentenceInitial
+        );
+        let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
+        let Some(remainder) = self.text.get(offset..) else {
+            return Vec::new();
+        };
+        let Some(surface_text) = (prefix == 0)
+            .then_some(remainder)
+            .or_else(|| remainder.strip_prefix(' '))
+        else {
+            return Vec::new();
+        };
+        let surface_byte_limit = if initial {
+            self.environment
+                .initial_determinative_surface_byte_limit()
+        } else {
+            self.environment.determinative_surface_byte_limit()
+        };
+        let mut results = Vec::new();
+        for relative_end in surface_text
+            .char_indices()
+            .skip(1)
+            .map(|(end, _)| end)
+            .chain(std::iter::once(surface_text.len()))
+            .take_while(|&end| end <= surface_byte_limit)
+        {
+            let end = offset + prefix + relative_end;
+            if !permits_right_boundary(self.text, end, right_boundary) {
+                continue;
+            }
+            let candidate = &surface_text[..relative_end];
+            let readings = if initial {
+                self.environment.initial_determinative_readings(candidate)
+            } else {
+                self.environment.determinative_readings(candidate)
+            };
+            results.extend(readings.iter().cloned().map(|reading| (end, reading)));
+        }
+        results.sort_by(|left, right| {
+            left.0
+                .cmp(&right.0)
+                .then_with(|| left.1.id().cmp(right.1.id()))
+                .then_with(|| left.1.surface().cmp(right.1.surface()))
+        });
         results.dedup();
         results
     }

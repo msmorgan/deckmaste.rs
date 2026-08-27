@@ -713,6 +713,7 @@ pub(crate) enum TerminalPlan {
     CatalogIdentity(CatalogIdentityPlan),
     SignedDecimal(SignedDecimalPlan),
     UnsignedNumber(UnsignedNumberPlan),
+    DeclarationDeterminative(DeclarationDeterminativePlan),
     DeclarationNoun(DeclarationNounPlan),
     DeclarationTerm(DeclarationTermPlan),
 }
@@ -725,6 +726,7 @@ impl TerminalPlan {
                 | Self::Lexeme(_)
                 | Self::ContextIdentity(_)
                 | Self::CatalogIdentity(_)
+                | Self::DeclarationDeterminative(_)
                 | Self::DeclarationNoun(_)
                 | Self::DeclarationTerm(_)
                 | Self::Binding(BindingPlan {
@@ -742,6 +744,7 @@ impl TerminalPlan {
             Self::Vocab(_)
             | Self::ContextIdentity(_)
             | Self::CatalogIdentity(_)
+            | Self::DeclarationDeterminative(_)
             | Self::DeclarationNoun(_)
             | Self::DeclarationTerm(_) => true,
             Self::Binding(_) | Self::SignedDecimal(_) | Self::UnsignedNumber(_) => false,
@@ -766,6 +769,31 @@ pub(crate) struct DeclarationNounPlan {
     position: macro_ron::v2::GrammarPosition,
     kinds: Vec<DeclarationKindFamily>,
     feature_axis: Feature,
+}
+
+#[derive(Debug)]
+pub(crate) struct DeclarationDeterminativePlan {
+    source_index: usize,
+    origin: DeclarationKey,
+    codec_ident: syn::Ident,
+    lemma_ident: syn::Ident,
+    closed: Vec<ClosedDeterminativePlan>,
+    kinds: Vec<macro_ron::v2::DeclarationKind>,
+}
+
+#[derive(Debug)]
+pub(crate) struct ClosedDeterminativePlan {
+    lemma: syn::Ident,
+    number_license: macro_ron::v2::DeterminativeNumberLicense,
+    nominal_license: macro_ron::v2::DeterminativeNominalLicense,
+    realizations: Vec<DeterminativeRealizationPlan>,
+}
+
+#[derive(Debug)]
+pub(crate) struct DeterminativeRealizationPlan {
+    surface: String,
+    phrase_number: Option<macro_ron::v2::DeterminativePhraseNumber>,
+    following_onset: Option<macro_ron::v2::Onset>,
 }
 
 #[derive(Debug)]
@@ -921,6 +949,7 @@ struct RuntimeEmissionPlan {
     catalog_identity_indices: Vec<usize>,
     signed_decimal_index: Option<usize>,
     unsigned_number_indices: Vec<usize>,
+    declaration_determinative_indices: Vec<usize>,
     declaration_noun_indices: Vec<usize>,
     declaration_term_indices: Vec<usize>,
     declaration_verb_indices: Vec<usize>,
@@ -945,6 +974,7 @@ impl RuntimeEmissionPlan {
             catalog_identity_indices: Vec::new(),
             signed_decimal_index: None,
             unsigned_number_indices: Vec::new(),
+            declaration_determinative_indices: Vec::new(),
             declaration_noun_indices: Vec::new(),
             declaration_term_indices: Vec::new(),
             declaration_verb_indices: Vec::new(),
@@ -1014,6 +1044,9 @@ impl RuntimeEmissionPlan {
                 TerminalPlan::UnsignedNumber(_) => {
                     plan.unsigned_number_indices.push(index);
                 }
+                TerminalPlan::DeclarationDeterminative(_) => {
+                    plan.declaration_determinative_indices.push(index);
+                }
                 TerminalPlan::DeclarationNoun(_) => {
                     plan.declaration_noun_indices.push(index);
                 }
@@ -1070,6 +1103,7 @@ impl RuntimeEmissionPlan {
             .chain(&plan.catalog_identity_indices)
             .chain(plan.signed_decimal_index.iter())
             .chain(&plan.unsigned_number_indices)
+            .chain(&plan.declaration_determinative_indices)
             .chain(&plan.declaration_noun_indices)
             .chain(&plan.declaration_term_indices)
             .chain(&plan.declaration_verb_indices)
@@ -1112,6 +1146,10 @@ pub(crate) enum AtomTerminal<'a> {
     DeclarationNoun {
         terminal_index: usize,
         plan: &'a DeclarationNounPlan,
+    },
+    DeclarationDeterminative {
+        terminal_index: usize,
+        plan: &'a DeclarationDeterminativePlan,
     },
     DeclarationTerm {
         terminal_index: usize,
@@ -1385,6 +1423,11 @@ fn seal_terminals(
                             source_index,
                             binding,
                         ))
+                    }
+                    crate::model::GeneratedCodecRecipe::DeclarationDeterminative(_) => {
+                        TerminalPlan::DeclarationDeterminative(
+                            DeclarationDeterminativePlan::from_source(source_index, binding),
+                        )
                     }
                     crate::model::GeneratedCodecRecipe::DeclarationTerm(_) => {
                         TerminalPlan::DeclarationTerm(DeclarationTermPlan::from_source(
@@ -1757,6 +1800,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => {
                     unreachable!("sealed runtime vocab index changed terminal kind")
@@ -1816,6 +1860,25 @@ impl SemanticPlan {
         value_type: &str,
     ) -> Option<(usize, &DeclarationNounPlan)> {
         self.runtime_declaration_nouns()
+            .find(|(_, codec)| codec.codec_name() == value_type)
+    }
+
+    pub(crate) fn runtime_declaration_determinatives(
+        &self,
+    ) -> impl Iterator<Item = (usize, &DeclarationDeterminativePlan)> {
+        self.runtime.declaration_determinative_indices.iter().map(|&index| {
+            let TerminalPlan::DeclarationDeterminative(codec) = &self.terminals[index] else {
+                unreachable!("sealed runtime declaration-determinative index changed terminal kind")
+            };
+            (index, codec)
+        })
+    }
+
+    pub(crate) fn runtime_declaration_determinative_for(
+        &self,
+        value_type: &str,
+    ) -> Option<(usize, &DeclarationDeterminativePlan)> {
+        self.runtime_declaration_determinatives()
             .find(|(_, codec)| codec.codec_name() == value_type)
     }
 
@@ -2697,6 +2760,12 @@ impl SemanticPlan {
                         plan: row,
                     });
                 }
+                TerminalPlan::DeclarationDeterminative(row) if row.codec_name() == name => {
+                    return Ok(AtomTerminal::DeclarationDeterminative {
+                        terminal_index,
+                        plan: row,
+                    });
+                }
                 TerminalPlan::DeclarationTerm(row) if row.codec_name() == name => {
                     return Ok(AtomTerminal::DeclarationTerm {
                         terminal_index,
@@ -2710,6 +2779,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => {}
             }
@@ -4486,6 +4556,7 @@ fn accessor_mode(
             | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
             | TerminalPlan::UnsignedNumber(_)
+            | TerminalPlan::DeclarationDeterminative(_)
             | TerminalPlan::DeclarationNoun(_)
             | TerminalPlan::DeclarationTerm(_) => AccessorMode::Borrow,
         })
@@ -5073,6 +5144,7 @@ impl TerminalPlan {
             Self::CatalogIdentity(plan) => plan.source_index(),
             Self::SignedDecimal(plan) => plan.source_index(),
             Self::UnsignedNumber(plan) => plan.source_index(),
+            Self::DeclarationDeterminative(plan) => plan.source_index(),
             Self::DeclarationNoun(plan) => plan.source_index(),
             Self::DeclarationTerm(plan) => plan.source_index(),
         }
@@ -5087,6 +5159,7 @@ impl TerminalPlan {
             Self::CatalogIdentity(plan) => plan.name(),
             Self::SignedDecimal(plan) => plan.codec_name(),
             Self::UnsignedNumber(plan) => plan.codec_name(),
+            Self::DeclarationDeterminative(plan) => plan.codec_name(),
             Self::DeclarationNoun(plan) => plan.codec_name(),
             Self::DeclarationTerm(plan) => plan.codec_name(),
         }
@@ -5107,6 +5180,7 @@ impl TerminalPlan {
             | Self::CatalogIdentity(_)
             | Self::SignedDecimal(_)
             | Self::UnsignedNumber(_)
+            | Self::DeclarationDeterminative(_)
             | Self::DeclarationNoun(_)
             | Self::DeclarationTerm(_) => Vec::new(),
         }
@@ -5745,6 +5819,7 @@ impl UnsignedNumberPlan {
                 (recipe, UnsignedNumberKind::UnsignedDecimal)
             }
             crate::model::GeneratedCodecRecipe::SignedDecimal(_)
+            | crate::model::GeneratedCodecRecipe::DeclarationDeterminative(_)
             | crate::model::GeneratedCodecRecipe::DeclarationNoun(_)
             | crate::model::GeneratedCodecRecipe::DeclarationTerm(_)
             | crate::model::GeneratedCodecRecipe::DeclarationVerb(_)
@@ -5879,6 +5954,78 @@ impl DeclarationNounPlan {
     pub(crate) fn feature_axis(&self) -> Feature {
         self.feature_axis
     }
+}
+
+impl DeclarationDeterminativePlan {
+    fn from_source(source_index: usize, source: &crate::TerminalBinding) -> Self {
+        let Some(crate::model::GeneratedCodecRecipe::DeclarationDeterminative(recipe)) = &source.generated else {
+            unreachable!("validated generated codec has the declaration_determinative recipe")
+        };
+        let closed = recipe.closed_slots.first().into_iter().flat_map(|slot| &slot.members).map(|member| {
+            let number_license = match identifier_key(&member.number_license_slots[0].value).as_str() {
+                "SingularOnly" => macro_ron::v2::DeterminativeNumberLicense::SingularOnly,
+                "PluralOnly" => macro_ron::v2::DeterminativeNumberLicense::PluralOnly,
+                "Both" => macro_ron::v2::DeterminativeNumberLicense::Both,
+                _ => unreachable!("validated determiner number license is closed"),
+            };
+            let nominal_license = match identifier_key(&member.nominal_license_slots[0].value).as_str() {
+                "CountNominal" => macro_ron::v2::DeterminativeNominalLicense::CountNominal,
+                "BareSingularNoun" => macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun,
+                _ => unreachable!("validated nominal license is closed"),
+            };
+            let realizations = member.realization_slots[0].realizations.iter().map(|row| {
+                let phrase_number = row.phrase_number_slots.first().map(|slot| match identifier_key(&slot.value).as_str() {
+                    "Singular" => macro_ron::v2::DeterminativePhraseNumber::Singular,
+                    "Plural" => macro_ron::v2::DeterminativePhraseNumber::Plural,
+                    _ => unreachable!("validated determinative phrase number is closed"),
+                });
+                let following_onset = row.following_onset_slots.first().map(|slot| match identifier_key(&slot.value).as_str() {
+                    "Consonant" => macro_ron::v2::Onset::Consonant,
+                    "Vowel" => macro_ron::v2::Onset::Vowel,
+                    _ => unreachable!("validated determinative following onset is closed"),
+                });
+                DeterminativeRealizationPlan { surface: row.surface_slots[0].value(), phrase_number, following_onset }
+            }).collect();
+            ClosedDeterminativePlan { lemma: member.lemma.clone(), number_license, nominal_license, realizations }
+        }).collect();
+        let kinds = recipe.kind_slots.first().into_iter().flat_map(|slot| &slot.kinds).map(|kind| match identifier_key(kind).as_str() {
+            "KeywordAbility" => macro_ron::v2::DeclarationKind::KeywordAbility,
+            "CounterKind" => macro_ron::v2::DeclarationKind::CounterKind,
+            "Designation" => macro_ron::v2::DeclarationKind::Designation,
+            "KeywordAction" => macro_ron::v2::DeclarationKind::KeywordAction,
+            "Type" => macro_ron::v2::DeclarationKind::Type,
+            _ => unreachable!("validated declaration determinative kind is closed"),
+        }).collect();
+        Self {
+            source_index,
+            origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
+            codec_ident: source.name.clone(),
+            lemma_ident: syn::Ident::new(&format!("{}Lemma", identifier_key(&source.name)), source.name.span()),
+            closed,
+            kinds,
+        }
+    }
+
+    pub(crate) fn source_index(&self) -> usize { self.source_index }
+    pub(crate) fn origin(&self) -> &DeclarationKey { &self.origin }
+    pub(crate) fn codec_name(&self) -> &str { self.origin.name() }
+    pub(crate) fn codec_ident(&self) -> &syn::Ident { &self.codec_ident }
+    pub(crate) fn lemma_ident(&self) -> &syn::Ident { &self.lemma_ident }
+    pub(crate) fn closed(&self) -> &[ClosedDeterminativePlan] { &self.closed }
+    pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] { &self.kinds }
+}
+
+impl ClosedDeterminativePlan {
+    pub(crate) fn lemma(&self) -> &syn::Ident { &self.lemma }
+    pub(crate) fn number_license(&self) -> macro_ron::v2::DeterminativeNumberLicense { self.number_license }
+    pub(crate) fn nominal_license(&self) -> macro_ron::v2::DeterminativeNominalLicense { self.nominal_license }
+    pub(crate) fn realizations(&self) -> &[DeterminativeRealizationPlan] { &self.realizations }
+}
+
+impl DeterminativeRealizationPlan {
+    pub(crate) fn surface(&self) -> &str { &self.surface }
+    pub(crate) fn phrase_number(&self) -> Option<macro_ron::v2::DeterminativePhraseNumber> { self.phrase_number }
+    pub(crate) fn following_onset(&self) -> Option<macro_ron::v2::Onset> { self.following_onset }
 }
 
 impl DeclarationTermPlan {

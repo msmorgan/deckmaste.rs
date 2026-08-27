@@ -482,7 +482,6 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         Feature::DeterminerNumber,
         Feature::NominalForm,
         Feature::NominalLicense,
-        Feature::OnsetLicense,
         Feature::Number,
         Feature::Onset,
         Feature::PossessiveEnding,
@@ -493,7 +492,6 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 Feature::DeterminerNumber
                     | Feature::NominalForm
                     | Feature::NominalLicense
-                    | Feature::OnsetLicense
             ) && validated.carries_feature(category, feature);
             if !validated.category_reads_feature(category, feature) && !provider_helper {
                 continue;
@@ -525,7 +523,6 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         Feature::DeterminerNumber,
         Feature::NominalForm,
         Feature::NominalLicense,
-        Feature::OnsetLicense,
     ] {
         for sum in validated
             .sums()
@@ -1663,7 +1660,6 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
-        Feature::OnsetLicense => quote! { OnsetLicense },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
         Feature::Participle => quote! { Participle },
@@ -3480,9 +3476,6 @@ fn feature_expr(
                     Feature::NominalLicense => {
                         Err(internal("verb slot does not provide nominal license"))
                     }
-                    Feature::OnsetLicense => {
-                        Err(internal("verb slot does not provide onset license"))
-                    }
                     Feature::Onset => implicit_verb_onset(validated, construction, locals),
                     Feature::Number => Err(internal("verb slot does not provide number")),
                     Feature::Participle => Ok(quote! { Participle::Participle }),
@@ -4186,7 +4179,6 @@ fn emit_feature_helper(
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
-        Feature::OnsetLicense => quote! { OnsetLicense },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
         Feature::Participle => quote! { Participle },
@@ -4769,9 +4761,6 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::PluralCoordination => quote! { NominalForm::PluralCoordination },
         FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
         FeatureValue::LicensedBareSingularNoun => quote! { NominalLicense::BareSingularNoun },
-        FeatureValue::AnyOnset => quote! { OnsetLicense::AnyOnset },
-        FeatureValue::ConsonantOnset => quote! { OnsetLicense::ConsonantOnset },
-        FeatureValue::VowelOnset => quote! { OnsetLicense::VowelOnset },
     }
 }
 
@@ -4866,6 +4855,7 @@ fn find_lexeme<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a Lexeme
             | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
             | TerminalPlan::UnsignedNumber(_)
+            | TerminalPlan::DeclarationDeterminative(_)
             | TerminalPlan::DeclarationNoun(_)
             | TerminalPlan::DeclarationTerm(_) => None,
         })
@@ -4987,7 +4977,6 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::DeterminerNumber => "determiner_number",
         Feature::NominalForm => "nominal_form",
         Feature::NominalLicense => "nominal_license",
-        Feature::OnsetLicense => "onset_license",
     }
 }
 fn ident(name: &str) -> syn::Ident {

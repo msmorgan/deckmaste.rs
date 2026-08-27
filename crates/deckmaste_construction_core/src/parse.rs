@@ -777,7 +777,6 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "determiner_number" => Some(Feature::DeterminerNumber),
         "nominal_form" => Some(Feature::NominalForm),
         "nominal_license" => Some(Feature::NominalLicense),
-        "onset_license" => Some(Feature::OnsetLicense),
         "number" => Some(Feature::Number),
         "onset" => Some(Feature::Onset),
         "possessive_ending" => Some(Feature::PossessiveEnding),
@@ -1441,6 +1440,7 @@ fn generated_terminal_binding(
     let lexical_variant: syn::Path = syn::parse_quote_spanned!(name.span()=> Lexical::#name);
     let codec_atom = match generated.as_ref() {
         Some(GeneratedCodecRecipe::DeclarationNoun(_)) => Some(CodecAtomClass::Noun),
+        Some(GeneratedCodecRecipe::DeclarationDeterminative(_)) => Some(CodecAtomClass::Lex),
         Some(GeneratedCodecRecipe::DeclarationVerb(_)) => None,
         Some(
             GeneratedCodecRecipe::DeclarationTerm(_)
@@ -1658,6 +1658,80 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 feature_slots,
             },
         ));
+    }
+    if recipe == "declaration_determinative" {
+        let mut closed_slots = Vec::new();
+        let mut kind_slots = Vec::new();
+        while !content.is_empty() {
+            reject_doc_comment(&content)?;
+            let slot = content.call(Ident::parse_any)?;
+            content.parse::<Token![=]>()?;
+            match slot.to_string().as_str() {
+                "closed" => {
+                    let members_content;
+                    bracketed!(members_content in content);
+                    let members = Punctuated::<crate::model::DeclarationDeterminativeMemberSource, Token![,]>::parse_terminated_with(&members_content, |input| {
+                        let lemma = input.call(Ident::parse_any)?;
+                        let member_content;
+                        braced!(member_content in input);
+                        let mut number_license_slots = Vec::new();
+                        let mut nominal_license_slots = Vec::new();
+                        let mut realization_slots = Vec::new();
+                        while !member_content.is_empty() {
+                            let member_slot = member_content.call(Ident::parse_any)?;
+                            member_content.parse::<Token![=]>()?;
+                            match member_slot.to_string().as_str() {
+                                "number_license" | "nominal_license" => {
+                                    let value = member_content.call(Ident::parse_any)?;
+                                    let row = crate::model::GeneratedIdentSlot { slot: member_slot, value };
+                                    if row.slot == "number_license" { number_license_slots.push(row); } else { nominal_license_slots.push(row); }
+                                }
+                                "realizations" => {
+                                    let realizations_content;
+                                    bracketed!(realizations_content in member_content);
+                                    let realizations = Punctuated::<crate::model::DeclarationDeterminativeRealizationSource, Token![,]>::parse_terminated_with(&realizations_content, |input| {
+                                        let realization_content;
+                                        braced!(realization_content in input);
+                                        let mut surface_slots = Vec::new();
+                                        let mut phrase_number_slots = Vec::new();
+                                        let mut following_onset_slots = Vec::new();
+                                        while !realization_content.is_empty() {
+                                            let realization_slot = realization_content.call(Ident::parse_any)?;
+                                            realization_content.parse::<Token![=]>()?;
+                                            match realization_slot.to_string().as_str() {
+                                                "surface" => surface_slots.push(realization_content.parse()?),
+                                                "phrase_number" | "following_onset" => {
+                                                    let value = realization_content.call(Ident::parse_any)?;
+                                                    let row = crate::model::GeneratedIdentSlot { slot: realization_slot, value };
+                                                    if row.slot == "phrase_number" { phrase_number_slots.push(row); } else { following_onset_slots.push(row); }
+                                                }
+                                                _ => return Err(syn::Error::new(realization_slot.span(), "declaration_determinative realization accepts only `surface`, `phrase_number`, and `following_onset` fields")),
+                                            }
+                                            realization_content.parse::<Token![;]>()?;
+                                        }
+                                        Ok(crate::model::DeclarationDeterminativeRealizationSource { surface_slots, phrase_number_slots, following_onset_slots })
+                                    })?.into_iter().collect();
+                                    realization_slots.push(crate::model::DeclarationDeterminativeRealizationsSource { slot: member_slot, realizations });
+                                }
+                                _ => return Err(syn::Error::new(member_slot.span(), "declaration_determinative member accepts only `number_license`, `nominal_license`, and `realizations` fields")),
+                            }
+                            member_content.parse::<Token![;]>()?;
+                        }
+                        Ok(crate::model::DeclarationDeterminativeMemberSource { lemma, number_license_slots, nominal_license_slots, realization_slots })
+                    })?.into_iter().collect();
+                    closed_slots.push(crate::model::DeclarationDeterminativeClosedSource { slot, members });
+                }
+                "kinds" => {
+                    let kinds_content;
+                    bracketed!(kinds_content in content);
+                    let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(&kinds_content, Ident::parse_any)?.into_iter().collect();
+                    kind_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
+                }
+                _ => return Err(syn::Error::new(slot.span(), "declaration_determinative recipe accepts only `closed` and `kinds` fields")),
+            }
+            content.parse::<Token![;]>()?;
+        }
+        return Ok(GeneratedCodecRecipe::DeclarationDeterminative(crate::model::DeclarationDeterminativeSource { recipe, closed_slots, kind_slots }));
     }
     if recipe == "declaration_verb" {
         let mut closed_slots = Vec::new();

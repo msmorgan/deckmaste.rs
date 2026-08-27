@@ -697,7 +697,6 @@ fn validate_sequence_feature_roles(
                     | ParsedFeature::DeterminerNumber
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
-                    | ParsedFeature::OnsetLicense
                     | ParsedFeature::Number
                     | ParsedFeature::Participle
                     | ParsedFeature::PossessiveEnding => {
@@ -2323,6 +2322,9 @@ fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
             crate::model::GeneratedCodecRecipe::DeclarationNoun(source) => {
                 validate_declaration_noun_source(raw, source, &mut errors);
             }
+            crate::model::GeneratedCodecRecipe::DeclarationDeterminative(source) => {
+                validate_declaration_determinative_source(source, &mut errors);
+            }
             crate::model::GeneratedCodecRecipe::DeclarationTerm(source) => {
                 validate_declaration_term_source(source, &mut errors);
             }
@@ -2336,6 +2338,107 @@ fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
         }
     }
     finish_generated_codec_validation(raw, errors)
+}
+
+fn validate_declaration_determinative_source(
+    source: &crate::model::DeclarationDeterminativeSource,
+    errors: &mut Option<syn::Error>,
+) {
+    if source.closed_slots.len() > 1 {
+        for duplicate in &source.closed_slots[1..] {
+            combine(errors, syn::Error::new(duplicate.slot.span(), "duplicate declaration_determinative field `closed`"));
+        }
+    }
+    if source.kind_slots.len() > 1 {
+        for duplicate in &source.kind_slots[1..] {
+            combine(errors, syn::Error::new(duplicate.slot.span(), "duplicate declaration_determinative field `kinds`"));
+        }
+    }
+    let has_closed = source.closed_slots.first().is_some_and(|slot| !slot.members.is_empty());
+    let has_kinds = source.kind_slots.first().is_some_and(|slot| !slot.kinds.is_empty());
+    if !has_closed && !has_kinds {
+        combine(errors, syn::Error::new(source.recipe.span(), "declaration_determinative requires a nonempty `closed` or `kinds` provider"));
+    }
+    if let Some(closed) = source.closed_slots.first() {
+        if closed.members.is_empty() {
+            combine(errors, syn::Error::new(closed.slot.span(), "declaration_determinative closed provider cannot be empty"));
+        }
+        let mut lemmas = HashSet::new();
+        for member in &closed.members {
+            let lemma = identifier_key(&member.lemma);
+            if !lemmas.insert(lemma.clone()) {
+                combine(errors, syn::Error::new(member.lemma.span(), format!("duplicate declaration_determinative lemma `{lemma}`")));
+            }
+            validate_determinative_member_slot(&member.number_license_slots, &member.lemma, "number_license", &["SingularOnly", "PluralOnly", "Both"], errors);
+            validate_determinative_member_slot(&member.nominal_license_slots, &member.lemma, "nominal_license", &["CountNominal", "BareSingularNoun"], errors);
+            match member.realization_slots.as_slice() {
+                [] => combine(errors, syn::Error::new(member.lemma.span(), "declaration_determinative member requires one `realizations` field")),
+                [slot, rest @ ..] => {
+                    for duplicate in rest { combine(errors, syn::Error::new(duplicate.slot.span(), "duplicate declaration_determinative member field `realizations`")); }
+                    if slot.realizations.is_empty() { combine(errors, syn::Error::new(slot.slot.span(), "declaration_determinative realizations cannot be empty")); }
+                    let mut conditions = Vec::<(Option<String>, Option<String>, proc_macro2::Span)>::new();
+                    for row in &slot.realizations {
+                        if row.surface_slots.len() != 1 {
+                            combine(errors, syn::Error::new(member.lemma.span(), "declaration_determinative realization requires one `surface` field"));
+                        }
+                        validate_optional_determinative_condition(&row.phrase_number_slots, "phrase_number", &["Singular", "Plural"], errors);
+                        validate_optional_determinative_condition(&row.following_onset_slots, "following_onset", &["Consonant", "Vowel"], errors);
+                        if row.surface_slots.len() == 1 && row.phrase_number_slots.len() <= 1 && row.following_onset_slots.len() <= 1 {
+                            if ::macro_ron::v2::normalize_surface_onset(&row.surface_slots[0].value(), None).is_none() {
+                                combine(errors, syn::Error::new(row.surface_slots[0].span(), "declaration_determinative realization has no discernible onset"));
+                            }
+                            let phrase = row.phrase_number_slots.first().map(|slot| identifier_key(&slot.value));
+                            let onset = row.following_onset_slots.first().map(|slot| identifier_key(&slot.value));
+                            let number = member.number_license_slots.first().map(|slot| identifier_key(&slot.value));
+                            if matches!(number.as_deref(), Some("SingularOnly")) && matches!(phrase.as_deref(), Some("Plural"))
+                                || matches!(number.as_deref(), Some("PluralOnly")) && matches!(phrase.as_deref(), Some("Singular")) {
+                                combine(errors, syn::Error::new(row.surface_slots[0].span(), "declaration_determinative realization conflicts with its number_license"));
+                            }
+                            if conditions.iter().any(|(other_phrase, other_onset, _)| {
+                                (phrase.is_none() || other_phrase.is_none() || phrase == *other_phrase)
+                                    && (onset.is_none() || other_onset.is_none() || onset == *other_onset)
+                            }) { combine(errors, syn::Error::new(row.surface_slots[0].span(), "overlapping declaration_determinative realizations")); }
+                            conditions.push((phrase, onset, row.surface_slots[0].span()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if let Some(kinds) = source.kind_slots.first() {
+        let mut seen = HashSet::new();
+        for kind in &kinds.kinds {
+            let name = identifier_key(kind);
+            if !matches!(name.as_str(), "KeywordAbility" | "CounterKind" | "Designation" | "KeywordAction" | "Type") {
+                combine(errors, syn::Error::new(kind.span(), "declaration_determinative kinds must be declaration kinds"));
+            } else if !seen.insert(name.clone()) {
+                combine(errors, syn::Error::new(kind.span(), format!("duplicate declaration_determinative kind `{name}`")));
+            }
+        }
+    }
+}
+
+fn validate_determinative_member_slot(
+    slots: &[crate::model::GeneratedIdentSlot], lemma: &syn::Ident, name: &str, allowed: &[&str], errors: &mut Option<syn::Error>,
+) {
+    match slots {
+        [] => combine(errors, syn::Error::new(lemma.span(), format!("declaration_determinative member requires one `{name}` field"))),
+        [slot, rest @ ..] => {
+            for duplicate in rest { combine(errors, syn::Error::new(duplicate.slot.span(), format!("duplicate declaration_determinative member field `{name}`"))); }
+            let value = identifier_key(&slot.value);
+            if !allowed.contains(&value.as_str()) { combine(errors, syn::Error::new(slot.value.span(), format!("invalid declaration_determinative {name} `{value}`"))); }
+        }
+    }
+}
+
+fn validate_optional_determinative_condition(
+    slots: &[crate::model::GeneratedIdentSlot], name: &str, allowed: &[&str], errors: &mut Option<syn::Error>,
+) {
+    if let Some((slot, rest)) = slots.split_first() {
+        for duplicate in rest { combine(errors, syn::Error::new(duplicate.slot.span(), format!("duplicate declaration_determinative realization field `{name}`"))); }
+        let value = identifier_key(&slot.value);
+        if !allowed.contains(&value.as_str()) { combine(errors, syn::Error::new(slot.value.span(), format!("invalid declaration_determinative {name} `{value}`"))); }
+    }
 }
 
 fn validate_unsigned_number_source(
@@ -4451,7 +4554,6 @@ fn generated_name_inventory(
                         }
                         ParsedFeature::NominalForm => ("nominal_form", "NominalForm"),
                         ParsedFeature::NominalLicense => ("nominal_license", "NominalLicense"),
-                        ParsedFeature::OnsetLicense => ("onset_license", "OnsetLicense"),
                         ParsedFeature::Number => ("number", "Number"),
                         ParsedFeature::Onset => ("onset", "Onset"),
                         ParsedFeature::Participle => ("participle", "Participle"),
@@ -4560,6 +4662,9 @@ fn generated_name_inventory(
                 if let Some(family) = match binding.generated {
                     Some(crate::model::GeneratedCodecRecipe::DeclarationNoun(_)) => {
                         Some("declaration_noun")
+                    }
+                    Some(crate::model::GeneratedCodecRecipe::DeclarationDeterminative(_)) => {
+                        Some("declaration_determinative")
                     }
                     Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(_)) => {
                         Some("declaration_verb")
@@ -5043,7 +5148,6 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
-        Feature::OnsetLicense => ParsedFeature::OnsetLicense,
         Feature::Number => ParsedFeature::Number,
         Feature::Onset => ParsedFeature::Onset,
         Feature::Participle => ParsedFeature::Participle,
@@ -5092,7 +5196,6 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
-        Feature::OnsetLicense => ParsedFeature::OnsetLicense,
         Feature::Number => ParsedFeature::Number,
         Feature::Onset => ParsedFeature::Onset,
         Feature::Participle => ParsedFeature::Participle,
@@ -5345,7 +5448,6 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 | ParsedFeature::DeterminerNumber
                 | ParsedFeature::NominalForm
                 | ParsedFeature::NominalLicense
-                | ParsedFeature::OnsetLicense
                 | ParsedFeature::Onset
                 | ParsedFeature::Participle
                 | ParsedFeature::PossessiveEnding => None,
@@ -8827,7 +8929,6 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             ParsedFeature::NominalLicense,
             ParsedFeature::Number,
             ParsedFeature::Onset,
-            ParsedFeature::OnsetLicense,
             ParsedFeature::PossessiveEnding,
         ] {
             if constructions.iter().all(|construction| construction.equations.iter().any(|equation| matches!(equation.target, ParsedFeaturePlace::Construction(found) if found == feature))) {
@@ -8869,7 +8970,6 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
                 ParsedFeature::DeterminerNumber,
                 ParsedFeature::NominalForm,
                 ParsedFeature::NominalLicense,
-                ParsedFeature::OnsetLicense,
             ] {
                 if !sum.alternatives.is_empty()
                     && sum.alternatives.iter().all(|alternative| {
@@ -8905,7 +9005,6 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",
-        ParsedFeature::OnsetLicense => "onset_license",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
         ParsedFeature::Participle => "participle",
@@ -9362,7 +9461,6 @@ fn validate_lowerable_feature_compositions(
                     ParsedFeature::DeterminerNumber
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
-                    | ParsedFeature::OnsetLicense,
                 ),
                 ParsedFeatureValue::FromRole(source),
             ) => role_feature_is_constructible(
@@ -9412,8 +9510,7 @@ fn validate_lowerable_feature_compositions(
                     feature:
                         ParsedFeature::DeterminerNumber
                         | ParsedFeature::NominalForm
-                        | ParsedFeature::NominalLicense
-                        | ParsedFeature::OnsetLicense,
+                        | ParsedFeature::NominalLicense,
                     ..
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
@@ -9615,7 +9712,6 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",
-        ParsedFeature::OnsetLicense => "onset_license",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
         ParsedFeature::Participle => "participle",

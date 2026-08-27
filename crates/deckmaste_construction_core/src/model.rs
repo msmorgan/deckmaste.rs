@@ -235,7 +235,6 @@ pub enum Feature {
     DeterminerNumber,
     NominalForm,
     NominalLicense,
-    OnsetLicense,
     Number,
     Onset,
     Participle,
@@ -370,6 +369,7 @@ pub enum GeneratedCodecRecipe {
     EnglishCardinal(UnsignedNumberSource),
     UnsignedDecimal(UnsignedNumberSource),
     DeclarationNoun(DeclarationNounSource),
+    DeclarationDeterminative(DeclarationDeterminativeSource),
     DeclarationTerm(DeclarationTermSource),
     DeclarationVerb(DeclarationVerbSource),
     Unsupported { name: Ident },
@@ -389,6 +389,40 @@ pub struct DeclarationNounSource {
     pub position_slots: Vec<GeneratedIdentSlot>,
     pub kind_slots: Vec<DeclarationNounKindsSource>,
     pub feature_slots: Vec<GeneratedIdentSlot>,
+}
+
+#[derive(Debug)]
+pub struct DeclarationDeterminativeSource {
+    pub recipe: Ident,
+    pub closed_slots: Vec<DeclarationDeterminativeClosedSource>,
+    pub kind_slots: Vec<DeclarationVerbKindsSource>,
+}
+
+#[derive(Debug)]
+pub struct DeclarationDeterminativeClosedSource {
+    pub slot: Ident,
+    pub members: Vec<DeclarationDeterminativeMemberSource>,
+}
+
+#[derive(Debug)]
+pub struct DeclarationDeterminativeMemberSource {
+    pub lemma: Ident,
+    pub number_license_slots: Vec<GeneratedIdentSlot>,
+    pub nominal_license_slots: Vec<GeneratedIdentSlot>,
+    pub realization_slots: Vec<DeclarationDeterminativeRealizationsSource>,
+}
+
+#[derive(Debug)]
+pub struct DeclarationDeterminativeRealizationsSource {
+    pub slot: Ident,
+    pub realizations: Vec<DeclarationDeterminativeRealizationSource>,
+}
+
+#[derive(Debug)]
+pub struct DeclarationDeterminativeRealizationSource {
+    pub surface_slots: Vec<LitStr>,
+    pub phrase_number_slots: Vec<GeneratedIdentSlot>,
+    pub following_onset_slots: Vec<GeneratedIdentSlot>,
 }
 
 #[derive(Debug)]

@@ -22,7 +22,6 @@ use crate::identifier::LEXICAL_TYPE;
 use crate::identifier::NOMINAL_FORM_TYPE;
 use crate::identifier::NOMINAL_LICENSE_TYPE;
 use crate::identifier::NUMBER_TYPE;
-use crate::identifier::ONSET_LICENSE_TYPE;
 use crate::identifier::ONSET_TYPE;
 use crate::identifier::PARTICIPLE_TYPE;
 use crate::identifier::POSSESSIVE_ENDING_TYPE;
@@ -40,6 +39,7 @@ use crate::semantic::AtomPlan;
 use crate::semantic::BindingPlan;
 use crate::semantic::CatalogIdentityPlan;
 use crate::semantic::ContextIdentityPlan;
+use crate::semantic::DeclarationDeterminativePlan;
 use crate::semantic::DeclarationNounPlan;
 use crate::semantic::DeclarationTermPlan;
 use crate::semantic::DeclarationVerbPlan;
@@ -62,6 +62,7 @@ struct RuntimeInventory<'a> {
     catalog_identities: Vec<(usize, &'a CatalogIdentityPlan)>,
     signed_decimal: Option<&'a SignedDecimalPlan>,
     unsigned_numbers: Vec<&'a UnsignedNumberPlan>,
+    declaration_determinatives: Vec<(usize, &'a DeclarationDeterminativePlan)>,
     declaration_nouns: Vec<(usize, &'a DeclarationNounPlan)>,
     declaration_terms: Vec<(usize, &'a DeclarationTermPlan)>,
     declaration_verbs: Vec<(usize, &'a DeclarationVerbPlan)>,
@@ -106,6 +107,7 @@ impl<'a> RuntimeInventory<'a> {
             catalog_identities: plan.runtime_catalog_identities().collect(),
             signed_decimal: plan.runtime_signed_decimal(),
             unsigned_numbers: plan.runtime_unsigned_numbers().collect(),
+            declaration_determinatives: plan.runtime_declaration_determinatives().collect(),
             declaration_nouns: plan.runtime_declaration_nouns().collect(),
             declaration_terms: plan.runtime_declaration_terms().collect(),
             declaration_verbs: plan.runtime_declaration_verbs().collect(),
@@ -160,10 +162,6 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! {
                 pub(crate) use ::macro_ron::v2::Onset;
             },
-        ),
-        named_type(
-            ONSET_LICENSE_TYPE,
-            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum OnsetLicense { AnyOnset, ConsonantOnset, VowelOnset } },
         ),
         named_type(
             PARTICIPLE_TYPE,
@@ -1045,6 +1043,12 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let (catalog_lexical, catalog_leaf, catalog_class) = catalog_lexical_variants(inventory);
     let (signed_lexical, signed_leaf, signed_class) = signed_lexical_variants(inventory);
     let (unsigned_lexical, unsigned_leaf, unsigned_class) = unsigned_lexical_variants(inventory);
+    let declaration_determinative_lexical = (!inventory.declaration_determinatives.is_empty()).then(|| quote! { DeclarationDeterminative(usize), });
+    let declaration_determinative_leaf = inventory.declaration_determinatives.iter().map(|(_, codec)| {
+        let ty = codec.codec_ident();
+        quote! { #ty { value: #ty, onset: Onset, number_license: DeterminerNumber, nominal_license: NominalLicense }, }
+    });
+    let declaration_determinative_class = (!inventory.declaration_determinatives.is_empty()).then(|| quote! { DeclarationDeterminative(usize), });
 
     vec![
         named_type(
@@ -1056,6 +1060,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     EndOfInput,
                     #(#vocab_variants,)*
                     #noun_lexical
+                    #declaration_determinative_lexical
                     #declaration_noun_lexical
                     #declaration_term_lexical
                     #declaration_verb_lexical
@@ -1079,6 +1084,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     EndOfInput,
                     #(#vocab_leaf_variants,)*
                     #noun_leaf
+                    #(#declaration_determinative_leaf)*
                     #(#declaration_noun_leaf_variants)*
                     #declaration_term_leaf
                     #(#declaration_verb_leaf_variants)*
@@ -1101,6 +1107,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     EndOfInput,
                     #(#vocab_class_variants,)*
                     #noun_class
+                    #declaration_determinative_class
                     #declaration_noun_class
                     #declaration_term_class
                     #declaration_verb_class
