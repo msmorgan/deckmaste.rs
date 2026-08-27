@@ -228,6 +228,31 @@ mutual
     HasCounters : (kind : Maybe CounterKind) ->
                   {auto 0 kn : CounterKindNamed Object kind} ->
                   Predicate bs Object
+    ||| "if this spell was kicked", "if its madness cost was paid", "a
+    ||| kicked spell": the object's controller declared, as it was cast,
+    ||| the intention to pay one of the object's own optional costs
+    ||| [CR#702.33d]. STATE on the object and not a mention threaded from
+    ||| an earlier clause -- [CR#707.2] copies "whether it was kicked"
+    ||| along with the spell's other casting choices, and [CR#702.152a]
+    ||| reads the same state off the permanent the spell became -- so the
+    ||| read is anchored to whatever object it describes and the zone is
+    ||| ungated. [CR#607.2i] links the offering ability to this one and
+    ||| makes the read say WHICH cost, which is all the `PaidCostName`
+    ||| slot is; no clause mints a name and none is matched.
+    ||| ONE relation and not the crate's pair. The rules write the same
+    ||| readback for an additional cost [CR#702.27a] and for an
+    ||| alternative one [CR#702.34a], and the corpus writes both as
+    ||| "[keyword] cost was paid" -- which kind a keyword offers is that
+    ||| keyword's fact, never the reading clause's.
+    ||| [CR#702.33c] makes a multikicker cost a kicker cost, so the word
+    ||| a card declares and the word a read names may differ; reading
+    ||| "Multikicker" is the same state under the other name and is
+    ||| tolerated.
+    ||| -- spelling: "[n] was kicked", "[n]'s [keyword] cost was paid",
+    ||| "[n] was cast for its [keyword] cost"; with the ordinal, "[n] was
+    ||| kicked with its [cost] [keyword]".
+    PaidCost : (which : PaidCostName) ->
+               {auto 0 nc : PaidCostNamed which} -> Predicate bs Object
     -- the bound slot is open to any amount at every relation; see
     -- `CompareAmt`'s docstring for the recorded verdict.
     Compare : (c : Characteristic) -> (r : Comparator) -> (bound : Amount bs) ->
@@ -418,6 +443,9 @@ mutual
   seedZone IsToken = Just Battlefield
   seedZone (HasStatus _) = Just Battlefield
   seedZone (HasCounters _) = Nothing
+  -- payment is history the object carries [CR#707.2], readable on the
+  -- stack and on the permanent the spell became [CR#702.152a]
+  seedZone (PaidCost _) = Nothing
   seedZone (ControlledBy _) = Nothing
   -- Casting is history, not a location: [CR#400.7d] lets a permanent's
   -- ability reference the spell it was cast as, and [CR#702.40a] counts
@@ -574,6 +602,7 @@ mutual
   hasHead IsToken = True
   hasHead (HasStatus _) = False
   hasHead (HasCounters _) = False
+  hasHead (PaidCost _) = False
   hasHead (Compare _ _ _) = False
   hasHead (CounterCompare _ _ _) = False
   hasHead (Superlative _ _ _) = False
@@ -764,6 +793,8 @@ mutual
   predEq (HasCounters Nothing) (HasCounters Nothing) = True
   predEq (HasCounters (Just a)) (HasCounters (Just b)) = a == b
   predEq (HasCounters _) _ = False
+  predEq (PaidCost a) (PaidCost b) = a == b
+  predEq (PaidCost _) _ = False
   predEq (Compare c r b) (Compare d s e) = c == d && r == s &&
                                            boundEq b e
   predEq (Compare _ _ _) _ = False
@@ -1202,6 +1233,7 @@ mutual
   predSays IsToken = True
   predSays (HasStatus _) = True
   predSays (HasCounters _) = True
+  predSays (PaidCost _) = True
   predSays (Compare _ _ _) = True
   predSays (CounterCompare _ _ _) = True
   predSays (Superlative _ _ _) = True
@@ -1264,6 +1296,7 @@ mutual
   predNegFree IsToken = True
   predNegFree (HasStatus _) = True
   predNegFree (HasCounters _) = True
+  predNegFree (PaidCost _) = True
   predNegFree (Compare _ _ _) = True
   predNegFree (CounterCompare _ _ _) = True
   predNegFree (Superlative _ _ _) = True
@@ -1673,6 +1706,24 @@ mutual
     CountersOn : {k : Kind} -> (kind : CounterKind) -> (holder : Noun bs k) ->
                  {auto 0 sc : counterScope kind = k} ->
                  {auto 0 one : nounPlur holder = OneOf} -> Amount bs
+    ||| "the number of times it was kicked", "for each time it was
+    ||| kicked": how many times one named optional cost was paid for the
+    ||| object as it was cast. The count-valued twin of `PaidCost`, on
+    ||| `CountersOn`'s model -- payment is state on the object, and the
+    ||| state a payment leaves is a number. [CR#702.33d] is what makes
+    ||| that number bigger than one: a spell with two kicker costs or
+    ||| with multikicker "may be kicked multiple times". So repeatability
+    ||| is a fact of the COST the card declared and no flag anywhere; the
+    ||| count reads at every paid-cost name, and one that was offered
+    ||| once reads 0 or 1 -- tolerated, as `GreatestStoredMatch` tolerates
+    ||| a permanent that stored nothing. The holder is singular because
+    ||| [CR#118.10] applies each payment to one spell or ability and no
+    ||| rule sums two objects' payments.
+    ||| -- spelling: "the number of times [n] was kicked", "for each time
+    ||| [n] was kicked".
+    TimesPaid : (which : PaidCostName) -> (whose : Noun bs Object) ->
+                {auto 0 nc : PaidCostNamed which} ->
+                {auto 0 one : nounPlur whose = OneOf} -> Amount bs
     EventCount : {k : Kind} -> (ev : EventName) -> (who : Noun bs k) ->
                  (w : Lookback) ->
                  (what :
@@ -1870,6 +1921,7 @@ mutual
   amtDelta (StatOf _ nom) = nounDelta nom
   amtDelta (PlayerStatOf _ nom) = nounDelta nom
   amtDelta (CountersOn _ holder) = nounDelta holder
+  amtDelta (TimesPaid _ whose) = nounDelta whose
   amtDelta (EventCount _ who _ what) = nounDelta who ++ complementDelta what
   amtDelta (CountOf p) = predDelta p
   amtDelta (Aggregate _ _ p) = predDelta p
@@ -1901,6 +1953,7 @@ mutual
   amtIntro (StatOf c nom) = nomIntro nom
   amtIntro (PlayerStatOf w nom) = nomIntro nom
   amtIntro (CountersOn _ holder) = nomIntro holder
+  amtIntro (TimesPaid _ whose) = nomIntro whose
   amtIntro (EventCount _ who _ what) = complementDelta what ++ nomIntro who
   amtIntro (CountOf p) = predDelta p ++ bs
   amtIntro (Aggregate _ _ p) = predDelta p ++ bs
@@ -1940,6 +1993,7 @@ mutual
   amtPlur (StatOf _ _) = ManyOf
   amtPlur (PlayerStatOf _ _) = ManyOf
   amtPlur (CountersOn _ _) = ManyOf
+  amtPlur (TimesPaid _ _) = ManyOf
   amtPlur (EventCount _ _ _ _) = ManyOf
   amtPlur (CountOf _) = ManyOf
   amtPlur (Aggregate _ _ _) = ManyOf
@@ -1972,6 +2026,7 @@ mutual
   writtenBound (StatOf _ _) = False
   writtenBound (PlayerStatOf _ _) = False
   writtenBound (CountersOn _ _) = False
+  writtenBound (TimesPaid _ _) = False
   writtenBound (EventCount _ _ _ _) = False
   writtenBound (CountOf _) = False
   writtenBound (Aggregate _ _ _) = False
@@ -2047,6 +2102,7 @@ mutual
   readAmount (StatOf _ _) = True
   readAmount (PlayerStatOf _ _) = True
   readAmount (CountersOn _ _) = True
+  readAmount (TimesPaid _ _) = True
   readAmount (EventCount _ _ _ _) = True
   readAmount (CountOf _) = True
   readAmount (Aggregate _ _ _) = True

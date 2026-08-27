@@ -9172,6 +9172,104 @@ hibernationsEndTrigger =
           , Macros.putOntoBattlefield (That CardW)
           , Macros.shuffle ]))
 
+-- A paid optional cost read back later: the payment is state the object
+-- carries [CR#707.2], the reading ability is linked to the offering one
+-- [CR#607.2i], and the read names WHICH cost -- never a tag some clause
+-- minted.
+
+||| Krosan Druid -- "Kicker {4}{G} / When this creature enters, if it was
+||| kicked, you gain 10 life." The cheapest whole card in the family: the
+||| keyword offers the cost [CR#702.33a] and the intervening-if reads
+||| back the declaration that made the spell kicked [CR#702.33d].
+public export
+krosanDruid : Card
+krosanDruid =
+  Macros.card "Krosan Druid"
+       (Just [Macros.generic 2, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Centaur", creatureType "Druid"] [Creature])
+       [ Macros.keywordCosting "Kicker"
+           (Mana [Macros.generic 4, Macros.pip Green])
+       , Macros.triggeredIf When (Enters Macros.thisCreature)
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Kicker")))
+           (Macros.gainsLife You (Lit 10)) ]
+       (Just (2, 3))
+
+||| Lightkeeper of Emeria -- "Multikicker {W} / Flying / When this
+||| creature enters, you gain 2 life for each time it was kicked." The
+||| count read: [CR#702.33c] makes a multikicker cost a kicker cost, so
+||| the declaration writes the printed word and the read names the cost
+||| that was paid.
+public export
+lightkeeperOfEmeria : Card
+lightkeeperOfEmeria =
+  Macros.card "Lightkeeper of Emeria"
+       (Just [Macros.generic 3, Macros.pip White]) []
+       (MkTypeLine [creatureType "Angel"] [Creature])
+       [ Macros.keywordCosting "Multikicker" (Mana [Macros.pip White])
+       , Macros.keyword "Flying"
+       , Macros.triggered When (Enters Macros.thisCreature)
+           (Macros.gainsLife You
+              (Times 2 (TimesPaid (ByKeyword "Kicker") Macros.thisCreature))) ]
+       (Just (2, 4))
+
+||| Merfolk Falconer -- "Flying / Whenever you cast a kicked spell, scry
+||| 2." The same read inside a DESCRIPTION rather than on the source:
+||| "kicked" describes the spell that was cast, and nothing about the
+||| read changes when the object it is anchored to is someone else's.
+public export
+merfolkFalconer : Card
+merfolkFalconer =
+  Macros.card "Merfolk Falconer"
+       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggered Whenever
+           (Casts You (Macros.a (And [Macros.spell,
+                                      PaidCost (ByKeyword "Kicker")])))
+           (Macros.scry (Lit 2)) ]
+       (Just (4, 4))
+
+||| Ertai's Trickery -- "Counter target spell if it was kicked." The
+||| whole card in one clause, and the read at its plainest: the object it
+||| describes is the spell the clause just targeted, not the source, so
+||| nothing about the read is tied to the text that carries it.
+public export
+ertaisTrickery : Card
+ertaisTrickery =
+  Macros.card "Ertai's Trickery" (Just [Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (OnlyIf (Macros.counterSpell (Macros.target Macros.spell))
+                       (Matches It (PaidCost (ByKeyword "Kicker"))) Nothing) ]
+       Nothing
+
+||| Baleful Mastery's paid read -- "If the {1}{B} cost was paid, an
+||| opponent draws a card." The unnamed arm: the card writes its
+||| alternative cost out [CR#118.9] instead of naming a keyword, so the
+||| read has nothing but "the card's own alternative cost" to sort by and
+||| the printed symbols are spelling. The rest of the card does not
+||| write -- "Exile target creature or planeswalker" needs a joined
+||| target the round did not open.
+public export
+balefulMasteryPaidRead : Ability
+balefulMasteryPaidRead =
+  Spell (If (Matches This (PaidCost TheAlternative))
+            (Draw (Macros.a Opponent) (Lit 1)) Nothing)
+
+||| Stormscape Battlemage's first kicker trigger -- "When this creature
+||| enters, if it was kicked with its {W} kicker, you gain 3 life."
+||| [CR#607.2i]'s own worked example, and the ordinal arm: the card
+||| declares "Kicker {W} and/or {2}{B}", which is two kicker abilities
+||| [CR#702.33b], and [CR#702.33f] fixes the printed cost in the read as
+||| naming the FIRST one listed. The rest of the card does not write --
+||| its second trigger destroys a creature that "can't be regenerated",
+||| whose regeneration ban is not this round's.
+public export
+stormscapeBattlemageFirstKicker : Ability
+stormscapeBattlemageFirstKicker =
+  Macros.triggeredIf When (Enters Macros.thisCreature)
+    (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker")))
+    (Macros.gainsLife You (Lit 3))
+
 -- The choice frame that licenses a later read: a choice announced as the
 -- effect applies [CR#608.2d] partitions the described set, and what it
 -- leaves behind -- the unchosen members, the margin of a comparison it

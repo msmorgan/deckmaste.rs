@@ -931,3 +931,21 @@ public export
 badExactlySixColors : Unspellable (Predicate [] Object) (\ok =>
   ExactlyColors 6 {ok = ok})
 badExactlySixColors Oh impossible
+
+||| "if this creature's flying cost was paid"
+||| [CR#607.2i] links a paid-cost read to an ability that OFFERS a cost,
+||| and [CR#702.9a] writes flying with no parameter at all, so the word
+||| names nothing that could have been paid.
+public export
+badPaidCostOnCostlessKeyword : Unspellable (Predicate [] Object) (\ok =>
+  PaidCost (ByKeyword "Flying") {nc = ok})
+badPaidCostOnCostlessKeyword Oh impossible
+
+||| "for each time it was kickre'd"
+||| The count read carries the same gate as the boolean one, and it is
+||| fail-closed through the catalog: a word with no row of its own names
+||| no ability [CR#702.1], so a misspelling names no cost either.
+public export
+badTimesPaidUnknownKeyword : Unspellable (Amount []) (\ok =>
+  TimesPaid (ByKeyword "Kickre") Macros.thisCreature {nc = ok})
+badTimesPaidUnknownKeyword Oh impossible

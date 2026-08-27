@@ -2178,6 +2178,8 @@ keywordFacts =
   , MkKeywordFacts "Renown"           NumberParam  False Nothing             True  False False
   , MkKeywordFacts "Indestructible"   NoParam      True  Nothing             True  False False
   , MkKeywordFacts "Flash"            NoParam      False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Kicker"           CostParam    False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Multikicker"      CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "CumulativeUpkeep" CostParam    False Nothing             True  False False
   , MkKeywordFacts "Echo"             CostParam    False Nothing             True  False False
   , MkKeywordFacts "Hexproof"         NoParam      True  Nothing             True  False False
@@ -2218,6 +2220,13 @@ public export
 keywordParamShape : KeywordLabel -> KeywordParamShape
 keywordParamShape k = maybe NoParam paramShape (keywordFactsFor k)
 
+||| Whether the word names a cost -- its rule writes a cost where another
+||| word writes a number or nothing [CR#118.1]. Fail-closed through
+||| `keywordParamShape`, so an unknown word names no cost.
+public export
+keywordCosts : KeywordLabel -> Bool
+keywordCosts k = keywordParamShape k == CostParam
+
 ||| Known AND written bare: an unknown word is not a parameterless
 ||| keyword, it is no keyword.
 public export
@@ -2236,6 +2245,48 @@ KeywordCounterEligible k = So (keywordCounterOk k)
 public export
 keywordStackRegime : KeywordLabel -> Maybe StackRegime
 keywordStackRegime k = keywordFactsFor k >>= regime
+
+||| WHICH of an object's own optional costs a later clause reads back.
+||| [CR#607.2i] links the ability that offers a cost to the ability that
+||| asks whether it was paid, and closes the naming question in its own
+||| last sentence -- "Each of those abilities will specify which cost it
+||| refers to". So the read is SORTED, and sorted by the cost's PRINTED
+||| name rather than by any identifier a clause mints: a keyword names it
+||| ("was kicked", "its madness cost was paid"), and where one keyword
+||| offers a card two costs [CR#702.33b] the ordinal picks which, exactly
+||| as [CR#702.33f] defines "with its [A] kicker" by the order the costs
+||| are listed on the card.
+||| A cost the card writes out instead of naming -- "You may pay {1}{B}
+||| rather than pay this spell's mana cost", read back as "If the {1}{B}
+||| cost was paid" -- has no name to give, so the card's own alternative
+||| cost [CR#118.9] is the third arm and the printed symbols are
+||| spelling.
+public export
+data PaidCostName : Type where
+  ByKeyword : (kw : KeywordLabel) -> PaidCostName
+  ByNthKeyword : (ord : Ordinal) -> (kw : KeywordLabel) -> PaidCostName
+  TheAlternative : PaidCostName
+
+public export
+Eq PaidCostName where
+  (==) (ByKeyword a) (ByKeyword b) = a == b
+  (==) (ByKeyword _) _ = False
+  (==) (ByNthKeyword (Nth m) a) (ByNthKeyword (Nth n) b) = m == n && a == b
+  (==) (ByNthKeyword _ _) _ = False
+  (==) TheAlternative TheAlternative = True
+  (==) TheAlternative _ = False
+
+||| A named cost has to be one there is: a keyword arm needs a word whose
+||| rule writes a cost, and the written alternative needs nothing.
+public export
+paidCostNamed : PaidCostName -> Bool
+paidCostNamed (ByKeyword kw) = keywordCosts kw
+paidCostNamed (ByNthKeyword _ kw) = keywordCosts kw
+paidCostNamed TheAlternative = True
+
+public export
+PaidCostNamed : PaidCostName -> Type
+PaidCostNamed n = So (paidCostNamed n)
 
 public export
 data AbilityClass : Type where

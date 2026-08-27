@@ -392,3 +392,26 @@ No Rust crate.
 Standard constraints apply.
 
 - **Routed from workbench-payment-event-residues (close, 2026-08-26):** the repeated-payment OFFER — "you may pay this cost one or more times" / "up to three times" (the 5 Adversaries, Tranquil Frillback). Not an event ([CR#603.12a] makes the trigger a reflexive); what is missing is cost-side: `Pay`/`Cost` carry no repetition and `Repeated` takes only a definite count. [CR#702.56a] writes the offer in rules language. Two Effect-side follow-ons gated on the offer landing: narrow `reflexEncloseUse (Repeated _ _)` for a repeated cost payment per [CR#603.12a], and the reflexive seat's restating spelling.
+
+- **Routed from workbench-cost-tags-and-paid-readbacks (close, 2026-08-26):**
+  the READ side landed (`PaidCost`/`TimesPaid`, sorted by `PaidCostName`); four
+  cost-DECLARATION residues follow it here. (1) The un-keyworded ADDITIONAL cost
+  — "As an additional cost to cast this spell, you may …" [CR#118.8] — has no v2
+  declaration row, so its 13 measured readback lines ("If this spell's
+  additional cost was paid") cannot write; landing it also lands a fourth
+  `PaidCostName` arm beside `TheAlternative`. (2) The keyword cost catalog:
+  `keywordFacts` gained `Kicker` and `Multikicker` only, the two the bench
+  needed; Madness, Prowl, Surge, Spectacle, Emerge, Freerunning, Mayhem, Sneak,
+  Warp, Buyback, Dash, Evoke, Blitz, Awaken, Cleave, Impending, Harmonize,
+  Replicate, Conspire, Casualty, Squad, Offspring, Gift and Compleated are all
+  measured readback payers waiting on rows. (3) Entwine and escalate write NO
+  readback anywhere in the corpus — all 19 entwine and 7 escalate lines are the
+  keyword line plus reminder text — so the crate's `ModalCostRider` is a cost
+  declaration on the modal clause and belongs here, not to a readback family.
+  (4) Verrak, Warped Sengir — "if life was paid to activate it, you may pay that
+  much life again" — is the corpus's one true life-payment readback; it sorts by
+  no cost NAME and is anchored to an ABILITY rather than an object, so
+  `PaidCost` cannot reach it and `PaysLife` is an event header, not a state read.
+  (5) Karai, Future of the Foot — "if her sneak cost was paid **this turn**", the
+  family's one turn-scoped payment read; `PaidCost` carries no window slot and
+  the window belongs with the payment channel.

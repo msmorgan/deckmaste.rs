@@ -91,7 +91,7 @@ paymentEventName Unpaid = CostNonpayment
 ||| -- flying, menace -- names nothing payable.
 public export
 KeywordCost : KeywordLabel -> Type
-KeywordCost k = So (keywordParamShape k == CostParam)
+KeywordCost k = So (keywordCosts k)
 
 public export
 sameEventName : EventName -> EventName -> Bool
