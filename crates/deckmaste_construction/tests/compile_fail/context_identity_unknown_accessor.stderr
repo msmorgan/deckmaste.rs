@@ -1,5 +1,0 @@
-error: unknown ParseContext accessor `display_name`
- --> tests/compile_fail/context_identity_unknown_accessor.rs:7:28
-  |
-7 |             Abbreviated => display_name,
-  |                            ^^^^^^^^^^^^

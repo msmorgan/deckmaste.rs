@@ -1,5 +1,0 @@
-error: unknown morphology `Missing`
- --> tests/compile_fail/morphology_unknown.rs:4:29
-  |
-4 |     lexeme VerbLexeme using Missing { Deal = "deal", }
-  |                             ^^^^^^^

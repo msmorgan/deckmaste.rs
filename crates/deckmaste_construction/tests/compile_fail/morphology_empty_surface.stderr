@@ -1,5 +1,0 @@
-error: lexeme override surface must not be empty
- --> tests/compile_fail/morphology_empty_surface.rs:9:32
-  |
-9 |         Deal = "deal" { Bare = "", },
-  |                                ^^

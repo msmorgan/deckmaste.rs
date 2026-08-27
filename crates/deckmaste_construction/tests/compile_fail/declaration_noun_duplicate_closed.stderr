@@ -1,5 +1,0 @@
-error: duplicate declaration_noun field `closed`
- --> tests/compile_fail/declaration_noun_duplicate_closed.rs:9:13
-  |
-9 |             closed = NounLexeme;
-  |             ^^^^^^

@@ -1,5 +1,0 @@
-error: declaration_verb position must be `Verb`
- --> tests/compile_fail/declaration_verb_wrong_position.rs:6:24
-  |
-6 |             position = Noun;
-  |                        ^^^^

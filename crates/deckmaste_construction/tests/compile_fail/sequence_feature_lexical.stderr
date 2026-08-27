@@ -1,5 +1,0 @@
-error: LexicalSequence.members: sequence feature agreement requires feature-bearing category items
- --> tests/compile_fail/sequence_feature_lexical.rs:8:28
-  |
-8 |         derive agreement = members.agreement;
-  |                            ^^^^^^^

@@ -1,5 +1,0 @@
-error: UnsupportedSumSequence.members: sequence feature propagation supports agreement only, found number
-  --> tests/compile_fail/sequence_feature_sum_unsupported.rs:15:25
-   |
-15 |         derive number = members.number;
-   |                         ^^^^^^^

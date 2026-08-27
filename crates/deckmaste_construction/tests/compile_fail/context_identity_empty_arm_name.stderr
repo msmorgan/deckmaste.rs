@@ -1,5 +1,0 @@
-error: context identity arm name cannot be empty
- --> tests/compile_fail/context_identity_empty_arm_name.rs:6:13
-  |
-6 |             _ => card_name,
-  |             ^

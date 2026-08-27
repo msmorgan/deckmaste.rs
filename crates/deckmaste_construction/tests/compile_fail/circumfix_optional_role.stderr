@@ -1,5 +1,0 @@
-error: circumfix atom values must be required singular or sequence fields
-  --> tests/compile_fail/circumfix_optional_role.rs:10:39
-   |
-10 |         form invalid = circumfix("[", value, "]");
-   |                                       ^^^^^

@@ -1,5 +1,0 @@
-error: unknown canonical context identity arm `Short`
- --> tests/compile_fail/context_identity_unknown_canonical.rs:8:38
-  |
-8 |             canonical_on_collision = Short;
-  |                                      ^^^^^

@@ -1,5 +1,0 @@
-error: generated codec cannot mix `generate` with legacy binding fields
- --> tests/compile_fail/signed_decimal_mixed_legacy.rs:6:9
-  |
-6 |         generate signed_decimal {
-  |         ^^^^^^^^

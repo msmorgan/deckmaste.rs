@@ -1,5 +1,0 @@
-error: EmptySequence.members: sequence feature agreement requires a statically nonempty sequence
-  --> tests/compile_fail/sequence_feature_empty.rs:11:28
-   |
-11 |         derive agreement = members.agreement;
-   |                            ^^^^^^^

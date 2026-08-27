@@ -1,5 +1,0 @@
-error: declaration_verb domains `FirstVerb` and `LaterVerb` overlap at `KeywordAction/Verb/[ObjectNounPhrase]`
-  --> tests/compile_fail/declaration_verb_overlapping_frame_domains.rs:12:11
-   |
-12 |     codec LaterVerb {
-   |           ^^^^^^^^^

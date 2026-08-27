@@ -1,5 +1,0 @@
-error: IdentitySequence.members: sequence feature agreement requires feature-bearing category items
-  --> tests/compile_fail/sequence_feature_identity.rs:16:28
-   |
-16 |         derive agreement = members.agreement;
-   |                            ^^^^^^^

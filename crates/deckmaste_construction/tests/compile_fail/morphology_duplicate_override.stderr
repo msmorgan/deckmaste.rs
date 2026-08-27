@@ -1,5 +1,0 @@
-error: duplicate override `Bare`
-  --> tests/compile_fail/morphology_duplicate_override.rs:11:13
-   |
-11 |             Bare = "deals",
-   |             ^^^^

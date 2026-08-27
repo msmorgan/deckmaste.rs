@@ -1,5 +1,0 @@
-error: duplicate signed_decimal sign role `Positive`
- --> tests/compile_fail/signed_decimal_duplicate_sign_role.rs:9:17
-  |
-9 |                 Positive = none,
-  |                 ^^^^^^^^

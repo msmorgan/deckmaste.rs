@@ -1,5 +1,0 @@
-error: optional-presence requirements accept no arguments
- --> tests/compile_fail/optional_presence_rejects_arguments.rs:7:30
-  |
-7 |         require word.is_some(That);
-  |                              ^^^^

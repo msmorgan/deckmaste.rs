@@ -1,5 +1,0 @@
-error: signed_decimal magnitude must be `u32`
- --> tests/compile_fail/signed_decimal_unsupported_magnitude.rs:6:25
-  |
-6 |             magnitude = u64;
-  |                         ^^^

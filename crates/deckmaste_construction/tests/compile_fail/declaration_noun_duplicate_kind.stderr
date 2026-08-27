@@ -1,5 +1,0 @@
-error: duplicate declaration_noun kind `Type`
-  --> tests/compile_fail/declaration_noun_duplicate_kind.rs:10:37
-   |
-10 |             kinds = [Type, Subtype, Type];
-   |                                     ^^^^

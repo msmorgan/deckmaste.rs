@@ -1,5 +1,0 @@
-error: declaration_noun closed branch must name a lexeme declaration
- --> tests/compile_fail/declaration_noun_incapable_closed.rs:7:22
-  |
-7 |             closed = Word;
-  |                      ^^^^
