@@ -162,10 +162,12 @@ badStaticPlayerCantTargets Oh impossible
 
 
 ||| "Target creature becomes the basic land type of your choice until end of turn."
-||| [CR#305.7] states its consequences of a land's subtype, and the subject's projected head is no land.
+||| [CR#205.3c] gives each card type its own subtypes, and the subject's projected head is no land.
 public export
 badChosenBasicTypeOnCreature : Unspellable (Effect []) (\ok =>
-  Continuously (SetsChosenBasicType (Macros.target Macros.creature) {ls = ok})
+  Continuously (SetsChosenQuality (Macros.target Macros.creature)
+                                  (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly))
+                                  {hr = ok})
                (Just Macros.untilEndOfTurn))
 badChosenBasicTypeOnCreature Oh impossible
 
@@ -184,7 +186,7 @@ badCreaturesAreMountains Oh impossible
 ||| A bound number reads back by numeric equality, never as a quality.
 public export
 badYourChoiceNumber : Unspellable (Predicate [] Object) (\ok =>
-  OfYourChoice Number {read = ok})
+  OfYourChoice Number Nothing {read = ok})
 badYourChoiceNumber Oh impossible
 
 

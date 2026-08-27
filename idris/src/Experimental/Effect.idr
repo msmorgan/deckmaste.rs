@@ -227,15 +227,14 @@ mutual
                  {auto 0 ta : TokenAbilities t} ->
                  {auto 0 tc : TokenCanonical t} ->
                  {auto 0 ro : RetentionOk t.line ret} -> StaticEffect bs
-      SetsChosenBasicType : (n : Noun bs Object) ->
-                            {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                            {auto 0 ls : LandSubject n} -> StaticEffect bs
       AddsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
                        {auto 0 qr : QualityRead q} ->
+                       {auto 0 hr : HostedRead q n} ->
                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                        StaticEffect bs
       SetsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
                        {auto 0 qr : QualityRead q} ->
+                       {auto 0 hr : HostedRead q n} ->
                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                        StaticEffect bs
       AlsoOffBattlefield : (se : StaticEffect bs) ->
@@ -489,7 +488,6 @@ mutual
   staticKind (AddsEveryType _ _) = TypeAddition
   staticKind (BecomesCopy _ _ _) = CopyEffect
   staticKind (SetsType _ _ _) = TypeSet
-  staticKind (SetsChosenBasicType _) = TypeSet
   staticKind (AddsChosenQuality _ _) = TypeAddition
   staticKind (SetsChosenQuality _ _) = TypeSet
   staticKind (LosesAllAbilities _) = AbilityLoss
@@ -539,7 +537,6 @@ mutual
   staticIntro (AddsEveryType n _) = selfSubjIntro n
   staticIntro (BecomesCopy n _ _) = selfSubjIntro n
   staticIntro (SetsType n _ _) = selfSubjIntro n
-  staticIntro (SetsChosenBasicType n) = selfSubjIntro n
   staticIntro (AddsChosenQuality n _) = selfSubjIntro n
   staticIntro (SetsChosenQuality n _) = selfSubjIntro n
   staticIntro (LosesAllAbilities n) = selfSubjIntro n

@@ -157,20 +157,24 @@ mutual
   ||| Not an `Eq` instance: this equality calls `predEq`, which calls back,
   ||| and an implementation is opaque to the size-change checker, so the
   ||| mutual block loses totality.
+  ||| The indices are FREE of each other: a read at `Object` carries its
+  ||| sort in a slot rather than in its kind, so two domains reaching this
+  ||| comparison need not be at one sort, and a crossing pair answers
+  ||| False here exactly as the index refuses it where the sorts do match.
   public export
-  sameChoiceDomain : {0 q : QualitySort} -> ChoiceDomain q -> ChoiceDomain q -> Bool
+  sameChoiceDomain : {0 a, b : QualitySort} ->
+                     ChoiceDomain a -> ChoiceDomain b -> Bool
   sameChoiceDomain (NameOfCard a) (NameOfCard b) = predEq a b
   sameChoiceDomain (ColorOtherThan a) (ColorOtherThan b) = a == b
   sameChoiceDomain (TypeOtherThan a) (TypeOtherThan b) = a == b
   sameChoiceDomain BasicTypesOnly BasicTypesOnly = True
-  sameChoiceDomain BasicTypesOnly NonbasicTypesOnly = False
-  sameChoiceDomain NonbasicTypesOnly BasicTypesOnly = False
   sameChoiceDomain NonbasicTypesOnly NonbasicTypesOnly = True
   sameChoiceDomain (NumberAbove a) (NumberAbove b) = a == b
+  sameChoiceDomain _ _ = False
 
   public export
-  sameDomainOpt : {0 q : QualitySort} ->
-                  Maybe (ChoiceDomain q) -> Maybe (ChoiceDomain q) -> Bool
+  sameDomainOpt : {0 a, b : QualitySort} ->
+                  Maybe (ChoiceDomain a) -> Maybe (ChoiceDomain b) -> Bool
   sameDomainOpt Nothing Nothing = True
   sameDomainOpt (Just a) (Just b) = sameChoiceDomain a b
   sameDomainOpt _ _ = False
@@ -339,7 +343,11 @@ mutual
     -- the determiner that chooses in its own phrase, where `OfChosen`
     -- reads a choice made by some other clause [CR#607.2d] — there is
     -- no first ability for this one to be linked to.
-    OfYourChoice : (q : QualitySort) ->
+    ||| The domain slot is `QualityNoun`'s, at the determiner that
+    ||| chooses in its own phrase: "the BASIC land type of your choice"
+    ||| narrows the same sort the same way [CR#305.6] narrows it for a
+    ||| separate chooser, and the index refuses every crossing for free.
+    OfYourChoice : (q : QualitySort) -> (dom : Maybe (ChoiceDomain q)) ->
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     HasKeyword : (k : KeywordLabel) -> {auto 0 kn : KnownKeyword k} ->
                  Predicate bs Object
@@ -793,7 +801,7 @@ mutual
   hasHead (QualityNoun _ _) = True
   hasHead (OfChosen _) = False
   hasHead OfLastChosenColor = False
-  hasHead (OfYourChoice _) = False
+  hasHead (OfYourChoice _ _) = False
   hasHead (AbilityHead _) = True
   hasHead (AbilityOf _) = False
   hasHead (ActivatedBy _) = False
@@ -859,13 +867,24 @@ mutual
   qualityReadOk : {0 bs : Bindings} -> Predicate bs Object -> Bool
   qualityReadOk (OfChosen _) = True
   qualityReadOk OfLastChosenColor = True
-  qualityReadOk (OfYourChoice _) = True
+  qualityReadOk (OfYourChoice _ _) = True
   qualityReadOk (Named _) = True
   qualityReadOk _ = False
 
   public export
   QualityRead : Predicate bs Object -> Type
   QualityRead {bs} p = So (qualityReadOk p)
+
+  ||| The card type a chosen-quality read's sort belongs to, where its
+  ||| sort has one. [CR#205.3c] gives each card type its own set of
+  ||| subtypes, so a read at `SubtypeQ h` names a value only an `h` can
+  ||| carry; the other sorts name characteristics every object has
+  ||| [CR#109.3] and answer `Nothing`.
+  public export
+  qualityReadHost : {0 bs : Bindings} -> Predicate bs Object -> Maybe CardType
+  qualityReadHost (OfChosen (SubtypeQ h)) = Just h
+  qualityReadHost (OfYourChoice (SubtypeQ h) _) = Just h
+  qualityReadHost _ = Nothing
 
   public export
   uniquifiesAny : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -951,8 +970,8 @@ mutual
   predEq (OfChosen _) _ = False
   predEq OfLastChosenColor OfLastChosenColor = True
   predEq OfLastChosenColor _ = False
-  predEq (OfYourChoice a) (OfYourChoice b) = a == b
-  predEq (OfYourChoice _) _ = False
+  predEq (OfYourChoice a d) (OfYourChoice b e) = a == b && sameDomainOpt d e
+  predEq (OfYourChoice _ _) _ = False
   predEq (AbilityHead a) (AbilityHead b) = a == b
   predEq (AbilityHead _) _ = False
   predEq (AbilityOf a) (AbilityOf b) = nounEqRef a b
@@ -1429,7 +1448,7 @@ mutual
   predSays (QualityNoun _ _) = True
   predSays (OfChosen _) = True
   predSays OfLastChosenColor = True
-  predSays (OfYourChoice _) = True
+  predSays (OfYourChoice _ _) = True
   predSays (AbilityHead _) = True
   predSays (AbilityOf _) = True
   predSays (ActivatedBy _) = True
@@ -1493,7 +1512,7 @@ mutual
   predNegFree (QualityNoun _ _) = True
   predNegFree (OfChosen _) = True
   predNegFree OfLastChosenColor = True
-  predNegFree (OfYourChoice _) = True
+  predNegFree (OfYourChoice _ _) = True
   predNegFree (AbilityHead _) = True
   predNegFree (AbilityOf _) = True
   predNegFree (ActivatedBy _) = True
@@ -2871,9 +2890,24 @@ mutual
   PerMember : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
   PerMember {bs} {k} n = So (perMemberOk n)
 
+
+  ||| A chosen-quality ascription's subject has to be able to CARRY the
+  ||| value read: [CR#205.3c]'s per-type subtype sets make "becomes the
+  ||| basic land type of your choice" nonsense of a creature, exactly as
+  ||| the bespoke land-typed row it replaces said, and the same law now
+  ||| covers the creature-type and land-type rows alike. Sorts with no
+  ||| host demand nothing of the subject.
   public export
-  LandSubject : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
-  LandSubject {bs} {k} n = So (tyIs Land (nounTy n))
+  hostedRead : {bs : Bindings} -> {k : Kind} ->
+               Predicate bs Object -> Noun bs k -> Bool
+  hostedRead p n = case qualityReadHost p of
+                     Nothing => True
+                     Just h => tyIs h (nounTy n)
+
+  public export
+  HostedRead : {bs : Bindings} -> {k : Kind} ->
+               Predicate bs Object -> Noun bs k -> Type
+  HostedRead {bs} {k} p n = So (hostedRead p n)
 
   public export
   data ActSubject : {0 k : Kind} -> ObjectAct -> Noun bs k -> Type where

@@ -4653,8 +4653,10 @@ reefShaman =
   Macros.card "Reef Shaman" (Just [Macros.pip Blue]) []
        (MkTypeLine [creatureType "Merfolk", creatureType "Shaman"] [Creature])
        [ Macros.activated TapSymbol
-                          (Continuously (SetsChosenBasicType (Macros.target Macros.land))
-                                 (Just Macros.untilEndOfTurn)) ]
+                          (Continuously
+                             (SetsChosenQuality (Macros.target Macros.land)
+                                (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
+                             (Just Macros.untilEndOfTurn)) ]
        (Just (0, 2))
 
 public export
@@ -4664,8 +4666,9 @@ grixisIllusionist =
        (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated TapSymbol
                           (Continuously
-                      (SetsChosenBasicType
-                         (Macros.target (And [Macros.land, ControlledBy You])))
+                      (SetsChosenQuality
+                         (Macros.target (And [Macros.land, ControlledBy You]))
+                         (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
                       (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
 
@@ -4676,8 +4679,9 @@ unstableFrontier =
        [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
        , Macros.activated TapSymbol
                           (Continuously
-                      (SetsChosenBasicType
-                         (Macros.target (And [Macros.land, ControlledBy You])))
+                      (SetsChosenQuality
+                         (Macros.target (And [Macros.land, ControlledBy You]))
+                         (OfYourChoice (SubtypeQ Land) (Just BasicTypesOnly)))
                       (Just Macros.untilEndOfTurn)) ]
        Nothing
 
@@ -4688,7 +4692,7 @@ extinction =
   Macros.card "Extinction" (Just [Macros.generic 4, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Macros.destroy (AllOf (And [Macros.creature,
-                                            OfYourChoice (SubtypeQ Creature)]))) ]
+                                            OfYourChoice (SubtypeQ Creature) Nothing]))) ]
        Nothing
 
 public export
@@ -4698,7 +4702,7 @@ defensiveManeuvers =
        (Just [Macros.generic 3, Macros.pip White]) []
        (MkTypeLine [] [Instant])
        [ Spell (Macros.gets (AllOf (And [Macros.creature,
-                                         OfYourChoice (SubtypeQ Creature)]))
+                                         OfYourChoice (SubtypeQ Creature) Nothing]))
                             (PtUp (Lit 0)) (PtUp (Lit 4))
                             (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -4710,7 +4714,7 @@ witchsVengeance =
        (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Macros.gets (AllOf (And [Macros.creature,
-                                         OfYourChoice (SubtypeQ Creature)]))
+                                         OfYourChoice (SubtypeQ Creature) Nothing]))
                             (PtDown (Lit 3)) (PtDown (Lit 3))
                             (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -4724,7 +4728,7 @@ rootGreevil =
                               TapSymbol,
                               Do (Macros.sacrifice You Macros.thisCreature)])
                           (Macros.destroy (AllOf (And [HasType Enchantment,
-                                                OfYourChoice Color]))) ]
+                                                OfYourChoice Color Nothing]))) ]
        (Just (2, 3))
 
 public export
@@ -4737,7 +4741,7 @@ riptideChronologist =
                               Do (Macros.sacrifice You Macros.thisCreature)])
                           (SetStatus Untapped
                       (AllOf (And [Macros.creature,
-                                   OfYourChoice (SubtypeQ Creature)]))) ]
+                                   OfYourChoice (SubtypeQ Creature) Nothing]))) ]
        (Just (1, 3))
 
 public export
@@ -4897,6 +4901,25 @@ xenograft =
                                 (OfChosen (SubtypeQ Creature))) ]
        Nothing
 
+||| Convincing Mirage -- "Enchant land / As this Aura enters, choose a
+||| basic land type. / Enchanted land is the chosen type." The chosen
+||| basic land type SET rather than added, on the attach host: the third
+||| of the five printed basic-type lines, and it needed nothing the
+||| chosen-quality setting row did not already have once the land host
+||| carried the sort. Phantasmal Terrain is the same two rows at a
+||| different cost.
+public export
+convincingMirage : Card
+convincingMirage =
+  Macros.card "Convincing Mirage" (Just [Macros.pip Blue]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.land
+       , Static (Macros.entersChoosingFrom Macros.thisAura (SubtypeQ Land)
+                                           BasicTypesOnly)
+       , Static (SetsChosenQuality (AttachHost Enchanted (TypeW Land))
+                                   (OfChosen (SubtypeQ Land))) ]
+       Nothing
+
 ||| Realmwright -- "As this creature enters, choose a basic land type.
 ||| Lands you control are the chosen type in addition to their other
 ||| types." Xenograft's sentence at the land host, which is the whole of
@@ -4935,7 +4958,7 @@ mistformDreamer =
        , Macros.activated (Mana [Macros.generic 1])
                           (Continuously
                       (SetsChosenQuality Macros.thisCreature
-                                      (OfYourChoice (SubtypeQ Creature)))
+                                      (OfYourChoice (SubtypeQ Creature) Nothing))
                       (Just Macros.untilEndOfTurn)) ]
        (Just (2, 1))
 
