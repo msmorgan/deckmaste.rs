@@ -1,30 +1,58 @@
 ---
 needs: [english-v2-plan-09-effect-and-predicate-grammar]
 ---
-Finish Stage 5 with productive linguistic grammar and complete closed-world
-Vintage corpus coverage. Plan 10 owns keyword lines, keyword and ability words,
-reminder text, labelled/pawprint/repetition and other advanced modal or frame
-forms, the five deferred attachment rows, and every remaining document shape.
-Every accepted unit remains byte-exact, totally owned, and selected without
-ties or exceptions; final acceptance is 100% of the normalized corpus.
+Complete only the Stage 5 contract boundary: the declared Determinative
+system, the coupled declared-verb opening and lexicalised-frame removal, the
+three missing declaration-kind consumers and their already-claimed builtin-v2
+declaration tickets, and re-coverage of the 49 identities below. Keyword-line
+documents, reminder text, labelled/modal/repetition forms, deferred document
+families, and long-tail closure belong to the coordinator-authored
+`english-v2-stage-5-grammar-buildout-11-10` through `-14-10` chain and are not
+part of this claim.
 
-Restore productive noun uses of target as an ordinary common noun while
-retaining determiner target. Do this as a lexicon change on top of a pinned
-determiner system, not as a new guard: pin one Determinative lexical category
-(a/an, the, this, that, those, another, each, all, both, no, target, other
-target) and one Det + Nominal frame, with the multiword quantifying
-determiners (up to N, any number of, one or more, no more) as a second frame
-over the same nominal, then add CommonNoun::Target and let the noun uses fall
-out of those frames. That collapses the eight bare "target" literals and much
-of the 41-construction UnqualifiedReference sprawl in the same move.
+**Determinative contract.** There is one Determinative phrasal category and
+one Det + Nominal reference-phrase construction. Every reference phrase has a
+required `det` field: a headed phrase stores its Determinative, while a bare
+nominal derives `Determiner::Zero` and claims only the nominal bytes. Zero is a
+value, never a nullable grammar category; empty categories remain banned and
+`synthetic_claims: 0` remains a gate. Zero licenses plural and mass references,
+not bare singular count nouns.
 
-Do not implement the common_noun_modifier guard. A general rule never names a
-specific lexeme, and the bare-compound rival parse is already excluded because
-a singular count nominal in argument position requires a determiner. If the
-corpus then produces a genuine tie, the residual restriction is declaration or
-lexeme metadata — a compoundability feature on the noun entry, checked
-generically by the compounding rule — never a require naming a lexeme. Ruling:
-docs/decisions/english-v2-rewrite.md, target-as-noun amendment (2026-08-27).
+Lexical Determinatives store lemmas, not agreement-conditioned surfaces.
+Indefinite article is one lemma rendered as `a`/`an` from the following
+nominal's effective onset; distal and proximal demonstratives are one lemma
+each, rendered by phrase number with unattested forms unavailable. `another`
+is one atomic lemma. Required per-member declaration facts carry number and
+nominal licensing, parallel to `VerbValence`; constructions consume those
+features and contain no member-name census. Attachment Determinatives
+`equipped`, `enchanted`, and `fortified` join the same sole-determiner class
+through the Equip, Enchant, and Fortify macro grammar declarations. `target`
+is a core-declared member of that class: singular and licensing a bare
+singular noun. No member gets a bespoke construction.
+
+`target` is also a nominal-internal adjective-slot modifier after a true or
+quantity determiner, and remains `CommonNoun::Target` as a noun head. Generic
+lexeme compoundability metadata excludes the noun entry from the common-noun
+modifier construction, leaving the adjective entry as the sole modifier read.
+Thus `target creature`, `two target creatures`, and `another target creature`
+must each select uniquely. `other` is only a nominal-internal modifier;
+`another` remains the indivisible Determinative, and `other than ...` remains
+a nominal postmodifier.
+
+Quantity Determinatives are phrases: `one or more`, `up to two`, `any number
+of`, `X or more`, and related forms compose internally, fill the same `det`
+slot, and derive agreement from the complete quantity value. `PostQuantity`
+and `QuantifierMarker` do not exist; `target` after a quantity is the nominal
+modifier. Generic nominal coordination alone owns `spell or ability`, and Det
++ coordinated Nominal composition owns `a spell or ability`; no dedicated
+determiner-scoped coordination construction exists.
+
+Partitives use one fused-head construction: a Determinative in head function,
+`of`, and an ordinary reference-phrase complement that retains its own
+determiner. Result number derives from the head (`each of ...` is singular),
+and pronominal complements such as `of them` and `of those` occupy the same
+reference-phrase slot. The head reuses Determinative vocabulary; it does not
+duplicate pronoun or determiner lexemes.
 
 Re-cover these 49 identities retired at the Plan 09 boundary; the closing lock
 must contain all 49 (verify by comm against this list) and the list travels
@@ -82,32 +110,6 @@ fa20273378461de2d49e9a952d570113a60af0d154d97c2a12eea3ec92b24d96
 fb2d9e9884c1ad7a8fc0d451008882cf00b28886a06addaf972435002bbaa7c5
 ~~~
 
-Remove the following known game-semantic grammar islands:
-
-- Damage/resource/card/counter-specific predicate sums, quantity categories,
-  and verb products currently reconstruct ordinary NPs and argument frames.
-  Replace them with general quantified noun phrases plus shared
-  transitive, measure, equality, and distribution frames; interpret damage,
-  life, cards, counters, and other game meanings downstream.
-- The closed CounterName whitelist makes game data a finite grammatical
-  taxonomy. Replace it with ordinary nominal modification and open
-  declaration or metadata vocabulary where multi-token identity requires it;
-  keep structured printed P/T notation as notation rather than semantics.
-- ControlPostmodifier encodes a compositional PP as a controller role.
-  Hoist one shared under PP whose complement is an ordinary possessive noun
-  phrase or mass-noun phrase, and let the shared declared-valence frames
-  consume that constituent. The lexicalised movement and resultative frames do
-  not survive to consume it — see the verb work below.
-- Status and FaceOrientation partition ordinary predicative complements
-  by MTG state. Replace them with general adjective and declared-participial
-  predicative complements plus ordinary compositional by PPs.
-
-The external overfitting audit has run. The four islands above are its floor;
-below are the three mechanisms underneath them, which are the scheduled work.
-Anything else the same rule catches — a general rule naming a specific lexeme,
-a lexicalised frame duplicating an open declared-valence frame, a require-guard
-transcribing a corpus census — is in scope for removal in the same pass.
-
 **Verb gating and lexicalised verb frames — one work item, not two.** All 17
 verb codecs are gated kinds = [KeywordAction], so a verb reaches the productive
 declared-valence machinery if and only if the Comprehensive Rules define it as
@@ -116,8 +118,8 @@ needing a hand-written construction per frame, which is what produced the ~35
 lexicalised one-verb VerbPhrase constructions. Dissolve the gate so ordinary
 declared verbs enter the machinery, and dissolve all ~35 constructions into the
 shared declared-valence frames in the same move. The damage/resource/card/
-counter half is the first island bullet above; the unscheduled remainder is the
-17 movement, possession and zone frames: put_into, put_onto, put_on, put_to,
+counter frames and the remaining movement, possession, and zone frames include
+put_into, put_onto, put_on, put_to,
 return_to, enter_location, enter_control, enter_resultative,
 enter_with_counters, leave_location, look_at, ordered_predicate,
 have_object_control, have_life, have_base_power_toughness,
@@ -130,17 +132,18 @@ XP-resultative, V NP NP) are each one construction.
 
 **Missing declaration-kind consumers.** KeywordAbility, CounterKind and
 Designation are real DeclarationKind variants with zero construction
-consumers, and that absence is what forces the hand-written closed
-vocabularies. Add the codecs alongside the existing eight and mint the stub
-declarations; the vocabularies then have a home and the whitelists fall out
-rather than being replaced. Do this before the CounterName bullet above:
-deleting the vocabularies without the codecs re-grows them the next time a
-closed game vocabulary is needed. Acceptance: every DeclarationKind variant has
-a construction consumer, and CounterName, CounterfactualAbility, Status,
-FaceOrientation, PredicativeAdjective and the token NonCommonNoun are gone from
-the grammar as hand-written vocabulary.
+consumers. Add the three codecs alongside the existing consumers and complete
+the already-claimed `builtin-v2-keyword-ability-stubs`,
+`builtin-v2-counter-kind-declarations`, and
+`builtin-v2-designation-declarations` tickets. Acceptance: every
+DeclarationKind variant has a construction consumer and every declaration in
+those three claimed inventories loads through its consumer without a
+hand-written closed vocabulary.
 
-No per-task evidence, corpus-text copy, selected-ID function, snapshot, or
-plan-specific verifier may enter tracked source. Corpus work remains routine
-parallel read-only feedback through the generic ratchet, and a genuine
-selection tie remains a STOP-and-report design boundary.
+The contract scope closes only when its ordinary gates are green and all 49
+listed identities are selected, covered, byte-exact, and totally owned in the
+generic coverage lock. No per-task evidence, corpus-text copy, selected-ID
+function, snapshot, successor ticket, or plan-specific verifier may enter
+tracked source. Any genuine selection tie or contradiction is a
+STOP-and-report design boundary. Integrate when this scope is green; claim the
+next coordinator-authored chunk fresh afterward.
