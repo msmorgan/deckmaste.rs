@@ -333,7 +333,7 @@ badExileCheckOnSortedSelf Oh impossible
 ||| Each event names the sort its history subject takes, and dying is an object's.
 public export
 badLookbackPlayerDied : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature) [] Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
 badLookbackPlayerDied MkLookbackSubject impossible
 
 
@@ -341,7 +341,7 @@ badLookbackPlayerDied MkLookbackSubject impossible
 ||| The same table the other way: casting is read over a player [CR#601.2].
 public export
 badLookbackObjectCast : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature) [] Nothing Nothing (Just (Happened SpellCast (Macros.a Macros.creature)
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing Nothing (Just (Happened SpellCast (Macros.a Macros.creature)
                                           Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
 badLookbackObjectCast MkLookbackSubject impossible
 
@@ -494,7 +494,7 @@ badUnlicensedDifference Refl impossible
 ||| A condition that holds by no amount leaves no margin; only a comparison licenses one.
 public export
 badNonComparisonDifference : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature) [] Nothing Nothing (Just (Exists Macros.creatureYouControl))
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing Nothing (Just (Exists Macros.creatureYouControl))
             (Draw You (TheDifference {ok})))
 badNonComparisonDifference Refl impossible
 

@@ -278,19 +278,20 @@ badAgentChooseTheRest : Unspellable (Effect []) (\ok =>
 badAgentChooseTheRest AgentChoice impossible
 
 
-||| "… if a creature was put into a zone this turn, …"
-||| The history read names its destination, for which a subject-event-window query has no slot.
+||| "… if a creature was put this turn, …"
+||| A placement is a move from one zone to ANOTHER [CR#400.7]; with neither end written the clause names no move.
 public export
 badPlacementLookback : Unspellable (Condition []) (\ok =>
-  Happened Placement (Macros.a Macros.creature) ThisTurn Nothing {sb = ok})
-badPlacementLookback MkLookbackSubject impossible
+  Happened Placement (Macros.a Macros.creature) ThisTurn Nothing
+           {cw = LeftBare {ok = ok}})
+badPlacementLookback Oh impossible
 
 
 ||| "Whenever a creature enters during the turn, draw a card."
 ||| A window with no possessor restricts nothing.
 public export
 badHeaderBareTurnWindow : Unspellable Ability (\ok =>
-  Triggered Whenever (Enters (Macros.a Macros.creature)) [] (Just (DuringWindow Turn Nothing {hw = ok})) Nothing Nothing
+  Triggered Whenever (Enters (Macros.a Macros.creature) Nothing) [] (Just (DuringWindow Turn Nothing {hw = ok})) Nothing Nothing
             Macros.drawACard)
 badHeaderBareTurnWindow Oh impossible
 

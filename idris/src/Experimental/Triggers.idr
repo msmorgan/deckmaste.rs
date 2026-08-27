@@ -80,66 +80,38 @@ mutual
     NotCaused : {0 w : Maybe (Noun bs Player)} -> CausedBy Nothing w
     CausedByEffect : {0 c : Causer} -> CausedBy (Just c) Nothing
 
-  public export
-  data EventSource : Bindings -> Type where
-    FromAnywhere : EventSource bs
-    FromZone : (z : ZoneExpr bs) -> EventSource bs
-
-  public export
-  sourceZone : {0 bs : Bindings} -> Maybe (EventSource bs) -> Maybe Zone
-  sourceZone Nothing = Nothing
-  sourceZone (Just FromAnywhere) = Nothing
-  sourceZone (Just (FromZone z)) = Just (zoneSort z)
-
-  ||| Which zone a `PutInto` event may describe a card as arriving in.
-  ||| A different table from the move instruction's `DestOk`: this event
-  ||| DESCRIBES where a card landed rather than instructing a move, so
-  ||| its scope over possessed zones is free where `DestOk`'s is gated
-  ||| [CR#400.3]. The battlefield is excluded because English writes
-  ||| "put ONTO the battlefield", never "into" it [CR#603.6a].
-  public export
-  putDestZoneOk : Zone -> Bool
-  putDestZoneOk Graveyard = True
-  putDestZoneOk Exile = True
-  putDestZoneOk Library = True
-  putDestZoneOk Hand = True
-  putDestZoneOk Battlefield = True
-  -- [CR#903.9a] and [CR#903.9b] both write the move as putting the card
-  -- into the command zone, and Myth Unbound's header watches it.
-  putDestZoneOk Command = True
-  putDestZoneOk Stack = False
-
+  ||| The placement's two ends, asked of the event-keyed tables the
+  ||| retrospective reader asks -- `placementDestOk` and
+  ||| `placementOriginOk` are declared in the event vocabulary so that
+  ||| this seat and `EventComplement`'s share one answer.
   public export
   putDestOk : {0 bs : Bindings} -> ZoneExpr bs -> Bool
-  putDestOk z = putDestZoneOk (zoneSort z)
+  putDestOk z = lookbackDestOk Placement (zoneSort z)
 
   public export
   PutDest : {0 bs : Bindings} -> ZoneExpr bs -> Type
   PutDest {bs} z = So (putDestOk z)
 
   public export
-  putSourceZoneOk : Zone -> Bool
-  putSourceZoneOk Battlefield = True
-  putSourceZoneOk Graveyard = True
-  putSourceZoneOk Library = True
-  putSourceZoneOk Exile = True
-  -- nothing refuses a move out of the command zone -- Hellkite Courser
-  -- prints one -- so the source stays open. No header among the 48
-  -- supported command-zone lines watches one; a measured zero, not a
-  -- refusal.
-  putSourceZoneOk Command = True
-  putSourceZoneOk Hand = False
-  putSourceZoneOk Stack = False
-
-  public export
   putSourceOk : {0 bs : Bindings} -> Maybe (EventSource bs) -> Bool
   putSourceOk Nothing = True
-  putSourceOk (Just FromAnywhere) = True
-  putSourceOk (Just (FromZone z)) = putSourceZoneOk (zoneSort z)
+  putSourceOk (Just src) = lookbackSourceOk Placement src
 
   public export
   PutSource : {0 bs : Bindings} -> Maybe (EventSource bs) -> Type
   PutSource {bs} s = So (putSourceOk s)
+
+  ||| The entry's origin, asked of the same event-keyed table. An entry
+  ||| whose origin goes unwritten is the ordinary header, so `Nothing`
+  ||| passes.
+  public export
+  entrySourceOk : {0 bs : Bindings} -> Maybe (EventSource bs) -> Bool
+  entrySourceOk Nothing = True
+  entrySourceOk (Just src) = lookbackSourceOk Entry src
+
+  public export
+  EntrySource : {0 bs : Bindings} -> Maybe (EventSource bs) -> Type
+  EntrySource {bs} s = So (entrySourceOk s)
 
   ||| The result test, "Whenever you roll a 4 or higher": which
   ||| results the header watches for. [CR#706.3a] writes the same three
@@ -248,8 +220,19 @@ mutual
                     {auto 0 rk : DamageRecipient to} -> GameEvent bs
     Draws : (who : Noun bs Player) -> GameEvent bs
     LosesGame : (who : Noun bs Player) -> GameEvent bs
-    Enters : (n : Noun bs Object) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+    ||| "When this creature enters", "Whenever a creature enters from a
+    ||| graveyard", "Whenever a land you control enters from anywhere
+    ||| other than your hand": the arrival, with the zone it arrived FROM
+    ||| a slot on `PutInto`'s model. [CR#603.6a] gives the event its own
+    ||| ability and writes it as putting the permanent ONTO the
+    ||| battlefield, so the destination is the event's name and only the
+    ||| origin is written; `entryOriginOk` is the table it answers to.
+    ||| The subject keeps its battlefield gate, which describes it where
+    ||| the event leaves it, and the source is gated on its own.
+    ||| -- spelling: "[n] enter(s) [from]"
+    Enters : (n : Noun bs Object) -> (from : Maybe (EventSource bs)) ->
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+             {auto 0 sk : EntrySource from} -> GameEvent bs
     Attacks : (n : Noun bs Object) ->
               (whom : AttackDefender (nomIntro n)) ->
               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -482,7 +465,7 @@ mutual
   eventName (IsDealtDamage _) = DamageTaken
   eventName (Draws _) = CardDrawn
   eventName (LosesGame _) = GameLoss
-  eventName (Enters _) = Entry
+  eventName (Enters _ _) = Entry
   eventName (Attacks _ _) = AttackDeclaration
   eventName (AttacksWith _ _) = AttackDeclaration
   eventName (Blocks _ _) = BlockDeclaration
@@ -519,7 +502,7 @@ mutual
   eventIntro (IsDealtDamage to) = nomIntro to
   eventIntro (Draws who) = nomIntro who
   eventIntro (LosesGame who) = nomIntro who
-  eventIntro (Enters n) = nomIntro n
+  eventIntro (Enters n _) = nomIntro n
   eventIntro (Attacks n NoDefender) = nomIntro n
   eventIntro (Attacks _ (OneDefender whom)) = nomIntro whom
   eventIntro (AttacksWith _ attackers) = nomIntro attackers
@@ -575,7 +558,7 @@ mutual
   eventAfter (IsDealtDamage to) = outcomeB DamageDealt :: nomIntro to
   eventAfter (Draws who) = nomIntro who
   eventAfter (LosesGame who) = nomIntro who
-  eventAfter (Enters n) = moveIntro Nothing n (Just Battlefield)
+  eventAfter (Enters n _) = moveIntro Nothing n (Just Battlefield)
   eventAfter (Attacks n NoDefender) = selfSubjIntro n
   eventAfter (Attacks n (OneDefender whom)) = nounDelta whom ++ selfSubjIntro n
   eventAfter (AttacksWith _ attackers) = nomIntro attackers
@@ -627,7 +610,7 @@ mutual
   eventSubjectPlur (IsDealtDamage to) = nounPlur to
   eventSubjectPlur (Draws who) = nounPlur who
   eventSubjectPlur (LosesGame who) = nounPlur who
-  eventSubjectPlur (Enters n) = nounPlur n
+  eventSubjectPlur (Enters n _) = nounPlur n
   eventSubjectPlur (Attacks n _) = nounPlur n
   eventSubjectPlur (AttacksWith who _) = nounPlur who
   eventSubjectPlur (Blocks n _) = nounPlur n

@@ -175,6 +175,59 @@ mutual
   sameDomainOpt (Just a) (Just b) = sameChoiceDomain a b
   sameDomainOpt _ _ = False
 
+  ||| Where an event's object came FROM, as the clause names it. ONE
+  ||| shape for both seats -- the prospective `from` on
+  ||| `PutInto`/`Leaves` and the retrospective `FromZones` payload --
+  ||| because English writes the same three phrases at each: the zones
+  ||| named ("from your graveyard", "from your hand or library"), every
+  ||| zone at once ("from anywhere"), and every zone but those named
+  ||| ("from anywhere other than the battlefield"). It lives here, beside
+  ||| `ZoneExpr`, because the retrospective seat is declared here and the
+  ||| prospective one imports it.
+  ||| Coordination is a plain list at the zone sort and no marked union
+  ||| row -- "from your hand or library" is two zones. The exclusion takes
+  ||| a list for the same reason and not because a printing coordinates
+  ||| one: [CR#400.1] lists the zones a game has, so naming the ones a
+  ||| clause does NOT admit picks out the rest of that list exactly,
+  ||| whether one zone is named or several. Every supported printing
+  ||| excludes one.
+  ||| -- spelling: "from [zs]", the zones joined by "or"; "from
+  ||| anywhere"; "from anywhere other than [zs]".
+  public export
+  data EventSource : Bindings -> Type where
+    FromAnywhere : EventSource bs
+    FromZone : (zs : List (ZoneExpr bs)) -> EventSource bs
+    FromAnywhereBut : (zs : List (ZoneExpr bs)) -> EventSource bs
+
+  ||| The one zone a source phrase names, where it names exactly one.
+  ||| "Anywhere", an exclusion and a coordination each name a SET of
+  ||| zones, so none of them fixes a zone for a subject's own zone to
+  ||| agree with.
+  public export
+  sourceZone : {0 bs : Bindings} -> Maybe (EventSource bs) -> Maybe Zone
+  sourceZone Nothing = Nothing
+  sourceZone (Just FromAnywhere) = Nothing
+  sourceZone (Just (FromZone [z])) = Just (zoneSort z)
+  sourceZone (Just (FromZone _)) = Nothing
+  sourceZone (Just (FromAnywhereBut _)) = Nothing
+
+  public export
+  sourceDelta : {bs : Bindings} -> EventSource bs -> List Binding
+  sourceDelta FromAnywhere = []
+  sourceDelta (FromZone zs) = zonesDelta zs
+  sourceDelta (FromAnywhereBut zs) = zonesDelta zs
+
+  ||| Every zone a source phrase names must be one the event's clause may
+  ||| name as its origin, and a phrase that names none is no phrase --
+  ||| whether it names them to admit them or to exclude them. "From
+  ||| anywhere" names no zone at all, so it asks instead whether the event
+  ||| writes an origin.
+  public export
+  lookbackSourceOk : {0 bs : Bindings} -> EventName -> EventSource bs -> Bool
+  lookbackSourceOk ev FromAnywhere = eventNamesOrigin ev
+  lookbackSourceOk ev (FromZone zs) = lookbackZonesOk ev zs
+  lookbackSourceOk ev (FromAnywhereBut zs) = lookbackZonesOk ev zs
+
   public export
   data EventComplement : Bindings -> EventName -> Kind -> Type where
     Involving : {kc : Kind} -> (what : Noun bs kc) ->
@@ -192,12 +245,34 @@ mutual
     ||| hand this turn" names both; Myth Unbound's passive names only the
     ||| zone). Coordination is a plain list at the zone sort and no marked
     ||| union row -- "from your hand or library" is two zones.
-    ||| -- spelling: "[what] from [zs]", the zones joined by "or".
-    FromZones : (zs : List (ZoneExpr bs)) ->
+    ||| -- spelling: "[what] from [src]".
+    FromZones : (src : EventSource bs) ->
                 (what : Maybe (EventComplement bs ev ks)) ->
                 {auto 0 pl : So (complementPlain what)} ->
-                {auto 0 ok : So (lookbackZonesOk ev zs)} ->
+                {auto 0 ok : So (lookbackSourceOk ev src)} ->
                 EventComplement bs ev ks
+    ||| "a creature card was put into your graveyard from anywhere this
+    ||| turn", "if a permanent was put into your hand from the battlefield
+    ||| this turn": the complement's THIRD payload sort, the zone the
+    ||| event's object ARRIVED in. [CR#400.7] makes a zone change a move
+    ||| from one zone to another, so a placement's clause has two ends to
+    ||| name and this is the far one; `lookbackDestOk` keys which events
+    ||| write it, and a placement is the only one that does.
+    ||| The origin rides INSIDE it, because English writes the
+    ||| destination first ("into your graveyard from anywhere") and never
+    ||| the other way round; `complementSourced` is what admits the
+    ||| nesting one way and refuses it the other. Leaving the destination
+    ||| off is the relative clause's own reading -- "creature cards in
+    ||| your graveyard that were put THERE from the battlefield this turn"
+    ||| names it by the described noun's own zone -- so a bare
+    ||| `FromZones` stands for that reading and this row is written where
+    ||| the zone is.
+    ||| -- spelling: "put into [to] [what]".
+    IntoZone : (to : ZoneExpr bs) ->
+               (what : Maybe (EventComplement bs ev ks)) ->
+               {auto 0 pl : So (complementSourced what)} ->
+               {auto 0 ok : So (lookbackDestOk ev (zoneSort to))} ->
+               EventComplement bs ev ks
 
   public export
   data ComplementWritten : {0 bs : Bindings} -> {0 ev : EventName} ->
@@ -209,14 +284,25 @@ mutual
     Written : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
               {0 c : EventComplement bs ev ks} -> ComplementWritten (Just c)
 
-  ||| One zone payload to a complement: a zone list wraps a participant,
-  ||| never a second zone list.
+  ||| What an ORIGIN may wrap: a participant, and nothing that names a
+  ||| second zone.
   public export
   complementPlain : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
                     Maybe (EventComplement bs ev ks) -> Bool
   complementPlain Nothing = True
   complementPlain (Just (Involving _)) = True
   complementPlain (Just (FromZones _ _)) = False
+  complementPlain (Just (IntoZone _ _)) = False
+
+  ||| What a DESTINATION may wrap: the origin, or a participant. Not a
+  ||| second destination -- one clause names one arrival.
+  public export
+  complementSourced : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
+                      Maybe (EventComplement bs ev ks) -> Bool
+  complementSourced Nothing = True
+  complementSourced (Just (Involving _)) = True
+  complementSourced (Just (FromZones _ _)) = True
+  complementSourced (Just (IntoZone _ _)) = False
 
   ||| Every named zone must be one the event's clause may name as its
   ||| origin, and a coordination that names none is no coordination.
@@ -1845,8 +1931,10 @@ mutual
                     Maybe (EventComplement bs ev ks) -> List Binding
   complementDelta Nothing = []
   complementDelta (Just (Involving what)) = nounDelta what
-  complementDelta (Just (FromZones zs what)) =
-    zonesDelta zs ++ complementDelta what
+  complementDelta (Just (FromZones src what)) =
+    sourceDelta src ++ complementDelta what
+  complementDelta (Just (IntoZone to what)) =
+    zoneDelta to ++ complementDelta what
 
   public export
   zonesDelta : {bs : Bindings} -> List (ZoneExpr bs) -> List Binding
@@ -2972,7 +3060,11 @@ mutual
   public export
   playSourceOk : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
                  Maybe PlayAsThough -> Bool
-  playSourceOk zn Nothing Nothing = playableFrom zn
+  -- with no source phrase written, the complement's own sort word is the
+  -- only thing that could name one, so the question is whether that word
+  -- LOCATES the object at all -- `complementLocates`, not `playableFrom`,
+  -- which answers a written origin phrase.
+  playSourceOk zn Nothing Nothing = complementLocates zn
   playSourceOk zn (Just z) Nothing =
     playableFrom (Just (zoneSort z)) &&
     (not (complementLocates zn) || zoneFits zn (Just (zoneSort z)))

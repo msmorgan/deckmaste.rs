@@ -366,7 +366,10 @@ lookbackSubjectOk BlockedDeclaration Object = True
 lookbackSubjectOk BlockedDeclaration Player = False
 lookbackSubjectOk LastCounterRemoval Object = False
 lookbackSubjectOk LastCounterRemoval Player = False
-lookbackSubjectOk Placement Object = False
+-- "a creature card was put into your graveyard from anywhere this turn":
+-- [CR#400.7] makes a zone change a move of an OBJECT from one zone to
+-- another, so what was put somewhere is an object and never a player.
+lookbackSubjectOk Placement Object = True
 lookbackSubjectOk Placement Player = False
 lookbackSubjectOk CounterPlacement Object = False
 lookbackSubjectOk CounterPlacement Player = False
@@ -477,6 +480,10 @@ lookbackComplementOk TokenCreation Player Object = True
 lookbackComplementOk TokenCreation _ _ = False
 lookbackComplementOk Death _ _ = False
 lookbackComplementOk Departure _ _ = False
+-- an entry and a placement each name where the object went and where it
+-- came from, and no second PARTICIPANT: [CR#400.7]'s move has an object
+-- and two zones and nothing else. Their zones ride `FromZones`/`IntoZone`
+-- instead, which is a payload and not a participant.
 lookbackComplementOk Entry _ _ = False
 lookbackComplementOk CardDrawn _ _ = False
 lookbackComplementOk LifeGain _ _ = False
@@ -549,6 +556,13 @@ bareLookbackOk DamageDealing Object = True
 -- leaving it out leaves nothing indeterminate.
 bareLookbackOk BecomesTarget Object = True
 bareLookbackOk BecomesTarget Player = True
+-- a placement is a move from one zone to ANOTHER [CR#400.7], and its
+-- clause writes at least one of those ends -- "put into your graveyard",
+-- "put there from the battlefield". With neither written, "was put this
+-- turn" names no move. Same ground as the bare creation, one slot later:
+-- the complement CAN be written here, so this is where dropping it is
+-- refused.
+bareLookbackOk Placement Object = False
 bareLookbackOk _ _ = True
 
 public export
@@ -735,7 +749,14 @@ castableTy Cast (Just Vanguard) = False
 public export
 playableFrom : Maybe Zone -> Bool
 playableFrom Nothing = True
-playableFrom (Just Battlefield) = False
+-- the battlefield stands OPEN. [CR#601.2a] moves the card "from where it
+-- is" and excludes no zone, and [CR#601.3] leaves which zones a spell may
+-- be cast from to whatever rule or effect grants the permission -- the
+-- rules close no zone against one. No printed line writes a battlefield
+-- cast, and a count is no refusal. (The two readings that DO refuse a
+-- battlefield word do it on their own rules: `complementLocates` below,
+-- and `castComplementOk`.)
+playableFrom (Just Battlefield) = True
 playableFrom (Just Graveyard) = True
 playableFrom (Just Exile) = True
 playableFrom (Just Hand) = True
@@ -751,31 +772,125 @@ public export
 PlayableFrom : Maybe Zone -> Type
 PlayableFrom z = So (playableFrom z)
 
+||| Whether a complement's own sort word LOCATES its object, or only says
+||| what playing it will make it. Its own table, no longer `playableFrom`
+||| read twice: the two agree everywhere but the battlefield, and each
+||| cell here stands on the rule that gives the word its zone.
+||| [CR#112.1] makes a spell a card ON the stack, so "spell" names what a
+||| cast produced; [CR#110.1] makes a permanent a card on the battlefield
+||| and [CR#305.1] puts a played land there, so "creature"/"land"/
+||| "permanent" name what a play produced. A word for where the act ENDS
+||| locates nothing, which is why Garruk's Horde may cast "creature
+||| spells" from the top of a library [CR#701.5b] without the two zones
+||| disagreeing.
 public export
--- a complement's zone locates its object exactly when that zone could
--- have been the play source, so this reuses playableFrom's table.
 complementLocates : Maybe Zone -> Bool
-complementLocates z = playableFrom z
+complementLocates Nothing = True
+complementLocates (Just Battlefield) = False
+complementLocates (Just Stack) = False
+complementLocates (Just Graveyard) = True
+complementLocates (Just Exile) = True
+complementLocates (Just Hand) = True
+complementLocates (Just Library) = True
+complementLocates (Just Command) = True
 
-||| Which zones a RETROSPECTIVE reader may name as an event's origin --
-||| the "from [zone]" a `Happened`/`EventCount`/`HappenedTo` writes beside
-||| the event it looks back on. A cast admits exactly `playableFrom`'s
-||| zones, and for the same reason: [CR#601.2a] moves the card out of the
-||| zone it was in, so the origin the clause names is a zone it could have
-||| been cast from. [CR#903.8] is the family that reads it back -- "for
-||| each previous time the player casting it has cast it from the command
-||| zone that game" -- and the printed lines write the hand and a
-||| graveyard alongside the command zone.
-||| No other event names an origin here. A placement's clause does write
-||| one ("put into your graveyard from the battlefield"), but
-||| `lookbackSubjectOk` admits no subject for `Placement` at any kind, so
-||| no reader reaches it; the rest have both ends fixed by their own rule
-||| and write neither -- [CR#700.4] makes "dies" MEAN a move from the
-||| battlefield to a graveyard, so a death clause names neither end.
+||| Which zone a PLACEMENT's clause may name as the zone the card landed
+||| in -- "put into your graveyard", "put into the command zone". A
+||| different table from the move instruction's `DestOk`: this DESCRIBES
+||| where a card landed rather than instructing a move, so its scope over
+||| possessed zones is free where `DestOk`'s is gated [CR#400.3].
+||| The battlefield is excluded because a permanent's arrival there is a
+||| different construction with its own rule: [CR#603.6a] writes that
+||| event as putting permanents "onto the battlefield" and gives it the
+||| enters-the-battlefield ability, which is `Entry` and not this event.
+||| The corpus agrees at the surface -- 1,070 lines write "onto the
+||| battlefield" and none writes "into" it -- but the rule is what
+||| refuses.
+public export
+placementDestOk : Zone -> Bool
+placementDestOk Graveyard = True
+placementDestOk Exile = True
+placementDestOk Library = True
+placementDestOk Hand = True
+placementDestOk Battlefield = False
+-- [CR#903.9a] and [CR#903.9b] both write the move as putting the card
+-- into the command zone, and Myth Unbound's header watches it.
+placementDestOk Command = True
+placementDestOk Stack = False
+
+||| Which zone a PLACEMENT's clause may name as the zone the card came
+||| from -- "from the battlefield", "from your hand or library".
+public export
+placementOriginOk : Zone -> Bool
+placementOriginOk Battlefield = True
+placementOriginOk Graveyard = True
+placementOriginOk Library = True
+placementOriginOk Exile = True
+-- nothing refuses a move out of the command zone -- Hellkite Courser
+-- prints one -- so the source stays open. No header among the 48
+-- supported command-zone lines watches one; a measured zero, not a
+-- refusal.
+placementOriginOk Command = True
+placementOriginOk Hand = False
+placementOriginOk Stack = False
+
+||| Which zone an ENTRY's clause may name as the zone the permanent came
+||| from -- "if it entered from your library", "enters from a graveyard",
+||| "enters from anywhere other than your hand". [CR#400.7] makes a zone
+||| change a move from one zone to ANOTHER, so the battlefield is the one
+||| zone a permanent cannot enter it from. Every other zone is one an
+||| object reaches the battlefield from: [CR#608.3] puts a resolving
+||| permanent spell there off the stack, and the printed lines write the
+||| graveyard, exile, the hand and a library.
+public export
+entryOriginOk : Zone -> Bool
+entryOriginOk Battlefield = False
+entryOriginOk Graveyard = True
+entryOriginOk Library = True
+entryOriginOk Hand = True
+entryOriginOk Exile = True
+entryOriginOk Command = True
+entryOriginOk Stack = True
+
+||| Which zones an event's clause may name as its ORIGIN -- the
+||| "from [zone]" written beside the event, prospectively on a trigger
+||| header and retrospectively by `Happened`/`EventCount`/`HappenedTo`.
+||| One table keyed on the event, consulted from both seats.
+||| A cast admits exactly `playableFrom`'s zones, and for the same reason:
+||| [CR#601.2a] moves the card out of the zone it was in, so the origin
+||| the clause names is a zone it could have been cast from. [CR#903.8] is
+||| the family that reads it back -- "for each previous time the player
+||| casting it has cast it from the command zone that game".
+||| A placement and an entry each carry their own table above.
+||| The rest have both ends fixed by their own rule and write neither --
+||| [CR#700.4] makes "dies" MEAN a move from the battlefield to a
+||| graveyard, so a death clause names neither end.
 public export
 lookbackOriginOk : EventName -> Zone -> Bool
 lookbackOriginOk SpellCast z = playableFrom (Just z)
+lookbackOriginOk Placement z = placementOriginOk z
+lookbackOriginOk Entry z = entryOriginOk z
 lookbackOriginOk _ _ = False
+
+||| Whether the event's clause names an origin at all. "From anywhere"
+||| names one without naming a zone [CR#400.1], so it cannot ask the
+||| table above for a cell and asks it for a row instead.
+public export
+eventNamesOrigin : EventName -> Bool
+eventNamesOrigin ev =
+  lookbackOriginOk ev Battlefield || lookbackOriginOk ev Graveyard ||
+  lookbackOriginOk ev Library || lookbackOriginOk ev Hand ||
+  lookbackOriginOk ev Exile || lookbackOriginOk ev Command ||
+  lookbackOriginOk ev Stack
+
+||| Which zone an event's clause may name as its DESTINATION. Only a
+||| placement writes one: every other event this vocabulary names fixes
+||| where its object ended by naming the event -- an entry ends on the
+||| battlefield [CR#603.6a], a death in a graveyard [CR#700.4].
+public export
+lookbackDestOk : EventName -> Zone -> Bool
+lookbackDestOk Placement z = placementDestOk z
+lookbackDestOk _ _ = False
 
 public export
 data CastableTy : PlayVerb -> Maybe CardType -> Type where

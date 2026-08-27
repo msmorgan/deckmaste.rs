@@ -138,14 +138,6 @@ badPlayerCastComplement : Unspellable (Condition []) (\ok =>
 badPlayerCastComplement MkLookbackComplement impossible
 
 
-||| "Counter target spell cast from the battlefield."
-||| HELD: [CR#601.2a] moves the card "from where it is" and names no excluded zone, so this row is left for the zone round.
-public export
-badCastFromBattlefield : Unspellable (Predicate [] Object) (\ok =>
-  CastFrom Macros.battlefieldZ {pf = ok})
-badCastFromBattlefield Oh impossible
-
-
 ||| "Counter target spell cast from the stack."
 ||| [CR#112.1] moves the card to the stack from the zone it was in, which is never the stack.
 public export
@@ -159,7 +151,7 @@ badCastFromStack Oh impossible
 public export
 badDeathOriginZone : Unspellable (Predicate [] Object) (\ok =>
   HappenedTo Death Lookback.ThisTurn
-             (Just (FromZones [Macros.battlefieldZ] Nothing {ok = ok})))
+             (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing {ok = ok})))
 badDeathOriginZone Oh impossible
 
 
@@ -168,7 +160,7 @@ badDeathOriginZone Oh impossible
 public export
 badCastOriginFromStack : Unspellable (Condition []) (\ok =>
   Happened SpellCast You Lookback.ThisTurn
-           (Just (FromZones [Macros.stackZ] Nothing {ok = ok})))
+           (Just (FromZones (FromZone [Macros.stackZ]) Nothing {ok = ok})))
 badCastOriginFromStack Oh impossible
 
 
@@ -177,7 +169,7 @@ badCastOriginFromStack Oh impossible
 public export
 badEmptyOriginCoordination : Unspellable (Condition []) (\ok =>
   Happened SpellCast You Lookback.ThisTurn
-           (Just (FromZones [] Nothing {ok = ok})))
+           (Just (FromZones (FromZone []) Nothing {ok = ok})))
 badEmptyOriginCoordination Oh impossible
 
 
@@ -186,9 +178,55 @@ badEmptyOriginCoordination Oh impossible
 public export
 badNestedOriginPayload : Unspellable (Condition []) (\ok =>
   Happened SpellCast You Lookback.ThisTurn
-           (Just (FromZones [Macros.handZ]
-                    (Just (FromZones [Macros.commandZ] Nothing)) {pl = ok})))
+           (Just (FromZones (FromZone [Macros.handZ])
+                    (Just (FromZones (FromZone [Macros.commandZ]) Nothing)) {pl = ok})))
 badNestedOriginPayload Oh impossible
+
+
+||| "if you've cast a spell from anywhere other than this turn"
+||| An exclusion picks out the rest of [CR#400.1]'s zone list by naming zones; one that names none excludes nothing.
+public export
+badEmptyOriginExclusion : Unspellable (Condition []) (\ok =>
+  Happened SpellCast You Lookback.ThisTurn
+           (Just (FromZones (FromAnywhereBut []) Nothing {ok = ok})))
+badEmptyOriginExclusion Oh impossible
+
+
+||| "… that died from anywhere this turn."
+||| [CR#700.4] fixes both ends of a death, so the clause has no origin to name -- an unnamed one included.
+public export
+badDeathOriginAnywhere : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Death Lookback.ThisTurn
+             (Just (FromZones FromAnywhere Nothing {ok = ok})))
+badDeathOriginAnywhere Oh impossible
+
+
+||| "… that was put into the battlefield this turn."
+||| [CR#603.6a] writes a permanent's arrival as putting it ONTO the battlefield and gives it the enters-the-battlefield ability, so this event never lands there.
+public export
+badPlacementIntoBattlefield : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Placement Lookback.ThisTurn
+             (Just (IntoZone Macros.battlefieldZ Nothing {ok = ok})))
+badPlacementIntoBattlefield Oh impossible
+
+
+||| "… that was put into your graveyard into exile this turn."
+||| One clause names one arrival: the second destination names nothing the first left unsaid.
+public export
+badNestedDestination : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Placement Lookback.ThisTurn
+             (Just (IntoZone (Macros.graveyardOf You)
+                      (Just (IntoZone Macros.exileZ Nothing)) {pl = ok})))
+badNestedDestination Oh impossible
+
+
+||| "if it entered from the battlefield"
+||| [CR#400.7] makes a zone change a move from one zone to ANOTHER, so the battlefield is the one zone a permanent cannot enter it from.
+public export
+badEntryOriginBattlefield : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Entry Lookback.ThisTurn
+             (Just (FromZones (FromZone [Macros.battlefieldZ]) Nothing {ok = ok})))
+badEntryOriginBattlefield Oh impossible
 
 
 ||| "If you control an artifact, create a token."

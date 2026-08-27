@@ -1490,7 +1490,7 @@ public export
 leavesBattlefield : {0 bs : Bindings} -> (n : Noun bs Object) ->
                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                     GameEvent bs
-leavesBattlefield n = Leaves n (Just (FromZone battlefieldZ)) {zn}
+leavesBattlefield n = Leaves n (Just (FromZone [battlefieldZ])) {zn}
 
 ||| "[n] leaves [z]": any other zone a header watches an object leave --
 ||| "one or more cards leave your graveyard" [CR#603.10a].
@@ -1498,7 +1498,7 @@ public export
 leavesZone : {0 bs : Bindings} -> (n : Noun bs Object) -> (z : ZoneExpr bs) ->
              {auto 0 zn : ZoneFits (nounZone n) (Just (zoneSort z))} ->
              GameEvent bs
-leavesZone n z = Leaves n (Just (FromZone z)) {zn}
+leavesZone n z = Leaves n (Just (FromZone [z])) {zn}
 
 ||| "… is put into <zone> from <source>."
 public export
@@ -1805,18 +1805,18 @@ public export
 happenedFrom : {k : Kind} -> {kc : Kind} -> (ev : EventName) ->
                (who : Noun bs k) -> (w : Lookback) ->
                (what : Noun (nomIntro who) kc) ->
-               (zs : List (ZoneExpr (nomIntro who))) ->
+               (src : EventSource (nomIntro who)) ->
                {auto 0 cp : LookbackComplement ev k kc} ->
                {auto 0 pl : So (complementPlain
                                   (Just (Involving {bs = nomIntro who} what {cp})))} ->
-               {auto 0 zo : So (lookbackZonesOk ev zs)} ->
+               {auto 0 zo : So (lookbackSourceOk ev src)} ->
                {auto 0 cw : ComplementWritten
-                              (Just (FromZones zs
+                              (Just (FromZones src
                                        (Just (Involving what {cp})) {pl} {ok = zo}))} ->
                {auto 0 sb : LookbackSubject ev k} -> Condition bs
-happenedFrom ev who w what zs =
+happenedFrom ev who w what src =
   Happened ev who w
-    (Just (FromZones zs (Just (Involving what {cp})) {pl} {ok = zo})) {cw} {sb}
+    (Just (FromZones src (Just (Involving what {cp})) {pl} {ok = zo})) {cw} {sb}
 
 ||| "for each time you've cast your commander from the command zone this
 ||| game": `happenedFrom`'s counted twin, the commander tax's readback
@@ -1825,18 +1825,18 @@ public export
 eventCountFrom : {k : Kind} -> {kc : Kind} -> (ev : EventName) ->
                  (who : Noun bs k) -> (w : Lookback) ->
                  (what : Noun (nomIntro who) kc) ->
-                 (zs : List (ZoneExpr (nomIntro who))) ->
+                 (src : EventSource (nomIntro who)) ->
                  {auto 0 cp : LookbackComplement ev k kc} ->
                  {auto 0 pl : So (complementPlain
                                     (Just (Involving {bs = nomIntro who} what {cp})))} ->
-                 {auto 0 zo : So (lookbackZonesOk ev zs)} ->
+                 {auto 0 zo : So (lookbackSourceOk ev src)} ->
                  {auto 0 cw : ComplementWritten
-                                (Just (FromZones zs
+                                (Just (FromZones src
                                          (Just (Involving what {cp})) {pl} {ok = zo}))} ->
                  {auto 0 sb : LookbackSubject ev k} -> Amount bs
-eventCountFrom ev who w what zs =
+eventCountFrom ev who w what src =
   EventCount ev who w
-    (Just (FromZones zs (Just (Involving what {cp})) {pl} {ok = zo})) {cw} {sb}
+    (Just (FromZones src (Just (Involving what {cp})) {pl} {ok = zo})) {cw} {sb}
 
 ||| "At the beginning of enchanted player's upkeep, …": a turn part
 ||| possessed by a noun rather than by a quantifier word.
