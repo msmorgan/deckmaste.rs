@@ -7,8 +7,10 @@ use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
+use deckmaste_english_v2::environment::CoreVerbIdentity;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::environment::VerbInventoryRef;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::ParseError;
 use deckmaste_english_v2::parser::Parser;
@@ -68,13 +70,16 @@ fn connive() -> VerbPhrase {
     let environment = environment();
     let head = DeclarationIntransitiveVerb::new(
         &environment,
-        DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+        VerbInventoryRef::Declaration(DeclarationId::new(
+            DeclarationKind::KeywordAction,
+            "Connive",
+        )),
     )
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
             IntransitivePredicate {
-                head: IntransitiveVerb::Declaration(head),
+                head,
             },
         )),
     })
@@ -86,28 +91,37 @@ fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
             frame:
                 BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
                     IntransitivePredicate {
-                        head: IntransitiveVerb::Declaration(head),
+                        head,
                     },
                 )),
-        }) => Some(head.id().name()),
+        }) => match head.reference() {
+            VerbInventoryRef::Declaration(id) => Some(id.name()),
+            VerbInventoryRef::Core(_) => None,
+        },
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
             frame:
                 BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
                     TransitivePredicate {
-                        head: TransitiveVerb::Declaration(head),
+                        head,
                         ..
                     },
                 )),
-        }) => Some(head.id().name()),
+        }) => match head.reference() {
+            VerbInventoryRef::Declaration(id) => Some(id.name()),
+            VerbInventoryRef::Core(_) => None,
+        },
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
             frame:
                 BaseVerbFrame::NumerativeFrame(NumerativeFrame::NumerativePredicate(
                     NumerativePredicate {
-                        head: NumerativeVerb::Declaration(head),
+                        head,
                         ..
                     },
                 )),
-        }) => Some(head.id().name()),
+        }) => match head.reference() {
+            VerbInventoryRef::Declaration(id) => Some(id.name()),
+            VerbInventoryRef::Core(_) => None,
+        },
         _ => None,
     }
 }
@@ -524,7 +538,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
                 start: 108,
                 end: 117,
             },
-            "lexeme:CoreTransitiveVerb/Control/third_person_singular",
+            "core-verb:Control",
         ),
         (
             TextSpan {
@@ -966,9 +980,9 @@ impl Visitor for CostVisitor {
         deckmaste_english_v2::visit::walk_transitive_predicate(self, value);
     }
 
-    fn visit_gain_life(&mut self, value: &GainLife) {
-        self.0.push(CostVisit::Node("GainLife"));
-        deckmaste_english_v2::visit::walk_gain_life(self, value);
+    fn visit_life_amount(&mut self, value: &LifeAmount) {
+        self.0.push(CostVisit::Node("LifeAmount"));
+        deckmaste_english_v2::visit::walk_life_amount(self, value);
     }
 }
 
@@ -1008,7 +1022,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             ),
             (26, 27, "form:triggered/triggered/1"),
             (27, 31, "vocab:SubjectPronoun/You"),
-            (31, 36, "lexeme:VerbLexeme/Gain/bare"),
+            (31, 36, "core-verb:Gain"),
             (36, 38, "vocab:Variable/X"),
             (38, 43, "form:gain_life/gain_life/2"),
             (43, 44, "structural:Sentences/sentences/terminator/0"),
@@ -1511,7 +1525,7 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             (33, 43, "vocab:TurnPart/DrawStep"),
             (43, 44, "form:triggered/triggered/1"),
             (44, 48, "vocab:SubjectPronoun/You"),
-            (48, 53, "lexeme:VerbLexeme/Gain/bare"),
+            (48, 53, "core-verb:Gain"),
             (53, 55, "vocab:Variable/X"),
             (55, 60, "form:gain_life/gain_life/2"),
             (60, 61, "structural:Sentences/sentences/terminator/0"),
@@ -1574,7 +1588,7 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             (34, 42, "lexeme:keyword_action/Connive/bare"),
             (42, 43, "form:finite_condition/finite_condition/2"),
             (43, 47, "vocab:SubjectPronoun/You"),
-            (47, 52, "lexeme:VerbLexeme/Gain/bare"),
+            (47, 52, "core-verb:Gain"),
             (52, 54, "vocab:Variable/X"),
             (54, 59, "form:gain_life/gain_life/2"),
             (59, 60, "structural:Sentences/sentences/terminator/0"),
@@ -2143,7 +2157,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (35, 44, "lexeme:type/Creature/singular"),
             (44, 46, "form:activated/activated/1"),
             (46, 49, "vocab:SubjectPronoun/You"),
-            (49, 54, "lexeme:VerbLexeme/Gain/bare"),
+            (49, 54, "core-verb:Gain"),
             (54, 56, "vocab:Variable/X"),
             (56, 61, "form:gain_life/gain_life/2"),
             (61, 62, "structural:Sentences/sentences/terminator/0"),
@@ -2187,7 +2201,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             CostVisit::Node("Sentence"),
             CostVisit::Node("Declarative"),
             CostVisit::Node("VerbPhrase"),
-            CostVisit::Node("GainLife"),
+            CostVisit::Node("LifeAmount"),
             CostVisit::Node("Sentence"),
             CostVisit::Node("Imperative"),
             CostVisit::Node("VerbPhrase"),
@@ -2274,11 +2288,19 @@ fn activated_body_reuses_legendary_license_and_rejects_ordinary_shortening() {
 }
 
 fn gain_life_predicate(magnitude: u32) -> VerbPhrase {
-    VerbPhrase::GainLife(GainLife {
-        amount: Amount::Number(NumberAmount {
-            number: ScalarNumber { magnitude },
-        }),
-    })
+    gain_life(Amount::Number(NumberAmount {
+        number: ScalarNumber { magnitude },
+    }))
+}
+
+fn gain_life(amount: Amount) -> VerbPhrase {
+    let environment = environment();
+    let head = DeclarationLifeAmountVerb::new(
+        &environment,
+        VerbInventoryRef::Core(CoreVerbIdentity::Gain),
+    )
+    .expect("the core inventory declares Gain with an amount-life frame");
+    VerbPhrase::LifeAmount(LifeAmount { head, amount })
 }
 
 fn you_subject() -> Subject {
@@ -2297,11 +2319,12 @@ fn plain_finite(subject: Subject, predicate: Predicate) -> FiniteClause {
 fn predicate_identity(predicate: &VerbPhrase) -> String {
     match predicate {
         predicate if declared_action_name(predicate) == Some("Connive") => "connive".to_owned(),
-        VerbPhrase::GainLife(GainLife {
+        VerbPhrase::LifeAmount(LifeAmount {
             amount:
                 Amount::Number(NumberAmount {
                     number: ScalarNumber { magnitude },
                 }),
+            ..
         }) => format!("gain:{magnitude}"),
         other => panic!("unexpected coordination predicate payload: {other:?}"),
     }
@@ -2716,11 +2739,12 @@ impl Visitor for LogicVisitor {
 
     fn visit_verb_phrase(&mut self, value: &VerbPhrase) {
         match value {
-            VerbPhrase::GainLife(GainLife {
+            VerbPhrase::LifeAmount(LifeAmount {
                 amount:
                     Amount::Number(NumberAmount {
                         number: ScalarNumber { magnitude },
                     }),
+                ..
             }) => self.0.push(LogicVisit::GainLife(*magnitude)),
             predicate if declared_action_name(predicate) == Some("Connive") => {
                 self.0.push(LogicVisit::Connive);
@@ -3433,10 +3457,11 @@ impl Visitor for AttachmentEnvelopeVisitor {
             Predicate::Atomic(predicate)
                 if matches!(
                     predicate.as_ref(),
-                    VerbPhrase::GainLife(GainLife {
+                    VerbPhrase::LifeAmount(LifeAmount {
                         amount: Amount::Number(NumberAmount {
                             number: ScalarNumber { magnitude: 2 },
                         }),
+                        ..
                     })
                 ) =>
             {
@@ -4392,14 +4417,14 @@ const ROOT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (10, 15, "form:plain_modal/plain_modal/2"),
     (15, 19, "form:modal_mode/modal_mode/0"),
     (19, 22, "vocab:SubjectPronoun/You"),
-    (22, 27, "lexeme:VerbLexeme/Gain/bare"),
+    (22, 27, "core-verb:Gain"),
     (27, 29, "codec:ScalarNumber"),
     (29, 34, "form:gain_life/gain_life/2"),
     (34, 35, "structural:ModalModeValue/sentences/terminator/0"),
     (35, 36, "structural:PlainModal/modes/separator/uniform/0"),
     (36, 40, "form:modal_mode/modal_mode/0"),
     (40, 43, "vocab:SubjectPronoun/You"),
-    (43, 48, "lexeme:VerbLexeme/Gain/bare"),
+    (43, 48, "core-verb:Gain"),
     (48, 50, "codec:ScalarNumber"),
     (50, 55, "form:gain_life/gain_life/2"),
     (55, 56, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4411,14 +4436,14 @@ const ROOT_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
     (10, 15, "form:plain_modal/plain_modal/2"),
     (15, 19, "form:modal_mode/modal_mode/0"),
     (19, 22, "vocab:SubjectPronoun/You"),
-    (22, 27, "lexeme:VerbLexeme/Gain/bare"),
+    (22, 27, "core-verb:Gain"),
     (27, 29, "codec:ScalarNumber"),
     (29, 34, "form:gain_life/gain_life/2"),
     (34, 35, "structural:ModalModeValue/sentences/terminator/0"),
     (35, 36, "structural:PlainModal/modes/separator/uniform/0"),
     (36, 40, "form:modal_mode/modal_mode/0"),
     (40, 43, "vocab:SubjectPronoun/You"),
-    (43, 48, "lexeme:VerbLexeme/Gain/bare"),
+    (43, 48, "core-verb:Gain"),
     (48, 50, "codec:ScalarNumber"),
     (50, 55, "form:gain_life/gain_life/2"),
     (55, 56, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4430,14 +4455,14 @@ const ROOT_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
     (18, 23, "form:plain_modal/plain_modal/2"),
     (23, 27, "form:modal_mode/modal_mode/0"),
     (27, 30, "vocab:SubjectPronoun/You"),
-    (30, 35, "lexeme:VerbLexeme/Gain/bare"),
+    (30, 35, "core-verb:Gain"),
     (35, 37, "codec:ScalarNumber"),
     (37, 42, "form:gain_life/gain_life/2"),
     (42, 43, "structural:ModalModeValue/sentences/terminator/0"),
     (43, 44, "structural:PlainModal/modes/separator/uniform/0"),
     (44, 48, "form:modal_mode/modal_mode/0"),
     (48, 51, "vocab:SubjectPronoun/You"),
-    (51, 56, "lexeme:VerbLexeme/Gain/bare"),
+    (51, 56, "core-verb:Gain"),
     (56, 58, "codec:ScalarNumber"),
     (58, 63, "form:gain_life/gain_life/2"),
     (63, 64, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4449,14 +4474,14 @@ const ROOT_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
     (18, 23, "form:plain_modal/plain_modal/2"),
     (23, 27, "form:modal_mode/modal_mode/0"),
     (27, 30, "vocab:SubjectPronoun/You"),
-    (30, 35, "lexeme:VerbLexeme/Gain/bare"),
+    (30, 35, "core-verb:Gain"),
     (35, 37, "codec:ScalarNumber"),
     (37, 42, "form:gain_life/gain_life/2"),
     (42, 43, "structural:ModalModeValue/sentences/terminator/0"),
     (43, 44, "structural:PlainModal/modes/separator/uniform/0"),
     (44, 48, "form:modal_mode/modal_mode/0"),
     (48, 51, "vocab:SubjectPronoun/You"),
-    (51, 56, "lexeme:VerbLexeme/Gain/bare"),
+    (51, 56, "core-verb:Gain"),
     (56, 58, "codec:ScalarNumber"),
     (58, 63, "form:gain_life/gain_life/2"),
     (63, 64, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4468,14 +4493,14 @@ const ROOT_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
     (16, 21, "form:plain_modal/plain_modal/2"),
     (21, 25, "form:modal_mode/modal_mode/0"),
     (25, 28, "vocab:SubjectPronoun/You"),
-    (28, 33, "lexeme:VerbLexeme/Gain/bare"),
+    (28, 33, "core-verb:Gain"),
     (33, 35, "codec:ScalarNumber"),
     (35, 40, "form:gain_life/gain_life/2"),
     (40, 41, "structural:ModalModeValue/sentences/terminator/0"),
     (41, 42, "structural:PlainModal/modes/separator/uniform/0"),
     (42, 46, "form:modal_mode/modal_mode/0"),
     (46, 49, "vocab:SubjectPronoun/You"),
-    (49, 54, "lexeme:VerbLexeme/Gain/bare"),
+    (49, 54, "core-verb:Gain"),
     (54, 56, "codec:ScalarNumber"),
     (56, 61, "form:gain_life/gain_life/2"),
     (61, 62, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4487,14 +4512,14 @@ const ROOT_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (23, 28, "form:plain_modal/plain_modal/2"),
     (28, 32, "form:modal_mode/modal_mode/0"),
     (32, 35, "vocab:SubjectPronoun/You"),
-    (35, 40, "lexeme:VerbLexeme/Gain/bare"),
+    (35, 40, "core-verb:Gain"),
     (40, 42, "codec:ScalarNumber"),
     (42, 47, "form:gain_life/gain_life/2"),
     (47, 48, "structural:ModalModeValue/sentences/terminator/0"),
     (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
     (49, 53, "form:modal_mode/modal_mode/0"),
     (53, 56, "vocab:SubjectPronoun/You"),
-    (56, 61, "lexeme:VerbLexeme/Gain/bare"),
+    (56, 61, "core-verb:Gain"),
     (61, 63, "codec:ScalarNumber"),
     (63, 68, "form:gain_life/gain_life/2"),
     (68, 69, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4519,14 +4544,14 @@ const TRIGGER_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (54, 59, "form:plain_modal/plain_modal/2"),
     (59, 63, "form:modal_mode/modal_mode/0"),
     (63, 66, "vocab:SubjectPronoun/You"),
-    (66, 71, "lexeme:VerbLexeme/Gain/bare"),
+    (66, 71, "core-verb:Gain"),
     (71, 73, "codec:ScalarNumber"),
     (73, 78, "form:gain_life/gain_life/2"),
     (78, 79, "structural:ModalModeValue/sentences/terminator/0"),
     (79, 80, "structural:PlainModal/modes/separator/uniform/0"),
     (80, 84, "form:modal_mode/modal_mode/0"),
     (84, 87, "vocab:SubjectPronoun/You"),
-    (87, 92, "lexeme:VerbLexeme/Gain/bare"),
+    (87, 92, "core-verb:Gain"),
     (92, 94, "codec:ScalarNumber"),
     (94, 99, "form:gain_life/gain_life/2"),
     (99, 100, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4551,14 +4576,14 @@ const TRIGGER_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
     (54, 59, "form:plain_modal/plain_modal/2"),
     (59, 63, "form:modal_mode/modal_mode/0"),
     (63, 66, "vocab:SubjectPronoun/You"),
-    (66, 71, "lexeme:VerbLexeme/Gain/bare"),
+    (66, 71, "core-verb:Gain"),
     (71, 73, "codec:ScalarNumber"),
     (73, 78, "form:gain_life/gain_life/2"),
     (78, 79, "structural:ModalModeValue/sentences/terminator/0"),
     (79, 80, "structural:PlainModal/modes/separator/uniform/0"),
     (80, 84, "form:modal_mode/modal_mode/0"),
     (84, 87, "vocab:SubjectPronoun/You"),
-    (87, 92, "lexeme:VerbLexeme/Gain/bare"),
+    (87, 92, "core-verb:Gain"),
     (92, 94, "codec:ScalarNumber"),
     (94, 99, "form:gain_life/gain_life/2"),
     (99, 100, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4583,14 +4608,14 @@ const TRIGGER_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
     (62, 67, "form:plain_modal/plain_modal/2"),
     (67, 71, "form:modal_mode/modal_mode/0"),
     (71, 74, "vocab:SubjectPronoun/You"),
-    (74, 79, "lexeme:VerbLexeme/Gain/bare"),
+    (74, 79, "core-verb:Gain"),
     (79, 81, "codec:ScalarNumber"),
     (81, 86, "form:gain_life/gain_life/2"),
     (86, 87, "structural:ModalModeValue/sentences/terminator/0"),
     (87, 88, "structural:PlainModal/modes/separator/uniform/0"),
     (88, 92, "form:modal_mode/modal_mode/0"),
     (92, 95, "vocab:SubjectPronoun/You"),
-    (95, 100, "lexeme:VerbLexeme/Gain/bare"),
+    (95, 100, "core-verb:Gain"),
     (100, 102, "codec:ScalarNumber"),
     (102, 107, "form:gain_life/gain_life/2"),
     (107, 108, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4615,14 +4640,14 @@ const TRIGGER_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
     (62, 67, "form:plain_modal/plain_modal/2"),
     (67, 71, "form:modal_mode/modal_mode/0"),
     (71, 74, "vocab:SubjectPronoun/You"),
-    (74, 79, "lexeme:VerbLexeme/Gain/bare"),
+    (74, 79, "core-verb:Gain"),
     (79, 81, "codec:ScalarNumber"),
     (81, 86, "form:gain_life/gain_life/2"),
     (86, 87, "structural:ModalModeValue/sentences/terminator/0"),
     (87, 88, "structural:PlainModal/modes/separator/uniform/0"),
     (88, 92, "form:modal_mode/modal_mode/0"),
     (92, 95, "vocab:SubjectPronoun/You"),
-    (95, 100, "lexeme:VerbLexeme/Gain/bare"),
+    (95, 100, "core-verb:Gain"),
     (100, 102, "codec:ScalarNumber"),
     (102, 107, "form:gain_life/gain_life/2"),
     (107, 108, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4647,14 +4672,14 @@ const TRIGGER_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
     (60, 65, "form:plain_modal/plain_modal/2"),
     (65, 69, "form:modal_mode/modal_mode/0"),
     (69, 72, "vocab:SubjectPronoun/You"),
-    (72, 77, "lexeme:VerbLexeme/Gain/bare"),
+    (72, 77, "core-verb:Gain"),
     (77, 79, "codec:ScalarNumber"),
     (79, 84, "form:gain_life/gain_life/2"),
     (84, 85, "structural:ModalModeValue/sentences/terminator/0"),
     (85, 86, "structural:PlainModal/modes/separator/uniform/0"),
     (86, 90, "form:modal_mode/modal_mode/0"),
     (90, 93, "vocab:SubjectPronoun/You"),
-    (93, 98, "lexeme:VerbLexeme/Gain/bare"),
+    (93, 98, "core-verb:Gain"),
     (98, 100, "codec:ScalarNumber"),
     (100, 105, "form:gain_life/gain_life/2"),
     (105, 106, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4679,14 +4704,14 @@ const TRIGGER_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (67, 72, "form:plain_modal/plain_modal/2"),
     (72, 76, "form:modal_mode/modal_mode/0"),
     (76, 79, "vocab:SubjectPronoun/You"),
-    (79, 84, "lexeme:VerbLexeme/Gain/bare"),
+    (79, 84, "core-verb:Gain"),
     (84, 86, "codec:ScalarNumber"),
     (86, 91, "form:gain_life/gain_life/2"),
     (91, 92, "structural:ModalModeValue/sentences/terminator/0"),
     (92, 93, "structural:PlainModal/modes/separator/uniform/0"),
     (93, 97, "form:modal_mode/modal_mode/0"),
     (97, 100, "vocab:SubjectPronoun/You"),
-    (100, 105, "lexeme:VerbLexeme/Gain/bare"),
+    (100, 105, "core-verb:Gain"),
     (105, 107, "codec:ScalarNumber"),
     (107, 112, "form:gain_life/gain_life/2"),
     (112, 113, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4702,14 +4727,14 @@ const ACTIVATION_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (15, 20, "form:plain_modal/plain_modal/2"),
     (20, 24, "form:modal_mode/modal_mode/0"),
     (24, 27, "vocab:SubjectPronoun/You"),
-    (27, 32, "lexeme:VerbLexeme/Gain/bare"),
+    (27, 32, "core-verb:Gain"),
     (32, 34, "codec:ScalarNumber"),
     (34, 39, "form:gain_life/gain_life/2"),
     (39, 40, "structural:ModalModeValue/sentences/terminator/0"),
     (40, 41, "structural:PlainModal/modes/separator/uniform/0"),
     (41, 45, "form:modal_mode/modal_mode/0"),
     (45, 48, "vocab:SubjectPronoun/You"),
-    (48, 53, "lexeme:VerbLexeme/Gain/bare"),
+    (48, 53, "core-verb:Gain"),
     (53, 55, "codec:ScalarNumber"),
     (55, 60, "form:gain_life/gain_life/2"),
     (60, 61, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4725,14 +4750,14 @@ const ACTIVATION_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
     (15, 20, "form:plain_modal/plain_modal/2"),
     (20, 24, "form:modal_mode/modal_mode/0"),
     (24, 27, "vocab:SubjectPronoun/You"),
-    (27, 32, "lexeme:VerbLexeme/Gain/bare"),
+    (27, 32, "core-verb:Gain"),
     (32, 34, "codec:ScalarNumber"),
     (34, 39, "form:gain_life/gain_life/2"),
     (39, 40, "structural:ModalModeValue/sentences/terminator/0"),
     (40, 41, "structural:PlainModal/modes/separator/uniform/0"),
     (41, 45, "form:modal_mode/modal_mode/0"),
     (45, 48, "vocab:SubjectPronoun/You"),
-    (48, 53, "lexeme:VerbLexeme/Gain/bare"),
+    (48, 53, "core-verb:Gain"),
     (53, 55, "codec:ScalarNumber"),
     (55, 60, "form:gain_life/gain_life/2"),
     (60, 61, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4748,14 +4773,14 @@ const ACTIVATION_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
     (23, 28, "form:plain_modal/plain_modal/2"),
     (28, 32, "form:modal_mode/modal_mode/0"),
     (32, 35, "vocab:SubjectPronoun/You"),
-    (35, 40, "lexeme:VerbLexeme/Gain/bare"),
+    (35, 40, "core-verb:Gain"),
     (40, 42, "codec:ScalarNumber"),
     (42, 47, "form:gain_life/gain_life/2"),
     (47, 48, "structural:ModalModeValue/sentences/terminator/0"),
     (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
     (49, 53, "form:modal_mode/modal_mode/0"),
     (53, 56, "vocab:SubjectPronoun/You"),
-    (56, 61, "lexeme:VerbLexeme/Gain/bare"),
+    (56, 61, "core-verb:Gain"),
     (61, 63, "codec:ScalarNumber"),
     (63, 68, "form:gain_life/gain_life/2"),
     (68, 69, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4771,14 +4796,14 @@ const ACTIVATION_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
     (23, 28, "form:plain_modal/plain_modal/2"),
     (28, 32, "form:modal_mode/modal_mode/0"),
     (32, 35, "vocab:SubjectPronoun/You"),
-    (35, 40, "lexeme:VerbLexeme/Gain/bare"),
+    (35, 40, "core-verb:Gain"),
     (40, 42, "codec:ScalarNumber"),
     (42, 47, "form:gain_life/gain_life/2"),
     (47, 48, "structural:ModalModeValue/sentences/terminator/0"),
     (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
     (49, 53, "form:modal_mode/modal_mode/0"),
     (53, 56, "vocab:SubjectPronoun/You"),
-    (56, 61, "lexeme:VerbLexeme/Gain/bare"),
+    (56, 61, "core-verb:Gain"),
     (61, 63, "codec:ScalarNumber"),
     (63, 68, "form:gain_life/gain_life/2"),
     (68, 69, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4794,14 +4819,14 @@ const ACTIVATION_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
     (21, 26, "form:plain_modal/plain_modal/2"),
     (26, 30, "form:modal_mode/modal_mode/0"),
     (30, 33, "vocab:SubjectPronoun/You"),
-    (33, 38, "lexeme:VerbLexeme/Gain/bare"),
+    (33, 38, "core-verb:Gain"),
     (38, 40, "codec:ScalarNumber"),
     (40, 45, "form:gain_life/gain_life/2"),
     (45, 46, "structural:ModalModeValue/sentences/terminator/0"),
     (46, 47, "structural:PlainModal/modes/separator/uniform/0"),
     (47, 51, "form:modal_mode/modal_mode/0"),
     (51, 54, "vocab:SubjectPronoun/You"),
-    (54, 59, "lexeme:VerbLexeme/Gain/bare"),
+    (54, 59, "core-verb:Gain"),
     (59, 61, "codec:ScalarNumber"),
     (61, 66, "form:gain_life/gain_life/2"),
     (66, 67, "structural:ModalModeValue/sentences/terminator/0"),
@@ -4817,14 +4842,14 @@ const ACTIVATION_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (28, 33, "form:plain_modal/plain_modal/2"),
     (33, 37, "form:modal_mode/modal_mode/0"),
     (37, 40, "vocab:SubjectPronoun/You"),
-    (40, 45, "lexeme:VerbLexeme/Gain/bare"),
+    (40, 45, "core-verb:Gain"),
     (45, 47, "codec:ScalarNumber"),
     (47, 52, "form:gain_life/gain_life/2"),
     (52, 53, "structural:ModalModeValue/sentences/terminator/0"),
     (53, 54, "structural:PlainModal/modes/separator/uniform/0"),
     (54, 58, "form:modal_mode/modal_mode/0"),
     (58, 61, "vocab:SubjectPronoun/You"),
-    (61, 66, "lexeme:VerbLexeme/Gain/bare"),
+    (61, 66, "core-verb:Gain"),
     (66, 68, "codec:ScalarNumber"),
     (68, 73, "form:gain_life/gain_life/2"),
     (73, 74, "structural:ModalModeValue/sentences/terminator/0"),
@@ -5028,20 +5053,23 @@ impl Visitor for ModalVisitor {
         deckmaste_english_v2::visit::walk_sentence(self, value);
     }
 
-    fn visit_gain_life(&mut self, value: &GainLife) {
+    fn visit_life_amount(&mut self, value: &LifeAmount) {
         let Amount::Number(NumberAmount {
             number: ScalarNumber { magnitude },
         }) = value.amount
         else {
             panic!("modal visitor expects a literal life amount")
         };
-        self.0.push(format!("GainLife:{magnitude}"));
+        self.0.push(format!("LifeAmount:{magnitude}"));
     }
 
     fn visit_intransitive_predicate(&mut self, value: &IntransitivePredicate) {
         assert!(matches!(
             &value.head,
-            IntransitiveVerb::Declaration(head) if head.id().name() == "Connive"
+            head if head.reference() == &VerbInventoryRef::Declaration(DeclarationId::new(
+                DeclarationKind::KeywordAction,
+                "Connive",
+            ))
         ));
         self.0.push("Connive".to_owned());
     }
@@ -5086,13 +5114,13 @@ fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
             "ModalMode",
             "ModalModeValue",
             "Sentence",
-            "GainLife:1",
+            "LifeAmount:1",
             "Sentence",
             "Connive",
             "ModalMode",
             "ModalModeValue",
             "Sentence",
-            "GainLife:2",
+            "LifeAmount:2",
         ],
         "visitor order is header semantics, then every mode and sentence in source order",
     );
@@ -5117,7 +5145,7 @@ fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
             (10, 15, "form:plain_modal/plain_modal/2"),
             (15, 19, "form:modal_mode/modal_mode/0"),
             (19, 22, "vocab:SubjectPronoun/You"),
-            (22, 27, "lexeme:VerbLexeme/Gain/bare"),
+            (22, 27, "core-verb:Gain"),
             (27, 29, "codec:ScalarNumber"),
             (29, 34, "form:gain_life/gain_life/2"),
             (34, 35, "structural:ModalModeValue/sentences/terminator/0"),
@@ -5132,7 +5160,7 @@ fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
             (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
             (49, 53, "form:modal_mode/modal_mode/0"),
             (53, 56, "vocab:SubjectPronoun/You"),
-            (56, 61, "lexeme:VerbLexeme/Gain/bare"),
+            (56, 61, "core-verb:Gain"),
             (61, 63, "codec:ScalarNumber"),
             (63, 68, "form:gain_life/gain_life/2"),
             (68, 69, "structural:ModalModeValue/sentences/terminator/0"),

@@ -877,7 +877,6 @@ mod tests {
     use crate::ast::Imperative;
     use crate::ast::IntransitiveFrame;
     use crate::ast::IntransitivePredicate;
-    use crate::ast::IntransitiveVerb;
     use crate::ast::PersonalSubject;
     use crate::ast::PlainFiniteClause;
     use crate::ast::Predicate;
@@ -909,6 +908,7 @@ mod tests {
     use crate::constructions::SingularSimpleDeterminative;
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
+    use crate::environment::VerbInventoryRef;
     use crate::environment::canonical_test_environment;
     use crate::parser::SelectionResolution;
     use crate::parser::diagnostic::BoundedParseOutcome;
@@ -967,13 +967,16 @@ mod tests {
         let environment = canonical_test_environment();
         let declaration = DeclarationIntransitiveVerb::new(
             &environment,
-            DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+            VerbInventoryRef::Declaration(DeclarationId::new(
+                DeclarationKind::KeywordAction,
+                "Connive",
+            )),
         )
         .expect("the canonical environment declares intransitive Connive");
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
             frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
                 IntransitivePredicate {
-                    head: IntransitiveVerb::Declaration(declaration),
+                    head: declaration,
                 },
             )),
         })
@@ -988,11 +991,11 @@ mod tests {
         else {
             unreachable!("the helper constructs an intransitive predicate")
         };
-        let IntransitiveVerb::Declaration(declaration) = &predicate.head else {
-            unreachable!("the helper constructs a declared intransitive verb")
-        };
         let onset = environment
-            .onset(declaration.id(), ::macro_ron::v2::SurfaceFeature::Bare)
+            .onset(
+                &DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+                ::macro_ron::v2::SurfaceFeature::Bare,
+            )
             .expect("the canonical Connive row carries onset");
         Leaf::IntransitiveVerb {
             verb: predicate.head,
@@ -1038,7 +1041,7 @@ mod tests {
             outcome.values[0].value,
             BuildValue::Amount(crate::ast::Amount::Number(crate::ast::NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
-            }))
+            }), _)
         ));
     }
 
@@ -1057,7 +1060,7 @@ mod tests {
         let value = BuildValue::Sentence(Sentence::Imperative(
             Imperative::new(Box::new(Predicate::Atomic(Box::new(connive_phrase()))))
                 .expect("bare test predicate satisfies imperative agreement"),
-        ));
+        ), FeatureConstraint::Any);
         let adapter_children = [
             value.clone(),
             BuildValue::Leaf(Leaf::Literal(".")),
@@ -1101,6 +1104,7 @@ mod tests {
                     FusedHeadLicense::NominalOnly,
                     NominalLicense::CountNominal,
                     determiner_onset,
+                    FeatureConstraint::Any,
                 ),
                 BuildValue::Nominal(
                     Nominal::SingularNominalValue(SingularNominalValue {
@@ -1113,6 +1117,7 @@ mod tests {
                     Agreement::ThirdPersonSingular,
                     Number::Singular,
                     nominal_onset,
+                    FeatureConstraint::Any,
                 ),
             ]
         };
@@ -1134,6 +1139,7 @@ mod tests {
                     Agreement::ThirdPersonSingular,
                     Number::Singular,
                     onset,
+                    _,
                 ))) if onset == nominal_onset
             ));
         }
@@ -1147,7 +1153,7 @@ mod tests {
                 ))],
                 &identity_context,
             ),
-            Ok(Some(BuildValue::UnqualifiedReference(_, _, _, Onset::Vowel)))
+            Ok(Some(BuildValue::UnqualifiedReference(_, _, _, Onset::Vowel, _)))
         ));
     }
 
@@ -1319,7 +1325,10 @@ mod tests {
 
         let first = materialize_node(&forest, NodeId(0), &context, &mut state);
         assert_eq!(first.values.len(), 1);
-        assert_eq!(first.values[0].value, BuildValue::Sentence(once.clone()));
+        assert_eq!(
+            first.values[0].value,
+            BuildValue::Sentence(once.clone(), FeatureConstraint::Any)
+        );
 
         let later = materialize_node(&forest, NodeId(1), &context, &mut state);
         assert_eq!(later.values.len(), 1);
@@ -1328,7 +1337,7 @@ mod tests {
             BuildValue::Sentence(Sentence::WithWhere(WithWhere {
                 body: Box::new(once),
                 clause,
-            }))
+            }), FeatureConstraint::Any)
         );
         assert_eq!(
             later.values[0].constructions,
@@ -1676,7 +1685,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::UnqualifiedReference),
                 RulePosition::Nonterminal(Category::Determinative),
                 RulePosition::Nonterminal(Category::Nominal),
-                RulePosition::Lexical(Lexical::DeclarationDeterminative(92)),
+                RulePosition::Lexical(Lexical::DeclarationDeterminative(121)),
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(

@@ -2084,7 +2084,10 @@ fn ast_keeps_each_linguistic_product_typed() {
     let Predicate::ChangeState(predicate) = change.predicate() else {
         panic!("become has its distinct predicate sum branch")
     };
-    let ChangeStatePredicate::ChangeStatePredicate(ChangeStatePredicateValue { complement }) =
+    let ChangeStatePredicate::ChangeStatePredicate(ChangeStatePredicateValue {
+        complement,
+        ..
+    }) =
         predicate.as_ref();
     assert!(matches!(
         complement.as_ref(),
@@ -2410,7 +2413,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             "product:PredicativeStatusValue"
         ],
         [
-            ("Become", "lexeme:VerbLexeme/Become/bare"),
+            ("Become", "core-verb:Become"),
             (" tapped", "vocab:Status/Tapped"),
             (".", TERMINATOR)
         ]
@@ -2423,7 +2426,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         ],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" becomes", "lexeme:VerbLexeme/Become/third_person_singular"),
+            (" becomes", "core-verb:Become"),
             (" blocked", "form:blocked_by_status/blocked_by_status/0"),
             (" by", "form:blocked_by_status/blocked_by_status/1"),
             (
@@ -2439,7 +2442,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         ["product:AuxiliaryPredicateValue"],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" didn't", "lexeme:VerbLexeme/Didnt/third_person_singular"),
+            (" didn't", "core-verb:Didnt"),
             (" cast", "lexeme:keyword_action/Cast/bare"),
             (" a", "form:indefinite_reference/a/0"),
             (" spell", "lexeme:CommonNoun/Spell/singular"),
@@ -2451,7 +2454,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         ["product:AuxiliaryPredicateValue"],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" would", "lexeme:VerbLexeme/Would/third_person_singular"),
+            (" would", "core-verb:Would"),
             (" attack", "core-verb:Attack"),
             (".", TERMINATOR)
         ]
@@ -2465,7 +2468,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         ],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" would", "lexeme:VerbLexeme/Would/third_person_singular"),
+            (" would", "core-verb:Would"),
             (" be", "vocab:BareCopula/Be"),
             (" white", "vocab:Color/White"),
             (".", TERMINATOR)
@@ -2480,7 +2483,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         ],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" can't", "lexeme:VerbLexeme/Cant/third_person_singular"),
+            (" can't", "core-verb:Cant"),
             (" be", "vocab:BareCopula/Be"),
             (" dealt", "core-verb:Deal"),
             (" damage", "vocab:DamageKind/Ordinary"),
@@ -6043,7 +6046,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
             ("It".to_owned(), "vocab:SubjectPronoun/It".to_owned()),
             (
                 " can".to_owned(),
-                "lexeme:VerbLexeme/Can/third_person_singular".to_owned(),
+                "core-verb:Can".to_owned(),
             ),
             (" block".to_owned(), "core-verb:Block".to_owned(),),
             (
@@ -6061,7 +6064,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
                 " didn't".to_owned(),
                 "vocab:CounterfactualNegativeAuxiliary/Didnt".to_owned(),
             ),
-            (" have".to_owned(), "lexeme:VerbLexeme/Have/bare".to_owned(),),
+            (" have".to_owned(), "core-verb:Have".to_owned(),),
             (
                 " hexproof".to_owned(),
                 "vocab:CounterfactualAbility/Hexproof".to_owned(),
@@ -6080,7 +6083,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
         ),
         [
             ("You".to_owned(), "vocab:SubjectPronoun/You".to_owned()),
-            (" can".to_owned(), "lexeme:VerbLexeme/Can/bare".to_owned(),),
+            (" can".to_owned(), "core-verb:Can".to_owned(),),
             (
                 " cast".to_owned(),
                 "lexeme:keyword_action/Cast/bare".to_owned(),
@@ -6126,7 +6129,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
             ),
             (" you".to_owned(), "vocab:SubjectPronoun/You".to_owned()),
             (" control".to_owned(), "core-verb:Control".to_owned(),),
-            (" can".to_owned(), "lexeme:VerbLexeme/Can/bare".to_owned(),),
+            (" can".to_owned(), "core-verb:Can".to_owned(),),
             (" block".to_owned(), "core-verb:Block".to_owned(),),
             (
                 " as".to_owned(),
@@ -6202,12 +6205,12 @@ fn this_way_keeps_predicate_manner_scope() {
 struct AdjunctSurfaceVisitor(Vec<String>);
 
 impl Visitor for AdjunctSurfaceVisitor {
-    fn visit_may_auxiliary(&mut self, _value: &MayAuxiliary) {
-        self.0.push("auxiliary:May".to_owned());
-    }
-
-    fn visit_cant_auxiliary(&mut self, _value: &CantAuxiliary) {
-        self.0.push("auxiliary:Cant".to_owned());
+    fn visit_verb_inventory(&mut self, value: &VerbInventoryRef) {
+        match value {
+            VerbInventoryRef::Core(CoreVerbIdentity::May) => self.0.push("auxiliary:May".to_owned()),
+            VerbInventoryRef::Core(CoreVerbIdentity::Cant) => self.0.push("auxiliary:Cant".to_owned()),
+            _ => {}
+        }
     }
 
     fn visit_duration_predicate_value(&mut self, value: &DurationPredicateValue) {
@@ -6837,8 +6840,8 @@ impl Visitor for CostFrameVisitor {
         deckmaste_english_v2::visit::walk_only_during_restriction(self, value);
     }
 
-    fn visit_verb_lexeme(&mut self, value: VerbLexeme) {
-        if value == VerbLexeme::Cost {
+    fn visit_verb_inventory(&mut self, value: &VerbInventoryRef) {
+        if value == &VerbInventoryRef::Core(CoreVerbIdentity::Cost) {
             self.0.push("ordinary-cost-head");
         }
     }
@@ -6955,7 +6958,7 @@ fn cost_products_keep_ast_render_visit_and_lexical_ownership() {
                 "Spells".to_owned(),
                 "lexeme:CommonNoun/Spell/plural".to_owned()
             ),
-            (" cost".to_owned(), "lexeme:VerbLexeme/Cost/bare".to_owned()),
+            (" cost".to_owned(), "core-verb:Cost".to_owned()),
             (
                 " {".to_owned(),
                 "form:symbol_run/symbol_run/0/prefix".to_owned()

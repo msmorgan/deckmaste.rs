@@ -1258,7 +1258,6 @@ mod tests {
     use crate::ast::TriggerMarker;
     use crate::ast::TypeNoun;
     use crate::ast::Variable;
-    use crate::ast::VerbLexeme;
     use crate::constructions::Agreement;
     use crate::constructions::CasePosition;
     use crate::constructions::DeclarationLeaf;
@@ -1484,7 +1483,7 @@ mod tests {
         clippy::too_many_lines,
         reason = "the authority enumerates every closed morphology boundary and owner"
     )]
-    fn generated_morphology_scans_exact_closed_surfaces_boundaries_and_owners() {
+    fn generated_declaration_verb_scans_exact_surfaces_boundaries_and_owners() {
         let environment = canonical_test_environment();
         let context = context("Context Card");
         let scan = |text, matcher, owner| {
@@ -1506,99 +1505,65 @@ mod tests {
                 },
             )
         };
-        for (text, lexeme, agreement, owner) in [
+        let intransitive_codec = RULES
+            .iter()
+            .find(|rule| rule.id == RuleId::IntransitiveFrameIntransitivePredicate)
+            .and_then(|rule| {
+                rule.rhs.iter().find_map(|position| match position {
+                    RulePosition::Lexical(terminal) => match terminal.matcher {
+                        Lexical::DeclarationVerb(codec, _) => Some(codec),
+                        _ => None,
+                    },
+                    _ => None,
+                })
+            })
+            .expect("the intransitive frame owns one declaration-verb terminal");
+        for (text, agreement, owner) in [
             (
-                "Deal.",
-                VerbLexeme::Deal,
+                "Die.",
                 Agreement::Bare,
-                "lexeme:VerbLexeme/Deal/bare",
+                "core-verb:Die",
             ),
             (
-                "Deals.",
-                VerbLexeme::Deal,
+                "Dies.",
                 Agreement::ThirdPersonSingular,
-                "lexeme:VerbLexeme/Deal/third_person_singular",
-            ),
-            (
-                "Are.",
-                VerbLexeme::Be,
-                Agreement::Bare,
-                "lexeme:VerbLexeme/Be/bare",
-            ),
-            (
-                "Is.",
-                VerbLexeme::Be,
-                Agreement::ThirdPersonSingular,
-                "lexeme:VerbLexeme/Be/third_person_singular",
+                "core-verb:Die",
             ),
         ] {
             let matches = scan(
                 text,
-                Lexical::Verb(lexeme, FeatureConstraint::Exact(agreement)),
-                LexicalOwnerTemplate::Lexeme {
-                    declaration: "VerbLexeme",
-                    member: match lexeme {
-                        VerbLexeme::Deal => "Deal",
-                        VerbLexeme::Be => "Be",
-                        VerbLexeme::Become
-                        | VerbLexeme::May
-                        | VerbLexeme::Can
-                        | VerbLexeme::Cant
-                        | VerbLexeme::Must
-                        | VerbLexeme::Didnt
-                        | VerbLexeme::Would
-                        | VerbLexeme::Do
-                        | VerbLexeme::Add
-                        | VerbLexeme::Cause
-                        | VerbLexeme::Choose
-                        | VerbLexeme::Enter
-                        | VerbLexeme::Draw
-                        | VerbLexeme::Gain
-                        | VerbLexeme::Get
-                        | VerbLexeme::Have
-                        | VerbLexeme::Leave
-                        | VerbLexeme::Look
-                        | VerbLexeme::Lose
-                        | VerbLexeme::Pay
-                        | VerbLexeme::Prevent
-                        | VerbLexeme::Put
-                        | VerbLexeme::Remove
-                        | VerbLexeme::Return
-                        | VerbLexeme::Roll
-                        | VerbLexeme::Cost
-                        | VerbLexeme::Control
-                        | VerbLexeme::Own => unreachable!(),
-                    },
-                },
+                Lexical::DeclarationVerb(intransitive_codec, FeatureConstraint::Exact(agreement)),
+                LexicalOwnerTemplate::DeclarationVerb(intransitive_codec),
             );
             assert!(matches!(
                 matches.as_slice(),
                 [LexicalMatch {
-                    value: Leaf::Verb {
-                        lexeme: actual_lexeme,
+                    value: Leaf::IntransitiveVerb {
+                        verb,
                         agreement: actual_agreement,
                         ..
                     },
-                    owner: Some(_),
                     ..
-                }] if *actual_lexeme == lexeme && *actual_agreement == agreement
+                }] if *actual_agreement == agreement
+                    && verb.reference()
+                        == &crate::environment::VerbInventoryRef::Core(
+                            crate::environment::CoreVerbIdentity::Die,
+                        )
             ));
-            assert_eq!(matches[0].owner.as_ref().unwrap().stable_id(), owner);
+            assert_eq!(
+                LexicalOwnerTemplate::DeclarationVerb(intransitive_codec)
+                    .instantiate(&matches[0].value)
+                    .expect("declaration-verb leaf has its lexical owner")
+                    .stable_id(),
+                owner,
+            );
         }
-        for rejected in ["Be.", "Bes.", "Dealsx.", "Ares."] {
-            let lexeme = if rejected.starts_with('B') || rejected.starts_with('A') {
-                VerbLexeme::Be
-            } else {
-                VerbLexeme::Deal
-            };
+        for rejected in ["Diex.", "Diesx."] {
             assert!(
                 scan(
                     rejected,
-                    Lexical::Verb(lexeme, FeatureConstraint::Any),
-                    LexicalOwnerTemplate::Lexeme {
-                        declaration: "VerbLexeme",
-                        member: if lexeme == VerbLexeme::Be { "Be" } else { "Deal" },
-                    },
+                    Lexical::DeclarationVerb(intransitive_codec, FeatureConstraint::Any),
+                    LexicalOwnerTemplate::DeclarationVerb(intransitive_codec),
                 )
                 .is_empty(),
                 "unexpected closed verb reading for {rejected:?}"
@@ -2918,7 +2883,7 @@ mod tests {
             reset_trace_label_counts();
             let mut observed = StructuralObservation::new(TraceLimits::new(limit));
             observed.checked_completion(
-                RootRuleId::Grammar(RuleId::VerbPhraseGainLife),
+                RootRuleId::Grammar(RuleId::VerbPhraseHaveLife),
                 1,
                 2,
                 &family,
@@ -3058,12 +3023,18 @@ mod tests {
                 "Declaration(DeclarationLeaf { id: DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }, feature: Bare, onset: Consonant })",
             ),
             (
-                Leaf::Verb {
-                    lexeme: VerbLexeme::Deal,
+                Leaf::IntransitiveVerb {
+                    verb: crate::ast::DeclarationIntransitiveVerb::new(
+                        &canonical_test_environment(),
+                        crate::environment::VerbInventoryRef::Declaration(
+                            DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+                        ),
+                    )
+                    .expect("the canonical environment declares intransitive Connive"),
                     agreement: Agreement::ThirdPersonSingular,
                     onset: Onset::Consonant,
                 },
-                "Verb { lexeme: Deal, agreement: ThirdPersonSingular, onset: Consonant }",
+                "IntransitiveVerb { verb: DeclarationIntransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Connive\" }) }, agreement: ThirdPersonSingular, onset: Consonant }",
             ),
             (
                 Leaf::ScalarNumber(ScalarNumber { magnitude: 2 }),

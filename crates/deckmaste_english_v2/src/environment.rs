@@ -1923,7 +1923,7 @@ mod tests {
     fn normalized_verb_inventory_uses_one_frame_lookup_for_core_and_plugin_rows() {
         let declaration = macro_ron::v2::read_str(
             "/synthetic/Act.ron",
-            r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",third_person:"acts",valence:Transitive))"#,
+            r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",valence:Transitive))"#,
         )
         .expect("synthetic keyword action is valid");
         let environment = ParserEnvironment::try_from_declarations([declaration])

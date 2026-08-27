@@ -19,10 +19,10 @@ use deckmaste_english_v2::ast::Status;
 use deckmaste_english_v2::ast::SubjectPronoun;
 use deckmaste_english_v2::ast::Supertype;
 use deckmaste_english_v2::ast::Variable;
-use deckmaste_english_v2::ast::VerbLexeme;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
+use deckmaste_english_v2::environment::VerbInventoryRef;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::ParseAnalysisOutcome;
@@ -695,8 +695,8 @@ impl Visitor for NominalVisitor {
         self.events.push(format!("NonCommonNoun:{value:?}"));
     }
 
-    fn visit_verb_lexeme(&mut self, value: VerbLexeme) {
-        self.events.push(format!("VerbLexeme:{value:?}"));
+    fn visit_verb_inventory(&mut self, value: &VerbInventoryRef) {
+        self.events.push(format!("VerbInventory:{value:?}"));
     }
 
     fn visit_cardinal_number(&mut self, value: &CardinalNumber) {
@@ -3263,7 +3263,7 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "ControllerOwnerQualification",
             "YouControl",
             "SubjectPronoun:You",
-            "VerbLexeme:Control",
+            "VerbInventory:Core(Control)",
         ],
     ),
     (
@@ -3285,7 +3285,7 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "SingularController",
             "OpponentController",
             "ControllerNoun:Opponent",
-            "VerbLexeme:Control",
+            "VerbInventory:Core(Control)",
         ],
     ),
     (
@@ -3305,7 +3305,7 @@ const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
             "ControllerOwnerQualification",
             "YouOwn",
             "SubjectPronoun:You",
-            "VerbLexeme:Own",
+            "VerbInventory:Core(Own)",
         ],
     ),
     (
@@ -3537,8 +3537,8 @@ fn assert_typed_visitor_preorders(cases: &[(&str, &[&str])]) {
                         | "YouOwn"
                         | "SubjectPronoun:You"
                         | "ControllerNoun:Opponent"
-                        | "VerbLexeme:Control"
-                        | "VerbLexeme:Own"
+                        | "VerbInventory:Core(Control)"
+                        | "VerbInventory:Core(Own)"
                         | "FromPhrase"
                         | "FromPhraseValue"
                         | "InPhrase"
@@ -3587,8 +3587,8 @@ fn assert_typed_visitor_preorders(cases: &[(&str, &[&str])]) {
                         | "SingularController"
                         | "OpponentController"
                         | "YouOwn"
-                        | "VerbLexeme:Control"
-                        | "VerbLexeme:Own"
+                        | "VerbInventory:Core(Control)"
+                        | "VerbInventory:Core(Own)"
                 )
             })
             .collect::<Vec<_>>();

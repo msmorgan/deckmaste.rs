@@ -1,17 +1,14 @@
 use std::path::Path;
 
-use deckmaste_english_v2::ast::Amount;
 use deckmaste_english_v2::ast::CounterKind;
 use deckmaste_english_v2::ast::DeclaredCounterKind;
 use deckmaste_english_v2::ast::Designation;
 use deckmaste_english_v2::ast::KeywordAbility;
-use deckmaste_english_v2::ast::NegativeCounterMagnitude;
-use deckmaste_english_v2::ast::NegativePowerToughnessCounter;
-use deckmaste_english_v2::ast::NumberAmount;
-use deckmaste_english_v2::ast::PositiveCounterMagnitude;
-use deckmaste_english_v2::ast::PositivePowerToughnessCounter;
-use deckmaste_english_v2::ast::ScalarNumber;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::visit::Visitor;
+use deckmaste_english_v2::context::ParseContext;
+use macro_ron::v2::Onset;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::NormalizedDeclaration;
@@ -20,12 +17,6 @@ use macro_ron::v2::read_str;
 
 fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
     read_str(path, source).expect("synthetic declaration is valid")
-}
-
-fn number_amount(magnitude: u32) -> Amount {
-    Amount::Number(NumberAmount {
-        number: ScalarNumber { magnitude },
-    })
 }
 
 #[test]
@@ -138,23 +129,38 @@ fn fixed_declaration_term_inventories_load_through_their_generated_consumers() {
 
 #[test]
 fn structured_power_toughness_counters_remain_nonlexical_counter_kinds() {
-    let positive = PositivePowerToughnessCounter::new(vec![
-        PositiveCounterMagnitude::PositiveCounterMagnitude(number_amount(1)),
-        PositiveCounterMagnitude::PositiveCounterMagnitude(number_amount(1)),
-    ])
-    .expect("two positive magnitudes form one structured counter kind");
-    let negative = NegativePowerToughnessCounter::new(vec![
-        NegativeCounterMagnitude::NegativeCounterMagnitude(number_amount(1)),
-        NegativeCounterMagnitude::NegativeCounterMagnitude(number_amount(1)),
-    ])
-    .expect("two negative magnitudes form one structured counter kind");
+    #[derive(Default)]
+    struct CounterKinds(Vec<CounterKind>);
+
+    impl Visitor for CounterKinds {
+        fn visit_counter_kind(&mut self, value: &CounterKind) {
+            self.0.push(value.clone());
+        }
+    }
+
+    let environment = ParserEnvironment::try_from_declarations(
+        read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"))
+            .expect("builtin-v2 declarations load"),
+    )
+    .expect("builtin declaration environment freezes");
+    let parser = Parser::new(environment).expect("builtin environment supplies grammar rows");
+    let context = ParseContext::new("Context Card", false, Onset::Consonant)
+        .expect("synthetic card context is valid");
+
+    let mut visitor = CounterKinds::default();
+    for text in [
+        "Put a +1/+1 counter on target creature.",
+        "Put a -1/-1 counter on target creature.",
+    ] {
+        let ability = parser.parse(text, &context).expect("structured counter parses");
+        visitor.visit_ability(&ability);
+    }
 
     assert!(matches!(
-        CounterKind::PositivePowerToughnessCounter(positive),
-        CounterKind::PositivePowerToughnessCounter(_)
-    ));
-    assert!(matches!(
-        CounterKind::NegativePowerToughnessCounter(negative),
-        CounterKind::NegativePowerToughnessCounter(_)
+        visitor.0.as_slice(),
+        [
+            CounterKind::PositivePowerToughnessCounter(_),
+            CounterKind::NegativePowerToughnessCounter(_),
+        ]
     ));
 }

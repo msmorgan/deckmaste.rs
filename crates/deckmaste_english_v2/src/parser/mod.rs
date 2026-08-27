@@ -994,7 +994,13 @@ mod structural_trace_tests {
             .parse("Destroy target creature.", &context)
             .expect("fixture parses as an Ability");
 
-        assert_eq!(Sentence::from_build(BuildValue::Ability(ability)), None);
+        assert_eq!(
+            Sentence::from_build(BuildValue::Ability(
+                ability,
+                crate::constructions::FeatureConstraint::Any,
+            )),
+            None
+        );
     }
 
     #[test]
@@ -1186,13 +1192,13 @@ mod structural_trace_tests {
                 (
                     0,
                     7,
-                    "TransitiveVerb { verb: Declaration(DeclarationTransitiveVerb { id: DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" } }), agreement: Bare, onset: Consonant }",
+                    "TransitiveVerb { verb: DeclarationTransitiveVerb { reference: Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" }) }, agreement: Bare, onset: Consonant }",
                 ),
                 (7, 14, "AttributiveAdjective(Target)"),
                 (
                     7,
                     14,
-                    "DeterminativeHead { value: Closed(Target), onset: Consonant, number_license: SingularOnly, fused_head_license: NominalOnly, nominal_license: CountNominal }",
+                    "DeterminativeHead { value: Closed(Target), onset: Consonant, following_onset: Any, number_license: SingularOnly, fused_head_license: NominalOnly, nominal_license: CountNominal }",
                 ),
                 (
                     7,

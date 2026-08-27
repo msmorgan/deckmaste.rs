@@ -4,8 +4,10 @@ use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
+use deckmaste_english_v2::environment::CoreVerbIdentity;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::environment::VerbInventoryRef;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::TraceLimits;
@@ -28,9 +30,8 @@ struct RecordingVisitor {
     self_reference_spellings: Vec<SelfReferenceSpelling>,
     trigger_markers: Vec<TriggerMarker>,
     nouns: Vec<CommonNoun>,
-    verbs: Vec<VerbLexeme>,
+    verbs: Vec<VerbInventoryRef>,
     finite_copulas: Vec<FiniteCopula>,
-    core_transitive_verbs: Vec<CoreTransitiveVerb>,
     declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
     catalog_providers: Vec<CatalogProvider>,
     card_names: Vec<String>,
@@ -62,16 +63,12 @@ impl Visitor for RecordingVisitor {
         self.nouns.push(noun);
     }
 
-    fn visit_verb_lexeme(&mut self, verb: VerbLexeme) {
-        self.verbs.push(verb);
+    fn visit_verb_inventory(&mut self, verb: &VerbInventoryRef) {
+        self.verbs.push(verb.clone());
     }
 
     fn visit_finite_copula(&mut self, copula: FiniteCopula) {
         self.finite_copulas.push(copula);
-    }
-
-    fn visit_core_transitive_verb(&mut self, verb: CoreTransitiveVerb) {
-        self.core_transitive_verbs.push(verb);
     }
 
     fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
@@ -294,9 +291,11 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                     PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
                                         PositiveObjectGapRelativeClauseValue {
                                             subject: subject_you(),
-                                            head: TransitiveVerb::Lexeme(
-                                                CoreTransitiveVerb::Control,
-                                            ),
+                                            head: DeclarationTransitiveVerb::new(
+                                                &environment(),
+                                                VerbInventoryRef::Core(CoreVerbIdentity::Control),
+                                            )
+                                            .expect("the core inventory declares transitive Control"),
                                         },
                                     ),
                                 ))),
@@ -416,10 +415,31 @@ fn to_phrase(complement: Object) -> ToPhrase {
 }
 
 fn damage(amount: Amount) -> VerbPhrase {
-    VerbPhrase::DealDamage(DealDamage {
-        recipient: to_phrase(it()),
+    damage_to(amount, to_phrase(it()))
+}
+
+fn damage_to(amount: Amount, recipient: ToPhrase) -> VerbPhrase {
+    let environment = environment();
+    let head = DeclarationDealAmountDamageVerb::new(
+        &environment,
+        VerbInventoryRef::Core(CoreVerbIdentity::Deal),
+    )
+    .expect("the core inventory declares Deal with an amount-damage frame");
+    VerbPhrase::DealAmountDamage(DealAmountDamage {
+        head,
         amount,
+        recipient,
     })
+}
+
+fn gain_life(amount: Amount) -> VerbPhrase {
+    let environment = environment();
+    let head = DeclarationLifeAmountVerb::new(
+        &environment,
+        VerbInventoryRef::Core(CoreVerbIdentity::Gain),
+    )
+    .expect("the core inventory declares Gain with an amount-life frame");
+    VerbPhrase::LifeAmount(LifeAmount { head, amount })
 }
 
 fn atomic(predicate: VerbPhrase) -> Predicate {
@@ -462,13 +482,16 @@ fn destroy(object: Object) -> VerbPhrase {
     let environment = environment();
     let head = DeclarationTransitiveVerb::new(
         &environment,
-        DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
+        VerbInventoryRef::Declaration(DeclarationId::new(
+            DeclarationKind::KeywordAction,
+            "Destroy",
+        )),
     )
     .expect("the builtin grammar declares transitive Destroy");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
             TransitivePredicate {
-                head: TransitiveVerb::Declaration(head),
+                head,
                 object,
             },
         )),
@@ -479,13 +502,16 @@ fn connive() -> VerbPhrase {
     let environment = environment();
     let head = DeclarationIntransitiveVerb::new(
         &environment,
-        DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+        VerbInventoryRef::Declaration(DeclarationId::new(
+            DeclarationKind::KeywordAction,
+            "Connive",
+        )),
     )
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
             IntransitivePredicate {
-                head: IntransitiveVerb::Declaration(head),
+                head,
             },
         )),
     })
@@ -496,20 +522,21 @@ fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
             frame:
                 BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-                    IntransitivePredicate {
-                        head: IntransitiveVerb::Declaration(head),
-                    },
+                    IntransitivePredicate { head },
                 )),
-        }) => Some(head.id().name()),
+        }) => match head.reference() {
+            VerbInventoryRef::Declaration(id) => Some(id.name()),
+            VerbInventoryRef::Core(_) => None,
+        },
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
             frame:
                 BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-                    TransitivePredicate {
-                        head: TransitiveVerb::Declaration(head),
-                        ..
-                    },
+                    TransitivePredicate { head, .. },
                 )),
-        }) => Some(head.id().name()),
+        }) => match head.reference() {
+            VerbInventoryRef::Declaration(id) => Some(id.name()),
+            VerbInventoryRef::Core(_) => None,
+        },
         _ => None,
     }
 }
@@ -568,9 +595,9 @@ fn unsigned_decimal_zero_constructs_renders_scans_and_visits() {
     let parser = Parser::new(environment.clone()).expect("required declarations are present");
     let context = context("Context Card");
     let number = ScalarNumber { magnitude: 0 };
-    let ability = plain(vec![imperative(VerbPhrase::GainLife(GainLife {
-        amount: Amount::Number(NumberAmount { number }),
-    }))]);
+    let ability = plain(vec![imperative(gain_life(Amount::Number(NumberAmount {
+        number,
+    })))]);
     assert_eq!(ability.render(&context, &environment), "Gain 0 life.");
     assert_eq!(parser.parse("Gain 0 life.", &context), Ok(ability));
     assert!(parser.parse("Gain -0 life.", &context).is_err());
@@ -628,11 +655,9 @@ fn generated_cardinals_and_unsigned_scalars_round_trip_with_codec_ownership() {
     }
 
     let scalar = ScalarNumber { magnitude: 1_000 };
-    let ability = plain(vec![imperative(VerbPhrase::GainLife(GainLife {
-        amount: Amount::Number(NumberAmount {
-            number: scalar.clone(),
-        }),
-    }))]);
+    let ability = plain(vec![imperative(gain_life(Amount::Number(NumberAmount {
+        number: scalar.clone(),
+    })))]);
     assert_eq!(ability.render(&context, &environment), "Gain 1,000 life.");
     assert_eq!(parser.parse("Gain 1,000 life.", &context), Ok(ability));
     let scalar_ownership = parser
@@ -650,11 +675,9 @@ fn generated_cardinals_and_unsigned_scalars_round_trip_with_codec_ownership() {
         .parse_cardinal_quantity("One thousand, one", &context)
         .expect("canonical cardinal parses through its generated parent root");
 
-    let y_ability = plain(vec![imperative(VerbPhrase::GainLife(GainLife {
-        amount: Amount::Variable(VariableAmount {
-            variable: Variable::Y,
-        }),
-    }))]);
+    let y_ability = plain(vec![imperative(gain_life(Amount::Variable(VariableAmount {
+        variable: Variable::Y,
+    })))]);
     assert_eq!(y_ability.render(&context, &environment), "Gain Y life.");
     assert_eq!(
         parser.parse("Gain Y life.", &context),
@@ -677,11 +700,9 @@ fn gain_life_with_where() -> Sentence {
     Sentence::WithWhere(WithWhere {
         body: Box::new(declarative(
             subject_you(),
-            VerbPhrase::GainLife(GainLife {
-                amount: Amount::Variable(VariableAmount {
-                    variable: Variable::X,
-                }),
-            }),
+            gain_life(Amount::Variable(VariableAmount {
+                variable: Variable::X,
+            })),
         )),
         clause: where_number_of(nominal_object(
             creatures_you_control_with_power_at_most_two(),
@@ -738,11 +759,9 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
     let destroy = imperative(destroy(target_creature()));
     let gain = declarative(
         subject_you(),
-        VerbPhrase::GainLife(GainLife {
-            amount: Amount::Number(NumberAmount {
-                number: ScalarNumber { magnitude: 2 },
-            }),
-        }),
+        gain_life(Amount::Number(NumberAmount {
+            number: ScalarNumber { magnitude: 2 },
+        })),
     );
     let connive_sentence = imperative(connive());
 
@@ -872,11 +891,9 @@ fn renders_gain_life_with_a_where_binder_exactly() {
 fn renders_a_plural_count_subject_with_a_bare_verb() {
     let value = declarative(
         nominal_subject(creatures_you_control_with_power_at_most_two()),
-        VerbPhrase::GainLife(GainLife {
-            amount: Amount::Variable(VariableAmount {
-                variable: Variable::X,
-            }),
-        }),
+        gain_life(Amount::Variable(VariableAmount {
+            variable: Variable::X,
+        })),
     );
 
     assert_eq!(
@@ -893,12 +910,12 @@ fn renders_real_abbreviated_self_reference_with_a_declaration_noun() {
     );
     let value = declarative(
         nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(subject))),
-        VerbPhrase::DealDamage(DealDamage {
-            amount: Amount::Number(NumberAmount {
+        damage_to(
+            Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: to_phrase(target_creature()),
-        }),
+            to_phrase(target_creature()),
+        ),
     );
     assert_eq!(
         value.render(
@@ -918,12 +935,12 @@ fn the_same_self_reference_value_renders_from_two_card_contexts() {
                 "Zacama, Primal Calamity",
             ),
         ))),
-        VerbPhrase::DealDamage(DealDamage {
-            amount: Amount::Number(NumberAmount {
+        damage_to(
+            Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: to_phrase(target_creature()),
-        }),
+            to_phrase(target_creature()),
+        ),
     );
 
     let zacama = value.render(
@@ -1059,12 +1076,12 @@ fn visitor_reaches_every_vertical_slice_leaf() {
                 "Zacama, Primal Calamity",
             ),
         ))),
-        VerbPhrase::DealDamage(DealDamage {
-            amount: Amount::Number(NumberAmount {
+        damage_to(
+            Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: to_phrase(target_creature()),
-        }),
+            to_phrase(target_creature()),
+        ),
     );
 
     let mut visitor = RecordingVisitor::default();
@@ -1122,13 +1139,13 @@ fn visitor_reaches_every_vertical_slice_leaf() {
     );
     assert_eq!(
         visitor.verbs,
-        vec![VerbLexeme::Deal, VerbLexeme::Gain, VerbLexeme::Deal]
+        vec![
+            VerbInventoryRef::Core(CoreVerbIdentity::Deal),
+            VerbInventoryRef::Core(CoreVerbIdentity::Gain),
+            VerbInventoryRef::Core(CoreVerbIdentity::Deal),
+        ]
     );
     assert_eq!(visitor.finite_copulas, vec![FiniteCopula::Is]);
-    assert_eq!(
-        visitor.core_transitive_verbs,
-        vec![CoreTransitiveVerb::Control]
-    );
 }
 
 #[test]
