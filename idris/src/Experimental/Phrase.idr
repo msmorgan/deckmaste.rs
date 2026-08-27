@@ -1819,6 +1819,24 @@ mutual
     ||| "different" before an axis a sum could otherwise be read over;
     ||| over one object, "the number of [axis] [domain] is".
     DistinctCount : (ax : KindAxis) -> (dom : Noun bs Object) -> Amount bs
+    ||| "up to [bound]": the number the acting player announces as the
+    ||| effect applies, no greater than the written bound. The count
+    ||| slot's twin of `Quantity`'s `UpToOf`, which ceilings a chosen SET
+    ||| where this one ceilings a number: "draw up to three cards" picks
+    ||| no cards to draw, only how many.
+    ||| [CR#608.2d] is the announcement: an effect's own choices are made
+    ||| while applying the effect, and an illegal option cannot be chosen.
+    ||| No chooser slot is minted -- [CR#121.2b] and [CR#121.3] both put
+    ||| the ceiling draw's choice with the drawing player ("the affected
+    ||| player", "that player") -- so the chooser is whichever player the
+    ||| clause names as acting. A `may` above it offers the action; this
+    ||| row offers the number.
+    ||| The bound is any amount, ungated: "up to X" prints, and no rule
+    ||| refuses a bound the game state supplies. A ceiling inside a
+    ||| ceiling is unwritten English no rule refuses; tolerated, at its
+    ||| zero.
+    ||| -- spelling: "up to [bound]".
+    UpTo : (bound : Amount bs) -> Amount bs
 
   public export
   amtDelta : {bs : Bindings} -> Amount bs -> List Binding
@@ -1849,6 +1867,7 @@ mutual
   amtDelta (AggregateOver _ dom _) = predDelta dom
   amtDelta (CountOfGroup grp) = nounDelta grp
   amtDelta (DistinctCount _ dom) = nounDelta dom
+  amtDelta (UpTo b) = amtDelta b
 
   public export
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
@@ -1879,6 +1898,7 @@ mutual
   amtIntro (AggregateOver _ dom _) = predDelta dom ++ bs
   amtIntro (CountOfGroup grp) = nomIntro grp
   amtIntro (DistinctCount _ dom) = nomIntro dom
+  amtIntro (UpTo b) = amtIntro b
 
   ||| An unwritten amount introduces nothing: the slot's absence is the
   ||| bare "all" spelling, not a mention a later clause could read.
@@ -1917,6 +1937,8 @@ mutual
   amtPlur (AggregateOver _ _ _) = ManyOf
   amtPlur (CountOfGroup _) = ManyOf
   amtPlur (DistinctCount _ _) = ManyOf
+  -- Agreement follows the written bound: "up to three cards", "up to one card".
+  amtPlur (UpTo b) = amtPlur b
 
   public export
   writtenBound : {0 bs : Bindings} -> Amount bs -> Bool
@@ -1947,6 +1969,8 @@ mutual
   writtenBound (AggregateOver _ _ _) = False
   writtenBound (CountOfGroup _) = False
   writtenBound (DistinctCount _ _) = False
+  -- The bound is written; the number the ceiling stands for is not.
+  writtenBound (UpTo _) = False
 
   public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
@@ -2005,6 +2029,8 @@ mutual
   readAmount (AggregateOver _ _ _) = True
   readAmount (CountOfGroup _) = True
   readAmount (DistinctCount _ _) = True
+  -- Announced under [CR#608.2d], not read off the game state.
+  readAmount (UpTo _) = False
 
   public export
   ReadAmount : Amount bs -> Type

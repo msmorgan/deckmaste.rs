@@ -847,3 +847,14 @@ public export
 badReadsShuffledLibraryCard :
   Unspellable (Noun ProofsG.afterShuffledLook Object) (\ok => That CardW {ok})
 badReadsShuffledLibraryCard Refl impossible
+
+||| "if up to three is 4 or greater"
+||| A ceiling is a number the acting player announces as the effect
+||| applies [CR#608.2d], not one standing in the game state, so nothing
+||| is there for a comparison to measure. `badCompareLiteralSubject` pins
+||| the numeral for the neighbouring reason -- it states arithmetic --
+||| and the two together leave the subject slot to the reads.
+public export
+badCompareCeilingSubject : Unspellable (Condition []) (\ok =>
+  CompareAmt (UpTo (Lit 3)) AtLeast (Lit 4) {rd = ok})
+badCompareCeilingSubject Oh impossible

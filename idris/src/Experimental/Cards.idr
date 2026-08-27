@@ -9003,16 +9003,23 @@ balduvianFallenHeader : GameEvent []
 balduvianFallenHeader =
   PaysCost Nothing Paid Macros.thisCreature "CumulativeUpkeep"
 
-||| Shah of Naar Isle's header -- "When this creature's echo cost is paid,
-||| …", the passive again, over the second keyword whose parameter is a
-||| cost [CR#702.30a]. Its BODY does not write: "each opponent may draw up
-||| to three cards" wants a ceiling on the drawn count, and "up to [n]" is
-||| a quantity over a described set with no `Amount` twin. The card's
-||| blocker, not the row's.
+||| Shah of Naar Isle -- "Trample / Echo {0} / When this creature's echo
+||| cost is paid, each opponent may draw up to three cards." The passive
+||| payment header over the second keyword whose parameter is a cost
+||| [CR#702.30a], and the ceiling draw: the `may` offers the action, the
+||| `UpTo` offers the number, and both belong to the opponent.
 public export
-shahOfNaarIsleHeader : GameEvent []
-shahOfNaarIsleHeader =
-  PaysCost Nothing Paid Macros.thisCreature "Echo"
+shahOfNaarIsle : Card
+shahOfNaarIsle =
+  Macros.card "Shah of Naar Isle"
+       (Just [Macros.generic 3, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Efreet"] [Creature])
+       [ Macros.keyword "Trample"
+       , Macros.keywordCosting "Echo" (Mana [Macros.generic 0])
+       , Macros.triggered When (PaysCost Nothing Paid Macros.thisCreature "Echo")
+                          (Macros.may (Each Opponent)
+                                      (Draw (Those PlayerW) (UpTo (Lit 3)))) ]
+       (Just (6, 6))
 
 ||| Font of Agonies -- "Whenever you pay life, put that many blood
 ||| counters on this enchantment." The paid thing is a resource and not a
