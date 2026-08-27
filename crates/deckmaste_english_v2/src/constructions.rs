@@ -686,7 +686,7 @@ constructions! {
                 },
                 Target {
                     number_license = SingularOnly;
-                    nominal_license = BareSingularNoun;
+                    nominal_license = CountNominal;
                     fused_head_license = NominalOnly;
                     realizations = [{ surface = "target"; }];
                 },
@@ -2657,6 +2657,7 @@ constructions! {
     }
     construction negative_modified_singular_nominal: SingularNominal {
         element NegativeModifiedSingularNominal {
+            leading: opt NominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
             head: SingularHead,
         }
@@ -2665,7 +2666,7 @@ constructions! {
         derive number = head.number;
         derive nominal_form = Values::ModifiedSingularNoun;
         derive onset = Values::Consonant;
-        form negative_modified_singular_nominal = modifiers head;
+        form negative_modified_singular_nominal = leading modifiers head;
     }
     construction bare_plural_nominal: PluralNominal {
         element BarePluralNominal { head: PluralHead, }
@@ -2689,6 +2690,7 @@ constructions! {
     }
     construction negative_modified_plural_nominal: PluralNominal {
         element NegativeModifiedPluralNominal {
+            leading: opt NominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
             head: PluralHead,
         }
@@ -2697,7 +2699,7 @@ constructions! {
         derive number = head.number;
         derive nominal_form = Values::ModifiedPluralNoun;
         derive onset = Values::Consonant;
-        form negative_modified_plural_nominal = modifiers head;
+        form negative_modified_plural_nominal = leading modifiers head;
     }
     construction bare_singular_coordination_member: SingularCoordinationMember {
         element BareSingularCoordinationMember { head: SingularHead, }
@@ -2718,6 +2720,7 @@ constructions! {
     }
     construction negative_modified_singular_coordination_member: SingularCoordinationMember {
         element NegativeModifiedSingularCoordinationMember {
+            leading: opt NominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
             head: SingularHead,
         }
@@ -2725,7 +2728,7 @@ constructions! {
         derive agreement = head.agreement;
         derive number = head.number;
         derive onset = Values::Consonant;
-        form negative_modified_singular_coordination_member = modifiers head;
+        form negative_modified_singular_coordination_member = leading modifiers head;
     }
     construction bare_plural_coordination_member: PluralCoordinationMember {
         element BarePluralCoordinationMember { head: PluralHead, }
@@ -2746,6 +2749,7 @@ constructions! {
     }
     construction negative_modified_plural_coordination_member: PluralCoordinationMember {
         element NegativeModifiedPluralCoordinationMember {
+            leading: opt NominalModifier,
             modifiers: seq NegativeNominalModifier separated by ", ",
             head: PluralHead,
         }
@@ -2753,7 +2757,7 @@ constructions! {
         derive agreement = head.agreement;
         derive number = head.number;
         derive onset = Values::Consonant;
-        form negative_modified_plural_coordination_member = modifiers head;
+        form negative_modified_plural_coordination_member = leading modifiers head;
     }
     construction singular_and_nominal_coordination: SingularNominalCoordination {
         element SingularAndNominalCoordination {
