@@ -5532,12 +5532,15 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
         for field in &construction.element.fields {
             validate_resolved_field_kind(&field.kind, symbols, &mut errors);
             if let Some(check) = &field.check {
-                if !matches!(&field.kind, FieldKind::Category(_) | FieldKind::Zeroable { .. }) {
+                if !matches!(
+                    &field.kind,
+                    FieldKind::Category(_) | FieldKind::Zeroable { .. } | FieldKind::Lex(_)
+                ) {
                     combine(
                         &mut errors,
                         syn::Error::new(
                             field.name.span(),
-                            "checked fields require a category or zeroable category",
+                            "checked fields require a category, lexical, or zeroable category value",
                         ),
                     );
                 }
@@ -9876,21 +9879,30 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn checked_fields_reject_non_category_values() {
-        let diagnostic = error(quote! {
-            vocab Marker { One = "one", }
+    fn checked_fields_accept_feature_bearing_lexical_values() {
+        validate(quote! {
+            codec DeterminativeHead {
+                generate declaration_determinative {
+                    closed = [
+                        Each {
+                            number_license = SingularOnly;
+                            fused_head_license = FusedHead;
+                            nominal_license = CountNominal;
+                            realizations = [{ surface = "each"; }];
+                        },
+                    ];
+                }
+            }
             construction checked: Root {
                 element Checked {
-                    marker: lex Marker checked by only_fused(marker.fused_head_license),
+                    head: lex DeterminativeHead
+                        checked by determinative_is_fused(head.fused_head_license),
                 }
-                form checked = lex(marker);
+                form checked = lex(head);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
-        });
-        assert!(
-            diagnostic.contains("checked fields require a category or zeroable category"),
-            "{diagnostic}"
-        );
+        })
+        .expect("feature-bearing lexical field accepts a build-only check");
     }
 
     #[test]

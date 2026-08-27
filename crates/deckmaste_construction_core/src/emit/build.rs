@@ -234,6 +234,7 @@ fn emit_arm_from_plan(
             .cloned()
             .ok_or_else(|| internal("checked field has no lowered value"))?;
         let arguments = lower_checked_field_arguments(
+            plan,
             row,
             &lowering,
             &field.name_key(),
@@ -353,6 +354,7 @@ fn emit_arm_from_plan(
 }
 
 fn lower_checked_field_arguments(
+    plan: &SemanticPlan,
     row: &ConstructionPlan,
     lowering: &Lowering,
     owner: &str,
@@ -388,13 +390,29 @@ fn lower_checked_field_arguments(
                     .ok_or_else(|| internal("checked field feature has no lowered value"))?
             };
             let source = row.field(role)?;
-            if source.kind() != crate::semantic::ConstructionFieldKind::Category {
-                return Err(internal(
-                    "checked field feature source is not a category value",
-                ));
+            match source.kind() {
+                crate::semantic::ConstructionFieldKind::Category => {
+                    let helper = ident(&feature_helper(feature.key(), source.terminal()));
+                    Ok(quote! { #helper(&#value) })
+                }
+                crate::semantic::ConstructionFieldKind::Lex => {
+                    let Some(lexeme) = plan.lexeme(source.terminal()) else {
+                        return Err(internal(
+                            "checked lexical field feature has no lowered value",
+                        ));
+                    };
+                    if lexeme.feature_members(*feature).is_none() {
+                        return Err(internal(
+                            "checked lexical field feature has no lowered value",
+                        ));
+                    }
+                    let helper = ident(&feature_helper(feature.key(), source.terminal()));
+                    Ok(quote! { #helper(#value) })
+                }
+                crate::semantic::ConstructionFieldKind::Identity => Err(internal(
+                    "checked field feature source is not a category or lexical value",
+                )),
             }
-            let helper = ident(&feature_helper(feature.key(), source.terminal()));
-            Ok(quote! { #helper(&#value) })
         })
         .collect()
 }
@@ -3632,6 +3650,49 @@ mod tests {
             !source.contains("Partitive { head : head , fused_head_license"),
             "transient feature must not enter the AST: {source}"
         );
+    }
+
+    #[test]
+    fn checked_required_lexical_field_emits_a_build_only_guard() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                codec DeterminativeHead {
+                    generate declaration_determinative {
+                        closed = [
+                            Each {
+                                number_license = SingularOnly;
+                                fused_head_license = FusedHead;
+                                nominal_license = CountNominal;
+                                realizations = [{ surface = "each"; }];
+                            },
+                        ];
+                    }
+                }
+                construction partitive: Root {
+                    element Partitive {
+                        head: lex DeterminativeHead
+                            checked by determinative_is_fused(head.fused_head_license),
+                    }
+                    form partitive = lex(head);
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("checked required lexical fixture parses"),
+        )
+        .expect("checked required lexical fixture validates");
+        let source = super::emit(validated.semantic())
+            .expect("checked required lexical fixture emits")
+            .remove(0)
+            .tokens
+            .to_string();
+
+        for required in [
+            "determinative_is_fused",
+            "head_fused_head_license",
+            "& head",
+        ] {
+            assert!(source.contains(required), "missing `{required}`: {source}");
+        }
     }
 
     fn shared_rhs_structural_plan() -> crate::semantic::SemanticPlan {

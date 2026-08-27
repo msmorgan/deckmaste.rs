@@ -2454,6 +2454,31 @@ mod tests {
     }
 
     #[test]
+    fn parses_checked_required_lexical_field() {
+        let declarations = crate::parse_declarations(quote::quote! {
+            construction checked: Root {
+                element Checked {
+                    head: lex DeterminativeHead
+                        checked by determinative_is_fused(head.fused_head_license),
+                }
+                form checked = lex(head);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("checked required lexical field parses");
+        let Declaration::Construction(construction) = &declarations.declarations[0] else {
+            panic!("first declaration is a construction");
+        };
+        let field = &construction.element.fields[0];
+        assert!(matches!(&field.kind, crate::FieldKind::Lex(path) if path.is_ident("DeterminativeHead")));
+        assert!(matches!(
+            field.check.as_ref().map(|check| check.arguments.as_slice()),
+            Some([crate::FeatureSlot { role, feature: crate::Feature::FusedHeadLicense }])
+                if role == "head"
+        ));
+    }
+
+    #[test]
     fn parses_structural_declarations() {
         let declarations = parse(
             r#"
