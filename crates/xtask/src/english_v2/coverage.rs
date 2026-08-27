@@ -987,7 +987,15 @@ pub(super) fn run(args: &CoverageArgs, output: &mut dyn Write) -> anyhow::Result
                 .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))
         },
         crate::english_v2::parser_from_builtin_v2,
-        crate::english_v2::coverage_lock::apply,
+        |report, path, mode, diagnostics| {
+            crate::english_v2::coverage_lock::apply_with_retirement(
+                report,
+                path,
+                mode,
+                args.retire.as_deref(),
+                diagnostics,
+            )
+        },
     )
 }
 
@@ -2192,6 +2200,7 @@ mod tests {
             json,
             check: mode == CoverageLockMode::Check,
             bless: mode == CoverageLockMode::Bless,
+            retire: None,
         }
     }
 

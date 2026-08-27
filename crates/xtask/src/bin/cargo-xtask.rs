@@ -150,6 +150,14 @@ mod tests {
                 "--check",
             ],
             vec!["cargo xtask", "english_v2", "coverage", "--bless"],
+            vec![
+                "cargo xtask",
+                "english_v2",
+                "coverage",
+                "--bless",
+                "--retire",
+                "fixtures/retired.ids",
+            ],
         ] {
             let cli = Cli::try_parse_from(args).expect("coverage accepts its exact flags");
             assert!(matches!(cli.command, Cmd::EnglishV2(_)));
@@ -178,6 +186,7 @@ mod tests {
             ("--probe", false),
             ("--inspect", false),
             ("--trace", false),
+            ("--retire", true),
         ] {
             let mut args = vec!["cargo xtask", "english_v2", "coverage", flag];
             if takes_value {

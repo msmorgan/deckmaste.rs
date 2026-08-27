@@ -207,15 +207,24 @@ fn write_v2_with(
     Ok(())
 }
 
-pub(super) fn apply(
+pub(super) fn apply_with_retirement(
     report: &CoverageReport,
     path: &Path,
     mode: CoverageLockMode,
+    retirement_path: Option<&Path>,
     diagnostics: &mut dyn Write,
 ) -> anyhow::Result<()> {
-    apply_with_writer(report, path, mode, diagnostics, &mut FilesystemLockWriter)
+    apply_with_writer_and_retirement(
+        report,
+        path,
+        mode,
+        retirement_path,
+        diagnostics,
+        &mut FilesystemLockWriter,
+    )
 }
 
+#[cfg(test)]
 fn apply_with_writer(
     report: &CoverageReport,
     path: &Path,
@@ -223,6 +232,20 @@ fn apply_with_writer(
     diagnostics: &mut dyn Write,
     writer: &mut impl LockWriter,
 ) -> anyhow::Result<()> {
+    apply_with_writer_and_retirement(report, path, mode, None, diagnostics, writer)
+}
+
+fn apply_with_writer_and_retirement(
+    report: &CoverageReport,
+    path: &Path,
+    mode: CoverageLockMode,
+    retirement_path: Option<&Path>,
+    diagnostics: &mut dyn Write,
+    writer: &mut impl LockWriter,
+) -> anyhow::Result<()> {
+    if retirement_path.is_some() && mode != CoverageLockMode::Bless {
+        bail!("a coverage retirement manifest is valid only with --bless");
+    }
     let (selected_uncovered, unresolved, internal, exception_resolved, exception_uses) =
         report.gate_failure_counts();
     if selected_uncovered != 0 {
@@ -259,6 +282,9 @@ fn apply_with_writer(
             path.display(),
         ),
         (CoverageLockMode::Bless, None) => {
+            if retirement_path.is_some() {
+                bail!("a coverage retirement manifest requires an existing schema-2 lock");
+            }
             let replacement = CoverageLockV2::new(report.source_fingerprint().to_owned(), current)?;
             write_v2_with(&replacement, path, writer)
         }
@@ -267,6 +293,9 @@ fn apply_with_writer(
             path.display(),
         ),
         (CoverageLockMode::Bless, Some(LoadedCoverageLock::V1(baseline))) => {
+            if retirement_path.is_some() {
+                bail!("a coverage retirement manifest requires an existing schema-2 lock");
+            }
             if current != baseline.accepted {
                 bail!(
                     "coverage schema-1 migration requires the current covered vector to exactly equal all {} accepted identities",
@@ -283,14 +312,38 @@ fn apply_with_writer(
                 .filter(|identity| current.binary_search(identity).is_err())
                 .collect::<Vec<_>>();
             if !lost.is_empty() {
+                let Some(retirement_path) = retirement_path else {
+                    bail!(
+                        "lost {} previously covered corpus identit{}:\n{}",
+                        lost.len(),
+                        if lost.len() == 1 { "y" } else { "ies" },
+                        lost.into_iter()
+                            .map(String::as_str)
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    );
+                };
+                let retired = read_retirement_manifest(retirement_path)?;
+                let lost = lost.into_iter().cloned().collect::<Vec<_>>();
+                if retired != lost {
+                    bail!(
+                        "coverage retirement manifest {} must exactly match the {} currently lost identit{}",
+                        retirement_path.display(),
+                        lost.len(),
+                        if lost.len() == 1 { "y" } else { "ies" },
+                    );
+                }
+                writeln!(
+                    diagnostics,
+                    "retired {} previously covered corpus identit{}",
+                    retired.len(),
+                    if retired.len() == 1 { "y" } else { "ies" },
+                )
+                .context("writing English-v2 coverage retirement diagnostic")?;
+            } else if let Some(retirement_path) = retirement_path {
                 bail!(
-                    "lost {} previously covered corpus identit{}:\n{}",
-                    lost.len(),
-                    if lost.len() == 1 { "y" } else { "ies" },
-                    lost.into_iter()
-                        .map(String::as_str)
-                        .collect::<Vec<_>>()
-                        .join("\n"),
+                    "coverage retirement manifest {} was supplied but no identities are currently lost",
+                    retirement_path.display(),
                 );
             }
             if mode == CoverageLockMode::Check {
@@ -316,6 +369,20 @@ fn apply_with_writer(
             write_v2_with(&replacement, path, writer)
         }
     }
+}
+
+fn read_retirement_manifest(path: &Path) -> anyhow::Result<Vec<String>> {
+    let source = fs::read_to_string(path)
+        .with_context(|| format!("reading English-v2 coverage retirement {}", path.display()))?;
+    let retired = source.lines().map(str::to_owned).collect::<Vec<_>>();
+    if retired.is_empty() {
+        bail!(
+            "invalid English-v2 coverage retirement {}: identity vector must not be empty",
+            path.display(),
+        );
+    }
+    validate_vector(&retired, "retired corpus identity", path)?;
+    Ok(retired)
 }
 
 #[cfg(test)]
@@ -424,6 +491,7 @@ mod tests {
     use super::CoverageLockV2;
     use super::FailureStage;
     use super::LoadedCoverageLock;
+    use super::apply_with_retirement;
     use super::apply_with_writer;
     use super::read_lock;
     use super::write_v2_with;
@@ -701,6 +769,71 @@ mod tests {
             read_lock(&path).unwrap().source_fingerprint_for_test(),
             id('2')
         );
+    }
+
+    #[test]
+    fn schema_two_bless_accepts_only_an_exact_one_time_retirement_manifest() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("coverage.lock");
+        let retirement = directory.path().join("retired.ids");
+        let baseline = json_v2(&id('1'), &[id('a'), id('b')]);
+        let current = report(&id('1'), vec![id('b'), id('c')], 0, 3, 0, 0);
+
+        fs::write(&path, &baseline).unwrap();
+        fs::write(&retirement, format!("{}\n", id('b'))).unwrap();
+        let error = apply_with_retirement(
+            &current,
+            &path,
+            CoverageLockMode::Bless,
+            Some(&retirement),
+            &mut Vec::new(),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("exactly match"), "{error}");
+        assert_eq!(fs::read(&path).unwrap(), baseline);
+
+        fs::write(&retirement, format!("{}\n", id('a'))).unwrap();
+        let mut diagnostics = Vec::new();
+        apply_with_retirement(
+            &current,
+            &path,
+            CoverageLockMode::Bless,
+            Some(&retirement),
+            &mut diagnostics,
+        )
+        .unwrap();
+        assert_eq!(
+            read_lock(&path).unwrap().covered_for_test(),
+            &[id('b'), id('c')]
+        );
+        assert_eq!(
+            String::from_utf8(diagnostics).unwrap(),
+            "retired 1 previously covered corpus identity\n"
+        );
+
+        apply_with_retirement(
+            &current,
+            &path,
+            CoverageLockMode::Check,
+            None,
+            &mut Vec::new(),
+        )
+        .unwrap();
+
+        let next_loss = report(&id('1'), vec![id('c')], 0, 4, 0, 0);
+        let migrated = fs::read(&path).unwrap();
+        let error = apply_with_retirement(
+            &next_loss,
+            &path,
+            CoverageLockMode::Bless,
+            Some(&retirement),
+            &mut Vec::new(),
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("exactly match"), "{error}");
+        assert_eq!(fs::read(&path).unwrap(), migrated);
     }
 
     #[test]

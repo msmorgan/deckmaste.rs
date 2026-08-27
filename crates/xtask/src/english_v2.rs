@@ -339,6 +339,8 @@ struct CoverageArgs {
     check: bool,
     #[arg(long, group = "coverage_gate")]
     bless: bool,
+    #[arg(long, requires = "bless")]
+    retire: Option<PathBuf>,
 }
 
 #[derive(Debug, clap::Args)]
