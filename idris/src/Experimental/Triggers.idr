@@ -209,12 +209,11 @@ mutual
   ||| and never a `GameEvent` row: `eventName` is total, so a row would
   ||| leave the classifier naming one of n events, while a seat's only
   ||| name-keyed use (`interceptOk`) distributes over the arms instead.
-  ||| `AltEvent` is that slot at the trigger header, where `headerCtx`
-  ||| reads back the announcement the arms share. Its binary arity, and
-  ||| the two prospective seats that carry no such slot at all, are a
-  ||| scheduled widening: the corpus writes three-armed event
-  ||| disjunctions at the header, under a delayed trigger and under a
-  ||| replacement's `would`. Negation is the subject
+  ||| `AltEvent` is that slot at the trigger header; `Delayed` and
+  ||| `Intercepts` carry the same arm list. It is n-ary because the
+  ||| English is, at all three seats. What the arms hand the clause that
+  ||| reads them is `sharedCtx`, under that seat's own reader --
+  ||| `headerCtx`, `delayedCtx`, `interceptCtx`. Negation is the subject
   ||| predicate's `Not`, or `NotCond` over `Happened`; a conditioned event
   ||| is the header's intervening slot [CR#603.4]; a window is the
   ||| reader's `Lookback` or the header's `TriggerWindow`. Cause is never
@@ -661,15 +660,61 @@ mutual
   eventSubjectPlur (VerbedEvent Nothing _ Nothing) = OneOf
   eventSubjectPlur (NthOccurrence _ ev) = eventSubjectPlur ev
 
-  ||| The context a delayed body reads: the event's own after-discourse
-  ||| with the outer clause's targets settled [CR#603.7c,603.3d,601.2c].
+  ||| Whether every arm of a coordination announces exactly what the head
+  ||| event announces, under the reader its seat uses.
   public export
-  delayedCtx : {bs : Bindings} -> GameEvent bs -> Bindings
-  delayedCtx ev = settleTargets (eventAfter ev)
+  armsAgree : {bs : Bindings} -> (read : GameEvent bs -> Bindings) ->
+              Bindings -> List (GameEvent bs) -> Bool
+  armsAgree read ds [] = True
+  armsAgree read ds (a :: as) = sameBindings ds (read a) && armsAgree read ds as
+
+  ||| What a coordinated event seat hands the clause that reads it. A lone
+  ||| event hands its whole discourse. A coordination fires on ANY arm, so
+  ||| its reader may take only what the arms say alike: where every arm
+  ||| agrees outright with the head that common announcement is the
+  ||| context, and where any differs the sentence cannot say which arm
+  ||| happened, so the reader takes the outer discourse bare. Whole
+  ||| agreement (`sameBindings`), not a meet: under partial agreement the
+  ||| sentence still cannot say which arm happened, so the shared prefix
+  ||| names nothing determinate.
+  ||| The reader is the seat's own: `eventAfter` where the event happened
+  ||| [CR#603.6], `eventIntro` where a replacement keeps it from happening
+  ||| [CR#614.6].
+  public export
+  sharedCtx : {bs : Bindings} -> (read : GameEvent bs -> Bindings) ->
+              List (GameEvent bs) -> GameEvent bs -> Bindings
+  sharedCtx read alts ev =
+    if armsAgree read (read ev) alts then read ev else bs
+
+  ||| The context a delayed body reads: the coordination's shared
+  ||| after-discourse with the outer clause's targets settled
+  ||| [CR#603.7c,603.3d,601.2c].
+  public export
+  delayedCtx : {bs : Bindings} -> List (GameEvent bs) -> GameEvent bs -> Bindings
+  delayedCtx alts ev = settleTargets (sharedCtx eventAfter alts ev)
+
+  ||| The context an interception's replacement reads: the coordination's
+  ||| shared announcement, since the replaced event never happens
+  ||| [CR#614.6].
+  public export
+  interceptCtx : {bs : Bindings} -> List (GameEvent bs) -> GameEvent bs -> Bindings
+  interceptCtx alts ev = sharedCtx eventIntro alts ev
 
   public export
   Interceptable : GameEvent bs -> Type
   Interceptable {bs} ev = So (interceptOk (eventName ev))
+
+  ||| The seat's gate distributed over the coordination's arms: the one
+  ||| name-keyed reader on any event seat asks each arm the same question
+  ||| it asks the head.
+  public export
+  interceptArmsOk : {0 bs : Bindings} -> List (GameEvent bs) -> Bool
+  interceptArmsOk [] = True
+  interceptArmsOk (a :: as) = interceptOk (eventName a) && interceptArmsOk as
+
+  public export
+  InterceptableArms : {0 bs : Bindings} -> List (GameEvent bs) -> Type
+  InterceptableArms as = So (interceptArmsOk as)
 
   ||| The nouns a trigger header writes as a possessive: the attachment
   ||| anaphor the Curses print ("enchanted player's upkeep"), and no other.
@@ -789,43 +834,39 @@ mutual
   public export
   data UsageLimit = OncePerTurn | OncePerGame
 
-  ||| The header's coordinated second event. Binary because the slot is,
-  ||| not because the English is: an n-ary arm list is this slot's decided
-  ||| shape, gated arm by arm and read back by `sameBindings`, and the
-  ||| same slot is what `Delayed` and `Intercepts` lack.
+  ||| The header's coordinated further events: an arm LIST, because the
+  ||| English is n-ary -- "attacks, blocks, or becomes the target of a
+  ||| spell". Gated arm by arm with the head's own gate, and read back by
+  ||| `sharedCtx`. The same slot sits at `Delayed` and at `Intercepts`,
+  ||| each carrying the gate that seat puts on its head event; only the
+  ||| header's coordination is written with a trigger word.
   public export
-  data AltEvent : TriggerWord -> Maybe (GameEvent bs) -> Type where
-    NoAlt : AltEvent w Nothing
-    OneAlt : {0 e : GameEvent bs} ->
-             {auto 0 hn : HeaderNontarget e} -> AltEvent w (Just e)
+  data AltEvent : TriggerWord -> List (GameEvent bs) -> Type where
+    NoAlt : AltEvent w []
+    MoreAlt : {0 e : GameEvent bs} -> {0 es : List (GameEvent bs)} ->
+              {auto 0 hn : HeaderNontarget e} ->
+              {auto 0 rest : AltEvent w es} -> AltEvent w (e :: es)
 
-  ||| The discourse a header's intervening clause and effect read. A lone
-  ||| event hands its whole after-discourse (`eventAfter`). A coordination
-  ||| fires on EITHER arm, so its tail may read only what the arms say
-  ||| alike: where the two after-discourses agree outright — the "blocks
-  ||| or becomes blocked" pair announces the one partner phrase from both
-  ||| sides — that common announcement is the context, and where they
-  ||| differ the sentence cannot say which arm happened, so the tail reads
-  ||| the outer discourse bare. Whole agreement (`sameBindings`), not a
-  ||| meet: under partial agreement the sentence still cannot say which
-  ||| arm happened, so the shared prefix names nothing determinate.
+  ||| The discourse a header's intervening clause and effect read: the
+  ||| coordination's shared after-discourse. The "blocks or becomes
+  ||| blocked" pair announces the one partner phrase from both sides, so
+  ||| that common announcement is handed on; Syr Konrad's three arms leave
+  ||| the object in three different places, so nothing is.
   public export
-  headerCtx : {bs : Bindings} -> Maybe (GameEvent bs) -> GameEvent bs -> Bindings
-  headerCtx Nothing ev = eventAfter ev
-  headerCtx (Just alt) ev =
-    if sameBindings (eventAfter ev) (eventAfter alt) then eventAfter ev else bs
+  headerCtx : {bs : Bindings} -> List (GameEvent bs) -> GameEvent bs -> Bindings
+  headerCtx alts ev = sharedCtx eventAfter alts ev
 
   public export
   chapterDefaultsOk : {bs : Bindings} -> (ev : GameEvent bs) ->
-                      (alt : Maybe (GameEvent bs)) -> Maybe TriggerWindow ->
-                      Maybe UsageLimit -> Maybe (Condition (headerCtx alt ev)) -> Bool
-  chapterDefaultsOk (ChapterMark _) Nothing Nothing Nothing Nothing = True
+                      (alts : List (GameEvent bs)) -> Maybe TriggerWindow ->
+                      Maybe UsageLimit -> Maybe (Condition (headerCtx alts ev)) -> Bool
+  chapterDefaultsOk (ChapterMark _) [] Nothing Nothing Nothing = True
   chapterDefaultsOk (ChapterMark _) _ _ _ _ = False
   chapterDefaultsOk _ _ _ _ _ = True
 
   public export
-  ChapterDefaults : {bs : Bindings} -> (ev : GameEvent bs) -> (alt : Maybe (GameEvent bs)) -> Maybe TriggerWindow -> Maybe UsageLimit -> Maybe (Condition (headerCtx alt ev)) -> Type
-  ChapterDefaults {bs} ev alt w l i = So (chapterDefaultsOk ev alt w l i)
+  ChapterDefaults : {bs : Bindings} -> (ev : GameEvent bs) -> (alts : List (GameEvent bs)) -> Maybe TriggerWindow -> Maybe UsageLimit -> Maybe (Condition (headerCtx alts ev)) -> Type
+  ChapterDefaults {bs} ev alts w l i = So (chapterDefaultsOk ev alts w l i)
 
   public export
   HeaderNontarget : {bs : Bindings} -> GameEvent bs -> Type

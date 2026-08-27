@@ -257,7 +257,7 @@ badBareActivationLookback Oh impossible
 ||| The possessive slot takes the attachment anaphor; every other possessor is a word.
 public export
 badNounPossessorYou : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Upkeep (ByNoun You {pn = ok})) Nothing Nothing Nothing Nothing Macros.drawACard)
+  Triggered At (BeginningOf Upkeep (ByNoun You {pn = ok})) [] Nothing Nothing Nothing Macros.drawACard)
 badNounPossessorYou AttachedPossessor impossible
 
 

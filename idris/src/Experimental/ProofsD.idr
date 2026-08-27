@@ -193,7 +193,7 @@ badUnlessOnPositive MkMarkingOk impossible
 ||| Flipping is one-way [CR#710.4], so there is no transition to observe.
 public export
 badUnflipEvent : Unspellable Ability (\ok =>
-  Triggered Whenever (StatusEvent (Macros.a Permanent) Unflipped {at = ok}) Nothing Nothing Nothing Nothing Macros.drawACard)
+  Triggered Whenever (StatusEvent (Macros.a Permanent) Unflipped {at = ok}) [] Nothing Nothing Nothing Macros.drawACard)
 badUnflipEvent Oh impossible
 
 
@@ -308,7 +308,7 @@ badCountersHeldByPlayer Refl impossible
 ||| The last-removal event watches an object's holding, and poison is a player's kind [CR#122.1].
 public export
 badLastPoisonCounterRemoved : Unspellable Ability (\ok =>
-  Triggered When (LastCounterRemoved Poison Macros.thisCreature Nothing {sc = ok}) Nothing Nothing Nothing Nothing Macros.drawACard)
+  Triggered When (LastCounterRemoved Poison Macros.thisCreature Nothing {sc = ok}) [] Nothing Nothing Nothing Macros.drawACard)
 badLastPoisonCounterRemoved Refl impossible
 
 
@@ -316,7 +316,7 @@ badLastPoisonCounterRemoved Refl impossible
 ||| The sorted self-word seeds the battlefield [CR#109.2], so it cannot be asked whether it is elsewhere.
 public export
 badExileCheckOnSortedSelf : Unspellable Ability (\ok =>
-  Triggered When (LastCounterRemoved Time Macros.thisCreature Nothing) Nothing Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
+  Triggered When (LastCounterRemoved Time Macros.thisCreature Nothing) [] Nothing Nothing (Just (Matches Macros.thisCreature (InZone Macros.exileZ)
                                          {zc = ok})) Macros.drawACard)
 badExileCheckOnSortedSelf Oh impossible
 
@@ -325,7 +325,7 @@ badExileCheckOnSortedSelf Oh impossible
 ||| Each event names the sort its history subject takes, and dying is an object's.
 public export
 badLookbackPlayerDied : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature) Nothing Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
+  Triggered When (Enters Macros.thisCreature) [] Nothing Nothing (Just (Happened Death You Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
 badLookbackPlayerDied MkLookbackSubject impossible
 
 
@@ -333,7 +333,7 @@ badLookbackPlayerDied MkLookbackSubject impossible
 ||| The same table the other way: casting is read over a player [CR#601.2].
 public export
 badLookbackObjectCast : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature) Nothing Nothing Nothing (Just (Happened SpellCast (Macros.a Macros.creature)
+  Triggered When (Enters Macros.thisCreature) [] Nothing Nothing (Just (Happened SpellCast (Macros.a Macros.creature)
                                           Lookback.ThisTurn Nothing {sb = ok})) Macros.drawACard)
 badLookbackObjectCast MkLookbackSubject impossible
 
@@ -400,7 +400,7 @@ badRingBearerInGraveyard Oh impossible
 ||| English's demonstratives skip the speaker: "that creature" never picks out the trigger's own subject.
 public export
 badThatCreatureIsSelf : Unspellable Ability (\ok =>
-  Triggered Whenever (Attacks Macros.thisCreature NoDefender) Nothing Nothing Nothing Nothing
+  Triggered Whenever (Attacks Macros.thisCreature NoDefender) [] Nothing Nothing Nothing
             (Macros.gets (That (TypeW Creature) {ok = ok}) (PtUp (Lit 2)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn)))
 badThatCreatureIsSelf Refl impossible
 
@@ -486,7 +486,7 @@ badUnlicensedDifference Refl impossible
 ||| A condition that holds by no amount leaves no margin; only a comparison licenses one.
 public export
 badNonComparisonDifference : Unspellable Ability (\ok =>
-  Triggered When (Enters Macros.thisCreature) Nothing Nothing Nothing (Just (Exists Macros.creatureYouControl))
+  Triggered When (Enters Macros.thisCreature) [] Nothing Nothing (Just (Exists Macros.creatureYouControl))
             (Draw You (TheDifference {ok})))
 badNonComparisonDifference Refl impossible
 

@@ -290,7 +290,7 @@ badPlacementLookback MkLookbackSubject impossible
 ||| A window with no possessor restricts nothing.
 public export
 badHeaderBareTurnWindow : Unspellable Ability (\ok =>
-  Triggered Whenever (Enters (Macros.a Macros.creature)) Nothing (Just (DuringWindow Turn Nothing {hw = ok})) Nothing Nothing
+  Triggered Whenever (Enters (Macros.a Macros.creature)) [] (Just (DuringWindow Turn Nothing {hw = ok})) Nothing Nothing
             Macros.drawACard)
 badHeaderBareTurnWindow Oh impossible
 
@@ -309,7 +309,7 @@ badNonTokenCreationSubject OneToken impossible
 public export
 badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
   Intercepts (CounterEvent CounterPut (Just Macros.plusOnePlusOne)
-                           (Macros.a Macros.creatureYouControl) OneCounter Nothing Nothing)
+                           (Macros.a Macros.creatureYouControl) OneCounter Nothing Nothing) []
              (PutCounters (Plus (ThatMuch {ok}) (Lit 1))
                           (PrintedKind Macros.plusOnePlusOne) It)
              Repeatedly)

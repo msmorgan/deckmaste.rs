@@ -943,7 +943,7 @@ ifWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                  (d : Maybe (Duration (eventIntro ev))) ->
                  {auto 0 ok : Interceptable ev} ->
                  {auto 0 sp : SpanOk Replacement d} -> Effect bs
-ifWouldInstead ev repl d = Continuously (Intercepts ev repl Repeatedly {ok}) d {sp}
+ifWouldInstead ev repl d = Continuously (Intercepts ev [] repl Repeatedly {ok}) d {sp}
 
 public export
 nextTimeWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
@@ -951,7 +951,7 @@ nextTimeWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                        {auto 0 ok : Interceptable ev} ->
                        {auto 0 sp : SpanOk Replacement d} -> Effect bs
 nextTimeWouldInstead ev repl d =
-  Continuously (Intercepts ev repl NextTimeOnly {ok}) d {sp}
+  Continuously (Intercepts ev [] repl NextTimeOnly {ok}) d {sp}
 
 public export
 preventAll : (kind : DamageKind) -> (scope : DamageScope bs) ->
@@ -1269,35 +1269,37 @@ public export
 triggered : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
             (eff : Effect (eventAfter ev)) ->
             {auto 0 hn : HeaderNontarget ev} ->
-            {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
-            {auto 0 cd : ChapterDefaults ev Nothing Nothing Nothing Nothing} ->
+            {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
+            {auto 0 cd : ChapterDefaults ev [] Nothing Nothing Nothing} ->
             AbilityAt bs
 triggered word ev eff =
-  Triggered word ev Nothing Nothing Nothing Nothing eff {hn} {ae} {cd}
+  Triggered word ev [] Nothing Nothing Nothing eff {hn} {ae} {cd}
 
 ||| "Whenever …, if <condition>, …": a trigger with an intervening-if clause.
 public export
 triggeredIf : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
-              (cond : Condition (headerCtx Nothing ev)) ->
+              (cond : Condition (headerCtx [] ev)) ->
               (eff : Effect (interveningIntro (Just cond))) ->
               {auto 0 hn : HeaderNontarget ev} ->
-              {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
-              {auto 0 cd : ChapterDefaults ev Nothing Nothing Nothing (Just cond)} ->
+              {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
+              {auto 0 cd : ChapterDefaults ev [] Nothing Nothing (Just cond)} ->
               AbilityAt bs
 triggeredIf word ev cond eff =
-  Triggered word ev Nothing Nothing Nothing (Just cond) eff {hn} {ae} {cd}
+  Triggered word ev [] Nothing Nothing (Just cond) eff {hn} {ae} {cd}
 
-||| "Whenever X or Y, …": a trigger with an alternative event.
+||| "Whenever X, Y, or Z, …": a trigger whose header coordinates further
+||| events. The arms are a list, so the same macro writes the two-armed
+||| header and the three-armed one.
 public export
 triggeredOr : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
-              (alt : GameEvent bs) ->
-              (eff : Effect (headerCtx (Just alt) ev)) ->
+              (alts : List (GameEvent bs)) ->
+              (eff : Effect (headerCtx alts ev)) ->
               {auto 0 hn : HeaderNontarget ev} ->
-              {auto 0 ae : AltEvent word (Just alt)} ->
-              {auto 0 cd : ChapterDefaults ev (Just alt) Nothing Nothing Nothing} ->
+              {auto 0 ae : AltEvent word alts} ->
+              {auto 0 cd : ChapterDefaults ev alts Nothing Nothing Nothing} ->
               AbilityAt bs
-triggeredOr word ev alt eff =
-  Triggered word ev (Just alt) Nothing Nothing Nothing eff {hn} {ae} {cd}
+triggeredOr word ev alts eff =
+  Triggered word ev alts Nothing Nothing Nothing eff {hn} {ae} {cd}
 
 ||| "Whenever …, during <window>, …": a trigger confined to a window.
 public export
@@ -1305,11 +1307,11 @@ triggeredOnlyDuring : {bs : Bindings} -> (word : TriggerWord) ->
                       (ev : GameEvent bs) -> (w : TriggerWindow) ->
                       (eff : Effect (eventAfter ev)) ->
                       {auto 0 hn : HeaderNontarget ev} ->
-                      {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
-                      {auto 0 cd : ChapterDefaults ev Nothing (Just w) Nothing Nothing} ->
+                      {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
+                      {auto 0 cd : ChapterDefaults ev [] (Just w) Nothing Nothing} ->
                       AbilityAt bs
 triggeredOnlyDuring word ev w eff =
-  Triggered word ev Nothing (Just w) Nothing Nothing eff {hn} {ae} {cd}
+  Triggered word ev [] (Just w) Nothing Nothing eff {hn} {ae} {cd}
 
 ||| "Whenever …, … . This triggers only once each turn."
 public export
@@ -1317,11 +1319,11 @@ triggeredOnlyOnce : {bs : Bindings} -> (word : TriggerWord) ->
                     (ev : GameEvent bs) -> (lim : UsageLimit) ->
                     (eff : Effect (eventAfter ev)) ->
                     {auto 0 hn : HeaderNontarget ev} ->
-                    {auto 0 ae : AltEvent word (the (Maybe (GameEvent bs)) Nothing)} ->
-                    {auto 0 cd : ChapterDefaults ev Nothing Nothing (Just lim) Nothing} ->
+                    {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
+                    {auto 0 cd : ChapterDefaults ev [] Nothing (Just lim) Nothing} ->
                     AbilityAt bs
 triggeredOnlyOnce word ev lim eff =
-  Triggered word ev Nothing Nothing (Just lim) Nothing eff {hn} {ae} {cd}
+  Triggered word ev [] Nothing (Just lim) Nothing eff {hn} {ae} {cd}
 
 ||| "<cost>: <effect>": the bare activated ability — no window, usage limit
 ||| or activation condition written.
@@ -1634,15 +1636,15 @@ additionalPartThen part anchor count next =
 
 ||| "When <event>, …": a delayed trigger with no span written.
 public export
-delayed : (ev : GameEvent bs) -> (eff : Effect (delayedCtx ev)) -> Effect bs
-delayed ev eff = Delayed ev Nothing eff
+delayed : (ev : GameEvent bs) -> (eff : Effect (delayedCtx [] ev)) -> Effect bs
+delayed ev eff = Delayed ev [] Nothing eff
 
 ||| "When <event> this turn, …": a delayed trigger with an explicit span.
 public export
 delayedWithin : (ev : GameEvent bs) -> (span : Duration bs) ->
-                (eff : Effect (delayedCtx ev)) ->
+                (eff : Effect (delayedCtx [] ev)) ->
                 {auto 0 so : DelaySpanOk (Just span)} -> Effect bs
-delayedWithin ev span eff = Delayed ev (Just span) eff {so}
+delayedWithin ev span eff = Delayed ev [] (Just span) eff {so}
 
 ||| "a color", "a creature type": the quality noun over its whole domain.
 public export

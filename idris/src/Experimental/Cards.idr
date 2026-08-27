@@ -765,12 +765,12 @@ glacialChasmShield =
 
 miserysShadow : Ability
 miserysShadow =
-  Static (Intercepts (Dies (Macros.a (And [Macros.creature, ControlledBy (Macros.a Opponent)])))
+  Static (Intercepts (Dies (Macros.a (And [Macros.creature, ControlledBy (Macros.a Opponent)]))) []
                      (Macros.exile It) Repeatedly)
 
 thoughtReflection : Ability
 thoughtReflection =
-  Static (Intercepts (Draws You) (Draw You (Lit 2)) Repeatedly)
+  Static (Intercepts (Draws You) [] (Draw You (Lit 2)) Repeatedly)
 
 jorKadeen : Ability
 jorKadeen =
@@ -1536,14 +1536,14 @@ bloodTyrant =
 
 theGoldenThrone : Ability
 theGoldenThrone =
-  Static (Intercepts (LosesGame You)
+  Static (Intercepts (LosesGame You) []
                      (Sequentially [Macros.exile Macros.thisArtifact,
                                     ChangeLife You (Set (Lit 1))])
                      Repeatedly)
 
 stunningReversal : Ability
 stunningReversal =
-  Spell (Continuously (Intercepts (LosesGame You)
+  Spell (Continuously (Intercepts (LosesGame You) []
                                   (Sequentially [Draw You (Lit 7),
                                                  ChangeLife You (Set (Lit 1))])
                                   NextTimeOnly)
@@ -1570,7 +1570,7 @@ exquisiteArchangel =
        (Just [Macros.generic 5, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [creatureType "Angel"] [Creature])
        [ Macros.keyword "Flying"
-       , Static (Intercepts (LosesGame You)
+       , Static (Intercepts (LosesGame You) []
                             (Sequentially [Macros.exile Macros.thisCreature,
                                            ChangeLife You (Set (PlayerStatOf StartingLifeTotal You))])
                             Repeatedly) ]
@@ -2571,7 +2571,7 @@ lesserGargadon =
        (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.triggeredOr Whenever
                             (Macros.attacks Macros.thisCreature)
-                            (Blocks Macros.thisCreature Nothing)
+                            [Blocks Macros.thisCreature Nothing]
                             (Macros.sacrifice You (Macros.a Macros.land)) ]
        (Just (6, 4))
 
@@ -2583,7 +2583,7 @@ colossalGraveReaver =
        [ Macros.keyword "Flying"
        , Macros.triggeredOr Whenever
                             (Enters Macros.thisCreature)
-                            (Macros.attacks Macros.thisCreature)
+                            [Macros.attacks Macros.thisCreature]
                             (Macros.mills You (Lit 3) You)
        , Macros.triggered Whenever
                           (Macros.putIntoFrom (CountedGroup (Macros.atLeast 1)
@@ -2605,7 +2605,7 @@ chubToad =
        (MkTypeLine [creatureType "Frog"] [Creature])
        [ Macros.triggeredOr Whenever
                             (Blocks Macros.thisCreature Nothing)
-                            (BecomesBlocked Macros.thisCreature Nothing)
+                            [BecomesBlocked Macros.thisCreature Nothing]
                             (Macros.gets It (PtUp (Lit 2)) (PtUp (Lit 2))
                                          (Just Macros.untilEndOfTurn)) ]
        (Just (1, 1))
@@ -2622,11 +2622,27 @@ infernoElemental =
        (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.triggeredOr Whenever
                             (Blocks Macros.thisCreature (Just (Macros.a Macros.creature)))
-                            (BecomesBlocked Macros.thisCreature
-                                            (Just (Macros.a Macros.creature)))
+                            [BecomesBlocked Macros.thisCreature
+                                             (Just (Macros.a Macros.creature))]
                             (DealDamage Macros.thisCreature (Lit 3)
                                         (That (TypeW Creature))) ]
        (Just (4, 4))
+
+||| Giggling Skitterspike's header -- "Whenever this creature attacks,
+||| blocks, or becomes the target of a spell, …": the three-armed
+||| coordination the n-ary seat is for, gated arm by arm. Its BODY does
+||| not write: "it deals damage equal to its power to each opponent"
+||| reads back a mention the header never makes. Every arm announces the
+||| self, but the targeting arm announces its targeter beside it, so
+||| whole agreement fails and the tail is handed the outer discourse
+||| bare. Pinned as `badThreeArmHeaderReadback`. The card's blocker, not
+||| the seat's.
+public export
+gigglingSkitterspikeArms : AltEvent {bs = []} Whenever
+                             [ Blocks Macros.thisCreature Nothing
+                             , BecomesTarget Macros.thisCreature
+                                             (Macros.a Macros.spell) ]
+gigglingSkitterspikeArms = MoreAlt
 
 hardenedScales : Card
 hardenedScales =
@@ -2634,7 +2650,7 @@ hardenedScales =
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
                    (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
-                                            (Macros.a Macros.creatureYouControl))
+                                            (Macros.a Macros.creatureYouControl)) []
                    (PutCounters (Plus ThatMuch (Lit 1))
                                 (PrintedKind Macros.plusOnePlusOne) It)
                    Repeatedly) ]
@@ -2647,7 +2663,7 @@ branchingEvolution =
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
                    (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
-                                            (Macros.a Macros.creatureYouControl))
+                                            (Macros.a Macros.creatureYouControl)) []
                    (PutCounters (Times 2 ThatMuch)
                                 (PrintedKind Macros.plusOnePlusOne) (That (TypeW Creature)))
                    Repeatedly) ]
@@ -2661,7 +2677,7 @@ corpsejackMenace : Ability
 corpsejackMenace =
   Static (Intercepts
             (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
-                                     (Macros.a Macros.creatureYouControl))
+                                     (Macros.a Macros.creatureYouControl)) []
             (PutCounters (Times 2 ThatMuch) (PrintedKind Macros.plusOnePlusOne) It)
             Repeatedly)
 
@@ -2676,12 +2692,12 @@ doublingSeason =
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
                    (Macros.tokensCreatedByEffectUnder
-                      (CountedGroup (Macros.atLeast 1) IsToken) You)
+                      (CountedGroup (Macros.atLeast 1) IsToken) You) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly)
        , Static (Intercepts
                    (Macros.manyCountersPutByEffect
-                      (Macros.a (And [Permanent, ControlledBy You])))
+                      (Macros.a (And [Permanent, ControlledBy You]))) []
                    (PutCountersOfThoseKinds (Times 2 ThatMuch) (That PermanentW))
                    Repeatedly) ]
        Nothing
@@ -2696,7 +2712,7 @@ docSamsonDistributive : Ability
 docSamsonDistributive =
   Static (Intercepts
             (Macros.manyBareCountersPutBy You
-               (Macros.a (And [Permanent, ControlledBy You])))
+               (Macros.a (And [Permanent, ControlledBy You]))) []
             (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1)) (That PermanentW))
             Repeatedly)
 
@@ -2712,12 +2728,12 @@ windingConstrictor =
        [ Static (Intercepts
                    (Macros.manyBareCounterEvent CounterPut
                       (Macros.a (And [Or [Macros.artifact, Macros.creature],
-                                      ControlledBy You])))
+                                      ControlledBy You]))) []
                    (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1))
                                             (That PermanentW))
                    Repeatedly)
        , Static (Intercepts
-                   (Macros.manyBareCounterEvent CounterPut You)
+                   (Macros.manyBareCounterEvent CounterPut You) []
                    (GetsCountersOfThoseKinds You (Plus ThatMuch (Lit 1)))
                    Repeatedly) ]
        (Just (2, 3))
@@ -2944,7 +2960,7 @@ divineVisitation =
        [ Static (Intercepts
                    (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1)
                                                             (And [Macros.creature, IsToken]))
-                                              You)
+                                              You) []
                    (Macros.create GroupSize
                                   (MkToken (Just (Lit 4 ** Lit 4)) [White]
                                            (MkTypeLine [creatureType "Angel"] [Creature])
@@ -2960,7 +2976,7 @@ anointedProcession =
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
                    (Macros.tokensCreatedByEffectUnder (CountedGroup (Macros.atLeast 1) IsToken)
-                                                      You)
+                                                      You) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly) ]
        Nothing
@@ -2971,12 +2987,12 @@ primalVigor =
        (Just [Macros.generic 4, Macros.pip Green]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
-                   (Macros.tokensCreated (CountedGroup (Macros.atLeast 1) IsToken))
+                   (Macros.tokensCreated (CountedGroup (Macros.atLeast 1) IsToken)) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly)
        , Static (Intercepts
                    (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
-                                            (Macros.a Macros.creature))
+                                            (Macros.a Macros.creature)) []
                    (PutCounters (Times 2 ThatMuch)
                                 (PrintedKind Macros.plusOnePlusOne) (That (TypeW Creature)))
                    Repeatedly) ]
@@ -2989,7 +3005,7 @@ adrixAndNev =
        (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
        [ Macros.keywordCosting "Ward" (Mana [Macros.generic 2])
        , Static (Intercepts
-                   (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) IsToken) You)
+                   (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) IsToken) You) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly) ]
        (Just (2, 2))
@@ -6933,7 +6949,7 @@ urborgScavengers =
        (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.triggeredOr Whenever
                             (Enters Macros.thisCreature)
-                            (Macros.attacks Macros.thisCreature)
+                            [Macros.attacks Macros.thisCreature]
                             (Sequentially
                                [ Macros.exile (Macros.target (InZone Macros.graveyardZ))
                                , PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature ])
@@ -7705,7 +7721,7 @@ blazingArchonCant =
 public export
 clergyOfTheHolyNimbus : Ability
 clergyOfTheHolyNimbus =
-  Static (Intercepts (IsDestroyed Macros.thisCreature)
+  Static (Intercepts (IsDestroyed Macros.thisCreature) []
                      (Regenerate Macros.thisCreature) Repeatedly)
 
 ||| Rampant Frogantua's second line: "This creature gets +10/+10 for each

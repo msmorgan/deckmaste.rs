@@ -79,7 +79,7 @@ badSliceOfGroupPossessor Oh impossible
 ||| names has a single spell and a plural complement names no casting.
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
-  Triggered Whenever (Casts You (AllOf Macros.spell) {one = ok}) Nothing Nothing Nothing Nothing
+  Triggered Whenever (Casts You (AllOf Macros.spell) {one = ok}) [] Nothing Nothing Nothing
             Macros.drawACard)
 badCastsPluralComplement Refl impossible
 
@@ -150,7 +150,7 @@ badTheyIt (Refl, _) impossible
 public export
 badStale : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-               Delayed (BeginningOf EndStep NoPossessor) Nothing (Macros.sacrifice You It {ok})])
+               Delayed (BeginningOf EndStep NoPossessor) [] Nothing (Macros.sacrifice You It {ok})])
 badStale OnField impossible
 
 
@@ -159,7 +159,7 @@ badStale OnField impossible
 public export
 badDelayedOther : Unspellable (Effect []) (\ok =>
   Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
-               Delayed (BeginningOf EndStep NoPossessor) Nothing (DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))])
+               Delayed (BeginningOf EndStep NoPossessor) [] Nothing (DealDamage This (Lit 1) (Macros.target (Macros.anyOtherTarget {ok})))])
 badDelayedOther Refl impossible
 
 
@@ -205,7 +205,7 @@ badSacrificeExiled OnField impossible
 ||| The death retag flips the carrier [CR#700.4,110.1], so "creature" no longer reads.
 public export
 badDeadCreatureRead : Unspellable (Effect []) (\ok =>
-  Delayed (Dies (Macros.target Macros.creature)) (Just ThisTurn)
+  Delayed (Dies (Macros.target Macros.creature)) [] (Just ThisTurn)
           (Move (That (TypeW Creature) {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)))
 badDeadCreatureRead Refl impossible
 
@@ -273,7 +273,7 @@ public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You Macros.thisArtifact))
             (Sequentially [Macros.exile (Macros.target Macros.creature),
-                           Delayed (BeginningOf EndStep NoPossessor) Nothing (Move (That CardW {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing))]) Nothing Nothing Nothing)
+                           Delayed (BeginningOf EndStep NoPossessor) [] Nothing (Move (That CardW {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing))]) Nothing Nothing Nothing)
 badBareCardRead Refl impossible
 
 
@@ -381,7 +381,7 @@ badFightLand Fighter impossible
 ||| Dying is the battlefield-to-graveyard transition [CR#700.4]; a graveyard head contradicts it.
 public export
 badDiesInGraveyard : Unspellable (Effect []) (\ok =>
-  Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) (Just ThisTurn)
+  Delayed (Dies (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) {zn = ok}) [] (Just ThisTurn)
           (Move (That CardW) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)))
 badDiesInGraveyard Oh impossible
 
@@ -641,9 +641,29 @@ badAttackingNoncreature Oh impossible
 public export
 badAltHeaderMixedReadback : Unspellable Ability (\ok =>
   Triggered Whenever (Blocks Macros.thisCreature Nothing)
-            (Just (BecomesBlocked Macros.thisCreature
-                                  (Just (Macros.a Macros.creature))))
+            [BecomesBlocked Macros.thisCreature
+                            (Just (Macros.a Macros.creature))]
             Nothing Nothing Nothing
             (Macros.gets (That (TypeW Creature) {ok = ok}) (PtDown (Lit 1))
                          (PtDown (Lit 1)) (Just Macros.untilEndOfTurn)))
 badAltHeaderMixedReadback Refl impossible
+
+
+||| Giggling Skitterspike — "Whenever this creature attacks, blocks, or
+||| becomes the target of a spell, it deals damage equal to its power to
+||| each opponent."
+||| The three-armed header writes (`Cards.gigglingSkitterspikeArms`); the
+||| tail does not. Every arm announces the self, but the targeting arm
+||| announces its targeter beside it, so whole agreement fails and the
+||| coordination hands the tail the outer discourse bare. Both "it" and
+||| "its" then look for a mention the header never made; pinned at the
+||| second, with the source written out.
+public export
+badThreeArmHeaderReadback : Unspellable Ability (\ok =>
+  Triggered Whenever (Macros.attacks Macros.thisCreature)
+            [ Blocks Macros.thisCreature Nothing
+            , BecomesTarget Macros.thisCreature (Macros.a Macros.spell) ]
+            Nothing Nothing Nothing
+            (DealDamage Macros.thisCreature (Macros.powerOf (It {ok = ok}))
+                        (Each Opponent)))
+badThreeArmHeaderReadback Refl impossible

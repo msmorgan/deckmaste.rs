@@ -230,9 +230,11 @@ mutual
                           StaticEffect bs
       GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                      {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
-      Intercepts : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
+      Intercepts : (ev : GameEvent bs) -> (alts : List (GameEvent bs)) ->
+                   (repl : Effect (interceptCtx alts ev)) ->
                    (use : ReplUse) ->
-                   {auto 0 ok : Interceptable ev} -> StaticEffect bs
+                   {auto 0 ok : Interceptable ev} ->
+                   {auto 0 oks : InterceptableArms alts} -> StaticEffect bs
       Prevents : (kind : DamageKind) -> (size : Shield bs) ->
                  (scope : DamageScope (shieldIntro size)) ->
                  (by : Maybe (Noun (scopeIntro scope) Object)) ->
@@ -463,7 +465,7 @@ mutual
   staticKind (SetsChosenQuality _ _) = TypeSet
   staticKind (LosesAllAbilities _) = AbilityLoss
   staticKind (GainsControl _ _) = ControlGrant
-  staticKind (Intercepts _ _ _) = Replacement
+  staticKind (Intercepts _ _ _ _) = Replacement
   staticKind (Prevents _ _ _ _ _) = Prevention
   staticKind (PreventsFrom _ _ _ _ _ _) = Prevention
   staticKind (CantPrevent _ _ _) = Prevention
@@ -513,7 +515,7 @@ mutual
   staticIntro (SetsChosenQuality n _) = selfSubjIntro n
   staticIntro (LosesAllAbilities n) = selfSubjIntro n
   staticIntro (GainsControl who what) = selfSubjIntro what
-  staticIntro (Intercepts ev repl use) = eventIntro ev
+  staticIntro (Intercepts ev alts repl use) = interceptCtx alts ev
   staticIntro (Prevents kind size scope by also) = byIntro by
   staticIntro (PreventsFrom kind src scope cut use also) = cutIntro cut
   staticIntro (CantPrevent kind scope by) = byIntro by
@@ -1263,8 +1265,9 @@ mutual
             {auto 0 mf : ModesFit q (modeCount modes)} ->
             {auto 0 dm : So (distinctModes modes)} -> Effect bs
     Delayed : (ev : GameEvent bs) ->
+              (alts : List (GameEvent bs)) ->
               (span : Maybe (Duration bs)) ->
-              Effect (delayedCtx ev) ->
+              Effect (delayedCtx alts ev) ->
               {auto 0 so : DelaySpanOk span} -> Effect bs
     InsteadOf : (replaced : Effect bs) -> (repl : Effect (replacedCtx replaced)) ->
                 {auto 0 na : NotInstead replaced} ->
@@ -1371,7 +1374,7 @@ mutual
   heldUntilOk (Sequentially _) = False
   heldUntilOk (Simultaneously _) = False
   heldUntilOk (Modal _ _) = False
-  heldUntilOk (Delayed _ _ _) = False
+  heldUntilOk (Delayed _ _ _ _) = False
   heldUntilOk (InsteadOf _ _) = False
   heldUntilOk (HeldUntil _ _) = False
   heldUntilOk (Reflexively _ _) = False
@@ -1472,7 +1475,7 @@ mutual
   reflexEncloseUse (InsteadOf _ _) = EncNotOneAction
   reflexEncloseUse (Reflexively _ _) = EncNotOneAction
   reflexEncloseUse (ThisWay _ _ _) = EncNotOneAction
-  reflexEncloseUse (Delayed _ _ _) = EncNotYetTaken
+  reflexEncloseUse (Delayed _ _ _ _) = EncNotYetTaken
   reflexEncloseUse (HeldUntil _ _) = EncNotYetTaken
 
   public export
@@ -1497,7 +1500,7 @@ mutual
   ||| enclosure is fine here.
   public export
   thisWayOutcomeOk : {0 bs : Bindings} -> Effect bs -> Bool
-  thisWayOutcomeOk (Delayed _ _ _) = False
+  thisWayOutcomeOk (Delayed _ _ _ _) = False
   -- an offer's outcome is its body's; the arms are separate sentences.
   thisWayOutcomeOk (May _ body _ _) = thisWayOutcomeOk body
   thisWayOutcomeOk (DoesntUntapNext _ _) = True
@@ -1670,7 +1673,7 @@ mutual
   costActionOk (Sequentially _) = False
   costActionOk (Simultaneously _) = False
   costActionOk (Modal _ modes) = costActionsOk modes
-  costActionOk (Delayed _ _ _) = False
+  costActionOk (Delayed _ _ _ _) = False
   costActionOk (InsteadOf _ _) = False
   costActionOk (HeldUntil _ _) = False
   costActionOk (Reflexively _ _) = False
@@ -1800,7 +1803,7 @@ mutual
   effEq (Sequentially _) _ = False
   effEq (Simultaneously _) _ = False
   effEq (Modal _ _) _ = False
-  effEq (Delayed _ _ _) _ = False
+  effEq (Delayed _ _ _ _) _ = False
   effEq (InsteadOf _ _) _ = False
   effEq (HeldUntil _ _) _ = False
   effEq (Reflexively _ _) _ = False
@@ -1928,7 +1931,7 @@ mutual
   effIntro (Sequentially es) = effsIntro es
   effIntro (Simultaneously es) = simIntro es
   effIntro (Modal q modes) = quantDelta q ++ bs
-  effIntro (Delayed ev _ e) = bs               -- a future clause mentions nothing NOW
+  effIntro (Delayed ev _ _ e) = bs               -- a future clause mentions nothing NOW
   effIntro (Reflexively body trig) = effIntro body
   effIntro (ThisWay body ev trig) = effIntro body
   effIntro (InsteadOf replaced repl) = annIntro replaced
@@ -2009,7 +2012,7 @@ mutual
   preIntro (Sequentially es) = preIntros es
   preIntro (Simultaneously es) = simPres es
   preIntro (Modal q modes) = quantDelta q ++ bs
-  preIntro (Delayed ev _ e) = bs
+  preIntro (Delayed ev _ _ e) = bs
   preIntro (Reflexively body trig) = preIntro body
   preIntro (ThisWay body ev trig) = preIntro body
   preIntro (InsteadOf replaced repl) = annIntro replaced
@@ -2090,7 +2093,7 @@ mutual
   annIntro (Sequentially es) = bs
   annIntro (Simultaneously es) = annSims es
   annIntro (Modal q modes) = quantDelta q ++ bs
-  annIntro (Delayed ev _ e) = bs
+  annIntro (Delayed ev _ _ e) = bs
   annIntro (Reflexively body trig) = annIntro body
   annIntro (ThisWay body ev trig) = annIntro body
   annIntro (InsteadOf replaced repl) = annIntro replaced
@@ -2216,7 +2219,7 @@ mutual
   deedDelta (Sequentially es) = []
   deedDelta (Simultaneously es) = []
   deedDelta (Modal q modes) = []
-  deedDelta (Delayed ev _ e) = []
+  deedDelta (Delayed ev _ _ e) = []
   deedDelta (Reflexively body trig) = deedDelta body
   deedDelta (ThisWay body ev trig) = deedDelta body
   deedDelta (InsteadOf replaced repl) = []
@@ -2334,14 +2337,14 @@ mutual
                 (guard : Maybe (Condition bs)) ->
                 AbilityAt bs
     Triggered : (word : TriggerWord) -> (ev : GameEvent bs) ->
-                (alt : Maybe (GameEvent bs)) ->
+                (alts : List (GameEvent bs)) ->
                 (window : Maybe TriggerWindow) ->
                 (limit : Maybe UsageLimit) ->
-                (intervening : Maybe (Condition (headerCtx alt ev))) ->
+                (intervening : Maybe (Condition (headerCtx alts ev))) ->
                 (eff : Effect (interveningIntro intervening)) ->
                 {auto 0 hn : HeaderNontarget ev} ->
-                {auto 0 ae : AltEvent word alt} ->
-                {auto 0 cd : ChapterDefaults ev alt window limit intervening} ->
+                {auto 0 ae : AltEvent word alts} ->
+                {auto 0 cd : ChapterDefaults ev alts window limit intervening} ->
                 AbilityAt bs
     Static : (se : StaticEffect bs) ->
              {auto 0 ut : Untargeting se} -> AbilityAt bs
