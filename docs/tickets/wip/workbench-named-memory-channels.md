@@ -170,3 +170,30 @@ deliverable and the ADR is the only tracked file touched.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## As-landed: the ruling (user-ratified, 2026-08-26)
+
+**Option B — no carve-out.** No name-keyed memory channel exists anywhere in
+the grammar. The eight mechanisms decompose into: same-line notes = ordinary
+`bs` threading at a note-marked sort (`OfChosen`'s shape); persistent notes =
+STATE on the holder with anchored ungated reads (`GreatestStoredMatch`/
+[CR#706.8a] is the landed precedent; counters are the doctrine's model);
+piles are mentioned, never named. None of the eight is genuinely name-keyed.
+`cost-tags-and-paid-readbacks` therefore takes label-sorted anchored reads on
+the spell — no tag namespace.
+
+**Unified with the same-day chosen-value ruling** (recorded on
+`workbench-choice-chosen-and-ascription`): NO cross-ability discourse at all —
+notes/tags are state on the holder; chosen values are CARD-SCOPE LINKAGE
+[CR#607.2d] discharged by a face law over the whole AbilitySeq (cataphora-
+capable, order-free), not telescope threading. The forward-anaphora binder
+contract governs discourse within a text only, and survives untouched;
+ProofsAnaphora is additive-only under this ruling.
+
+**Obligations carried to the implementing rounds** (from the design
+consultation, full artifact reviewed this session): (1) spot-check the v1
+crate shapes the parent ticket quoted (its crate paths had drifted); (2) the
+CR rule defining the "note" keyword action must be cited from data/rules/ at
+the first row that lands — it was left uncited rather than invented; (3)
+confirm `EntersChoice`'s exact threading extent when the choice-linkage face
+law replaces it.
