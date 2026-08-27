@@ -1045,10 +1045,10 @@ enum NonterminalKind {
     PluralCoordinationMember,
     SingularNominalCoordination,
     PluralNominalCoordination,
-    DeterminerScopedNominalCoordination,
+    Nominal,
+    Determinative,
     SingularSelector,
     PluralSelector,
-    DeterminerPhrase,
     FullNounPhraseCoordination,
     OwnerPossessor,
     PartitiveSelection,
@@ -1765,12 +1765,10 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PluralNominalCoordination => {
             NonterminalKind::PluralNominalCoordination
         }
-        NonterminalCategory::DeterminerScopedNominalCoordination => {
-            NonterminalKind::DeterminerScopedNominalCoordination
-        }
+        NonterminalCategory::Nominal => NonterminalKind::Nominal,
+        NonterminalCategory::Determinative => NonterminalKind::Determinative,
         NonterminalCategory::SingularSelector => NonterminalKind::SingularSelector,
         NonterminalCategory::PluralSelector => NonterminalKind::PluralSelector,
-        NonterminalCategory::DeterminerPhrase => NonterminalKind::DeterminerPhrase,
         NonterminalCategory::FullNounPhraseCoordination => {
             NonterminalKind::FullNounPhraseCoordination
         }
