@@ -3151,6 +3151,29 @@ fn determinative_partitives_take_ordinary_reference_phrase_complements() {
     ] {
         assert_selected(&parser, &context, text);
     }
+    let partitive_head = |text| {
+        let predicate = imperative_transitive(&parser, &context, text);
+        let Object::ObjectNominal(nominal) = predicate.object else {
+            panic!("partitive probe keeps its nominal object: {text:?}")
+        };
+        let NounPhrase::DeterminativePartitive(partitive) = nominal.value.as_ref() else {
+            panic!("partitive probe keeps its fused-head construction: {text:?}")
+        };
+        partitive.head.clone()
+    };
+    assert!(matches!(
+        partitive_head("Destroy each of up to two target creatures."),
+        Determinative::SingularSimpleDeterminative(_)
+    ));
+    for text in [
+        "Destroy any of them.",
+        "Destroy any of up to two target creatures.",
+    ] {
+        assert!(matches!(
+            partitive_head(text),
+            Determinative::PluralSimpleDeterminative(_)
+        ));
+    }
     assert!(
         parser
             .parse("Put one them into your hand.", &context)
