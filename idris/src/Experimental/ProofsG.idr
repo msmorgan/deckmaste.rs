@@ -949,3 +949,21 @@ public export
 badTimesPaidUnknownKeyword : Unspellable (Amount []) (\ok =>
   TimesPaid (ByKeyword "Kickre") Macros.thisCreature {nc = ok})
 badTimesPaidUnknownKeyword Oh impossible
+
+
+||| "Whenever you scry a card, …"
+||| [CR#701.22a] scries a NUMBER of cards and carries none off, so the act has no patient the event could name.
+public export
+badScryPatient : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent (Just You) "Scry"
+              (Just (Macros.a (InZone (ZoneAt Library Bare)))) {pt = ok})
+badScryPatient ActOn impossible
+
+
+||| "Whenever discards a card, …"
+||| An act announced of no one: the active names its actor and the passive its patient, and this writes neither.
+public export
+badVoicelessAct : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent Nothing "Scry" Nothing {vc = ok})
+badVoicelessAct ActiveAct impossible
+badVoicelessAct PassiveAct impossible

@@ -34,6 +34,15 @@ data EventName = Death | Departure | Destruction | DamageTaken
                | DiceRoll
                | CostPayment | CostNonpayment
                | LifePayment
+               -- the EVENT reading of a keyword action, named by the act
+               -- rather than by the transition it entails. The label is
+               -- carried HERE rather than lifted into a row per verb:
+               -- [CR#701.1] has a verb the rules never keyword use its
+               -- standard English definition, so the vocabulary is open,
+               -- and a lift would need a gate closing part of it again.
+               -- The tables below that must tell one act from another
+               -- read `verbFacts` instead.
+               | VerbedAct VerbLabel
 
 public export
 statusEventName : StatusCat -> EventName
@@ -163,6 +172,11 @@ sameEventName CostNonpayment CostNonpayment = True
 sameEventName CostNonpayment _ = False
 sameEventName LifePayment LifePayment = True
 sameEventName LifePayment _ = False
+-- two verbed acts are the same event exactly when they name the same
+-- act, and the label is what names it: [CR#701.1] makes the keyword the
+-- game term for the verb.
+sameEventName (VerbedAct a) (VerbedAct b) = a == b
+sameEventName (VerbedAct _) _ = False
 
 public export
 sameLookback : Lookback -> Lookback -> Bool
@@ -185,6 +199,10 @@ sameLookback ThisWay _ = False
 public export
 interceptOk : EventName -> Bool
 interceptOk ChapterArrival = False
+-- an act is one of the actions a card's text describes [CR#701.1], so it
+-- is a thing that would happen -- Bruvac the Grandiloquent's "if an
+-- opponent would mill one or more cards".
+interceptOk (VerbedAct _) = True
 interceptOk _ = True
 
 ||| One phrase, one slot: `Until (StartOf …)` already spells a turn
@@ -192,6 +210,9 @@ interceptOk _ = True
 public export
 spanEventOk : EventName -> Bool
 spanEventOk PartBeginning = False
+-- an act is a moment, so "until [who] discards a card" spells an endpoint
+-- nothing else already writes.
+spanEventOk (VerbedAct _) = True
 spanEventOk _ = True
 
 ||| Which events HAPPEN in an amount, for the summed lookback to read:
@@ -251,6 +272,12 @@ eventHasMagnitude CostNonpayment = False
 -- own: [CR#118.3b] subtracts the indicated amount from a life total
 -- and [CR#119.4] reads that back as losing that much life.
 eventHasMagnitude LifePayment = True
+-- a keyword action carries objects or looks at them; what varies is HOW
+-- MANY, and [CR#603.2c] makes a multi-card act one event with that many
+-- occurrences. Occurrences are counted, so "the number of cards
+-- discarded this turn" is `EventCount`'s reading and no act of this
+-- vocabulary happens in an amount to sum.
+eventHasMagnitude (VerbedAct _) = False
 
 public export
 data ReplUse = Repeatedly | NextTimeOnly
@@ -343,6 +370,12 @@ lookbackSubjectOk CostNonpayment Player = False
 -- and [CR#119.4] gives the life to that player alone.
 lookbackSubjectOk LifePayment Object = False
 lookbackSubjectOk LifePayment Player = True
+-- an act's patient is what a participle names ([CR#701.17c] finds "a
+-- milled card"), so the object side is open exactly where the act has a
+-- patient. The player side is open everywhere: each act's own rule
+-- states it of the player performing it [CR#701.17a,701.22a].
+lookbackSubjectOk (VerbedAct v) Object = actPatientOf v == Just Object
+lookbackSubjectOk (VerbedAct _) Player = True
 lookbackSubjectOk _ (Quality _) = False
 lookbackSubjectOk _ Outcome = False
 lookbackSubjectOk _ Gap = False
@@ -398,6 +431,11 @@ lookbackComplementOk DiceRoll _ _ = False
 -- life is the paid thing and the verb already carries it; the cost it
 -- went to is no participant [CR#118.1].
 lookbackComplementOk LifePayment _ _ = False
+-- "you discarded a card this turn": the actor's complement is the act's
+-- own patient and nothing else. Read from the patient's side the act is
+-- already whole, so no second participant is named there.
+lookbackComplementOk (VerbedAct v) Player kc = actPatientOf v == Just kc
+lookbackComplementOk (VerbedAct _) _ _ = False
 lookbackComplementOk _ _ _ = False
 
 ||| A lookback names its event. No rule fixes which subject a lookback
@@ -409,6 +447,13 @@ bareLookbackOk : EventName -> Kind -> Bool
 bareLookbackOk TokenCreation Player = False
 -- an activation is an activation of something.
 bareLookbackOk AbilityActivation Player = False
+-- a transitive act with its object dropped names nothing: a bare "you
+-- discarded this turn" leaves out the card [CR#701.9a] asks for, while
+-- "you scried this turn" is whole, because [CR#701.22a] gives the act no
+-- patient to leave out. From the patient's own side the act is named
+-- either way.
+bareLookbackOk (VerbedAct v) Player = not (actNamesPatient v)
+bareLookbackOk (VerbedAct _) Object = True
 bareLookbackOk _ _ = True
 
 public export

@@ -9546,3 +9546,59 @@ nivMizzetGuildpactTrigger =
        , Define X (DistinctCount ColorPairAxis
                      (AllOf (And [Permanent, ControlledBy You,
                                   ExactlyColors 2]))) ])
+
+||| Tourach, Dread Cantor's discard trigger -- "Whenever an opponent
+||| discards a card, put a +1/+1 counter on Tourach." The verbed event's
+||| active voice, and the family's cheapest whole line: the act is named
+||| by the verb [CR#701.9a] and the header announces its actor.
+public export
+tourachDiscardTrigger : Ability
+tourachDiscardTrigger =
+  Macros.triggered Whenever
+    (VerbedEvent (Just Macros.anOpponent) "Discard"
+                 (Just (Macros.a (InZone Macros.handZ))))
+    (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
+
+||| All-Seeing Arbiter's header -- "Whenever you discard a card, …", the
+||| routed line that motivated the row. Its BODY does not write: "target
+||| creature an opponent controls gets -X/-0 until your next turn, where X
+||| is the number of different mana values among cards in your graveyard"
+||| needs the distinct-kind count over mana values, which is ledgered on
+||| `workbench-distinct-kind-count`. The card's blocker, not the row's.
+public export
+allSeeingArbiterHeader : GameEvent []
+allSeeingArbiterHeader =
+  VerbedEvent (Just You) "Discard" (Just (Macros.a (InZone Macros.handZ)))
+
+||| Mirelurk Queen's mill trigger -- "Whenever one or more nonland cards
+||| are milled, draw a card, then put a +1/+1 counter on this creature.
+||| This ability triggers only once each turn." The verbed event's passive
+||| voice: [CR#701.17a] makes milling a player's act, and the printed line
+||| names no actor at all, so the patient is the surface subject.
+public export
+mirelurkQueenTrigger : Ability
+mirelurkQueenTrigger =
+  Macros.triggeredOnlyOnce Whenever
+    (VerbedEvent Nothing "Mill"
+                 (Just (CountedGroup (Macros.atLeast 1)
+                                     (And [Not Macros.land,
+                                           InZone (ZoneAt Library Bare)]))))
+    OncePerTurn
+    (Sequentially [ Macros.drawCards 1
+                  , PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                                Macros.thisCreature ])
+
+||| Liliana's Caress -- "Whenever an opponent discards a card, that player
+||| loses 2 life." The round's whole card: the header is the verbed event
+||| entire and the body reads back the actor it announced.
+public export
+lilianasCaress : Card
+lilianasCaress =
+  Macros.card "Liliana's Caress"
+       (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered Whenever
+           (VerbedEvent (Just Macros.anOpponent) "Discard"
+                        (Just (Macros.a (InZone Macros.handZ))))
+           (ChangeLife They (Down (Lit 2))) ]
+       Nothing

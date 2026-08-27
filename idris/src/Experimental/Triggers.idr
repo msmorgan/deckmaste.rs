@@ -163,13 +163,37 @@ mutual
                {auto 0 lt : So (quantLiteral q)} -> RollWatch bs
     HighestNatural : RollWatch bs
 
-  ||| What a payment event has announced by the time its cost is named:
-  ||| the payer when the clause writes one, and nothing when the passive
-  ||| leaves it out. `mayCtx`'s shape at the event seat.
+  ||| What an event has announced by the time its second slot is named:
+  ||| the acting player when the clause writes one, and nothing when the
+  ||| passive leaves it out. `mayCtx`'s shape at the event seat.
   public export
-  payerIntro : {bs : Bindings} -> Maybe (Noun bs Player) -> Bindings
-  payerIntro Nothing = bs
-  payerIntro (Just who) = nomIntro who
+  agentIntro : {bs : Bindings} -> Maybe (Noun bs Player) -> Bindings
+  agentIntro Nothing = bs
+  agentIntro (Just who) = nomIntro who
+
+  ||| The patient a verbed event names, decided by the keyword action's
+  ||| own rule: written exactly where that rule performs the act on
+  ||| something [CR#701.9a], and left out where it does not
+  ||| [CR#701.22a].
+  public export
+  data VerbPatient : {0 bs : Bindings} -> (v : VerbLabel) ->
+                     Maybe (Noun bs Object) -> Type where
+    ActOnNothing : {auto 0 np : actPatientOf v = Nothing} ->
+                   VerbPatient {bs} v Nothing
+    ActOn : {0 n : Noun bs Object} ->
+            {auto 0 pk : actPatientOf v = Just Object} ->
+            VerbPatient v (Just n)
+
+  ||| A verbed event writes a surface subject: its actor, or -- in the
+  ||| passive, which names no actor at all -- its patient. Not both
+  ||| dropped: the act would then be announced of no one.
+  public export
+  data VerbedVoice : {0 bs : Bindings} -> {0 cs : Bindings} ->
+                     Maybe (Noun bs Player) -> Maybe (Noun cs Object) ->
+                     Type where
+    ActiveAct : {0 w : Noun bs Player} -> {0 p : Maybe (Noun cs Object)} ->
+                VerbedVoice (Just w) p
+    PassiveAct : {0 p : Noun cs Object} -> VerbedVoice Nothing (Just p)
 
   ||| The event algebra's shape, decided once: composition is carried by
   ||| the slots this vocabulary already has, not by operator constructors.
@@ -326,7 +350,7 @@ mutual
     ||| -- spelling: voiced, "[who] pay(s)/doesn't pay [whose]'s
     ||| [keyword]"; unvoiced, "[whose]'s [keyword] is/isn't paid".
     PaysCost : (who : Maybe (Noun bs Player)) -> (out : PaymentOutcome) ->
-               (whose : Noun (payerIntro who) Object) -> (kw : KeywordLabel) ->
+               (whose : Noun (agentIntro who) Object) -> (kw : KeywordLabel) ->
                {auto 0 kc : KeywordCost kw} ->
                {auto 0 one : nounPlur whose = OneOf} -> GameEvent bs
     ||| "Whenever you pay life" (Font of Agonies): a life payment as a
@@ -342,6 +366,36 @@ mutual
     ||| same number.
     ||| -- spelling: "[who] pay(s) life"
     PaysLife : (who : Noun bs Player) -> GameEvent bs
+    ||| "Whenever you discard a card", "Whenever an opponent discards a
+    ||| card", "Whenever one or more nonland cards are milled", "Whenever
+    ||| you scry": a keyword action as a thing that HAPPENS, named by the
+    ||| act rather than by the transition it entails. [CR#701.1] has a
+    ||| verb the rules never keyword use its standard English definition,
+    ||| so the vocabulary of such acts is open: the label rides the row and
+    ||| lifts through `eventName` into `EventName`'s own label-carrying
+    ||| arm; what one act needs said about it that another does not is
+    ||| said by `verbFacts`, never by a row per verb.
+    ||| The patient is the act's own, by that data: [CR#701.9a] discards a
+    ||| card and [CR#701.17a] mills cards, while [CR#701.22a] scries a
+    ||| NUMBER and carries nothing off, and [CR#701.22b] names the trigger
+    ||| on that patientless act outright.
+    ||| The actor is a VOICE and not a second row, on `PaysCost`'s model:
+    ||| the corpus writes mill passively ("one or more nonland cards are
+    ||| milled") and discard actively ("you discard a card"), and no rule
+    ||| ties either act to either voice, so both take both. What the
+    ||| passive costs is the announcement of who acted.
+    ||| Its generality overlaps the rows that already spell one act --
+    ||| `IsDestroyed` [CR#701.8a], `StatusEvent` on a tap [CR#701.26a],
+    ||| `PutInto`. Two terms for one event, refused by no rule and left
+    ||| standing: which of the pair a card writes is a spelling question,
+    ||| and the dedicated rows carry gates this one does not.
+    ||| -- spelling: voiced, "[who] [verb](s) [what]"; unvoiced,
+    ||| "[what] is/are [participle]".
+    VerbedEvent : (who : Maybe (Noun bs Player)) -> (v : VerbLabel) ->
+                  (what : Maybe (Noun (agentIntro who) Object)) ->
+                  {auto 0 kv : KnownVerb v} ->
+                  {auto 0 pt : VerbPatient v what} ->
+                  {auto 0 vc : VerbedVoice who what} -> GameEvent bs
     ||| The ordinal occurrence of an event: "When the fourth plan counter
     ||| is put on this enchantment", "Whenever you cast your first spell
     ||| during each opponent's turn". The ordinal names WHICH occurrence in
@@ -385,6 +439,7 @@ mutual
   eventName (RollsDice _ _ _) = DiceRoll
   eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (PaysLife _) = LifePayment
+  eventName (VerbedEvent _ v _) = VerbedAct v
   eventName (NthOccurrence _ ev) = eventName ev
 
   ||| What an event pattern contributes before it happens — its announced
@@ -434,6 +489,8 @@ mutual
   eventIntro (RollsDice who ManyDice _) = outcomeB DiceRolled :: nomIntro who
   eventIntro (PaysCost _ _ whose _) = nomIntro whose
   eventIntro (PaysLife who) = nomIntro who
+  eventIntro (VerbedEvent who _ Nothing) = agentIntro who
+  eventIntro (VerbedEvent _ _ (Just what)) = nomIntro what
   eventIntro (NthOccurrence _ ev) = eventIntro ev
 
   ||| The discourse after the event has happened, read by a trigger's
@@ -480,6 +537,13 @@ mutual
   eventAfter (RollsDice who _ _) = outcomeB RollResult :: nomIntro who
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
   eventAfter (PaysLife who) = outcomeB LifeLost :: nomIntro who
+  eventAfter (VerbedEvent who _ Nothing) = agentIntro who
+  -- the act stamps its patient, so the body may name it back by its
+  -- participle ("the milled card"), and leaves it where the act's own
+  -- rule puts it [CR#701.9a,701.17a] -- or where it already was, when
+  -- that rule moves nothing [CR#701.26a].
+  eventAfter (VerbedEvent _ v (Just what)) =
+    moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
   eventAfter (NthOccurrence _ ev) = eventAfter ev
 
   public export
@@ -514,6 +578,11 @@ mutual
   -- is the already-singular bearer.
   eventSubjectPlur (PaysCost Nothing _ _ _) = OneOf
   eventSubjectPlur (PaysLife who) = nounPlur who
+  eventSubjectPlur (VerbedEvent (Just who) _ _) = nounPlur who
+  eventSubjectPlur (VerbedEvent Nothing _ (Just what)) = nounPlur what
+  -- unreachable: `VerbedVoice` refuses an act with neither actor nor
+  -- patient written; folded here rather than left to a catch-all.
+  eventSubjectPlur (VerbedEvent Nothing _ Nothing) = OneOf
   eventSubjectPlur (NthOccurrence _ ev) = eventSubjectPlur ev
 
   ||| The context a delayed body reads: the event's own after-discourse

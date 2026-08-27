@@ -805,9 +805,11 @@ public export
 VerbLabel : Type
 VerbLabel = String
 
-||| What a keyword action's label records beyond its expansion. Both
-||| fields are SPELLING: the expansion answers every rules question, so
-||| nothing here may decide one.
+||| What a keyword action's label records beyond its expansion. The first
+||| two fields are SPELLING. The last two are the action's own rule
+||| speaking, on `KeywordFacts`' model, for the one reader that meets a
+||| label with no expansion written: the EVENT reading, whose tables are
+||| keyed by the event's name and have nothing but this data to ask.
 public export
 record VerbFacts where
   constructor MkVerbFacts
@@ -822,28 +824,55 @@ record VerbFacts where
   ||| have to name the destination too ("put onto the battlefield this
   ||| way"), never merely because a participle exists.
   participle : Maybe String
+  ||| the participant the action's own rule performs it ON, when the rule
+  ||| names one: [CR#701.9a] discards a card, [CR#701.8a] destroys a
+  ||| permanent. `Nothing` where the rule's own statement takes a number
+  ||| instead ([CR#701.22a,701.25a]) or where what a printed line writes
+  ||| after the verb is a zone, which is no `Kind` here. It is what a
+  ||| verbed event announces and what a participial lookback names.
+  actPatient : Maybe Kind
+  ||| where the action's own rule leaves that patient: a graveyard for
+  ||| [CR#701.9a] and [CR#701.17a], the exile zone for [CR#701.13a].
+  ||| `Nothing` where the rule moves nothing ([CR#701.26a] turns a
+  ||| permanent sideways) or states no destination of its own, in which
+  ||| case the patient stays in the zone it was named in.
+  actDest : Maybe Zone
 
-||| The label vocabulary, open by construction: a row is a name and its
-||| participle, and adding one adds no obligation anywhere else.
+||| The label vocabulary, open by construction: a row is a name, its
+||| participle and what its own rule says about the act, and adding one
+||| adds no obligation anywhere else.
 public export
 verbFacts : List VerbFacts
 verbFacts =
-  [ MkVerbFacts "Destroy" (Just "destroyed")
+  --                                       patient       destination
+  [ MkVerbFacts "Destroy"   (Just "destroyed")
+                                           (Just Object) (Just Graveyard)
   , MkVerbFacts "Sacrifice" (Just "sacrificed")
-  , MkVerbFacts "Exile" (Just "exiled")
-  , MkVerbFacts "Discard" (Just "discarded")
-  , MkVerbFacts "Mill" (Just "milled")
-  , MkVerbFacts "Scry" Nothing
-  , MkVerbFacts "Surveil" Nothing
-  , MkVerbFacts "Tap" (Just "tapped")
+                                           (Just Object) (Just Graveyard)
+  , MkVerbFacts "Exile"     (Just "exiled")
+                                           (Just Object) (Just Exile)
+  , MkVerbFacts "Discard"   (Just "discarded")
+                                           (Just Object) (Just Graveyard)
+  , MkVerbFacts "Mill"      (Just "milled")
+                                           (Just Object) (Just Graveyard)
+  -- [CR#701.22b] and [CR#701.25c] both name a trigger on the act, and
+  -- both rules write a NUMBER of cards looked at rather than a patient
+  -- the act carries off, so the event announces no such thing.
+  , MkVerbFacts "Scry"      Nothing        Nothing       Nothing
+  , MkVerbFacts "Surveil"   Nothing        Nothing       Nothing
+  , MkVerbFacts "Tap"       (Just "tapped")
+                                           (Just Object) Nothing
   -- "Put" is no [CR#701] keyword action, and under labels that is
   -- unremarkable: a label needs no rules entry of its own, because its
-  -- body speaks for it [CR#701.1].
-  , MkVerbFacts "Put" Nothing
+  -- body speaks for it [CR#701.1]. Its destination is the clause's, so
+  -- the label states none.
+  , MkVerbFacts "Put"       Nothing        (Just Object) Nothing
   -- the stamp a search leaves is read by the shuffle gate, not by a
   -- participle anaphor: no printed line names a search's patient that
-  -- way, and "the searched card" is not what English would spell.
-  , MkVerbFacts "Search" Nothing
+  -- way, and "the searched card" is not what English would spell. What a
+  -- printed line writes after the verb is the ZONE [CR#701.23a] has the
+  -- act look in; the card it finds is named by the instructing clause.
+  , MkVerbFacts "Search"    Nothing        Nothing       Nothing
   ]
 
 public export
@@ -868,6 +897,24 @@ KnownVerb v = So (knownVerb v)
 public export
 participleOf : VerbLabel -> Maybe String
 participleOf v = verbFactsFor v >>= participle
+
+||| The participant a verbed event announces, when the action's own rule
+||| names one.
+public export
+actPatientOf : VerbLabel -> Maybe Kind
+actPatientOf v = verbFactsFor v >>= actPatient
+
+||| Whether the act names a patient at all: what decides between the
+||| transitive reading ("you discard a card") and the intransitive one
+||| ("you scry").
+public export
+actNamesPatient : VerbLabel -> Bool
+actNamesPatient v = isJust (actPatientOf v)
+
+||| Where the action's own rule leaves its patient, when it moves it.
+public export
+actDestOf : VerbLabel -> Maybe Zone
+actDestOf v = verbFactsFor v >>= actDest
 
 public export
 record Stamp where

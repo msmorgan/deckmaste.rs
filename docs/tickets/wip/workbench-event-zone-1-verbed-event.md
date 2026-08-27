@@ -229,3 +229,138 @@ one (sub-round 1)** — its pin was architectural and the discard family is 96
 lines, the largest single unblock in the bundle.
 
 Standard constraints apply.
+
+## As landed (2026-08-26)
+
+### The mechanism
+
+One `EventName` arm and one `GameEvent` row, per the settled pin.
+
+- `Events.idr`: `EventName` gains `VerbedAct VerbLabel` — the label rides
+  the classifier, so no verb gets a row and no lift needs a sub-catalog
+  gate.
+- `Triggers.idr`: `VerbedEvent : (who : Maybe (Noun bs Player)) ->
+  (v : VerbLabel) -> (what : Maybe (Noun (agentIntro who) Object)) ->
+  {auto 0 kv : KnownVerb v} -> {auto 0 pt : VerbPatient v what} ->
+  {auto 0 vc : VerbedVoice who what} -> GameEvent bs`.
+  Two new gate types beside it: `VerbPatient` (patient written exactly
+  where the act's rule takes one) and `VerbedVoice` (active names the
+  actor, passive the patient, neither-dropped refused).
+- `payerIntro` is generalised to `agentIntro` — the same helper now
+  serves `PaysCost` and `VerbedEvent`; three sites.
+
+### The new `VerbFacts` fields
+
+`record VerbFacts` grows two rule-bearing fields beside the two spelling
+ones, on `KeywordFacts`' model (its docstring is amended to say so):
+
+- `actPatient : Maybe Kind` — the participant the act's own rule performs
+  it on. `Just Object` for Destroy, Sacrifice, Exile, Discard, Mill, Tap,
+  Put; `Nothing` for Scry, Surveil ([CR#701.22a,701.25a] take a number)
+  and Search (what a printed line writes after the verb is a zone, which
+  is no `Kind` here).
+- `actDest : Maybe Zone` — where that rule leaves the patient.
+  `Just Graveyard` for Destroy [CR#701.8a], Sacrifice, Discard
+  [CR#701.9a], Mill [CR#701.17a]; `Just Exile` for Exile [CR#701.13a];
+  `Nothing` for Tap [CR#701.26a], Put, Scry, Surveil, Search.
+
+Read back by `actPatientOf`, `actNamesPatient`, `actDestOf`.
+
+### The eleven table cells
+
+`EventName`'s seven (§1.1), all stated explicitly including the
+catch-all-covered ones:
+
+| table | cell |
+|---|---|
+| `sameEventName` | label equality |
+| `interceptOk` | True — [CR#614.1] over an act that would happen (Bruvac) |
+| `spanEventOk` | True |
+| `eventHasMagnitude` | False for the whole family: what varies is HOW MANY, and [CR#603.2c] makes a multi-card act one event with that many occurrences, which `EventCount` counts |
+| `lookbackSubjectOk` | `Object` = `actPatientOf v == Just Object` ([CR#701.17c] finds "a milled card"); `Player` = True everywhere |
+| `lookbackComplementOk` | actor's complement is the act's own patient; nothing from the patient's side |
+| `bareLookbackOk` | `Player` = `not (actNamesPatient v)` — bare "discarded" drops the card [CR#701.9a] asks for, bare "scried" drops nothing |
+
+`GameEvent`'s four (§1.2): `eventName` lifts the label; `eventIntro`
+announces the patient, or the actor when there is none; `eventAfter`
+stamps the patient with the label (so `theVerbed`/`thoseVerbed` read it
+back) and moves it to `actDestOf v`, or leaves it where it was;
+`eventSubjectPlur` takes the voice's surface subject.
+
+**Mill and discard agree in every cell.** That is the honest reading of
+the rules, not a collapse into the rejected shape 1: the tables are
+per-act because they read `verbFacts`, and Scry/Surveil/Search already
+answer differently there. The architecture is what the pin bought; the
+mill/discard difference the pin anticipated does not exist on the rules.
+
+### Corpus, re-measured (supported faces)
+
+- `is/are milled` header: **4** — Mirelurk Queen, Screeching Scorchbeast,
+  The Wise Mothman (all "Whenever one or more nonland cards are milled"),
+  plus Saruman of Many Colors' "When one or more cards are milled this
+  way". Matches §3.
+- `would mill` replacement: **2** — Bruvac the Grandiloquent, The Water
+  Crystal. Matches §3.
+- discard-naming header clauses: **96** distinct card+line pairs. Matches
+  §3. The causer frame is **11** lines, not nine: nine of "When a spell or
+  ability an opponent controls causes you to discard this card" plus one
+  each of "…causes you to discard cards this turn" and "…causes you to
+  discard a card". Nine is the count of the single most common form.
+- Verb-event headers this row also newly reaches: "Whenever you scry"
+  (14), "Whenever you surveil" (6), "Whenever you cycle or discard a
+  card" (11, needs the event disjunction).
+
+### Witnesses benched
+
+- `lilianasCaress` — whole card. "Whenever an opponent discards a card,
+  that player loses 2 life." The round's whole-card check: header entire,
+  and the body reads back the actor the header announced.
+- `tourachDiscardTrigger` — Tourach, Dread Cantor's third line, the
+  named witness at ability scope.
+- `allSeeingArbiterHeader` — header only, on `heartOfBogardanHeader`'s
+  precedent; its tail is `workbench-distinct-kind-count`'s.
+- `mirelurkQueenTrigger` — the mill event's passive voice, with
+  `triggeredOnlyOnce`.
+
+Pins (`ProofsG.idr`): `badScryPatient` (a patient on an act whose rule
+takes a number, [CR#701.22a]), `badVoicelessAct` (an act announced of no
+one).
+
+### Recorded, not built
+
+- **Screeching Scorchbeast's counted group as an amount.** "Whenever one
+  or more nonland cards are milled, you may create THAT MANY 2/2 …": the
+  header's counted patient has no amount reader, so the size of the group
+  the event announced cannot be named in the tail. The Wise Mothman
+  ("where X is the number of nonland cards milled this way") and Bruvac
+  ("they mill TWICE THAT MANY cards instead") want the same thing.
+  Unbuilt; not papered over.
+- **Bruvac the Grandiloquent's replacement.** Its gate is exactly
+  `Interceptable ev = So (interceptOk (eventName ev))` and nothing else —
+  `interceptOk (VerbedAct _) = True` supplies it. What still blocks the
+  card is "twice that many", the counted-group amount above.
+- **Tourach, Dread Cantor as a whole card.** Blocked on "target opponent
+  discards two cards at random": `Indefinite` carries the `ChoiceMode`
+  and is singular, `CountedGroup` carries a `Quantity` and no mode, so
+  there is no plural at-random determiner. Not this round's item.
+- **"Whenever an opponent searches their library"** (3 lines) stays
+  unwritable: the act's printed object is a zone and `Kind` has no zone
+  arm. Recorded on `actPatient`'s Search row.
+
+### Ledger — needs routing at integrate
+
+- **The verbed event overlaps three dedicated rows.** `VerbedEvent`
+  reaches "Destroy" ([CR#701.8a], already `IsDestroyed`), "Tap"
+  ([CR#701.26a], already `StatusEvent` on `TapC`) and "Put" (already
+  `PutInto`). Two terms for one event, refused by no rule and left
+  standing — named in the row's docstring. A later round should decide
+  whether the dedicated rows retire into this one or the preference is
+  recorded; the dedicated rows do carry gates this one does not
+  (`ZoneFits` on the battlefield, `PutDest`/`PutSource`).
+- **The plural at-random determiner** (Tourach's blocker above).
+- **The counted-group amount** (Screeching Scorchbeast / Wise Mothman /
+  Bruvac) — already ledgered on `workbench-distinct-kind-count`'s
+  neighbourhood; confirm it has a live planned ticket.
+- **The event disjunction at the header** — "Whenever you cycle or
+  discard a card" (11 lines), "Whenever an opponent discards a card or
+  mills one or more cards" (1). Sub-round 2/3 territory, not minted here.
