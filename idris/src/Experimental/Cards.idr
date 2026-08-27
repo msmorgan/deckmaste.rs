@@ -9964,6 +9964,21 @@ roguesGallery =
                                Macros.handZ)) ]
        Nothing
 
+||| Celestial Judgment's pass -- "For each different power among creatures
+||| on the battlefield, choose a creature with that power." The value axis
+||| binding a NUMBER and the body reading it back: "with that power" is a
+||| comparison against the bound value, which is the amount seat, not
+||| [CR#109.3]'s object-side match `chosenQualityReadOk Number = False`
+||| still refuses. The sentence that follows it -- "Destroy each creature
+||| not chosen this way" -- wants a negated verb-stamped read and is not
+||| this cell.
+public export
+celestialJudgmentPass : Effect []
+celestialJudgmentPass =
+  ForEachKindOf (ValueAxis Power) (Just (AllOf Macros.creature)) Number
+    (Macros.choose (Macros.a (And [Macros.creature,
+                                   Compare Power Eq ChosenNumber])))
+
 ||| World Queller's upkeep trigger -- "you may choose a card type. If you
 ||| do, each player sacrifices a permanent of their choice of that type."
 ||| The card-type sort's read: "of that type" is [CR#109.3]'s
@@ -11297,5 +11312,6 @@ noVariableSymbolNoLetter = Refl
 public export
 noCostNoLetter : costLetters Nothing = []
 noCostNoLetter = Refl
+
 
 
