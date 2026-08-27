@@ -3195,10 +3195,11 @@ mutual
 
   ||| The group a counted comparison over a UNIQUIFYING description
   ||| names: "If two or more creatures are tied for greatest power, you
-  ||| choose one of THEM." A superlative picks out a determinate set
-  ||| [CR#608.2c] rather than one referent, so counting it is the only
-  ||| way English asks how big the tie is -- and the set it counted is
-  ||| what the consequent then partitions. Minted exactly where the
+  ||| choose one of THEM." A superlative describes however many objects
+  ||| hold the extreme rather than exactly one, so counting it is how
+  ||| English asks whether the extreme is tied -- and the set it counted
+  ||| is what the consequent then partitions, by a choice the acting
+  ||| player makes as the effect applies [CR#608.2d]. Minted exactly where the
   ||| description uniquifies: an ordinary count ("if you control three or
   ||| more lands") names a number and no group, which is why the row is a
   ||| gate on `uniquifies` and not on the comparison.

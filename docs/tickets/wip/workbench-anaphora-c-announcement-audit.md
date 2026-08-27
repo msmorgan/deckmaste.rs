@@ -209,3 +209,156 @@ Standard constraints apply.
 - **Routed from workbench-anaphora-d-creation-and-replacement (close, 2026-08-27):** `replacedCtx` RE-ADMITS the object mention `otherwiseCtx` deliberately strips — `InsteadOf (create six kor) (destroy Them)` compiles with "them" resolving to a batch [CR#614.6] says never existed, while `otherwiseCtx` filters the same case through `outcomesOnly`. Same rule, two answers. Tension: `TokenAsThose` and `They` read the SAME binding, so tightening `replacedCtx` must not take the definition anaphor down — the fix is a determiner-aware filter or a recorded asymmetry, decided here where the context discipline lives.
 
 - **Routed from workbench-anaphora-b-verb-provenance (close, 2026-08-27):** the plural provenance twin `ThemVerbed` (39 occ/38 cards); `riderIntro` falls through every wrapper (`Modal`/`If`/`Unless`/`Sequentially` preIntro rows export no stamp — plus WHICH mode a modal's rider reads); ETB announces its subject under `TheD` not `SelfD`; `moveIntro (AttachHost …) = bs`; Bioplasm's untyped exile mention (the `If it's a creature card` test does not re-mark the binding); `stampMoves` now over-broad (status stamps). All announcement/context cells, so they land here.
+
+---
+
+## As landed (2026-08-27)
+
+Standard constraints met: `idris/scripts/build` 23/23 clean, `cargo xtask
+cite check` 0 stale / 0 non-compliant, `cite audit --diff` read site by
+site (one cite corrected mid-round — a superlative's denotation is not
+what [CR#608.2c] says; it now cites [CR#608.2d] for the choice the
+consequent makes). Corpus counts re-measured from
+`data/derived/cards.jsonl` filtered `.supported`; CR text via the
+`mtg-rules` skill's scripts (a rule number recalled from memory for the
+loop's until-condition was caught that way before it landed — the section
+it named turned out to be the Case frame, and the row now cites the
+order-written rule instead).
+
+### ProofsAnaphora debt: DISCHARGED AT ZERO
+
+`idris/src/Experimental/ProofsAnaphora.idr` is **byte-identical**. The
+round's whole delta obligation held:
+
+- `nomIntroIsDeltaThenPrefix` (`:995`, `Refl`) and
+  `condIntroIsDeltaThenPrefix` (`:1001`, `Refl`) **re-typecheck
+  unchanged**. Every new announcement is folded into its own delta
+  function's output: `condDelta` grew rows (`Happened`, a unified
+  `Matches`, the comparison's tie set, the negated comparison) and
+  `condIntro c = condDelta c ++ bs` still holds definitionally;
+  `nomIntro n = nounDelta n ++ bs` was never touched — the `Gets` /
+  `DefinesPt` move changed which context the SLOTS are typed at, not
+  what `nomIntro` computes.
+- The split lemmas built on those `Refl`s —
+  `gateSplitsAtNomIntro`, `gateSplitsAtCondIntro`,
+  `slotGateSplitsAtNomIntro`, `slotGateSplitsAtCondIntro`,
+  `unionHalfGateSplitsAtNomIntro` — re-typecheck unchanged, as do
+  `otherwiseCtxIsThenBranchOnly` (`otherwiseCtx` untouched) and the
+  telescope equations, `onlyIfThreadsPrefix` included: `effIntro
+  (OnlyIf …)` changed, the telescope did not.
+- **§1–§4 owe nothing.** No new counter (so no `…IsFold`), no new
+  mention constructor and no CHANGED gate (so no
+  `…ReadsOnlyPrefix`/`…ResolvesInPrefix` pair) — every change is to what
+  a cell MINTS, never to how a gate counts. No deictic was made to read
+  context: `selfSubjDelta` is a function of the noun, not of `bs`.
+
+### Landed
+
+| Item | Cell | Witness |
+|---|---|---|
+| **C2** intervening condition announces its subject | `selfSubjDelta` factored out of `selfSubjIntro` (`Phrase.idr`); `condDelta (Happened _ who _ _) = selfSubjDelta who`; `Matches`' four rows collapse into the same call (its `Bindingless` gate makes the general form identical) | `whirlingDervish` re-benched with the **printed "it"**; Dunerider Outlaw prints the line word for word |
+| `Gets`/`DefinesPt` slot types | `PtShift (selfSubjIntro n)` / `Amount (selfSubjIntro n)`; `Macros.gets` follows. `staticIntro` unchanged — the drift was the slots | `bondsOfFaithPump` |
+| Replacement-event subject (**gap 7**) | `eventIntro`'s subject rows move to `selfSubjIntro`, as `eventAfter` already had | `clergyOfTheHolyNimbus` re-benched with the **printed "it"** |
+| **C1** loop union export | `effIntro (ForEachOf grp body) = pluralizeDelta (effDelta body) ++ bs`, on `Repeated`'s precedent; no count rides along (the group's own size is what `GroupSize` reads). `Repeat` still exports nothing | `hateMirageTokens` — "For each of those creatures, create a token…. Those tokens gain haste." |
+| Loop until-condition | `Repetition.Until : Condition bs -> Repetition bs` (beside `MoreTimes`, not wrapping it); exports nothing, for `AnyNumber`'s reason | 9 lines measured; 6 in scope (2 are the fenced "whichever comes first", 1 the fenced tie) |
+| `stampMoves` over-broad | `Stamp` gains `moved`, written by the caller holding both zones (`setZone` compares them; the two deictic rows know their subject's); `stampMoves` reads it | a status label no longer reads as a move |
+| `elemIntro` drops the stamp | new `nounProv` beside `nounZone` (+ six `provOf…` readers in `Words.idr`); `elemIntro` carries the group's stamp to its members | `soulOfEmancipation` **benches whole** |
+| ETB `TheD`→`SelfD` | `moveIntro p (AsType t This _) z` mints `SelfD`, as `moveIntro p This z` already did | `nekrataalWhole` — the **printed "that creature"** writes; `selfSacrificeThenExile` writes |
+| `moveIntro (AttachHost …) = bs` | the three `selfSubjDelta` rows, re-zoned and stamped | — |
+| **C3** `Search` takes a quantity | `(q : Quantity (nomIntro who))` beside the description; what it finds is announced at `q`'s plurality. `Quantity` gains `ExactlyOf` (the arm `UpToOf`'s own note reserved for a measured line — 2 supported search lines) | `celebrateTheHarvest` **whole**; `boreasChargerSpell` (trigger frame elided, pre-existing reason) |
+| Condition-first conditional | `tiedDelta` in `condDelta`'s comparison row: the counted domain's denotation, minted where the description `uniquifies`. A NEGATED comparison unmakes both margin and set, written out rather than filtered | `purgingScythe` **whole** — the printed tie sentence; 7 lines read "one of them" off a tie |
+| `riderIntro` falls through wrappers | recurses with itself through `Enact`/`Does`/`CantBe`/`Reflexively`/`ThisWay`/`Sequentially` (new `riderIntros`) | `sequencedRider*` — 28 lines of the shape |
+| Savage Swipe's conditioned target | `effIntro (OnlyIf e c oth) = annIntro e` — the condition may fail, but [CR#601.2c] chose the target at cast | `savageSwipeLine` **both sentences**; population re-measured at **5**, not the parent's 1 |
+
+### The `replacedCtx`/`otherwiseCtx` tension: RECORDED ASYMMETRY
+
+Decided against a determiner-aware filter, on evidence. All **14**
+supported replaced-creation lines read the replaced clause back as a
+DEFINITION or a MAGNITUDE ("instead create those tokens plus an
+additional Food token"; "creates twice that many of those tokens
+instead"); **zero** name its objects. And the object read (`Them`) rides
+the SAME binding as the definition read (`TokenAsThose`) — the
+discriminator is which reader asks, not what the binding records, so no
+filter over determiners separates them. `replacedCtx` keeps the deed
+delta because [CR#111.3]'s definition is what those 14 lines read;
+`otherwiseCtx` keeps `outcomesOnly` because an untaken branch wrote no
+definition. Recorded on the cell with its count of zero, per
+`done/workbench-pins-refuse-rules-impossibility-only.md`.
+
+### Probes (run before building — all three delivered)
+
+- **`GroupSize` / counted-group size**: DELIVERED, nothing built.
+  `moonlitMeditation` already writes `Create You GroupSize` under a
+  `May` off a counted-batch trigger at `OncePerTurn` — structurally
+  Screeching Scorchbeast; `Times 2 GroupSize` is Bruvac's "twice that
+  many" (4 sites).
+- **`OnlyWhile` / "as long as"**: DELIVERED. `bondsOfFaithPump` benches
+  the pump line. The card's "Otherwise, …" is a second statement, not
+  this row's business. Drop the parent's argument-order bullet.
+- **Discard-then-draw-that-many**: DELIVERED, no new cell.
+  `discardUpToTwoThenDrawThatMany` benches: the iterated-singular
+  `discardN` exports its passes' batch and `GroupSize` reads its size.
+  Re-measured at **21 occurrences** (not 12). The ceiling stays on the
+  `UpTo` amount — a bare-number ceiling, exactly its stated scope.
+
+### Ambiguity check against A's mechanism (per the split's sequencing rule)
+
+Every new mint was checked. Three notes for the residue record:
+
+1. **Hate Mirage's fourth sentence** ("Exile them") is a Perrie-class
+   pair and stays unwritable: after `ForEachOf` the targeted creatures
+   and the created tokens are both plural object mentions, so the bare
+   plural pronoun has two candidates where "those tokens" has one. The
+   mint is not suppressed; it is noted here. Twinflame prints "Exile
+   those tokens" and is unaffected.
+2. **`condDelta (Happened …)`** mints only on the DEICTIC rows, so a
+   described subject ("if a creature dealt damage…") still announces
+   only its own `nounDelta` and adds no new singular candidate.
+3. **`tiedDelta`** mints one `TheD … ManyOf`. Where the prefix already
+   holds a plural object mention, `Them` refuses — correct, not a
+   defect. Nested under `AndCond` inside a `NotCond` the set would
+   survive the negation; measured at **0** printed lines (the one
+   "unless … tied for" line is a colour predicate, not a count
+   comparison).
+4. **`eventIntro`'s** sweep is confined to interception replacements
+   (the function's only reader) and only differs for a deictic
+   participant, so its blast radius is the self-referential replacement
+   family.
+
+Two pins moved, both because their premise stopped being true:
+`badBareCardRead` is re-pointed at a DESCRIBED sacrifice (its two card
+mentions are there, not at the source, which `SelfD` now correctly hides
+from the demonstrative); `nekrataalTwoCreatureWords` becomes
+`nekrataalOneCreatureWord`, which is what lets the printed rider write.
+No witness was lost and no pin silently passes.
+
+### Ledger — routed forward
+
+- **`ThemVerbed`** (39 occ / 38 cards, routed from B): NOT built. It is
+  a new mention constructor and owes a §3
+  `…ReadsOnlyPrefix`/`…ResolvesInPrefix` pair, which is outside this
+  round's stated "§5 only" budget. It is `ItVerbed`'s plural twin
+  (`countVerbedThem` beside `countVerbedIt`) and should be a small,
+  self-contained round.
+- **Bioplasm's untyped exile mention** (routed from B): NOT built, and
+  the finding is *why*. The "If it's a creature card" test would have to
+  RE-MARK the binding in place. That cannot be a `condDelta` row —
+  `condDelta` returns a delta, and an in-place re-mark rewrites the
+  whole context, which breaks `condIntroIsDeltaThenPrefix`'s `Refl`.
+  Per this ticket's own standard that is a defect, not a lemma to
+  weaken. It needs a `settleTargets`-shaped re-mark at `condIntro`
+  level, which is a design decision no settled pin covers. Note that the
+  card's "it" is separately writable as `ItAt CardSlot` after A.
+- **`ForEachKindOf` export**: C1 ruled on `ForEachOf`. The same
+  determinacy argument applies to a kind pass, but no printed line was
+  named, so it was not extended. One line if a witness appears.
+- **A modal's rider**: `riderIntro (Modal …)` deliberately does not
+  recurse — which mode's label the rider names is answered by the
+  chooser at resolution, not by the text. Recorded on the cell.
+- **`effIntro (If c e oth)`**: still `bs`. The `OnlyIf` argument does
+  not carry over — a leading conditional's consequent is typed over the
+  condition's own delta, which may not have held. Separate question if a
+  witness appears.
+- **The three-zone search's placeless find**: `searchZone
+  (GraveyardHandLibraryOf _) = Nothing`, so a counted three-zone search
+  announces a zoneless mention. Untouched by this round.
