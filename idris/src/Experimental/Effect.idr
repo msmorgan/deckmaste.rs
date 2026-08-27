@@ -928,26 +928,32 @@ mutual
                    {auto 0 ne : IsSucc (rowCount rows)} ->
                    {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
     ||| "and ignore the lower roll", "and ignore all but the highest
-    ||| roll": the instruction that sets aside some of the rolls the same
-    ||| clause has just made. [CR#706.6] gives it its meaning outright --
-    ||| an ignored roll "is considered to have never happened", no
-    ||| ability triggers because of it and no effect applies to it -- and
-    ||| settles the tie the superlative can leave. Its own clause and not
-    ||| a slot on `RollDice`, on `ResultsTable`'s ground: the roll and
-    ||| what is done with its results are one ability [CR#706.3b] without
-    ||| being one node, and a roll may carry no ignore at all.
-    ||| It leaves the roll's mention standing rather than reminting it:
-    ||| the rolls that survive are the same roll the clause named, which
-    ||| is what a following `ResultsTable` or `TheResult` reads.
-    ||| The printed lines that write the instruction on the REPLACEMENT
-    ||| side ("If you would roll one or more dice, instead roll that many
-    ||| dice plus one and ignore the lowest roll") need more than this
-    ||| row: the replaced roll announces neither its die count nor its
-    ||| kind, so "that many dice" has no antecedent.
+    ||| roll", "and ignore one": the instruction that sets aside some of
+    ||| what the same clause has just randomised. [CR#706.6] gives it its
+    ||| meaning outright -- an ignored roll "is considered to have never
+    ||| happened", no ability triggers because of it and no effect
+    ||| applies to it -- and settles the tie the superlative can leave.
+    ||| Its own clause and not a slot on `RollDice`, on `ResultsTable`'s
+    ||| ground: the roll and what is done with its results are one
+    ||| ability [CR#706.3b] without being one node, and a roll may carry
+    ||| no ignore at all.
+    ||| It leaves what it ignores mentioned rather than reminting it: the
+    ||| rolls that survive are the same roll the clause named, which is
+    ||| what a following `ResultsTable` or `TheResult` reads.
+    ||| Outcomes and not rolls alone. The word is printed over each of
+    ||| the three randomisers this vocabulary has -- a roll (Berserker's
+    ||| Frenzy), a coin (Krark's Thumb's "instead flip two coins and
+    ||| ignore one") and the planar die (Ichor Elixir) -- and no rule
+    ||| makes it meaningless on the two [CR#706.6] does not name. The gate
+    ||| is asked per arm (`ignorableFor`), because the superlative arms
+    ||| stay roll-shaped: `RollExtreme` names the ends of an order, and
+    ||| neither a coin's two faces [CR#705.1] nor the planar die's
+    ||| [CR#901.3a] are ordered.
     ||| -- spelling: "ignore the lowest/lower roll"; with `IgnoreAllBut`,
-    ||| "ignore all but the highest roll".
-    IgnoreRolls : (which : IgnoredRolls) ->
-                  {auto 0 ok : countOutcomes RollResult bs = 1} -> Effect bs
+    ||| "ignore all but the highest roll"; with `IgnoreChosen`,
+    ||| "ignore [n]" or "[who] choose(s) [n] of those rolls to ignore".
+    IgnoreOutcomes : (which : IgnoredOutcomes bs) ->
+                     {auto 0 ok : So (ignorableFor which)} -> Effect bs
     ||| "increase or decrease the result by 1": [CR#706.2]'s modifier,
     ||| the one the rule says may "come from other sources" rather than
     ||| riding the rolling instruction itself. The direction is not a
@@ -970,11 +976,25 @@ mutual
     ||| the rolling of the planar die", so `TheResult`, `TheTotal` and
     ||| `ResultsTable` are inapplicable to it by rule and this row mints
     ||| nothing for them to read.
+    ||| The count IS written, and is a slot for [CR#706.1]'s reason on
+    ||| `RollDice`'s model: Ichor Elixir's "instead roll that many planar
+    ||| dice plus one" writes it as an anaphor over the roll it replaces.
+    ||| A bare "Roll the planar die." is `Lit 1`, as a bare flip is.
+    ||| The count is the whole of what this row takes from [CR#706.1]:
+    ||| there is no kind slot beside it, because [CR#901.3a]'s die is not
+    ||| the numbered one [CR#706.1a] describes and naming it IS naming
+    ||| the row.
+    ||| It announces the roll as `PlanarRolled` and never as a result:
+    ||| the mention carries no value (`outcomeIsQuantity` is False), so
+    ||| `TheResult`, `TheTotal` and `ResultsTable` stay inapplicable by
+    ||| [CR#706.7] while "ignore one" still has the planar dice to name.
     ||| The special action [CR#116.2i,901.9] is not this row. That one is
     ||| granted to a player by the Planechase rules and is written on no
     ||| card; this is the instruction a card's own ability gives.
-    ||| -- spelling: "[who] roll[s] the planar die".
-    RollPlanarDie : (who : Noun bs Player) -> Effect bs
+    ||| -- spelling: "[who] roll[s] [count] planar dice", and with
+    ||| `Lit 1` the singular "[who] roll[s] the planar die".
+    RollPlanarDie : (who : Noun bs Player) ->
+                    (count : Amount (nomIntro who)) -> Effect bs
     ||| "chaos ensues": the instruction beside the die face. [CR#311.7]
     ||| admits it outright — a chaos ability triggers "if the chaos symbol
     ||| is rolled on the planar die, if a resolving spell or ability says
@@ -1383,9 +1403,9 @@ mutual
   heldUntilOk (FlipCoins _ _) = False
   heldUntilOk (RollDice _ _ _) = False
   heldUntilOk (ResultsTable _) = False
-  heldUntilOk (IgnoreRolls _) = False
+  heldUntilOk (IgnoreOutcomes _) = False
   heldUntilOk (ShiftResult _) = False
-  heldUntilOk (RollPlanarDie _) = False
+  heldUntilOk (RollPlanarDie _ _) = False
   heldUntilOk ChaosEnsues = False
   heldUntilOk (StoreResults _) = False
   heldUntilOk (RerollStored _ _ _) = False
@@ -1493,9 +1513,9 @@ mutual
   reflexEncloseUse (ResultsTable _) = EncNotOneAction
   -- no PLAYER is written taking either action: the ignore and the
   -- shift are stated of the roll the clause made.
-  reflexEncloseUse (IgnoreRolls _) = EncAgentless
+  reflexEncloseUse (IgnoreOutcomes _) = EncAgentless
   reflexEncloseUse (ShiftResult _) = EncAgentless
-  reflexEncloseUse (RollPlanarDie _) = EncReflexive
+  reflexEncloseUse (RollPlanarDie _ _) = EncReflexive
   reflexEncloseUse ChaosEnsues = EncAgentless
   reflexEncloseUse (StoreResults _) = EncAgentless
   reflexEncloseUse (RerollStored _ _ _) = EncReflexive
@@ -1581,9 +1601,9 @@ mutual
   thisWayOutcomeOk (FlipCoins _ _) = True
   thisWayOutcomeOk (RollDice _ _ _) = True
   thisWayOutcomeOk (ResultsTable _) = True
-  thisWayOutcomeOk (IgnoreRolls _) = True
+  thisWayOutcomeOk (IgnoreOutcomes _) = True
   thisWayOutcomeOk (ShiftResult _) = True
-  thisWayOutcomeOk (RollPlanarDie _) = True
+  thisWayOutcomeOk (RollPlanarDie _ _) = True
   thisWayOutcomeOk ChaosEnsues = True
   thisWayOutcomeOk (StoreResults _) = True
   thisWayOutcomeOk (RerollStored _ _ _) = True
@@ -1680,10 +1700,10 @@ mutual
   costActionOk (RollDice who _ _) = costNounOk who
   costActionOk (ResultsTable _) = False
   -- each reads the roll a clause before it made, which no cost has.
-  costActionOk (IgnoreRolls _) = False
+  costActionOk (IgnoreOutcomes _) = False
   costActionOk (ShiftResult _) = False
   costActionOk (StoreResults _) = False
-  costActionOk (RollPlanarDie who) = costNounOk who
+  costActionOk (RollPlanarDie who _) = costNounOk who
   costActionOk ChaosEnsues = False
   costActionOk (RerollStored who _ _) = costNounOk who
   costActionOk (Continuously _ _) = False
@@ -1817,9 +1837,9 @@ mutual
   effEq (FlipCoins _ _) _ = False
   effEq (RollDice _ _ _) _ = False
   effEq (ResultsTable _) _ = False
-  effEq (IgnoreRolls _) _ = False
+  effEq (IgnoreOutcomes _) _ = False
   effEq (ShiftResult _) _ = False
-  effEq (RollPlanarDie _) _ = False
+  effEq (RollPlanarDie _ _) _ = False
   effEq ChaosEnsues _ = False
   effEq (StoreResults _) _ = False
   effEq (RerollStored _ _ _) _ = False
@@ -1939,9 +1959,9 @@ mutual
   effIntro (FlipCoins who count) = outcomeB CoinFlipped :: flipScopeIntro count
   effIntro (RollDice who count _) = outcomeB RollResult :: amtIntro count
   effIntro (ResultsTable rows) = bs
-  effIntro (IgnoreRolls _) = bs
+  effIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
   effIntro (ShiftResult amt) = amtIntro amt
-  effIntro (RollPlanarDie who) = nomIntro who
+  effIntro (RollPlanarDie who count) = outcomeB PlanarRolled :: amtIntro count
   effIntro ChaosEnsues = bs
   effIntro (StoreResults on) = nomIntro on
   effIntro (RerollStored _ _ whose) = nomIntro whose
@@ -2032,9 +2052,9 @@ mutual
   preIntro (FlipCoins who count) = flipScopeIntro count
   preIntro (RollDice who count _) = amtIntro count
   preIntro (ResultsTable rows) = bs
-  preIntro (IgnoreRolls _) = bs
+  preIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
   preIntro (ShiftResult amt) = amtIntro amt
-  preIntro (RollPlanarDie who) = nomIntro who
+  preIntro (RollPlanarDie who count) = amtIntro count
   preIntro ChaosEnsues = bs
   preIntro (StoreResults on) = nomIntro on
   preIntro (RerollStored _ _ whose) = nomIntro whose
@@ -2114,9 +2134,9 @@ mutual
   annIntro (FlipCoins who count) = flipScopeIntro count
   annIntro (RollDice who count _) = amtIntro count
   annIntro (ResultsTable rows) = bs
-  annIntro (IgnoreRolls _) = bs
+  annIntro (IgnoreOutcomes which) = ignoredOutcomesIntro which
   annIntro (ShiftResult amt) = amtIntro amt
-  annIntro (RollPlanarDie who) = nomIntro who
+  annIntro (RollPlanarDie who count) = amtIntro count
   annIntro ChaosEnsues = bs
   annIntro (StoreResults on) = nomIntro on
   annIntro (RerollStored _ _ whose) = nomIntro whose
@@ -2238,10 +2258,10 @@ mutual
   deedDelta (ResultsTable _) = []
   -- an ignore takes rolls away and a shift restates one; neither
   -- leaves a number the roll had not already left.
-  deedDelta (IgnoreRolls _) = []
+  deedDelta (IgnoreOutcomes _) = []
   deedDelta (ShiftResult _) = []
   -- [CR#706.7]: no numerical result to announce.
-  deedDelta (RollPlanarDie _) = []
+  deedDelta (RollPlanarDie _ _) = [outcomeB PlanarRolled]
   deedDelta ChaosEnsues = []
   deedDelta (StoreResults _) = []
   deedDelta (RerollStored _ _ _) = []

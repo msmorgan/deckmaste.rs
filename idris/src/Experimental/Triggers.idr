@@ -143,6 +143,20 @@ mutual
                {auto 0 lt : So (quantLiteral q)} -> RollWatch bs
     HighestNatural : RollWatch bs
 
+  ||| Whether a die-kind narrowing admits the header's result test.
+  ||| [CR#706.7] has any effect that refers to a numerical result of a
+  ||| die roll -- including one that compares that result to a given
+  ||| number -- ignore the rolling of the planar die, and [CR#901.9d]
+  ||| repeats it; [CR#901.3a] numbers none of that die's six faces. So a
+  ||| planar header has no number to test, and the two tests that read
+  ||| one are refused there. The face-valued watch the blank-face line
+  ||| wants is not this slot's arm and is not written.
+  public export
+  watchFitsDie : {0 bs : Bindings} -> RolledDie -> RollWatch bs -> Bool
+  watchFitsDie _ AnyResult = True
+  watchFitsDie d (ResultIn _) = dieHasResult d
+  watchFitsDie d HighestNatural = dieHasResult d
+
   ||| What an event has announced by the time its second slot is named:
   ||| the acting player when the clause writes one, and nothing when the
   ||| passive leaves it out. `mayCtx`'s shape at the event seat.
@@ -356,6 +370,23 @@ mutual
     Regenerates : (n : Noun bs Object) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                   GameEvent bs
+    ||| "If you would flip a coin, instead ...": the flipping ACT as a
+    ||| thing that happens, which neither arm of `FlipEvent` names.
+    ||| [CR#705.1] makes flipping a coin what an effect instructs, and
+    ||| [CR#705.2] reads a winner off that flip only afterwards and only
+    ||| where the flipper called it -- so the act happens under both
+    ||| readings of the coin, and it is the act a replacement reaches
+    ||| [CR#614.1], which no reading of the call can stand in for.
+    ||| The subject is a player for [CR#705.2]'s reason, the same one
+    ||| `FlipEvent` takes: only the player who flips the coin is
+    ||| involved.
+    ||| It announces its subject and no coin. [CR#614.6] keeps the
+    ||| replaced flip from happening at all, so no coin stands there to
+    ||| read, and the replacement writes its own count out ("instead flip
+    ||| two coins"). No `DiceBatch` twin: the corpus prints the singular
+    ||| determiner alone, where the roll prints both.
+    ||| -- spelling: "[who] flip(s) a coin".
+    FlipsCoin : (who : Noun bs Player) -> GameEvent bs
     ||| "Whenever you win a coin flip", "Whenever a player wins a coin
     ||| flip": the called reading of a flip as a thing that HAPPENS.
     ||| [CR#705.2] makes it one — the flipper calls the coin and then
@@ -373,10 +404,21 @@ mutual
     ||| number, which the body reads back ("equal to the result") — the
     ||| same mint `RollDice` makes, since [CR#706.2] gives the roll its
     ||| result however the roll was called for.
+    ||| The die the header NAMES is its own slot beside the determiner,
+    ||| because [CR#706.1] has the rolling instruction specify the kind
+    ||| and the count together and a header may repeat either back
+    ||| ("one or more planar dice", "one or more six-sided dice", "the
+    ||| planar die"). Leaving it out narrows nothing: [CR#706.7] and
+    ||| [CR#901.9d] put the planar roll inside the unnarrowed header, so
+    ||| `AnyDie` watches every roll there is.
+    ||| The planar kind takes no result test, and announces none either
+    ||| -- see `watchFitsDie` and `eventAfter`.
     ||| -- spelling: with `ManyDice`, "[who] roll(s) one or more dice";
-    ||| with `OneDie`, "[who] roll(s) a die".
+    ||| with `OneDie`, "[who] roll(s) a die"; the kind, where written,
+    ||| sits on the noun ("one or more six-sided dice").
     RollsDice : (who : Noun bs Player) -> (many : DiceBatch) ->
-                (res : RollWatch bs) -> GameEvent bs
+                (die : RolledDie) -> (res : RollWatch bs) ->
+                {auto 0 dw : So (watchFitsDie die res)} -> GameEvent bs
     ||| "When a player doesn't pay this enchantment's cumulative upkeep",
     ||| "Whenever you pay this enchantment's cumulative upkeep",
     ||| "Whenever this creature's cumulative upkeep is paid": a stated
@@ -502,8 +544,9 @@ mutual
   eventName (Activates _ _) = AbilityActivation
   eventName (StatBecomes _ _ _) = StatValueChange
   eventName (Regenerates _) = Regeneration
+  eventName (FlipsCoin _) = CoinFlip
   eventName (FlipEvent _ call) = flipEventName call
-  eventName (RollsDice _ _ _) = DiceRoll
+  eventName (RollsDice _ _ _ _) = DiceRoll
   eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (PaysLife _) = LifePayment
   eventName (VerbedEvent _ v _) = VerbedAct v
@@ -543,6 +586,10 @@ mutual
   eventIntro (Activates _ what) = nomIntro what
   eventIntro (StatBecomes _ _ v) = amtIntro v
   eventIntro (Regenerates n) = nomIntro n
+  -- no coin: [CR#614.6] keeps the replaced flip from happening, so the
+  -- replacement writes its own count ("instead flip two coins") rather
+  -- than reading one back.
+  eventIntro (FlipsCoin who) = nomIntro who
   eventIntro (FlipEvent who _) = nomIntro who
   -- the roll it announces is the roll that WOULD happen: a replacement
   -- reads `eventIntro`, and [CR#614.6] keeps the replaced event from
@@ -553,8 +600,12 @@ mutual
   -- the roll specify them together. The singular determiner announces
   -- nothing, on `CounterEvent`'s model: "that many" needs a number the
   -- text wrote, and "a die" wrote none.
-  eventIntro (RollsDice who OneDie _) = nomIntro who
-  eventIntro (RollsDice who ManyDice _) = outcomeB DiceRolled :: nomIntro who
+  -- the announcement is a COUNT of dice and not a result, so the planar
+  -- kind announces it like any other: [CR#706.7] withholds the number
+  -- from a planar roll, not the dice the instruction called for, and
+  -- Ichor Elixir's "that many planar dice plus one" reads exactly this.
+  eventIntro (RollsDice who OneDie _ _) = nomIntro who
+  eventIntro (RollsDice who ManyDice _ _) = outcomeB DiceRolled :: nomIntro who
   eventIntro (PaysCost _ _ whose _) = nomIntro whose
   eventIntro (PaysLife who) = nomIntro who
   eventIntro (VerbedEvent who _ Nothing) = agentIntro who
@@ -601,12 +652,20 @@ mutual
   eventAfter (Activates _ what) = nomIntro what
   eventAfter (StatBecomes n _ v) = amtDelta v ++ selfSubjIntro n
   eventAfter (Regenerates n) = selfSubjIntro n
+  -- the flip that DID happen leaves its coin, which the following text
+  -- reads by face or by call [CR#705.2].
+  eventAfter (FlipsCoin who) = outcomeB CoinFlipped :: nomIntro who
   eventAfter (FlipEvent who _) = nomIntro who
   -- and the roll that DID happen leaves its result, never the dice it
   -- called for: [CR#706.2] makes the number on the die the result of
   -- that roll, and that is the one number a trigger's tail reads back
   -- ("put that many +1/+1 counters on this creature").
-  eventAfter (RollsDice who _ _) = outcomeB RollResult :: nomIntro who
+  -- except on the planar die, which leaves a face and no number:
+  -- [CR#706.7] has every effect referring to a numerical result of a
+  -- die roll ignore the planar roll [CR#901.9d], so what stands after
+  -- one is the roll itself and nothing to read as a value.
+  eventAfter (RollsDice who _ PlanarDie _) = outcomeB PlanarRolled :: nomIntro who
+  eventAfter (RollsDice who _ _ _) = outcomeB RollResult :: nomIntro who
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
   eventAfter (PaysLife who) = outcomeB LifeLost :: nomIntro who
   eventAfter (VerbedEvent who _ Nothing) = agentIntro who
@@ -644,8 +703,9 @@ mutual
   eventSubjectPlur (Activates who _) = nounPlur who
   eventSubjectPlur (StatBecomes n _ _) = nounPlur n
   eventSubjectPlur (Regenerates n) = nounPlur n
+  eventSubjectPlur (FlipsCoin who) = nounPlur who
   eventSubjectPlur (FlipEvent who _) = nounPlur who
-  eventSubjectPlur (RollsDice who _ _) = nounPlur who
+  eventSubjectPlur (RollsDice who _ _ _) = nounPlur who
   eventSubjectPlur (PaysCost (Just who) _ _ _) = nounPlur who
   -- the passive's surface subject is "[whose]'s [keyword]", whose head
   -- is the already-singular bearer.

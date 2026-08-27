@@ -31,6 +31,13 @@ data EventName = Death | Departure | DamageTaken
                | AbilityActivation
                | StatValueChange | Regeneration
                | FlipWin | FlipLoss
+               -- the flipping ACT, which is not either arm of the call:
+               -- [CR#705.1] makes flipping a coin a thing an effect
+               -- instructs and [CR#705.2] reads a winner off it only
+               -- afterwards, so the act happens even where no player
+               -- wins or loses. It is the event a replacement reaches
+               -- ("If you would flip a coin, instead ...").
+               | CoinFlip
                | DiceRoll
                | CostPayment | CostNonpayment
                | LifePayment
@@ -92,6 +99,42 @@ flipEventName LosesFlip = FlipLoss
 ||| read either way [CR#706.2].
 public export
 data DiceBatch = OneDie | ManyDice
+
+||| Which die a roll event NAMES. [CR#706.1] has a rolling instruction
+||| specify what kind of die to roll, and a header may repeat that kind
+||| back ("one or more six-sided dice", "one or more planar dice", "the
+||| planar die") or leave it out.
+||| `AnyDie` is the kind left UNWRITTEN and not "some numbered die":
+||| [CR#706.7] and [CR#901.9d] both say that rolling the planar die
+||| causes any ability that triggers whenever a player rolls one or more
+||| dice to trigger, so the unnarrowed header watches the planar roll
+||| too, and narrowing is what a written kind does.
+||| `SidedDie` carries [CR#706.1a]'s positivity on `SidesOf`'s model. It
+||| is the die that rule DESCRIBES -- N equally likely outcomes numbered
+||| from 1 to N -- which is why `PlanarDie` is a row beside it and not
+||| `SidedDie 6`, even though [CR#901.3a] calls the planar die
+||| six-sided: its faces carry no numbers.
+||| Spelling only, like `DiceBatch`, and Bindings-free: a header writes
+||| the kind outright or not at all, and the anaphoric kind `DieSides`
+||| carries is the replacement BODY's word, never the watched event's.
+||| -- spelling: with `SidedDie`, "[n]-sided dice" or "d[n]"; with
+||| `PlanarDie`, "the planar die" / "planar dice"; `AnyDie` writes
+||| nothing.
+public export
+data RolledDie : Type where
+  AnyDie : RolledDie
+  SidedDie : (n : Nat) -> {auto 0 nz : IsSucc n} -> RolledDie
+  PlanarDie : RolledDie
+
+||| Whether a roll of the named die leaves a number behind. Every
+||| numbered die does [CR#706.2]; the planar die does not, because
+||| [CR#706.7] has any effect that refers to a numerical result of a die
+||| roll -- including one that compares that result to a given number --
+||| ignore the rolling of the planar die [CR#901.9d].
+public export
+dieHasResult : RolledDie -> Bool
+dieHasResult PlanarDie = False
+dieHasResult _ = True
 
 ||| The two outcomes of a stated cost's payment, as two events.
 ||| [CR#118.1] makes paying a cost an act a player carries out, and
@@ -178,6 +221,8 @@ sameEventName FlipWin FlipWin = True
 sameEventName FlipWin _ = False
 sameEventName FlipLoss FlipLoss = True
 sameEventName FlipLoss _ = False
+sameEventName CoinFlip CoinFlip = True
+sameEventName CoinFlip _ = False
 sameEventName DiceRoll DiceRoll = True
 sameEventName DiceRoll _ = False
 sameEventName CostPayment CostPayment = True
@@ -290,6 +335,10 @@ eventHasMagnitude Regeneration = False
 -- numeric, so no arm of the call happens in an amount.
 eventHasMagnitude FlipWin = False
 eventHasMagnitude FlipLoss = False
+-- nor does the flipping itself: [CR#705.1] makes a coin a two-sided
+-- randomiser, so how many coins were flipped is a count and the flip
+-- happens in no amount at all.
+eventHasMagnitude CoinFlip = False
 -- a roll's number is not the amount the rolling happened in: [CR#706.2]
 -- makes the result a number the roll PRODUCED, which is read back off
 -- the roll itself, and how many dice were rolled is `EventCount`'s
@@ -395,6 +444,10 @@ lookbackSubjectOk FlipWin Object = False
 lookbackSubjectOk FlipWin Player = True
 lookbackSubjectOk FlipLoss Object = False
 lookbackSubjectOk FlipLoss Player = True
+-- [CR#705.2] gives the flip to "the player who flips the coin", so a
+-- player is who flipped one; an object never flips.
+lookbackSubjectOk CoinFlip Object = False
+lookbackSubjectOk CoinFlip Player = True
 -- "if you rolled a die this turn": a player is who [CR#706.1] instructs
 -- to roll.
 lookbackSubjectOk DiceRoll Object = False
@@ -501,6 +554,7 @@ lookbackComplementOk AbilityActivation _ _ = False
 -- grammar mentions.
 lookbackComplementOk FlipWin _ _ = False
 lookbackComplementOk FlipLoss _ _ = False
+lookbackComplementOk CoinFlip _ _ = False
 lookbackComplementOk DiceRoll _ _ = False
 -- life is the paid thing and the verb already carries it; the cost it
 -- went to is no participant [CR#118.1].

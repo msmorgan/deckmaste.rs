@@ -8307,7 +8307,7 @@ sparkFiendUpkeepRoll =
 public export
 berserkersFrenzyRoll : Effect []
 berserkersFrenzyRoll =
-  Sequentially [Macros.rollDice 2 20, IgnoreRolls (IgnoreExtreme LowestRoll)]
+  Sequentially [Macros.rollDice 2 20, IgnoreOutcomes (IgnoreExtreme LowestRoll)]
 
 ||| Iron Mastiff's ignore, benched over a bare roll: "…and ignore all but
 ||| the highest roll." The card rolls "a d20 for each player being
@@ -8316,7 +8316,7 @@ berserkersFrenzyRoll =
 public export
 ironMastiffIgnore : Effect []
 ironMastiffIgnore =
-  Sequentially [Macros.rollADie 20, IgnoreRolls (IgnoreAllBut HighestRoll)]
+  Sequentially [Macros.rollADie 20, IgnoreOutcomes (IgnoreAllBut HighestRoll)]
 
 ||| Xenosquirrels' modifier, benched over a roll of its own: "…increase
 ||| or decrease the result by 1." [CR#706.2]'s modifier "from other
@@ -8341,7 +8341,7 @@ wyllExtraDie : Effect []
 wyllExtraDie =
   Macros.ifWouldInstead Macros.youRollDice
     (Sequentially [ RollDice You (Plus ThatMuch (Lit 1)) ThoseDice
-                  , IgnoreRolls (IgnoreExtreme LowestRoll) ])
+                  , IgnoreOutcomes (IgnoreExtreme LowestRoll) ])
     Nothing
 
 ||| Atomwheel Acrobats, first line: "Whenever you roll a 1 or 2, put that
@@ -8407,7 +8407,64 @@ resoluteVeggiesaurThirdDie =
 public export
 fracturedPowerstonePlanarRoll : Ability
 fracturedPowerstonePlanarRoll =
-  Macros.activatedOnlyDuring TapSymbol (RollPlanarDie You) AsSorcery
+  Macros.activatedOnlyDuring TapSymbol Macros.rollThePlanarDie AsSorcery
+
+||| Ichor Elixir, first line: "If you would roll one or more planar dice,
+||| instead roll that many planar dice plus one and ignore one." The roll
+||| header narrowed to the planar die, the planar instruction taking a
+||| count, and the chosen ignore, in one sentence. The replaced event
+||| announces the DICE it called for and no result [CR#706.7], which is
+||| exactly what "that many planar dice" reads.
+public export
+ichorElixirPlanarDice : Effect []
+ichorElixirPlanarDice =
+  Macros.ifWouldInstead Macros.youRollPlanarDice
+    (Sequentially [ RollPlanarDie You (Plus ThatMuch (Lit 1))
+                  , IgnoreOutcomes (IgnoreChosen Nothing (Lit 1)) ])
+    Nothing
+
+||| Vedalken Squirrel-Whacker, second line, benched to the clause the
+||| exchange blocks: "If you would roll one or more six-sided dice,
+||| instead roll them." The numbered die named on the header [CR#706.1],
+||| and the wholly anaphoric body -- "them" is `ThatMuch` over
+||| `ThoseDice`, both read off the roll the replacement announced. The
+||| line's remaining clause exchanges a result with a base characteristic,
+||| which is not written.
+public export
+vedalkenSquirrelWhackerReroll : Effect []
+vedalkenSquirrelWhackerReroll =
+  Macros.ifWouldInstead (RollsDice You ManyDice (SidedDie 6) AnyResult)
+    (RollDice You ThatMuch ThoseDice)
+    Nothing
+
+||| Krark's Thumb: "If you would flip a coin, instead flip two coins and
+||| ignore one." The flipping ACT as the replaced event [CR#705.1] --
+||| which neither arm of the call names [CR#705.2] -- and the ignore
+||| instruction over coins. The body writes its own count, since
+||| [CR#614.6] leaves no flip to read back.
+public export
+krarksThumbExtraFlip : Effect []
+krarksThumbExtraFlip =
+  Macros.ifWouldInstead Macros.youFlipACoin
+    (Sequentially [ Macros.flipCoins 2
+                  , IgnoreOutcomes (IgnoreChosen Nothing (Lit 1)) ])
+    Nothing
+
+||| Bamboozling Beeble, second line: "{1}, {T}: The next time target
+||| player would roll one or more dice this turn, instead they roll that
+||| many dice plus one and you choose one of those rolls to ignore." The
+||| one printed line that WRITES the ignore's chooser, and it writes a
+||| different player from the roller -- which is why the chooser is a
+||| slot and not [CR#706.6]'s tie-break rule.
+public export
+bamboozlingBeebleIgnore : Ability
+bamboozlingBeebleIgnore =
+  Macros.activated (Compound [Mana [Macros.generic 1], TapSymbol])
+    (Macros.nextTimeWouldInstead
+       (RollsDice (Macros.target AnyPlayer) ManyDice AnyDie AnyResult)
+       (Sequentially [ RollDice They (Plus ThatMuch (Lit 1)) ThoseDice
+                     , IgnoreOutcomes (IgnoreChosen (Just You) (Lit 1)) ])
+       (Just Macros.thisTurn))
 
 ||| Missy's end-step line, benched as the branch it writes: "you draw a
 ||| card and chaos ensues." [CR#311.7] admits the instruction beside the

@@ -2016,12 +2016,12 @@ youLoseACoinFlip = FlipEvent You LosesFlip
 ||| "Whenever you roll one or more dice, …" [CR#706.7]
 public export
 youRollDice : GameEvent bs
-youRollDice = RollsDice You ManyDice AnyResult
+youRollDice = RollsDice You ManyDice AnyDie AnyResult
 
 ||| "Whenever you roll a die, …" -- the singular determiner [CR#706.7].
 public export
 youRollADie : GameEvent bs
-youRollADie = RollsDice You OneDie AnyResult
+youRollADie = RollsDice You OneDie AnyDie AnyResult
 
 ||| "Whenever you roll a 4 or higher, …", "Whenever you roll a 6, …":
 ||| the roll header carrying a result test [CR#706.3a].
@@ -2030,13 +2030,31 @@ youRollResultIn : (q : Quantity bs) ->
                   {auto 0 nz : NonZeroQ q} ->
                   {auto 0 wf : WellFormedQ q} ->
                   {auto 0 lt : So (quantLiteral q)} -> GameEvent bs
-youRollResultIn q = RollsDice You OneDie (ResultIn q {nz} {wf} {lt})
+youRollResultIn q = RollsDice You OneDie AnyDie (ResultIn q {nz} {wf} {lt})
 
 ||| "Whenever you roll a die's highest natural result, …" -- the test
 ||| against the die's own maximum [CR#706.2,706.1a].
 public export
 youRollHighestNatural : GameEvent bs
-youRollHighestNatural = RollsDice You OneDie HighestNatural
+youRollHighestNatural = RollsDice You OneDie AnyDie HighestNatural
+
+||| "If you would roll one or more planar dice, ..." -- the roll header
+||| narrowed to Planechase's own die [CR#901.3a].
+public export
+youRollPlanarDice : GameEvent bs
+youRollPlanarDice = RollsDice You ManyDice PlanarDie AnyResult
+
+||| "If you would flip a coin, ..." -- the flipping act [CR#705.1], which
+||| is not either arm of the call [CR#705.2].
+public export
+youFlipACoin : GameEvent bs
+youFlipACoin = FlipsCoin You
+
+||| "Roll the planar die." [CR#901.3a] -- one die, as a bare flip is one
+||| coin.
+public export
+rollThePlanarDie : Effect bs
+rollThePlanarDie = RollPlanarDie You (Lit 1)
 
 ||| "Flip a coin for each [each]." [CR#705.1]
 public export

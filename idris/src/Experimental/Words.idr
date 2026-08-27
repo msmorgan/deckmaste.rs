@@ -814,6 +814,13 @@ data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  -- reads that back off a roll that never happened
                  -- [CR#614.6] -- "instead roll THAT MANY dice plus one".
                  | DiceRolled
+                 -- what a PLANAR roll leaves: a face and never a number.
+                 -- [CR#901.3a] gives the die one Planeswalker face, one
+                 -- chaos face and four blanks, and [CR#706.7] has every
+                 -- numerical read ignore the planar roll, so the mention
+                 -- carries no value at all -- it is what "ignore one"
+                 -- names and what no quantity read may take.
+                 | PlanarRolled
                  | NamedNumber
                  -- `RepeatCount` is the number of iterations a repetition
                  -- WROTE, not the size of the batch it produced:
@@ -847,14 +854,6 @@ data CoinFace = Heads | Tails
 ||| two-item spelling of the same end, not a third word.
 public export
 data RollExtreme = LowestRoll | HighestRoll
-
-||| Which rolls an ignore instruction sets aside [CR#706.6]: the extreme
-||| itself, or everything but it. Both arms are printed -- "ignore the
-||| lower roll" against "ignore all but the highest roll" -- and neither
-||| is a spelling of the other, since a clause that rolled more than two
-||| dice keeps a different number of rolls under each.
-public export
-data IgnoredRolls = IgnoreExtreme RollExtreme | IgnoreAllBut RollExtreme
 
 public export
 data Causer = AnEffect
@@ -1259,6 +1258,8 @@ Eq OutcomeSort where
   (==) CoinFlipped _ = False
   (==) DiceRolled DiceRolled = True
   (==) DiceRolled _ = False
+  (==) PlanarRolled PlanarRolled = True
+  (==) PlanarRolled _ = False
   (==) NamedNumber NamedNumber = True
   (==) NamedNumber _ = False
   (==) RepeatCount RepeatCount = True
@@ -1347,6 +1348,32 @@ coinFlipInScope [] = False
 coinFlipInScope (MkBinding _ Outcome OneOf (OutcomeP CoinFlipped) :: _) = True
 coinFlipInScope (_ :: bs) = coinFlipInScope bs
 
+||| Whether the discourse carries a planar die some clause rolled. An
+||| existence test on `coinFlipInScope`'s model and never a count: the
+||| roll leaves no number [CR#706.7], so there is nothing here for a
+||| quantity read to be confused by, and one clause may roll several
+||| ("roll that many planar dice plus one").
+public export
+planarRollInScope : Bindings -> Bool
+planarRollInScope [] = False
+planarRollInScope (MkBinding _ Outcome OneOf (OutcomeP PlanarRolled) :: _) = True
+planarRollInScope (_ :: bs) = planarRollInScope bs
+
+||| Whether the discourse carries something an ignore instruction can set
+||| aside: a roll the text made, a coin it flipped, or a planar die it
+||| rolled. [CR#706.6] gives the word its meaning over a roll -- the
+||| ignored one "is considered to have never happened" -- and the printed
+||| lines write the same word over each of the three randomisers, so the
+||| gate is their disjunction rather than the roll's test alone.
+||| The roll's own arm stays a count of one, which is what every other
+||| read of a roll asks for; the other two are existence tests, since
+||| neither leaves a number that two mentions could confuse.
+public export
+ignorableInScope : Bindings -> Bool
+ignorableInScope bs =
+  countOutcomes RollResult bs == 1 || coinFlipInScope bs ||
+  planarRollInScope bs
+
 ||| Whether an outcome mention leaves a NUMBER behind for a quantity read
 ||| to name. Damage, life, counters and a die's result each do --
 ||| [CR#706.2] makes the number on the die the result of the roll -- and a
@@ -1365,6 +1392,10 @@ outcomeIsQuantity CoinFlipped = False
 -- the dice a roll called for are a number the instruction wrote
 -- [CR#706.1], which is what "that many dice" reads.
 outcomeIsQuantity DiceRolled = True
+-- and a planar roll leaves none: [CR#706.7] has every effect that refers
+-- to a numerical result of a die roll ignore the rolling of the planar
+-- die, and [CR#901.3a]'s faces are not numbered.
+outcomeIsQuantity PlanarRolled = False
 -- a defining sentence names a number outright [CR#604.3,208.1], so the
 -- anaphor that reads a quantity back ("that number") has one to name.
 outcomeIsQuantity NamedNumber = True

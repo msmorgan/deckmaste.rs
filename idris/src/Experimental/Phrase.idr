@@ -2347,6 +2347,55 @@ mutual
   flipScopeIntro (FlipCount n) = amtIntro n
   flipScopeIntro (FlipPer each) = nomIntro each
 
+  ||| Which of a clause's randomised outcomes an ignore instruction sets
+  ||| aside [CR#706.6]. The two superlative arms are printed over rolls
+  ||| alone -- "ignore the lower roll" against "ignore all but the
+  ||| highest roll" -- and neither is a spelling of the other, since a
+  ||| clause that rolled more than two dice keeps a different number
+  ||| under each.
+  ||| `IgnoreChosen` is the third form, and it names no end at all:
+  ||| "ignore one", "you choose one of those rolls to ignore". The count
+  ||| is an `Amount` on `FlipCount`'s model: [CR#706.6] states the word
+  ||| one roll at a time and puts no bound on how many an instruction may
+  ||| name. Every printed line writes the literal one, so anything else
+  ||| is overgeneration, named here at its zero.
+  ||| The chooser is written only on this arm. [CR#706.6] hands the
+  ||| choice to the rolling player of its own accord, as the tie-break
+  ||| under "the lowest roll", so the superlative arms need no slot; the
+  ||| chosen arm gets one because a printed line puts the choice
+  ||| somewhere else -- Bamboozling Beeble replaces TARGET player's roll
+  ||| and then has YOU choose. Bindingless on `EitherEnd`'s model: the
+  ||| chooser names a player the sentence already has, and mints none.
+  ||| -- spelling: with `IgnoreChosen n Nothing`, "ignore [n]"; with a
+  ||| chooser, "[who] choose(s) [n] of those rolls to ignore".
+  public export
+  data IgnoredOutcomes : Bindings -> Type where
+    IgnoreExtreme : RollExtreme -> IgnoredOutcomes bs
+    IgnoreAllBut : RollExtreme -> IgnoredOutcomes bs
+    IgnoreChosen : (chooser : Maybe (Noun bs Player)) -> (n : Amount bs) ->
+                   {auto 0 ag : EventAgent chooser} -> IgnoredOutcomes bs
+
+  public export
+  ignoredOutcomesIntro : {bs : Bindings} -> IgnoredOutcomes bs -> Bindings
+  ignoredOutcomesIntro (IgnoreExtreme _) = bs
+  ignoredOutcomesIntro (IgnoreAllBut _) = bs
+  -- the chooser is bindingless, so the count is all this arm announces.
+  ignoredOutcomesIntro (IgnoreChosen _ n) = amtIntro n
+
+  ||| What each arm needs the clause to have randomised. The chosen arm
+  ||| takes any of the three ("ignore one" is printed over a roll, a coin
+  ||| and the planar die alike); the two superlative arms take a roll and
+  ||| only a roll. [CR#706.6] writes "the lowest roll" over results, and
+  ||| [CR#706.2] makes a result a NUMBER, so the ends `RollExtreme` names
+  ||| are the ends of an order. A coin has no such order -- [CR#705.1]
+  ||| gives it two faces and ranks neither -- and neither do
+  ||| [CR#901.3a]'s planar faces, so there is no lowest one to set aside.
+  public export
+  ignorableFor : {bs : Bindings} -> IgnoredOutcomes bs -> Bool
+  ignorableFor (IgnoreExtreme _) = countOutcomes RollResult bs == 1
+  ignorableFor (IgnoreAllBut _) = countOutcomes RollResult bs == 1
+  ignorableFor (IgnoreChosen _ _) = ignorableInScope bs
+
   public export
   readAmount : {0 bs : Bindings} -> Amount bs -> Bool
   readAmount (Lit _) = False

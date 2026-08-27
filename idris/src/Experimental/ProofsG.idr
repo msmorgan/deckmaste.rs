@@ -771,8 +771,8 @@ youRolledADieThisTurn = Happened DiceRoll You Lookback.ThisTurn Nothing
 ||| there is no roll to set aside.
 public export
 badIgnoreWithoutRoll : Unspellable (Effect []) (\ok =>
-  IgnoreRolls (IgnoreExtreme LowestRoll) {ok})
-badIgnoreWithoutRoll Refl impossible
+  IgnoreOutcomes (IgnoreExtreme LowestRoll) {ok})
+badIgnoreWithoutRoll Oh impossible
 
 ||| "Store those results on this creature." with no roll before it.
 ||| [CR#706.8a] stores "both the kind of die rolled and the result of that
@@ -823,9 +823,39 @@ badCoinCameUpOnAbility Oh impossible
 ||| ground on which a results-table row of zero is refused.
 public export
 badZeroRollTest : Unspellable (GameEvent []) (\ok =>
-  RollsDice You OneDie (ResultIn (Range Nothing (Just 0))
+  RollsDice You OneDie AnyDie (ResultIn (Range Nothing (Just 0))
                                  {nz = ok} {wf = Oh} {lt = Oh}))
 badZeroRollTest MaxAtLeastOne impossible
+
+||| "Whenever you roll a 4 or higher on the planar die, …"
+||| [CR#706.7] has any effect that refers to a numerical result of a die
+||| roll -- naming the comparison of that result to a given number
+||| outright -- ignore the rolling of the planar die, and [CR#901.9d]
+||| repeats it; [CR#901.3a] numbers none of that die's six faces. So the
+||| test names no result the roll can produce. `ichorElixirPlanarDice`
+||| is the same narrowing written where no test stands, and
+||| `atomwheelAcrobatsRoll` the same test written over a numbered die.
+public export
+badPlanarResultTest : Unspellable (GameEvent []) (\ok =>
+  RollsDice You ManyDice PlanarDie
+            (ResultIn (Range (Just 4) Nothing) {nz = UnboundedAbove}
+                      {wf = Oh} {lt = Oh})
+            {dw = ok})
+badPlanarResultTest Oh impossible
+
+||| "If you would flip a coin, instead flip two coins and ignore the
+||| lower one."
+||| [CR#706.6] writes the superlative over rolls, whose results are
+||| numbers [CR#706.2], so the ends `RollExtreme` names are the ends of
+||| an order. [CR#705.1] gives a coin two faces and ranks neither, so a
+||| flipped coin has no lowest. `krarksThumbExtraFlip` is the ignore that
+||| IS printed over flips, and `berserkersFrenzyRoll` the superlative
+||| written where results stand.
+public export
+badExtremeOverFlips :
+  Unspellable (Effect ProofsG.afterACoinFlip) (\ok =>
+    IgnoreOutcomes (IgnoreExtreme LowestRoll) {ok})
+badExtremeOverFlips Oh impossible
 
 
 ||| "When a player doesn't pay this creature's flying, …"
