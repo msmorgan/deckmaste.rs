@@ -260,7 +260,7 @@ fn exact_claim_trace(
 }
 
 fn assert_selected(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Ability {
-    assert_selected_with_specificity(parser, context, text, true)
+    assert_selected_with_specificity(parser, context, text, false)
 }
 
 fn assert_selected_with_specificity(
@@ -363,7 +363,7 @@ impl Visitor for Task10Visitor {
 }
 
 fn task10_visits(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Vec<&'static str> {
-    task10_visits_with_specificity(parser, context, text, true)
+    task10_visits_with_specificity(parser, context, text, false)
 }
 
 fn task10_visits_with_specificity(
@@ -606,14 +606,15 @@ fn task10_damage_life_mana_and_continuous_state_use_typed_ordinary_products() {
         ["flexible-mana"],
     );
     assert_eq!(
-        task10_visits(&parser, &context, "This permanent is all colors."),
+        task10_visits_with_specificity(&parser, &context, "This permanent is all colors.", true,),
         ["nominal"],
     );
     assert_eq!(
-        task10_visits(
+        task10_visits_with_specificity(
             &parser,
             &context,
             "This permanent is all colors and this creature becomes tapped.",
+            true,
         ),
         ["clause-coordination", "nominal"],
     );
@@ -1569,7 +1570,19 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
         expected: IntegratedClause,
         expected_claims: &[(&str, &str)],
     ) {
-        let ability = assert_selected_with_specificity(parser, context, text, true);
+        let ability = assert_selected_with_specificity(
+            parser,
+            context,
+            text,
+            match expected {
+                // Each integrated finite-clause family also has a compositional
+                // finite-predicate derivation; the dedicated clause envelope wins.
+                IntegratedClause::Damage(_)
+                | IntegratedClause::Movement
+                | IntegratedClause::Orientation
+                | IntegratedClause::CopularCondition => true,
+            },
+        );
         let Ability::Triggered(triggered) = &ability else {
             panic!("integrated clause witness is triggered: {ability:#?}")
         };
@@ -1721,15 +1734,17 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
         ]
     );
 
-    assert_selected(
+    assert_selected_with_specificity(
         &parser,
         &context,
         "Whenever this creature is dealt damage, it deals that much damage to target opponent or planeswalker.",
+        true,
     );
-    assert_selected(
+    assert_selected_with_specificity(
         &parser,
         &context,
         "At the beginning of each player's end step, if that player didn't cast a spell this turn, this enchantment deals 2 damage to that player.",
+        true,
     );
 
     const MOVEMENT_TEXT: &str =
@@ -2799,6 +2814,12 @@ fn subject_sharing_modal_predicates_keep_their_bare_complement() {
         "You may draw a card and discard a card.",
         true,
     );
+    assert_selected_with_specificity(
+        &parser,
+        &context,
+        "You may draw a card, then discard a card.",
+        true,
+    );
     assert_selected(&parser, &context, "This creature can't be blocked.");
     assert!(
         parser
@@ -2809,6 +2830,15 @@ fn subject_sharing_modal_predicates_keep_their_bare_complement() {
         parser.parse("You may can draw a card.", &context).is_err(),
         "a central auxiliary cannot recursively select another central auxiliary",
     );
+    for text in [
+        "You may can draw a card and discard a card.",
+        "You may can draw a card, then discard a card.",
+    ] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "a coordinated bare complement cannot hide a central auxiliary: {text:?}",
+        );
+    }
 }
 
 #[test]
@@ -4030,6 +4060,18 @@ struct MovementVisitor(Vec<String>);
 
 impl Visitor for MovementVisitor {
     trace_product!(
+        visit_transitive_predicate,
+        TransitivePredicate,
+        walk_transitive_predicate,
+        "TransitivePredicate"
+    );
+    trace_product!(
+        visit_in_bare_locative,
+        InBareLocative,
+        walk_in_bare_locative,
+        "InBareLocative"
+    );
+    trace_product!(
         visit_compared_card_quantity,
         ComparedCardQuantity,
         walk_compared_card_quantity,
@@ -4991,20 +5033,20 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
 fn location_state_and_object_control_frames_select_exact_products() {
     let parser = parser();
     let context = context();
-    for text in [
-        "Search your library for a creature card.",
-        "Look at the top two cards of your library.",
-        "Look at the top two cards of a coin.",
-        "Reveal the top card of your library.",
-        "Reveal the top card of a coin.",
-        "Each player reveals their hand.",
-        "You have two or fewer cards in hand.",
-        "You have three or fewer cards in hand.",
-        "You have 10 or less life.",
-        "You have no maximum hand size.",
-        "Have her deal 2 damage to you.",
+    for (text, permits_specificity) in [
+        ("Search your library for a creature card.", true),
+        ("Look at the top two cards of your library.", false),
+        ("Look at the top two cards of a coin.", false),
+        ("Reveal the top card of your library.", false),
+        ("Reveal the top card of a coin.", false),
+        ("Each player reveals their hand.", false),
+        ("You have two or fewer cards in hand.", true),
+        ("You have three or fewer cards in hand.", true),
+        ("You have 10 or less life.", false),
+        ("You have no maximum hand size.", true),
+        ("Have her deal 2 damage to you.", false),
     ] {
-        assert_selected(&parser, &context, text);
+        assert_selected_with_specificity(&parser, &context, text, permits_specificity);
     }
 }
 
@@ -5213,8 +5255,16 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
 
     macro_rules! assert_family {
         ($text:literal, $specificity:literal, [$($visit:literal),+ $(,)?], [$(($surface:literal, $owner:expr)),+ $(,)?]) => {{
-        let _ = ($specificity, [$($visit),+], [$(($surface, $owner)),+]);
-        assert_selected_with_specificity(&parser, &context, $text, true);
+            let ability = assert_selected_with_specificity(&parser, &context, $text, $specificity);
+            let mut visitor = MovementVisitor::default();
+            visitor.visit_ability(&ability);
+            assert_eq!(visitor.0, [$($visit),+], "{}", $text);
+            assert_eq!(
+                exact_claim_trace(&parser, &context, $text),
+                [$(($surface.to_owned(), $owner.to_owned())),+],
+                "{}",
+                $text,
+            );
         }};
     }
 
@@ -5488,6 +5538,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         "Reveal the top card of your library.",
         false,
         [
+            "product:TransitivePredicate",
             "product:PositionalPartitive",
             "product:SingularPartitiveSelection"
         ],
@@ -5504,7 +5555,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     );
     assert_family!(
         "Search your library for a creature card.",
-        false,
+        true,
         ["product:DeclaredObjectForObjectFrame"],
         [
             ("Search", "lexeme:keyword_action/Search/bare"),
@@ -5523,19 +5574,16 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     assert_family!(
         "You have three or fewer cards in hand.",
         false,
-        ["product:HaveCardsInHand", "product:ComparedCardQuantity"],
+        ["product:TransitivePredicate", "product:InBareLocative"],
         [
             ("You", "vocab:SubjectPronoun/You"),
-            (" have", "lexeme:VerbLexeme/Have/bare"),
+            (" have", "lexeme:CoreTransitiveVerb/Have/bare"),
             (" three", "codec:CardinalNumber"),
             (" or", "form:count_or_fewer/count_or_fewer/0"),
             (" fewer", "form:count_or_fewer/count_or_fewer/1"),
-            (
-                " cards",
-                "form:compared_card_quantity/compared_card_quantity/2"
-            ),
-            (" in", "form:have_cards_in_hand/have_cards_in_hand/2"),
-            (" hand", "form:have_cards_in_hand/have_cards_in_hand/3"),
+            (" cards", "lexeme:CommonNoun/Card/plural"),
+            (" in", "form:in_bare_locative/in_bare_locative/0"),
+            (" hand", "vocab:BareLocativeNoun/Hand"),
             (".", TERMINATOR)
         ]
     );
@@ -5556,26 +5604,14 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     assert_family!(
         "You have no maximum hand size.",
         false,
-        ["product:HaveNoMaximumHandSize"],
+        ["product:TransitivePredicate"],
         [
             ("You", "vocab:SubjectPronoun/You"),
-            (" have", "lexeme:VerbLexeme/Have/bare"),
-            (
-                " no",
-                "form:have_no_maximum_hand_size/have_no_maximum_hand_size/1"
-            ),
-            (
-                " maximum",
-                "form:have_no_maximum_hand_size/have_no_maximum_hand_size/2"
-            ),
-            (
-                " hand",
-                "form:have_no_maximum_hand_size/have_no_maximum_hand_size/3"
-            ),
-            (
-                " size",
-                "form:have_no_maximum_hand_size/have_no_maximum_hand_size/4"
-            ),
+            (" have", "lexeme:CoreTransitiveVerb/Have/bare"),
+            (" no", "form:no_singular_reference/no_singular_reference/0"),
+            (" maximum", "vocab:AttributiveAdjective/Maximum"),
+            (" hand", "lexeme:CommonNoun/Hand/singular"),
+            (" size", "lexeme:CommonNoun/Size/singular"),
             (".", TERMINATOR)
         ]
     );
@@ -5596,7 +5632,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     );
     assert_family!(
         "Put two stun counters on it.",
-        false,
+        true,
         ["product:OnPhraseValue"],
         [
             ("Put", "lexeme:VerbLexeme/Put/bare"),

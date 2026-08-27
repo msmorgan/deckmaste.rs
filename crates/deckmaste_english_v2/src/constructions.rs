@@ -733,10 +733,32 @@ constructions! {
         CostComparison: CostComparisonPredicate,
         ActionRestriction: ActionRestrictionPredicate,
     }
+    abstract sum BareCoordinatedPredicate {
+        Atomic: VerbPhrase,
+        BareCopular: BareCopularPredicate,
+        ChangeState: ChangeStatePredicate,
+        BarePassive: BarePassivePredicate,
+        ForAdjunct: ForAdjunctPredicate,
+        DuringAdjunct: DuringAdjunctPredicate,
+        Cause: ObjectInfinitivePredicate,
+        Requirement: RequirementPredicate,
+        TransitiveRequirement: TransitiveRequirementPredicate,
+        AsThough: AsThoughPredicate,
+        Ordered: OrderedPredicate,
+        Purpose: PurposePredicate,
+        Duration: DurationPredicate,
+        StateDuration: StateDurationPredicate,
+        Instead: InsteadPredicate,
+        Manner: MannerPredicate,
+        RatherThanManaCost: RatherThanManaCostPredicate,
+        WithoutPayingManaCost: WithoutPayingManaCostPredicate,
+        CostComparison: CostComparisonPredicate,
+        ActionRestriction: ActionRestrictionPredicate,
+    }
     abstract sum BarePredicate {
         Atomic: VerbPhrase,
-        Coordination: PredicateCoordination,
-        ThenSequence: ThenPredicateSequence,
+        Coordination: BarePredicateCoordination,
+        ThenSequence: BareThenPredicateSequence,
         BareCopular: BareCopularPredicate,
         ChangeState: ChangeStatePredicate,
         BarePassive: BarePassivePredicate,
@@ -1240,6 +1262,20 @@ constructions! {
         derive agreement = members.agreement;
         form then_predicate_sequence = members;
     }
+    construction bare_then_predicate_sequence: BareThenPredicateSequence {
+        element BareThenPredicateSequenceValue {
+            members: seq BareCoordinatedPredicate separated by position {
+                pair = ", then ";
+                first = ", ";
+                middle = ", ";
+                last = ", then ";
+            },
+        }
+        require len(members) >= 2;
+        derive members.agreement = Values::Bare;
+        derive agreement = members.agreement;
+        form bare_then_predicate_sequence = members;
+    }
     construction additional_cost: ClauseAttachment {
         element AdditionalCost {
             action: InfinitiveComplement,
@@ -1298,6 +1334,45 @@ constructions! {
         require len(members) >= 2;
         derive agreement = members.agreement;
         form and_or_predicate_coordination = members;
+    }
+    construction bare_and_predicate_coordination: BarePredicateCoordination {
+        element BareAndPredicateCoordination {
+            members: seq BareCoordinatedPredicate separated by position {
+                pair = " and ";
+                first = ", ";
+                middle = ", ";
+                last = ", and ";
+            },
+        }
+        require len(members) >= 2;
+        derive agreement = members.agreement;
+        form bare_and_predicate_coordination = members;
+    }
+    construction bare_or_predicate_coordination: BarePredicateCoordination {
+        element BareOrPredicateCoordination {
+            members: seq BareCoordinatedPredicate separated by position {
+                pair = " or ";
+                first = ", ";
+                middle = ", ";
+                last = ", or ";
+            },
+        }
+        require len(members) >= 2;
+        derive agreement = members.agreement;
+        form bare_or_predicate_coordination = members;
+    }
+    construction bare_and_or_predicate_coordination: BarePredicateCoordination {
+        element BareAndOrPredicateCoordination {
+            members: seq BareCoordinatedPredicate separated by position {
+                pair = " and/or ";
+                first = ", ";
+                middle = ", ";
+                last = ", and/or ";
+            },
+        }
+        require len(members) >= 2;
+        derive agreement = members.agreement;
+        form bare_and_or_predicate_coordination = members;
     }
     construction predicative_adjective: PredicativeAdjectiveComplement {
         element PredicativeAdjectiveValue { adjective: lex PredicativeAdjective, }
