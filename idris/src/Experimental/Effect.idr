@@ -2049,8 +2049,18 @@ mutual
   effIntro (Does s v e) = effIntro e
   effIntro (Pay who c) = costIntro c
   effIntro (May d body did notd) = mayIntro body did notd
-  -- a conditioned clause exports nothing: the condition may have failed.
-  effIntro (OnlyIf e c oth) = bs
+  -- a conditioned clause exports what it ANNOUNCED and no more: the
+  -- condition may have failed, so nothing the clause would have DONE
+  -- stands after it -- but [CR#601.2c] chose its targets as the spell was
+  -- cast, and a target is chosen whether or not the condition holds. So
+  -- "…gets +2/+2 until end of turn if its power is 2. Then IT fights…"
+  -- (Savage Swipe, 5 supported lines) reads the target back. The
+  -- otherwise arm changes nothing here: both arms are typed over
+  -- `annIntro e`, so the announcement is what either of them leaves.
+  effIntro (OnlyIf e c oth) = annIntro e
+  -- the LEADING conditional exports nothing even so: its consequent is
+  -- typed over the condition's own delta, and a condition that failed
+  -- announced nothing for the text after it to read.
   effIntro (If c e oth) = bs
   effIntro (Unless e who c) = bs
   effIntro (Define l amt) = defineLetter l (amtIntro amt)
@@ -2304,6 +2314,21 @@ mutual
   ||| "deals double THAT damage instead" — so the replaced deed's own
   ||| outcome is in scope here. A simultaneous list keeps its own telescope
   ||| [CR#608.2f] and is untouched.
+  ||| It admits the whole deed delta where `otherwiseCtx` filters the same
+  ||| shape down to outcomes, and the asymmetry is deliberate. What the
+  ||| replaced clause left is a DEFINITION of characteristics [CR#111.3],
+  ||| which every printed line of this family reads back — "instead create
+  ||| those tokens plus an additional Food token", "creates twice that
+  ||| many of those tokens instead", 14 supported lines, all of them a
+  ||| definition or a magnitude and none of them the objects. An
+  ||| "otherwise" arm has no such definition to read: its branch was not
+  ||| taken and described nothing.
+  ||| The object read rides the SAME binding as the definition read —
+  ||| `Them` and `TokenAsThose` both find it — so no determiner-aware
+  ||| filter separates them: the discriminator is which reader asks, not
+  ||| what the binding records. The object read is therefore an
+  ||| overgeneration RECORDED at its measured count of zero printed lines
+  ||| rather than pinned, per the round that settled what a pin refuses.
   public export
   replacedCtx : {bs : Bindings} -> Effect bs -> Bindings
   replacedCtx (Sequentially es) = annSeqs es

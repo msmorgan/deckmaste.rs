@@ -6500,12 +6500,19 @@ sarkhansUnsealingLine =
                                    Compare Power Eq (Lit 6)]])))
     (DealDamage Macros.thisEnchantment (Lit 4) (Macros.target Macros.anyTarget))
 
+||| Savage Swipe, both sentences -- "Target creature you control gets
+||| +2/+2 until end of turn if its power is 2. Then it fights target
+||| creature you don't control." The conditioned clause announces its own
+||| target [CR#601.2c] whether or not the condition holds, so the second
+||| sentence names it. Five supported lines write this shape.
 public export
 savageSwipeLine : Effect []
 savageSwipeLine =
-  OnlyIf (Macros.gets (Macros.target Macros.creatureYouControl) (PtUp (Lit 2))
-                      (PtUp (Lit 2)) (Just Macros.untilEndOfTurn))
-         (CompareAmt (Macros.powerOf It) Eq (Lit 2)) Nothing
+  Sequentially
+    [ OnlyIf (Macros.gets (Macros.target Macros.creatureYouControl) (PtUp (Lit 2))
+                          (PtUp (Lit 2)) (Just Macros.untilEndOfTurn))
+             (CompareAmt (Macros.powerOf It) Eq (Lit 2)) Nothing
+    , Fights It (Macros.target Macros.creatureYouDontControl) ]
 
 public export
 drudgeSkeletons : Card
@@ -10577,6 +10584,51 @@ sequencedRiderOneDestroyed = Refl
 public export
 sequencedRiderOneExiled : countVerbedIt "Exile" Cards.sequencedRider = 1
 sequencedRiderOneExiled = Refl
+
+||| Bonds of Faith's pump line -- "Enchanted creature gets +2/+2 as long
+||| as it's a Human." The POSTPOSED static conditional reading its own
+||| statement's subject: `staticIntro` announces the attachment's host, so
+||| the trailing condition says "it". The card's second sentence
+||| ("Otherwise, it can't attack or block.") is a second statement and is
+||| not this row's.
+public export
+bondsOfFaithPump : Ability
+bondsOfFaithPump =
+  Static (Macros.onlyWhile
+            (Gets (AttachHost Enchanted (TypeW Creature)) (PtUp (Lit 2)) (PtUp (Lit 2)))
+            (Matches It (HasSubtype (creatureType "Human"))))
+
+||| "Discard up to two cards, then draw that many cards" -- 21 supported
+||| occurrences, the commonest shape of the announced-magnitude family.
+||| The iterated-singular discard exports its passes' batch, and the draw
+||| reads that batch's size; the ceiling stays on the `UpTo` amount, where
+||| a bare-number ceiling belongs.
+public export
+discardUpToTwoThenDrawThatMany : Effect []
+discardUpToTwoThenDrawThatMany =
+  Sequentially [ Macros.discardN (UpTo (Lit 2))
+               , Draw You GroupSize ]
+
+||| Soul of Emancipation, whole -- "When this creature enters, destroy up
+||| to three other target nonland permanents. For each of those
+||| permanents, its controller creates a 3/3 white Angel creature token
+||| with flying." The loop MEMBER carries the group's stamp, so the body
+||| names it by the label that destroyed it; the trigger's own subject is
+||| announced under `SelfD` and is no candidate for that read.
+public export
+soulOfEmancipation : Ability
+soulOfEmancipation =
+  Macros.triggered When (Enters Macros.thisCreature Nothing)
+    (Sequentially
+       [ Macros.destroy (TargetGroup (Macros.upTo 3)
+                           (And [Permanent, Not Macros.land, OtherThan This]))
+       , ForEachOf (Macros.thoseVerbedThisWay "Destroy" PermanentW)
+                   (Create (ControllerOf (ItVerbed "Destroy")) (Lit 1)
+                           (TokenWritten
+                              (MkToken (Just (Lit 3 ** Lit 3)) [White]
+                                       (MkTypeLine [creatureType "Angel"] [Creature])
+                                       [Macros.keyword "Flying"] Nothing))
+                           []) ])
 
 ||| Engulfing Flames' rider reads here -- "Engulfing Flames deals 1
 ||| damage to target creature. It can't be regenerated this turn."
