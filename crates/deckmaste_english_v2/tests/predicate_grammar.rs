@@ -13,6 +13,10 @@ use macro_ron::v2::DeclarationIdentity;
 use macro_ron::v2::Onset;
 use macro_ron::v2::read_str;
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the shared predicate fixture lists the declaration environment explicitly"
+)]
 fn environment() -> ParserEnvironment {
     let declarations = [
         (

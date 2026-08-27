@@ -545,6 +545,10 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
     }).collect()
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "declaration-verb scanning exhaustively emits both feature-axis branches"
+)]
 fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
     plan.runtime_declaration_verbs()
         .map(|(terminal_index, codec)| {

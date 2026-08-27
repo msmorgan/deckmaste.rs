@@ -127,7 +127,7 @@ pub fn exception_decision_for_test() -> SelectionDecision {
     let (_, decision) = selection_analysis_with_exceptions(
         candidates,
         |candidate| std::slice::from_ref(&candidate.construction),
-        |candidate| structural_specificity(&candidate.positions, |_| false),
+        |candidate| structural_specificity(&candidate.positions, |()| false),
         |construction| name(construction).to_owned(),
         name,
         &exceptions,

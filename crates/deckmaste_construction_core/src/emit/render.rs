@@ -3705,6 +3705,10 @@ fn bound_prefix_onset(
     }))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "lexical onset rendering exhaustively dispatches every sealed lexical family"
+)]
 fn lexical_onset_expr(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,

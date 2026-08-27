@@ -4071,6 +4071,10 @@ fn bare_target_determiner_is_singular_and_plural_targets_require_a_quantifier() 
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table keeps the quantified other-target AST and visitor cases comparable"
+)]
 fn other_target_plurals_require_explicit_quantification_with_exact_semantics() {
     let parser = parser();
     let context = context("Context Card");
