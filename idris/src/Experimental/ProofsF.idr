@@ -162,7 +162,7 @@ badStaticPlayerCantTargets Oh impossible
 
 
 ||| "Target creature becomes the basic land type of your choice until end of turn."
-||| [CR#205.3c] gives each card type its own subtypes, and the subject's projected head is no land.
+||| [CR#205.3d] refuses a subtype that corresponds to none of the object's types, and the subject's projected head is no land.
 public export
 badChosenBasicTypeOnCreature : Unspellable (Effect []) (\ok =>
   Continuously (SetsChosenQuality (Macros.target Macros.creature)

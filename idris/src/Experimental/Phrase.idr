@@ -914,8 +914,8 @@ mutual
   QualityRead {bs} p = So (qualityReadOk p)
 
   ||| The card type a chosen-quality read's sort belongs to, where its
-  ||| sort has one. [CR#205.3c] gives each card type its own set of
-  ||| subtypes, so a read at `SubtypeQ h` names a value only an `h` can
+  ||| sort has one. [CR#205.3c] correlates each subtype to its own card
+  ||| type, so a read at `SubtypeQ h` names a value only an `h` can
   ||| carry; the other sorts name characteristics every object has
   ||| [CR#109.3] and answer `Nothing`.
   public export
@@ -2978,11 +2978,12 @@ mutual
 
 
   ||| A chosen-quality ascription's subject has to be able to CARRY the
-  ||| value read: [CR#205.3c]'s per-type subtype sets make "becomes the
-  ||| basic land type of your choice" nonsense of a creature, exactly as
-  ||| the bespoke land-typed row it replaces said, and the same law now
-  ||| covers the creature-type and land-type rows alike. Sorts with no
-  ||| host demand nothing of the subject.
+  ||| value read: [CR#205.3d] forbids an object to gain a subtype that
+  ||| does not correspond to one of its types, which makes "becomes the
+  ||| basic land type of your choice" nonsense of a creature -- exactly
+  ||| what the bespoke land-typed row it replaces said, now stated once
+  ||| for the creature-type and land-type rows alike. Sorts with no host
+  ||| demand nothing of the subject.
   public export
   hostedRead : {bs : Bindings} -> {k : Kind} ->
                Predicate bs Object -> Noun bs k -> Bool
