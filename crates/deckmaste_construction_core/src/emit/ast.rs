@@ -920,7 +920,7 @@ fn resolve_constructor_feature(
             && plan.terminal_has_feature(stored.terminal(), *feature)
         {
             let function = emitted_ident(
-                &format!("{}_{}", feature.key(), crate::identifier::snake_case(stored.terminal())),
+                &feature_helper(feature.key(), stored.terminal()),
                 proc_macro2::Span::call_site(),
             );
             let field = field_local(locals, stored)?;

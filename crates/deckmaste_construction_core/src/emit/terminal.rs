@@ -2,6 +2,7 @@ use proc_macro2::Span;
 use quote::quote;
 
 use crate::identifier::emitted_ident;
+use crate::identifier::feature_helper;
 use crate::identifier::key as identifier_key;
 use crate::identifier::lexeme_surface_helper;
 use crate::identifier::snake_case;
@@ -596,7 +597,7 @@ fn emit_vocab_modifier_license_helper(
     vocab: &crate::semantic::VocabPlan,
     origin: DeclarationKey,
 ) -> syn::Result<GeneratedItem> {
-    let function_name = format!("modifier_license_{}", snake_case(vocab.name()));
+    let function_name = feature_helper("modifier_license", vocab.name());
     let function = emitted_ident(&function_name, vocab.name_ident().span());
     let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
     let members = vocab
@@ -689,7 +690,7 @@ fn emit_lexeme_compoundability_helper(
     lexeme: &crate::semantic::LexemePlan,
     origin: DeclarationKey,
 ) -> syn::Result<GeneratedItem> {
-    let function_name = format!("compoundability_{}", snake_case(lexeme.name()));
+    let function_name = feature_helper("compoundability", lexeme.name());
     let function = emitted_ident(&function_name, lexeme.name_ident().span());
     let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
     let members = lexeme
@@ -719,7 +720,7 @@ fn emit_lexeme_modifier_license_helper(
     lexeme: &crate::semantic::LexemePlan,
     origin: DeclarationKey,
 ) -> syn::Result<GeneratedItem> {
-    let function_name = format!("modifier_license_{}", snake_case(lexeme.name()));
+    let function_name = feature_helper("modifier_license", lexeme.name());
     let function = emitted_ident(&function_name, lexeme.name_ident().span());
     let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
     let members = lexeme

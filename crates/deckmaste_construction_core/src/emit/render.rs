@@ -479,6 +479,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     for feature in [
         Feature::Agreement,
         Feature::Cardinality,
+        Feature::ModifierLicense,
         Feature::NominalForm,
         Feature::Number,
         Feature::Onset,
@@ -489,6 +490,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                 feature,
                 Feature::DeterminerNumber
                     | Feature::FusedHeadLicense
+                    | Feature::ModifierLicense
                     | Feature::NominalForm
                     | Feature::NominalLicense
             ) && validated.carries_feature(category, feature);
@@ -518,7 +520,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     {
         items.push(emit_sum_agreement_match_helper(validated, sum)?);
     }
-    for feature in [Feature::NominalForm] {
+    for feature in [Feature::ModifierLicense, Feature::NominalForm] {
         for sum in validated
             .sums()
             .iter()
@@ -1962,6 +1964,13 @@ fn reserve_feature_callees(
     if matches!(*source_feature, Feature::Onset | Feature::PossessiveEnding)
         && field.kind() != ConstructionFieldKind::Category
     {
+        return Ok(());
+    }
+    if *source_feature == Feature::ModifierLicense
+        && field.kind() == ConstructionFieldKind::Lex
+        && validated.terminal_has_feature(field.terminal(), *source_feature)
+    {
+        allocator.reserve(feature_helper(feature_name(*source_feature), field.terminal()));
         return Ok(());
     }
     if matches!(*source_feature, Feature::Cardinality | Feature::Number)
@@ -3726,6 +3735,14 @@ fn feature_expr(
                     role_value,
                     locals,
                 );
+            }
+            if *source_feature == Feature::ModifierLicense
+                && field.kind() == ConstructionFieldKind::Lex
+                && validated.terminal_has_feature(field.terminal(), *source_feature)
+            {
+                let function = ident(&feature_helper(feature_name(*source_feature), field.terminal()));
+                let value = copy_value(construction, &role_key, role_value)?;
+                return Ok(quote! { #function(#value) });
             }
             let (source, value) = match field.kind() {
                 ConstructionFieldKind::Category => (field.terminal().to_owned(), role_value),

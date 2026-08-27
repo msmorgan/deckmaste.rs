@@ -3456,6 +3456,7 @@ fn seal_category_feature_reads(
             let reads = [
                 Feature::Agreement,
                 Feature::Cardinality,
+                Feature::ModifierLicense,
                 Feature::DeterminerNumber,
                 Feature::FusedHeadLicense,
                 Feature::NominalForm,
@@ -4482,6 +4483,7 @@ fn generated_name_inventory(
                     );
                     for (feature, spelling, display) in [
                         (Feature::Agreement, "agreement", "Agreement"),
+                        (Feature::ModifierLicense, "modifier_license", "ModifierLicense"),
                         (
                             Feature::DeterminerNumber,
                             "determiner_number",
@@ -9097,6 +9099,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             let sum_name = identifier_key(&sum.name);
             for feature in [
                 ParsedFeature::Agreement,
+                ParsedFeature::ModifierLicense,
                 ParsedFeature::DeterminerNumber,
                 ParsedFeature::FusedHeadLicense,
                 ParsedFeature::NominalForm,
@@ -9809,6 +9812,7 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
         for feature in [
             ParsedFeature::Agreement,
             ParsedFeature::Cardinality,
+            ParsedFeature::ModifierLicense,
             ParsedFeature::Number,
             ParsedFeature::Onset,
             ParsedFeature::PossessiveEnding,
@@ -13112,7 +13116,7 @@ pub(crate) mod tests {
             "{emitted}"
         );
         assert!(
-            emitted.contains("fn modifier_license_modifiers"),
+            emitted.contains("fn modifier_license_for_modifiers"),
             "{emitted}"
         );
         assert!(
@@ -13124,7 +13128,7 @@ pub(crate) mod tests {
             "{emitted}"
         );
         assert!(
-            emitted.contains("matches ! (modifier_license_modifiers (modifier) , ModifierLicense :: LocalDeterminer)"),
+            emitted.contains("matches ! (modifier_license_for_modifiers (modifier) , ModifierLicense :: LocalDeterminer)"),
             "{emitted}"
         );
         assert!(emitted.contains("Lexical :: Modifiers"), "{emitted}");

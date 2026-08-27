@@ -321,7 +321,7 @@ fn emit_arm_from_plan(
                         let value = lowering.field_values.get(guard_role).ok_or_else(|| {
                             internal("form guard feature role has no lowered build value")
                         })?;
-                        let helper = ident(&format!("{}_{}", feature.key(), snake_case(field.terminal())));
+                        let helper = ident(&feature_helper(feature.key(), field.terminal()));
                         ResolvedFeatureValue::Computed(quote! { #helper(#value) })
                     }
                 };
