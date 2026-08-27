@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::DeterminativeFusedHeadLicense;
 use macro_ron::v2::DeterminativeNominalLicense;
 use macro_ron::v2::DeterminativeNumberLicense;
 use macro_ron::v2::DeterminativePhraseNumber;
@@ -131,6 +132,10 @@ fn attachment_keywords_declare_their_participial_determinative_rows() {
         assert_eq!(
             determinative.nominal_license(),
             DeterminativeNominalLicense::BareSingularNoun
+        );
+        assert_eq!(
+            determinative.fused_head_license(),
+            DeterminativeFusedHeadLicense::NominalOnly
         );
         let [realization] = determinative.realizations() else {
             panic!("{name} contributes one participial realization")

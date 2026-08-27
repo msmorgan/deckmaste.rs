@@ -828,6 +828,7 @@ KeywordAbility(
         determinative: (
             number_license: SingularOnly,
             nominal_license: BareSingularNoun,
+            fused_head_license: NominalOnly,
             realizations: [(surface: "equipped", phrase_number: Singular)],
         ),
     ),
@@ -850,6 +851,10 @@ KeywordAbility(
         determinative.nominal_license(),
         DeterminativeNominalLicense::BareSingularNoun
     );
+    assert_eq!(
+        determinative.fused_head_license(),
+        DeterminativeFusedHeadLicense::NominalOnly
+    );
     let [realization] = determinative.realizations() else {
         panic!("one participial realization is retained")
     };
@@ -860,6 +865,27 @@ KeywordAbility(
     );
     assert_eq!(realization.following_onset(), None);
     assert_eq!(realization.onset(), Onset::Vowel);
+}
+
+#[test]
+fn determinative_fused_head_license_is_required() {
+    let error = parse_error(
+        r#"
+KeywordAbility(
+    name: "Equip",
+    spelling: "equip",
+    grammar: FixedKeyword(
+        surface: "equip",
+        determinative: (
+            number_license: SingularOnly,
+            nominal_license: BareSingularNoun,
+            realizations: [(surface: "equipped", phrase_number: Singular)],
+        ),
+    ),
+)
+"#,
+    );
+    assert!(error.to_string().contains("fused_head_license"));
 }
 
 #[test]
@@ -874,6 +900,7 @@ KeywordAbility(
         determinative: (
             number_license: SingularOnly,
             nominal_license: BareSingularNoun,
+            fused_head_license: NominalOnly,
             realizations: [],
         ),
     ),
@@ -892,6 +919,7 @@ KeywordAbility(
         determinative: (
             number_license: SingularOnly,
             nominal_license: BareSingularNoun,
+            fused_head_license: NominalOnly,
             realizations: [(surface: "equipped", phrase_number: Plural)],
         ),
     ),
@@ -913,6 +941,7 @@ KeywordAbility(
         determinative: (
             number_license: SingularOnly,
             nominal_license: CountNominal,
+            fused_head_license: FusedHead,
             realizations: [
                 (surface: "a", phrase_number: Singular),
                 (surface: "an", following_onset: Vowel),

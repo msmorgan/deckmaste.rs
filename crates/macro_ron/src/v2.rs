@@ -276,6 +276,13 @@ pub enum DeterminativeNominalLicense {
     BareSingularNoun,
 }
 
+/// Whether a Determinative lemma may serve as a fused partitive head.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum DeterminativeFusedHeadLicense {
+    NominalOnly,
+    FusedHead,
+}
+
 /// The phrase-number condition of one Determinative surface realization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum DeterminativePhraseNumber {
@@ -306,6 +313,7 @@ pub struct DeterminativeRealization {
 pub struct DeterminativeGrammar {
     pub number_license: DeterminativeNumberLicense,
     pub nominal_license: DeterminativeNominalLicense,
+    pub fused_head_license: DeterminativeFusedHeadLicense,
     pub realizations: Vec<DeterminativeRealization>,
 }
 
@@ -516,6 +524,7 @@ impl GrammarRow {
 pub struct DeterminativeRow {
     number_license: DeterminativeNumberLicense,
     nominal_license: DeterminativeNominalLicense,
+    fused_head_license: DeterminativeFusedHeadLicense,
     realizations: Vec<RealizedDeterminativeSurface>,
 }
 
@@ -528,6 +537,11 @@ impl DeterminativeRow {
     #[must_use]
     pub fn nominal_license(&self) -> DeterminativeNominalLicense {
         self.nominal_license
+    }
+
+    #[must_use]
+    pub fn fused_head_license(&self) -> DeterminativeFusedHeadLicense {
+        self.fused_head_license
     }
 
     #[must_use]
@@ -1592,6 +1606,7 @@ fn normalize_determinative(
     Ok(DeterminativeRow {
         number_license: grammar.number_license,
         nominal_license: grammar.nominal_license,
+        fused_head_license: grammar.fused_head_license,
         realizations,
     })
 }

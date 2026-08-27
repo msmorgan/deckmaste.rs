@@ -6,6 +6,7 @@ KeywordAbility(
         determinative: (
             number_license: SingularOnly,
             nominal_license: BareSingularNoun,
+            fused_head_license: NominalOnly,
             realizations: [
                 (surface: "equipped", phrase_number: Singular),
             ],
