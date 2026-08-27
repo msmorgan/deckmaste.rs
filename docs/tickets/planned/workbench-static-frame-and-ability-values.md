@@ -255,3 +255,5 @@ vocabulary; the marker word and its gate),
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-anaphora-e-partitive-surfaces (close, 2026-08-27):** the "play with [slice] revealed" STATIC has no row ([CR#401.5,401.6] — the rules define the revealed-top state; Field of Dreams, Lantern of Insight, Wizened Snitches spell their slices and wait on it). A static row, so it lands here.

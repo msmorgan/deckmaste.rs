@@ -407,3 +407,5 @@ Rust crate.
 Standard constraints apply.
 
 - **Routed from workbench-amount-ceiling-read (close, 2026-08-26):** ceilinged PERMISSIONS — "play up to N additional lands" (3 printed carriers) and "can block up to N additional creatures" (1): `MayPlayAdditionalLands`'s literal-bound gate carries the core's own "widening waits on a printed line" note, and the printed lines are now measured. Permission seats, so they land here.
+
+- **Routed from workbench-anaphora-e-partitive-surfaces (close, 2026-08-27):** the play-permission "from among" SOURCE — 97 occurrences name a MENTION as what may be played ("play cards from among them"), and `MayPlay`'s `from` is a `ZoneExpr`. A play-permission seat, so it lands here.

@@ -36,3 +36,5 @@ if an operation word is needed, `Macros.idr`, `Cards.idr` bench,
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-anaphora-e-partitive-surfaces (close, 2026-08-27):** the COUNTER partitive over a described group — Tayam's distributive removal family (19 distinct lines): the slice is counters and the domain a description, so neither `SomeOf` (objects, mention) nor `Distribute` (no removal arm) reaches it. Counter-distribution machinery, so it lands here.
