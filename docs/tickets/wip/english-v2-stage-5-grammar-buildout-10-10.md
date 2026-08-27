@@ -110,25 +110,33 @@ fa20273378461de2d49e9a952d570113a60af0d154d97c2a12eea3ec92b24d96
 fb2d9e9884c1ad7a8fc0d451008882cf00b28886a06addaf972435002bbaa7c5
 ~~~
 
-**Verb gating and lexicalised verb frames — one work item, not two.** All 17
-verb codecs are gated kinds = [KeywordAction], so a verb reaches the productive
-declared-valence machinery if and only if the Comprehensive Rules define it as
-a keyword action. Every ordinary English verb is therefore a hardcoded lexeme
-needing a hand-written construction per frame, which is what produced the ~35
-lexicalised one-verb VerbPhrase constructions. Dissolve the gate so ordinary
-declared verbs enter the machinery, and dissolve all ~35 constructions into the
-shared declared-valence frames in the same move. The damage/resource/card/
+**Verb inventory and lexicalised verb frames — one work item, not two.** English
+v2 owns one normalized verb inventory. Core ordinary verbs seed it through
+core-owned code rows carrying valences and frames; KeywordAction grammar fields
+contribute the remaining rows. Every normalized row carries provenance as
+diagnostic data, but frame construction, scanner, renderer, and visitor code
+consume only the inventory reference and normalized valence shape. Provenance
+must never influence grammar shape, and no codec may read a core verb lexeme
+directly. This adds neither `DeclarationKind::Verb` nor a macro-RON schema:
+ordinary verbs remain the closed core set and only keyword actions arrive from
+plugin declarations. Core rows may reference the full existing compiler-side
+role vocabulary, while the plugin-facing custom tail-atom inventory remains its
+reviewed small closed set.
+
+Dissolve all ~35 lexicalised one-verb VerbPhrase constructions into
+provenance-blind inventory frames in the same move as the inventory boundary.
+The damage/resource/card/
 counter frames and the remaining movement, possession, and zone frames include
 put_into, put_onto, put_on, put_to,
 return_to, enter_location, enter_control, enter_resultative,
 enter_with_counters, leave_location, look_at, ordered_predicate,
 have_object_control, have_life, have_base_power_toughness,
-get_power_toughness, quoted_ability_predicate. Doing either half alone is a
-STOP: declaring Put with ObjectIntoObject valence while put_into still exists
-makes both match "put it into your graveyard" and the selection gate reports a
-genuine tie. Acceptance: no VerbPhrase construction is closed over a single
-verb lexeme, and the linguistic frames (V NP, V NP PP, V NP PP PP, V NP
-XP-resultative, V NP NP) are each one construction.
+get_power_toughness, quoted_ability_predicate. An old lexicalised construction
+and its inventory replacement may coexist only while being removed in the same
+commit; any other tie is a STOP. Acceptance: no VerbPhrase construction is
+closed over a single verb lexeme, and the linguistic frames (V NP, V NP PP, V
+NP PP PP, V NP XP-resultative, V NP NP) are each one construction shared by
+core and KeywordAction inventory rows.
 
 **Missing declaration-kind consumers.** KeywordAbility, CounterKind and
 Designation are real DeclarationKind variants with zero construction
