@@ -621,6 +621,7 @@ constructions! {
                 IndefiniteArticle {
                     number_license = SingularOnly;
                     nominal_license = CountNominal;
+                    fused_head_license = NominalOnly;
                     realizations = [
                         { surface = "a"; phrase_number = Singular; following_onset = Consonant; },
                         { surface = "an"; phrase_number = Singular; following_onset = Vowel; },
@@ -629,16 +630,19 @@ constructions! {
                 DefiniteArticle {
                     number_license = Both;
                     nominal_license = CountNominal;
+                    fused_head_license = NominalOnly;
                     realizations = [{ surface = "the"; }];
                 },
                 ProximalDemonstrative {
                     number_license = SingularOnly;
                     nominal_license = CountNominal;
+                    fused_head_license = FusedHead;
                     realizations = [{ surface = "this"; phrase_number = Singular; }];
                 },
                 DistalDemonstrative {
                     number_license = Both;
                     nominal_license = CountNominal;
+                    fused_head_license = FusedHead;
                     realizations = [
                         { surface = "that"; phrase_number = Singular; },
                         { surface = "those"; phrase_number = Plural; },
@@ -647,36 +651,43 @@ constructions! {
                 Another {
                     number_license = SingularOnly;
                     nominal_license = CountNominal;
+                    fused_head_license = FusedHead;
                     realizations = [{ surface = "another"; }];
                 },
                 Each {
                     number_license = SingularOnly;
                     nominal_license = CountNominal;
+                    fused_head_license = FusedHead;
                     realizations = [{ surface = "each"; }];
                 },
                 All {
                     number_license = PluralOnly;
                     nominal_license = CountNominal;
+                    fused_head_license = FusedHead;
                     realizations = [{ surface = "all"; }];
                 },
                 Both {
                     number_license = PluralOnly;
                     nominal_license = CountNominal;
+                    fused_head_license = FusedHead;
                     realizations = [{ surface = "both"; }];
                 },
                 No {
                     number_license = Both;
                     nominal_license = CountNominal;
+                    fused_head_license = NominalOnly;
                     realizations = [{ surface = "no"; }];
                 },
                 Any {
                     number_license = Both;
                     nominal_license = CountNominal;
+                    fused_head_license = FusedHead;
                     realizations = [{ surface = "any"; }];
                 },
                 Target {
                     number_license = SingularOnly;
                     nominal_license = BareSingularNoun;
+                    fused_head_license = NominalOnly;
                     realizations = [{ surface = "target"; }];
                 },
             ];
@@ -2095,7 +2106,13 @@ constructions! {
             Them => Values::Bare,
             You => Values::Bare,
         };
-        derive number = Values::Singular;
+        derive number = match word {
+            Her => Values::Singular,
+            Him => Values::Singular,
+            It => Values::Singular,
+            Them => Values::Plural,
+            You => Values::Singular,
+        };
         derive onset = word.onset;
         form object_pronoun = lex(word);
     }
@@ -2894,20 +2911,30 @@ constructions! {
         form unmarked_plural_coordination_selector = coordination;
     }
     construction singular_simple_determinative: Determinative {
-        element SingularSimpleDeterminative { head: lex DeterminativeHead, }
+        element SingularSimpleDeterminative {
+            head: lex DeterminativeHead checked by determinative_licenses_singular(
+                head.determiner_number
+            ),
+        }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive determiner_number = head.determiner_number;
         derive nominal_license = head.nominal_license;
+        derive fused_head_license = head.fused_head_license;
         derive onset = head.onset;
         form singular_simple_determinative = lex(head);
     }
     construction plural_simple_determinative: Determinative {
-        element PluralSimpleDeterminative { head: lex DeterminativeHead, }
+        element PluralSimpleDeterminative {
+            head: lex DeterminativeHead checked by determinative_licenses_plural(
+                head.determiner_number
+            ),
+        }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive determiner_number = head.determiner_number;
         derive nominal_license = head.nominal_license;
+        derive fused_head_license = head.fused_head_license;
         derive onset = head.onset;
         form plural_simple_determinative = lex(head);
     }
@@ -2918,6 +2945,7 @@ constructions! {
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::FusedHead;
         derive onset = Values::Consonant;
         form one_quantifying_determiner = count;
     }
@@ -2928,6 +2956,7 @@ constructions! {
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::FusedHead;
         derive onset = Values::Consonant;
         form plural_cardinal_quantifying_determiner = count;
     }
@@ -2937,6 +2966,7 @@ constructions! {
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::FusedHead;
         derive onset = Values::Consonant;
         form variable_quantifying_determiner = lex(count);
     }
@@ -2947,6 +2977,7 @@ constructions! {
         derive number = Values::Singular;
         derive determiner_number = Values::SingularOnly;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::FusedHead;
         derive onset = Values::Vowel;
         form up_to_one_quantifying_determiner = "up" "to" count;
     }
@@ -2957,6 +2988,7 @@ constructions! {
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::FusedHead;
         derive onset = Values::Vowel;
         form up_to_many_quantifying_determiner = "up" "to" count;
     }
@@ -2966,6 +2998,7 @@ constructions! {
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Vowel;
         form any_number_quantifying_determiner = "any" "number" "of";
     }
@@ -2975,6 +3008,7 @@ constructions! {
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::FusedHead;
         derive onset = Values::Consonant;
         form one_or_more_quantifying_determiner = "one" "or" "more";
     }
@@ -2984,6 +3018,7 @@ constructions! {
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::FusedHead;
         derive onset = Values::Consonant;
         form no_more_quantifying_determiner = "no" "more";
     }
@@ -2993,6 +3028,7 @@ constructions! {
         derive number = count.number;
         derive determiner_number = Values::Both;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::FusedHead;
         derive onset = count.onset;
         form counted_quantifying_determiner = count;
     }
@@ -3006,6 +3042,7 @@ constructions! {
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
+        derive fused_head_license = Values::FusedHead;
         derive onset = Values::Consonant;
         form count_comparison_quantifying_determiner = count comparison;
     }
@@ -3039,16 +3076,6 @@ constructions! {
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form definite_next_mass_quantity_reference = "the" "next" quantity lex(noun);
-    }
-    construction each_of_variable_reference: UnqualifiedReference {
-        element EachOfVariableReference {
-            count: lex Variable,
-            selector: PluralSelector,
-        }
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = Values::Vowel;
-        form each_of_variable_reference = "each" "of" lex(count) selector;
     }
     construction that_many: CountReference {
         element ThatMany {}
@@ -3648,6 +3675,30 @@ constructions! {
         derive onset = Values::Consonant;
         form comparative_quantified_reference = lex(quantifier) nominal "than" standard;
     }
+    construction fused_determinative_reference: NounPhrase {
+        element FusedDeterminativeReference {
+            head: Determinative checked by determinative_is_fused(head.fused_head_license),
+        }
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = head.onset;
+        form fused_determinative_reference = head;
+    }
+    construction determinative_partitive: NounPhrase {
+        element DeterminativePartitive {
+            head: Determinative checked by determinative_licenses_partitive_head(
+                head.fused_head_license,
+                head.determiner_number,
+                head.number,
+                whole.number
+            ),
+            whole: Object,
+        }
+        derive agreement = head.agreement;
+        derive number = head.number;
+        derive onset = head.onset;
+        form determinative_partitive = head "of" whole;
+    }
     construction positional_partitive: NounPhrase {
         element PositionalPartitive {
             position: lex EdgePosition,
@@ -3658,28 +3709,6 @@ constructions! {
         derive number = selection.number;
         derive onset = Values::Consonant;
         form positional_partitive = "the" lex(position) selection "of" whole;
-    }
-    construction singular_cardinal_partitive: NounPhrase {
-        element SingularCardinalPartitive {
-            count: CardinalQuantity,
-            whole: Object,
-        }
-        require count.cardinality is One;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = Values::Consonant;
-        form singular_cardinal_partitive = count "of" whole;
-    }
-    construction plural_cardinal_partitive: NounPhrase {
-        element PluralCardinalPartitive {
-            count: CardinalQuantity,
-            whole: Object,
-        }
-        require count.cardinality is TwoPlus;
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive onset = Values::Consonant;
-        form plural_cardinal_partitive = count "of" whole;
     }
     construction singular_common_noun_choice: CommonNounChoice {
         element SingularCommonNounChoice { noun: lex CommonNoun, }
@@ -4326,6 +4355,48 @@ constructions! {
     root CountReference { eoi = true; standalone_render = true; }
     root ScalarReference { eoi = true; standalone_render = true; }
     root OracleText { eoi = true; standalone_render = true; }
+}
+
+fn determinative_is_fused(
+    _head: &Determinative,
+    fused_head_license: FusedHeadLicense,
+) -> bool {
+    fused_head_license == FusedHeadLicense::FusedHead
+}
+
+fn determinative_licenses_partitive_head(
+    _head: &Determinative,
+    fused_head_license: FusedHeadLicense,
+    determiner_number: DeterminerNumber,
+    head_number: Number,
+    whole_number: Number,
+) -> bool {
+    fused_head_license == FusedHeadLicense::FusedHead
+        && match determiner_number {
+            DeterminerNumber::SingularOnly => head_number == Number::Singular,
+            DeterminerNumber::PluralOnly => head_number == Number::Plural,
+            DeterminerNumber::Both => head_number == whole_number,
+        }
+}
+
+fn determinative_licenses_singular(
+    _head: &DeterminativeHead,
+    determiner_number: DeterminerNumber,
+) -> bool {
+    matches!(
+        determiner_number,
+        DeterminerNumber::SingularOnly | DeterminerNumber::Both
+    )
+}
+
+fn determinative_licenses_plural(
+    _head: &DeterminativeHead,
+    determiner_number: DeterminerNumber,
+) -> bool {
+    matches!(
+        determiner_number,
+        DeterminerNumber::PluralOnly | DeterminerNumber::Both
+    )
 }
 
 fn determiner_licenses_nominal(

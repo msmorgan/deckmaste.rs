@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use macro_ron::v2::CustomTailAtom;
+use macro_ron::v2::DeterminativeFusedHeadLicense;
 use macro_ron::v2::DeterminativeNominalLicense;
 use macro_ron::v2::DeterminativeNumberLicense;
 use macro_ron::v2::DeterminativePhraseNumber;
@@ -37,6 +38,7 @@ pub struct DeclarationRecord {
 struct DeterminativeRecord {
     number_license: DeterminativeNumberLicense,
     nominal_license: DeterminativeNominalLicense,
+    fused_head_license: DeterminativeFusedHeadLicense,
     realizations: Vec<DeterminativeRealizationRecord>,
 }
 
@@ -89,6 +91,15 @@ impl DeclarationRecord {
         self.determinative.as_ref().map(|row| row.nominal_license)
     }
 
+    /// Returns whether this declaration-backed Determinative may head a
+    /// fused partitive, when declared.
+    #[must_use]
+    pub fn determinative_fused_head_license(&self) -> Option<DeterminativeFusedHeadLicense> {
+        self.determinative
+            .as_ref()
+            .map(|row| row.fused_head_license)
+    }
+
     /// Returns the normalized declaration's source path.
     #[must_use]
     pub fn provenance(&self) -> &Path {
@@ -130,6 +141,7 @@ pub struct DeterminativeReading {
     onset: Onset,
     number_license: DeterminativeNumberLicense,
     nominal_license: DeterminativeNominalLicense,
+    fused_head_license: DeterminativeFusedHeadLicense,
     phrase_number: Option<DeterminativePhraseNumber>,
     following_onset: Option<Onset>,
 }
@@ -158,6 +170,11 @@ impl DeterminativeReading {
     #[must_use]
     pub const fn nominal_license(&self) -> DeterminativeNominalLicense {
         self.nominal_license
+    }
+
+    #[must_use]
+    pub const fn fused_head_license(&self) -> DeterminativeFusedHeadLicense {
+        self.fused_head_license
     }
 
     #[must_use]
@@ -386,6 +403,7 @@ impl ParserEnvironment {
                     let determinative = grammar.determinative().map(|row| DeterminativeRecord {
                         number_license: row.number_license(),
                         nominal_license: row.nominal_license(),
+                        fused_head_license: row.fused_head_license(),
                         realizations: row
                             .realizations()
                             .iter()
@@ -478,6 +496,7 @@ impl ParserEnvironment {
                             onset: realization.onset,
                             number_license: determinative.number_license,
                             nominal_license: determinative.nominal_license,
+                            fused_head_license: determinative.fused_head_license,
                             phrase_number: realization.phrase_number,
                             following_onset: realization.following_onset,
                         };
@@ -917,6 +936,13 @@ mod tests {
         let keyword = environment.readings(GrammarPosition::FixedKeyword, "equip");
         assert_eq!(keyword.len(), 1);
         assert_eq!(keyword[0].feature(), SurfaceFeature::Fixed);
+        assert_eq!(
+            environment
+                .declaration(DeclarationKind::KeywordAbility, "Equip")
+                .expect("Equip declaration is retained")
+                .determinative_fused_head_license(),
+            Some(DeterminativeFusedHeadLicense::NominalOnly),
+        );
 
         let [reading] = environment.determinative_readings("equipped") else {
             panic!("Equip contributes one supplemental Determinative reading")
@@ -930,6 +956,10 @@ mod tests {
         assert_eq!(
             reading.nominal_license(),
             DeterminativeNominalLicense::BareSingularNoun
+        );
+        assert_eq!(
+            reading.fused_head_license(),
+            DeterminativeFusedHeadLicense::NominalOnly
         );
         assert_eq!(
             environment.determinative_surface(
@@ -958,6 +988,7 @@ KeywordAbility(
         determinative: (
             number_license: SingularOnly,
             nominal_license: CountNominal,
+            fused_head_license: FusedHead,
             realizations: [
                 (surface: "a", following_onset: Consonant),
                 (surface: "an", following_onset: Vowel),

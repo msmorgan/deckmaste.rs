@@ -3136,13 +3136,17 @@ fn subject_gap_relatives_relay_nominal_agreement_into_finite_predicates() {
 }
 
 #[test]
-fn cardinal_partitives_take_ordinary_noun_phrase_complements() {
+fn determinative_partitives_take_ordinary_reference_phrase_complements() {
     let parser = parser();
     let context = context();
 
     for text in [
+        "Destroy each of up to two target creatures.",
+        "Destroy any of them.",
+        "Destroy any of up to two target creatures.",
         "Put one of those cards into your hand.",
         "Put two of them into your hand.",
+        "Put two of those into your hand.",
         "Put the rest on the bottom of your library.",
     ] {
         assert_selected(&parser, &context, text);
@@ -3152,6 +3156,13 @@ fn cardinal_partitives_take_ordinary_noun_phrase_complements() {
             .parse("Put one them into your hand.", &context)
             .is_err(),
     );
+    for invalid in [
+        "Put a of them into your hand.",
+        "Put the of them into your hand.",
+        "Put target of them into your hand.",
+    ] {
+        assert!(parser.parse(invalid, &context).is_err(), "reject {invalid:?}");
+    }
 }
 
 #[test]

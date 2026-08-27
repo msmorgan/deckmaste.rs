@@ -2773,7 +2773,6 @@ fn invalid_nominal_order_agreement_join_and_case_are_rejected() {
     let context = context("Context Card");
     for text in [
         "Destroy target another creature.",
-        "Destroy one target creature.",
         "Destroy target artifacts creature.",
         "Context Card deals 2 damage to each creatures.",
         "Each creature gain 2 life.",
@@ -3932,11 +3931,12 @@ fn category_safe_non_modifiers_accept_only_their_typed_join() {
 }
 
 #[test]
-fn selector_cardinal_domains_exclude_zero_and_admit_any_number() {
+fn quantity_determinatives_exclude_zero_and_derive_number() {
     let parser = parser();
     let context = context("Context Card");
 
     for text in [
+        "Destroy one target creature.",
         "Destroy two target creatures.",
         "Destroy three target creatures.",
         "Destroy up to one target creature.",
@@ -3953,7 +3953,6 @@ fn selector_cardinal_domains_exclude_zero_and_admit_any_number() {
 
     for text in [
         "Destroy zero target creatures.",
-        "Destroy one target creature.",
         "Destroy up to zero target creatures.",
         "Destroy up to one target creatures.",
         "X target creatures gains 2 life.",
@@ -3961,7 +3960,7 @@ fn selector_cardinal_domains_exclude_zero_and_admit_any_number() {
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "{text:?} must remain outside the cardinal-selector agreement join",
+            "{text:?} must remain outside the quantity-determiner agreement join",
         );
     }
 }
@@ -4173,6 +4172,27 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
             .parse(text, &context)
             .unwrap_or_else(|error| panic!("quantified plural {text:?} must select: {error:?}"));
         assert_eq!(parsed.render(&context, parser.environment()), text);
+    }
+}
+
+#[test]
+fn target_determiner_and_modifier_distributions_select_uniquely() {
+    let parser = parser();
+    let context = context("Context Card");
+
+    for text in [
+        "Destroy target creature.",
+        "Destroy two target creatures.",
+        "Destroy another target creature.",
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let selected = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
+        let decision = analysis.decision().expect("selected parse has a decision");
+        assert_eq!(decision.candidates().len(), 1, "{text:?}: {decision:?}");
+        assert_eq!(decision.resolution(), SelectionResolution::Unique, "{text:?}");
+        assert_eq!(selected.render(&context, parser.environment()), text);
     }
 }
 
