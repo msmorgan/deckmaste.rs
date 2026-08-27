@@ -8874,20 +8874,39 @@ planeswalkerBackWithoutLoyaltyOk = MkAltFaceLaws
 -- The amount reads, the open comparison left side, and the two folds.
 -- ---------------------------------------------------------------------------
 
+||| Nykthos, Shrine to Nyx -- "{T}: Add {C}. / {2}, {T}: Choose a color.
+||| Add an amount of mana of that color equal to your devotion to that
+||| color." The devotion read at a CHOSEN colour rather than a printed
+||| one: the produced-mana side already had its chosen-colour arm, and
+||| the count's own colour slot is what had none. Nyx Lotus writes the
+||| same ability without the {2}.
+public export
+nykthosShrineToNyx : Card
+nykthosShrineToNyx =
+  Macros.card "Nykthos, Shrine to Nyx" Nothing [Legendary]
+       (MkTypeLine [] [Land])
+       [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
+       , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
+           (Sequentially
+              [ Macros.choose (Macros.a (Macros.quality Color))
+              , AddMana You (Devotion You ThatColor Nothing)
+                        (OfChosenColor Nothing) [] ]) ]
+       Nothing
+
 ||| Karametra's Acolyte -- "{T}: Add an amount of {G} equal to your devotion
 ||| to green."
 public export
 karametrasAcolyte : Ability
 karametrasAcolyte =
   Macros.activated TapSymbol
-    (AddMana You (Devotion You Green Nothing) (Runs [[OfColor Green]]) [])
+    (AddMana You (Devotion You (LitColor Green) Nothing) (Runs [[OfColor Green]]) [])
 
 ||| Anax, Hardened in the Forge -- "Anax's power is equal to your devotion
 ||| to red." The devotion read at the definition frame; the box is */3.
 public export
 anaxPowerDefinition : Ability
 anaxPowerDefinition =
-  Static (DefinesPt Macros.thisCreature PowerAlone (Devotion You Red Nothing))
+  Static (DefinesPt Macros.thisCreature PowerAlone (Devotion You (LitColor Red) Nothing))
 
 ||| Gray Merchant of Asphodel, first clause -- "each opponent loses X life,
 ||| where X is your devotion to black." (The second sentence, "You gain life
@@ -8896,14 +8915,14 @@ public export
 grayMerchantDrain : Effect []
 grayMerchantDrain =
   Sequentially [ Macros.losesLife (Each Opponent) (LetterVal X)
-               , Define X (Devotion You Black Nothing) ]
+               , Define X (Devotion You (LitColor Black) Nothing) ]
 
 ||| Erebos, God of the Dead -- "As long as your devotion to black is less
 ||| than five, Erebos isn't a creature." The devotion read at the comparison
 ||| frame.
 public export
 devotionCondition : Condition []
-devotionCondition = CompareAmt (Devotion You Black Nothing) Less (Lit 5)
+devotionCondition = CompareAmt (Devotion You (LitColor Black) Nothing) Less (Lit 5)
 
 ||| Aspect of Wolf -- "Enchanted creature gets +X/+Y, where X is half the
 ||| number of Forests you control, rounded down, and Y is half the number of

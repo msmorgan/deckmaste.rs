@@ -619,7 +619,7 @@ badDungeonStatic Oh impossible
 ||| permanents ONE player controls -- so a plural possessor reads no total.
 public export
 badPluralDevotion : Unspellable (Amount []) (\ok =>
-  Devotion (PlayerGroup YourOpponents) Black Nothing {one = ok})
+  Devotion (PlayerGroup YourOpponents) (LitColor Black) Nothing {one = ok})
 badPluralDevotion Refl impossible
 
 ||| "the amount of creatures that died this turn"

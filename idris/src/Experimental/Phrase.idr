@@ -2147,6 +2147,22 @@ mutual
   zonesDelta [] = []
   zonesDelta (z :: zs) = zoneDelta z ++ zonesDelta zs
 
+  ||| A colour a clause NAMES: the printed word, or "that color" reading
+  ||| the one an earlier chooser bound [CR#607.2d]. Its own small
+  ||| vocabulary rather than a second `Devotion` row, because the two
+  ||| readings differ in the SLOT's filler and in nothing else -- the
+  ||| count [CR#700.5] computes is the same count either way.
+  ||| The gate is `OfChosen`'s uniqueness, not `ChoiceStands`' existence:
+  ||| both carriers write the unmarked "that color" behind a single
+  ||| chooser in their own ability, and no printed devotion line reads a
+  ||| second chooser back.
+  ||| -- spelling: the colour word; "that color".
+  public export
+  data ColorTerm : Bindings -> Type where
+    LitColor : Chroma.Color -> ColorTerm bs
+    ThatColor : {auto 0 ok : countChoice (QSort Color) bs = 1} ->
+                {auto 0 rd : ChosenQualityRead Color} -> ColorTerm bs
+
   public export
   data Amount : Bindings -> Type where
     Lit : Nat -> Amount bs
@@ -2284,8 +2300,8 @@ mutual
     ||| single-colour count), so no rule refuses the repeated colour.
     ||| -- spelling: "[whose] devotion to [color]"; with the second colour,
     ||| "[whose] devotion to [color] and [color]".
-    Devotion : (who : Noun bs Player) -> (c : Chroma.Color) ->
-               (d : Maybe Chroma.Color) ->
+    Devotion : (who : Noun bs Player) -> (c : ColorTerm bs) ->
+               (d : Maybe (ColorTerm bs)) ->
                {auto 0 one : nounPlur who = OneOf} -> Amount bs
     ||| "half [amt], rounded down/up": the halving read the corpus writes,
     ||| generalising `RoundMode`'s one existing site (`DamageScale.Halved`).
