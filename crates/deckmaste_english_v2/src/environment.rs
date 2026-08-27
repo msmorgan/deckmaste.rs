@@ -6,12 +6,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use macro_ron::v2::CustomTailAtom;
+pub use macro_ron::v2::DeclarationIdentity as DeclarationId;
+use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::DeterminativeFusedHeadLicense;
 use macro_ron::v2::DeterminativeNominalLicense;
 use macro_ron::v2::DeterminativeNumberLicense;
 use macro_ron::v2::DeterminativePhraseNumber;
-pub use macro_ron::v2::DeclarationIdentity as DeclarationId;
-use macro_ron::v2::DeclarationKind;
 pub use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::GrammarRecipe;
 use macro_ron::v2::NormalizedDeclaration;
@@ -38,17 +38,41 @@ pub struct DeclarationRecord {
 /// declaration kind: core verbs never masquerade as plugin declarations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum CoreVerbIdentity {
+    Add,
     Deal,
+    Draw,
+    Enter,
     Gain,
+    Get,
+    Have,
+    Leave,
+    Look,
     Lose,
+    Pay,
+    Put,
+    Remove,
+    Return,
+    Roll,
 }
 
 impl CoreVerbIdentity {
     pub const fn owner_id(self) -> &'static str {
         match self {
+            Self::Add => "core-verb:Add",
             Self::Deal => "core-verb:Deal",
+            Self::Draw => "core-verb:Draw",
+            Self::Enter => "core-verb:Enter",
             Self::Gain => "core-verb:Gain",
+            Self::Get => "core-verb:Get",
+            Self::Have => "core-verb:Have",
+            Self::Leave => "core-verb:Leave",
+            Self::Look => "core-verb:Look",
             Self::Lose => "core-verb:Lose",
+            Self::Pay => "core-verb:Pay",
+            Self::Put => "core-verb:Put",
+            Self::Remove => "core-verb:Remove",
+            Self::Return => "core-verb:Return",
+            Self::Roll => "core-verb:Roll",
         }
     }
 }
@@ -506,8 +530,7 @@ impl ParserEnvironment {
             BTreeMap::<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>::new();
         let mut running_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
         let mut initial_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
-        let mut determinative_readings =
-            BTreeMap::<Arc<str>, Vec<DeterminativeReading>>::new();
+        let mut determinative_readings = BTreeMap::<Arc<str>, Vec<DeterminativeReading>>::new();
         let mut initial_determinative_readings =
             BTreeMap::<Arc<str>, Vec<DeterminativeReading>>::new();
         let mut determinative_surface_byte_limit = 0;
@@ -678,11 +701,18 @@ impl ParserEnvironment {
     /// rows carry rich compiler-side frames; plugin rows retain the sealed
     /// macro-RON valence vocabulary.
     #[must_use]
-    pub(crate) fn verb_frame_licenses(&self, reference: &VerbInventoryRef, frame: VerbFrameKey) -> bool {
+    pub(crate) fn verb_frame_licenses(
+        &self,
+        reference: &VerbInventoryRef,
+        frame: VerbFrameKey,
+    ) -> bool {
         match reference {
             VerbInventoryRef::Core(identity) => self.data.core_verbs.iter().any(|record| {
                 record.identity == *identity
-                    && record.frames.iter().any(|candidate| candidate.as_slice() == frame.atoms())
+                    && record
+                        .frames
+                        .iter()
+                        .any(|candidate| candidate.as_slice() == frame.atoms())
             }),
             VerbInventoryRef::Declaration(id) => self
                 .declaration(id.kind(), id.name())
@@ -697,7 +727,16 @@ impl ParserEnvironment {
         feature: SurfaceFeature,
     ) -> Option<&str> {
         match reference {
-            VerbInventoryRef::Core(identity) => self.data.core_verbs.iter().find(|record| record.identity == *identity)?.surfaces.iter().find_map(|(candidate, _, surface)| (*candidate == feature).then_some(surface.as_ref())),
+            VerbInventoryRef::Core(identity) => self
+                .data
+                .core_verbs
+                .iter()
+                .find(|record| record.identity == *identity)?
+                .surfaces
+                .iter()
+                .find_map(|(candidate, _, surface)| {
+                    (*candidate == feature).then_some(surface.as_ref())
+                }),
             VerbInventoryRef::Declaration(id) => self.surface(id, feature),
         }
     }
@@ -708,7 +747,14 @@ impl ParserEnvironment {
         feature: SurfaceFeature,
     ) -> Option<Onset> {
         match reference {
-            VerbInventoryRef::Core(identity) => self.data.core_verbs.iter().find(|record| record.identity == *identity)?.surfaces.iter().find_map(|(candidate, onset, _)| (*candidate == feature).then_some(*onset)),
+            VerbInventoryRef::Core(identity) => self
+                .data
+                .core_verbs
+                .iter()
+                .find(|record| record.identity == *identity)?
+                .surfaces
+                .iter()
+                .find_map(|(candidate, onset, _)| (*candidate == feature).then_some(*onset)),
             VerbInventoryRef::Declaration(id) => self.onset(id, feature),
         }
     }
@@ -854,10 +900,7 @@ impl ParserEnvironment {
             .map_or(&[], Vec::as_slice)
     }
 
-    pub(crate) fn initial_determinative_readings(
-        &self,
-        surface: &str,
-    ) -> &[DeterminativeReading] {
+    pub(crate) fn initial_determinative_readings(&self, surface: &str) -> &[DeterminativeReading] {
         self.data
             .initial_determinative_readings
             .get(surface)
@@ -1057,18 +1100,44 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
         frames,
         provenance: identity,
     };
+    let rich_valence = || VerbValence::Custom { shapes: Vec::new() };
 
     vec![
+        seed(
+            "Add",
+            "add",
+            "adds",
+            rich_valence(),
+            CoreVerbIdentity::Add,
+            vec![
+                vec![Role("ManaPhrase")],
+                vec![
+                    Role("CardinalQuantity"),
+                    VerbFrameAtom::Literal("mana"),
+                    VerbFrameAtom::Literal("of"),
+                    VerbFrameAtom::Literal("any"),
+                    Role("FlexibleManaKind"),
+                ],
+            ],
+        ),
         seed(
             "Deal",
             "deal",
             "deals",
             VerbValence::Custom {
-                shapes: vec![vec![CustomTailAtom::Amount, Literal("damage".to_owned()), ObjectNounPhrase]],
+                shapes: vec![vec![
+                    CustomTailAtom::Amount,
+                    Literal("damage".to_owned()),
+                    ObjectNounPhrase,
+                ]],
             },
             CoreVerbIdentity::Deal,
             vec![
-                vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("damage"), Role("ToPhrase")],
+                vec![
+                    VerbFrameAtom::Amount,
+                    VerbFrameAtom::Literal("damage"),
+                    Role("ToPhrase"),
+                ],
                 vec![
                     Role("DistributedDamageAmount"),
                     VerbFrameAtom::Literal("damage"),
@@ -1089,6 +1158,38 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
             ],
         ),
         seed(
+            "Draw",
+            "draw",
+            "draws",
+            rich_valence(),
+            CoreVerbIdentity::Draw,
+            vec![
+                vec![Role("CardQuantity")],
+                vec![VerbFrameAtom::Literal("cards"), Role("ScalarEquality")],
+            ],
+        ),
+        seed(
+            "Enter",
+            "enter",
+            "enters",
+            rich_valence(),
+            CoreVerbIdentity::Enter,
+            vec![
+                vec![VerbFrameAtom::PredicativeComplement],
+                vec![
+                    VerbFrameAtom::Literal("with"),
+                    Role("CounterQuantity"),
+                    Role("OnPhrase"),
+                ],
+                vec![
+                    Role("Object"),
+                    OptionalRole("PredicativeComplement"),
+                    OptionalRole("ControlPostmodifier"),
+                ],
+                vec![Role("ControlPostmodifier")],
+            ],
+        ),
+        seed(
             "Gain",
             "gain",
             "gains",
@@ -1099,11 +1200,54 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
             vec![
                 vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
                 vec![VerbFrameAtom::Literal("life")],
-                vec![
-                    VerbFrameAtom::Literal("life"),
-                    Role("ScalarEquality"),
-                ],
+                vec![VerbFrameAtom::Literal("life"), Role("ScalarEquality")],
             ],
+        ),
+        seed(
+            "Get",
+            "get",
+            "gets",
+            rich_valence(),
+            CoreVerbIdentity::Get,
+            vec![vec![
+                Role("PowerToughnessAdjustment"),
+                OptionalRole("DurationPhrase"),
+            ]],
+        ),
+        seed(
+            "Have",
+            "have",
+            "has",
+            rich_valence(),
+            CoreVerbIdentity::Have,
+            vec![
+                vec![Role("QuotedAbility")],
+                vec![
+                    VerbFrameAtom::Literal("base"),
+                    VerbFrameAtom::Literal("power"),
+                    VerbFrameAtom::Literal("and"),
+                    VerbFrameAtom::Literal("toughness"),
+                    Role("PredicativePowerToughnessComplement"),
+                ],
+                vec![Role("ScalarComparison"), VerbFrameAtom::Literal("life")],
+                vec![Role("Object"), Role("VerbPhrase")],
+            ],
+        ),
+        seed(
+            "Leave",
+            "leave",
+            "leaves",
+            rich_valence(),
+            CoreVerbIdentity::Leave,
+            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
+        ),
+        seed(
+            "Look",
+            "look",
+            "looks",
+            rich_valence(),
+            CoreVerbIdentity::Look,
+            vec![vec![VerbFrameAtom::Literal("at"), Role("Object")]],
         ),
         seed(
             "Lose",
@@ -1115,11 +1259,73 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
             CoreVerbIdentity::Lose,
             vec![
                 vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
-                vec![
-                    VerbFrameAtom::Literal("life"),
-                    Role("ScalarEquality"),
-                ],
+                vec![VerbFrameAtom::Literal("life"), Role("ScalarEquality")],
             ],
+        ),
+        seed(
+            "Pay",
+            "pay",
+            "pays",
+            rich_valence(),
+            CoreVerbIdentity::Pay,
+            vec![
+                vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
+                vec![Role("ManaPhrase")],
+            ],
+        ),
+        seed(
+            "Put",
+            "put",
+            "puts",
+            rich_valence(),
+            CoreVerbIdentity::Put,
+            vec![
+                vec![Role("CounterQuantity"), Role("OnPhrase")],
+                vec![
+                    Role("Object"),
+                    OptionalRole("FromPhrase"),
+                    Role("IntoPhrase"),
+                ],
+                vec![
+                    Role("Object"),
+                    OptionalRole("FromPhrase"),
+                    Role("OntoPhrase"),
+                    OptionalRole("PredicativeComplement"),
+                    OptionalRole("ControlPostmodifier"),
+                ],
+                vec![Role("Object"), OptionalRole("FromPhrase"), Role("OnPhrase")],
+                vec![Role("Object"), Role("ToPhrase")],
+            ],
+        ),
+        seed(
+            "Remove",
+            "remove",
+            "removes",
+            rich_valence(),
+            CoreVerbIdentity::Remove,
+            vec![vec![Role("CounterQuantity"), Role("FromPhrase")]],
+        ),
+        seed(
+            "Return",
+            "return",
+            "returns",
+            rich_valence(),
+            CoreVerbIdentity::Return,
+            vec![vec![
+                Role("Object"),
+                OptionalRole("FromPhrase"),
+                Role("ToPhrase"),
+                OptionalRole("PredicativeComplement"),
+                OptionalRole("ControlPostmodifier"),
+            ]],
+        ),
+        seed(
+            "Roll",
+            "roll",
+            "rolls",
+            rich_valence(),
+            CoreVerbIdentity::Roll,
+            vec![vec![Role("DieObject")]],
         ),
     ]
 }
@@ -1191,6 +1397,57 @@ mod tests {
     use super::*;
 
     #[test]
+    fn core_verb_seed_rows_have_exact_surfaces_and_deduplicated_frame_census() {
+        let records = core_verb_seed_records();
+        let expected = [
+            (CoreVerbIdentity::Add, "add", "adds", 2),
+            (CoreVerbIdentity::Deal, "deal", "deals", 5),
+            (CoreVerbIdentity::Draw, "draw", "draws", 2),
+            (CoreVerbIdentity::Enter, "enter", "enters", 4),
+            (CoreVerbIdentity::Gain, "gain", "gains", 3),
+            (CoreVerbIdentity::Get, "get", "gets", 1),
+            (CoreVerbIdentity::Have, "have", "has", 4),
+            (CoreVerbIdentity::Leave, "leave", "leaves", 1),
+            (CoreVerbIdentity::Look, "look", "looks", 1),
+            (CoreVerbIdentity::Lose, "lose", "loses", 2),
+            (CoreVerbIdentity::Pay, "pay", "pays", 2),
+            (CoreVerbIdentity::Put, "put", "puts", 5),
+            (CoreVerbIdentity::Remove, "remove", "removes", 1),
+            (CoreVerbIdentity::Return, "return", "returns", 1),
+            (CoreVerbIdentity::Roll, "roll", "rolls", 1),
+        ];
+
+        assert_eq!(records.len(), expected.len());
+        for (record, (identity, bare, third_person, frame_count)) in records.iter().zip(expected) {
+            assert_eq!(record.identity, identity);
+            assert_eq!(
+                record
+                    .surfaces
+                    .iter()
+                    .find_map(|(feature, _, surface)| (*feature == SurfaceFeature::Bare)
+                        .then_some(surface.as_ref())),
+                Some(bare),
+            );
+            assert_eq!(
+                record.surfaces.iter().find_map(|(feature, _, surface)| {
+                    (*feature == SurfaceFeature::ThirdPersonSingular).then_some(surface.as_ref())
+                }),
+                Some(third_person),
+            );
+            assert_eq!(record.frames.len(), frame_count, "{identity:?}");
+            assert_eq!(
+                record
+                    .frames
+                    .iter()
+                    .collect::<std::collections::HashSet<_>>()
+                    .len(),
+                record.frames.len(),
+                "{identity:?} repeats a frame",
+            );
+        }
+    }
+
+    #[test]
     fn parser_environment_rejects_duplicate_realized_features() {
         let identity = DeclarationId::new(DeclarationKind::KeywordAction, "Scry");
         let error = collect_surfaces(
@@ -1250,9 +1507,11 @@ mod tests {
             Some("equipped")
         );
         assert!(environment.determinative_readings("equip").is_empty());
-        assert!(environment
-            .readings(GrammarPosition::FixedKeyword, "equipped")
-            .is_empty());
+        assert!(
+            environment
+                .readings(GrammarPosition::FixedKeyword, "equipped")
+                .is_empty()
+        );
     }
 
     #[test]
