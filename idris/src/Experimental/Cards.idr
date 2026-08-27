@@ -1319,16 +1319,6 @@ concordantCrossroads =
        (MkTypeLine [] [Enchantment])
        [ Static (Gains (AllOf Macros.creature) (Macros.keyword "Haste")) ] Nothing
 
-||| Selenia — a vanguard card [CR#313.1], whose whole printed text is one
-||| static. [CR#205.2a]'s vanguard row reaches a real type line, and
-||| `cardClassOf` reads it as a `CommandZoneCard`: [CR#313.4] is what
-||| licenses the static from the command zone, not the permanent frame.
-selenia : Card
-selenia =
-  Macros.card "Selenia" Nothing [] (MkTypeLine [] [Vanguard])
-       [ Static (Gains (AllOf Macros.creatureYouControl)
-                       (Macros.keyword "Vigilance")) ] Nothing
-
 ||| Pure // Simple
 simpleHalf : Effect []
 simpleHalf = Macros.destroy (Macros.target (And [Permanent, Multicolored]))
