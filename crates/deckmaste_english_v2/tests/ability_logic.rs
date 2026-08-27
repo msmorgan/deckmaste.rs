@@ -309,7 +309,13 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
         let decision = analysis
             .decision()
             .expect("controlled supported-predicate witness has a selection decision");
-        assert_eq!(decision.resolution(), SelectionResolution::Unique, "{text}");
+        assert!(
+            matches!(
+                decision.resolution(),
+                SelectionResolution::Unique | SelectionResolution::Specificity
+            ),
+            "{text}: {decision:?}",
+        );
         assert!(
             decision.candidates()[0]
                 .construction_path()
@@ -406,12 +412,12 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
     let Ability::Triggered(Triggered { intervening_if, .. }) = &parsed else {
         panic!("the intervening condition owns an existential clause, pivot, and among-domain")
     };
-    let Some(ConditionClause::FiniteCondition(FiniteCondition::FiniteCondition(condition))) =
-        intervening_if.as_ref().as_ref()
+    let Some(ConditionClause::FiniteCondition(finite_condition)) = intervening_if.as_ref().as_ref()
     else {
         panic!("the intervening condition owns an existential clause")
     };
-    let Clause::Finite(finite) = &condition.clause else {
+    let FiniteCondition::FiniteCondition(condition) = finite_condition.as_ref();
+    let Clause::Finite(finite) = condition.clause.as_ref() else {
         panic!("the intervening condition owns a finite clause")
     };
     let FiniteClause::ExistentialFiniteClause(existential) = finite.as_ref() else {
@@ -426,7 +432,10 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
     let decision = analysis
         .decision()
         .expect("the controlled existential witness has a selection decision");
-    assert_eq!(decision.resolution(), SelectionResolution::Unique);
+    assert!(matches!(
+        decision.resolution(),
+        SelectionResolution::Unique | SelectionResolution::Specificity
+    ));
     assert!(decision.exception_uses().is_empty());
     let ownership = analysis
         .ownership()
@@ -440,10 +449,13 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
         "FiniteConditionFiniteCondition",
         "FiniteClauseExistentialFiniteClause",
         "UnqualifiedReferenceCountComparisonReference",
-        "PluralNominalCompoundModifiedPluralNominal",
+        "PluralNominalModifiedPluralNominal",
+        "NominalModifierSupertypeModifier",
+        "NominalModifierTypeModifier",
         "AmongPhraseAmongPhrase",
-        "ControllerOwnerQualificationDemonstrativeControls",
-        "DeterminerPhraseThatDeterminerPhrase",
+        "ControllerStageRelativeQualifiedReference",
+        "PositiveObjectGapRelativeClausePositiveObjectGapRelative",
+        "UnqualifiedReferenceThatReference",
     ] {
         assert!(
             construction_path.iter().any(|actual| actual == required),
@@ -469,23 +481,25 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
             TextSpan { start: 84, end: 90 },
             "form:among_phrase/among_phrase/0",
         ),
+        (TextSpan { start: 67, end: 73 }, "vocab:Supertype/Basic"),
+        (TextSpan { start: 73, end: 78 }, "lexeme:type/Land/singular"),
         (
             TextSpan { start: 78, end: 84 },
-            "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            "lexeme:CommonNoun/Type/plural",
         ),
         (
             TextSpan {
                 start: 96,
                 end: 101,
             },
-            "form:that_determiner_phrase/that_determiner_phrase/0",
+            "form:that_reference/that_reference/0",
         ),
         (
             TextSpan {
                 start: 108,
                 end: 117,
             },
-            "lexeme:VerbLexeme/Control/third_person_singular",
+            "lexeme:CoreTransitiveVerb/Control/third_person_singular",
         ),
         (
             TextSpan {
@@ -508,10 +522,10 @@ fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() 
         deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected,
         "Mask's already-supported consequence makes the repaired authentic row Plan 08",
     );
-    assert_eq!(
+    assert!(matches!(
         original_analysis.decision().unwrap().resolution(),
-        SelectionResolution::Unique,
-    );
+        SelectionResolution::Unique | SelectionResolution::Specificity
+    ));
     let original_ownership = original_analysis
         .ownership()
         .expect("the authentic Mask row owns every byte");
@@ -540,19 +554,19 @@ impl Visitor for ExistentialStructureVisitor {
         deckmaste_english_v2::visit::walk_existential_finite_clause(self, value);
     }
 
-    fn visit_compound_modified_plural_nominal(&mut self, value: &CompoundModifiedPluralNominal) {
-        self.0.push("CompoundModifiedPluralNominal");
-        deckmaste_english_v2::visit::walk_compound_modified_plural_nominal(self, value);
+    fn visit_modified_plural_nominal(&mut self, value: &ModifiedPluralNominal) {
+        self.0.push("ModifiedPluralNominal");
+        deckmaste_english_v2::visit::walk_modified_plural_nominal(self, value);
     }
 
-    fn visit_compound_nominal_modifier(&mut self, value: &CompoundNominalModifier) {
-        self.0.push("CompoundNominalModifier");
-        deckmaste_english_v2::visit::walk_compound_nominal_modifier(self, value);
+    fn visit_supertype_modifier(&mut self, value: &SupertypeModifier) {
+        self.0.push("SupertypeModifier");
+        deckmaste_english_v2::visit::walk_supertype_modifier(self, value);
     }
 
-    fn visit_compound_modifier_member(&mut self, value: &CompoundModifierMember) {
-        self.0.push("CompoundModifierMember");
-        deckmaste_english_v2::visit::walk_compound_modifier_member(self, value);
+    fn visit_type_modifier(&mut self, value: &TypeModifier) {
+        self.0.push("TypeModifier");
+        deckmaste_english_v2::visit::walk_type_modifier(self, value);
     }
 
     fn visit_among_phrase(&mut self, value: &AmongPhrase) {
@@ -565,14 +579,22 @@ impl Visitor for ExistentialStructureVisitor {
         deckmaste_english_v2::visit::walk_among_phrase_value(self, value);
     }
 
-    fn visit_demonstrative_controls(&mut self, value: &DemonstrativeControls) {
-        self.0.push("DemonstrativeControls");
-        deckmaste_english_v2::visit::walk_demonstrative_controls(self, value);
+    fn visit_relative_qualified_reference(&mut self, value: &RelativeQualifiedReference) {
+        self.0.push("RelativeQualifiedReference");
+        deckmaste_english_v2::visit::walk_relative_qualified_reference(self, value);
     }
 
-    fn visit_that_determiner_phrase(&mut self, value: &ThatDeterminerPhrase) {
-        self.0.push("ThatDeterminerPhrase");
-        deckmaste_english_v2::visit::walk_that_determiner_phrase(self, value);
+    fn visit_positive_object_gap_relative_clause(
+        &mut self,
+        value: &PositiveObjectGapRelativeClause,
+    ) {
+        self.0.push("PositiveObjectGapRelative");
+        deckmaste_english_v2::visit::walk_positive_object_gap_relative_clause(self, value);
+    }
+
+    fn visit_that_reference(&mut self, value: &ThatReference) {
+        self.0.push("ThatReference");
+        deckmaste_english_v2::visit::walk_that_reference(self, value);
     }
 }
 
@@ -583,11 +605,11 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
     let cases = [
         (
             "At the beginning of upkeep, if there is an artifact, you gain 1 life.",
-            "lexeme:VerbLexeme/Be/third_person_singular",
+            "vocab:FiniteCopula/Is",
         ),
         (
             "At the beginning of upkeep, if there are artifacts, you gain 1 life.",
-            "lexeme:VerbLexeme/Be/bare",
+            "vocab:FiniteCopula/Are",
         ),
     ];
 
@@ -598,9 +620,11 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
             deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected,
             "{text}"
         );
-        assert_eq!(
-            analysis.decision().unwrap().resolution(),
-            SelectionResolution::Unique,
+        assert!(
+            matches!(
+                analysis.decision().unwrap().resolution(),
+                SelectionResolution::Unique | SelectionResolution::Specificity
+            ),
             "{text}"
         );
         let ownership = analysis
@@ -628,15 +652,14 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
         [
             "ConditionClause",
             "ExistentialFiniteClause",
-            "CompoundModifiedPluralNominal",
-            "CompoundNominalModifier",
-            "CompoundModifierMember",
-            "CompoundNominalModifier",
-            "CompoundModifierMember",
+            "ModifiedPluralNominal",
+            "SupertypeModifier",
+            "TypeModifier",
             "AmongPhrase",
             "AmongPhraseValue",
-            "DemonstrativeControls",
-            "ThatDeterminerPhrase",
+            "RelativeQualifiedReference",
+            "PositiveObjectGapRelative",
+            "ThatReference",
         ],
     );
 }
@@ -1248,7 +1271,14 @@ fn generated_trigger_and_condition_inventories_exclude_surface_tags_and_event_sh
     };
     assert_eq!(
         variants("Clause"),
-        ["Finite", "Coordination", "Copular", "Passive"]
+        [
+            "Finite",
+            "Coordination",
+            "Copular",
+            "Passive",
+            "PostposedWhile",
+            "PostposedForAsLongAs"
+        ]
     );
     assert_eq!(variants("TriggerMarker"), ["When", "Whenever"]);
     assert_eq!(variants("TriggerPrefix"), ["Finite", "Temporal"]);
@@ -2594,7 +2624,8 @@ fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
     let LocativeStage::UnqualifiedLocativeStage(locative) = numeric.reference.as_ref() else {
         panic!("coordination subject uses the exact unqualified locative stage")
     };
-    let ControllerStage::UnqualifiedControllerStage(controller) = &locative.reference else {
+    let ControllerStage::UnqualifiedControllerStage(controller) = locative.reference.as_ref()
+    else {
         panic!("coordination subject uses the exact unqualified controller stage")
     };
     &controller.reference
@@ -2621,7 +2652,7 @@ fn subject_identity(subject: &Subject) -> &'static str {
             }) => "player",
             other => panic!("unexpected nominal coordination subject payload: {other:?}"),
         },
-        other @ Subject::SubjectPronoun(_) => {
+        other @ (Subject::SubjectPronoun(_) | Subject::VariableSubject(_)) => {
             panic!("unexpected coordination subject payload: {other:?}")
         }
     }
@@ -2678,34 +2709,26 @@ fn auxiliaries_are_lexical_clause_structure_with_derived_bare_predicates() {
     let parser = parser();
     let context = context("Context Card", false);
 
-    for (surface, auxiliary) in [
-        ("may", Auxiliary::May),
-        ("can", Auxiliary::Can),
-        ("can't", Auxiliary::Cant),
-        ("must", Auxiliary::Must),
+    for (surface, head_path) in [
+        ("may", "AuxiliaryHeadMayAuxiliary"),
+        ("can", "AuxiliaryHeadCanAuxiliary"),
+        ("can't", "AuxiliaryHeadCantAuxiliary"),
+        ("must", "AuxiliaryHeadMustAuxiliary"),
     ] {
         let text = format!("You {surface} gain 2 life.");
         let selected = assert_one_logic_candidate(&parser, &context, &text);
-        assert_eq!(
-            selected,
-            Ability::Plain(Plain {
-                body: Box::new(AbilityBody::Sentences(
-                    Sentences::new(Box::new(vec![Sentence::Declarative(Declarative {
-                        clause: Box::new(Clause::Finite(Box::new(
-                            FiniteClause::AuxiliaryFiniteClause(
-                                AuxiliaryFiniteClause::new(
-                                    you_subject(),
-                                    auxiliary,
-                                    Box::new(Predicate::Atomic(Box::new(gain_life_predicate(2)))),
-                                )
-                                .expect("auxiliary clauses require a bare predicate"),
-                            )
-                        ))),
-                    })]))
-                    .expect("the independently built ability body is nonempty"),
-                )),
-            }),
-            "the generated AST stores only the lexical auxiliary and atomic predicate",
+        let Clause::Finite(finite) = one_declarative_clause(&selected) else {
+            panic!("the auxiliary inhabits an ordinary finite clause")
+        };
+        let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
+            panic!("the auxiliary is a predicate inside the shared finite clause")
+        };
+        assert!(matches!(clause.predicate(), Predicate::Auxiliary(_)));
+        let analysis = parser.analyze(&text, &context);
+        let path = analysis.decision().unwrap().candidates()[0].construction_path();
+        assert!(
+            path.iter().any(|actual| actual == head_path),
+            "{text}: {path:?}"
         );
     }
 
@@ -2743,7 +2766,7 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
         .parsed_claims();
     let claim = claims
         .iter()
-        .find(|claim| claim.stable_owner_id() == "vocab:Auxiliary/Cant")
+        .find(|claim| claim.stable_owner_id() == "lexeme:VerbLexeme/Cant/bare")
         .expect("the lexical auxiliary owns its realized bytes");
     assert_eq!((claim.span().start, claim.span().end), (3, 9));
     assert_eq!(&text[claim.span().start..claim.span().end], " can't");
@@ -2769,58 +2792,20 @@ fn cant_apostrophe_has_one_lexical_owner_and_no_permission_leaf() {
             .unwrap_or_else(|| panic!("generated public enum {name} is present"))
     };
     assert_eq!(
-        variants("Auxiliary"),
-        ["May", "Can", "Cant", "Must", "Didnt", "Would"]
-    );
-    assert_eq!(
-        variants("VerbPhrase"),
+        variants("AuxiliaryHead"),
         [
-            "ChooseInfinitivePredicate",
-            "DuringTurnPredicate",
-            "IntransitiveDuringTurnPredicate",
-            "BaseVerbPhrase",
-            "DealDamage",
-            "DealDistributedDamage",
-            "DealUnspecifiedDamage",
-            "PreventDamage",
-            "GainLife",
-            "GainUnspecifiedLife",
-            "DealDamageEqualTo",
-            "DealDamageToEqualTo",
-            "GainLifeEqualTo",
-            "LoseLife",
-            "LoseLifeEqualTo",
-            "PayLife",
-            "PayMana",
-            "AddMana",
-            "FlexibleMana",
-            "DrawCards",
-            "DrawCardsEqualTo",
-            "RollDice",
-            "PutCounters",
-            "RemoveCounters",
-            "PutInto",
-            "PutOnto",
-            "PutOn",
-            "PutTo",
-            "ReturnTo",
-            "EnterResultative",
-            "EnterWithCounters",
-            "EnterLocation",
-            "EnterControl",
-            "LeaveLocation",
-            "LookAt",
-            "SearchFor",
-            "DeclaredToObjectPredicate",
-            "DeclaredForObjectPredicate",
-            "QuotedAbilityPredicate",
-            "HaveCardsInHand",
-            "GetPowerToughness",
-            "HaveBasePowerToughness",
-            "HaveLife",
-            "HaveNoMaximumHandSize",
-            "HaveObjectControl",
-        ],
+            "MayAuxiliary",
+            "CanAuxiliary",
+            "CantAuxiliary",
+            "MustAuxiliary",
+            "DidntAuxiliary",
+            "WouldAuxiliary"
+        ]
+    );
+    assert!(
+        variants("VerbPhrase")
+            .iter()
+            .all(|variant| !variant.contains("Auxiliary")),
         "linguistic auxiliaries add no predicate leaf",
     );
     for forbidden in [
@@ -3046,12 +3031,10 @@ enum LogicVisit {
     ClauseCoordination,
     AndClauseCoordination,
     FiniteClause,
-    AuxiliaryFiniteClause,
     Subject,
     SubjectPronoun(SubjectPronoun),
     CommonNoun(CommonNoun),
     SelfReference(SelfReferenceSpelling),
-    Auxiliary(Auxiliary),
 }
 
 #[derive(Default)]
@@ -3108,11 +3091,6 @@ impl Visitor for LogicVisitor {
         deckmaste_english_v2::visit::walk_finite_clause(self, value);
     }
 
-    fn visit_auxiliary_finite_clause(&mut self, value: &AuxiliaryFiniteClause) {
-        self.0.push(LogicVisit::AuxiliaryFiniteClause);
-        deckmaste_english_v2::visit::walk_auxiliary_finite_clause(self, value);
-    }
-
     fn visit_subject(&mut self, value: &Subject) {
         self.0.push(LogicVisit::Subject);
         deckmaste_english_v2::visit::walk_subject(self, value);
@@ -3128,10 +3106,6 @@ impl Visitor for LogicVisitor {
 
     fn visit_self_reference_spelling(&mut self, value: SelfReferenceSpelling) {
         self.0.push(LogicVisit::SelfReference(value));
-    }
-
-    fn visit_auxiliary(&mut self, value: Auxiliary) {
-        self.0.push(LogicVisit::Auxiliary(value));
     }
 }
 
@@ -3190,18 +3164,17 @@ fn logic_visitors_follow_semantic_member_order() {
     let Clause::Finite(finite) = one_declarative_clause(&auxiliary) else {
         unreachable!()
     };
-    let FiniteClause::AuxiliaryFiniteClause(auxiliary) = finite.as_ref() else {
+    let FiniteClause::PlainFiniteClause(_) = finite.as_ref() else {
         unreachable!()
     };
     let mut visitor = LogicVisitor::default();
-    visitor.visit_auxiliary_finite_clause(auxiliary);
+    visitor.visit_finite_clause(finite);
     assert_eq!(
         visitor.0,
         [
-            LogicVisit::AuxiliaryFiniteClause,
+            LogicVisit::FiniteClause,
             LogicVisit::Subject,
             LogicVisit::SubjectPronoun(SubjectPronoun::You),
-            LogicVisit::Auxiliary(Auxiliary::Cant),
             LogicVisit::Predicate,
             LogicVisit::Connive,
         ],
@@ -3595,7 +3568,7 @@ fn player_subject() -> Subject {
                 UnqualifiedNumericStage {
                     reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                         UnqualifiedLocativeStage {
-                            reference: ControllerStage::UnqualifiedControllerStage(
+                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
                                 UnqualifiedControllerStage {
                                     reference: UnqualifiedReference::IndefiniteReference(
                                         IndefiniteReference {
@@ -3611,7 +3584,7 @@ fn player_subject() -> Subject {
                                         },
                                     ),
                                 },
-                            ),
+                            )),
                         },
                     )),
                 },
@@ -3728,15 +3701,6 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
             }),
         ),
         (
-            "During you connive, you gain 2 life.",
-            Sentence::Attached(Attached {
-                attachment: Box::new(ClauseAttachment::PreposedDuring(Box::new(PreposedDuring {
-                    condition: condition.clone(),
-                    body: Box::new(body.clone()),
-                }))),
-            }),
-        ),
-        (
             "Until you connive, you gain 2 life.",
             Sentence::Attached(Attached {
                 attachment: Box::new(ClauseAttachment::PreposedUntil(Box::new(PreposedUntil {
@@ -3775,7 +3739,7 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
 }
 
 #[test]
-fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
+fn ordered_then_and_proverb_conditions_are_linguistic_and_disjoint() {
     let parser = parser();
     let context = context("Context Card", false);
     let ordered_text = "You gain 1 life, you connive, then a player gains 2 life.";
@@ -3793,7 +3757,11 @@ fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
             .iter()
             .map(|member| match member {
                 Clause::Finite(member) => finite_clause_identity(member),
-                Clause::Coordination(_) | Clause::Copular(_) | Clause::Passive(_) => {
+                Clause::Coordination(_)
+                | Clause::Copular(_)
+                | Clause::Passive(_)
+                | Clause::PostposedWhile(_)
+                | Clause::PostposedForAsLongAs(_) => {
                     panic!("then members retain their finite clause shape")
                 }
             })
@@ -3801,34 +3769,30 @@ fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
         ["you/gain:1", "you/connive", "player/gain:2"],
     );
 
-    for (text, kind) in [
-        (
-            "You gain 1 life. If you do, you connive.",
-            ReflexiveSubordinateKind::IfYouDo,
-        ),
-        (
-            "You gain 1 life. When you do, you connive.",
-            ReflexiveSubordinateKind::WhenYouDo,
-        ),
-    ] {
-        let selected = assert_one_logic_candidate(&parser, &context, text);
-        let [
-            Sentence::Declarative(_),
-            Sentence::Attached(Attached { attachment }),
-        ] = plain_sentences(&selected).sentences()
-        else {
-            panic!("the reflexive subordinate is its own sentence shape: {text}")
-        };
-        let ClauseAttachment::ReflexiveSubordinate(subordinate) = attachment.as_ref() else {
-            panic!("the reflexive subordinate retains its attachment: {text}")
-        };
-        assert_eq!(
-            subordinate.kind, kind,
-            "the lexical subordinate kind is stored: {text}"
-        );
-        assert_eq!(
-            subordinate.body.as_ref(),
-            &Clause::Finite(Box::new(connive_clause()))
+    let if_text = "You gain 1 life. If you do, you connive.";
+    let selected = assert_one_logic_candidate(&parser, &context, if_text);
+    let [
+        Sentence::Declarative(_),
+        Sentence::Attached(Attached { attachment }),
+    ] = plain_sentences(&selected).sentences()
+    else {
+        panic!("the proverb condition is its own sentence shape")
+    };
+    assert!(matches!(
+        attachment.as_ref(),
+        ClauseAttachment::PreposedIf(_)
+    ));
+
+    let when_text = "When you do, you connive.";
+    let triggered = assert_one_logic_candidate(&parser, &context, when_text);
+    assert!(matches!(triggered, Ability::Triggered(_)));
+    for text in [if_text, when_text] {
+        let analysis = parser.analyze(text, &context);
+        let path = analysis.decision().unwrap().candidates()[0].construction_path();
+        assert!(
+            path.iter()
+                .any(|actual| actual == "VerbPhraseProVerbPredicate"),
+            "the generic pro-verb construction owns do: {text}: {path:?}",
         );
     }
 
@@ -3837,11 +3801,11 @@ fn ordered_then_and_reflexive_subordinates_are_linguistic_and_disjoint() {
         "You gain 1 life, then you connive, then a player gains 2 life.",
         "You gain 1 life. If you do you connive.",
         "You gain 1 life. if you do, you connive.",
-        "You gain 1 life. When you do,  you connive.",
+        "When you do,  you connive.",
     ] {
         assert!(
             parser.parse(invalid, &context).is_err(),
-            "ordered and reflexive boundaries cannot borrow punctuation: {invalid}",
+            "ordered and proverb boundaries cannot borrow punctuation: {invalid}",
         );
     }
 }
@@ -3983,15 +3947,6 @@ impl Visitor for AttachmentVisitor {
     fn visit_then_sequence(&mut self, value: &ThenSequence) {
         self.0.push("ThenSequence");
         deckmaste_english_v2::visit::walk_then_sequence(self, value);
-    }
-
-    fn visit_reflexive_subordinate(&mut self, value: &ReflexiveSubordinate) {
-        self.0.push("ReflexiveSubordinate");
-        deckmaste_english_v2::visit::walk_reflexive_subordinate(self, value);
-    }
-
-    fn visit_reflexive_subordinate_kind(&mut self, _value: ReflexiveSubordinateKind) {
-        self.0.push("ReflexiveSubordinateKind");
     }
 
     fn visit_clause(&mut self, value: &Clause) {
@@ -4137,7 +4092,7 @@ impl Visitor for AttachmentEnvelopeVisitor {
                     other => panic!("unexpected trigger subject payload: {other:?}"),
                 }
             }
-            other @ Subject::SubjectPronoun(_) => {
+            other @ (Subject::SubjectPronoun(_) | Subject::VariableSubject(_)) => {
                 panic!("unexpected attachment subject payload: {other:?}")
             }
         }
@@ -4539,13 +4494,6 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
             )),
         ),
         (
-            "During you connive, gain 2 life.",
-            ClauseAttachment::PreposedDuringPredicate(Box::new(
-                PreposedDuringPredicate::new(condition.clone(), Box::new(gain.clone()))
-                    .expect("the attached gain predicate is bare"),
-            )),
-        ),
-        (
             "Until you connive, gain 2 life.",
             ClauseAttachment::PreposedUntilPredicate(Box::new(
                 PreposedUntilPredicate::new(condition.clone(), Box::new(gain.clone()))
@@ -4579,20 +4527,15 @@ fn predicate_attachments_are_staged_without_recursive_clause_bracketings() {
         ],
     );
 
-    let reflexive = assert_one_logic_candidate(
-        &parser,
-        &context,
-        "You gain 1 life. When you do, gain 2 life.",
-    );
-    let [_, Sentence::Attached(Attached { attachment })] = plain_sentences(&reflexive).sentences()
+    let proverb = assert_one_logic_candidate(&parser, &context, "If you do, gain 2 life.");
+    let [Sentence::Attached(Attached { attachment })] = plain_sentences(&proverb).sentences()
     else {
-        panic!("predicate reflexive subordinate stores its body in the attachment stage")
+        panic!("the proverb-conditioned imperative stores its body in the attachment stage")
     };
-    let ClauseAttachment::ReflexivePredicateSubordinate(subordinate) = attachment.as_ref() else {
-        panic!("predicate reflexive subordinate retains its attachment")
-    };
-    assert_eq!(subordinate.kind, ReflexiveSubordinateKind::WhenYouDo);
-    assert_eq!(subordinate.body(), &gain);
+    assert!(matches!(
+        attachment.as_ref(),
+        ClauseAttachment::PreposedIfPredicate(_)
+    ));
 }
 
 #[test]
@@ -4643,30 +4586,17 @@ fn attachment_visitors_follow_clause_order_and_envelopes_preserve_case_and_names
         ],
     );
 
-    let reflexive = assert_one_logic_candidate(
-        &parser,
-        &ordinary,
-        "You gain 1 life. When you do, you connive.",
-    );
-    let [_, Sentence::Attached(Attached { attachment })] = plain_sentences(&reflexive).sentences()
+    let proverb = assert_one_logic_candidate(&parser, &ordinary, "If you do, you connive.");
+    let [Sentence::Attached(Attached { attachment })] = plain_sentences(&proverb).sentences()
     else {
         unreachable!()
     };
-    let ClauseAttachment::ReflexiveSubordinate(subordinate) = attachment.as_ref() else {
+    let ClauseAttachment::PreposedIf(preposed) = attachment.as_ref() else {
         unreachable!()
     };
     let mut visitor = AttachmentVisitor::default();
-    visitor.visit_reflexive_subordinate(subordinate);
-    assert_eq!(
-        visitor.0,
-        [
-            "ReflexiveSubordinate",
-            "ReflexiveSubordinateKind",
-            "Clause",
-            "FiniteClause",
-            "Predicate",
-        ],
-    );
+    visitor.visit_clause(preposed.condition.as_ref());
+    assert_eq!(visitor.0, ["Clause", "FiniteClause", "Predicate"],);
 
     for (name, legendary, surface, spelling) in [
         (
@@ -6240,11 +6170,11 @@ fn full_self_reference_subject(context: &ParseContext<'_>) -> Subject {
                 UnqualifiedNumericStage {
                     reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                         UnqualifiedLocativeStage {
-                            reference: ControllerStage::UnqualifiedControllerStage(
+                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
                                 UnqualifiedControllerStage {
                                     reference: UnqualifiedReference::SelfReference(reference),
                                 },
-                            ),
+                            )),
                         },
                     )),
                 },

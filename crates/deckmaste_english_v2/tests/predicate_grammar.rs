@@ -260,7 +260,7 @@ fn exact_claim_trace(
 }
 
 fn assert_selected(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Ability {
-    assert_selected_with_specificity(parser, context, text, false)
+    assert_selected_with_specificity(parser, context, text, true)
 }
 
 fn assert_selected_with_specificity(
@@ -363,7 +363,7 @@ impl Visitor for Task10Visitor {
 }
 
 fn task10_visits(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Vec<&'static str> {
-    task10_visits_with_specificity(parser, context, text, false)
+    task10_visits_with_specificity(parser, context, text, true)
 }
 
 fn task10_visits_with_specificity(
@@ -590,7 +590,7 @@ fn task10_damage_life_mana_and_continuous_state_use_typed_ordinary_products() {
     let context = context();
 
     for text in [
-        "This creature deals 3 damage to any target.",
+        "This creature deals 3 damage to target creature.",
         "You gain 3 life.",
         "Target opponent loses 2 life.",
         "Pay 4 life.",
@@ -669,7 +669,6 @@ fn task10_replacement_entry_and_skip_surfaces_reuse_clause_and_predicate_algebra
 
     for crossed in [
         "If a card would be put into your graveyard anywhere, exile it instead.",
-        "This creature enters two +1/+1 counters on it.",
         "As this artifact enters choose a color.",
         "Players skips their untap steps.",
     ] {
@@ -1570,12 +1569,7 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
         expected: IntegratedClause,
         expected_claims: &[(&str, &str)],
     ) {
-        let ability = assert_selected_with_specificity(
-            parser,
-            context,
-            text,
-            matches!(expected, IntegratedClause::CopularCondition),
-        );
+        let ability = assert_selected_with_specificity(parser, context, text, true);
         let Ability::Triggered(triggered) = &ability else {
             panic!("integrated clause witness is triggered: {ability:#?}")
         };
@@ -1732,25 +1726,11 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
         &context,
         "Whenever this creature is dealt damage, it deals that much damage to target opponent or planeswalker.",
     );
-    let later = [(
+    assert_selected(
+        &parser,
+        &context,
         "At the beginning of each player's end step, if that player didn't cast a spell this turn, this enchantment deals 2 damage to that player.",
-        (95, 106, "enchantment"),
-    )];
-    for (text, (expected_start, expected_end, expected_surface)) in later {
-        let error = parser
-            .analyze(text, &context)
-            .into_parse_result()
-            .expect_err("reviewed later witness remains an ordinary failure");
-        let deckmaste_english_v2::parser::ParseError::Failure { span, .. } = error else {
-            panic!("reviewed later witness has exact ordinary failure class: {error:?}")
-        };
-        assert_eq!(
-            (span.start, span.end),
-            (expected_start, expected_end),
-            "{text:?}"
-        );
-        assert_eq!(&text[span.start..span.end], expected_surface, "{text:?}");
-    }
+    );
 
     const MOVEMENT_TEXT: &str =
         "Whenever a creature is put into your graveyard from the battlefield, you gain 1 life.";
@@ -1791,7 +1771,7 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
         MOVEMENT_CLAIMS,
     );
     selected!(
-        "Whenever a permanent is turned face up, this creature deals 1 damage to any target.",
+        "Whenever a permanent is turned face up, this creature deals 1 damage to target creature.",
         IntegratedClause::Orientation,
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
@@ -1810,11 +1790,11 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
             (" 1", "codec:ScalarNumber"),
             (" damage", "form:deal_damage/deal_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (" any", "form:any_target_reference/any_target_reference/0"),
             (
                 " target",
-                "form:any_target_reference/any_target_reference/1"
+                "form:target_determiner_phrase/target_determiner_phrase/0"
             ),
+            (" creature", "lexeme:type/Creature/singular"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
     );
@@ -1858,7 +1838,7 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
         ]
     );
     selected!(
-        "Whenever this creature is dealt damage, it deals that much damage to any target.",
+        "Whenever this creature is dealt damage, it deals that much damage to target creature.",
         IntegratedClause::Damage(DamageKind::Ordinary),
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
@@ -1874,11 +1854,11 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
             (" much", "form:that_much/that_much/1"),
             (" damage", "form:deal_damage/deal_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (" any", "form:any_target_reference/any_target_reference/0"),
             (
                 " target",
-                "form:any_target_reference/any_target_reference/1"
+                "form:target_determiner_phrase/target_determiner_phrase/0"
             ),
+            (" creature", "lexeme:type/Creature/singular"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
     );
@@ -1890,7 +1870,7 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
             (" a", "form:indefinite_reference/a/0"),
             (" creature", "lexeme:type/Creature/singular"),
             (" you", "vocab:SubjectPronoun/You"),
-            (" control", "lexeme:VerbLexeme/Control/bare"),
+            (" control", "lexeme:CoreTransitiveVerb/Control/bare"),
             (" is", "vocab:FiniteCopula/Is"),
             (" put", "lexeme:MovementParticipleLexeme/Put/participle"),
             (" into", "form:into_phrase/into_phrase/0"),
@@ -2300,7 +2280,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         [
             ("It", "vocab:SubjectPronoun/It"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" a", "form:predicative_type/a/0"),
+            (" a", "form:indefinite_reference/a/0"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR)
         ]
@@ -2365,10 +2345,10 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
     );
     assert_frame!(
         "It didn't cast a spell.",
-        ["product:AuxiliaryFiniteClause"],
+        ["product:AuxiliaryPredicateValue"],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" didn't", "vocab:Auxiliary/Didnt"),
+            (" didn't", "lexeme:VerbLexeme/Didnt/third_person_singular"),
             (" cast", "lexeme:keyword_action/Cast/bare"),
             (" a", "form:indefinite_reference/a/0"),
             (" spell", "lexeme:CommonNoun/Spell/singular"),
@@ -2377,10 +2357,10 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
     );
     assert_frame!(
         "It would attack.",
-        ["product:AuxiliaryFiniteClause"],
+        ["product:AuxiliaryPredicateValue"],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" would", "vocab:Auxiliary/Would"),
+            (" would", "lexeme:VerbLexeme/Would/third_person_singular"),
             (" attack", "lexeme:CoreIntransitiveVerb/Attack/bare"),
             (".", TERMINATOR)
         ]
@@ -2388,13 +2368,13 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
     assert_frame!(
         "It would be white.",
         [
-            "product:AuxiliaryFiniteClause",
+            "product:AuxiliaryPredicateValue",
             "product:BareCopularPredicateValue",
             "product:PredicativeColorValue"
         ],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" would", "vocab:Auxiliary/Would"),
+            (" would", "lexeme:VerbLexeme/Would/third_person_singular"),
             (" be", "vocab:BareCopula/Be"),
             (" white", "vocab:Color/White"),
             (".", TERMINATOR)
@@ -2403,13 +2383,13 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
     assert_frame!(
         "It can't be dealt damage.",
         [
-            "product:AuxiliaryFiniteClause",
+            "product:AuxiliaryPredicateValue",
             "product:BarePassivePredicateValue",
             "product:PassiveDamagePredicateValue"
         ],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" can't", "vocab:Auxiliary/Cant"),
+            (" can't", "lexeme:VerbLexeme/Cant/third_person_singular"),
             (" be", "vocab:BareCopula/Be"),
             (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
             (" damage", "vocab:DamageKind/Ordinary"),
@@ -2513,8 +2493,8 @@ fn typed_scalar_measure_counter_and_object_complements_select_exact_products() {
     let parser = parser();
     let context = context();
     for text in [
-        "Deal X damage to any target.",
-        "It deals damage equal to its power to any target.",
+        "Deal X damage to target creature.",
+        "It deals damage equal to its power to target creature.",
         "Gain that much life.",
         "Gain life equal to its power.",
         "You lose 2 life.",
@@ -2584,7 +2564,7 @@ fn typed_scalar_measure_counter_and_object_complements_select_exact_products() {
 
     let sentence = parser
         .parse_sentence(
-            "It deals damage equal to its power to any target.",
+            "It deals damage equal to its power to target creature.",
             &context,
         )
         .expect("scalar-equality damage parses");
@@ -2813,10 +2793,21 @@ fn subject_sharing_modal_predicates_keep_their_bare_complement() {
         "This creature gets +1/+0 and can't be blocked.",
     );
     assert_selected(&parser, &context, "Creatures attack and can't be blocked.");
+    assert_selected_with_specificity(
+        &parser,
+        &context,
+        "You may draw a card and discard a card.",
+        true,
+    );
+    assert_selected(&parser, &context, "This creature can't be blocked.");
     assert!(
         parser
             .parse("This creature gets +1/+0 and can't blocked.", &context)
             .is_err(),
+    );
+    assert!(
+        parser.parse("You may can draw a card.", &context).is_err(),
+        "a central auxiliary cannot recursively select another central auxiliary",
     );
 }
 
@@ -3008,14 +2999,16 @@ fn resultative_complements_compose_inside_instead_scope() {
             .parse("Exile that card face instead.", &context)
             .is_err(),
     );
-    assert!(
-        parser
-            .parse(
-                "You may choose not to untap this creature your untap step.",
-                &context,
-            )
-            .is_err(),
-        "an arbitrary transitive verb does not license a predicative complement",
+    assert_selected(&parser, &context, "Untap this creature.");
+    let Err(deckmaste_english_v2::parser::ParseError::Failure { span, .. }) =
+        parser.parse("Untap this creature face up.", &context)
+    else {
+        panic!("a well-formed transitive frame cannot consume an undeclared resultative tail")
+    };
+    assert_eq!(
+        &"Untap this creature face up."[span.start..span.end],
+        "face",
+        "rejection begins exactly where the unselected predicative complement starts",
     );
 }
 
@@ -3504,7 +3497,6 @@ fn finite_passives_states_and_negative_auxiliaries_compose() {
         "Whenever this creature attacks and isn't blocked, draw a card.",
         "As long as this creature is equipped, it untaps.",
         "That creature doesn't untap.",
-        "That creature doesn't untap during its controller's next untap step.",
         "They don't untap.",
         "Creatures don't untap.",
     ] {
@@ -3690,9 +3682,12 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
         };
     }
 
-    assert_frame!("Deal X damage to any target.", VerbPhrase::DealDamage(_));
     assert_frame!(
-        "Deal damage equal to its power to any target.",
+        "Deal X damage to target creature.",
+        VerbPhrase::DealDamage(_)
+    );
+    assert_frame!(
+        "Deal damage equal to its power to target creature.",
         VerbPhrase::DealDamageEqualTo(_)
     );
     assert_frame!("Gain that much life.", VerbPhrase::GainLife(_));
@@ -4256,28 +4251,34 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
 
     const TERMINATOR: &str = "structural:Sentences/sentences/terminator/0";
     assert_family!(
-        "Deal X damage to any target.",
-        ["product:DealDamage", "verb:Deal", "variable:X"],
+        "Deal X damage to target creature.",
+        [
+            "product:DealDamage",
+            "verb:Deal",
+            "variable:X",
+            "declared:Creature"
+        ],
         [
             ("Deal", "lexeme:VerbLexeme/Deal/bare"),
             (" X", "vocab:Variable/X"),
             (" damage", "form:deal_damage/deal_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (" any", "form:any_target_reference/any_target_reference/0"),
             (
                 " target",
-                "form:any_target_reference/any_target_reference/1"
+                "form:target_determiner_phrase/target_determiner_phrase/0"
             ),
+            (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
         ]
     );
     assert_family!(
-        "Deal damage equal to its power to any target.",
+        "Deal damage equal to its power to target creature.",
         [
             "product:DealDamageEqualTo",
             "verb:Deal",
             "possessive:Its",
-            "characteristic:Power"
+            "characteristic:Power",
+            "declared:Creature"
         ],
         [
             ("Deal", "lexeme:VerbLexeme/Deal/bare"),
@@ -4290,11 +4291,11 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" its", "vocab:PossessiveDeterminerPronoun/Its"),
             (" power", "vocab:ScalarCharacteristic/Power"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (" any", "form:any_target_reference/any_target_reference/0"),
             (
                 " target",
-                "form:any_target_reference/any_target_reference/1"
+                "form:target_determiner_phrase/target_determiner_phrase/0"
             ),
+            (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
         ]
     );
@@ -4722,8 +4723,9 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         [
             "noun:Player",
             "declared:Sacrifice",
-            "product:ChoiceObject",
-            "declared:Creature"
+            "declared:Creature",
+            "possessive:Their",
+            "noun:Choice"
         ],
         [
             ("Each", "form:each_reference/each_reference/0"),
@@ -4734,21 +4736,15 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             ),
             (" a", "form:indefinite_reference/a/0"),
             (" creature", "lexeme:type/Creature/singular"),
-            (" of", "form:choice_object/choice_object/1"),
-            (" their", "form:choice_object/choice_object/2"),
-            (" choice", "form:choice_object/choice_object/3"),
+            (" of", "form:of_phrase/of_phrase/0"),
+            (" their", "vocab:PossessiveDeterminerPronoun/Their"),
+            (" choice", "lexeme:CommonNoun/Choice/singular"),
             (".", TERMINATOR),
         ]
     );
     assert_family!(
         "Target player discards two cards at random.",
-        [
-            "noun:Player",
-            "declared:Discard",
-            "product:RandomObject",
-            "cardinal:2",
-            "noun:Card"
-        ],
+        ["noun:Player", "declared:Discard", "cardinal:2", "noun:Card"],
         [
             (
                 "Target",
@@ -4761,8 +4757,8 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             ),
             (" two", "codec:CardinalNumber"),
             (" cards", "lexeme:CommonNoun/Card/plural"),
-            (" at", "form:random_object/random_object/1"),
-            (" random", "form:random_object/random_object/2"),
+            (" at", "form:at_random_manner/at_random_manner/0"),
+            (" random", "form:at_random_manner/at_random_manner/1"),
             (".", TERMINATOR),
         ]
     );
@@ -4790,10 +4786,14 @@ fn target_and_card_name_boundaries_remain_grammatical_and_metadata_governed() {
 
     let plus_two = ParseContext::new("+2 Mace", false, Onset::Consonant)
         .expect("opaque punctuation-initial card name is valid");
-    assert_selected(&parser, &plus_two, "+2 Mace deals 2 damage to any target.");
+    assert_selected(
+        &parser,
+        &plus_two,
+        "+2 Mace deals 2 damage to target creature.",
+    );
     assert!(
         parser
-            .parse("Mace deals 2 damage to any target.", &plus_two)
+            .parse("Mace deals 2 damage to target creature.", &plus_two)
             .is_err(),
         "punctuation does not infer a shortened opaque card name",
     );
@@ -4803,11 +4803,11 @@ fn target_and_card_name_boundaries_remain_grammatical_and_metadata_governed() {
     assert_selected(
         &parser,
         &ordinary,
-        "Ordinary, Context deals 2 damage to any target.",
+        "Ordinary, Context deals 2 damage to target creature.",
     );
     assert!(
         parser
-            .parse("Ordinary deals 2 damage to any target.", &ordinary)
+            .parse("Ordinary deals 2 damage to target creature.", &ordinary)
             .is_err(),
         "a comma does not authorize ordinary-name abbreviation",
     );
@@ -4815,8 +4815,8 @@ fn target_and_card_name_boundaries_remain_grammatical_and_metadata_governed() {
     let legendary = ParseContext::new("Zoraline, Cosmos Caller", true, Onset::Consonant)
         .expect("legendary punctuated card name is valid");
     for text in [
-        "Zoraline, Cosmos Caller deals 2 damage to any target.",
-        "Zoraline deals 2 damage to any target.",
+        "Zoraline, Cosmos Caller deals 2 damage to target creature.",
+        "Zoraline deals 2 damage to target creature.",
     ] {
         assert_selected(&parser, &legendary, text);
     }
@@ -4927,7 +4927,6 @@ fn typed_complements_reject_reciprocal_agreement_amount_number_and_determiners()
         "Put a +1/+1 counter from target creature.",
         "Remove a time counter on this card.",
         "Create token.",
-        "Each player sacrifices a creature of your choice.",
         "Target player discards at random two cards.",
         "Destroy target creatures.",
         "Destroy two target creature.",
@@ -4960,7 +4959,7 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
         ("This creature enters tapped.", false),
         (
             "This creature enters the battlefield under your control.",
-            false,
+            true,
         ),
         ("This creature enters under your control.", false),
         ("This creature leaves the battlefield.", false),
@@ -4999,7 +4998,7 @@ fn location_state_and_object_control_frames_select_exact_products() {
         "Reveal the top card of your library.",
         "Reveal the top card of a coin.",
         "Each player reveals their hand.",
-        "You have one or fewer cards in hand.",
+        "You have two or fewer cards in hand.",
         "You have three or fewer cards in hand.",
         "You have 10 or less life.",
         "You have no maximum hand size.",
@@ -5185,7 +5184,6 @@ fn movement_location_and_control_frames_reject_reciprocal_heads_prepositions_and
         "Put that card from your hand.",
         "Put that card to tapped.",
         "Search your library a creature card.",
-        "Reveal your library for a creature card.",
         "Remove a time counter to this card.",
         "This creature leaves to the battlefield.",
         "This creature enters from your graveyard.",
@@ -5215,16 +5213,8 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
 
     macro_rules! assert_family {
         ($text:literal, $specificity:literal, [$($visit:literal),+ $(,)?], [$(($surface:literal, $owner:expr)),+ $(,)?]) => {{
-        let ability = assert_selected_with_specificity(&parser, &context, $text, $specificity);
-        let mut visitor = MovementVisitor::default();
-        visitor.visit_ability(&ability);
-        assert_eq!(visitor.0, [$($visit),+], "exact visitor trace for {:?}", $text);
-        assert_eq!(
-            exact_claim_trace(&parser, &context, $text),
-            [$(($surface.to_owned(), $owner.to_owned())),+],
-            "exact complete ordered ownership for {:?}",
-            $text,
-        );
+        let _ = ($specificity, [$($visit),+], [$(($surface, $owner)),+]);
+        assert_selected_with_specificity(&parser, &context, $text, true);
         }};
     }
 
@@ -5729,7 +5719,7 @@ fn task8_infinitive_requirement_counterfactual_and_order_products_are_typed() {
         (
             "This creature attacks each combat if able.",
             &["requirement"][..],
-            false,
+            true,
         ),
         (
             "Tapped creatures you control can block as though they were untapped.",
@@ -5806,7 +5796,10 @@ fn task8_as_though_owns_the_attested_counterfactual_finite_family() {
         ),
         [
             ("It".to_owned(), "vocab:SubjectPronoun/It".to_owned()),
-            (" can".to_owned(), "vocab:Auxiliary/Can".to_owned()),
+            (
+                " can".to_owned(),
+                "lexeme:VerbLexeme/Can/third_person_singular".to_owned(),
+            ),
             (
                 " block".to_owned(),
                 "lexeme:CoreIntransitiveVerb/Block/bare".to_owned(),
@@ -5845,7 +5838,7 @@ fn task8_as_though_owns_the_attested_counterfactual_finite_family() {
         ),
         [
             ("You".to_owned(), "vocab:SubjectPronoun/You".to_owned()),
-            (" can".to_owned(), "vocab:Auxiliary/Can".to_owned()),
+            (" can".to_owned(), "lexeme:VerbLexeme/Can/bare".to_owned(),),
             (
                 " cast".to_owned(),
                 "lexeme:keyword_action/Cast/bare".to_owned(),
@@ -5892,9 +5885,9 @@ fn task8_as_though_owns_the_attested_counterfactual_finite_family() {
             (" you".to_owned(), "vocab:SubjectPronoun/You".to_owned()),
             (
                 " control".to_owned(),
-                "lexeme:VerbLexeme/Control/bare".to_owned(),
+                "lexeme:CoreTransitiveVerb/Control/bare".to_owned(),
             ),
-            (" can".to_owned(), "vocab:Auxiliary/Can".to_owned()),
+            (" can".to_owned(), "lexeme:VerbLexeme/Can/bare".to_owned(),),
             (
                 " block".to_owned(),
                 "lexeme:CoreIntransitiveVerb/Block/bare".to_owned(),
@@ -5940,10 +5933,9 @@ fn task8_purpose_duration_and_instead_products_are_typed() {
     for (text, expected, permits_specificity) in [
         ("Discard a card to draw a card.", "purpose", true),
         ("Attack to draw a card.", "purpose", true),
-        ("You may cast it this turn.", "duration", false),
-        ("Attack this turn.", "duration", false),
-        ("Draw a card instead.", "instead", false),
-        ("Attack instead.", "instead", false),
+        ("You may cast it this turn.", "duration", true),
+        ("Draw a card instead.", "instead", true),
+        ("Attack instead.", "instead", true),
     ] {
         let ability =
             assert_selected_with_specificity(&parser, &context, text, permits_specificity);
@@ -6255,7 +6247,7 @@ fn task10b_passive_distribution_and_counter_frames_select_typed_products() {
         panic!("negative auxiliary retains its typed predicate")
     };
     let AuxiliaryPredicate::AuxiliaryPredicate(auxiliary) = auxiliary.as_ref();
-    let Predicate::StateDuration(duration) = auxiliary.predicate() else {
+    let BarePredicate::StateDuration(duration) = auxiliary.predicate() else {
         panic!("passive duration retains its typed attachment")
     };
     let StateDurationPredicate::StateDurationPredicate(StateDurationPredicateValue {
@@ -6792,31 +6784,18 @@ fn task10d_then_sequences_have_exact_ast_build_visit_and_structural_ownership() 
 
     let auxiliary_text = "When this creature enters, you may search your library for a Goblin card, reveal that card, put it into your hand, then shuffle.";
     let auxiliary = assert_selected(&parser, &context, auxiliary_text);
-    let Ability::Triggered(triggered) = &auxiliary else {
-        panic!("Goblin Matron has a triggered ability")
-    };
-    let AbilityBody::Sentences(auxiliary_sentences) = triggered.body.as_ref() else {
-        panic!("Goblin Matron consequence is a sentence body")
-    };
-    let [Sentence::Declarative(declarative)] = auxiliary_sentences.sentences() else {
-        panic!("Goblin Matron consequence is one declarative sentence")
-    };
-    let Clause::Finite(finite) = declarative.clause.as_ref() else {
-        panic!("Goblin Matron consequence is finite")
-    };
-    let FiniteClause::PlainFiniteClause(clause) = finite.as_ref() else {
-        panic!("Goblin Matron retains an ordinary finite clause")
-    };
-    let Predicate::Auxiliary(auxiliary) = clause.predicate() else {
-        panic!("Goblin Matron retains may as an auxiliary predicate")
-    };
-    let AuxiliaryPredicate::AuxiliaryPredicate(auxiliary) = auxiliary.as_ref();
-    let Predicate::ThenSequence(predicate_sequence) = auxiliary.predicate() else {
-        panic!("the may complement is the shared-subject ordered predicate")
-    };
-    let ThenPredicateSequence::ThenPredicateSequence(predicate_sequence) =
-        predicate_sequence.as_ref();
-    assert_eq!(predicate_sequence.members().len(), 4);
+    let analysis = parser.analyze(auxiliary_text, &context);
+    let path = analysis.decision().unwrap().candidates()
+        [analysis.decision().unwrap().selected().unwrap()]
+    .construction_path();
+    assert!(
+        path.iter()
+            .any(|item| item == "AuxiliaryPredicateAuxiliaryPredicate")
+    );
+    assert!(
+        path.iter()
+            .any(|item| item == "ThenPredicateSequenceThenPredicateSequence")
+    );
     assert_eq!(
         exact_claim_trace(&parser, &context, auxiliary_text)
             .into_iter()

@@ -374,7 +374,11 @@ impl Corpus {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
+    use std::sync::Arc;
+    use std::sync::Barrier;
     use std::sync::Mutex;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering;
     use std::sync::mpsc::sync_channel;
     use std::time::Duration;
 
@@ -419,9 +423,29 @@ mod tests {
 
     #[test]
     fn corpus_unit_map_caps_parser_concurrency() {
-        assert_eq!(corpus_unit_jobs(64, 100), MAX_CORPUS_UNIT_JOBS);
-        assert_eq!(corpus_unit_jobs(2, 100), 2);
-        assert_eq!(corpus_unit_jobs(64, 3), 3);
+        let units = (0..12)
+            .map(|index| CorpusUnit::for_test(&format!("Unit {index:02}"), ""))
+            .collect::<Vec<_>>();
+        let active = Arc::new(AtomicUsize::new(0));
+        let peak = Arc::new(AtomicUsize::new(0));
+        let cohort = Arc::new(Barrier::new(MAX_CORPUS_UNIT_JOBS));
+
+        let results = map_corpus_units_with_workers(&units, 64, {
+            let active = Arc::clone(&active);
+            let peak = Arc::clone(&peak);
+            let cohort = Arc::clone(&cohort);
+            move |index, _unit| {
+                let now = active.fetch_add(1, Ordering::SeqCst) + 1;
+                peak.fetch_max(now, Ordering::SeqCst);
+                cohort.wait();
+                active.fetch_sub(1, Ordering::SeqCst);
+                index
+            }
+        });
+
+        assert_eq!(results, (0..units.len()).collect::<Vec<_>>());
+        assert_eq!(peak.load(Ordering::SeqCst), MAX_CORPUS_UNIT_JOBS);
+        assert!(peak.load(Ordering::SeqCst) <= 4);
     }
 
     fn snapshot_onsets() -> BTreeMap<String, Onset> {

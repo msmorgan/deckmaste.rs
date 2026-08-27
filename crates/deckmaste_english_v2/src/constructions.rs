@@ -733,6 +733,30 @@ constructions! {
         CostComparison: CostComparisonPredicate,
         ActionRestriction: ActionRestrictionPredicate,
     }
+    abstract sum BarePredicate {
+        Atomic: VerbPhrase,
+        Coordination: PredicateCoordination,
+        ThenSequence: ThenPredicateSequence,
+        BareCopular: BareCopularPredicate,
+        ChangeState: ChangeStatePredicate,
+        BarePassive: BarePassivePredicate,
+        ForAdjunct: ForAdjunctPredicate,
+        DuringAdjunct: DuringAdjunctPredicate,
+        Cause: ObjectInfinitivePredicate,
+        Requirement: RequirementPredicate,
+        TransitiveRequirement: TransitiveRequirementPredicate,
+        AsThough: AsThoughPredicate,
+        Ordered: OrderedPredicate,
+        Purpose: PurposePredicate,
+        Duration: DurationPredicate,
+        StateDuration: StateDurationPredicate,
+        Instead: InsteadPredicate,
+        Manner: MannerPredicate,
+        RatherThanManaCost: RatherThanManaCostPredicate,
+        WithoutPayingManaCost: WithoutPayingManaCostPredicate,
+        CostComparison: CostComparisonPredicate,
+        ActionRestriction: ActionRestrictionPredicate,
+    }
     abstract sum Predicate {
         Atomic: VerbPhrase,
         Coordination: PredicateCoordination,
@@ -1727,7 +1751,7 @@ constructions! {
     construction auxiliary_predicate: AuxiliaryPredicate {
         element AuxiliaryPredicateValue {
             auxiliary: AuxiliaryHead,
-            predicate: Predicate,
+            predicate: BarePredicate,
         }
         derive predicate.agreement = Values::Bare;
         derive agreement = auxiliary.agreement;

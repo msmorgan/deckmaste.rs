@@ -59,6 +59,7 @@ pub use crate::constructions::walk_bare_passive_predicate;
 pub use crate::constructions::walk_bare_passive_predicate_value;
 pub use crate::constructions::walk_bare_plural_coordination_member;
 pub use crate::constructions::walk_bare_plural_nominal;
+pub use crate::constructions::walk_bare_predicate;
 pub use crate::constructions::walk_bare_singular_coordination_member;
 pub use crate::constructions::walk_bare_singular_nominal;
 pub use crate::constructions::walk_base_verb_frame;

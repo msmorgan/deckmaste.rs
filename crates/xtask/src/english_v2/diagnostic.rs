@@ -957,6 +957,7 @@ enum NonterminalKind {
     RestrictionTurn,
     ActionRestrictionPredicate,
     Predicate,
+    BarePredicate,
     CoordinatedPredicate,
     PredicateCoordination,
     PredicativeComplement,
@@ -1617,6 +1618,7 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::ActionRestrictionPredicate
         }
         NonterminalCategory::Predicate => NonterminalKind::Predicate,
+        NonterminalCategory::BarePredicate => NonterminalKind::BarePredicate,
         NonterminalCategory::CoordinatedPredicate => NonterminalKind::CoordinatedPredicate,
         NonterminalCategory::PredicateCoordination => NonterminalKind::PredicateCoordination,
         NonterminalCategory::PredicativeComplement => NonterminalKind::PredicativeComplement,

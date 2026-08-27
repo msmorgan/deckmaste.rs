@@ -59,6 +59,7 @@ pub use crate::constructions::BarePassivePredicate;
 pub use crate::constructions::BarePassivePredicateValue;
 pub use crate::constructions::BarePluralCoordinationMember;
 pub use crate::constructions::BarePluralNominal;
+pub use crate::constructions::BarePredicate;
 pub use crate::constructions::BareSingularCoordinationMember;
 pub use crate::constructions::BareSingularNominal;
 pub use crate::constructions::BaseVerbFrame;
