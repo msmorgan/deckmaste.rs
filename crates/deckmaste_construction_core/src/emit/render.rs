@@ -479,9 +479,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     for feature in [
         Feature::Agreement,
         Feature::Cardinality,
-        Feature::DeterminerNumber,
         Feature::NominalForm,
-        Feature::NominalLicense,
         Feature::Number,
         Feature::Onset,
         Feature::PossessiveEnding,
@@ -519,11 +517,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     {
         items.push(emit_sum_agreement_match_helper(validated, sum)?);
     }
-    for feature in [
-        Feature::DeterminerNumber,
-        Feature::NominalForm,
-        Feature::NominalLicense,
-    ] {
+    for feature in [Feature::NominalForm] {
         for sum in validated
             .sums()
             .iter()
@@ -1802,6 +1796,7 @@ fn render_allocator(
                                 &mut allocator,
                             )?;
                         }
+                    } else if find_declaration_determinative(validated, terminal).is_some() {
                     } else if let Some(vocab) = find_vocab(validated, terminal) {
                         allocator.reserve(format!("render_{}", snake_case(vocab.name())));
                     } else if let Some(codec) = find_signed_decimal(validated, terminal) {
@@ -2232,6 +2227,36 @@ fn render_atoms(
                     locals,
                     root_names,
                 );
+            }
+            if let AtomPlan::Lex { role, .. } = atom
+                && let Some(field) = fields.get(role)
+                && let Some(codec) = find_declaration_determinative(validated, field.terminal())
+            {
+                let value = field_value(construction, role, locals)?;
+                let surface = declaration_determinative_surface_expr(
+                    validated,
+                    construction,
+                    form,
+                    atom_index,
+                    codec,
+                    role,
+                    &value,
+                    locals,
+                )?;
+                let owner = render_owner(
+                    validated,
+                    construction,
+                    form.name(),
+                    atom_index,
+                    atom,
+                    locals,
+                )?;
+                return Ok(quote! {
+                    #method_writer.claim(
+                        || #owner,
+                        |writer| { writer.word(#surface); },
+                    );
+                });
             }
             if matches!(atom, AtomPlan::Category { .. }) {
                 return render_atom_statement(
@@ -2850,6 +2875,32 @@ fn render_owner(
                         (#value).id().clone(),
                         ::macro_ron::v2::SurfaceFeature::Fixed,
                     )
+                });
+            }
+            if let Some(codec) = find_declaration_determinative(validated, terminal) {
+                let ty = codec.codec_ident();
+                let lemma = codec.lemma_ident();
+                let closed = codec.closed().iter().map(|member| {
+                    let member = member.lemma();
+                    let stable_id = syn::LitStr::new(
+                        &format!("determinative:{terminal}/{member}"),
+                        Span::call_site(),
+                    );
+                    quote! {
+                        #ty::Closed(#lemma::#member) => LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Codec,
+                            #stable_id,
+                        )
+                    }
+                });
+                return Ok(quote! {
+                    match #value {
+                        #(#closed,)*
+                        #ty::Declared(id) => LexicalOwner::declaration_owner(
+                            id.clone(),
+                            ::macro_ron::v2::SurfaceFeature::Fixed,
+                        ),
+                    }
                 });
             }
             if let Some(vocab) = find_vocab(validated, terminal) {
@@ -3717,6 +3768,117 @@ fn implicit_verb_onset(
     }
 }
 
+fn declaration_determinative_surface_expr(
+    validated: &SemanticPlan,
+    construction: &ConstructionPlan,
+    form: &FormPlan,
+    atom_index: usize,
+    codec: &crate::semantic::DeclarationDeterminativePlan,
+    role: &str,
+    value: &TokenStream,
+    locals: &RenderLocals,
+) -> syn::Result<TokenStream> {
+    let following_role = form
+        .atoms()
+        .get(atom_index + 1)
+        .and_then(render_atom_role)
+        .filter(|following| *following != role);
+    let (number, following_onset) = if let Some(following) = following_role {
+        let number = feature_expr(
+            validated,
+            construction,
+            &FeatureExpr::FromRole {
+                role: syn::Ident::new(following, construction.origin_span()),
+                feature: Feature::Number,
+            },
+            Feature::Number,
+            locals,
+        )?;
+        let onset = feature_expr(
+            validated,
+            construction,
+            &FeatureExpr::FromRole {
+                role: syn::Ident::new(following, construction.origin_span()),
+                feature: Feature::Onset,
+            },
+            Feature::Onset,
+            locals,
+        )?;
+        (number, Some(onset))
+    } else {
+        let equation = validated
+            .feature_equations(construction.construction_id())
+            .iter()
+            .find(|equation| equation.target() == &FeaturePlace::Construction(Feature::Number))
+            .ok_or_else(|| {
+                internal("standalone determinative form lacks a construction Number equation")
+            })?;
+        (
+            feature_expr(
+                validated,
+                construction,
+                equation.value(),
+                Feature::Number,
+                locals,
+            )?,
+            None,
+        )
+    };
+    let phrase_number = quote! {
+        match #number {
+            Number::Singular => ::macro_ron::v2::DeterminativePhraseNumber::Singular,
+            Number::Plural => ::macro_ron::v2::DeterminativePhraseNumber::Plural,
+        }
+    };
+    let following_onset = following_onset
+        .map_or_else(|| quote! { None }, |onset| quote! { Some(#onset) });
+    let ty = codec.codec_ident();
+    let lemma = codec.lemma_ident();
+    let closed = codec.closed().iter().map(|member| {
+        let member_name = member.lemma();
+        let realizations = member.realizations().iter().map(|realization| {
+            let number = realization.phrase_number().map_or_else(
+                || quote! { _ },
+                |number| match number {
+                    ::macro_ron::v2::DeterminativePhraseNumber::Singular => quote! {
+                        ::macro_ron::v2::DeterminativePhraseNumber::Singular
+                    },
+                    ::macro_ron::v2::DeterminativePhraseNumber::Plural => quote! {
+                        ::macro_ron::v2::DeterminativePhraseNumber::Plural
+                    },
+                },
+            );
+            let onset = realization.following_onset().map_or_else(
+                || quote! { _ },
+                |onset| {
+                    let onset = super::onset(onset);
+                    quote! { Some(#onset) }
+                },
+            );
+            let surface = syn::LitStr::new(realization.surface(), Span::call_site());
+            quote! { (#number, #onset) => #surface }
+        });
+        quote! {
+            #lemma::#member_name => match (phrase_number, following_onset) {
+                #(#realizations,)*
+                _ => unreachable!("stored determinative lemma has no licensed realization"),
+            }
+        }
+    });
+    Ok(quote! {{
+        let phrase_number = #phrase_number;
+        let following_onset = #following_onset;
+        match #value {
+            #ty::Closed(lemma) => match lemma {
+                #(#closed,)*
+            },
+            #ty::Declared(id) => environment
+                .determinative_surface(id, phrase_number, following_onset)
+                .expect("stored declaration-backed determinative remains realizable"),
+        }
+    }})
+}
+
 fn bound_prefix_onset(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -3838,6 +4000,32 @@ fn lexical_onset_expr(
             quote! { (#noun::#member, #feature) => #onset }
         });
         return Ok(quote! { match (#role_value, #number) { #(#arms,)* } });
+    }
+    if let Some(codec) = find_declaration_determinative(validated, field.terminal()) {
+        let (form, atom_index) = construction
+            .forms()
+            .iter()
+            .find_map(|form| {
+                form.atoms().iter().enumerate().find_map(|(atom_index, atom)| {
+                    matches!(atom, AtomPlan::Lex { role: found, .. } if found == role)
+                        .then_some((form, atom_index))
+                })
+            })
+            .ok_or_else(|| internal("validated determinative role has no surface atom"))?;
+        let surface = declaration_determinative_surface_expr(
+            validated,
+            construction,
+            form,
+            atom_index,
+            codec,
+            role,
+            &role_value,
+            locals,
+        )?;
+        return Ok(quote! {
+            ::macro_ron::v2::normalize_surface_onset(#surface, None)
+                .expect("validated determinative realization has an onset")
+        });
     }
     if let Some((_, codec)) = validated.runtime_declaration_verb_for(field.terminal()) {
         let verb = codec.codec_ident();
@@ -4861,6 +5049,15 @@ fn find_lexeme<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a Lexeme
         })
 }
 
+fn find_declaration_determinative<'a>(
+    validated: &'a SemanticPlan,
+    name: &str,
+) -> Option<&'a crate::semantic::DeclarationDeterminativePlan> {
+    validated
+        .runtime_declaration_determinative_for(name)
+        .map(|(_, codec)| codec)
+}
+
 fn find_binding<'a>(validated: &'a SemanticPlan, name: &str) -> syn::Result<&'a BindingPlan> {
     for terminal in validated.terminals() {
         if let TerminalPlan::Binding(row) = terminal
@@ -4869,7 +5066,9 @@ fn find_binding<'a>(validated: &'a SemanticPlan, name: &str) -> syn::Result<&'a 
             return Ok(row);
         }
     }
-    Err(internal("resolved terminal binding is absent"))
+    Err(internal(&format!(
+        "resolved terminal binding `{name}` is absent"
+    )))
 }
 
 fn find_context_identity<'a>(

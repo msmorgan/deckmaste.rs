@@ -6272,6 +6272,10 @@ fn check_feature_role(
                 feature,
                 ParsedFeature::Onset | ParsedFeature::PossessiveEnding
             ) => {}
+        Some(FieldKind::Lex(path))
+            if providers.contains(&(path_name(path), feature)) =>
+        {
+        }
         Some(FieldKind::Lex(_))
             if local_vocab_providers.contains(&(identifier_key(role), feature)) =>
         {
@@ -8947,6 +8951,14 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             let terminal = identifier_key(&binding.name);
             providers.insert((terminal.clone(), ParsedFeature::Number));
             providers.insert((terminal, ParsedFeature::Cardinality));
+        }
+        if matches!(
+            binding.generated,
+            Some(crate::model::GeneratedCodecRecipe::DeclarationDeterminative(_))
+        ) {
+            let terminal = identifier_key(&binding.name);
+            providers.insert((terminal.clone(), ParsedFeature::DeterminerNumber));
+            providers.insert((terminal, ParsedFeature::NominalLicense));
         }
         if let Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe)) =
             &binding.generated

@@ -385,19 +385,27 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 .expect("validated declaration_determinative realization has an onset");
             let onset = crate::emit::onset(onset);
             let member_name = member.lemma();
-            let number = match member.number_license() {
-                ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => quote! { DeterminerNumber::SingularOnly },
-                ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => quote! { DeterminerNumber::PluralOnly },
-                ::macro_ron::v2::DeterminativeNumberLicense::Both => quote! { DeterminerNumber::Both },
+            let number = match realization.phrase_number() {
+                Some(::macro_ron::v2::DeterminativePhraseNumber::Singular) => quote! { DeterminerNumber::SingularOnly },
+                Some(::macro_ron::v2::DeterminativePhraseNumber::Plural) => quote! { DeterminerNumber::PluralOnly },
+                None => match member.number_license() {
+                    ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => quote! { DeterminerNumber::SingularOnly },
+                    ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => quote! { DeterminerNumber::PluralOnly },
+                    ::macro_ron::v2::DeterminativeNumberLicense::Both => quote! { DeterminerNumber::Both },
+                },
             };
+            let following_onset = realization.following_onset().map(|onset| {
+                let onset = crate::emit::onset(onset);
+                quote! { input.following_onset(end) == Some(#onset) }
+            }).unwrap_or_else(|| quote! { true });
             let nominal = match member.nominal_license() {
                 ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => quote! { NominalLicense::CountNominal },
                 ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => quote! { NominalLicense::BareSingularNoun },
             };
-            quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, number_license: #number, nominal_license: #nominal }, owner: None }); } }
+            quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) && #following_onset { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, number_license: #number, nominal_license: #nominal }, owner: None }); } }
         }));
         {
-            quote! { Lexical::DeclarationDeterminative(#terminal_index) => { let mut matches = Vec::new(); #(#closed)* for (end, reading) in input.declaration_determinative_readings(terminal.right_boundary) { let Some(value) = #ty::declared(reading.id().clone()) else { continue; }; let number_license = match reading.number_license() { ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => DeterminerNumber::SingularOnly, ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => DeterminerNumber::PluralOnly, ::macro_ron::v2::DeterminativeNumberLicense::Both => DeterminerNumber::Both }; let nominal_license = match reading.nominal_license() { ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => NominalLicense::CountNominal, ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => NominalLicense::BareSingularNoun }; matches.push(LexicalMatch { end, value: Leaf::#ty { value, onset: reading.onset(), number_license, nominal_license }, owner: None }); } matches } }
+            quote! { Lexical::DeclarationDeterminative(#terminal_index) => { let mut matches = Vec::new(); #(#closed)* for (end, reading) in input.declaration_determinative_readings(terminal.right_boundary) { if reading.following_onset().is_some_and(|wanted| input.following_onset(end) != Some(wanted)) { continue; } let Some(value) = #ty::declared(reading.id().clone()) else { continue; }; let number_license = match reading.phrase_number() { Some(::macro_ron::v2::DeterminativePhraseNumber::Singular) => DeterminerNumber::SingularOnly, Some(::macro_ron::v2::DeterminativePhraseNumber::Plural) => DeterminerNumber::PluralOnly, None => match reading.number_license() { ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => DeterminerNumber::SingularOnly, ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => DeterminerNumber::PluralOnly, ::macro_ron::v2::DeterminativeNumberLicense::Both => DeterminerNumber::Both } }; let nominal_license = match reading.nominal_license() { ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => NominalLicense::CountNominal, ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => NominalLicense::BareSingularNoun }; matches.push(LexicalMatch { end, value: Leaf::#ty { value, onset: reading.onset(), number_license, nominal_license }, owner: None }); } matches } }
         }
     }).collect()
 }

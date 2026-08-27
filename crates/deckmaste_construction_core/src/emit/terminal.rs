@@ -455,6 +455,11 @@ pub(crate) fn emit(
                 }, vec![origin.clone()]));
                 items.push(GeneratedItem::new(ItemKey::named_type(ty.to_string()), quote! {
                     #[derive(Debug, Clone, PartialEq, Eq)] pub enum #ty { Closed(#lemma), Declared(::macro_ron::v2::DeclarationIdentity) }
+                }, vec![origin.clone()]));
+                items.push(GeneratedItem::new(ItemKey::Impl {
+                    trait_name: None,
+                    self_ty: ty.to_string(),
+                }, quote! {
                     impl #ty { pub(crate) fn declared(id: ::macro_ron::v2::DeclarationIdentity) -> Option<Self> { matches!(id.kind(), #(#allowed)|*).then_some(Self::Declared(id)) } }
                 }, vec![origin]));
             }

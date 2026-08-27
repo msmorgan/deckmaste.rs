@@ -637,13 +637,19 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let number = plan
                     .category_carries_number(item.name)
                     .then(|| quote! { , Number });
+                let determiner_number = plan
+                    .carries_feature(item.name, crate::feature::Feature::DeterminerNumber)
+                    .then(|| quote! { , DeterminerNumber });
+                let nominal_license = plan
+                    .carries_feature(item.name, crate::feature::Feature::NominalLicense)
+                    .then(|| quote! { , NominalLicense });
                 let onset = plan
                     .category_carries_onset(item.name)
                     .then(|| quote! { , Onset });
                 let possessive_ending = plan
                     .category_carries_possessive_ending(item.name)
                     .then(|| quote! { , PossessiveEnding });
-                quote! { #name(#name #agreement #cardinality #number #onset #possessive_ending) }
+                quote! { #name(#name #agreement #cardinality #number #determiner_number #nominal_license #onset #possessive_ending) }
             }
             super::SemanticTypeKind::Product => {
                 quote! { #name(#name) }
@@ -1140,6 +1146,8 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let noun_lexeme = inventory.noun_lexeme.map(|_| quote! { NounLexeme, });
     let declaration_noun =
         (!inventory.declaration_nouns.is_empty()).then(|| quote! { DeclarationNoun(usize), });
+    let declaration_determinative = (!inventory.declaration_determinatives.is_empty())
+        .then(|| quote! { DeclarationDeterminative(usize), });
     let declaration_term =
         (!inventory.declaration_terms.is_empty()).then(|| quote! { DeclarationTerm(usize), });
     let declaration_verb =
@@ -1201,6 +1209,7 @@ fn emit_owner_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     },
                     #catalog_identity
                     #declaration_noun
+                    #declaration_determinative
                     #declaration_term
                     #declaration_verb
                     Declaration {
@@ -1260,6 +1269,11 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let declaration_noun_class_arm = (!inventory.declaration_nouns.is_empty()).then(|| {
         quote! { Lexical::DeclarationNoun(terminal_index, _) => TerminalClass::DeclarationNoun(terminal_index), }
     });
+    let declaration_determinative_class_arm = (!inventory.declaration_determinatives.is_empty())
+        .then(|| quote! {
+            Lexical::DeclarationDeterminative(terminal_index) =>
+                TerminalClass::DeclarationDeterminative(terminal_index),
+        });
     let declaration_term_class_arm = (!inventory.declaration_terms.is_empty()).then(|| {
         quote! { Lexical::DeclarationTerm(terminal_index) => TerminalClass::DeclarationTerm(terminal_index), }
     });
@@ -1314,6 +1328,8 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .map(|_| quote! { TerminalClass::Noun => "noun", });
     let declaration_noun_label = (!inventory.declaration_nouns.is_empty())
         .then(|| quote! { TerminalClass::DeclarationNoun(_) => "declaration noun", });
+    let declaration_determinative_label = (!inventory.declaration_determinatives.is_empty())
+        .then(|| quote! { TerminalClass::DeclarationDeterminative(_) => "declaration determinative", });
     let declaration_term_label = (!inventory.declaration_terms.is_empty())
         .then(|| quote! { TerminalClass::DeclarationTerm(_) => "declaration term", });
     let declaration_verb_label = (!inventory.declaration_verbs.is_empty())
@@ -1403,6 +1419,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #(#vocab_class_arms)*
                             #noun_class_arm
                             #declaration_noun_class_arm
+                            #declaration_determinative_class_arm
                             #declaration_term_class_arm
                             #declaration_verb_class_arm
                             #verb_class_arm
@@ -1500,6 +1517,7 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             #(#vocab_labels)*
                             #noun_label
                             #declaration_noun_label
+                            #declaration_determinative_label
                             #declaration_term_label
                             #declaration_verb_label
                             #verb_label
@@ -1816,6 +1834,39 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     )),
                 }
             });
+    let declaration_determinative_owner = inventory
+        .declaration_determinatives
+        .iter()
+        .map(|(terminal_index, codec)| {
+            let ty = codec.codec_ident();
+            let lemma = codec.lemma_ident();
+            let closed = codec.closed().iter().map(|member| {
+                let member = member.lemma();
+                let stable_id = syn::LitStr::new(
+                    &format!("determinative:{}/{member}", codec.codec_name()),
+                    Span::call_site(),
+                );
+                quote! {
+                    (
+                        LexicalOwnerTemplate::DeclarationDeterminative(#terminal_index),
+                        Leaf::#ty { value: #ty::Closed(#lemma::#member), .. },
+                    ) => Some(LexicalOwner::static_owner(
+                        LexicalProvenanceKind::Codec,
+                        #stable_id,
+                    )),
+                }
+            });
+            quote! {
+                #(#closed)*
+                (
+                    LexicalOwnerTemplate::DeclarationDeterminative(#terminal_index),
+                    Leaf::#ty { value: #ty::Declared(id), .. },
+                ) => Some(LexicalOwner::declaration_owner(
+                    id.clone(),
+                    ::macro_ron::v2::SurfaceFeature::Fixed,
+                )),
+            }
+        });
     let declaration_verb_owner =
         inventory
             .declaration_verbs
@@ -2176,6 +2227,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                                 ))
                             },
                             #(#declaration_noun_owner)*
+                            #(#declaration_determinative_owner)*
                             #declaration_term_owner
                             #(#declaration_verb_owner)*
                             _ => None,

@@ -231,23 +231,29 @@ fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
 
 fn indefinite(noun: Noun) -> NounPhrase {
     match noun {
-        Noun::Lexeme(noun) => determined_singular(SimpleDeterminative::A, Noun::Lexeme(noun)),
-        Noun::Type(noun) => determined_singular(SimpleDeterminative::An, Noun::Type(noun)),
+        Noun::Lexeme(noun) => {
+            determined_singular(DeterminativeHeadLemma::IndefiniteArticle, Noun::Lexeme(noun))
+        }
+        Noun::Type(noun) => {
+            determined_singular(DeterminativeHeadLemma::IndefiniteArticle, Noun::Type(noun))
+        }
         Noun::ArtifactSubtype(noun) => {
-            determined_singular(SimpleDeterminative::An, Noun::ArtifactSubtype(noun))
+            determined_singular(
+                DeterminativeHeadLemma::IndefiniteArticle,
+                Noun::ArtifactSubtype(noun),
+            )
         }
     }
 }
 
 fn target_noun(noun: Noun) -> NounPhrase {
-    determined_singular(SimpleDeterminative::Target, noun)
+    determined_singular(DeterminativeHeadLemma::Target, noun)
 }
 
-fn determined_singular(determiner: SimpleDeterminative, noun: Noun) -> NounPhrase {
-    let determiner = Determinative::SingularSimpleDeterminative(
-        SingularSimpleDeterminative::new(determiner)
-            .expect("test determiner licenses a singular nominal"),
-    );
+fn determined_singular(determiner: DeterminativeHeadLemma, noun: Noun) -> NounPhrase {
+    let determiner = Determinative::SingularSimpleDeterminative(SingularSimpleDeterminative {
+        head: DeterminativeHead::Closed(determiner),
+    });
     let nominal = Nominal::SingularNominalValue(SingularNominalValue {
         nominal: singular_nominal(noun),
     });
@@ -317,8 +323,9 @@ fn number_of(counted: Object) -> NounPhrase {
     let number = UnqualifiedReference::DeterminedNominal(
         DeterminedNominal::new(
             Determiner::Headed(Determinative::SingularSimpleDeterminative(
-                SingularSimpleDeterminative::new(SimpleDeterminative::The)
-                    .expect("the licenses a singular nominal"),
+                SingularSimpleDeterminative {
+                    head: DeterminativeHead::Closed(DeterminativeHeadLemma::DefiniteArticle),
+                },
             )),
             Nominal::SingularNominalValue(SingularNominalValue {
                 nominal: singular_nominal(Noun::Lexeme(CommonNoun::Number)),
@@ -368,14 +375,13 @@ fn where_number_of(counted: Object) -> WhereClauseCategory {
 }
 
 fn that_noun(noun: Noun) -> NounPhrase {
-    determined_singular(SimpleDeterminative::That, noun)
+    determined_singular(DeterminativeHeadLemma::DistalDemonstrative, noun)
 }
 
 fn those_noun(noun: Noun) -> NounPhrase {
-    let determiner = Determinative::PluralSimpleDeterminative(
-        PluralSimpleDeterminative::new(SimpleDeterminative::Those)
-            .expect("those licenses a plural nominal"),
-    );
+    let determiner = Determinative::PluralSimpleDeterminative(PluralSimpleDeterminative {
+        head: DeterminativeHead::Closed(DeterminativeHeadLemma::DistalDemonstrative),
+    });
     determined_plural(Determiner::Headed(determiner), noun)
 }
 

@@ -26,6 +26,7 @@ use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
 use crate::semantic::DeclarationNounPlan;
+use crate::semantic::DeclarationDeterminativePlan;
 use crate::semantic::DeclarationTermPlan;
 use crate::semantic::DeclarationVerbPlan;
 use crate::semantic::FiniteDomainKindPlan;
@@ -59,6 +60,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     let mut signed_decimal = None;
     let mut unsigned_numbers = Vec::new();
     let mut declaration_nouns = Vec::new();
+    let mut declaration_determinatives = Vec::new();
     let mut declaration_terms = Vec::new();
     let mut declaration_verbs = Vec::new();
     for terminal in validated.terminals() {
@@ -77,7 +79,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             TerminalPlan::SignedDecimal(row) => signed_decimal = Some(row),
             TerminalPlan::UnsignedNumber(row) => unsigned_numbers.push(row),
             TerminalPlan::DeclarationNoun(row) => declaration_nouns.push(row),
-            TerminalPlan::DeclarationDeterminative(_) => {}
+            TerminalPlan::DeclarationDeterminative(row) => declaration_determinatives.push(row),
             TerminalPlan::DeclarationTerm(row) => declaration_terms.push(row),
         }
     }
@@ -119,6 +121,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         signed_decimal,
         unsigned_numbers: &unsigned_numbers,
         declaration_nouns: &declaration_nouns,
+        declaration_determinatives: &declaration_determinatives,
         declaration_terms: &declaration_terms,
         declaration_verbs: &declaration_verbs,
     };
@@ -178,6 +181,9 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         items.push(emit_declaration_noun_value_walker(codec));
         items.push(emit_declaration_noun_walker(codec));
     }
+    for codec in declaration_determinatives {
+        items.push(emit_declaration_determinative_walker(codec));
+    }
     for codec in declaration_terms {
         items.push(emit_declaration_term_walker(codec));
     }
@@ -199,6 +205,7 @@ struct TerminalVisitors<'a> {
     signed_decimal: Option<&'a SignedDecimalPlan>,
     unsigned_numbers: &'a [&'a UnsignedNumberPlan],
     declaration_nouns: &'a [&'a DeclarationNounPlan],
+    declaration_determinatives: &'a [&'a DeclarationDeterminativePlan],
     declaration_terms: &'a [&'a DeclarationTermPlan],
     declaration_verbs: &'a [&'a DeclarationVerbPlan],
 }
@@ -279,6 +286,12 @@ fn emit_trait(
     origins.extend(
         terminals
             .declaration_nouns
+            .iter()
+            .map(|codec| codec.origin().clone()),
+    );
+    origins.extend(
+        terminals
+            .declaration_determinatives
             .iter()
             .map(|codec| codec.origin().clone()),
     );
@@ -400,6 +413,9 @@ fn visitor_methods(
             &crate::identifier::snake_case(&codec.declaration_value_ident().to_string()),
         ));
     }
+    for codec in terminals.declaration_determinatives {
+        methods.push(default_method(codec.codec_name(), codec.codec_name()));
+    }
     for codec in terminals.declaration_terms {
         methods.push(default_method(codec.codec_name(), codec.codec_name()));
     }
@@ -411,6 +427,7 @@ fn visitor_methods(
         ));
     }
     if !terminals.declaration_nouns.is_empty()
+        || !terminals.declaration_determinatives.is_empty()
         || !terminals.declaration_terms.is_empty()
         || !terminals.declaration_verbs.is_empty()
         || constructions.iter().any(|construction| {
@@ -704,6 +721,28 @@ fn emit_declaration_noun_walker(codec: &DeclarationNounPlan) -> GeneratedItem {
                 match noun {
                     #closed_arm
                     #ty::Declaration(declaration) => visitor.#declaration_callback(declaration),
+                }
+            }
+        },
+        vec![codec.origin().clone()],
+    )
+}
+
+fn emit_declaration_determinative_walker(
+    codec: &DeclarationDeterminativePlan,
+) -> GeneratedItem {
+    let ty = codec.codec_ident();
+    let function = ident(&format!("walk_{}", snake_case(codec.codec_name())));
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function.to_string(),
+        },
+        quote! {
+            pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, det: &#ty) {
+                visitor.visit_determinative_head(det);
+                if let #ty::Declared(id) = det {
+                    visitor.visit_declaration(id);
                 }
             }
         },
@@ -1422,6 +1461,9 @@ fn terminal_mode(validated: &SemanticPlan, terminal: &str) -> syn::Result<VisitM
                 return Ok(VisitMode::Borrowed);
             }
             TerminalPlan::DeclarationNoun(row) if row.codec_name() == terminal => {
+                return Ok(VisitMode::Borrowed);
+            }
+            TerminalPlan::DeclarationDeterminative(row) if row.codec_name() == terminal => {
                 return Ok(VisitMode::Borrowed);
             }
             TerminalPlan::DeclarationTerm(row) if row.codec_name() == terminal => {

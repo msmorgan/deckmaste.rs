@@ -399,39 +399,9 @@ impl Visitor for NominalVisitor {
         walk_unmarked_singular_selector
     );
     record_product!(
-        visit_target_singular_selector,
-        TargetSingularSelector,
-        walk_target_singular_selector
-    );
-    record_product!(
-        visit_other_singular_selector,
-        OtherSingularSelector,
-        walk_other_singular_selector
-    );
-    record_product!(
-        visit_other_target_singular_selector,
-        OtherTargetSingularSelector,
-        walk_other_target_singular_selector
-    );
-    record_product!(
         visit_unmarked_plural_selector,
         UnmarkedPluralSelector,
         walk_unmarked_plural_selector
-    );
-    record_product!(
-        visit_target_plural_selector,
-        TargetPluralSelector,
-        walk_target_plural_selector
-    );
-    record_product!(
-        visit_other_plural_selector,
-        OtherPluralSelector,
-        walk_other_plural_selector
-    );
-    record_product!(
-        visit_other_target_plural_selector,
-        OtherTargetPluralSelector,
-        walk_other_target_plural_selector
     );
     record_product!(
         visit_bare_singular_nominal,
@@ -5204,28 +5174,12 @@ impl Visitor for CoordinationVisitor {
         deckmaste_english_v2::visit::walk_plural_and_or_nominal_coordination(self, value);
     }
 
-    fn visit_target_singular_coordination_selector(
-        &mut self,
-        value: &deckmaste_english_v2::ast::TargetSingularCoordinationSelector,
-    ) {
-        self.events.push("TargetSingularCoordinationSelector");
-        deckmaste_english_v2::visit::walk_target_singular_coordination_selector(self, value);
-    }
-
     fn visit_unmarked_plural_coordination_selector(
         &mut self,
         value: &deckmaste_english_v2::ast::UnmarkedPluralCoordinationSelector,
     ) {
         self.events.push("UnmarkedPluralCoordinationSelector");
         deckmaste_english_v2::visit::walk_unmarked_plural_coordination_selector(self, value);
-    }
-
-    fn visit_target_plural_coordination_selector(
-        &mut self,
-        value: &deckmaste_english_v2::ast::TargetPluralCoordinationSelector,
-    ) {
-        self.events.push("TargetPluralCoordinationSelector");
-        deckmaste_english_v2::visit::walk_target_plural_coordination_selector(self, value);
     }
 
     fn visit_full_and_noun_phrase_coordination(
@@ -5789,8 +5743,9 @@ fn coordination_minimum_arity_and_agreement_are_unconstructible_when_inconsisten
     );
     let determined = DeterminedNominal::new(
         Determiner::Headed(Determinative::SingularSimpleDeterminative(
-            SingularSimpleDeterminative::new(SimpleDeterminative::Target)
-                .expect("target is a singular simple determinative"),
+            SingularSimpleDeterminative {
+                head: DeterminativeHead::Closed(DeterminativeHeadLemma::Target),
+            },
         )),
         Nominal::SingularNominalValue(SingularNominalValue {
             nominal: nominal("Artifact"),

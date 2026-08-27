@@ -672,7 +672,7 @@ impl ParserEnvironment {
         &self,
         id: &DeclarationId,
         phrase_number: DeterminativePhraseNumber,
-        following_onset: Onset,
+        following_onset: Option<Onset>,
     ) -> Option<&str> {
         let row = self
             .declaration(id.kind(), id.name())?
@@ -684,9 +684,11 @@ impl ParserEnvironment {
                 realization
                     .phrase_number
                     .is_none_or(|expected| expected == phrase_number)
-                    && realization
-                        .following_onset
-                        .is_none_or(|expected| expected == following_onset)
+                    && match (following_onset, realization.following_onset) {
+                        (_, None) => true,
+                        (Some(actual), Some(expected)) => expected == actual,
+                        (None, Some(_)) => false,
+                    }
             })
             .map(|realization| realization.surface.as_ref())
     }
@@ -933,7 +935,7 @@ mod tests {
             environment.determinative_surface(
                 reading.id(),
                 DeterminativePhraseNumber::Singular,
-                Onset::Consonant,
+                None,
             ),
             Some("equipped")
         );
@@ -941,6 +943,56 @@ mod tests {
         assert!(environment
             .readings(GrammarPosition::FixedKeyword, "equipped")
             .is_empty());
+    }
+
+    #[test]
+    fn determinative_surface_requires_an_onset_for_conditional_realizations() {
+        let declaration = macro_ron::v2::read_str(
+            "/synthetic/Article.ron",
+            r#"
+KeywordAbility(
+    name: "Article",
+    spelling: "a",
+    grammar: FixedKeyword(
+        surface: "a",
+        determinative: (
+            number_license: SingularOnly,
+            nominal_license: CountNominal,
+            realizations: [
+                (surface: "a", following_onset: Consonant),
+                (surface: "an", following_onset: Vowel),
+            ],
+        ),
+    ),
+)
+"#,
+        )
+        .expect("conditional article declaration is valid");
+        let environment = ParserEnvironment::try_from_declarations([declaration])
+            .expect("conditional article environment freezes");
+        let id = DeclarationId::new(DeclarationKind::KeywordAbility, "Article");
+
+        assert_eq!(
+            environment.determinative_surface(&id, DeterminativePhraseNumber::Singular, None,),
+            None,
+            "an unknown following onset never guesses a conditional surface",
+        );
+        assert_eq!(
+            environment.determinative_surface(
+                &id,
+                DeterminativePhraseNumber::Singular,
+                Some(Onset::Consonant),
+            ),
+            Some("a"),
+        );
+        assert_eq!(
+            environment.determinative_surface(
+                &id,
+                DeterminativePhraseNumber::Singular,
+                Some(Onset::Vowel),
+            ),
+            Some("an"),
+        );
     }
 
     #[test]

@@ -48,6 +48,7 @@ constructions! {
         FaceDown = "face-down",
         Maximum = "maximum",
         Other = "other",
+        Target = "target",
     }
     vocab ContractedPerfectSubject { Youve = "you've", Theyve = "they've", }
     vocab ContractedCopularSubject {
@@ -143,21 +144,6 @@ constructions! {
         Untapped = "untapped",
     }
     vocab SingularDemonstrative { This = "this", That = "that", }
-    vocab SimpleDeterminative {
-        A = "a",
-        An = "an",
-        The = "the",
-        This = "this",
-        That = "that",
-        Those = "those",
-        Another = "another",
-        Each = "each",
-        All = "all",
-        Both = "both",
-        No = "no",
-        Any = "any",
-        Target = "target",
-    }
     vocab ControllerNoun { Opponent = "opponent", Player = "player", }
     vocab FixedCostSymbol {
         Variable = "X",
@@ -626,6 +612,74 @@ constructions! {
         generate declaration_term {
             position = FixedTerm;
             kinds = [Designation];
+        }
+    }
+    codec DeterminativeHead {
+        generate declaration_determinative {
+            closed = [
+                IndefiniteArticle {
+                    number_license = SingularOnly;
+                    nominal_license = CountNominal;
+                    realizations = [
+                        { surface = "a"; phrase_number = Singular; following_onset = Consonant; },
+                        { surface = "an"; phrase_number = Singular; following_onset = Vowel; },
+                    ];
+                },
+                DefiniteArticle {
+                    number_license = Both;
+                    nominal_license = CountNominal;
+                    realizations = [{ surface = "the"; }];
+                },
+                ProximalDemonstrative {
+                    number_license = SingularOnly;
+                    nominal_license = CountNominal;
+                    realizations = [{ surface = "this"; phrase_number = Singular; }];
+                },
+                DistalDemonstrative {
+                    number_license = Both;
+                    nominal_license = CountNominal;
+                    realizations = [
+                        { surface = "that"; phrase_number = Singular; },
+                        { surface = "those"; phrase_number = Plural; },
+                    ];
+                },
+                Another {
+                    number_license = SingularOnly;
+                    nominal_license = CountNominal;
+                    realizations = [{ surface = "another"; }];
+                },
+                Each {
+                    number_license = SingularOnly;
+                    nominal_license = CountNominal;
+                    realizations = [{ surface = "each"; }];
+                },
+                All {
+                    number_license = PluralOnly;
+                    nominal_license = CountNominal;
+                    realizations = [{ surface = "all"; }];
+                },
+                Both {
+                    number_license = PluralOnly;
+                    nominal_license = CountNominal;
+                    realizations = [{ surface = "both"; }];
+                },
+                No {
+                    number_license = Both;
+                    nominal_license = CountNominal;
+                    realizations = [{ surface = "no"; }];
+                },
+                Any {
+                    number_license = Both;
+                    nominal_license = CountNominal;
+                    realizations = [{ surface = "any"; }];
+                },
+                Target {
+                    number_license = SingularOnly;
+                    nominal_license = BareSingularNoun;
+                    realizations = [{ surface = "target"; }];
+                },
+            ];
+            kinds = [KeywordAbility];
         }
     }
     identity SelfReferenceSpelling {
@@ -2245,6 +2299,7 @@ constructions! {
             FaceDown => Values::Consonant,
             Maximum => Values::Consonant,
             Other => Values::Vowel,
+            Target => Values::Consonant,
         };
         form attributive_adjective_modifier = lex(adjective);
     }
@@ -2819,36 +2874,6 @@ constructions! {
         derive onset = nominal.onset;
         form unmarked_singular_selector = nominal;
     }
-    construction target_singular_selector: SingularSelector {
-        element TargetSingularSelector { nominal: SingularNominal, }
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = Values::Consonant;
-        form target_singular_selector = "target" nominal;
-    }
-    construction target_singular_coordination_selector: SingularSelector {
-        element TargetSingularCoordinationSelector {
-            coordination: SingularNominalCoordination,
-        }
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = Values::Consonant;
-        form target_singular_coordination_selector = "target" coordination;
-    }
-    construction other_singular_selector: SingularSelector {
-        element OtherSingularSelector { nominal: SingularNominal, }
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = Values::Vowel;
-        form other_singular_selector = "other" nominal;
-    }
-    construction other_target_singular_selector: SingularSelector {
-        element OtherTargetSingularSelector { nominal: SingularNominal, }
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = Values::Vowel;
-        form other_target_singular_selector = "other" "target" nominal;
-    }
     construction unmarked_plural_selector: PluralSelector {
         element UnmarkedPluralSelector { nominal: PluralNominal, }
         derive agreement = nominal.agreement;
@@ -2865,228 +2890,121 @@ constructions! {
         derive onset = Values::Consonant;
         form unmarked_plural_coordination_selector = coordination;
     }
-    construction target_plural_selector: PluralSelector {
-        element TargetPluralSelector { nominal: PluralNominal, }
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive onset = Values::Consonant;
-        form target_plural_selector = "target" nominal;
-    }
-    construction target_plural_coordination_selector: PluralSelector {
-        element TargetPluralCoordinationSelector {
-            coordination: PluralNominalCoordination,
-        }
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive onset = Values::Consonant;
-        form target_plural_coordination_selector = "target" coordination;
-    }
-    construction other_plural_selector: PluralSelector {
-        element OtherPluralSelector { nominal: PluralNominal, }
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = Values::Vowel;
-        form other_plural_selector = "other" nominal;
-    }
-    construction other_target_plural_selector: PluralSelector {
-        element OtherTargetPluralSelector { nominal: PluralNominal, }
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        derive onset = Values::Vowel;
-        form other_target_plural_selector = "other" "target" nominal;
-    }
-    construction simple_determinative_member: SimpleDeterminativeMember {
-        element SimpleDeterminativeMemberValue { head: lex SimpleDeterminative, }
-        derive determiner_number = match head {
-            A => Values::SingularOnly,
-            An => Values::SingularOnly,
-            The => Values::Both,
-            This => Values::SingularOnly,
-            That => Values::SingularOnly,
-            Those => Values::PluralOnly,
-            Another => Values::SingularOnly,
-            Each => Values::SingularOnly,
-            All => Values::PluralOnly,
-            Both => Values::PluralOnly,
-            No => Values::Both,
-            Any => Values::Both,
-            Target => Values::SingularOnly,
-        };
-        derive determiner_position = match head {
-            A => Values::StandaloneOnly,
-            An => Values::StandaloneOnly,
-            The => Values::StandaloneOnly,
-            This => Values::StandaloneOnly,
-            That => Values::StandaloneOnly,
-            Those => Values::StandaloneOnly,
-            Another => Values::StandaloneOnly,
-            Each => Values::StandaloneOnly,
-            All => Values::StandaloneOnly,
-            Both => Values::StandaloneOnly,
-            No => Values::StandaloneOnly,
-            Any => Values::StandaloneOnly,
-            Target => Values::PostQuantity,
-        };
-        derive nominal_license = Values::CountNominal;
-        derive onset_license = match head {
-            A => Values::ConsonantOnset,
-            An => Values::VowelOnset,
-            The => Values::AnyOnset,
-            This => Values::AnyOnset,
-            That => Values::AnyOnset,
-            Those => Values::AnyOnset,
-            Another => Values::AnyOnset,
-            Each => Values::AnyOnset,
-            All => Values::AnyOnset,
-            Both => Values::AnyOnset,
-            No => Values::AnyOnset,
-            Any => Values::AnyOnset,
-            Target => Values::AnyOnset,
-        };
-        derive onset = head.onset;
-        form simple_determinative_member = lex(head);
-    }
     construction singular_simple_determinative: Determinative {
-        element SingularSimpleDeterminative { head: SimpleDeterminativeMember, }
-        require head.determiner_number in [SingularOnly, Both];
+        element SingularSimpleDeterminative { head: lex DeterminativeHead, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
+        derive determiner_number = head.determiner_number;
         derive nominal_license = head.nominal_license;
-        derive onset_license = head.onset_license;
         derive onset = head.onset;
-        form singular_simple_determinative = head;
+        form singular_simple_determinative = lex(head);
     }
     construction plural_simple_determinative: Determinative {
-        element PluralSimpleDeterminative { head: SimpleDeterminativeMember, }
-        require head.determiner_number in [PluralOnly, Both];
+        element PluralSimpleDeterminative { head: lex DeterminativeHead, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive determiner_number = head.determiner_number;
         derive nominal_license = head.nominal_license;
-        derive onset_license = head.onset_license;
         derive onset = head.onset;
-        form plural_simple_determinative = head;
-    }
-    construction quantifier_marker: QuantifierMarker {
-        element QuantifierMarkerValue { determiner: SimpleDeterminativeMember, }
-        require determiner.determiner_position is PostQuantity;
-        form quantifier_marker = determiner;
+        form plural_simple_determinative = lex(head);
     }
     construction one_quantifying_determiner: Determinative {
-        element OneQuantifyingDeterminer {
-            count: CardinalQuantity,
-            marker: opt QuantifierMarker,
-        }
+        element OneQuantifyingDeterminer { count: CardinalQuantity, }
         require count.cardinality is One;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
+        derive determiner_number = Values::SingularOnly;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = Values::Consonant;
-        form one_quantifying_determiner = count marker;
+        form one_quantifying_determiner = count;
     }
     construction plural_cardinal_quantifying_determiner: Determinative {
-        element PluralCardinalQuantifyingDeterminer {
-            count: CardinalQuantity,
-            marker: opt QuantifierMarker,
-        }
+        element PluralCardinalQuantifyingDeterminer { count: CardinalQuantity, }
         require count.cardinality is TwoPlus;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = Values::Consonant;
-        form plural_cardinal_quantifying_determiner = count marker;
+        form plural_cardinal_quantifying_determiner = count;
     }
     construction variable_quantifying_determiner: Determinative {
-        element VariableQuantifyingDeterminer {
-            count: lex Variable,
-            marker: opt QuantifierMarker,
-        }
+        element VariableQuantifyingDeterminer { count: lex Variable, }
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = Values::Consonant;
-        form variable_quantifying_determiner = lex(count) marker;
+        form variable_quantifying_determiner = lex(count);
     }
     construction up_to_one_quantifying_determiner: Determinative {
-        element UpToOneQuantifyingDeterminer {
-            count: CardinalQuantity,
-            marker: opt QuantifierMarker,
-        }
+        element UpToOneQuantifyingDeterminer { count: CardinalQuantity, }
         require count.cardinality is One;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
+        derive determiner_number = Values::SingularOnly;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = Values::Vowel;
-        form up_to_one_quantifying_determiner = "up" "to" count marker;
+        form up_to_one_quantifying_determiner = "up" "to" count;
     }
     construction up_to_many_quantifying_determiner: Determinative {
-        element UpToManyQuantifyingDeterminer {
-            count: CardinalQuantity,
-            marker: opt QuantifierMarker,
-        }
+        element UpToManyQuantifyingDeterminer { count: CardinalQuantity, }
         require count.cardinality is TwoPlus;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = Values::Vowel;
-        form up_to_many_quantifying_determiner = "up" "to" count marker;
+        form up_to_many_quantifying_determiner = "up" "to" count;
     }
     construction any_number_quantifying_determiner: Determinative {
-        element AnyNumberQuantifyingDeterminer { marker: opt QuantifierMarker, }
+        element AnyNumberQuantifyingDeterminer {}
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = Values::Vowel;
-        form any_number_quantifying_determiner = "any" "number" "of" marker;
+        form any_number_quantifying_determiner = "any" "number" "of";
     }
     construction one_or_more_quantifying_determiner: Determinative {
-        element OneOrMoreQuantifyingDeterminer { marker: opt QuantifierMarker, }
+        element OneOrMoreQuantifyingDeterminer {}
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = Values::Consonant;
-        form one_or_more_quantifying_determiner = "one" "or" "more" marker;
+        form one_or_more_quantifying_determiner = "one" "or" "more";
     }
     construction no_more_quantifying_determiner: Determinative {
-        element NoMoreQuantifyingDeterminer { marker: opt QuantifierMarker, }
+        element NoMoreQuantifyingDeterminer {}
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = Values::Consonant;
-        form no_more_quantifying_determiner = "no" "more" marker;
+        form no_more_quantifying_determiner = "no" "more";
     }
     construction counted_quantifying_determiner: Determinative {
-        element CountedQuantifyingDeterminer {
-            count: CountReference,
-            marker: opt QuantifierMarker,
-        }
+        element CountedQuantifyingDeterminer { count: CountReference, }
         derive agreement = count.agreement;
         derive number = count.number;
+        derive determiner_number = Values::Both;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = count.onset;
-        form counted_quantifying_determiner = count marker;
+        form counted_quantifying_determiner = count;
     }
     construction count_comparison_quantifying_determiner: Determinative {
         element CountComparisonQuantifyingDeterminer {
             count: CardinalQuantity,
             comparison: CountComparison,
-            marker: opt QuantifierMarker,
         }
         require count.cardinality is TwoPlus;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
+        derive determiner_number = Values::PluralOnly;
         derive nominal_license = Values::CountNominal;
-        derive onset_license = Values::AnyOnset;
         derive onset = Values::Consonant;
-        form count_comparison_quantifying_determiner = count comparison marker;
+        form count_comparison_quantifying_determiner = count comparison;
     }
     construction named_card_reference: UnqualifiedReference {
         element NamedCardReference { name: identity CardName, }
@@ -3207,9 +3125,10 @@ constructions! {
     construction determined_nominal: UnqualifiedReference {
         element DeterminedNominal {
             det: zeroable Determiner from Determinative checked by determiner_licenses_nominal(
+                det.determiner_number,
+                det.nominal_license,
                 nominal.number,
-                nominal.nominal_form,
-                nominal.onset
+                nominal.nominal_form
             ),
             nominal: Nominal,
         }
@@ -4408,26 +4327,33 @@ constructions! {
 
 fn determiner_licenses_nominal(
     det: Option<&Determinative>,
+    determiner_number: Option<DeterminerNumber>,
+    nominal_license: Option<NominalLicense>,
     number: Number,
     nominal_form: NominalForm,
-    onset: Onset,
 ) -> bool {
     let Some(det) = det else {
         return number == Number::Plural;
     };
-    if number_for_determinative(det) != number {
+    let Some(determiner_number) = determiner_number else {
+        return false;
+    };
+    let number_is_licensed = match determiner_number {
+        DeterminerNumber::SingularOnly => number == Number::Singular,
+        DeterminerNumber::PluralOnly => number == Number::Plural,
+        DeterminerNumber::Both => true,
+    };
+    if !number_is_licensed || number_for_determinative(det) != number {
         return false;
     }
-    let licenses_form = match nominal_license_for_determinative(det) {
+    let Some(nominal_license) = nominal_license else {
+        return false;
+    };
+    let licenses_form = match nominal_license {
         NominalLicense::CountNominal => true,
         NominalLicense::BareSingularNoun => nominal_form == NominalForm::BareSingularNoun,
     };
-    let licenses_onset = match onset_license_for_determinative(det) {
-        OnsetLicense::AnyOnset => true,
-        OnsetLicense::ConsonantOnset => onset == Onset::Consonant,
-        OnsetLicense::VowelOnset => onset == Onset::Vowel,
-    };
-    licenses_form && licenses_onset
+    licenses_form
 }
 
 #[cfg(test)]

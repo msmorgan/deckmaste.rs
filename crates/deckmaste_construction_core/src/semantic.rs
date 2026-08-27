@@ -3201,6 +3201,11 @@ fn collect_invariant_feature_dependencies(
                 return Err(sealed_error("invariant construction feature dependency"));
             };
             let field = construction.field(&identifier_key(field))?;
+            if field.kind() == ConstructionFieldKind::Lex {
+                dependencies.fields.insert(field.name_key());
+                visiting.remove(place);
+                return Ok(());
+            }
             if field.kind() != ConstructionFieldKind::Category {
                 return Err(sealed_error("invariant role feature dependency"));
             }
