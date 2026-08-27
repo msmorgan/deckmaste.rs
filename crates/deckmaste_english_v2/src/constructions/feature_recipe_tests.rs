@@ -139,27 +139,35 @@ mod reference_onset_recipes {
     }
 
     fn variable_reference(count: Variable) -> NounPhrase {
-        noun_phrase(UnqualifiedReference::VariableReference(VariableReference {
-            count,
-            selector: PluralSelector::UnmarkedPluralSelector(UnmarkedPluralSelector {
-                nominal: PluralNominal::BarePluralNominal(BarePluralNominal {
-                    head: PluralHead::CommonPluralHead(CommonPluralHead {
-                        noun: CommonNoun::Player,
+        noun_phrase(UnqualifiedReference::DeterminedNominal(
+            DeterminedNominal::new(
+                Determiner::Headed(Determinative::VariableQuantifyingDeterminer(
+                    VariableQuantifyingDeterminer {
+                        count,
+                        marker: None,
+                    },
+                )),
+                Nominal::PluralNominalValue(PluralNominalValue {
+                    nominal: PluralNominal::BarePluralNominal(BarePluralNominal {
+                        head: PluralHead::CommonPluralHead(CommonPluralHead {
+                            noun: CommonNoun::Player,
+                        }),
                     }),
                 }),
-            }),
-        }))
+            )
+            .expect("variable quantifier licenses a plural nominal"),
+        ))
     }
 
     #[test]
-    fn variable_reference_onset_is_derived_from_its_count_lexeme() {
+    fn variable_quantifying_determiners_share_the_nominal_reference_onset() {
         let context = ParseContext::new("Context Card", false, Onset::Consonant)
             .expect("test context is valid");
         let environment = crate::environment::canonical_test_environment();
 
         assert_eq!(
             onset_for_noun_phrase(&variable_reference(Variable::X), &context, &environment),
-            Onset::Vowel,
+            Onset::Consonant,
         );
         assert_eq!(
             onset_for_noun_phrase(&variable_reference(Variable::Y), &context, &environment),

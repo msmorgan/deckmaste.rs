@@ -103,7 +103,7 @@ pub enum FieldKind {
 #[derive(Debug)]
 pub struct ZeroableCheck {
     pub function: Path,
-    pub argument: FeatureSlot,
+    pub arguments: Vec<FeatureSlot>,
 }
 
 #[derive(Debug)]
@@ -232,6 +232,11 @@ pub struct FeatureSlot {
 pub enum Feature {
     Agreement,
     Cardinality,
+    DeterminerNumber,
+    DeterminerPosition,
+    NominalForm,
+    NominalLicense,
+    OnsetLicense,
     Number,
     Onset,
     Participle,

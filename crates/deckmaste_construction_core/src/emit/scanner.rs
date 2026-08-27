@@ -508,6 +508,11 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             crate::feature::Feature::Number => quote! { wanted },
             crate::feature::Feature::Agreement
             | crate::feature::Feature::Cardinality
+            | crate::feature::Feature::DeterminerNumber
+            | crate::feature::Feature::DeterminerPosition
+            | crate::feature::Feature::NominalForm
+            | crate::feature::Feature::NominalLicense
+            | crate::feature::Feature::OnsetLicense
             | crate::feature::Feature::Onset
             | crate::feature::Feature::Participle
             | crate::feature::Feature::PossessiveEnding => {

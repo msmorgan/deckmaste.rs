@@ -566,7 +566,7 @@ fn emit_lexeme_surface_helper(
         crate::Feature::Agreement => (quote! { Agreement }, quote! { agreement }),
         crate::Feature::Number => (quote! { Number }, quote! { number }),
         crate::Feature::Participle => (quote! { Participle }, quote! { participle }),
-        crate::Feature::Cardinality | crate::Feature::Onset | crate::Feature::PossessiveEnding => {
+        crate::Feature::Cardinality | crate::Feature::DeterminerNumber | crate::Feature::DeterminerPosition | crate::Feature::NominalForm | crate::Feature::NominalLicense | crate::Feature::OnsetLicense | crate::Feature::Onset | crate::Feature::PossessiveEnding => {
             unreachable!("derived surface features are not morphology axes")
         }
     };

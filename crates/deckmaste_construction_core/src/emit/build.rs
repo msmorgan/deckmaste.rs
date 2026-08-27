@@ -225,7 +225,7 @@ fn emit_arm_from_plan(
     }
     lower_feature_guards(plan, row, form, &mut lowering)?;
     for field in row.fields() {
-        let Some((function, argument, feature)) = field.zeroable_check() else {
+        let Some((function, arguments)) = field.zeroable_check() else {
             continue;
         };
         let value = lowering
@@ -233,15 +233,26 @@ fn emit_arm_from_plan(
             .get(&field.name_key())
             .cloned()
             .ok_or_else(|| internal("checked zeroable field has no lowered value"))?;
-        let argument = lowering
-            .role_features
-            .get(&(argument.to_owned(), feature))
-            .map(local_feature_value)
-            .ok_or_else(|| internal("checked zeroable companion feature has no lowered value"))?;
-        let argument = resolved_feature_value_tokens(&argument);
+        let arguments = arguments.iter().map(|(role, feature)| {
+            lowering.role_features
+                .get(&(role.clone(), *feature))
+                .map(local_feature_value)
+                .map(|argument| resolved_feature_value_tokens(&argument))
+                .map(Ok)
+                .unwrap_or_else(|| {
+                    let value = lowering.field_values.get(role)
+                        .ok_or_else(|| internal("checked zeroable companion feature has no lowered value"))?;
+                    let field = row.field(role)?;
+                    if field.kind() != crate::semantic::ConstructionFieldKind::Category {
+                        return Err(internal("checked zeroable companion feature is not a category value"));
+                    }
+                    let helper = ident(&feature_helper(feature.key(), field.terminal()));
+                    Ok(quote! { #helper(&#value) })
+                })
+        }).collect::<syn::Result<Vec<_>>>()?;
         lowering
             .guards
-            .push(quote! { #function((#value).as_ref(), #argument) });
+            .push(quote! { #function((#value).as_ref(), #(#arguments),*) });
     }
     if let Some(guard) = super::emit_form_guard_expression(row, form_index, |domain, value| {
         let guard_role = domain.role();
@@ -2429,6 +2440,7 @@ fn verb_onset_pattern(
             | FeatureValue::TwoPlus => {
                 return Err(internal("fixed verb resolved a non-Agreement feature"));
             }
+            _ => return Err(internal("fixed verb resolved a non-Agreement feature")),
         };
         let onset = rows
             .iter()
@@ -3037,6 +3049,21 @@ fn resolve_feature_place(
                     });
                     ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
                 }
+                FeaturePlace::Construction(
+                    Feature::DeterminerNumber | Feature::DeterminerPosition | Feature::NominalForm | Feature::NominalLicense | Feature::OnsetLicense,
+                )
+                | FeaturePlace::Role {
+                    feature: Feature::DeterminerNumber | Feature::DeterminerPosition | Feature::NominalForm | Feature::NominalLicense | Feature::OnsetLicense,
+                    ..
+                } => {
+                    let ty = ident(terminal_for_role(row, role)?);
+                    let arms = arms.iter().map(|(variant, value)| {
+                        let variant = variant.value();
+                        let value = feature_value(*value);
+                        quote! { #ty::#variant => #value }
+                    });
+                    ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
+                }
                 FeaturePlace::Construction(Feature::Onset)
                 | FeaturePlace::Role {
                     feature: Feature::Onset,
@@ -3185,6 +3212,22 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Zero => quote! { Cardinality::Zero },
         FeatureValue::One => quote! { Cardinality::One },
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
+        FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
+        FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
+        FeatureValue::Both => quote! { DeterminerNumber::Both },
+        FeatureValue::StandaloneOnly => quote! { DeterminerPosition::StandaloneOnly },
+        FeatureValue::PostQuantity => quote! { DeterminerPosition::PostQuantity },
+        FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
+        FeatureValue::ModifiedSingularNoun => quote! { NominalForm::ModifiedSingularNoun },
+        FeatureValue::SingularCoordination => quote! { NominalForm::SingularCoordination },
+        FeatureValue::BarePluralNoun => quote! { NominalForm::BarePluralNoun },
+        FeatureValue::ModifiedPluralNoun => quote! { NominalForm::ModifiedPluralNoun },
+        FeatureValue::PluralCoordination => quote! { NominalForm::PluralCoordination },
+        FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
+        FeatureValue::LicensedBareSingularNoun => quote! { NominalLicense::BareSingularNoun },
+        FeatureValue::AnyOnset => quote! { OnsetLicense::AnyOnset },
+        FeatureValue::ConsonantOnset => quote! { OnsetLicense::ConsonantOnset },
+        FeatureValue::VowelOnset => quote! { OnsetLicense::VowelOnset },
     }
 }
 fn vocab_argument(name: &str) -> String {

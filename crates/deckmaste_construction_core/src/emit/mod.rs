@@ -333,6 +333,11 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
     match feature {
         crate::feature::Feature::Agreement => quote! { Agreement },
         crate::feature::Feature::Cardinality => quote! { Cardinality },
+        crate::feature::Feature::DeterminerNumber => quote! { DeterminerNumber },
+        crate::feature::Feature::DeterminerPosition => quote! { DeterminerPosition },
+        crate::feature::Feature::NominalForm => quote! { NominalForm },
+        crate::feature::Feature::NominalLicense => quote! { NominalLicense },
+        crate::feature::Feature::OnsetLicense => quote! { OnsetLicense },
         crate::feature::Feature::Number => quote! { Number },
         crate::feature::Feature::Onset => quote! { Onset },
         crate::feature::Feature::Participle => quote! { Participle },
@@ -436,6 +441,11 @@ fn emit_predicate_atom(
             let feature_type = match feature {
                 crate::feature::Feature::Agreement => local_ident("Agreement"),
                 crate::feature::Feature::Cardinality => local_ident("Cardinality"),
+                crate::feature::Feature::DeterminerNumber => local_ident("DeterminerNumber"),
+                crate::feature::Feature::DeterminerPosition => local_ident("DeterminerPosition"),
+                crate::feature::Feature::NominalForm => local_ident("NominalForm"),
+                crate::feature::Feature::NominalLicense => local_ident("NominalLicense"),
+                crate::feature::Feature::OnsetLicense => local_ident("OnsetLicense"),
                 crate::feature::Feature::Number => local_ident("Number"),
                 crate::feature::Feature::Onset => local_ident("Onset"),
                 crate::feature::Feature::Participle => local_ident("Participle"),

@@ -479,12 +479,25 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     for feature in [
         Feature::Agreement,
         Feature::Cardinality,
+        Feature::DeterminerNumber,
+        Feature::DeterminerPosition,
+        Feature::NominalForm,
+        Feature::NominalLicense,
+        Feature::OnsetLicense,
         Feature::Number,
         Feature::Onset,
         Feature::PossessiveEnding,
     ] {
         for (category, members) in &categories {
-            if !validated.category_reads_feature(category, feature) {
+            let provider_helper = matches!(
+                feature,
+                Feature::DeterminerNumber
+                    | Feature::DeterminerPosition
+                    | Feature::NominalForm
+                    | Feature::NominalLicense
+                    | Feature::OnsetLicense
+            ) && validated.carries_feature(category, feature);
+            if !validated.category_reads_feature(category, feature) && !provider_helper {
                 continue;
             }
             items.push(emit_feature_helper(validated, category, members, feature)?);
@@ -509,6 +522,17 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         .filter(|sum| validated.sum_carries_agreement(sum.name()))
     {
         items.push(emit_sum_agreement_match_helper(validated, sum)?);
+    }
+    for feature in [
+        Feature::DeterminerNumber,
+        Feature::DeterminerPosition,
+        Feature::NominalForm,
+        Feature::NominalLicense,
+        Feature::OnsetLicense,
+    ] {
+        for sum in validated.sums().iter().filter(|sum| validated.carries_feature(sum.name(), feature)) {
+            items.push(emit_sum_feature_helper(validated, sum, feature)?);
+        }
     }
     Ok(items)
 }
@@ -1635,6 +1659,11 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
     let return_ty = match helper.feature {
         Feature::Agreement => quote! { Agreement },
         Feature::Cardinality => quote! { Cardinality },
+        Feature::DeterminerNumber => quote! { DeterminerNumber },
+        Feature::DeterminerPosition => quote! { DeterminerPosition },
+        Feature::NominalForm => quote! { NominalForm },
+        Feature::NominalLicense => quote! { NominalLicense },
+        Feature::OnsetLicense => quote! { OnsetLicense },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
         Feature::Participle => quote! { Participle },
@@ -3114,7 +3143,7 @@ fn render_declaration_verb_atom(
     method_writer: &TokenStream,
 ) -> syn::Result<TokenStream> {
     let (axis_value, feature) = match codec.feature_axis() {
-        Feature::Agreement => {
+                    Feature::Agreement => {
             let agreement = projected_verb_agreement(validated, construction, role, locals)?;
             let feature = quote! { match #agreement {
                 Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
@@ -3442,6 +3471,11 @@ fn feature_expr(
                 return match source_feature {
                     Feature::Agreement => Ok(quote! { agreement }),
                     Feature::Cardinality => Err(internal("verb slot does not provide cardinality")),
+                    Feature::DeterminerNumber => Err(internal("verb slot does not provide determiner number")),
+                    Feature::DeterminerPosition => Err(internal("verb slot does not provide determiner position")),
+                    Feature::NominalForm => Err(internal("verb slot does not provide nominal form")),
+                    Feature::NominalLicense => Err(internal("verb slot does not provide nominal license")),
+                    Feature::OnsetLicense => Err(internal("verb slot does not provide onset license")),
                     Feature::Onset => implicit_verb_onset(validated, construction, locals),
                     Feature::Number => Err(internal("verb slot does not provide number")),
                     Feature::Participle => Ok(quote! { Participle::Participle }),
@@ -4142,6 +4176,11 @@ fn emit_feature_helper(
     let return_ty = match feature {
         Feature::Agreement => quote! { Agreement },
         Feature::Cardinality => quote! { Cardinality },
+        Feature::DeterminerNumber => quote! { DeterminerNumber },
+        Feature::DeterminerPosition => quote! { DeterminerPosition },
+        Feature::NominalForm => quote! { NominalForm },
+        Feature::NominalLicense => quote! { NominalLicense },
+        Feature::OnsetLicense => quote! { OnsetLicense },
         Feature::Number => quote! { Number },
         Feature::Onset => quote! { Onset },
         Feature::Participle => quote! { Participle },
@@ -4296,6 +4335,32 @@ fn emit_sum_agreement_helper(
             DeclarationKind::AbstractSum,
             sum.name(),
         )],
+    ))
+}
+
+fn emit_sum_feature_helper(
+    validated: &SemanticPlan,
+    sum: &crate::semantic::SumPlan,
+    feature: Feature,
+) -> syn::Result<GeneratedItem> {
+    let function_name = feature_helper(feature_name(feature), sum.name());
+    let function = ident(&function_name);
+    let ty = ident(sum.name());
+    let return_ty = super::feature_type(feature);
+    let arms = sum.alternatives().iter().map(|alternative| {
+        let variant = ident(alternative.name());
+        let target = match alternative.value() {
+            ValueKindPlan::Category(category) | ValueKindPlan::Sum(category)
+                if validated.carries_feature(category, feature) => category,
+            _ => return Err(internal("feature-bearing sum alternative lacks a generated feature helper")),
+        };
+        let helper = ident(&feature_helper(feature_name(feature), target));
+        Ok(quote! { #ty::#variant(value) => #helper(value) })
+    }).collect::<syn::Result<Vec<_>>>()?;
+    Ok(GeneratedItem::new(
+        ItemKey::Named { kind: NamedKind::Function, name: function_name },
+        quote! { fn #function(value: &#ty) -> #return_ty { match value { #(#arms),* } } },
+        vec![DeclarationKey::new(DeclarationKind::AbstractSum, sum.name())],
     ))
 }
 
@@ -4670,6 +4735,22 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Zero => quote! { Cardinality::Zero },
         FeatureValue::One => quote! { Cardinality::One },
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
+        FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
+        FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
+        FeatureValue::Both => quote! { DeterminerNumber::Both },
+        FeatureValue::StandaloneOnly => quote! { DeterminerPosition::StandaloneOnly },
+        FeatureValue::PostQuantity => quote! { DeterminerPosition::PostQuantity },
+        FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
+        FeatureValue::ModifiedSingularNoun => quote! { NominalForm::ModifiedSingularNoun },
+        FeatureValue::SingularCoordination => quote! { NominalForm::SingularCoordination },
+        FeatureValue::BarePluralNoun => quote! { NominalForm::BarePluralNoun },
+        FeatureValue::ModifiedPluralNoun => quote! { NominalForm::ModifiedPluralNoun },
+        FeatureValue::PluralCoordination => quote! { NominalForm::PluralCoordination },
+        FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
+        FeatureValue::LicensedBareSingularNoun => quote! { NominalLicense::BareSingularNoun },
+        FeatureValue::AnyOnset => quote! { OnsetLicense::AnyOnset },
+        FeatureValue::ConsonantOnset => quote! { OnsetLicense::ConsonantOnset },
+        FeatureValue::VowelOnset => quote! { OnsetLicense::VowelOnset },
     }
 }
 
@@ -4882,6 +4963,11 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Onset => "onset",
         Feature::Participle => "participle",
         Feature::PossessiveEnding => "possessive_ending",
+        Feature::DeterminerNumber => "determiner_number",
+        Feature::DeterminerPosition => "determiner_position",
+        Feature::NominalForm => "nominal_form",
+        Feature::NominalLicense => "nominal_license",
+        Feature::OnsetLicense => "onset_license",
     }
 }
 fn ident(name: &str) -> syn::Ident {

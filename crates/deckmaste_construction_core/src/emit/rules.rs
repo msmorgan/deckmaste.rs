@@ -2051,6 +2051,7 @@ fn closed_verb_feature(
             | FeatureValue::TwoPlus => {
                 Err(internal("closed verb agreement has a non-agreement value"))
             }
+            _ => Err(internal("closed verb agreement has a non-agreement value")),
         },
         Some(
             crate::feature::FeatureResolution::External
@@ -2087,6 +2088,7 @@ fn declaration_verb_feature(
             | FeatureValue::TwoPlus => Err(internal(
                 "declaration verb agreement has a non-agreement value",
             )),
+            _ => Err(internal("declaration verb agreement has a non-agreement value")),
         },
         Some(
             crate::feature::FeatureResolution::External
@@ -2126,6 +2128,7 @@ pub(crate) fn open_verb_feature(
             | FeatureValue::TwoPlus => {
                 Err(internal("open verb agreement has a non-agreement value"))
             }
+            _ => Err(internal("open verb agreement has a non-agreement value")),
         },
         Some(
             crate::feature::FeatureResolution::External
@@ -2282,6 +2285,7 @@ fn noun_number(
             | FeatureValue::Zero
             | FeatureValue::One
             | FeatureValue::TwoPlus => Err(internal("noun number has a non-number value")),
+            _ => Err(internal("noun number has a non-number value")),
         },
         FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => {
             Ok(quote! { FeatureConstraint::Any })

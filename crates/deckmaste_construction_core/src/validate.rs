@@ -682,6 +682,11 @@ fn validate_sequence_feature_roles(
                     ParsedFeature::Agreement => Feature::Agreement,
                     ParsedFeature::Onset => Feature::Onset,
                     ParsedFeature::Cardinality
+                    | ParsedFeature::DeterminerNumber
+                    | ParsedFeature::DeterminerPosition
+                    | ParsedFeature::NominalForm
+                    | ParsedFeature::NominalLicense
+                    | ParsedFeature::OnsetLicense
                     | ParsedFeature::Number
                     | ParsedFeature::Participle
                     | ParsedFeature::PossessiveEnding => unreachable!("unsupported sequence feature was rejected"),
@@ -3261,6 +3266,10 @@ fn seal_category_feature_reads(
             let reads = [
                 Feature::Agreement,
                 Feature::Cardinality,
+                Feature::DeterminerNumber,
+                Feature::DeterminerPosition,
+                Feature::NominalForm,
+                Feature::NominalLicense,
                 Feature::Number,
                 Feature::Onset,
                 Feature::PossessiveEnding,
@@ -4283,6 +4292,10 @@ fn generated_name_inventory(
                     );
                     for (feature, spelling, display) in [
                         (Feature::Agreement, "agreement", "Agreement"),
+                        (Feature::DeterminerNumber, "determiner_number", "DeterminerNumber"),
+                        (Feature::DeterminerPosition, "determiner_position", "DeterminerPosition"),
+                        (Feature::NominalForm, "nominal_form", "NominalForm"),
+                        (Feature::NominalLicense, "nominal_license", "NominalLicense"),
                         (Feature::Number, "number", "Number"),
                     ] {
                         if raw_category_reads_feature(raw, &category, feature) {
@@ -4418,6 +4431,11 @@ fn generated_name_inventory(
                     let (spelling, display) = match feature {
                         ParsedFeature::Agreement => ("agreement", "Agreement"),
                         ParsedFeature::Cardinality => ("cardinality", "Cardinality"),
+                        ParsedFeature::DeterminerNumber => ("determiner_number", "DeterminerNumber"),
+                        ParsedFeature::DeterminerPosition => ("determiner_position", "DeterminerPosition"),
+                        ParsedFeature::NominalForm => ("nominal_form", "NominalForm"),
+                        ParsedFeature::NominalLicense => ("nominal_license", "NominalLicense"),
+                        ParsedFeature::OnsetLicense => ("onset_license", "OnsetLicense"),
                         ParsedFeature::Number => ("number", "Number"),
                         ParsedFeature::Onset => ("onset", "Onset"),
                         ParsedFeature::Participle => ("participle", "Participle"),
@@ -5006,6 +5024,11 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
     let parsed_feature = match feature {
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
+        Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
+        Feature::DeterminerPosition => ParsedFeature::DeterminerPosition,
+        Feature::NominalForm => ParsedFeature::NominalForm,
+        Feature::NominalLicense => ParsedFeature::NominalLicense,
+        Feature::OnsetLicense => ParsedFeature::OnsetLicense,
         Feature::Number => ParsedFeature::Number,
         Feature::Onset => ParsedFeature::Onset,
         Feature::Participle => ParsedFeature::Participle,
@@ -5051,6 +5074,11 @@ fn raw_sequence_reads_inherent_category_feature(
     let parsed_feature = match feature {
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
+        Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
+        Feature::DeterminerPosition => ParsedFeature::DeterminerPosition,
+        Feature::NominalForm => ParsedFeature::NominalForm,
+        Feature::NominalLicense => ParsedFeature::NominalLicense,
+        Feature::OnsetLicense => ParsedFeature::OnsetLicense,
         Feature::Number => ParsedFeature::Number,
         Feature::Onset => ParsedFeature::Onset,
         Feature::Participle => ParsedFeature::Participle,
@@ -5300,6 +5328,11 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 ParsedFeature::Number => role_provides_number(raw, &fields, field)
                     .then(|| (identifier_key(field), ParsedFeature::Number)),
                 ParsedFeature::Agreement
+                | ParsedFeature::DeterminerNumber
+                | ParsedFeature::DeterminerPosition
+                | ParsedFeature::NominalForm
+                | ParsedFeature::NominalLicense
+                | ParsedFeature::OnsetLicense
                 | ParsedFeature::Onset
                 | ParsedFeature::Participle
                 | ParsedFeature::PossessiveEnding => None,
@@ -5341,17 +5374,19 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 check: Some(check), ..
             } = &field.kind
             {
-                check_feature_role(
-                    &check.argument.role,
-                    check.argument.feature,
-                    &fields,
-                    symbols,
-                    &feature_providers,
-                    &local_vocab_providers,
-                    has_fixed_verb,
-                    &verb_operands,
-                    &mut errors,
-                );
+                for argument in &check.arguments {
+                    check_feature_role(
+                        &argument.role,
+                        argument.feature,
+                        &fields,
+                        symbols,
+                        &feature_providers,
+                        &local_vocab_providers,
+                        has_fixed_verb,
+                        &verb_operands,
+                        &mut errors,
+                    );
+                }
             }
         }
         for form in &construction.forms {
@@ -8774,8 +8809,13 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
         for feature in [
             ParsedFeature::Agreement,
             ParsedFeature::Cardinality,
+            ParsedFeature::DeterminerNumber,
+            ParsedFeature::DeterminerPosition,
+            ParsedFeature::NominalForm,
+            ParsedFeature::NominalLicense,
             ParsedFeature::Number,
             ParsedFeature::Onset,
+            ParsedFeature::OnsetLicense,
             ParsedFeature::PossessiveEnding,
         ] {
             if constructions.iter().all(|construction| construction.equations.iter().any(|equation| matches!(equation.target, ParsedFeaturePlace::Construction(found) if found == feature))) {
@@ -8812,13 +8852,21 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
         for declaration in &raw.declarations {
             let Declaration::AbstractSum(sum) = declaration else { continue };
             let sum_name = identifier_key(&sum.name);
-            let feature = ParsedFeature::Agreement;
-            if !sum.alternatives.is_empty()
-                && sum.alternatives.iter().all(|alternative| {
-                    providers.contains(&(path_name(&alternative.value_type), feature))
-                })
-            {
-                providers.insert((sum_name, feature));
+            for feature in [
+                ParsedFeature::Agreement,
+                ParsedFeature::DeterminerNumber,
+                ParsedFeature::DeterminerPosition,
+                ParsedFeature::NominalForm,
+                ParsedFeature::NominalLicense,
+                ParsedFeature::OnsetLicense,
+            ] {
+                if !sum.alternatives.is_empty()
+                    && sum.alternatives.iter().all(|alternative| {
+                        providers.contains(&(path_name(&alternative.value_type), feature))
+                    })
+                {
+                    providers.insert((sum_name.clone(), feature));
+                }
             }
         }
         if providers.len() == before {
@@ -8843,6 +8891,11 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
+        ParsedFeature::DeterminerNumber => "determiner_number",
+        ParsedFeature::DeterminerPosition => "determiner_position",
+        ParsedFeature::NominalForm => "nominal_form",
+        ParsedFeature::NominalLicense => "nominal_license",
+        ParsedFeature::OnsetLicense => "onset_license",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
         ParsedFeature::Participle => "participle",
@@ -9295,6 +9348,16 @@ fn validate_lowerable_feature_compositions(
                 _ => false,
             },
             (
+                ParsedFeaturePlace::Construction(
+                    ParsedFeature::DeterminerNumber
+                    | ParsedFeature::DeterminerPosition
+                    | ParsedFeature::NominalForm
+                    | ParsedFeature::NominalLicense
+                    | ParsedFeature::OnsetLicense,
+                ),
+                ParsedFeatureValue::FromRole(source),
+            ) => role_feature_is_constructible(raw, construction, &fields, &source.role, source.feature),
+            (
                 ParsedFeaturePlace::Role {
                     field,
                     feature: ParsedFeature::Agreement,
@@ -9325,6 +9388,18 @@ fn validate_lowerable_feature_compositions(
             (
                 ParsedFeaturePlace::Role {
                     feature: ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
+                    ..
+                },
+                ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
+            ) => false,
+            (
+                ParsedFeaturePlace::Role {
+                    feature:
+                        ParsedFeature::DeterminerNumber
+                        | ParsedFeature::DeterminerPosition
+                        | ParsedFeature::NominalForm
+                        | ParsedFeature::NominalLicense
+                        | ParsedFeature::OnsetLicense,
                     ..
                 },
                 ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_),
@@ -9523,6 +9598,11 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
+        ParsedFeature::DeterminerNumber => "determiner_number",
+        ParsedFeature::DeterminerPosition => "determiner_position",
+        ParsedFeature::NominalForm => "nominal_form",
+        ParsedFeature::NominalLicense => "nominal_license",
+        ParsedFeature::OnsetLicense => "onset_license",
         ParsedFeature::Number => "number",
         ParsedFeature::Onset => "onset",
         ParsedFeature::Participle => "participle",
@@ -15479,7 +15559,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 113);
+        assert_eq!(expansion.plan().items().len(), 118);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -15826,7 +15906,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 113);
+        assert_eq!(expansion.plan().items().len(), 118);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -15964,7 +16044,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 113);
+        assert_eq!(emission.items().len(), 118);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

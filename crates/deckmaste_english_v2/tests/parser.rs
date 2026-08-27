@@ -539,15 +539,12 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     UnqualifiedLocativeStage {
                         reference: Box::new(ControllerStage::RelativeQualifiedReference(
                             RelativeQualifiedReference {
-                                reference: UnqualifiedReference::OrdinaryPluralReference(
-                                    OrdinaryPluralReference::new(
-                                        PluralSelector::UnmarkedPluralSelector(
-                                            UnmarkedPluralSelector {
-                                                nominal: plural_nominal(creatures()),
-                                            },
-                                        ),
+                                reference: UnqualifiedReference::DeterminedNominal(
+                                    DeterminedNominal::new(
+                                        Determiner::Zero,
+                                        plural_nominal_value(creatures()),
                                     )
-                                    .expect("unmarked plural is valid for an ordinary reference"),
+                                    .expect("zero-headed plural is valid for a determined nominal"),
                                 ),
                                 clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
                                     PositiveObjectGapRelativeClause::PositiveObjectGapRelative(

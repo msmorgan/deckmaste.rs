@@ -341,16 +341,20 @@ fn parse_field_kind(input: ParseStream<'_>, owner: &Ident, role: &Ident) -> syn:
             let function = parse_generated_owned_callback_path(input)?;
             let content;
             parenthesized!(content in input);
-            let role = content.parse()?;
-            content.parse::<Token![.]>()?;
-            let feature = content.call(Ident::parse_any)?;
-            let feature = feature_from_ident(&feature)
-                .ok_or_else(|| content.error("unknown zeroable-check feature"))?;
-            let argument = FeatureSlot { role, feature };
-            if !content.is_empty() {
-                return Err(content.error("zeroable checks accept one companion role"));
+            let mut arguments = Vec::new();
+            while !content.is_empty() {
+                let role = content.parse()?;
+                content.parse::<Token![.]>()?;
+                let feature = content.call(Ident::parse_any)?;
+                let feature = feature_from_ident(&feature)
+                    .ok_or_else(|| content.error("unknown zeroable-check feature"))?;
+                arguments.push(FeatureSlot { role, feature });
+                if content.is_empty() {
+                    break;
+                }
+                content.parse::<Token![,]>()?;
             }
-            Some(ZeroableCheck { function, argument })
+            Some(ZeroableCheck { function, arguments })
         } else {
             None
         };
@@ -767,6 +771,11 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
     match ident.to_string().as_str() {
         "agreement" => Some(Feature::Agreement),
         "cardinality" => Some(Feature::Cardinality),
+        "determiner_number" => Some(Feature::DeterminerNumber),
+        "determiner_position" => Some(Feature::DeterminerPosition),
+        "nominal_form" => Some(Feature::NominalForm),
+        "nominal_license" => Some(Feature::NominalLicense),
+        "onset_license" => Some(Feature::OnsetLicense),
         "number" => Some(Feature::Number),
         "onset" => Some(Feature::Onset),
         "possessive_ending" => Some(Feature::PossessiveEnding),

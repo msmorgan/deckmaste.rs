@@ -274,32 +274,6 @@ impl Visitor for NominalVisitor {
         PluralNominalValue,
         walk_plural_nominal_value
     );
-    record_product!(visit_fixed_reference, FixedReference, walk_fixed_reference);
-    record_product!(
-        visit_variable_reference,
-        VariableReference,
-        walk_variable_reference
-    );
-    record_product!(
-        visit_up_to_one_reference,
-        UpToOneReference,
-        walk_up_to_one_reference
-    );
-    record_product!(
-        visit_up_to_many_reference,
-        UpToManyReference,
-        walk_up_to_many_reference
-    );
-    record_product!(
-        visit_any_number_reference,
-        AnyNumberReference,
-        walk_any_number_reference
-    );
-    record_product!(
-        visit_one_or_more_reference,
-        OneOrMoreReference,
-        walk_one_or_more_reference
-    );
     record_product!(
         visit_possessed_singular_reference,
         PossessedSingularReference,
@@ -418,11 +392,6 @@ impl Visitor for NominalVisitor {
         visit_scalar_qualified_reference,
         ScalarQualifiedReference,
         walk_scalar_qualified_reference
-    );
-    record_product!(
-        visit_count_comparison_reference,
-        CountComparisonReference,
-        walk_count_comparison_reference
     );
     record_product!(
         visit_unmarked_singular_selector,
@@ -2467,21 +2436,21 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "By Force",
             text: "Destroy X target artifacts.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeVariableQuantifyingDeterminer/QuantifierMarkerQuantifierMarker/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             specificity: "NNNNTNNNNNNTNLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy Y target artifacts.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceVariableReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeVariableQuantifyingDeterminer/QuantifierMarkerQuantifierMarker/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             specificity: "NNNNTNNNNNNTNLNNT",
             candidates: 1,
         },
         Witness {
             card_name: "Rain of Salt",
             text: "Destroy two target lands.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceFixedReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativePluralCardinalQuantifyingDeterminer/CardinalQuantityCardinal/QuantifierMarkerQuantifierMarker/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             specificity: "NNNNTNNNNNNNNTLNNT",
             candidates: 1,
         },
@@ -2495,7 +2464,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Gearbane Orangutan",
             text: "Destroy up to one target artifact.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToOneReference/CardinalQuantityCardinal/SingularSelectorTargetSingularSelector/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToOneQuantifyingDeterminer/CardinalQuantityCardinal/QuantifierMarkerQuantifierMarker/NominalSingularNominalValue/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
             specificity: "NNNNTNNNNNNLLNNTLNNT",
             candidates: 1,
         },
@@ -2509,7 +2478,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Destroy up to three target artifacts.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceUpToManyReference/CardinalQuantityCardinal/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToManyQuantifyingDeterminer/CardinalQuantityCardinal/QuantifierMarkerQuantifierMarker/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             specificity: "NNNNTNNNNNNLLNNTLNNT",
             candidates: 1,
         },
@@ -2593,7 +2562,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Destroy one or more target creatures.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOneOrMoreReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeOneOrMoreQuantifyingDeterminer/QuantifierMarkerQuantifierMarker/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             specificity: "NNNNTNNNNNNLLLNLNNT",
             candidates: 1,
         },
@@ -2656,7 +2625,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Destroy any number of target creatures.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceAnyNumberReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeAnyNumberQuantifyingDeterminer/QuantifierMarkerQuantifierMarker/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             specificity: "NNNNTNNNNNNLLLNLNNT",
             candidates: 1,
         },
@@ -3000,13 +2969,13 @@ fn restricted_postmodifier_paths_ownership_and_ambiguity_are_exact() {
         (
             "Context Card",
             "Destroy two or more creatures.",
-            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrMore/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeCountComparisonQuantifyingDeterminer/CardinalQuantityCardinal/CountComparisonCountOrMore/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             "NNNNTNNNNNNNNNTLLNNT",
         ),
         (
             "Context Card",
             "Destroy two or fewer creatures.",
-            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCountComparisonReference/CardinalQuantityCardinal/CountComparisonCountOrFewer/PluralSelectorUnmarkedPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeCountComparisonQuantifyingDeterminer/CardinalQuantityCardinal/CountComparisonCountOrFewer/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             "NNNNTNNNNNNNNNTLLNNT",
         ),
     ] {
@@ -3200,14 +3169,18 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     else {
         panic!("the object-gap relative precedes numeric qualification: {subject:?}");
     };
+    let deckmaste_english_v2::ast::UnqualifiedReference::DeterminedNominal(determined) =
+        &relative.reference
+    else {
+        panic!("the zero-headed plural reference is a determined nominal: {subject:?}");
+    };
     assert!(matches!(
-        relative.reference,
-        deckmaste_english_v2::ast::UnqualifiedReference::DeterminedNominal(
-            deckmaste_english_v2::ast::DeterminedNominal {
-                det: deckmaste_english_v2::ast::Determiner::Zero,
-                nominal: deckmaste_english_v2::ast::Nominal::PluralNominalValue(_),
-            }
-        )
+        determined.det(),
+        deckmaste_english_v2::ast::Determiner::Zero
+    ));
+    assert!(matches!(
+        determined.nominal,
+        deckmaste_english_v2::ast::Nominal::PluralNominalValue(_)
     ));
     let deckmaste_english_v2::ast::ObjectGapRelativeClause::Positive(relative_clause) =
         relative.clause.as_ref()
@@ -4024,7 +3997,7 @@ fn selector_cardinal_domains_exclude_zero_and_admit_any_number() {
 }
 
 #[test]
-fn bare_target_determiner_is_singular_and_plural_targets_require_a_quantifier() {
+fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() {
     let parser = parser();
     let context = context("Context Card");
 
@@ -4075,17 +4048,75 @@ fn bare_target_determiner_is_singular_and_plural_targets_require_a_quantifier() 
         assert_eq!(parsed.render(&context, parser.environment()), text);
     }
 
-    for text in [
-        "Destroy target artifacts.",
-        "Destroy target creatures or planeswalkers.",
-        "Destroy target nonartifact, nonblack creatures.",
-        "Target creatures gain 2 life.",
-    ] {
-        assert!(
-            parser.parse(text, &context).is_err(),
-            "bare target cannot introduce a plural nominal: {text:?}",
+    let target_as_noun_cases = [
+        (
+            "Destroy target artifacts.",
+            1,
+            SelectionResolution::Unique,
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            1,
+            &[
+                (0, 7, LexicalProvenanceKind::Lexeme, "lexeme:keyword_action/Destroy/bare"),
+                (7, 14, LexicalProvenanceKind::Lexeme, "lexeme:CommonNoun/Target/singular"),
+                (14, 24, LexicalProvenanceKind::Lexeme, "lexeme:type/Artifact/plural"),
+                (24, 25, LexicalProvenanceKind::FormLiteral, "structural:Sentences/sentences/terminator/0"),
+            ][..],
+        ),
+        (
+            "Destroy target creatures or planeswalkers.",
+            2,
+            SelectionResolution::Specificity,
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCoordinatedNounPhrase/FullNounPhraseCoordinationFullOrNounPhraseCoordination/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            2,
+            &[
+                (0, 7, LexicalProvenanceKind::Lexeme, "lexeme:keyword_action/Destroy/bare"),
+                (7, 14, LexicalProvenanceKind::Lexeme, "lexeme:CommonNoun/Target/singular"),
+                (14, 24, LexicalProvenanceKind::Lexeme, "lexeme:type/Creature/plural"),
+                (24, 28, LexicalProvenanceKind::FormLiteral, "structural:FullOrNounPhraseCoordination/members/separator/pair/0"),
+                (28, 41, LexicalProvenanceKind::Lexeme, "lexeme:type/Planeswalker/plural"),
+                (41, 42, LexicalProvenanceKind::FormLiteral, "structural:Sentences/sentences/terminator/0"),
+            ][..],
+        ),
+        (
+            "Target creatures gain 2 life.",
+            1,
+            SelectionResolution::Unique,
+            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
+            1,
+            &[
+                (0, 6, LexicalProvenanceKind::Lexeme, "lexeme:CommonNoun/Target/singular"),
+                (6, 16, LexicalProvenanceKind::Lexeme, "lexeme:type/Creature/plural"),
+                (16, 21, LexicalProvenanceKind::Lexeme, "lexeme:VerbLexeme/Gain/bare"),
+                (21, 23, LexicalProvenanceKind::Codec, "codec:ScalarNumber"),
+                (23, 28, LexicalProvenanceKind::FormLiteral, "form:gain_life/gain_life/2"),
+                (28, 29, LexicalProvenanceKind::FormLiteral, "structural:Sentences/sentences/terminator/0"),
+            ][..],
+        ),
+    ];
+    for (text, candidates, resolution, path, zero_headed_nominals, ownership) in
+        target_as_noun_cases
+    {
+        assert_target_as_noun_compound(
+            &parser,
+            &context,
+            text,
+            candidates,
+            resolution,
+            path,
+            zero_headed_nominals,
+            ownership,
         );
     }
+
+    let text = "Destroy target nonartifact, nonblack creatures.";
+    let analysis = parser.analyze(text, &context);
+    assert_eq!(
+        analysis.outcome(),
+        ParseAnalysisOutcome::ParseFailure,
+        "the target-as-noun compound does not bypass negative-modifier ordering: {text:?}",
+    );
+    assert!(analysis.decision().is_none(), "{text:?}");
+    assert!(analysis.ownership().is_none(), "{text:?}");
 
     for text in [
         "Destroy two target creatures.",
@@ -4097,6 +4128,103 @@ fn bare_target_determiner_is_singular_and_plural_targets_require_a_quantifier() 
             .parse(text, &context)
             .unwrap_or_else(|error| panic!("quantified plural {text:?} must select: {error:?}"));
         assert_eq!(parsed.render(&context, parser.environment()), text);
+    }
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one helper keeps every target-as-noun compound's path, AST, and ownership pinned"
+)]
+fn assert_target_as_noun_compound(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+    candidates: usize,
+    resolution: SelectionResolution,
+    path: &str,
+    zero_headed_nominals: usize,
+    expected_ownership: &[(usize, usize, LexicalProvenanceKind, &str)],
+) {
+    let analysis = parser.analyze(text, context);
+    let selected = analysis
+        .selected()
+        .unwrap_or_else(|| panic!("target-as-noun compound must select: {text:?}: {analysis:?}"));
+    let decision = analysis.decision().expect("selected compound retains a decision");
+    assert_eq!(decision.candidates().len(), candidates, "{text:?}");
+    assert_eq!(decision.resolution(), resolution, "{text:?}");
+    assert!(decision.exception_uses().is_empty(), "{text:?}");
+    let selected_ordinal = decision.selected().expect("selected compound names its candidate");
+    let selected_candidate = decision
+        .candidates()
+        .iter()
+        .find(|candidate| candidate.ordinal() == selected_ordinal)
+        .expect("selected ordinal names a retained candidate");
+    assert_eq!(
+        selected_candidate.construction_path().join("/"),
+        path,
+        "target-as-noun construction ownership changed for {text:?}",
+    );
+    assert_eq!(selected.render(context, parser.environment()), text);
+
+    let mut ast = TargetAsNounAstVisitor::default();
+    ast.visit_ability(selected);
+    assert_eq!(ast.determined_nominals, zero_headed_nominals, "{text:?}");
+    assert_eq!(ast.zero_headed_nominals, zero_headed_nominals, "{text:?}");
+    assert_eq!(ast.target_modifiers, 1, "{text:?}");
+
+    let ownership = analysis.ownership().expect("selected compound owns its bytes");
+    let project = |claims: &[deckmaste_english_v2::parser::LexicalClaim]| {
+        claims
+            .iter()
+            .map(|claim| {
+                (
+                    claim.span().start,
+                    claim.span().end,
+                    claim.kind(),
+                    claim.stable_owner_id().to_owned(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let expected = expected_ownership
+        .iter()
+        .map(|(start, end, kind, owner)| (*start, *end, *kind, (*owner).to_owned()))
+        .collect::<Vec<_>>();
+    assert_eq!(project(ownership.parsed_claims()), expected, "{text:?}");
+    assert_eq!(project(ownership.rendered_claims()), expected, "{text:?}");
+    assert_eq!(ownership.rendered_text(), text);
+    assert!(ownership.failures().is_empty(), "{text:?}: {ownership:?}");
+    assert!(ownership.summary().covered(), "{text:?}: {ownership:?}");
+}
+
+#[derive(Default)]
+struct TargetAsNounAstVisitor {
+    determined_nominals: usize,
+    zero_headed_nominals: usize,
+    target_modifiers: usize,
+}
+
+impl Visitor for TargetAsNounAstVisitor {
+    fn visit_determined_nominal(&mut self, value: &deckmaste_english_v2::ast::DeterminedNominal) {
+        self.determined_nominals += 1;
+        if matches!(value.det(), deckmaste_english_v2::ast::Determiner::Zero) {
+            self.zero_headed_nominals += 1;
+        }
+        deckmaste_english_v2::visit::walk_determined_nominal(self, value);
+    }
+
+    fn visit_nominal_modifier(&mut self, value: &deckmaste_english_v2::ast::NominalModifier) {
+        if matches!(
+            value,
+            deckmaste_english_v2::ast::NominalModifier::CommonNounModifier(
+                deckmaste_english_v2::ast::CommonNounModifier {
+                    noun: CommonNoun::Target,
+                }
+            )
+        ) {
+            self.target_modifiers += 1;
+        }
+        deckmaste_english_v2::visit::walk_nominal_modifier(self, value);
     }
 }
 

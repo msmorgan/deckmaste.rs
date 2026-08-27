@@ -6,6 +6,8 @@ use crate::identifier::AGREEMENT_TYPE;
 use crate::identifier::BUILD_REJECTION_TYPE;
 use crate::identifier::BUILD_VIOLATION_TYPE;
 use crate::identifier::CARDINALITY_TYPE;
+use crate::identifier::DETERMINER_NUMBER_TYPE;
+use crate::identifier::DETERMINER_POSITION_TYPE;
 use crate::identifier::CASE_POSITION_TYPE;
 use crate::identifier::DECLARATION_CLASS_TYPE;
 use crate::identifier::DECLARATION_LEAF_TYPE;
@@ -19,7 +21,10 @@ use crate::identifier::LEXICAL_PROVENANCE_KIND_TYPE;
 use crate::identifier::LEXICAL_TERMINAL_TYPE;
 use crate::identifier::LEXICAL_TYPE;
 use crate::identifier::NUMBER_TYPE;
+use crate::identifier::NOMINAL_FORM_TYPE;
+use crate::identifier::NOMINAL_LICENSE_TYPE;
 use crate::identifier::ONSET_TYPE;
+use crate::identifier::ONSET_LICENSE_TYPE;
 use crate::identifier::PARTICIPLE_TYPE;
 use crate::identifier::POSSESSIVE_ENDING_TYPE;
 use crate::identifier::PREFIX_POSITION_TYPE;
@@ -133,6 +138,22 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            DETERMINER_NUMBER_TYPE,
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum DeterminerNumber { SingularOnly, PluralOnly, Both } },
+        ),
+        named_type(
+            DETERMINER_POSITION_TYPE,
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum DeterminerPosition { StandaloneOnly, PostQuantity } },
+        ),
+        named_type(
+            NOMINAL_FORM_TYPE,
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum NominalForm { BareSingularNoun, ModifiedSingularNoun, SingularCoordination, BarePluralNoun, ModifiedPluralNoun, PluralCoordination } },
+        ),
+        named_type(
+            NOMINAL_LICENSE_TYPE,
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum NominalLicense { CountNominal, BareSingularNoun } },
+        ),
+        named_type(
             NUMBER_TYPE,
             quote! {
                 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -144,6 +165,10 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             quote! {
                 pub(crate) use ::macro_ron::v2::Onset;
             },
+        ),
+        named_type(
+            ONSET_LICENSE_TYPE,
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum OnsetLicense { AnyOnset, ConsonantOnset, VowelOnset } },
         ),
         named_type(
             PARTICIPLE_TYPE,

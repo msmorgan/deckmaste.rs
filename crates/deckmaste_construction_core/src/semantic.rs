@@ -584,7 +584,7 @@ pub(crate) struct ConstructionFieldPlan {
     invariant_bearing: bool,
     accessor_mode: Option<AccessorMode>,
     zeroable: bool,
-    zeroable_check: Option<(syn::Path, String, Feature)>,
+    zeroable_check: Option<(syn::Path, Vec<(String, Feature)>)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1979,6 +1979,28 @@ impl SemanticPlan {
         self.features.agreement_carry_sums.contains(sum)
     }
 
+    pub(crate) fn carries_feature(&self, value: &str, feature: Feature) -> bool {
+        fn carries(plan: &SemanticPlan, value: &str, feature: Feature, visiting: &mut HashSet<String>) -> bool {
+            if !visiting.insert(value.to_owned()) {
+                return false;
+            }
+            let direct = plan.constructions.iter().filter(|construction| construction.category() == value).collect::<Vec<_>>();
+            let result = if !direct.is_empty() {
+                direct.iter().all(|construction| plan.feature_equations(construction.construction_id()).iter().any(|equation| matches!(equation.target(), crate::feature::FeaturePlace::Construction(found) if *found == feature)))
+            } else if let Some(sum) = plan.sums.iter().find(|sum| sum.name() == value) {
+                !sum.alternatives().is_empty() && sum.alternatives().iter().all(|alternative| match alternative.value() {
+                    ValueKindPlan::Category(category) | ValueKindPlan::Sum(category) => carries(plan, category, feature, visiting),
+                    ValueKindPlan::Product(_) | ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) => false,
+                })
+            } else {
+                false
+            };
+            visiting.remove(value);
+            result
+        }
+        carries(self, value, feature, &mut HashSet::new())
+    }
+
     pub(crate) fn sum_requires_external_agreement(&self, sum: &str) -> bool {
         fn requires(plan: &SemanticPlan, sum: &str, visiting: &mut HashSet<String>) -> bool {
             if !visiting.insert(sum.to_owned()) {
@@ -3176,13 +3198,13 @@ impl ConstructionPlan {
                     accessor_mode: None,
                     zeroable,
                     zeroable_check: match &field.kind {
-                        crate::model::FieldKind::Zeroable { check, .. } => check.as_ref().map(|check| {
-                            (
-                                check.function.clone(),
-                                identifier_key(&check.argument.role),
-                                Feature::from(check.argument.feature),
-                            )
-                        }),
+                        crate::model::FieldKind::Zeroable { check, .. } => check.as_ref().map(|check| (
+                            check.function.clone(),
+                            check.arguments.iter().map(|argument| (
+                                identifier_key(&argument.role),
+                                Feature::from(argument.feature),
+                            )).collect(),
+                        )),
                         _ => None,
                     },
                 })
@@ -4047,10 +4069,10 @@ impl ConstructionFieldPlan {
         self.zeroable
     }
 
-    pub(crate) fn zeroable_check(&self) -> Option<(&syn::Path, &str, Feature)> {
+    pub(crate) fn zeroable_check(&self) -> Option<(&syn::Path, &[(String, Feature)])> {
         self.zeroable_check
             .as_ref()
-            .map(|(function, argument, feature)| (function, argument.as_str(), *feature))
+            .map(|(function, arguments)| (function, arguments.as_slice()))
     }
 
     #[allow(
