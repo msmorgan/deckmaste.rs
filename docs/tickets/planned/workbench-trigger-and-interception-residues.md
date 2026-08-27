@@ -349,3 +349,9 @@ Standard constraints apply.
 - **Routed from workbench-verbed-event-overlap (close, 2026-08-27):** the CAUSER-voiced act — "Whenever a spell or ability an opponent controls destroys a noncreature permanent you control" (1 line): `VerbedVoice` has no causer arm; and the act lookback WITH a causer — "was destroyed this turn by a spell or ability an opponent controlled": the subject cell is now open but the by-source agent phrase is unbuilt. Also "if it isn't being declared as an attacker" (2 lines) — no `Condition` writes the declaration as a state. Header/intervening machinery, so all three land here.
 
 - **Routed from workbench-anaphora-d-creation-and-replacement (close, 2026-08-27):** the periphrastic causer complex, landed TOGETHER or not at all (the parent round showed landing pieces buys zero cards): the "would CAUSE X to Y" verb (4 lines: Rain of Gore, Unpredictable Cyclone, Silhouette +1); `Intercepts`' body VOICE as a slot (finding 582's crossing, coupled to the causer — Zabaz); "Modular" as a `keywordFacts` row + a triggered `AbilityClass` row (pairs with the AnyTriggered item above); and the prospective "that would be created" predicate (unblocks `TokenPhrase (Each p)`, Crafty Cutpurse). Replacement/header machinery, so the complex lands here.
+
+- **Routed from workbench-anaphora-tail (close, 2026-08-27):** Bioplasm's
+  condition-level typed read still refuses after the re-mark landed
+  (`bioplasmTypedReadStillRefused` pins it): `verbedWordOk (TypeW _)` is gated
+  on `wasField`, and "creature card" has no head word. Both halves are
+  verbed-event machinery, so they land here.

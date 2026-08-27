@@ -415,3 +415,10 @@ Standard constraints apply.
   (5) Karai, Future of the Foot — "if her sneak cost was paid **this turn**", the
   family's one turn-scoped payment read; `PaidCost` carries no window slot and
   the window belongs with the payment channel.
+
+- **Routed from workbench-card-cost-letters (close, 2026-08-27):** the
+  [CR#107.3k] boundary is unenforced — an activated ability's activation-cost X
+  is independent of the card's own cost letters, but nothing refuses reading the
+  card's letter from inside the ability. 3 supported cards (Chamber Sentry,
+  Defenders of Humanity, Wren's Run Hydra); the fix belongs to the ability's own
+  telescope, which is this bundle's machinery.
