@@ -1681,11 +1681,13 @@ verbedWordOk JoinW st ty zn = False
 
 ||| Whether a shuffle leaves a mention readable. [CR#701.24b] keeps the
 ||| cards a search FOUND out of the shuffle, so a mention of one survives
-||| it; [CR#701.20d] makes every other reordered library card a new
-||| object, so a mention of one does not. Only a library mention is at
-||| stake: a card an earlier clause moved elsewhere is not in the pile
-||| being randomized. The gate reads the label's own stamp, which is why
-||| "Search" is a catalogued label.
+||| it. Every other card in the pile is randomized where no player knows
+||| its order [CR#701.24a], and a revealed one stops being revealed and
+||| becomes a new object outright [CR#701.20d], so a mention of one does
+||| not survive. Only a library mention is at stake: a card an earlier
+||| clause moved elsewhere is not in the pile being randomized. The gate
+||| reads the label's own stamp, which is why "Search" is a catalogued
+||| label.
 public export
 survivesShuffle : Binding -> Bool
 survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) (Just st) _)) =

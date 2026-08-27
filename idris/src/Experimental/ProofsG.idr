@@ -837,9 +837,10 @@ afterShuffledLook =
 
 ||| "Look at the top card of your library. Shuffle. Put that card into
 ||| your hand."
-||| [CR#701.24b] keeps out of a shuffle only the cards a SEARCH found, and
-||| [CR#701.20d] makes every other reordered library card a new object, so
-||| the mention a bare look left does not survive the randomization. The
+||| [CR#701.24b] keeps out of a shuffle only the cards a SEARCH found.
+||| Every other card in the pile is randomized where no player knows its
+||| order [CR#701.24a] -- and a revealed one becomes a new object outright
+||| [CR#701.20d] -- so the mention a bare look left does not survive. The
 ||| reading this leaves standing is Mystical Tutor's, where the search's
 ||| own stamp is what carries the found card across the shuffle.
 public export
