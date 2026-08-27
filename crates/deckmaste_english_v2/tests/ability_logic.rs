@@ -4699,11 +4699,15 @@ fn generated_logic_report_has_only_semantic_members_and_positional_tables() {
         report.sequence_feature_roles(),
         [
             "ThenPredicateSequenceValue.members.agreement",
+            "BareThenPredicateSequenceValue.members.agreement",
             "AndPredicateCoordination.members.agreement",
             "OrPredicateCoordination.members.agreement",
             "AndOrPredicateCoordination.members.agreement",
+            "BareAndPredicateCoordination.members.agreement",
+            "BareOrPredicateCoordination.members.agreement",
+            "BareAndOrPredicateCoordination.members.agreement",
         ],
-        "only predicate coordination relays homogeneous agreement; finite clauses retain independent subjects",
+        "only predicate coordination and bare sequences relay homogeneous agreement; finite clauses retain independent subjects",
     );
 }
 
