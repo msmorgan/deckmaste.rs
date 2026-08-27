@@ -80,3 +80,5 @@ layout catalog, `Designation`, any label row the verb needs),
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-verb-label-residues (close, 2026-08-26):** manifest [CR#701.40a] — no face-down `TokenRider` arm, and nothing lists a face-down permanent's characteristics [CR#708.2]. A face/permanent-characteristics gap; manifest dread's STRUCTURE already composes from the landed look-partition, so this is its single blocker (Curator Beastie the carrier).

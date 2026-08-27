@@ -426,3 +426,5 @@ Standard constraints apply.
 - **Routed from workbench-payment-events-and-replacement-disjunction (close, 2026-08-26):** Heart of Bogardan's BODY is blocked card-level on demonstrative uniqueness — the header announces the non-payer, so the split read ("that player or that planeswalker's controller") finds a second singular player mention and `countWord PlayerW bs = 1` fails. A mention/uniqueness question, so it lands here.
 
 - **Routed from workbench-distinct-kind-count (close, 2026-08-26):** `Gains` introduces no readable object binding when the trigger already bound a subject — `It` finds two singular objects (Perrie, the Pulverizer). A mention/binding gap, so it lands here. Related: the counted-search line above also wants a DESTINATION slot on `Effect.Search` (Celebrate the Harvest searches "for … put onto the battlefield").
+
+- **Routed from workbench-verb-label-residues (close, 2026-08-26):** `afterShuffle` is owner-blind — it drops every unstamped library mention whichever library was shuffled, but [CR#701.24b] scopes to the shuffled one; the binding payload records a zone, not an owner. A payload/mention question, so it lands here.
