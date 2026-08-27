@@ -175,8 +175,7 @@ badSearchZonedDescription Refl impossible
 ||| [CR#701.17a] mills each player from their own library, so a distributed mill leaves a plural group.
 public export
 badDistributedMillSingular : Unspellable (Effect []) (\ok =>
-  Sequentially [ Does (Each AnyPlayer) "Mill"
-                      (Move (LibrarySlice OnTop (Lit 1) (Each AnyPlayer)) Macros.graveyardZ (MkMoveRiders [] Nothing Nothing))
+  Sequentially [ Macros.mills (Each AnyPlayer) (Lit 1) (Each AnyPlayer)
                , Macros.exile (It {ok}) ])
 badDistributedMillSingular Refl impossible
 
@@ -556,8 +555,7 @@ badReflexiveOnBranchedMay Oh impossible
 ||| [CR#603.3] stacks a triggered ability only at the next priority, after the resolution finishes.
 public export
 badAfterReflexiveReadsTrigger : Unspellable (Effect []) (\ok =>
-  Sequentially [Reflexively (Does You "Mill" (Move (LibrarySlice OnTop (Lit 4) You)
-                                                 Macros.graveyardZ (MkMoveRiders [] Nothing Nothing)))
+  Sequentially [Reflexively (Macros.mills You (Lit 4) You)
                             (Macros.create (Lit 1) (MkToken (Just (Lit 1 ** Lit 1)) [White]
                                                      (MkTypeLine [creatureType "Soldier"] [Creature])
                                                      [] Nothing)),
