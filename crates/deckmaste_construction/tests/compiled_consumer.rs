@@ -1551,6 +1551,7 @@ pub mod declaration_verb_fixture {
             Leaf::TransitiveVerb {
                 verb: TransitiveVerb::Lexeme(CoreVerb::Act),
                 agreement: Agreement::Bare,
+                onset: macro_ron::v2::Onset::Vowel,
             }
         ));
         let open_ids = verbs[1..]
@@ -1559,6 +1560,7 @@ pub mod declaration_verb_fixture {
                 Leaf::TransitiveVerb {
                     verb: TransitiveVerb::Declaration(declaration),
                     agreement: Agreement::Bare,
+                    onset: macro_ron::v2::Onset::Vowel,
                 } => declaration.id().name(),
                 other => panic!("unexpected declaration verb candidate: {other:?}"),
             })
@@ -1654,7 +1656,11 @@ pub mod declaration_verb_fixture {
         let [verb] = verbs.as_slice() else {
             panic!("the explicit cast participle yields exactly one reading")
         };
-        let Leaf::TransitiveParticiple { verb: identity } = &verb.value else {
+        let Leaf::TransitiveParticiple {
+            verb: identity,
+            onset: macro_ron::v2::Onset::Consonant,
+        } = &verb.value
+        else {
             panic!("the participle leaf stores only its checked declaration identity")
         };
         assert_eq!(identity.id().name(), "Cast");
@@ -1839,6 +1845,7 @@ pub mod declaration_verb_fixture {
         let Leaf::NumerativeVerb {
             verb: identity,
             agreement: Agreement::Bare,
+            onset: macro_ron::v2::Onset::Consonant,
         } = &verb.value
         else {
             panic!("the open-only leaf stores its checked category-safe identity")
