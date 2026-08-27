@@ -1680,6 +1680,27 @@ mutual
     ||| -- spelling: "it", exactly as `It` spells.
     ItAt : (sl : SlotCarrier) -> {auto 0 ok : countOnesAt sl bs = 1} ->
            Noun bs Object
+    ||| "it", read at the verb that STAMPED its referent rather than
+    ||| across every singular object mention. Where `ItAt` narrows by the
+    ||| CONSUMING verb's own rule, this narrows by the PRODUCING one: the
+    ||| clause a rider or a following sentence hangs off named a keyword
+    ||| action, and the pronoun names what that action acted on. "Destroy
+    ||| target creature. It can't be regenerated." reads the destroyed
+    ||| permanent and not the spell that destroyed it.
+    ||| The label is the same one the participle read carries and buys
+    ||| the same fact; what differs is the SPELLING. `TheVerbed` writes
+    ||| the participle ("the destroyed creature") and so owes a
+    ||| participle to write; this writes the pronoun and owes none, which
+    ||| is why its second gate is only that the label is a real one.
+    ||| The gate is `It`'s, narrowed: counted uniqueness over a smaller
+    ||| candidate set, never a preference among a larger one, so two
+    ||| mentions the same label stamped still refuse. It does not compose
+    ||| with `ItAt`'s narrowing -- a read wanting both the consuming
+    ||| verb's carrier and the producing verb's stamp is written by no
+    ||| line and has no constructor.
+    ||| -- spelling: "it", exactly as `It` spells.
+    ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+               {auto 0 ok : countVerbedIt v bs = 1} -> Noun bs Object
     They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
     Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
     Those : (w : NounWord) -> {auto 0 ok : countManyWord w bs = 1} -> Noun bs (kindOfW w)
@@ -1744,6 +1765,7 @@ mutual
   nounEqRef It It = True
   nounEqRef It _ = False
   nounEqRef (ItAt _) _ = False
+  nounEqRef (ItVerbed _) _ = False
   nounEqRef They They = True
   nounEqRef They _ = False
   nounEqRef Them _ = False
@@ -1813,6 +1835,7 @@ mutual
   nounDelta TheRest = []
   nounDelta It = []
   nounDelta (ItAt _) = []
+  nounDelta (ItVerbed _) = []
   nounDelta They = []
   nounDelta Them = []
   nounDelta (That w) = []
@@ -2576,6 +2599,7 @@ mutual
   anchorPhrase TheRest = False
   anchorPhrase It = True
   anchorPhrase (ItAt _) = True
+  anchorPhrase (ItVerbed _) = True
   anchorPhrase They = True
   anchorPhrase Them = True
   anchorPhrase (Those _) = True
@@ -2622,6 +2646,7 @@ mutual
   choosable TheRest = False
   choosable It = False
   choosable (ItAt _) = False
+  choosable (ItVerbed _) = False
   choosable They = False
   choosable Them = False
   choosable (Those _) = False
@@ -2675,6 +2700,7 @@ mutual
   groupMention TheRest = False
   groupMention It = False
   groupMention (ItAt _) = False
+  groupMention (ItVerbed _) = False
   groupMention They = False
   groupMention (That _) = False
   groupMention (ThatHalf _) = False
@@ -3196,6 +3222,7 @@ mutual
   costNounOk TheRest = True
   costNounOk It = True
   costNounOk (ItAt _) = True
+  costNounOk (ItVerbed _) = True
   costNounOk They = True
   costNounOk Them = True
   costNounOk (Those _) = True
@@ -3229,6 +3256,7 @@ mutual
   nounIsYou TheRest = False
   nounIsYou It = False
   nounIsYou (ItAt _) = False
+  nounIsYou (ItVerbed _) = False
   nounIsYou They = False
   nounIsYou Them = False
   nounIsYou (Those _) = False
@@ -3262,6 +3290,7 @@ mutual
   nounTargeted TheRest = False
   nounTargeted It = False
   nounTargeted (ItAt _) = False
+  nounTargeted (ItVerbed _) = False
   nounTargeted They = False
   nounTargeted Them = False
   nounTargeted (Those _) = False
@@ -3287,6 +3316,7 @@ mutual
   counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   counterMemoryOk It = not (stampMoves (provOfIt bs))
   counterMemoryOk (ItAt sl) = not (stampMoves (provOfItAt sl bs))
+  counterMemoryOk (ItVerbed v) = not (stampMoves (provOfVerbedIt v bs))
   counterMemoryOk Them = not (stampMoves (provOfThem bs))
   -- a participle read names a referent some labeled action MOVED, so
   -- the counters it had are gone by the same rules.
@@ -3306,6 +3336,7 @@ mutual
   moveDestOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   moveDestOk It = False
   moveDestOk (ItAt _) = False
+  moveDestOk (ItVerbed _) = False
   moveDestOk Them = False
   moveDestOk _ = True
 
@@ -3396,6 +3427,13 @@ mutual
   setZoneItAt sl p z (b :: bs) =
     if itAtReaches sl b then setZone p z b :: bs else b :: setZoneItAt sl p z bs
 
+  public export
+  setZoneVerbedIt : VerbLabel -> Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
+  setZoneVerbedIt v p z [] = []
+  setZoneVerbedIt v p z (b :: bs) =
+    if itVerbedReaches v b then setZone p z b :: bs
+                           else b :: setZoneVerbedIt v p z bs
+
   ||| A union half is re-zoned as the whole mention is: the pair is one
   ||| binding, and moving what one arm names moves the mention.
   public export
@@ -3470,6 +3508,7 @@ mutual
   moveIntro p TheRest z = groupSpent bs
   moveIntro p It z = setZoneIt p z bs
   moveIntro p (ItAt sl) z = setZoneItAt sl p z bs
+  moveIntro p (ItVerbed v) z = setZoneVerbedIt v p z bs
   moveIntro p Them z = setZoneThem p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
   moveIntro p (ThatHalf w) z = setZoneUnionHalf p w z bs
@@ -3512,6 +3551,7 @@ mutual
   nounZone TheRest = zoneOfGroup bs
   nounZone It = zoneOfIt bs
   nounZone (ItAt sl) = zoneOfItAt sl bs
+  nounZone (ItVerbed v) = zoneOfVerbedIt v bs
   nounZone They = Nothing
   nounZone Them = zoneOfThem bs
   nounZone (That w) = zoneOfThat w bs
@@ -3547,6 +3587,7 @@ mutual
   nounTy TheRest = tyOfGroup bs
   nounTy It = tyOfIt bs
   nounTy (ItAt sl) = tyOfItAt sl bs
+  nounTy (ItVerbed v) = tyOfVerbedIt v bs
   nounTy They = Nothing
   nounTy Them = tyOfThem bs
   nounTy (That w) = tyOfThat w bs
@@ -3599,6 +3640,7 @@ mutual
   nounPlur TheRest = ManyOf
   nounPlur It = OneOf
   nounPlur (ItAt _) = OneOf
+  nounPlur (ItVerbed _) = OneOf
   nounPlur They = OneOf
   nounPlur Them = ManyOf
   nounPlur (That w) = OneOf

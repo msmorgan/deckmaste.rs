@@ -273,6 +273,20 @@ countOnesAtIsFold sl (b :: bs) with (itAtReaches sl b)
   _ | True = cong S (countOnesAtIsFold sl bs)
   _ | False = countOnesAtIsFold sl bs
 
+||| What `countVerbedIt` folds: `countOnes Object`'s own test narrowed
+||| the OTHER way -- to the mentions one label stamped rather than to
+||| the ones one verb slot's carrier admits. Same shape, same reason: the
+||| narrowing is a per-binding test, so the verb-scoped read is a
+||| `countBy` fold and inherits the split and witness lemmas unchanged.
+||| Two narrowings of one gate, neither of them a preference.
+public export
+countVerbedItIsFold : (v : VerbLabel) -> (bs : Bindings) ->
+                      countVerbedIt v bs = countBy (itVerbedReaches v) bs
+countVerbedItIsFold v [] = Refl
+countVerbedItIsFold v (b :: bs) with (itVerbedReaches v b)
+  _ | True = cong S (countVerbedItIsFold v bs)
+  _ | False = countVerbedItIsFold v bs
+
 ||| What `countUnionHalf` folds: a singular UNION mention one half of
 ||| which the split arm's word names.
 public export
@@ -444,6 +458,31 @@ itAtResolvesInPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
                        (b : Binding ** (Elem b bs, So (itAtReaches sl b)))
 itAtResolvesInPrefix sl bs ok =
   countByWitness (itAtReaches sl) bs Z (trans (sym (countOnesAtIsFold sl bs)) ok)
+
+
+-- "it" again, read at the label that stamped its referent.
+
+||| The verb-scoped pronoun asks the prefix ONE question -- how many of
+||| its mentions that label stamped -- and carries a second obligation
+||| that mentions no context at all, that the label is a real one. The
+||| split is `TheVerbed`'s: only the first argument is a context read,
+||| and it is a read of the prefix. What the two do not share is the
+||| SPELLING obligation, which the pronoun does not incur.
+public export
+itVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
+                          KnownVerb v -> countVerbedIt v bs = 1 -> Noun bs Object
+itVerbedReadsOnlyPrefix bs v kn ok = ItVerbed v {bs} {kn} {ok}
+
+||| ...and it resolves to a mention IN the prefix, by the same witness
+||| lemma both the unscoped and the carrier-scoped reads use. A stamp is
+||| a mark on a binding the prefix already held, so narrowing on it
+||| changed which binding comes back and never where it comes from.
+public export
+itVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) ->
+                           countVerbedIt v bs = 1 ->
+                           (b : Binding ** (Elem b bs, So (itVerbedReaches v b)))
+itVerbedResolvesInPrefix bs v ok =
+  countByWitness (itVerbedReaches v) bs Z (trans (sym (countVerbedItIsFold v bs)) ok)
 
 
 -- "they": the player pronoun.

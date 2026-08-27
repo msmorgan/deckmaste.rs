@@ -1417,6 +1417,19 @@ countQuality q (MkBinding _ k OneOf _ :: bs) =
   if kindLte (Quality q) k then S (countQuality q bs) else countQuality q bs
 countQuality q (_ :: bs) = countQuality q bs
 
+||| The marked read demands that a choice STAND, which is existence and
+||| not uniqueness [CR#607.2d]: "the last chosen color" names the latest
+||| of however many the chooser made, and zero is not one or more.
+||| RECORDED OVERGENERATION, not gated: nothing in this grammar
+||| represents a chooser's REPEATABILITY, so the row admits a marked read
+||| after a chooser that can fire only once -- a sentence no printed line
+||| writes. Measured over the supported corpus: 12 occurrences over 12
+||| cards, every one of them behind a chooser that can fire more than
+||| once (a second printed chooser, a fused enters-and-upkeep trigger, a
+||| combat/loyalty/activated chooser, or an attach rider that re-fires on
+||| re-equip). Perfect covariance and still not a gate, in the same
+||| posture the verb-provenance overgeneration takes: what would close it
+||| is a fact about the CHOOSER, which is a different subsystem.
 public export
 data ChoiceStands : Nat -> Type where
   ChoiceMade : ChoiceStands (S n)
@@ -2107,6 +2120,60 @@ verbedWordOk CopyW st ty zn = False
 verbedWordOk JoinW st ty zn = False
 verbedWordOk AbilityJoinW st ty zn = False
 
+||| Whether a mention carries the stamp ONE named label left. A mention
+||| with no stamp is one no labeled action in this text acted on, which
+||| is why the absent stamp answers `False` for every label rather than
+||| standing for any: the question asked is which action wrote this
+||| referent, and nothing having written it is an answer to it.
+public export
+stampIs : VerbLabel -> Maybe Stamp -> Bool
+stampIs v Nothing = False
+stampIs v (Just st) = stampedBy v st
+
+||| `itReaches` narrowed to the mentions one label stamped: the bare
+||| pronoun read at the verb that made its referent what a later clause
+||| names. The participle read (`TheVerbed`) asks a stamped mention two
+||| questions -- which label wrote it, and whether the head word reaches
+||| what the label left -- and SPELLS the answer as a participle ("the
+||| destroyed creature"). This asks the first question alone and spells
+||| nothing: the pronoun is still "it", and the label only says which of
+||| the prefix's mentions are candidates.
+|||
+||| It is the other side of the clause from `itAtReaches`, which narrows
+||| by the CONSUMING verb's own rule [CR#109.2]. This narrows by the
+||| PRODUCING one. Neither is a preference: both are counted uniqueness
+||| over a smaller candidate set, so two mentions the same label stamped
+||| refuse the read exactly as two battlefield mentions refuse the
+||| carrier-scoped one.
+public export
+itVerbedReaches : VerbLabel -> Binding -> Bool
+itVerbedReaches v b = itReaches OneOf b && stampIs v (payloadProv b.payload)
+
+||| `countOnes Object` over the candidates one label stamped.
+public export
+countVerbedIt : VerbLabel -> Bindings -> Nat
+countVerbedIt v [] = Z
+countVerbedIt v (b :: bs) =
+  if itVerbedReaches v b then S (countVerbedIt v bs) else countVerbedIt v bs
+
+public export
+provOfVerbedIt : VerbLabel -> Bindings -> Maybe Stamp
+provOfVerbedIt v [] = Nothing
+provOfVerbedIt v (b :: bs) =
+  if itVerbedReaches v b then payloadProv b.payload else provOfVerbedIt v bs
+
+public export
+zoneOfVerbedIt : VerbLabel -> Bindings -> Maybe Zone
+zoneOfVerbedIt v [] = Nothing
+zoneOfVerbedIt v (b :: bs) =
+  if itVerbedReaches v b then bindingZone b else zoneOfVerbedIt v bs
+
+public export
+tyOfVerbedIt : VerbLabel -> Bindings -> Maybe CardType
+tyOfVerbedIt v [] = Nothing
+tyOfVerbedIt v (b :: bs) =
+  if itVerbedReaches v b then bindingTy b else tyOfVerbedIt v bs
+
 ||| Whether a shuffle leaves a mention readable. [CR#701.24b] keeps the
 ||| cards a search FOUND out of the shuffle, so a mention of one survives
 ||| it. Every other card in the pile is randomized where no player knows
@@ -2116,6 +2183,16 @@ verbedWordOk AbilityJoinW st ty zn = False
 ||| clause moved elsewhere is not in the pile being randomized. The gate
 ||| reads the label's own stamp, which is why "Search" is a catalogued
 ||| label.
+|||
+||| OWNER-BLIND, recorded rather than closed. [CR#701.24b] scopes to ONE
+||| library -- "shuffle THAT library ... all the cards in that library
+||| except those are shuffled" -- so a mention in a different library is
+||| untouched whatever this clause randomizes. The payload records a
+||| mention's zone and not its owner, so the gate has nothing to match a
+||| shuffled library's possessor against; an owner field on `ObjectP` is
+||| what the match would cost. Measured at ZERO: no supported line
+||| shuffles a library other than the one its own paragraph named, so
+||| the owner-scoped reading and this one agree on every written line.
 public export
 survivesShuffle : Binding -> Bool
 survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) (Just st) _)) =

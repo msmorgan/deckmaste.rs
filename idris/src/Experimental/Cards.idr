@@ -6559,7 +6559,7 @@ terror =
        [ Spell (CantBe (Macros.destroy (Macros.target
                   (And [Macros.creature, Not Macros.artifact,
                         Not (ColorIs Black)])))
-                Regenerated It) ]
+                Regenerated (Macros.itVerbed "Destroy")) ]
        Nothing
 
 public export
@@ -6573,7 +6573,7 @@ snuffOut =
                    (AltCost (Just (Do (ChangeLife You (Down (Lit 4)))))))
        , Spell (CantBe (Macros.destroy (Macros.target
                   (And [Macros.creature, Not (ColorIs Black)])))
-                Regenerated It) ]
+                Regenerated (Macros.itVerbed "Destroy")) ]
        Nothing
 
 public export
@@ -10399,3 +10399,99 @@ moonlitMeditation =
                         Nothing Nothing)
                    Repeatedly (Just OncePerTurn)) ]
        Nothing
+
+||| Damn's first line -- "Destroy target creature. A creature destroyed
+||| this way can't be regenerated." The PARTICIPLE subject of the rider,
+||| which needs the destruction's own stamp where the rider's subject is
+||| read: [CR#608.2c] reads the two sentences as one statement and takes
+||| this very shape as its worked example, so `riderIntro` writes the
+||| clause's label in place and the participle finds it. The rest of the
+||| card is elided: its overload cost has no word in this vocabulary.
+public export
+damnDestroyLine : Effect []
+damnDestroyLine =
+  CantBe (Macros.destroy (Macros.target Macros.creature))
+         Regenerated (Macros.theVerbedThisWay "Destroy" (TypeW Creature))
+
+||| Nekrataal's trigger body reads its rider's subject here -- "When this
+||| creature enters, destroy target nonartifact, nonblack creature. That
+||| creature can't be regenerated."
+public export
+nekrataalRider : Bindings
+nekrataalRider =
+  riderIntro {bs = eventAfter {bs = []} (Enters Macros.thisCreature Nothing)}
+    (Macros.destroy (Macros.target
+       (And [Macros.creature, Not Macros.artifact, Not (ColorIs Black)])))
+
+||| Two battlefield creatures stand there -- the one that entered and the
+||| one the trigger destroyed -- so the demonstrative is refused, and so
+||| is the bare pronoun.
+public export
+nekrataalTwoCreatureWords : countWord (TypeW Creature) Cards.nekrataalRider = 2
+nekrataalTwoCreatureWords = Refl
+
+public export
+nekrataalTwoObjects : countOnes Object Cards.nekrataalRider = 2
+nekrataalTwoObjects = Refl
+
+||| ...and exactly one of them was DESTROYED, which is what the rider
+||| means and what neither of the other two reads can ask.
+public export
+nekrataalOneDestroyed : countVerbedIt "Destroy" Cards.nekrataalRider = 1
+nekrataalOneDestroyed = Refl
+
+||| Engulfing Flames' rider reads here -- "Engulfing Flames deals 1
+||| damage to target creature. It can't be regenerated this turn."
+public export
+engulfingFlamesRider : Bindings
+engulfingFlamesRider =
+  riderIntro {bs = []} (DealDamage This (Lit 1) (Macros.target Macros.creature))
+
+||| A damage clause destroys nothing itself -- [CR#704.5g] destroys the
+||| lethally damaged creature as a state-based action, and regeneration
+||| replaces THAT event -- so no destroy stamp stands where the rider is
+||| read and the verb-scoped pronoun finds nothing.
+public export
+engulfingFlamesNoDestroyStamp :
+  countVerbedIt "Destroy" Cards.engulfingFlamesRider = 0
+engulfingFlamesNoDestroyStamp = Refl
+
+||| The bare pronoun still resolves there, which is the overgeneration
+||| recorded at chapter 125 and re-measured here at 9 occurrences over 9
+||| cards, all of them carrying "this turn". It is NOT pinned:
+||| [CR#704.5g] says regeneration can replace the destruction lethal
+||| damage causes, and [CR#701.19c] makes the denial a shield-application
+||| denial, so a rider after a damage clause is rules-meaningful. What
+||| the round buys is that the distinction is now WRITABLE -- the 138
+||| attached riders name their own destroying label -- not that the
+||| unnamed form is refused.
+public export
+engulfingFlamesBareReadStands :
+  countOnes Object Cards.engulfingFlamesRider = 1
+engulfingFlamesBareReadStands = Refl
+
+||| Bioplasm's exiled card, read back by the verb that exiled it. The
+||| CARD word resolves and so does the verb-scoped pronoun; what does not
+||| is the card's own spelling, "the exiled creature card".
+public export
+bioplasmExiledCard : Noun Cards.bioplasmAfterExile Object
+bioplasmExiledCard = Macros.theVerbed "Exile" CardW
+
+public export
+bioplasmExiledPronoun : Noun Cards.bioplasmAfterExile Object
+bioplasmExiledPronoun = Macros.itVerbed "Exile"
+
+||| ...and the type word finds nothing, for TWO reasons and not the one
+||| sub-round A's close named. `verbedWordOk (TypeW t)` asks the stamp
+||| for `wasField`, which a card taken off a library never carries; and
+||| the mention records NO card type at all, because "the top card of
+||| your library" names none and the "if it's a creature card" test that
+||| follows does not re-mark the binding it tested. The second is an
+||| announcement question, not a provenance one.
+public export
+bioplasmNoTypedRead : countVerbed "Exile" (TypeW Creature) Cards.bioplasmAfterExile = 0
+bioplasmNoTypedRead = Refl
+
+public export
+bioplasmExiledCardHasNoType : tyOfVerbedIt "Exile" Cards.bioplasmAfterExile = Nothing
+bioplasmExiledCardHasNoType = Refl

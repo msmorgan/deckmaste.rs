@@ -846,7 +846,7 @@ mutual
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                  Effect bs
     CantBe : {k : Kind} -> (e : Effect bs) -> (act : ObjectAct) ->
-             (what : Noun (preIntro e) k) ->
+             (what : Noun (riderIntro e) k) ->
              {auto 0 rd : So (riderAct act)} ->
              {auto 0 sub : ActSubject act what} -> Effect bs
     ||| The warrant tells the bare instruction from a keyword's expansion
@@ -2110,6 +2110,30 @@ mutual
   preIntro (ThisWay body ev trig) = preIntro body
   preIntro (InsteadOf replaced repl) = annIntro replaced
   preIntro (HeldUntil e ev) = annIntro e
+
+  ||| What a RIDER reads -- the context its subject is typed in.
+  ||| [CR#608.2c] reads a card's later text against its earlier text as
+  ||| one statement rather than step by step, and takes THIS sentence as
+  ||| its worked example ("Destroy target creature. It can't be
+  ||| regenerated."). So the rider's subject names the referent as the
+  ||| clause it rides left it -- carrying that clause's own label -- and
+  ||| not as a following sentence would find it: [CR#701.19a] regenerates
+  ||| a PERMANENT, and a subject reachable only in a graveyard is the
+  ||| wrong subject.
+  ||| It is `preIntro` with the clause's label written IN PLACE, never a
+  ||| re-zoning. That is the shape `settleTargets` and `defineLetter`
+  ||| already have -- one mark changed on a binding the prefix already
+  ||| held, nothing minted and nothing dropped -- so every gate that was
+  ||| a fold over the prefix still is one, and the bare pronoun still
+  ||| counts what it counted. What the mark buys is the participle
+  ||| ("creatures destroyed this way") and the verb-scoped pronoun,
+  ||| which ask which label acted and cannot ask it of an unmarked
+  ||| binding.
+  public export
+  riderIntro : {bs : Bindings} -> Effect bs -> Bindings
+  riderIntro (Enact v (Move what to _)) = stampIntro (Just v) what
+  riderIntro (Does s v (Move what to _)) = stampIntro (Just v) what
+  riderIntro e = preIntro e
 
   ||| What a clause's phrases have named by the time the spell is cast
   ||| [CR#601.2c] — the announcement channel, distinct from `effIntro`

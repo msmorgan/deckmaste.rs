@@ -1699,12 +1699,36 @@ discardN amt =
                              , discard (That CardW {ok = pk})
                                        {dk = DiscardTracked {z = dz}} ])
 
+||| "it", read at the label that stamped its referent: the same fact the
+||| participle read carries, spelled as the pronoun. A rider or a
+||| following sentence that names what its own clause acted on writes
+||| this rather than the bare `It`, and the label it names is the
+||| clause's own -- so "Destroy target creature. It can't be
+||| regenerated." states, at the site, that the pronoun reads the
+||| DESTROYED permanent [CR#608.2c].
+public export
+itVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+           {auto 0 ok : countVerbedIt v bs = 1} -> Noun bs Object
+itVerbed v = ItVerbed v {kn} {ok}
+
 ||| "the exiled card": the attributive singular participle anaphor.
 public export
 theVerbed : (v : VerbLabel) -> (w : NounWord) ->
             {auto 0 ok : countVerbed v w bs = 1} ->
             {auto 0 mk : VerbedMarkingOk v Attributive} -> Noun bs (kindOfW w)
 theVerbed v w = TheVerbed v w Attributive {ok} {mk}
+
+||| "the creature destroyed this way": the marked singular participle
+||| anaphor, `thoseVerbedThisWay`'s twin. A printed line writes the
+||| indefinite article here ("A creature destroyed this way can't be
+||| regenerated") because the statement is general in English while the
+||| clause it rides destroyed one thing; the article is spelling and the
+||| gate is the uniqueness the clause guarantees.
+public export
+theVerbedThisWay : (v : VerbLabel) -> (w : NounWord) ->
+                   {auto 0 ok : countVerbed v w bs = 1} ->
+                   {auto 0 mk : VerbedMarkingOk v ThisWay} -> Noun bs (kindOfW w)
+theVerbedThisWay v w = TheVerbed v w ThisWay {ok} {mk}
 
 ||| "those exiled cards": the attributive plural participle anaphor.
 public export
