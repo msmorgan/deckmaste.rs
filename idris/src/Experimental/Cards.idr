@@ -2080,13 +2080,29 @@ cullingScales =
                                            (And [Permanent, Not Macros.land])]))) ]
        Nothing
 
+||| Purging Scythe, whole -- "At the beginning of your upkeep, this
+||| artifact deals 2 damage to the creature with the least toughness. If
+||| two or more creatures are tied for least toughness, you choose one of
+||| them." The TIE SENTENCE, and the condition-first conditional it needs:
+||| the count is taken over a uniquifying description, so the condition
+||| announces the set it counted, and the consequent partitions it. Drop
+||| of Honey, Porphyry Nodes and Topple print the same sentence; seven
+||| supported lines read "one of them" back off a tie.
+public export
 purgingScythe : Ability
 purgingScythe =
   Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
-                   (DealDamage Macros.thisArtifact (Lit 2)
-                        (Definite (And [Macros.creature,
-                                        Superlative MinOf (CharAxis Toughness)
-                                                    Macros.creature])))
+    (Sequentially
+       [ DealDamage Macros.thisArtifact (Lit 2)
+                    (Definite (And [Macros.creature,
+                                    Superlative MinOf (CharAxis Toughness)
+                                                Macros.creature]))
+       , If (CompareAmt (CountOf (And [Macros.creature,
+                                       Superlative MinOf (CharAxis Toughness)
+                                                   Macros.creature]))
+                        AtLeast (Lit 2))
+            (Macros.chooses You (Macros.oneOf Them))
+            Nothing ])
 
 roilingHorror : Ability
 roilingHorror =
@@ -10537,6 +10553,30 @@ selfSacrificeThenExile =
        , Delayed (BeginningOf EndStep NoPossessor) [] Nothing
                  (Move (That CardW) Macros.battlefieldZ
                        (MkMoveRiders [] Nothing Nothing)) ])
+
+||| The wrapper seam a rider is read at, in the smallest shape the
+||| printed family shares: a sentence of two clauses, the rider naming
+||| what the LAST one did. Harsh Mercy ("Each player chooses a creature
+||| type. Destroy all creatures that aren't of a type chosen this way.
+||| They can't be regenerated.") and Tsabo's Decree write it out;
+||| `riderIntro` recurses into the sequence rather than falling through
+||| to `preIntro`, which dropped the label at every wrapper.
+public export
+sequencedRider : Bindings
+sequencedRider =
+  riderIntro {bs = []}
+    (Sequentially [ Macros.exile (Macros.target Macros.artifact)
+                  , Macros.destroy (Macros.target Macros.creature) ])
+
+||| Exactly one mention carries the destroying label -- the sequence's
+||| last clause -- and the exiled artifact carries its own.
+public export
+sequencedRiderOneDestroyed : countVerbedIt "Destroy" Cards.sequencedRider = 1
+sequencedRiderOneDestroyed = Refl
+
+public export
+sequencedRiderOneExiled : countVerbedIt "Exile" Cards.sequencedRider = 1
+sequencedRiderOneExiled = Refl
 
 ||| Engulfing Flames' rider reads here -- "Engulfing Flames deals 1
 ||| damage to target creature. It can't be regenerated this turn."

@@ -2179,11 +2179,37 @@ mutual
   ||| ("creatures destroyed this way") and the verb-scoped pronoun,
   ||| which ask which label acted and cannot ask it of an unmarked
   ||| binding.
+  ||| The WRAPPER rows recurse with `riderIntro` and not with `preIntro`:
+  ||| a rider hangs off the sentence, and the label the sentence's last
+  ||| clause wrote is the label the rider names, whatever wrapper the
+  ||| sentence was written under. Falling through to `preIntro` there
+  ||| dropped the stamp at every seam.
+  ||| `Modal` does NOT recurse: the rider follows the list, and which
+  ||| mode's label it names is a question the mode's chooser answers at
+  ||| resolution, not one the text fixes -- so the wrapper's own
+  ||| announcement stands and the verb-scoped reads find nothing.
+  ||| `If`/`OnlyIf`/`Unless` do not recurse either: their clause may not
+  ||| have run, so the stamp its label would have written may not exist.
   public export
   riderIntro : {bs : Bindings} -> Effect bs -> Bindings
   riderIntro (Enact v (Move what to _)) = stampIntro (Just v) what
   riderIntro (Does s v (Move what to _)) = stampIntro (Just v) what
+  riderIntro (Enact _ e) = riderIntro e
+  riderIntro (Does _ _ e) = riderIntro e
+  riderIntro (CantBe e _ _) = riderIntro e
+  riderIntro (Reflexively body _) = riderIntro body
+  riderIntro (ThisWay body _ _) = riderIntro body
+  riderIntro (Sequentially es) = riderIntros es
   riderIntro e = preIntro e
+
+  ||| A sequence's rider reads its LAST clause, on `preIntros`' model:
+  ||| [CR#608.2c] reads the sentence as one statement, and the rider is
+  ||| written after the last thing the sentence did.
+  public export
+  riderIntros : {bs : Bindings} -> {0 n : Nat} -> Effects n bs -> Bindings
+  riderIntros [] = bs
+  riderIntros (e :: []) = riderIntro e
+  riderIntros (e :: es) = riderIntros es
 
   ||| What a clause's phrases have named by the time the spell is cast
   ||| [CR#601.2c] — the announcement channel, distinct from `effIntro`

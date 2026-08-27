@@ -3177,14 +3177,40 @@ mutual
   condDelta (GameIs _) = []
   condDelta (NoHolder _) = []
   condDelta (Matches n _) = selfSubjDelta n
-  condDelta (CompareAmt subj _ bound) = gapB :: (amtDelta bound ++ amtDelta subj)
+  condDelta (CompareAmt subj _ bound) =
+    gapB :: (tiedDelta subj ++ amtDelta bound ++ amtDelta subj)
   condDelta (DealtThisWay _) = []
   condDelta (FlipCalled _ _) = []
   condDelta (FlipFace _) = []
   condDelta (AnyResultIs _ _) = []
   condDelta RolledDoubles = []
+  -- a comparison that did NOT hold leaves neither a margin nor a tie
+  -- set, so the negated row announces only the phrases its two amounts
+  -- named. Written out rather than filtered: the margin is findable by
+  -- kind and the tie set is not, so the row that minted them is the row
+  -- that has to unmake them.
+  condDelta (NotCond (CompareAmt subj _ bound)) = amtDelta bound ++ amtDelta subj
   condDelta (NotCond c) = dropGaps (condDelta c)
   condDelta (AndCond cs) = condDeltaAll cs
+
+  ||| The group a counted comparison over a UNIQUIFYING description
+  ||| names: "If two or more creatures are tied for greatest power, you
+  ||| choose one of THEM." A superlative picks out a determinate set
+  ||| [CR#608.2c] rather than one referent, so counting it is the only
+  ||| way English asks how big the tie is -- and the set it counted is
+  ||| what the consequent then partitions. Minted exactly where the
+  ||| description uniquifies: an ordinary count ("if you control three or
+  ||| more lands") names a number and no group, which is why the row is a
+  ||| gate on `uniquifies` and not on the comparison.
+  ||| Object and player halves both print it; other kinds write no such
+  ||| line and mint nothing.
+  public export
+  tiedDelta : {bs : Bindings} -> Amount bs -> List Binding
+  tiedDelta (CountOf {k = Object} p) =
+    if uniquifies p then [bindFor TheD ManyOf PhObject p] else []
+  tiedDelta (CountOf {k = Player} p) =
+    if uniquifies p then [bindFor TheD ManyOf PhPlayer p] else []
+  tiedDelta _ = []
 
   public export
   condDeltaAll : {bs : Bindings} -> List (Condition bs) -> List Binding
