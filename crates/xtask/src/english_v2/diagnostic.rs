@@ -937,6 +937,7 @@ enum NonterminalKind {
     PreposedUntilPredicate,
     ThenSequence,
     ThenPredicateSequence,
+    BareThenPredicateSequence,
     AdditionalCostBody,
     AdditionalCost,
     AdditionalCostPredicateBody,
@@ -959,7 +960,9 @@ enum NonterminalKind {
     Predicate,
     BarePredicate,
     CoordinatedPredicate,
+    BareCoordinatedPredicate,
     PredicateCoordination,
+    BarePredicateCoordination,
     PredicativeComplement,
     PredicativeStatus,
     PassivePredicate,
@@ -1590,6 +1593,9 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PreposedUntilPredicate => NonterminalKind::PreposedUntilPredicate,
         NonterminalCategory::ThenSequence => NonterminalKind::ThenSequence,
         NonterminalCategory::ThenPredicateSequence => NonterminalKind::ThenPredicateSequence,
+        NonterminalCategory::BareThenPredicateSequence => {
+            NonterminalKind::BareThenPredicateSequence
+        }
         NonterminalCategory::AdditionalCostBody => NonterminalKind::AdditionalCostBody,
         NonterminalCategory::AdditionalCost => NonterminalKind::AdditionalCost,
         NonterminalCategory::AdditionalCostPredicateBody => {
@@ -1620,7 +1626,11 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::Predicate => NonterminalKind::Predicate,
         NonterminalCategory::BarePredicate => NonterminalKind::BarePredicate,
         NonterminalCategory::CoordinatedPredicate => NonterminalKind::CoordinatedPredicate,
+        NonterminalCategory::BareCoordinatedPredicate => NonterminalKind::BareCoordinatedPredicate,
         NonterminalCategory::PredicateCoordination => NonterminalKind::PredicateCoordination,
+        NonterminalCategory::BarePredicateCoordination => {
+            NonterminalKind::BarePredicateCoordination
+        }
         NonterminalCategory::PredicativeComplement => NonterminalKind::PredicativeComplement,
         NonterminalCategory::PredicativeStatus => NonterminalKind::PredicativeStatus,
         NonterminalCategory::PassivePredicate => NonterminalKind::PassivePredicate,

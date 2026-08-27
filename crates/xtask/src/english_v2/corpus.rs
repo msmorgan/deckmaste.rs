@@ -184,6 +184,13 @@ fn map_corpus_units_with_workers<T: Send>(
         return Vec::new();
     }
     let jobs = corpus_unit_jobs(requested_workers, units.len());
+    if jobs == 1 {
+        return units
+            .iter()
+            .enumerate()
+            .map(|(index, unit)| map(index, unit))
+            .collect();
+    }
     rayon::ThreadPoolBuilder::new()
         .num_threads(jobs)
         .thread_name(|index| format!("english-v2-corpus-{index}"))
