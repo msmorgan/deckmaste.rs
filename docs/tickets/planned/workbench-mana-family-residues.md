@@ -202,3 +202,5 @@ No Rust crate.
 Standard constraints apply.
 
 - **Routed from workbench-payment-event-residues (close, 2026-08-26):** mana named by what it was spent on — "for each {B} or {R} spent this way" (Balduvian Fallen's body). A payment-surface read, so it lands here.
+
+- **Routed from workbench-verbed-event-overlap (close, 2026-08-27):** the "for mana" adjunct on the tap act — 35 of 39 active-tap headers write "taps [what] for mana" and no slot spells the adjunct. A mana-production trigger surface, so it lands here.
