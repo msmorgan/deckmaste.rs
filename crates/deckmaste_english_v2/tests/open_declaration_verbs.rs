@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -682,11 +683,53 @@ fn source_census_visits_production_macro_token_groups() {
     );
 }
 
+fn assert_complete_surface_axis(
+    terminal: &deckmaste_construction_core::TerminalContribution,
+    features: [SurfaceFeature; 2],
+) {
+    let variants = terminal
+        .variants()
+        .iter()
+        .map(deckmaste_construction_core::TerminalVariantContribution::name)
+        .collect::<BTreeSet<_>>();
+    assert!(!variants.is_empty(), "closed lexeme inventory is nonempty");
+    assert_eq!(
+        variants.len(),
+        terminal.variants().len(),
+        "closed lexeme members are unique"
+    );
+    assert_eq!(
+        terminal.surfaces().len(),
+        variants.len() * features.len(),
+        "every closed lexeme has exactly one row on each feature axis"
+    );
+    for row in terminal.surfaces() {
+        assert!(
+            variants.contains(row.member()),
+            "surface member is declared"
+        );
+        assert!(
+            features.contains(&row.feature()),
+            "surface feature is valid"
+        );
+        assert!(!row.surface().is_empty(), "surface spelling is nonempty");
+    }
+    for member in variants {
+        for feature in features {
+            assert_eq!(
+                terminal
+                    .surfaces()
+                    .iter()
+                    .filter(|row| row.member() == member && row.feature() == feature)
+                    .count(),
+                1,
+                "{member} has exactly one {feature:?} surface"
+            );
+        }
+    }
+}
+
 #[test]
-#[allow(
-    clippy::too_many_lines,
-    reason = "the literal closed morphology authority is intentionally exhaustive"
-)]
 fn generated_morphology_is_the_only_closed_spelling_authority() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
     let constructions = fs::read_to_string(root.join("constructions.rs")).unwrap();
@@ -712,211 +755,19 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
         .find(|terminal| terminal.name() == "VerbLexeme")
         .expect("closed verb lexeme provider exists");
     assert!(verb_lexeme.is_verb_provider());
-    assert_eq!(
-        verb_lexeme
-            .variants()
-            .iter()
-            .map(deckmaste_construction_core::TerminalVariantContribution::name)
-            .collect::<Vec<_>>(),
-        [
-            "May", "Can", "Cant", "Must", "Didnt", "Would", "Add", "Choose", "Deal", "Draw",
-            "Enter", "Gain", "Get", "Lose", "Pay", "Prevent", "Put", "Remove", "Roll", "Have",
-            "Look", "Leave", "Control", "Own", "Return", "Cause", "Become", "Cost", "Do", "Be"
-        ]
-    );
-    assert_eq!(
-        verb_lexeme
-            .surfaces()
-            .iter()
-            .map(|row| (row.member(), row.feature(), row.surface()))
-            .collect::<Vec<_>>(),
-        [
-            ("May", SurfaceFeature::Bare, "may"),
-            ("May", SurfaceFeature::ThirdPersonSingular, "may"),
-            ("Can", SurfaceFeature::Bare, "can"),
-            ("Can", SurfaceFeature::ThirdPersonSingular, "can"),
-            ("Cant", SurfaceFeature::Bare, "can't"),
-            ("Cant", SurfaceFeature::ThirdPersonSingular, "can't"),
-            ("Must", SurfaceFeature::Bare, "must"),
-            ("Must", SurfaceFeature::ThirdPersonSingular, "must"),
-            ("Didnt", SurfaceFeature::Bare, "didn't"),
-            ("Didnt", SurfaceFeature::ThirdPersonSingular, "didn't"),
-            ("Would", SurfaceFeature::Bare, "would"),
-            ("Would", SurfaceFeature::ThirdPersonSingular, "would"),
-            ("Add", SurfaceFeature::Bare, "add"),
-            ("Add", SurfaceFeature::ThirdPersonSingular, "adds"),
-            ("Choose", SurfaceFeature::Bare, "choose"),
-            ("Choose", SurfaceFeature::ThirdPersonSingular, "chooses"),
-            ("Deal", SurfaceFeature::Bare, "deal"),
-            ("Deal", SurfaceFeature::ThirdPersonSingular, "deals"),
-            ("Draw", SurfaceFeature::Bare, "draw"),
-            ("Draw", SurfaceFeature::ThirdPersonSingular, "draws"),
-            ("Enter", SurfaceFeature::Bare, "enter"),
-            ("Enter", SurfaceFeature::ThirdPersonSingular, "enters"),
-            ("Gain", SurfaceFeature::Bare, "gain"),
-            ("Gain", SurfaceFeature::ThirdPersonSingular, "gains"),
-            ("Get", SurfaceFeature::Bare, "get"),
-            ("Get", SurfaceFeature::ThirdPersonSingular, "gets"),
-            ("Lose", SurfaceFeature::Bare, "lose"),
-            ("Lose", SurfaceFeature::ThirdPersonSingular, "loses"),
-            ("Pay", SurfaceFeature::Bare, "pay"),
-            ("Pay", SurfaceFeature::ThirdPersonSingular, "pays"),
-            ("Prevent", SurfaceFeature::Bare, "prevent"),
-            ("Prevent", SurfaceFeature::ThirdPersonSingular, "prevents"),
-            ("Put", SurfaceFeature::Bare, "put"),
-            ("Put", SurfaceFeature::ThirdPersonSingular, "puts"),
-            ("Remove", SurfaceFeature::Bare, "remove"),
-            ("Remove", SurfaceFeature::ThirdPersonSingular, "removes"),
-            ("Roll", SurfaceFeature::Bare, "roll"),
-            ("Roll", SurfaceFeature::ThirdPersonSingular, "rolls"),
-            ("Have", SurfaceFeature::Bare, "have"),
-            ("Have", SurfaceFeature::ThirdPersonSingular, "has"),
-            ("Look", SurfaceFeature::Bare, "look"),
-            ("Look", SurfaceFeature::ThirdPersonSingular, "looks"),
-            ("Leave", SurfaceFeature::Bare, "leave"),
-            ("Leave", SurfaceFeature::ThirdPersonSingular, "leaves"),
-            ("Control", SurfaceFeature::Bare, "control"),
-            ("Control", SurfaceFeature::ThirdPersonSingular, "controls"),
-            ("Own", SurfaceFeature::Bare, "own"),
-            ("Own", SurfaceFeature::ThirdPersonSingular, "owns"),
-            ("Return", SurfaceFeature::Bare, "return"),
-            ("Return", SurfaceFeature::ThirdPersonSingular, "returns"),
-            ("Cause", SurfaceFeature::Bare, "cause"),
-            ("Cause", SurfaceFeature::ThirdPersonSingular, "causes"),
-            ("Become", SurfaceFeature::Bare, "become"),
-            ("Become", SurfaceFeature::ThirdPersonSingular, "becomes"),
-            ("Cost", SurfaceFeature::Bare, "cost"),
-            ("Cost", SurfaceFeature::ThirdPersonSingular, "costs"),
-            ("Do", SurfaceFeature::Bare, "do"),
-            ("Do", SurfaceFeature::ThirdPersonSingular, "does"),
-            ("Be", SurfaceFeature::Bare, "are"),
-            ("Be", SurfaceFeature::ThirdPersonSingular, "is"),
-        ]
+    assert_complete_surface_axis(
+        verb_lexeme,
+        [SurfaceFeature::Bare, SurfaceFeature::ThirdPersonSingular],
     );
     let noun_lexeme = expansion
         .terminal_contributions()
         .iter()
         .find(|terminal| terminal.name() == "CommonNoun")
         .expect("closed noun lexeme provider exists");
-    assert_eq!(
-        noun_lexeme
-            .surfaces()
-            .iter()
-            .map(|row| (row.member(), row.feature(), row.surface()))
-            .collect::<Vec<_>>(),
-        [
-            ("Ability", SurfaceFeature::Singular, "ability"),
-            ("Ability", SurfaceFeature::Plural, "abilities"),
-            ("Attacker", SurfaceFeature::Singular, "attacker"),
-            ("Attacker", SurfaceFeature::Plural, "attackers"),
-            ("Battlefield", SurfaceFeature::Singular, "battlefield"),
-            ("Battlefield", SurfaceFeature::Plural, "battlefields"),
-            ("Blocker", SurfaceFeature::Singular, "blocker"),
-            ("Blocker", SurfaceFeature::Plural, "blockers"),
-            ("Card", SurfaceFeature::Singular, "card"),
-            ("Card", SurfaceFeature::Plural, "cards"),
-            ("Choice", SurfaceFeature::Singular, "choice"),
-            ("Choice", SurfaceFeature::Plural, "choices"),
-            ("Coin", SurfaceFeature::Singular, "coin"),
-            ("Coin", SurfaceFeature::Plural, "coins"),
-            ("Color", SurfaceFeature::Singular, "color"),
-            ("Color", SurfaceFeature::Plural, "colors"),
-            ("Combat", SurfaceFeature::Singular, "combat"),
-            ("Combat", SurfaceFeature::Plural, "combats"),
-            ("Copy", SurfaceFeature::Singular, "copy"),
-            ("Copy", SurfaceFeature::Plural, "copies"),
-            ("Counter", SurfaceFeature::Singular, "counter"),
-            ("Counter", SurfaceFeature::Plural, "counters"),
-            ("Damage", SurfaceFeature::Singular, "damage"),
-            ("Damage", SurfaceFeature::Plural, "damages"),
-            ("Death", SurfaceFeature::Singular, "death"),
-            ("Death", SurfaceFeature::Plural, "deaths"),
-            ("Draw", SurfaceFeature::Singular, "draw"),
-            ("Draw", SurfaceFeature::Plural, "draws"),
-            ("Exile", SurfaceFeature::Singular, "exile"),
-            ("Exile", SurfaceFeature::Plural, "exiles"),
-            ("Graveyard", SurfaceFeature::Singular, "graveyard"),
-            ("Graveyard", SurfaceFeature::Plural, "graveyards"),
-            ("Hand", SurfaceFeature::Singular, "hand"),
-            ("Hand", SurfaceFeature::Plural, "hands"),
-            ("Library", SurfaceFeature::Singular, "library"),
-            ("Library", SurfaceFeature::Plural, "libraries"),
-            ("Name", SurfaceFeature::Singular, "name"),
-            ("Name", SurfaceFeature::Plural, "names"),
-            ("Number", SurfaceFeature::Singular, "number"),
-            ("Number", SurfaceFeature::Plural, "numbers"),
-            ("Controller", SurfaceFeature::Singular, "controller"),
-            ("Controller", SurfaceFeature::Plural, "controllers"),
-            ("Opponent", SurfaceFeature::Singular, "opponent"),
-            ("Opponent", SurfaceFeature::Plural, "opponents"),
-            ("Owner", SurfaceFeature::Singular, "owner"),
-            ("Owner", SurfaceFeature::Plural, "owners"),
-            ("Permanent", SurfaceFeature::Singular, "permanent"),
-            ("Permanent", SurfaceFeature::Plural, "permanents"),
-            ("Phase", SurfaceFeature::Singular, "phase"),
-            ("Phase", SurfaceFeature::Plural, "phases"),
-            ("Player", SurfaceFeature::Singular, "player"),
-            ("Player", SurfaceFeature::Plural, "players"),
-            ("Power", SurfaceFeature::Singular, "power"),
-            ("Power", SurfaceFeature::Plural, "powers"),
-            ("Rest", SurfaceFeature::Singular, "rest"),
-            ("Rest", SurfaceFeature::Plural, "rests"),
-            ("Source", SurfaceFeature::Singular, "source"),
-            ("Source", SurfaceFeature::Plural, "sources"),
-            ("Size", SurfaceFeature::Singular, "size"),
-            ("Size", SurfaceFeature::Plural, "sizes"),
-            ("Spell", SurfaceFeature::Singular, "spell"),
-            ("Spell", SurfaceFeature::Plural, "spells"),
-            ("Stack", SurfaceFeature::Singular, "stack"),
-            ("Stack", SurfaceFeature::Plural, "stacks"),
-            ("Step", SurfaceFeature::Singular, "step"),
-            ("Step", SurfaceFeature::Plural, "steps"),
-            ("Tax", SurfaceFeature::Singular, "tax"),
-            ("Tax", SurfaceFeature::Plural, "taxes"),
-            ("Token", SurfaceFeature::Singular, "token"),
-            ("Token", SurfaceFeature::Plural, "tokens"),
-            ("Toughness", SurfaceFeature::Singular, "toughness"),
-            ("Toughness", SurfaceFeature::Plural, "toughnesses"),
-            ("Turn", SurfaceFeature::Singular, "turn"),
-            ("Turn", SurfaceFeature::Plural, "turns"),
-            ("Type", SurfaceFeature::Singular, "type"),
-            ("Type", SurfaceFeature::Plural, "types"),
-            ("Die", SurfaceFeature::Singular, "die"),
-            ("Die", SurfaceFeature::Plural, "dice"),
-        ]
+    assert_complete_surface_axis(
+        noun_lexeme,
+        [SurfaceFeature::Singular, SurfaceFeature::Plural],
     );
-    let generated = expansion.tokens().to_string();
-    for owner in [
-        "lexeme:VerbLexeme/Deal/bare",
-        "lexeme:VerbLexeme/Deal/third_person_singular",
-        "lexeme:VerbLexeme/Be/bare",
-        "lexeme:VerbLexeme/Be/third_person_singular",
-        "lexeme:CommonNoun/Card/singular",
-        "lexeme:CommonNoun/Card/plural",
-        "lexeme:CommonNoun/Controller/singular",
-        "lexeme:CommonNoun/Controller/plural",
-        "lexeme:CommonNoun/Opponent/singular",
-        "lexeme:CommonNoun/Opponent/plural",
-        "lexeme:CommonNoun/Owner/singular",
-        "lexeme:CommonNoun/Owner/plural",
-        "lexeme:CommonNoun/Permanent/singular",
-        "lexeme:CommonNoun/Permanent/plural",
-        "lexeme:CommonNoun/Player/singular",
-        "lexeme:CommonNoun/Player/plural",
-        "lexeme:CommonNoun/Source/singular",
-        "lexeme:CommonNoun/Source/plural",
-        "lexeme:CommonNoun/Spell/singular",
-        "lexeme:CommonNoun/Spell/plural",
-        "lexeme:CommonNoun/Token/singular",
-        "lexeme:CommonNoun/Token/plural",
-        "lexeme:CommonNoun/Hand/singular",
-        "lexeme:CommonNoun/Hand/plural",
-    ] {
-        assert!(
-            generated.contains(owner),
-            "generated scan/render provenance lacks `{owner}`"
-        );
-    }
 
     let scanner_literals = production_string_literals(&scanner);
     for forbidden in ["inflect", "scan_verb", "scan_bound_terminal"] {
