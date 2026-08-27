@@ -774,6 +774,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
     match ident.to_string().as_str() {
         "agreement" => Some(Feature::Agreement),
         "cardinality" => Some(Feature::Cardinality),
+        "compoundability" => Some(Feature::Compoundability),
         "determiner_number" => Some(Feature::DeterminerNumber),
         "nominal_form" => Some(Feature::NominalForm),
         "nominal_license" => Some(Feature::NominalLicense),
@@ -783,6 +784,12 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "participle" => Some(Feature::Participle),
         _ => None,
     }
+}
+
+fn lexeme_feature_from_ident(ident: &Ident) -> Option<Feature> {
+    (ident == "Compoundability")
+        .then_some(Feature::Compoundability)
+        .or_else(|| feature_from_ident(ident))
 }
 
 fn parse_form(input: ParseStream<'_>) -> syn::Result<Form> {
@@ -1193,9 +1200,21 @@ fn parse_lexeme(input: ParseStream<'_>) -> syn::Result<Lexeme> {
     let morphology = input.parse()?;
     let content;
     braced!(content in input);
+    let mut feature_defaults = Vec::new();
     let mut members = Vec::new();
     while !content.is_empty() {
         reject_doc_comment(&content)?;
+        if content.peek(keyword::feature) {
+            content.parse::<keyword::feature>()?;
+            let feature_ident = content.call(Ident::parse_any)?;
+            let feature = lexeme_feature_from_ident(&feature_ident)
+                .ok_or_else(|| syn::Error::new(feature_ident.span(), "unknown lexeme feature"))?;
+            content.parse::<Token![=]>()?;
+            let value = content.call(Ident::parse_any)?;
+            feature_defaults.push(crate::model::LexemeFeatureDefault { feature, value });
+            content.parse::<Token![;]>()?;
+            continue;
+        }
         let member_name = content.parse()?;
         if !content.peek(Token![=]) {
             return Err(content.error("lexeme member requires an explicit lemma"));
@@ -1209,11 +1228,24 @@ fn parse_lexeme(input: ParseStream<'_>) -> syn::Result<Lexeme> {
             ));
         }
         let mut overrides = Vec::new();
+        let mut feature_overrides = Vec::new();
         if content.peek(syn::token::Brace) {
             let overrides_content;
             braced!(overrides_content in content);
             while !overrides_content.is_empty() {
                 reject_doc_comment(&overrides_content)?;
+                if overrides_content.peek(keyword::feature) {
+                    overrides_content.parse::<keyword::feature>()?;
+                    let feature_ident = overrides_content.call(Ident::parse_any)?;
+                    let feature = lexeme_feature_from_ident(&feature_ident).ok_or_else(|| {
+                        syn::Error::new(feature_ident.span(), "unknown lexeme feature")
+                    })?;
+                    overrides_content.parse::<Token![=]>()?;
+                    let value = overrides_content.call(Ident::parse_any)?;
+                    feature_overrides.push(crate::model::LexemeFeatureOverride { feature, value });
+                    overrides_content.parse::<Token![;]>()?;
+                    continue;
+                }
                 let feature = overrides_content.parse()?;
                 overrides_content.parse::<Token![=]>()?;
                 let surface: LitStr = overrides_content.parse()?;
@@ -1231,12 +1263,14 @@ fn parse_lexeme(input: ParseStream<'_>) -> syn::Result<Lexeme> {
             name: member_name,
             lemma,
             overrides,
+            feature_overrides,
         });
         content.parse::<Token![,]>()?;
     }
     Ok(Lexeme {
         name,
         morphology,
+        feature_defaults,
         members,
     })
 }

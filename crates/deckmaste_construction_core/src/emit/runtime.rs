@@ -139,6 +139,13 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
             },
         ),
         named_type(
+            "Compoundability",
+            quote! {
+                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                pub(crate) enum Compoundability { Compoundable, NonCompoundable }
+            },
+        ),
+        named_type(
             DETERMINER_NUMBER_TYPE,
             quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum DeterminerNumber { SingularOnly, PluralOnly, Both } },
         ),

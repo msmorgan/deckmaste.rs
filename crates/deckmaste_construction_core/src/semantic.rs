@@ -1201,7 +1201,14 @@ pub(crate) struct LexemePlan {
     morphology: MorphologyPlan,
     surfaces: Vec<LexemeSurfacePlan>,
     irregulars: Vec<LexemeIrregularPlan>,
+    features: Vec<LexemeFeaturePlan>,
     verb_provider: bool,
+}
+
+#[derive(Debug)]
+pub(crate) struct LexemeFeaturePlan {
+    feature: Feature,
+    members: Vec<(String, FeatureValue)>,
 }
 
 #[derive(Debug)]
@@ -5407,6 +5414,26 @@ impl LexemePlan {
     ) -> syn::Result<Self> {
         let mut surfaces = Vec::new();
         let mut irregulars = Vec::new();
+        let mut features = Vec::new();
+        for default in &source.feature_defaults {
+            let feature = Feature::from(default.feature);
+            let default_value = feature.member(&default.value)?;
+            let members = source
+                .members
+                .iter()
+                .map(|member| {
+                    let value = member
+                        .feature_overrides
+                        .iter()
+                        .find(|override_| override_.feature == default.feature)
+                        .map(|override_| feature.member(&override_.value))
+                        .transpose()?
+                        .unwrap_or(default_value);
+                    Ok((identifier_key(&member.name), value))
+                })
+                .collect::<syn::Result<Vec<_>>>()?;
+            features.push(LexemeFeaturePlan { feature, members });
+        }
         for member in &source.members {
             for &feature in morphology.recipe().features() {
                 let surface = member
@@ -5487,6 +5514,7 @@ impl LexemePlan {
             morphology,
             surfaces,
             irregulars,
+            features,
             verb_provider,
         })
     }
@@ -5501,6 +5529,13 @@ impl LexemePlan {
 
     pub(crate) fn variants(&self) -> &[syn::Ident] {
         &self.variants
+    }
+
+    pub(crate) fn feature_members(&self, feature: Feature) -> Option<&[(String, FeatureValue)]> {
+        self.features
+            .iter()
+            .find(|row| row.feature == feature)
+            .map(|row| row.members.as_slice())
     }
 
     pub(crate) fn is_verb_provider(&self) -> bool {

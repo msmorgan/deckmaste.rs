@@ -333,6 +333,7 @@ pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
     match feature {
         crate::feature::Feature::Agreement => quote! { Agreement },
         crate::feature::Feature::Cardinality => quote! { Cardinality },
+        crate::feature::Feature::Compoundability => quote! { Compoundability },
         crate::feature::Feature::DeterminerNumber => quote! { DeterminerNumber },
         crate::feature::Feature::NominalForm => quote! { NominalForm },
         crate::feature::Feature::NominalLicense => quote! { NominalLicense },
@@ -439,6 +440,7 @@ fn emit_predicate_atom(
             let feature_type = match feature {
                 crate::feature::Feature::Agreement => local_ident("Agreement"),
                 crate::feature::Feature::Cardinality => local_ident("Cardinality"),
+                crate::feature::Feature::Compoundability => local_ident("Compoundability"),
                 crate::feature::Feature::DeterminerNumber => local_ident("DeterminerNumber"),
                 crate::feature::Feature::NominalForm => local_ident("NominalForm"),
                 crate::feature::Feature::NominalLicense => local_ident("NominalLicense"),

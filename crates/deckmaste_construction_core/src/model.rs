@@ -232,6 +232,7 @@ pub struct FeatureSlot {
 pub enum Feature {
     Agreement,
     Cardinality,
+    Compoundability,
     DeterminerNumber,
     NominalForm,
     NominalLicense,
@@ -333,7 +334,14 @@ pub struct VocabVariant {
 pub struct Lexeme {
     pub name: Ident,
     pub morphology: Ident,
+    pub feature_defaults: Vec<LexemeFeatureDefault>,
     pub members: Vec<LexemeMember>,
+}
+
+#[derive(Debug)]
+pub struct LexemeFeatureDefault {
+    pub feature: Feature,
+    pub value: Ident,
 }
 
 #[derive(Debug)]
@@ -341,6 +349,13 @@ pub struct LexemeMember {
     pub name: Ident,
     pub lemma: LitStr,
     pub overrides: Vec<LexemeOverride>,
+    pub feature_overrides: Vec<LexemeFeatureOverride>,
+}
+
+#[derive(Debug)]
+pub struct LexemeFeatureOverride {
+    pub feature: Feature,
+    pub value: Ident,
 }
 
 #[derive(Debug)]

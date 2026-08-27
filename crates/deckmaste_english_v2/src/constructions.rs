@@ -240,6 +240,7 @@ constructions! {
         recipe = english_participle;
     }
     lexeme CommonNoun using EnglishNoun {
+        feature Compoundability = Compoundable;
         Ability = "ability" {
             Plural = "abilities",
         },
@@ -279,7 +280,7 @@ constructions! {
         Spell = "spell",
         Stack = "stack",
         Step = "step",
-        Target = "target",
+        Target = "target" { feature Compoundability = NonCompoundable; },
         Tax = "tax" {
             Plural = "taxes",
         },
@@ -2340,6 +2341,7 @@ constructions! {
     }
     construction common_noun_modifier: NominalModifier {
         element CommonNounModifier { noun: lex CommonNoun, }
+        require noun.compoundability is Compoundable;
         derive noun.number = Values::Singular;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
@@ -2530,6 +2532,7 @@ constructions! {
     construction coordinated_modifier_member: CoordinatedNominalModifier {
         element CoordinatedModifierMember { value: NominalModifier, }
         require any(
+            value is AttributiveAdjectiveModifier,
             value is ColorModifier,
             value is CommonNounModifier,
             value is StatusModifier,

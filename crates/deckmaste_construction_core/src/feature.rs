@@ -11,6 +11,7 @@ use crate::model;
 pub(crate) enum Feature {
     Agreement,
     Cardinality,
+    Compoundability,
     DeterminerNumber,
     NominalForm,
     NominalLicense,
@@ -34,6 +35,8 @@ pub(crate) enum FeatureValue {
     Zero,
     One,
     TwoPlus,
+    Compoundable,
+    NonCompoundable,
     SingularOnly,
     PluralOnly,
     Both,
@@ -87,6 +90,9 @@ impl Feature {
         match self {
             Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
             Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
+            Self::Compoundability => {
+                &[FeatureValue::Compoundable, FeatureValue::NonCompoundable]
+            }
             Self::DeterminerNumber => &[
                 FeatureValue::SingularOnly,
                 FeatureValue::PluralOnly,
@@ -132,6 +138,7 @@ impl Feature {
         match self {
             Self::Agreement => "agreement",
             Self::Cardinality => "cardinality",
+            Self::Compoundability => "compoundability",
             Self::DeterminerNumber => "determiner_number",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
@@ -158,6 +165,8 @@ impl FeatureValue {
             Self::Zero => "Zero",
             Self::One => "One",
             Self::TwoPlus => "TwoPlus",
+            Self::Compoundable => "Compoundable",
+            Self::NonCompoundable => "NonCompoundable",
             Self::SingularOnly => "SingularOnly",
             Self::PluralOnly => "PluralOnly",
             Self::Both => "Both",
@@ -300,6 +309,7 @@ impl Feature {
         match self {
             Self::Agreement => "agreement",
             Self::Cardinality => "cardinality",
+            Self::Compoundability => "compoundability",
             Self::DeterminerNumber => "determiner_number",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
@@ -327,6 +337,8 @@ impl FeatureValue {
             Self::Zero => "Zero",
             Self::One => "One",
             Self::TwoPlus => "TwoPlus",
+            Self::Compoundable => "Compoundable",
+            Self::NonCompoundable => "NonCompoundable",
             Self::SingularOnly => "SingularOnly",
             Self::PluralOnly => "PluralOnly",
             Self::Both => "Both",
@@ -377,6 +389,8 @@ pub(crate) fn lower_constant(
         (model::Feature::Cardinality, "Zero") => FeatureValue::Zero,
         (model::Feature::Cardinality, "One") => FeatureValue::One,
         (model::Feature::Cardinality, "TwoPlus") => FeatureValue::TwoPlus,
+        (model::Feature::Compoundability, "Compoundable") => FeatureValue::Compoundable,
+        (model::Feature::Compoundability, "NonCompoundable") => FeatureValue::NonCompoundable,
         (model::Feature::DeterminerNumber, "SingularOnly") => FeatureValue::SingularOnly,
         (model::Feature::DeterminerNumber, "PluralOnly") => FeatureValue::PluralOnly,
         (model::Feature::DeterminerNumber, "Both") => FeatureValue::Both,
@@ -400,6 +414,12 @@ pub(crate) fn lower_constant(
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not a cardinality value"),
+            ));
+        }
+        (model::Feature::Compoundability, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a compoundability value"),
             ));
         }
         (model::Feature::DeterminerNumber, _) => {
@@ -453,6 +473,7 @@ impl From<model::Feature> for Feature {
         match value {
             model::Feature::Agreement => Self::Agreement,
             model::Feature::Cardinality => Self::Cardinality,
+            model::Feature::Compoundability => Self::Compoundability,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
             model::Feature::NominalForm => Self::NominalForm,
             model::Feature::NominalLicense => Self::NominalLicense,

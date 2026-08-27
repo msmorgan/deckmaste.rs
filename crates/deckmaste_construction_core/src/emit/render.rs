@@ -1651,6 +1651,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
     let return_ty = match helper.feature {
         Feature::Agreement => quote! { Agreement },
         Feature::Cardinality => quote! { Cardinality },
+        Feature::Compoundability => quote! { Compoundability },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
@@ -2219,14 +2220,39 @@ fn render_atoms(
                 && let Some(field) = fields.get(role)
                 && let Some(structural) = field.structural_plan()
             {
-                return render_construction_structural_field(
+                let statement = render_construction_structural_field(
                     validated,
                     construction,
                     role,
                     structural,
                     locals,
                     root_names,
-                );
+                )?;
+                if let ValueKindPlan::Category(category) = structural.kind().value()
+                    && category_contains_declaration_determinative(validated, category)
+                    && let Some(following) = form
+                        .atoms()
+                        .get(atom_index + 1)
+                        .and_then(render_atom_role)
+                        .filter(|following| *following != role)
+                {
+                    let onset = feature_expr(
+                        validated,
+                        construction,
+                        &FeatureExpr::FromRole {
+                            role: syn::Ident::new(following, construction.origin_span()),
+                            feature: Feature::Onset,
+                        },
+                        Feature::Onset,
+                        locals,
+                    )?;
+                    return Ok(quote! {
+                        #method_writer.with_following_onset(Some(#onset), |writer| {
+                            #statement
+                        });
+                    });
+                }
+                return Ok(statement);
             }
             if let AtomPlan::Lex { role, .. } = atom
                 && let Some(field) = fields.get(role)
@@ -2242,6 +2268,7 @@ fn render_atoms(
                     role,
                     &value,
                     locals,
+                    Some(&method_writer),
                 )?;
                 let owner = render_owner(
                     validated,
@@ -2259,14 +2286,44 @@ fn render_atoms(
                 });
             }
             if matches!(atom, AtomPlan::Category { .. }) {
-                return render_atom_statement(
+                let statement = render_atom_statement(
                     validated,
                     construction,
                     atom,
                     locals,
                     root_names,
                     &fields,
-                );
+                )?;
+                let Some(role) = render_atom_role(atom) else {
+                    return Ok(statement);
+                };
+                let Some(field) = fields.get(role) else {
+                    return Ok(statement);
+                };
+                if category_contains_declaration_determinative(validated, field.terminal())
+                    && let Some(following) = form
+                        .atoms()
+                        .get(atom_index + 1)
+                        .and_then(render_atom_role)
+                        .filter(|following| *following != role)
+                {
+                    let onset = feature_expr(
+                        validated,
+                        construction,
+                        &FeatureExpr::FromRole {
+                            role: syn::Ident::new(following, construction.origin_span()),
+                            feature: Feature::Onset,
+                        },
+                        Feature::Onset,
+                        locals,
+                    )?;
+                    return Ok(quote! {
+                        #method_writer.with_following_onset(Some(#onset), |writer| {
+                            #statement
+                        });
+                    });
+                }
+                return Ok(statement);
             }
             let statement =
                 render_atom_statement(validated, construction, atom, locals, root_names, &fields)?;
@@ -2644,6 +2701,23 @@ fn render_atom_statement(
             Err(internal("circumfix atoms must be rendered as three claims"))
         }
     }
+}
+
+fn category_contains_declaration_determinative(
+    plan: &SemanticPlan,
+    category: &str,
+) -> bool {
+    plan.constructions()
+        .iter()
+        .filter(|construction| construction.category() == category)
+        .any(|construction| {
+            construction.fields().iter().any(|field| {
+                field.kind() == ConstructionFieldKind::Lex
+                    && plan
+                        .runtime_declaration_determinative_for(field.terminal())
+                        .is_some()
+            })
+        })
 }
 
 fn render_construction_structural_field(
@@ -3132,7 +3206,8 @@ fn render_noun_atom(
     let value = field_value(construction, role, locals)?;
     if let Some(lexeme) = find_lexeme(validated, field.terminal()) {
         let surface = ident(&lexeme_surface_helper(lexeme.name()));
-        return Ok(quote! { #method_writer.word(#surface(*#value, #number)); });
+        let value = copy_value(construction, role, value)?;
+        return Ok(quote! { #method_writer.word(#surface(#value, #number)); });
     }
     let Some((_, codec)) = validated.runtime_declaration_noun_for(field.terminal()) else {
         let binding = find_binding(validated, field.terminal())?;
@@ -3527,7 +3602,8 @@ fn feature_expr(
                     Feature::NominalLicense => {
                         Err(internal("verb slot does not provide nominal license"))
                     }
-                    Feature::Onset => implicit_verb_onset(validated, construction, locals),
+                Feature::Onset => implicit_verb_onset(validated, construction, locals),
+                Feature::Compoundability => Err(internal("compoundability is closed lexeme metadata")),
                     Feature::Number => Err(internal("verb slot does not provide number")),
                     Feature::Participle => Ok(quote! { Participle::Participle }),
                     Feature::PossessiveEnding => {
@@ -3777,6 +3853,7 @@ fn declaration_determinative_surface_expr(
     role: &str,
     value: &TokenStream,
     locals: &RenderLocals,
+    writer: Option<&TokenStream>,
 ) -> syn::Result<TokenStream> {
     let following_role = form
         .atoms()
@@ -3830,8 +3907,10 @@ fn declaration_determinative_surface_expr(
             Number::Plural => ::macro_ron::v2::DeterminativePhraseNumber::Plural,
         }
     };
-    let following_onset = following_onset
-        .map_or_else(|| quote! { None }, |onset| quote! { Some(#onset) });
+    let following_onset = following_onset.map_or_else(
+        || writer.map_or_else(|| quote! { None }, |writer| quote! { #writer.following_onset() }),
+        |onset| quote! { Some(#onset) },
+    );
     let ty = codec.codec_ident();
     let lemma = codec.lemma_ident();
     let closed = codec.closed().iter().map(|member| {
@@ -4021,6 +4100,7 @@ fn lexical_onset_expr(
             role,
             &role_value,
             locals,
+            None,
         )?;
         return Ok(quote! {
             ::macro_ron::v2::normalize_surface_onset(#surface, None)
@@ -4364,6 +4444,7 @@ fn emit_feature_helper(
     let return_ty = match feature {
         Feature::Agreement => quote! { Agreement },
         Feature::Cardinality => quote! { Cardinality },
+        Feature::Compoundability => quote! { Compoundability },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
@@ -4938,6 +5019,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Zero => quote! { Cardinality::Zero },
         FeatureValue::One => quote! { Cardinality::One },
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
+        FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
+        FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
@@ -5169,6 +5252,7 @@ fn feature_name(feature: Feature) -> &'static str {
     match feature {
         Feature::Agreement => "agreement",
         Feature::Cardinality => "cardinality",
+        Feature::Compoundability => "compoundability",
         Feature::Number => "number",
         Feature::Onset => "onset",
         Feature::Participle => "participle",

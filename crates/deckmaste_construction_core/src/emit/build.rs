@@ -323,11 +323,26 @@ fn emit_arm_from_plan(
                         &mut HashSet::new(),
                     )?
                 } else {
-                    lowering
+                    if let Some(value) = lowering
                         .role_features
                         .get(&(guard_role.to_owned(), *feature))
                         .map(local_feature_value)
-                        .ok_or_else(|| internal("form guard feature role has no lowered value"))?
+                    {
+                        value
+                    } else {
+                        let field = row.field(guard_role)?;
+                        let Some(lexeme) = plan.lexeme(field.terminal()) else {
+                            return Err(internal("form guard feature role has no lowered value"));
+                        };
+                        if lexeme.feature_members(*feature).is_none() {
+                            return Err(internal("form guard feature role has no lowered value"));
+                        }
+                        let value = lowering.field_values.get(guard_role).ok_or_else(|| {
+                            internal("form guard feature role has no lowered build value")
+                        })?;
+                        let helper = ident(&format!("{}_{}", feature.key(), snake_case(field.terminal())));
+                        ResolvedFeatureValue::Computed(quote! { #helper(#value) })
+                    }
                 };
                 let expected = feature_value(*value);
                 let actual = resolved_feature_value_tokens(&actual);
@@ -3241,6 +3256,10 @@ fn resolve_feature_place(
                     });
                     ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
                 }
+                FeaturePlace::Construction(Feature::Compoundability)
+                | FeaturePlace::Role { feature: Feature::Compoundability, .. } => {
+                    return Err(internal("compoundability is closed lexeme metadata, not an equation value"));
+                }
                 FeaturePlace::Construction(
                     Feature::DeterminerNumber
                     | Feature::NominalForm
@@ -3409,6 +3428,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::Zero => quote! { Cardinality::Zero },
         FeatureValue::One => quote! { Cardinality::One },
         FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
+        FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
+        FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },

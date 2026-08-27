@@ -23,6 +23,7 @@ pub(crate) struct Writer<'a> {
     output: String,
     case: CasePosition,
     prefix: PrefixPosition,
+    following_onset: Option<macro_ron::v2::Onset>,
     claims: ClaimSink<'a>,
 }
 
@@ -32,6 +33,7 @@ impl Writer<'_> {
             output: String::new(),
             case: CasePosition::DocumentInitial,
             prefix: PrefixPosition::None,
+            following_onset: None,
             claims: ClaimSink::Noop,
         }
     }
@@ -41,8 +43,23 @@ impl Writer<'_> {
             output: String::new(),
             case: CasePosition::DocumentInitial,
             prefix: PrefixPosition::None,
+            following_onset: None,
             claims: ClaimSink::Collect(claims),
         }
+    }
+
+    pub(crate) fn with_following_onset(
+        &mut self,
+        onset: Option<macro_ron::v2::Onset>,
+        render: impl FnOnce(&mut Self),
+    ) {
+        let previous = std::mem::replace(&mut self.following_onset, onset);
+        render(self);
+        self.following_onset = previous;
+    }
+
+    pub(crate) const fn following_onset(&self) -> Option<macro_ron::v2::Onset> {
+        self.following_onset
     }
 
     pub(crate) fn claim(

@@ -694,6 +694,7 @@ fn validate_sequence_feature_roles(
                     ParsedFeature::Agreement => Feature::Agreement,
                     ParsedFeature::Onset => Feature::Onset,
                     ParsedFeature::Cardinality
+                    | ParsedFeature::Compoundability
                     | ParsedFeature::DeterminerNumber
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
@@ -1952,6 +1953,18 @@ fn validate_lexeme_declaration_shape(
     lexeme: &crate::model::Lexeme,
     errors: &mut Option<syn::Error>,
 ) {
+    let mut feature_defaults = HashSet::new();
+    for default in &lexeme.feature_defaults {
+        if default.feature != crate::model::Feature::Compoundability {
+            combine(errors, syn::Error::new(default.value.span(), "closed lexeme metadata supports only Compoundability"));
+        }
+        if !feature_defaults.insert(default.feature) {
+            combine(errors, syn::Error::new(default.value.span(), "duplicate lexeme feature default"));
+        }
+        if crate::feature::Feature::from(default.feature).member(&default.value).is_err() {
+            combine(errors, syn::Error::new(default.value.span(), "invalid lexeme feature default"));
+        }
+    }
     let mut members = HashSet::new();
     for member in &lexeme.members {
         let member_name = identifier_key(&member.name);
@@ -1990,6 +2003,21 @@ fn validate_lexeme_declaration_shape(
                         "lexeme override surface must not be empty",
                     ),
                 );
+            }
+        }
+        let mut feature_overrides = HashSet::new();
+        for override_ in &member.feature_overrides {
+            if override_.feature != crate::model::Feature::Compoundability {
+                combine(errors, syn::Error::new(override_.value.span(), "closed lexeme metadata supports only Compoundability"));
+            }
+            if !feature_defaults.contains(&override_.feature) {
+                combine(errors, syn::Error::new(override_.value.span(), "lexeme feature override requires a lexeme-level default"));
+            }
+            if !feature_overrides.insert(override_.feature) {
+                combine(errors, syn::Error::new(override_.value.span(), "duplicate lexeme feature override"));
+            }
+            if crate::feature::Feature::from(override_.feature).member(&override_.value).is_err() {
+                combine(errors, syn::Error::new(override_.value.span(), "invalid lexeme feature override"));
             }
         }
     }
@@ -4549,6 +4577,7 @@ fn generated_name_inventory(
                     let (spelling, display) = match feature {
                         ParsedFeature::Agreement => ("agreement", "Agreement"),
                         ParsedFeature::Cardinality => ("cardinality", "Cardinality"),
+                        ParsedFeature::Compoundability => ("compoundability", "Compoundability"),
                         ParsedFeature::DeterminerNumber => {
                             ("determiner_number", "DeterminerNumber")
                         }
@@ -5145,6 +5174,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
     let parsed_feature = match feature {
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
+        Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
@@ -5193,6 +5223,7 @@ fn raw_sequence_reads_inherent_category_feature(
     let parsed_feature = match feature {
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
+        Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
@@ -5445,6 +5476,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 ParsedFeature::Number => role_provides_number(raw, &fields, field)
                     .then(|| (identifier_key(field), ParsedFeature::Number)),
                 ParsedFeature::Agreement
+                | ParsedFeature::Compoundability
                 | ParsedFeature::DeterminerNumber
                 | ParsedFeature::NominalForm
                 | ParsedFeature::NominalLicense
@@ -8924,6 +8956,13 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
         }
     }
     let mut providers = HashSet::new();
+    for declaration in &raw.declarations {
+        if let Declaration::Lexeme(lexeme) = declaration {
+            for default in &lexeme.feature_defaults {
+                providers.insert((identifier_key(&lexeme.name), default.feature));
+            }
+        }
+    }
     for (category, constructions) in categories {
         for feature in [
             ParsedFeature::Agreement,
@@ -9014,6 +9053,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
+        ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",
@@ -9468,6 +9508,7 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeature::Cardinality => role_provides_cardinality(raw, &fields, &source.role),
                 _ => false,
             },
+            (ParsedFeaturePlace::Construction(ParsedFeature::Compoundability), _) => false,
             (
                 ParsedFeaturePlace::Construction(
                     ParsedFeature::DeterminerNumber
@@ -9510,6 +9551,7 @@ fn validate_lowerable_feature_compositions(
                 } => role_provides_cardinality(raw, &fields, field),
                 _ => false,
             },
+            (ParsedFeaturePlace::Role { feature: ParsedFeature::Compoundability, .. }, _) => false,
             (
                 ParsedFeaturePlace::Role {
                     feature: ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
@@ -9721,6 +9763,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
+        ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::DeterminerNumber => "determiner_number",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",

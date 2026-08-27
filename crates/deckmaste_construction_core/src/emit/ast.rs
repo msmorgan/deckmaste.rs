@@ -916,6 +916,18 @@ fn resolve_constructor_feature(
         )?
     } else if let crate::feature::FeaturePlace::Role { field, feature } = place {
         let stored = construction.field(&identifier_key(field))?;
+        if stored.kind() == ConstructionFieldKind::Lex
+            && plan
+                .lexeme(stored.terminal())
+                .is_some_and(|lexeme| lexeme.feature_members(*feature).is_some())
+        {
+            let function = emitted_ident(
+                &format!("{}_{}", feature.key(), crate::identifier::snake_case(stored.terminal())),
+                proc_macro2::Span::call_site(),
+            );
+            let field = field_local(locals, stored)?;
+            quote! { #function(#field) }
+        } else {
         if stored.kind() != ConstructionFieldKind::Category {
             return Err(internal(
                 "constructor feature subject lacks a sealed derivation",
@@ -927,6 +939,7 @@ fn resolve_constructor_feature(
         );
         let field = borrowed_field_expression(plan, construction, stored, locals)?;
         quote! { #function(#field) }
+        }
     } else {
         return Err(internal(
             "construction feature subject lacks a sealed derivation",
@@ -990,6 +1003,8 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::Zero => quote! { Cardinality::Zero },
         crate::feature::FeatureValue::One => quote! { Cardinality::One },
         crate::feature::FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
+        crate::feature::FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
+        crate::feature::FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
         crate::feature::FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         crate::feature::FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         crate::feature::FeatureValue::Both => quote! { DeterminerNumber::Both },
@@ -1062,7 +1077,9 @@ fn is_boxed(
     construction: &ConstructionPlan,
     field: &crate::semantic::ConstructionFieldPlan,
 ) -> bool {
-    plan.boxed_fields()
+    field.kind() == ConstructionFieldKind::Category
+        && plan
+            .boxed_fields()
         .contains(&(construction.construction_id().to_owned(), field.name_key()))
 }
 

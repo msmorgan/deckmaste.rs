@@ -106,6 +106,12 @@ pub(crate) fn emit(
                     vec![origin.clone()],
                 ));
                 items.push(emit_lexeme_surface_helper(row, origin.clone())?);
+                if row
+                    .feature_members(crate::feature::Feature::Compoundability)
+                    .is_some()
+                {
+                    items.push(emit_lexeme_compoundability_helper(row, origin.clone())?);
+                }
                 contributions.push(TerminalContribution::new(
                     origin,
                     TerminalKind::Lexeme,
@@ -586,6 +592,7 @@ fn emit_lexeme_surface_helper(
         crate::Feature::Number => (quote! { Number }, quote! { number }),
         crate::Feature::Participle => (quote! { Participle }, quote! { participle }),
         crate::Feature::Cardinality
+        | crate::Feature::Compoundability
         | crate::Feature::DeterminerNumber
         | crate::Feature::NominalForm
         | crate::Feature::NominalLicense
@@ -630,6 +637,36 @@ fn emit_lexeme_surface_helper(
                 match (lexeme, #feature_argument) { #(#arms,)* }
             }
         },
+        vec![origin],
+    ))
+}
+
+fn emit_lexeme_compoundability_helper(
+    lexeme: &crate::semantic::LexemePlan,
+    origin: DeclarationKey,
+) -> syn::Result<GeneratedItem> {
+    let function_name = format!("compoundability_{}", snake_case(lexeme.name()));
+    let function = emitted_ident(&function_name, lexeme.name_ident().span());
+    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
+    let members = lexeme
+        .feature_members(crate::feature::Feature::Compoundability)
+        .expect("requested sealed compoundability metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, lexeme.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
+                crate::feature::FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
+                _ => unreachable!("sealed compoundability has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    Ok(GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> Compoundability { match value { #(#members),* } } },
         vec![origin],
     ))
 }

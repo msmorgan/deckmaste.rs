@@ -3967,7 +3967,7 @@ fn selector_cardinal_domains_exclude_zero_and_admit_any_number() {
 }
 
 #[test]
-fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() {
+fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
     let parser = parser();
     let context = context("Context Card");
 
@@ -4018,12 +4018,12 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
         assert_eq!(parsed.render(&context, parser.environment()), text);
     }
 
-    let target_as_noun_cases = [
+    let target_modifier_cases = [
         (
             "Destroy target artifacts.",
             1,
             SelectionResolution::Unique,
-            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadTypePluralHead",
             1,
             &[
                 (
@@ -4035,8 +4035,8 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
                 (
                     7,
                     14,
-                    LexicalProvenanceKind::Lexeme,
-                    "lexeme:CommonNoun/Target/singular",
+                    LexicalProvenanceKind::Vocab,
+                    "vocab:AttributiveAdjective/Target",
                 ),
                 (
                     14,
@@ -4056,7 +4056,7 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
             "Destroy target creatures or planeswalkers.",
             2,
             SelectionResolution::Specificity,
-            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCoordinatedNounPhrase/FullNounPhraseCoordinationFullOrNounPhraseCoordination/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
+            "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCoordinatedNounPhrase/FullNounPhraseCoordinationFullOrNounPhraseCoordination/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadTypePluralHead/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             2,
             &[
                 (
@@ -4068,8 +4068,8 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
                 (
                     7,
                     14,
-                    LexicalProvenanceKind::Lexeme,
-                    "lexeme:CommonNoun/Target/singular",
+                    LexicalProvenanceKind::Vocab,
+                    "vocab:AttributiveAdjective/Target",
                 ),
                 (
                     14,
@@ -4101,14 +4101,14 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
             "Target creatures gain 2 life.",
             1,
             SelectionResolution::Unique,
-            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
+            "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
             1,
             &[
                 (
                     0,
                     6,
-                    LexicalProvenanceKind::Lexeme,
-                    "lexeme:CommonNoun/Target/singular",
+                    LexicalProvenanceKind::Vocab,
+                    "vocab:AttributiveAdjective/Target",
                 ),
                 (
                     6,
@@ -4139,9 +4139,9 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
         ),
     ];
     for (text, candidates, resolution, path, zero_headed_nominals, ownership) in
-        target_as_noun_cases
+        target_modifier_cases
     {
-        assert_target_as_noun_compound(
+        assert_target_modifier_phrase(
             &parser,
             &context,
             text,
@@ -4158,7 +4158,7 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
     assert_eq!(
         analysis.outcome(),
         ParseAnalysisOutcome::ParseFailure,
-        "the target-as-noun compound does not bypass negative-modifier ordering: {text:?}",
+        "the target modifier does not bypass negative-modifier ordering: {text:?}",
     );
     assert!(analysis.decision().is_none(), "{text:?}");
     assert!(analysis.ownership().is_none(), "{text:?}");
@@ -4178,9 +4178,9 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
 
 #[expect(
     clippy::too_many_arguments,
-    reason = "one helper keeps every target-as-noun compound's path, AST, and ownership pinned"
+    reason = "one helper keeps every target-modifier phrase's path, AST, and ownership pinned"
 )]
-fn assert_target_as_noun_compound(
+fn assert_target_modifier_phrase(
     parser: &Parser,
     context: &ParseContext<'_>,
     text: &str,
@@ -4193,7 +4193,7 @@ fn assert_target_as_noun_compound(
     let analysis = parser.analyze(text, context);
     let selected = analysis
         .selected()
-        .unwrap_or_else(|| panic!("target-as-noun compound must select: {text:?}: {analysis:?}"));
+        .unwrap_or_else(|| panic!("target-modifier phrase must select: {text:?}: {analysis:?}"));
     let decision = analysis
         .decision()
         .expect("selected compound retains a decision");
@@ -4211,7 +4211,7 @@ fn assert_target_as_noun_compound(
     assert_eq!(
         selected_candidate.construction_path().join("/"),
         path,
-        "target-as-noun construction ownership changed for {text:?}",
+        "target-modifier construction ownership changed for {text:?}",
     );
     assert_eq!(selected.render(context, parser.environment()), text);
 
@@ -4267,9 +4267,9 @@ impl Visitor for TargetAsNounAstVisitor {
     fn visit_nominal_modifier(&mut self, value: &deckmaste_english_v2::ast::NominalModifier) {
         if matches!(
             value,
-            deckmaste_english_v2::ast::NominalModifier::CommonNounModifier(
-                deckmaste_english_v2::ast::CommonNounModifier {
-                    noun: CommonNoun::Target,
+            deckmaste_english_v2::ast::NominalModifier::AttributiveAdjectiveModifier(
+                deckmaste_english_v2::ast::AttributiveAdjectiveModifier {
+                    adjective: deckmaste_english_v2::ast::AttributiveAdjective::Target,
                 }
             )
         ) {
@@ -6025,18 +6025,16 @@ fn indefinite_full_noun_phrase_members_derive_each_article_from_their_own_onset(
         .parsed_claims()
         .iter()
         .filter(|claim| {
-            matches!(
-                claim.stable_owner_id(),
-                "vocab:SimpleDeterminative/A" | "vocab:SimpleDeterminative/An"
-            )
+            claim.stable_owner_id()
+                == "determinative:DeterminativeHead/IndefiniteArticle"
         })
         .map(deckmaste_english_v2::parser::LexicalClaim::stable_owner_id)
         .collect::<Vec<_>>();
     assert_eq!(
         article_owners,
         [
-            "vocab:SimpleDeterminative/A",
-            "vocab:SimpleDeterminative/An",
+            "determinative:DeterminativeHead/IndefiniteArticle",
+            "determinative:DeterminativeHead/IndefiniteArticle",
         ],
     );
 
