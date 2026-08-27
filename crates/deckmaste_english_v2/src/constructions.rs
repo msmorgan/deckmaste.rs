@@ -3215,7 +3215,9 @@ constructions! {
         form full_and_or_noun_phrase_coordination = members;
     }
     construction coordinated_noun_phrase: UnqualifiedReference {
-        element CoordinatedNounPhrase { coordination: FullNounPhraseCoordination, }
+        element CoordinatedNounPhrase {
+            coordination: FullNounPhraseCoordination checked by full_coordination_is_independent(),
+        }
         derive agreement = coordination.agreement;
         derive number = coordination.number;
         derive onset = Values::Consonant;
@@ -4381,6 +4383,28 @@ fn determinative_licenses_partitive_head(
             DeterminerNumber::PluralOnly => head_number == Number::Plural,
             DeterminerNumber::Both => head_number == whole_number,
         }
+}
+
+fn full_coordination_is_independent(coordination: &FullNounPhraseCoordination) -> bool {
+    fn independently_realized(reference: &UnqualifiedReference) -> bool {
+        !matches!(
+            reference,
+            UnqualifiedReference::DeterminedNominal(determined)
+                if matches!(determined.det(), Determiner::Zero)
+        )
+    }
+
+    match coordination {
+        FullNounPhraseCoordination::FullAndNounPhraseCoordination(coordination) => {
+            coordination.members.iter().all(independently_realized)
+        }
+        FullNounPhraseCoordination::FullOrNounPhraseCoordination(coordination) => {
+            coordination.members.iter().all(independently_realized)
+        }
+        FullNounPhraseCoordination::FullAndOrNounPhraseCoordination(coordination) => {
+            coordination.members.iter().all(independently_realized)
+        }
+    }
 }
 
 fn determinative_licenses_singular(
