@@ -1879,7 +1879,10 @@ mutual
   effIntro (ChooseNewTargets what) = nomIntro what
   effIntro (Choose n Nothing) = chosenIntro n
   effIntro (Choose n (Just b)) = nounDelta b ++ chosenIntro n
-  effIntro (Move what to _) = moveIntro Nothing what (Just (zoneSort to))
+  -- a destination that shuffles [CR#701.24c] takes the discourse with
+  -- it, exactly as the bare `Shuffle` does.
+  effIntro (Move what to _) =
+    afterMoveTo to (moveIntro Nothing what (Just (zoneSort to)))
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
   effIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
@@ -1916,10 +1919,12 @@ mutual
   effIntro (MoveCounters amt kind src dst) = nomIntro dst
   effIntro (PutSameCounters src dst) = nomIntro dst
   effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
-  effIntro (Enact v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
+  effIntro (Enact v (Move what to _)) =
+    afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
   effIntro (Enact v (SetStatus _ n)) = stampIntro (Just v) n
   effIntro (Enact _ e) = effIntro e
-  effIntro (Does s v (Move what to _)) = moveIntro (Just v) what (Just (zoneSort to))
+  effIntro (Does s v (Move what to _)) =
+    afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
   effIntro (Does s v (SetStatus _ n)) = stampIntro (Just v) n
   effIntro (Does s v e) = effIntro e
   effIntro (Pay who c) = costIntro c

@@ -828,13 +828,13 @@ public export
 onTopIn : (a : Arrangement) ->
           {auto 0 af : PlaceArrangementFits (OneEnd {bs} OnTop) (Just a)} ->
           ZoneExpr bs
-onTopIn a = LibraryAt (OneEnd OnTop) (Just a) Nothing {af} Bare
+onTopIn a = LibraryAt (OneEnd OnTop) (Just a) Nothing {af} {nf = Oh} Bare
 
 public export
 onBottomIn : (a : Arrangement) ->
              {auto 0 af : PlaceArrangementFits (OneEnd {bs} OnBottom) (Just a)} ->
              ZoneExpr bs
-onBottomIn a = LibraryAt (OneEnd OnBottom) (Just a) Nothing {af} Bare
+onBottomIn a = LibraryAt (OneEnd OnBottom) (Just a) Nothing {af} {nf = Oh} Bare
 
 public export
 nthFromTop : (n : LibOrdinal) -> ZoneExpr bs
@@ -858,6 +858,32 @@ choiceOfTopOrBottom chooser = LibraryAt (EitherEnd (Just chooser) {ag}) Nothing 
 public export
 nthFromTopOrBottomZ : (n : LibOrdinal) -> ZoneExpr bs
 nthFromTopOrBottomZ n = LibraryAt (EitherEnd Nothing) Nothing (Just n) Bare
+
+||| "into <a> library, shuffled": the randomizing destination
+||| [CR#701.24a]. Owner-rooted like every other move destination
+||| [CR#400.3], so the scope is bare -- "its owner's library" is what the
+||| bare form spells.
+public export
+shuffledIntoZ : ZoneExpr bs
+shuffledIntoZ = LibraryAt Shuffled Nothing Nothing Bare
+
+||| "Shuffle [n] into its owner's library": the move whose destination
+||| randomizes the pile it lands in [CR#701.24c]. The library is shuffled
+||| whatever becomes of the card named, and a set that turns out empty
+||| shuffles it too [CR#701.24d] -- neither is the clause's business, so
+||| the clause is the move and nothing more.
+public export
+shuffleInto : (n : Noun bs Object) ->
+              {auto 0 pl : Placeable (nounTy n) Library} -> Effect bs
+shuffleInto n = Enact "Shuffle" (Move n shuffledIntoZ noRiders {pl})
+
+||| "[agent] shuffles [n] into their library": the same move in the
+||| agentive voice, on `puts`' model. The library is still the moved
+||| card's owner's [CR#400.3]; the subject is who performs the act.
+public export
+shufflesInto : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
+               {auto 0 pl : Placeable (nounTy n) Library} -> Effect bs
+shufflesInto agent n = Does agent "Shuffle" (Move n shuffledIntoZ noRiders {pl})
 
 ||| "the top [amt] cards of your library": the slice a look opens over,
 ||| with the count written as an amount rather than a literal.
@@ -1116,9 +1142,9 @@ scry amt =
   Does You "Scry" {kn = Oh}
        (Sequentially [ lookAt (topSlice amt)
                      , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
-                            (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = ps}
+                            (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pr} ])
+                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 ||| "Surveil [amt]" [CR#701.25a] in full: the same look and the same
 ||| split, with the chosen pile going to the graveyard instead of under
@@ -1137,7 +1163,7 @@ surveil amt =
                      , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
                             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pr} ])
+                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 ||| "Scry 1": [CR#701.22a] over a one-card slice. "Any number of them" of
 ||| one card is a free choice and "the rest" is what declining it leaves
@@ -1156,7 +1182,7 @@ scryOne : {bs : Bindings} ->
 scryOne =
   Does You "Scry" {kn = Oh}
        (Sequentially [ lookAt topCard
-                     , may You (move (That CardW {ok = iw}) onBottomZ {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pi}) ])
+                     , may You (move (That CardW {ok = iw}) onBottomZ {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pi}) ])
 
 ||| "Surveil 1": [CR#701.25a] over a one-card slice, `scryOne`'s spelling
 ||| with the graveyard as the offered destination.
@@ -1187,9 +1213,9 @@ playerScries agent amt =
   Does agent "Scry" {kn = Oh}
        (Sequentially [ theyLookAtTop amt {an}
                      , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
-                            (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = ps}
+                            (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pr} ])
+                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 public export
 playerSurveils : {bs : Bindings} -> (agent : Noun bs Player) ->
@@ -1206,7 +1232,7 @@ playerSurveils agent amt =
                      , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
                             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
-                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pr} ])
+                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
 ||| "<player> loses N <kind> counters": the counted removal beside the
 ||| bare "all" spelling `LosesCounters` writes with the slot unfilled.

@@ -880,6 +880,12 @@ verbFacts =
   -- printed line writes after the verb is the ZONE [CR#701.23a] has the
   -- act look in; the card it finds is named by the instructing clause.
   , MkVerbFacts "Search"    Nothing        Nothing       Nothing
+  -- [CR#701.24a] shuffles a LIBRARY, and what a printed line writes
+  -- after the verb is that pile or the cards the instructing clause
+  -- names -- no patient the act itself carries off. The participle is
+  -- absent for "put onto the battlefield"'s reason: "cards shuffled into
+  -- your library this way" would have to name the destination too.
+  , MkVerbFacts "Shuffle"   Nothing        Nothing       Nothing
   ]
 
 public export

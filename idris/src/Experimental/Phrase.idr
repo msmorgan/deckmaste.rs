@@ -15,7 +15,8 @@ mutual
               ZoneScope bs z
 
   ||| Where in a library a card lands: one end of the ordered pile
-  ||| [CR#401.2], or the top-or-bottom disjunction. The chooser is a
+  ||| [CR#401.2], the top-or-bottom disjunction, or no position at all.
+  ||| The chooser is a
   ||| separable slot on the
   ||| disjunction alone — Write into Being writes the bare coordination.
   public export
@@ -23,18 +24,42 @@ mutual
     OneEnd : (pos : LibPos) -> LibPlace bs
     EitherEnd : (chooser : Maybe (Noun bs Player)) ->
                 {auto 0 ag : EventAgent chooser} -> LibPlace bs
+    ||| "shuffle [what] into [a] library": the destination that names no
+    ||| position, because the act that puts the card there randomizes
+    ||| the pile around it [CR#701.24a,701.24c]. A PLACE and not an
+    ||| `Arrangement`: an arrangement says in what order several cards
+    ||| enter one position [CR#401.4], and this one gives them none to
+    ||| enter.
+    Shuffled : LibPlace bs
 
   ||| One card goes to one end, so a disjunction over the two ends states
-  ||| no order [CR#401.4].
+  ||| no order [CR#401.4]. A shuffle states none from the other side of
+  ||| the same rule: [CR#401.4] arranges cards put "in a specific
+  ||| position", and a shuffle puts them in no position at all.
   public export
   placeArrangementOk : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement -> Bool
   placeArrangementOk (OneEnd _) _ = True
   placeArrangementOk (EitherEnd _) Nothing = True
   placeArrangementOk (EitherEnd _) (Just _) = False
+  placeArrangementOk Shuffled Nothing = True
+  placeArrangementOk Shuffled (Just _) = False
 
   public export
   PlaceArrangementFits : {0 bs : Bindings} -> LibPlace bs -> Maybe Arrangement -> Type
   PlaceArrangementFits pl ord = So (placeArrangementOk pl ord)
+
+  ||| The offset counts down from the top card [CR#401.7], so it needs a
+  ||| position to count from; a shuffle names one nowhere.
+  public export
+  placeOrdinalOk : {0 bs : Bindings} -> LibPlace bs -> Maybe LibOrdinal -> Bool
+  placeOrdinalOk Shuffled (Just _) = False
+  placeOrdinalOk Shuffled Nothing = True
+  placeOrdinalOk (OneEnd _) _ = True
+  placeOrdinalOk (EitherEnd _) _ = True
+
+  public export
+  PlaceOrdinalFits : {0 bs : Bindings} -> LibPlace bs -> Maybe LibOrdinal -> Type
+  PlaceOrdinalFits pl off = So (placeOrdinalOk pl off)
 
   public export
   data ZoneExpr : Bindings -> Type where
@@ -42,6 +67,7 @@ mutual
     LibraryAt : (place : LibPlace bs) -> (ord : Maybe Arrangement) ->
                 (off : Maybe LibOrdinal) ->
                 {auto 0 af : PlaceArrangementFits place ord} ->
+                {auto 0 nf : PlaceOrdinalFits place off} ->
                 ZoneScope bs Library -> ZoneExpr bs
 
   public export
@@ -58,6 +84,29 @@ mutual
   zoneOrdinal : ZoneExpr bs -> Maybe LibOrdinal
   zoneOrdinal (ZoneAt _ _) = Nothing
   zoneOrdinal (LibraryAt _ _ off _) = off
+
+  ||| Whether the destination's own act randomizes the library
+  ||| [CR#701.24a]. It is what makes a shuffle-into leave the discourse
+  ||| the way a bare `Shuffle` does.
+  public export
+  placeShuffles : {0 bs : Bindings} -> LibPlace bs -> Bool
+  placeShuffles Shuffled = True
+  placeShuffles (OneEnd _) = False
+  placeShuffles (EitherEnd _) = False
+
+  public export
+  zoneShuffles : ZoneExpr bs -> Bool
+  zoneShuffles (ZoneAt _ _) = False
+  zoneShuffles (LibraryAt place _ _ _) = placeShuffles place
+
+  ||| What a move leaves the discourse holding once its destination has
+  ||| had its say. [CR#701.24c] shuffles the library whatever becomes of
+  ||| the objects named, so after a shuffle-into no library mention is
+  ||| readable -- the moved card's own included, since [CR#701.24a]
+  ||| leaves no player knowing where it went.
+  public export
+  afterMoveTo : {0 bs : Bindings} -> ZoneExpr bs -> Bindings -> Bindings
+  afterMoveTo to out = if zoneShuffles to then afterShuffle out else out
 
   public export
   data NameSource : Bindings -> Type where
@@ -1594,7 +1643,8 @@ mutual
     HandOkBare : DestOk (ZoneAt Hand Bare)
     GraveyardOkBare : DestOk (ZoneAt Graveyard Bare)
     LibraryPosOk : {auto 0 af : PlaceArrangementFits place arrg} ->
-                   DestOk (LibraryAt place arrg offs {af} Bare)
+                   {auto 0 nf : PlaceOrdinalFits place offs} ->
+                   DestOk (LibraryAt place arrg offs {af} {nf} Bare)
 
   public export
   orderOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Bool
@@ -1710,6 +1760,7 @@ mutual
   placeDelta (OneEnd _) = []
   placeDelta (EitherEnd Nothing) = []
   placeDelta (EitherEnd (Just n)) = nounDelta n
+  placeDelta Shuffled = []
 
   public export
   zoneDelta : {bs : Bindings} -> ZoneExpr bs -> List Binding

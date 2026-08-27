@@ -9799,14 +9799,24 @@ forsakenWastesTargeted =
     (BecomesTarget Macros.thisEnchantment (Macros.a Macros.spell))
     (Macros.losesLife (ControllerOf (That SpellW)) (Lit 5))
 
-||| Fblthp, the Lost's second header alone -- "When Fblthp becomes the
-||| target of a spell". Its TAIL does not write: "shuffle Fblthp into its
-||| owner's library" is a move into a library that randomizes it
-||| [CR#701.24a], and no move verb spells that arrangement. The card's
-||| blocker, not the row's.
+||| Fblthp, the Lost's second ability, whole -- "When Fblthp becomes the
+||| target of a spell, shuffle Fblthp into its owner's library." The tail
+||| is a move whose destination names no position because the act that
+||| puts the card there randomizes the pile [CR#701.24a,701.24c]; the
+||| library is owner-rooted [CR#400.3], so the bare scope IS "its
+||| owner's".
+||| The card's FIRST ability does not write. "If it entered from your
+||| library or was cast from your library, draw two cards instead" needs
+||| the entry's ORIGIN, and the entry event carries none: `Enters` has no
+||| source slot, and `HappenedTo Entry` cannot supply one either, since
+||| `lookbackOriginOk` admits an origin for `SpellCast` alone and
+||| `lookbackComplementOk Entry` is closed. The cast disjunct
+||| ("was cast from your library") writes today; its coordinate does not.
 public export
-fblthpTargetedHeader : GameEvent []
-fblthpTargetedHeader = BecomesTarget This (Macros.a Macros.spell)
+fblthpTargeted : Ability
+fblthpTargeted =
+  Macros.triggered When (BecomesTarget This (Macros.a Macros.spell))
+    (Macros.shuffleInto This)
 
 ||| Squelch, whole card -- "Counter target activated ability. Draw a
 ||| card." The ability TARGET: [CR#115.2] admits an object that can't
@@ -9894,3 +9904,37 @@ theFallenUpkeep =
     (DealDamage This (Lit 1)
        (Each (And [ Joined (HasType Planeswalker) Opponent
                   , HappenedTo DamageTaken ThisGame (Just (Involving This)) ])))
+
+
+-- ---------------------------------------------------------------------------
+-- The shuffle-into-library move
+-- ---------------------------------------------------------------------------
+
+||| Loaming Shaman, whole card -- "When this creature enters, target
+||| player shuffles any number of target cards from their graveyard into
+||| their library." [CR#701.24d]'s own example: the set may turn out
+||| empty and the library is shuffled anyway, which is the rule's
+||| business and not the clause's, so the clause is the move and nothing
+||| more.
+public export
+loamingShaman : Card
+loamingShaman =
+  Macros.card "Loaming Shaman"
+       (Just [Macros.generic 2, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Centaur", creatureType "Shaman"] [Creature])
+       [ Macros.triggered When (Enters Macros.thisCreature)
+           (Macros.shufflesInto (Macros.target AnyPlayer)
+              (TargetGroup Macros.anyNumber
+                 (InZone (Macros.graveyardOf They)))) ]
+       (Just (3, 2))
+
+||| Blessed Respite's first line -- "Target player shuffles their
+||| graveyard into their library." The MASS form: [CR#400.12] reads an
+||| instruction given to a zone as the same instruction given to all the
+||| cards in it, so the zone word is spelling and the moved thing is the
+||| cards.
+public export
+blessedRespiteShuffle : Effect []
+blessedRespiteShuffle =
+  Macros.shufflesInto (Macros.target AnyPlayer)
+    (AllOf (InZone (Macros.graveyardOf They)))

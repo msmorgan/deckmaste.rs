@@ -296,6 +296,29 @@ badZerothFromTop : Unspellable LibOrdinal (\ok => Nth 0 {nz = ok})
 badZerothFromTop ItIsSucc impossible
 
 
+||| "Shuffle those cards into your library in any order."
+||| [CR#401.4] gives the owner an order for cards put "in a specific
+||| position". A shuffle randomizes the whole pile [CR#701.24a] and puts
+||| them in no position at all, so there is nothing for an arrangement to
+||| order.
+public export
+badShuffledArranged : Unspellable (ZoneExpr []) (\ok =>
+  LibraryAt Shuffled (Just AnyOrder) Nothing {af = ok} Bare)
+badShuffledArranged Oh impossible
+
+
+||| "Shuffle it into its owner's library third from the top."
+||| [CR#401.7] counts the offset down from the top card; a shuffle names
+||| no position for it to count from [CR#701.24a]. The reading this
+||| leaves standing is Gravebane Zombie's beside Darksteel Colossus
+||| [CR#701.24g] -- a SEPARATE clause states the position, and the two
+||| destinations are two moves.
+public export
+badShuffledOrdinal : Unspellable (ZoneExpr []) (\ok =>
+  LibraryAt Shuffled Nothing (Just (Nth 3)) {nf = ok} Bare)
+badShuffledOrdinal Oh impossible
+
+
 ||| "if there is no monstrous creature"
 ||| The absence check reads a player-held designation [CR#725.1]; an
 ||| object-held marker is described on the object that holds it.
@@ -917,6 +940,26 @@ public export
 badReadsShuffledLibraryCard :
   Unspellable (Noun ProofsG.afterShuffledLook Object) (\ok => That CardW {ok})
 badReadsShuffledLibraryCard Refl impossible
+
+||| The discourse after "Look at the top card of your library. Shuffle
+||| this card into its owner's library."
+public export
+afterShuffledIntoLook : Bindings
+afterShuffledIntoLook =
+  effIntro (the (Effect [])
+    (Sequentially [ Macros.lookAt Macros.topCard, Macros.shuffleInto This ]))
+
+||| "Look at the top card of your library. Shuffle this card into its
+||| owner's library. Put that card into your hand."
+||| The shuffle-into randomizes the library it lands in [CR#701.24c], so
+||| it takes the discourse with it exactly as the bare shuffle does: the
+||| mention the look left does not survive [CR#701.24a]. What pins the
+||| move and not just the keyword action is that the destination alone
+||| says so -- no `Shuffle` clause is written here.
+public export
+badReadsShuffledIntoLibraryCard :
+  Unspellable (Noun ProofsG.afterShuffledIntoLook Object) (\ok => That CardW {ok})
+badReadsShuffledIntoLibraryCard Refl impossible
 
 ||| "if up to three is 4 or greater"
 ||| A ceiling is a number the acting player announces as the effect
