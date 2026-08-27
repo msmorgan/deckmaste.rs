@@ -215,8 +215,19 @@ badDeadCreatureRead Refl impossible
 public export
 badChosenWrongSort : Unspellable
   (Predicate [MkBinding AD (Quality Color) OneOf QualityP] Object)
-  (\ok => OfChosen CreatureType {ok})
+  (\ok => OfChosen (SubtypeQ Creature) {ok})
 badChosenWrongSort Refl impossible
+
+||| "a counter of that kind", with a kind of counter chosen
+||| [CR#122.1] makes a counter a marker ON an object, and the object's own
+||| characteristics [CR#109.3] do not include the markers it carries, so
+||| the object-side read matches against nothing. "Of that kind" is the
+||| counter slot's read, and that node is unminted.
+public export
+badChosenCounterKindRead : Unspellable
+  (Predicate [MkBinding AD (Quality CounterKindQ) OneOf QualityP] Object)
+  (\read => OfChosen CounterKindQ {read})
+badChosenCounterKindRead Oh impossible
 
 
 ||| "Choose two target creatures. Choose two target creatures. Tap them."

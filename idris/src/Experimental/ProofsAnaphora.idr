@@ -491,14 +491,6 @@ thoseVerbedResolvesInPrefix bs v w ok =
 
 -- "the rest": the complement of the parts already taken from a group.
 
-||| `So (m == n)` is `m = n` for naturals.
-public export
-natEqSo : (m, n : Nat) -> So (m == n) -> m = n
-natEqSo Z Z Oh = Refl
-natEqSo Z (S _) Oh impossible
-natEqSo (S _) Z Oh impossible
-natEqSo (S j) (S k) ok = cong S (natEqSo j k ok)
-
 ||| ...and a count the text says is not zero is a successor.
 public export
 notZeroSucc : (n : Nat) -> So (not (n == Z)) -> (k : Nat ** n = S k)

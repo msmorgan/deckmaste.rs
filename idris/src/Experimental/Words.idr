@@ -22,6 +22,99 @@ data CardType = Creature | Artifact | Land | Enchantment | Instant | Sorcery
               | Planeswalker | Battle | Kindred
               | Conspiracy | Dungeon | Phenomenon | Plane | Scheme | Vanguard
 
+||| The type's place in the catalog above. A positional code and no
+||| meaning of its own: `cardTypeAt` decodes it, `cardTypeAtIx` closes the
+||| round trip, and that round trip is what `sameCardTypeEq` is proved
+||| from -- fifteen rows where reflecting an enumerated `==` back to
+||| identity would need two hundred and twenty-five.
+public export
+cardTypeIx : CardType -> Nat
+cardTypeIx Creature = 0
+cardTypeIx Artifact = 1
+cardTypeIx Land = 2
+cardTypeIx Enchantment = 3
+cardTypeIx Instant = 4
+cardTypeIx Sorcery = 5
+cardTypeIx Planeswalker = 6
+cardTypeIx Battle = 7
+cardTypeIx Kindred = 8
+cardTypeIx Conspiracy = 9
+cardTypeIx Dungeon = 10
+cardTypeIx Phenomenon = 11
+cardTypeIx Plane = 12
+cardTypeIx Scheme = 13
+cardTypeIx Vanguard = 14
+
+||| The code's inverse, `Nothing` off the fifteen.
+public export
+cardTypeAt : Nat -> Maybe CardType
+cardTypeAt 0 = Just Creature
+cardTypeAt 1 = Just Artifact
+cardTypeAt 2 = Just Land
+cardTypeAt 3 = Just Enchantment
+cardTypeAt 4 = Just Instant
+cardTypeAt 5 = Just Sorcery
+cardTypeAt 6 = Just Planeswalker
+cardTypeAt 7 = Just Battle
+cardTypeAt 8 = Just Kindred
+cardTypeAt 9 = Just Conspiracy
+cardTypeAt 10 = Just Dungeon
+cardTypeAt 11 = Just Phenomenon
+cardTypeAt 12 = Just Plane
+cardTypeAt 13 = Just Scheme
+cardTypeAt 14 = Just Vanguard
+cardTypeAt _ = Nothing
+
+||| A card type is its own code's decoding.
+public export
+cardTypeAtIx : (t : CardType) -> cardTypeAt (cardTypeIx t) = Just t
+cardTypeAtIx Creature = Refl
+cardTypeAtIx Artifact = Refl
+cardTypeAtIx Land = Refl
+cardTypeAtIx Enchantment = Refl
+cardTypeAtIx Instant = Refl
+cardTypeAtIx Sorcery = Refl
+cardTypeAtIx Planeswalker = Refl
+cardTypeAtIx Battle = Refl
+cardTypeAtIx Kindred = Refl
+cardTypeAtIx Conspiracy = Refl
+cardTypeAtIx Dungeon = Refl
+cardTypeAtIx Phenomenon = Refl
+cardTypeAtIx Plane = Refl
+cardTypeAtIx Scheme = Refl
+cardTypeAtIx Vanguard = Refl
+
+||| Equality is code equality: [CR#205.2a] gives each type its own word,
+||| so no two share a place in the catalog.
+public export
+Eq CardType where
+  (==) a b = cardTypeIx a == cardTypeIx b
+
+||| `So (m == n)` is `m = n` for naturals.
+public export
+natEqSo : (m, n : Nat) -> So (m == n) -> m = n
+natEqSo Z Z Oh = Refl
+natEqSo Z (S _) Oh impossible
+natEqSo (S _) Z Oh impossible
+natEqSo (S j) (S k) ok = cong S (natEqSo j k ok)
+
+||| ...and a natural matches itself.
+public export
+natEqRefl : (n : Nat) -> So (n == n)
+natEqRefl Z = Oh
+natEqRefl (S k) = natEqRefl k
+
+||| `==` decides equality: a match is the identity of the two card types.
+public export
+sameCardTypeEq : (a, b : CardType) -> So (a == b) -> a = b
+sameCardTypeEq a b ok =
+  sameJust (trans (sym (cardTypeAtIx a))
+                  (trans (cong cardTypeAt (natEqSo _ _ ok))
+                         (cardTypeAtIx b)))
+  where
+    sameJust : {0 x, y : CardType} -> Just x = Just y -> x = y
+    sameJust Refl = Refl
+
 public export
 combatant : CardType -> Bool
 combatant Creature = True
@@ -94,19 +187,43 @@ comparedType ManaValue = Nothing
 -- [CR#306.5]: loyalty is a characteristic only planeswalkers have.
 comparedType Loyalty = Just Planeswalker
 
+||| The sorts a chosen or bound quality may take. A `Q` suffix marks the
+||| three whose bare name is already the type of value they range over --
+||| `Subtype`, `CardType` and `CounterKind` are all data here.
 public export
-data QualitySort = Color | CreatureType | CardName | Number
+data QualitySort : Type where
+  ||| "choose a color" [CR#105.1]
+  Color : QualitySort
+  ||| "choose a creature type", "choose a land type": one card type's
+  ||| subtypes [CR#205.3c], the host carried beside the sort exactly as
+  ||| `SubtypeAxis` carries it. WHICH of the host's subtypes a choice
+  ||| runs over is the domain's business [CR#305.6], not the sort's, so
+  ||| "a land type" and "a basic land type" are one sort under two
+  ||| domains.
+  SubtypeQ : CardType -> QualitySort
+  ||| "the chosen name" [CR#201.4a]
+  CardName : QualitySort
+  ||| "the chosen number"
+  Number : QualitySort
+  ||| "choose a card type" [CR#205.2a]
+  CardTypeQ : QualitySort
+  ||| "choose a kind of counter" [CR#122.1]
+  CounterKindQ : QualitySort
 
 public export
 Eq QualitySort where
   (==) Color Color = True
   (==) Color _ = False
-  (==) CreatureType CreatureType = True
-  (==) CreatureType _ = False
+  (==) (SubtypeQ a) (SubtypeQ b) = a == b
+  (==) (SubtypeQ _) _ = False
   (==) CardName CardName = True
   (==) CardName _ = False
   (==) Number Number = True
   (==) Number _ = False
+  (==) CardTypeQ CardTypeQ = True
+  (==) CardTypeQ _ = False
+  (==) CounterKindQ CounterKindQ = True
+  (==) CounterKindQ _ = False
 
 ||| Whether `OfChosen` honestly reads a chosen sort back. Colour, creature
 ||| type and card name are all characteristics [CR#109.3], so "of the
@@ -119,9 +236,11 @@ Eq QualitySort where
 public export
 chosenQualityReadOk : QualitySort -> Bool
 chosenQualityReadOk Color = True
-chosenQualityReadOk CreatureType = True
+chosenQualityReadOk (SubtypeQ _) = True
 chosenQualityReadOk CardName = True
 chosenQualityReadOk Number = False
+chosenQualityReadOk CardTypeQ = True
+chosenQualityReadOk CounterKindQ = False
 
 public export
 ChosenQualityRead : QualitySort -> Type
@@ -257,32 +376,57 @@ Eq Kind where
 public export
 sameQRefl : (q : QualitySort) -> So (q == q)
 sameQRefl Color = Oh
-sameQRefl CreatureType = Oh
+sameQRefl (SubtypeQ h) = natEqRefl (cardTypeIx h)
 sameQRefl CardName = Oh
 sameQRefl Number = Oh
+sameQRefl CardTypeQ = Oh
+sameQRefl CounterKindQ = Oh
 
-||| `==` decides equality: a match is the identity of the two sorts.
+||| `==` decides equality: a match is the identity of the two sorts, and
+||| at the subtype sort the identity of their hosts.
 public export
 sameQEq : (a, b : QualitySort) -> So (a == b) -> a = b
 sameQEq Color Color _ = Refl
-sameQEq Color CreatureType ok = absurd ok
+sameQEq Color (SubtypeQ y) ok = absurd ok
 sameQEq Color CardName ok = absurd ok
 sameQEq Color Number ok = absurd ok
+sameQEq Color CardTypeQ ok = absurd ok
+sameQEq Color CounterKindQ ok = absurd ok
 
-sameQEq CreatureType Color ok = absurd ok
-sameQEq CreatureType CreatureType _ = Refl
-sameQEq CreatureType CardName ok = absurd ok
-sameQEq CreatureType Number ok = absurd ok
+sameQEq (SubtypeQ x) Color ok = absurd ok
+sameQEq (SubtypeQ x) (SubtypeQ y) ok = cong SubtypeQ (sameCardTypeEq x y ok)
+sameQEq (SubtypeQ x) CardName ok = absurd ok
+sameQEq (SubtypeQ x) Number ok = absurd ok
+sameQEq (SubtypeQ x) CardTypeQ ok = absurd ok
+sameQEq (SubtypeQ x) CounterKindQ ok = absurd ok
 
 sameQEq CardName Color ok = absurd ok
-sameQEq CardName CreatureType ok = absurd ok
+sameQEq CardName (SubtypeQ y) ok = absurd ok
 sameQEq CardName CardName _ = Refl
 sameQEq CardName Number ok = absurd ok
+sameQEq CardName CardTypeQ ok = absurd ok
+sameQEq CardName CounterKindQ ok = absurd ok
 
 sameQEq Number Color ok = absurd ok
-sameQEq Number CreatureType ok = absurd ok
+sameQEq Number (SubtypeQ y) ok = absurd ok
 sameQEq Number CardName ok = absurd ok
 sameQEq Number Number _ = Refl
+sameQEq Number CardTypeQ ok = absurd ok
+sameQEq Number CounterKindQ ok = absurd ok
+
+sameQEq CardTypeQ Color ok = absurd ok
+sameQEq CardTypeQ (SubtypeQ y) ok = absurd ok
+sameQEq CardTypeQ CardName ok = absurd ok
+sameQEq CardTypeQ Number ok = absurd ok
+sameQEq CardTypeQ CardTypeQ _ = Refl
+sameQEq CardTypeQ CounterKindQ ok = absurd ok
+
+sameQEq CounterKindQ Color ok = absurd ok
+sameQEq CounterKindQ (SubtypeQ y) ok = absurd ok
+sameQEq CounterKindQ CardName ok = absurd ok
+sameQEq CounterKindQ Number ok = absurd ok
+sameQEq CounterKindQ CardTypeQ ok = absurd ok
+sameQEq CounterKindQ CounterKindQ _ = Refl
 
 ||| A `Letter` matches only itself.
 public export
@@ -611,22 +755,46 @@ data KindAxis : Type where
 ||| is running over. `ForEachKindOf` carries it beside the axis, and the
 ||| body reads it back through the chosen-quality reads that already
 ||| exist, so the pass mints no read of its own.
-||| `Nothing` is a vocabulary gap, never a refusal. [CR#205.2a]'s card
-||| types, [CR#205.3e]'s subtypes off the creature type, [CR#105.5]'s
-||| pairs and [CR#122.1]'s counter kinds are all nameable things, and the
-||| corpus writes a choice over three of them ("choose a card type",
-||| "choose a land type", "choose a kind of counter"); `QualitySort`
-||| carries none of them yet.
+||| `Nothing` is a vocabulary gap, never a refusal. The two left are
+||| [CR#110.4]'s permanent types -- a second sort over [CR#205.2a]'s own
+||| words under a restriction, and the corpus writes one line of it --
+||| and [CR#105.5]'s pairs, whose value is a PAIR and so no sort the
+||| quality vocabulary carries; the latter is what blocks Niv-Mizzet
+||| Reborn's domainless pass.
 public export
 kindAxisSort : KindAxis -> Maybe QualitySort
-kindAxisSort CardTypeAxis = Nothing
+kindAxisSort CardTypeAxis = Just CardTypeQ
 kindAxisSort PermanentTypeAxis = Nothing
 kindAxisSort ColorAxis = Just Color
-kindAxisSort (SubtypeAxis Creature _) = Just CreatureType
-kindAxisSort (SubtypeAxis _ _) = Nothing
+kindAxisSort (SubtypeAxis host _) = Just (SubtypeQ host)
 kindAxisSort (ValueAxis _) = Just Number
-kindAxisSort CounterKindAxis = Nothing
+kindAxisSort CounterKindAxis = Just CounterKindQ
 kindAxisSort ColorPairAxis = Nothing
+
+||| Whether the axis's values are a set the RULES close, so a pass may
+||| run over them with no domain to draw them from ("For each color,
+||| return up to one target card of that color from your graveyard").
+||| [CR#105.1] closes the colours at five, [CR#205.2a] enumerates the
+||| card types, [CR#110.4] the permanent types among them, [CR#105.5]
+||| the ten pairs, and [CR#305.6] the five basic land types. No rule
+||| closes the other subtype sets -- the creature types [CR#205.3m] are
+||| a printed list amended set by set -- nor [CR#122.1]'s counter kinds,
+||| which that rule leaves to any word a card writes; a characteristic's
+||| values are unbounded. A domainless pass over an unclosed set names
+||| no range.
+||| Only the colour and card-type arms are WRITTEN domainless (5 lines
+||| and 2); the basic land type, permanent type and pair arms stand open
+||| at their zero.
+public export
+kindAxisClosed : KindAxis -> Bool
+kindAxisClosed CardTypeAxis = True
+kindAxisClosed PermanentTypeAxis = True
+kindAxisClosed ColorAxis = True
+kindAxisClosed (SubtypeAxis Land BasicOnly) = True
+kindAxisClosed (SubtypeAxis _ _) = False
+kindAxisClosed (ValueAxis _) = False
+kindAxisClosed CounterKindAxis = False
+kindAxisClosed ColorPairAxis = True
 
 ||| How many of [CR#105.1]'s five colours an object may be said to be
 ||| EXACTLY. Two is the floor because the lower counts have printed words
@@ -977,39 +1145,6 @@ record Binding where
 public export
 Bindings : Type
 Bindings = List Binding
-
-public export
-Eq CardType where
-  (==) Creature Creature = True
-  (==) Creature _ = False
-  (==) Artifact Artifact = True
-  (==) Artifact _ = False
-  (==) Land Land = True
-  (==) Land _ = False
-  (==) Enchantment Enchantment = True
-  (==) Enchantment _ = False
-  (==) Instant Instant = True
-  (==) Instant _ = False
-  (==) Sorcery Sorcery = True
-  (==) Sorcery _ = False
-  (==) Planeswalker Planeswalker = True
-  (==) Planeswalker _ = False
-  (==) Battle Battle = True
-  (==) Battle _ = False
-  (==) Kindred Kindred = True
-  (==) Kindred _ = False
-  (==) Conspiracy Conspiracy = True
-  (==) Conspiracy _ = False
-  (==) Dungeon Dungeon = True
-  (==) Dungeon _ = False
-  (==) Phenomenon Phenomenon = True
-  (==) Phenomenon _ = False
-  (==) Plane Plane = True
-  (==) Plane _ = False
-  (==) Scheme Scheme = True
-  (==) Scheme _ = False
-  (==) Vanguard Vanguard = True
-  (==) Vanguard _ = False
 
 ||| The zone a payload places its referent in. A join is placeless
 ||| unless one half places itself: only the Object half ever carries a

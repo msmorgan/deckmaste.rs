@@ -1013,9 +1013,21 @@ badRepeatedCarriesNoColor Refl impossible
 ||| so the crossing names a value the pass never had.
 public export
 badAxisValueCrossing : Unspellable (Effect []) (\ok =>
-  ForEachKindOf ColorAxis (AllOf (And [Permanent, ControlledBy You]))
-                CreatureType (Draw You (Lit 1)) {sc = ok})
+  ForEachKindOf ColorAxis (Just (AllOf (And [Permanent, ControlledBy You])))
+                (SubtypeQ Creature) (Draw You (Lit 1)) {sc = ok})
 badAxisValueCrossing Refl impossible
+
+||| "For each creature type, …" -- the domainless pass at an UNCLOSED
+||| axis. No rule closes the creature types; [CR#205.3m]'s list is a
+||| printed one amended set by set, where [CR#105.1]'s five colours and
+||| [CR#205.2a]'s card types are the game's own vocabulary. A pass with
+||| no group to draw its values from and no rule to enumerate them names
+||| a range that does not exist.
+public export
+badDomainlessOpenAxis : Unspellable (Effect []) (\ok =>
+  ForEachKindOf (SubtypeAxis Creature AnySubtype) Nothing
+                (SubtypeQ Creature) (Draw You (Lit 1)) {cl = ok})
+badDomainlessOpenAxis Oh impossible
 
 ||| "target permanent that's exactly one color"
 ||| [CR#105.2a] gives exactly one of the five colours its own printed

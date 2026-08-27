@@ -141,8 +141,8 @@ suddenDemise = Sequentially [Macros.choose (Macros.a (Macros.quality Color)),
                              DealDamage This (LetterVal X) (Each (And [Macros.creature, OfChosen Color]))]
 
 kindredDominance : Effect []
-kindredDominance = Sequentially [Macros.choose (Macros.a (Macros.quality CreatureType)),
-                                 Macros.destroy (AllOf (And [Macros.creature, Not (OfChosen CreatureType)]))]
+kindredDominance = Sequentially [Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature))),
+                                 Macros.destroy (AllOf (And [Macros.creature, Not (OfChosen (SubtypeQ Creature))]))]
 
 voyagerStaff : Ability
 voyagerStaff = Macros.activated (Compound [Mana [Macros.generic 2], Do (Macros.sacrifice You Macros.thisArtifact)])
@@ -4594,7 +4594,7 @@ extinction =
   Macros.card "Extinction" (Just [Macros.generic 4, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Macros.destroy (AllOf (And [Macros.creature,
-                                            OfYourChoice CreatureType]))) ]
+                                            OfYourChoice (SubtypeQ Creature)]))) ]
        Nothing
 
 public export
@@ -4604,7 +4604,7 @@ defensiveManeuvers =
        (Just [Macros.generic 3, Macros.pip White]) []
        (MkTypeLine [] [Instant])
        [ Spell (Macros.gets (AllOf (And [Macros.creature,
-                                         OfYourChoice CreatureType]))
+                                         OfYourChoice (SubtypeQ Creature)]))
                             (PtUp (Lit 0)) (PtUp (Lit 4))
                             (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -4616,7 +4616,7 @@ witchsVengeance =
        (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Macros.gets (AllOf (And [Macros.creature,
-                                         OfYourChoice CreatureType]))
+                                         OfYourChoice (SubtypeQ Creature)]))
                             (PtDown (Lit 3)) (PtDown (Lit 3))
                             (Just Macros.untilEndOfTurn)) ]
        Nothing
@@ -4643,7 +4643,7 @@ riptideChronologist =
                               Do (Macros.sacrifice You Macros.thisCreature)])
                           (SetStatus Untapped
                       (AllOf (And [Macros.creature,
-                                   OfYourChoice CreatureType]))) ]
+                                   OfYourChoice (SubtypeQ Creature)]))) ]
        (Just (1, 3))
 
 public export
@@ -4652,10 +4652,10 @@ distantMelody =
   Macros.card "Distant Melody" (Just [Macros.generic 3, Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
-                  [ Macros.choose (Macros.a (Macros.quality CreatureType))
+                  [ Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature)))
                   , Draw You (Macros.forEach
                                 (And [Permanent, ControlledBy You,
-                                      OfChosen CreatureType])) ]) ]
+                                      OfChosen (SubtypeQ Creature)])) ]) ]
        Nothing
 
 public export
@@ -4665,9 +4665,9 @@ cripplingFear =
        (Just [Macros.generic 2, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially
-                  [ Macros.choose (Macros.a (Macros.quality CreatureType))
+                  [ Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature)))
                   , Macros.gets (AllOf (And [Macros.creature,
-                                             Not (OfChosen CreatureType)]))
+                                             Not (OfChosen (SubtypeQ Creature))]))
                                 (PtDown (Lit 3)) (PtDown (Lit 3))
                                 (Just Macros.untilEndOfTurn) ]) ]
        Nothing
@@ -4678,9 +4678,9 @@ rallyTheRanks : Card
 rallyTheRanks =
   Macros.card "Rally the Ranks" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.entersChoosing Macros.thisEnchantment CreatureType)
+       [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (Gets (AllOf (And [Macros.creature, ControlledBy You,
-                                   OfChosen CreatureType]))
+                                   OfChosen (SubtypeQ Creature)]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing
 
@@ -4689,8 +4689,8 @@ sharedTriumph : Card
 sharedTriumph =
   Macros.card "Shared Triumph" (Just [Macros.generic 1, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.entersChoosing Macros.thisEnchantment CreatureType)
-       , Static (Gets (AllOf (And [Macros.creature, OfChosen CreatureType]))
+       [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
+       , Static (Gets (AllOf (And [Macros.creature, OfChosen (SubtypeQ Creature)]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing
 
@@ -4711,8 +4711,8 @@ engineeredPlague =
   Macros.card "Engineered Plague"
        (Just [Macros.generic 2, Macros.pip Black]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.entersChoosing Macros.thisEnchantment CreatureType)
-       , Static (Gets (AllOf (And [Macros.creature, OfChosen CreatureType]))
+       [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
+       , Static (Gets (AllOf (And [Macros.creature, OfChosen (SubtypeQ Creature)]))
                       (PtDown (Lit 1)) (PtDown (Lit 1))) ]
        Nothing
 
@@ -4732,9 +4732,9 @@ urzasIncubator : Card
 urzasIncubator =
   Macros.card "Urza's Incubator" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
-       [ Static (Macros.entersChoosing Macros.thisArtifact CreatureType)
+       [ Static (Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature))
        , Static (CostsToCast (AllOf (And [Macros.creature, Macros.spell,
-                                          OfChosen CreatureType]))
+                                          OfChosen (SubtypeQ Creature)]))
                              (CostLess (Lit 2))) ]
        Nothing
 
@@ -4744,14 +4744,14 @@ etchingsOfTheChosen =
   Macros.card "Etchings of the Chosen"
        (Just [Macros.generic 1, Macros.pip White, Macros.pip Black]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.entersChoosing Macros.thisEnchantment CreatureType)
+       [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (Gets (AllOf (And [Macros.creature, ControlledBy You,
-                                   OfChosen CreatureType]))
+                                   OfChosen (SubtypeQ Creature)]))
                       (PtUp (Lit 1)) (PtUp (Lit 1)))
        , Macros.activated (Compound [Mana [Macros.generic 1],
                               Do (Macros.sacrifice You
                                     (Macros.a (And [Macros.creature,
-                                                    OfChosen CreatureType])))])
+                                                    OfChosen (SubtypeQ Creature)])))])
                           (Macros.gains (Macros.target Macros.creatureYouControl)
                                  (Macros.keyword "Indestructible")
                                  (Just Macros.untilEndOfTurn)) ]
@@ -4798,21 +4798,37 @@ xenograft : Card
 xenograft =
   Macros.card "Xenograft" (Just [Macros.generic 4, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.entersChoosing Macros.thisEnchantment CreatureType)
+       [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (AddsChosenQuality (AllOf (And [Macros.creature, ControlledBy You]))
-                                (OfChosen CreatureType)) ]
+                                (OfChosen (SubtypeQ Creature))) ]
        Nothing
+
+||| Realmwright -- "As this creature enters, choose a basic land type.
+||| Lands you control are the chosen type in addition to their other
+||| types." Xenograft's sentence at the land host, which is the whole of
+||| what the subtype sort's host parameter buys: the same two rows, with
+||| [CR#305.6]'s basic-only narrowing written as the choice's domain.
+public export
+realmwright : Card
+realmwright =
+  Macros.card "Realmwright" (Just [Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Vedalken", creatureType "Wizard"] [Creature])
+       [ Static (Macros.entersChoosingFrom Macros.thisCreature (SubtypeQ Land)
+                                           BasicTypesOnly)
+       , Static (AddsChosenQuality (AllOf (And [Macros.land, ControlledBy You]))
+                                (OfChosen (SubtypeQ Land))) ]
+       (Just (1, 1))
 
 public export
 adaptiveAutomaton : Card
 adaptiveAutomaton =
   Macros.card "Adaptive Automaton" (Just [Macros.generic 3]) []
        (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
-       [ Static (Macros.entersChoosing Macros.thisCreature CreatureType)
-       , Static (AddsChosenQuality Macros.thisCreature (OfChosen CreatureType))
+       [ Static (Macros.entersChoosing Macros.thisCreature (SubtypeQ Creature))
+       , Static (AddsChosenQuality Macros.thisCreature (OfChosen (SubtypeQ Creature)))
        , Static (Gets (AllOf (And [Macros.creature, ControlledBy You,
                                    OtherThan Macros.thisCreature,
-                                   OfChosen CreatureType]))
+                                   OfChosen (SubtypeQ Creature)]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        (Just (2, 2))
 
@@ -4825,7 +4841,7 @@ mistformDreamer =
        , Macros.activated (Mana [Macros.generic 1])
                           (Continuously
                       (SetsChosenQuality Macros.thisCreature
-                                      (OfYourChoice CreatureType))
+                                      (OfYourChoice (SubtypeQ Creature)))
                       (Just Macros.untilEndOfTurn)) ]
        (Just (2, 1))
 
@@ -4834,11 +4850,11 @@ arcaneAdaptation : Card
 arcaneAdaptation =
   Macros.card "Arcane Adaptation" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.entersChoosing Macros.thisEnchantment CreatureType)
+       [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (AlsoOffBattlefield
                    (AddsChosenQuality
                       (AllOf (And [Macros.creature, ControlledBy You]))
-                      (OfChosen CreatureType))) ]
+                      (OfChosen (SubtypeQ Creature)))) ]
        Nothing
 
 public export
@@ -4847,11 +4863,11 @@ conspiracy =
   Macros.card "Conspiracy"
        (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [] [Enchantment])
-       [ Static (Macros.entersChoosing Macros.thisEnchantment CreatureType)
+       [ Static (Macros.entersChoosing Macros.thisEnchantment (SubtypeQ Creature))
        , Static (AlsoOffBattlefield
                    (SetsChosenQuality
                       (AllOf (And [Macros.creature, ControlledBy You]))
-                      (OfChosen CreatureType))) ]
+                      (OfChosen (SubtypeQ Creature)))) ]
        Nothing
 
 public export
@@ -4915,9 +4931,9 @@ imagecrafter =
        (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
        [ Macros.activated TapSymbol
            (Sequentially
-              [ Macros.choose (Macros.a (Macros.qualityFrom CreatureType (TypeOtherThan (creatureType "Wall"))))
+              [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
               , Continuously (SetsChosenQuality (Macros.target Macros.creature)
-                                                (OfChosen CreatureType))
+                                                (OfChosen (SubtypeQ Creature)))
                              (Just Macros.untilEndOfTurn) ]) ]
        (Just (1, 1))
 
@@ -4928,9 +4944,9 @@ unnaturalSelection =
        (MkTypeLine [] [Enchantment])
        [ Macros.activated (Mana [Macros.generic 1])
            (Sequentially
-              [ Macros.choose (Macros.a (Macros.qualityFrom CreatureType (TypeOtherThan (creatureType "Wall"))))
+              [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
               , Continuously (SetsChosenQuality (Macros.target Macros.creature)
-                                                (OfChosen CreatureType))
+                                                (OfChosen (SubtypeQ Creature)))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -4940,9 +4956,9 @@ standardize =
   Macros.card "Standardize" (Just [Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
-              [ Macros.choose (Macros.a (Macros.qualityFrom CreatureType (TypeOtherThan (creatureType "Wall"))))
+              [ Macros.choose (Macros.a (Macros.qualityFrom (SubtypeQ Creature) (TypeOtherThan (creatureType "Wall"))))
               , Continuously (SetsChosenQuality (Each Macros.creature)
-                                                (OfChosen CreatureType))
+                                                (OfChosen (SubtypeQ Creature)))
                              (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -5840,10 +5856,10 @@ metallicMimic : Card
 metallicMimic =
   Macros.card "Metallic Mimic" (Just [Macros.generic 2]) []
        (MkTypeLine [creatureType "Shapeshifter"] [Artifact, Creature])
-       [ Static (Macros.entersChoosing Macros.thisCreature CreatureType)
-       , Static (AddsChosenQuality Macros.thisCreature (OfChosen CreatureType))
+       [ Static (Macros.entersChoosing Macros.thisCreature (SubtypeQ Creature))
+       , Static (AddsChosenQuality Macros.thisCreature (OfChosen (SubtypeQ Creature)))
        , Static (Macros.entersWithAdditionalCounters (Each (And [Macros.creature, ControlledBy You,
-                                                                 OfChosen CreatureType,
+                                                                 OfChosen (SubtypeQ Creature),
                                                                  OtherThan Macros.thisCreature]))
                                                      (Lit 1)
                                                      Macros.plusOnePlusOne) ]
@@ -9515,7 +9531,7 @@ bloomTenderMana =
   AbilityWord Vivid
     (Macros.activated TapSymbol
        (ForEachKindOf ColorAxis
-          (AllOf (And [Permanent, ControlledBy You])) Color
+          (Just (AllOf (And [Permanent, ControlledBy You]))) Color
           (AddMana You (Lit 1) (OfChosenColor Nothing) [])))
 
 ||| Faeburrow Elder's pump -- "This creature gets +1/+1 for each color
@@ -9541,8 +9557,36 @@ tarnationVistaMana =
   Macros.activated
     (Compound [Mana [Macros.generic 1], TapSymbol])
     (ForEachKindOf ColorAxis
-       (AllOf (And [Permanent, Monocolored, ControlledBy You])) Color
+       (Just (AllOf (And [Permanent, Monocolored, ControlledBy You]))) Color
        (AddMana You (Lit 1) (OfChosenColor Nothing) []))
+
+||| Rogues' Gallery -- "For each color, return up to one target creature
+||| card of that color from your graveyard to your hand." The DOMAINLESS
+||| pass, whole: no group supplies the values, so it runs over
+||| [CR#105.1]'s five colours themselves. All Suns' Dawn writes the same
+||| sentence over cards rather than creature cards.
+public export
+roguesGallery : Card
+roguesGallery =
+  Macros.card "Rogues' Gallery" (Just [Macros.generic 2, Macros.pip Black]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (ForEachKindOf ColorAxis Nothing Color
+                  (Macros.move (TargetGroup (Macros.upTo 1)
+                                  (And [Macros.creature, OfChosen Color,
+                                        InZone (Macros.graveyardOf You)]))
+                               Macros.handZ)) ]
+       Nothing
+
+||| World Queller's upkeep trigger -- "you may choose a card type. If you
+||| do, each player sacrifices a permanent of their choice of that type."
+||| The card-type sort's read: "of that type" is [CR#109.3]'s
+||| characteristic on the permanent, which is why `OfChosen` takes it.
+public export
+worldQuellerChoice : Effect []
+worldQuellerChoice =
+  Macros.mayThen You (Macros.choose (Macros.a (Macros.quality CardTypeQ)))
+              (Macros.sacrifice (Each AnyPlayer)
+                 (Macros.aTheirChoice (And [Permanent, OfChosen CardTypeQ])))
 
 ||| Niv-Mizzet, Guildpact's combat trigger -- "Whenever Niv-Mizzet deals
 ||| combat damage to a player, it deals X damage to any target, target

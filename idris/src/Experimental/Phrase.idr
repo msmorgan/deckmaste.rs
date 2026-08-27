@@ -144,7 +144,14 @@ mutual
     ColorOtherThan : (c : Chroma.Color) -> ChoiceDomain Color
     TypeOtherThan : (s : Subtype) ->
                     {auto 0 ct : subtypeType s = Creature} ->
-                    ChoiceDomain CreatureType
+                    ChoiceDomain (SubtypeQ Creature)
+    ||| "choose a basic land type", "choose a nonbasic land type": the
+    ||| land type's own split, and the index fixes the host because
+    ||| [CR#305.6] gives the split to that host alone -- the same ground
+    ||| `subtypeScopeOk` states for `SubtypeAxis`. An unnarrowed "choose
+    ||| a land type" writes no domain at all.
+    BasicTypesOnly : ChoiceDomain (SubtypeQ Land)
+    NonbasicTypesOnly : ChoiceDomain (SubtypeQ Land)
     NumberAbove : (n : Nat) -> ChoiceDomain Number
 
   ||| Not an `Eq` instance: this equality calls `predEq`, which calls back,
@@ -155,6 +162,10 @@ mutual
   sameChoiceDomain (NameOfCard a) (NameOfCard b) = predEq a b
   sameChoiceDomain (ColorOtherThan a) (ColorOtherThan b) = a == b
   sameChoiceDomain (TypeOtherThan a) (TypeOtherThan b) = a == b
+  sameChoiceDomain BasicTypesOnly BasicTypesOnly = True
+  sameChoiceDomain BasicTypesOnly NonbasicTypesOnly = False
+  sameChoiceDomain NonbasicTypesOnly BasicTypesOnly = False
+  sameChoiceDomain NonbasicTypesOnly NonbasicTypesOnly = True
   sameChoiceDomain (NumberAbove a) (NumberAbove b) = a == b
 
   public export
@@ -1709,8 +1720,17 @@ mutual
   ||| `elemIntro` hands the body a member of the group, this hands it a
   ||| label the group's members carry.
   public export
-  kindValueIntro : {bs : Bindings} -> QualitySort -> Noun bs Object -> Bindings
-  kindValueIntro q dom = qualityB q :: nomIntro dom
+  kindValueIntro : {bs : Bindings} -> QualitySort -> Maybe (Noun bs Object) -> Bindings
+  kindValueIntro q (Just dom) = qualityB q :: nomIntro dom
+  kindValueIntro {bs} q Nothing = qualityB q :: bs
+
+  ||| A pass with no domain runs over the axis's whole value set, so the
+  ||| rules must CLOSE that set; a written domain supplies the values and
+  ||| leaves nothing for the rule to close.
+  public export
+  kindDomainOk : {0 bs : Bindings} -> KindAxis -> Maybe (Noun bs Object) -> Bool
+  kindDomainOk _ (Just _) = True
+  kindDomainOk ax Nothing = kindAxisClosed ax
 
   public export
   predDelta : {bs : Bindings} -> {k : Kind} -> Predicate bs k -> List Binding

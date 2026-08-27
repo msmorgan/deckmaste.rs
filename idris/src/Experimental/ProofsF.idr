@@ -194,9 +194,9 @@ public export
 badReaderBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (Gets (AllOf (And [Macros.creature,
-                                   OfChosen CreatureType {ok = ok}]))
+                                   OfChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1)))
-       , Static (EntersChoice Macros.thisEnchantment CreatureType Nothing) ]
+       , Static (EntersChoice Macros.thisEnchantment (SubtypeQ Creature) Nothing) ]
        Nothing)
 badReaderBeforeChooser Refl impossible
 
@@ -206,10 +206,10 @@ badReaderBeforeChooser Refl impossible
 public export
 badTwoChoosersOneSortRead : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment CreatureType Nothing)
-       , Static (EntersChoice Macros.thisEnchantment CreatureType Nothing)
+       [ Static (EntersChoice Macros.thisEnchantment (SubtypeQ Creature) Nothing)
+       , Static (EntersChoice Macros.thisEnchantment (SubtypeQ Creature) Nothing)
        , Static (Gets (AllOf (And [Macros.creature,
-                                   OfChosen CreatureType {ok = ok}]))
+                                   OfChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing)
 badTwoChoosersOneSortRead Refl impossible
@@ -222,7 +222,7 @@ badChosenReadWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (EntersChoice Macros.thisEnchantment Color Nothing)
        , Static (Gets (AllOf (And [Macros.creature,
-                                   OfChosen CreatureType {ok = ok}]))
+                                   OfChosen (SubtypeQ Creature) {ok = ok}]))
                       (PtUp (Lit 1)) (PtUp (Lit 1))) ]
        Nothing)
 badChosenReadWrongSort Refl impossible
@@ -247,8 +247,8 @@ badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
        [ Static (AddsChosenQuality
                    (AllOf (And [Macros.creature, ControlledBy You]))
-                   (OfChosen CreatureType {ok = ok}))
-       , Static (EntersChoice Macros.thisEnchantment CreatureType Nothing) ]
+                   (OfChosen (SubtypeQ Creature) {ok = ok}))
+       , Static (EntersChoice Macros.thisEnchantment (SubtypeQ Creature) Nothing) ]
        Nothing)
 badAscribedQualityBeforeChoice Refl impossible
 
@@ -295,7 +295,7 @@ badNameMatchWrongSort Refl impossible
 ||| "Choose a creature type other than Equipment."
 ||| [CR#205.3m] is the creature-type list, and the subtype catalog is wider than the sort.
 public export
-badNonCreatureTypeExclusion : Unspellable (ChoiceDomain CreatureType) (\ok =>
+badNonCreatureTypeExclusion : Unspellable (ChoiceDomain (SubtypeQ Creature)) (\ok =>
   TypeOtherThan (artifactType "Equipment") {ct = ok})
 badNonCreatureTypeExclusion Refl impossible
 
@@ -536,7 +536,7 @@ badLastChosenBeforeChooser ChoiceMade impossible
 public export
 badLastChosenWrongSort : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
-       [ Static (EntersChoice Macros.thisEnchantment CreatureType Nothing)
+       [ Static (EntersChoice Macros.thisEnchantment (SubtypeQ Creature) Nothing)
        , Static (Prevents AnyDamage AllOfIt
                           (Macros.shieldingIt You)
                           (Just (AllOf (And [Macros.source,

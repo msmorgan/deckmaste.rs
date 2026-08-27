@@ -1232,13 +1232,20 @@ mutual
     ||| `kindAxisSort`.
     ||| UNGATED on plurality, as `DistinctCount` is: a single object
     ||| still takes several values on these axes.
-    ||| -- spelling: "for each [axis] among [domain], [body]"; the
-    ||| SCALING reading of the same words ("draw a card for each color
-    ||| among permanents you control") is no iteration at all and is
-    ||| `Times` over `DistinctCount`.
-    ForEachKindOf : (ax : KindAxis) -> (dom : Noun bs Object) ->
+    ||| The domain is OPTIONAL. Written, the pass runs over the values
+    ||| its group supplies; left out, it runs over the axis's whole value
+    ||| set ("For each color, return up to one target card of that color
+    ||| from your graveyard to your hand"), which only a set the rules
+    ||| CLOSE can supply -- `kindDomainOk`.
+    ||| -- spelling: "for each [axis] among [domain], [body]", or
+    ||| "for each [axis], [body]" with no domain; the SCALING reading of
+    ||| the same words ("draw a card for each color among permanents you
+    ||| control") is no iteration at all and is `Times` over
+    ||| `DistinctCount`.
+    ForEachKindOf : (ax : KindAxis) -> (dom : Maybe (Noun bs Object)) ->
                     (q : QualitySort) ->
                     {auto 0 sc : kindAxisSort ax = Just q} ->
+                    {auto 0 cl : So (kindDomainOk ax dom)} ->
                     (body : Effect (kindValueIntro q dom)) ->
                     Effect bs
     Repeat : (rep : Repetition bs) -> Effect bs

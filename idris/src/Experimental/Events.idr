@@ -482,6 +482,13 @@ lookbackComplementOk CardDrawn _ _ = False
 lookbackComplementOk LifeGain _ _ = False
 lookbackComplementOk LifeLoss _ _ = False
 lookbackComplementOk Placement _ _ = False
+-- the counter pair's complement names the KIND put or removed ("a +1/+1
+-- counter was put on a permanent under your control this turn", 3 lines).
+-- `QualitySort` carries that kind now, and the cells still stand shut on
+-- two further counts: `lookbackSubjectOk` refuses both events at both
+-- kinds, so no reader reaches one; and a noun at the kind sort spells
+-- only "a kind of counter", no predicate naming the ONE kind these lines
+-- write.
 lookbackComplementOk CounterPlacement _ _ = False
 lookbackComplementOk CounterRemoval _ _ = False
 lookbackComplementOk AbilityActivation Player Ability = True
