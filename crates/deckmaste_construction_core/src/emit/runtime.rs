@@ -12,6 +12,7 @@ use crate::identifier::DECLARATION_LEAF_TYPE;
 use crate::identifier::DECLARATION_MATCHER_TYPE;
 use crate::identifier::DETERMINER_NUMBER_TYPE;
 use crate::identifier::FEATURE_CONSTRAINT_TYPE;
+use crate::identifier::FUSED_HEAD_LICENSE_TYPE;
 use crate::identifier::LEAF_TYPE;
 use crate::identifier::LEXICAL_OWNER_IDENTITY_TYPE;
 use crate::identifier::LEXICAL_OWNER_TEMPLATE_TYPE;
@@ -148,6 +149,10 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         named_type(
             DETERMINER_NUMBER_TYPE,
             quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum DeterminerNumber { SingularOnly, PluralOnly, Both } },
+        ),
+        named_type(
+            FUSED_HEAD_LICENSE_TYPE,
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum FusedHeadLicense { NominalOnly, FusedHead } },
         ),
         named_type(
             NOMINAL_FORM_TYPE,
@@ -647,6 +652,9 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let determiner_number = plan
                     .carries_feature(item.name, crate::feature::Feature::DeterminerNumber)
                     .then(|| quote! { , DeterminerNumber });
+                let fused_head_license = plan
+                    .carries_feature(item.name, crate::feature::Feature::FusedHeadLicense)
+                    .then(|| quote! { , FusedHeadLicense });
                 let nominal_license = plan
                     .carries_feature(item.name, crate::feature::Feature::NominalLicense)
                     .then(|| quote! { , NominalLicense });
@@ -656,7 +664,7 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let possessive_ending = plan
                     .category_carries_possessive_ending(item.name)
                     .then(|| quote! { , PossessiveEnding });
-                quote! { #name(#name #agreement #cardinality #number #determiner_number #nominal_license #onset #possessive_ending) }
+                quote! { #name(#name #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending) }
             }
             super::SemanticTypeKind::Product => {
                 quote! { #name(#name) }
@@ -1059,7 +1067,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let declaration_determinative_lexical = (!inventory.declaration_determinatives.is_empty()).then(|| quote! { DeclarationDeterminative(usize), });
     let declaration_determinative_leaf = inventory.declaration_determinatives.iter().map(|(_, codec)| {
         let ty = codec.codec_ident();
-        quote! { #ty { value: #ty, onset: Onset, number_license: DeterminerNumber, nominal_license: NominalLicense }, }
+        quote! { #ty { value: #ty, onset: Onset, number_license: DeterminerNumber, fused_head_license: FusedHeadLicense, nominal_license: NominalLicense }, }
     });
     let declaration_determinative_class = (!inventory.declaration_determinatives.is_empty()).then(|| quote! { DeclarationDeterminative(usize), });
 

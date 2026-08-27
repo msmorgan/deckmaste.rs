@@ -488,6 +488,7 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             let provider_helper = matches!(
                 feature,
                 Feature::DeterminerNumber
+                    | Feature::FusedHeadLicense
                     | Feature::NominalForm
                     | Feature::NominalLicense
             ) && validated.carries_feature(category, feature);
@@ -1653,6 +1654,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
+        Feature::FusedHeadLicense => quote! { FusedHeadLicense },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
         Feature::Number => quote! { Number },
@@ -3596,6 +3598,9 @@ fn feature_expr(
                     Feature::DeterminerNumber => {
                         Err(internal("verb slot does not provide determiner number"))
                     }
+                    Feature::FusedHeadLicense => {
+                        Err(internal("verb slot does not provide fused-head license"))
+                    }
                     Feature::NominalForm => {
                         Err(internal("verb slot does not provide nominal form"))
                     }
@@ -4446,6 +4451,7 @@ fn emit_feature_helper(
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
+        Feature::FusedHeadLicense => quote! { FusedHeadLicense },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
         Feature::Number => quote! { Number },
@@ -5024,6 +5030,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
+        FeatureValue::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
+        FeatureValue::FusedHead => quote! { FusedHeadLicense::FusedHead },
         FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
         FeatureValue::ModifiedSingularNoun => quote! { NominalForm::ModifiedSingularNoun },
         FeatureValue::SingularCoordination => quote! { NominalForm::SingularCoordination },
@@ -5258,6 +5266,7 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Participle => "participle",
         Feature::PossessiveEnding => "possessive_ending",
         Feature::DeterminerNumber => "determiner_number",
+        Feature::FusedHeadLicense => "fused_head_license",
         Feature::NominalForm => "nominal_form",
         Feature::NominalLicense => "nominal_license",
     }

@@ -13,6 +13,7 @@ pub(crate) enum Feature {
     Cardinality,
     Compoundability,
     DeterminerNumber,
+    FusedHeadLicense,
     NominalForm,
     NominalLicense,
     Number,
@@ -40,6 +41,8 @@ pub(crate) enum FeatureValue {
     SingularOnly,
     PluralOnly,
     Both,
+    NominalOnly,
+    FusedHead,
     BareSingularNoun,
     ModifiedSingularNoun,
     SingularCoordination,
@@ -98,6 +101,7 @@ impl Feature {
                 FeatureValue::PluralOnly,
                 FeatureValue::Both,
             ],
+            Self::FusedHeadLicense => &[FeatureValue::NominalOnly, FeatureValue::FusedHead],
             Self::NominalForm => &[
                 FeatureValue::BareSingularNoun,
                 FeatureValue::ModifiedSingularNoun,
@@ -140,6 +144,7 @@ impl Feature {
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
             Self::DeterminerNumber => "determiner_number",
+            Self::FusedHeadLicense => "fused_head_license",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
             Self::Number => "number",
@@ -170,6 +175,8 @@ impl FeatureValue {
             Self::SingularOnly => "SingularOnly",
             Self::PluralOnly => "PluralOnly",
             Self::Both => "Both",
+            Self::NominalOnly => "NominalOnly",
+            Self::FusedHead => "FusedHead",
             Self::BareSingularNoun => "BareSingularNoun",
             Self::ModifiedSingularNoun => "ModifiedSingularNoun",
             Self::SingularCoordination => "SingularCoordination",
@@ -311,6 +318,7 @@ impl Feature {
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
             Self::DeterminerNumber => "determiner_number",
+            Self::FusedHeadLicense => "fused_head_license",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
             Self::Number => "number",
@@ -342,6 +350,8 @@ impl FeatureValue {
             Self::SingularOnly => "SingularOnly",
             Self::PluralOnly => "PluralOnly",
             Self::Both => "Both",
+            Self::NominalOnly => "NominalOnly",
+            Self::FusedHead => "FusedHead",
             Self::BareSingularNoun => "BareSingularNoun",
             Self::ModifiedSingularNoun => "ModifiedSingularNoun",
             Self::SingularCoordination => "SingularCoordination",
@@ -394,6 +404,8 @@ pub(crate) fn lower_constant(
         (model::Feature::DeterminerNumber, "SingularOnly") => FeatureValue::SingularOnly,
         (model::Feature::DeterminerNumber, "PluralOnly") => FeatureValue::PluralOnly,
         (model::Feature::DeterminerNumber, "Both") => FeatureValue::Both,
+        (model::Feature::FusedHeadLicense, "NominalOnly") => FeatureValue::NominalOnly,
+        (model::Feature::FusedHeadLicense, "FusedHead") => FeatureValue::FusedHead,
         (model::Feature::NominalForm, "BareSingularNoun") => FeatureValue::BareSingularNoun,
         (model::Feature::NominalForm, "ModifiedSingularNoun") => FeatureValue::ModifiedSingularNoun,
         (model::Feature::NominalForm, "SingularCoordination") => FeatureValue::SingularCoordination,
@@ -426,6 +438,12 @@ pub(crate) fn lower_constant(
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not a determiner-number value"),
+            ));
+        }
+        (model::Feature::FusedHeadLicense, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a fused-head-license value"),
             ));
         }
         (model::Feature::NominalForm, _) => {
@@ -475,6 +493,7 @@ impl From<model::Feature> for Feature {
             model::Feature::Cardinality => Self::Cardinality,
             model::Feature::Compoundability => Self::Compoundability,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
+            model::Feature::FusedHeadLicense => Self::FusedHeadLicense,
             model::Feature::NominalForm => Self::NominalForm,
             model::Feature::NominalLicense => Self::NominalLicense,
             model::Feature::Number => Self::Number,
@@ -511,5 +530,26 @@ mod tests {
         );
         assert!(lower_constant(Feature::Number, &syn::parse_quote!(Anything::Bare)).is_err());
         assert!(lower_constant(Feature::Agreement, &syn::parse_quote!(Anything::Plural)).is_err());
+        assert_eq!(
+            lower_constant(
+                Feature::FusedHeadLicense,
+                &syn::parse_quote!(Anything::FusedHead),
+            )
+            .unwrap(),
+            FeatureValue::FusedHead
+        );
+        assert_eq!(
+            lower_constant(
+                Feature::FusedHeadLicense,
+                &syn::parse_quote!(Anything::NominalOnly),
+            )
+            .unwrap(),
+            FeatureValue::NominalOnly
+        );
+        assert!(lower_constant(
+            Feature::FusedHeadLicense,
+            &syn::parse_quote!(Anything::Both),
+        )
+        .is_err());
     }
 }

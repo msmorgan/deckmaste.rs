@@ -1008,6 +1008,8 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         crate::feature::FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         crate::feature::FeatureValue::Both => quote! { DeterminerNumber::Both },
+        crate::feature::FeatureValue::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
+        crate::feature::FeatureValue::FusedHead => quote! { FusedHeadLicense::FusedHead },
         crate::feature::FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
         crate::feature::FeatureValue::ModifiedSingularNoun => {
             quote! { NominalForm::ModifiedSingularNoun }
@@ -1973,6 +1975,7 @@ mod tests {
                 "Agreement",
                 "Cardinality",
                 "DeterminerNumber",
+                "FusedHeadLicense",
                 "NominalForm",
                 "NominalLicense",
                 "Number",

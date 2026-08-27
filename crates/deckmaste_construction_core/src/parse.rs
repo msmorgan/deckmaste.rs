@@ -776,6 +776,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "cardinality" => Some(Feature::Cardinality),
         "compoundability" => Some(Feature::Compoundability),
         "determiner_number" => Some(Feature::DeterminerNumber),
+        "fused_head_license" => Some(Feature::FusedHeadLicense),
         "nominal_form" => Some(Feature::NominalForm),
         "nominal_license" => Some(Feature::NominalLicense),
         "number" => Some(Feature::Number),
@@ -1709,16 +1710,22 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                         let member_content;
                         braced!(member_content in input);
                         let mut number_license_slots = Vec::new();
+                        let mut fused_head_license_slots = Vec::new();
                         let mut nominal_license_slots = Vec::new();
                         let mut realization_slots = Vec::new();
                         while !member_content.is_empty() {
                             let member_slot = member_content.call(Ident::parse_any)?;
                             member_content.parse::<Token![=]>()?;
                             match member_slot.to_string().as_str() {
-                                "number_license" | "nominal_license" => {
+                                "number_license" | "fused_head_license" | "nominal_license" => {
                                     let value = member_content.call(Ident::parse_any)?;
                                     let row = crate::model::GeneratedIdentSlot { slot: member_slot, value };
-                                    if row.slot == "number_license" { number_license_slots.push(row); } else { nominal_license_slots.push(row); }
+                                    match row.slot.to_string().as_str() {
+                                        "number_license" => number_license_slots.push(row),
+                                        "fused_head_license" => fused_head_license_slots.push(row),
+                                        "nominal_license" => nominal_license_slots.push(row),
+                                        _ => unreachable!("matched declaration_determinative member slot"),
+                                    }
                                 }
                                 "realizations" => {
                                     let realizations_content;
@@ -1747,11 +1754,11 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                                     })?.into_iter().collect();
                                     realization_slots.push(crate::model::DeclarationDeterminativeRealizationsSource { slot: member_slot, realizations });
                                 }
-                                _ => return Err(syn::Error::new(member_slot.span(), "declaration_determinative member accepts only `number_license`, `nominal_license`, and `realizations` fields")),
+                                _ => return Err(syn::Error::new(member_slot.span(), "declaration_determinative member accepts only `number_license`, `fused_head_license`, `nominal_license`, and `realizations` fields")),
                             }
                             member_content.parse::<Token![;]>()?;
                         }
-                        Ok(crate::model::DeclarationDeterminativeMemberSource { lemma, number_license_slots, nominal_license_slots, realization_slots })
+                        Ok(crate::model::DeclarationDeterminativeMemberSource { lemma, number_license_slots, fused_head_license_slots, nominal_license_slots, realization_slots })
                     })?.into_iter().collect();
                     closed_slots.push(crate::model::DeclarationDeterminativeClosedSource { slot, members });
                 }

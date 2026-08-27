@@ -234,6 +234,7 @@ pub enum Feature {
     Cardinality,
     Compoundability,
     DeterminerNumber,
+    FusedHeadLicense,
     NominalForm,
     NominalLicense,
     Number,
@@ -423,6 +424,7 @@ pub struct DeclarationDeterminativeClosedSource {
 pub struct DeclarationDeterminativeMemberSource {
     pub lemma: Ident,
     pub number_license_slots: Vec<GeneratedIdentSlot>,
+    pub fused_head_license_slots: Vec<GeneratedIdentSlot>,
     pub nominal_license_slots: Vec<GeneratedIdentSlot>,
     pub realization_slots: Vec<DeclarationDeterminativeRealizationsSource>,
 }

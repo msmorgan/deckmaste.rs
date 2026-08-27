@@ -785,6 +785,7 @@ pub(crate) struct DeclarationDeterminativePlan {
 pub(crate) struct ClosedDeterminativePlan {
     lemma: syn::Ident,
     number_license: macro_ron::v2::DeterminativeNumberLicense,
+    fused_head_license: macro_ron::v2::DeterminativeFusedHeadLicense,
     nominal_license: macro_ron::v2::DeterminativeNominalLicense,
     realizations: Vec<DeterminativeRealizationPlan>,
 }
@@ -6013,6 +6014,11 @@ impl DeclarationDeterminativePlan {
                 "BareSingularNoun" => macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun,
                 _ => unreachable!("validated nominal license is closed"),
             };
+            let fused_head_license = match identifier_key(&member.fused_head_license_slots[0].value).as_str() {
+                "NominalOnly" => macro_ron::v2::DeterminativeFusedHeadLicense::NominalOnly,
+                "FusedHead" => macro_ron::v2::DeterminativeFusedHeadLicense::FusedHead,
+                _ => unreachable!("validated fused-head license is closed"),
+            };
             let realizations = member.realization_slots[0].realizations.iter().map(|row| {
                 let phrase_number = row.phrase_number_slots.first().map(|slot| match identifier_key(&slot.value).as_str() {
                     "Singular" => macro_ron::v2::DeterminativePhraseNumber::Singular,
@@ -6026,7 +6032,7 @@ impl DeclarationDeterminativePlan {
                 });
                 DeterminativeRealizationPlan { surface: row.surface_slots[0].value(), phrase_number, following_onset }
             }).collect();
-            ClosedDeterminativePlan { lemma: member.lemma.clone(), number_license, nominal_license, realizations }
+            ClosedDeterminativePlan { lemma: member.lemma.clone(), number_license, fused_head_license, nominal_license, realizations }
         }).collect();
         let kinds = recipe.kind_slots.first().into_iter().flat_map(|slot| &slot.kinds).map(|kind| match identifier_key(kind).as_str() {
             "KeywordAbility" => macro_ron::v2::DeclarationKind::KeywordAbility,
@@ -6058,6 +6064,7 @@ impl DeclarationDeterminativePlan {
 impl ClosedDeterminativePlan {
     pub(crate) fn lemma(&self) -> &syn::Ident { &self.lemma }
     pub(crate) fn number_license(&self) -> macro_ron::v2::DeterminativeNumberLicense { self.number_license }
+    pub(crate) fn fused_head_license(&self) -> macro_ron::v2::DeterminativeFusedHeadLicense { self.fused_head_license }
     pub(crate) fn nominal_license(&self) -> macro_ron::v2::DeterminativeNominalLicense { self.nominal_license }
     pub(crate) fn realizations(&self) -> &[DeterminativeRealizationPlan] { &self.realizations }
 }

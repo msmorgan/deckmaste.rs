@@ -613,6 +613,9 @@ fn lower_value_with_agreement(
             let determiner_number = plan
                 .carries_feature(name, Feature::DeterminerNumber)
                 .then(|| quote! { , _ });
+            let fused_head_license = plan
+                .carries_feature(name, Feature::FusedHeadLicense)
+                .then(|| quote! { , _ });
             let nominal_license = plan
                 .carries_feature(name, Feature::NominalLicense)
                 .then(|| quote! { , _ });
@@ -623,7 +626,7 @@ fn lower_value_with_agreement(
             Ok((
                 LoweredValue {
                     pattern: quote! { BuildValue::#variant(
-                        #binding, #agreement #cardinality #number #determiner_number #nominal_license #onset #possessive_ending
+                        #binding, #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending
                     ) },
                     expression: quote! { #binding.clone() },
                 },
@@ -672,6 +675,9 @@ fn lower_value_with_onset(
             let determiner_number = plan
                 .carries_feature(name, Feature::DeterminerNumber)
                 .then(|| quote! { , _ });
+            let fused_head_license = plan
+                .carries_feature(name, Feature::FusedHeadLicense)
+                .then(|| quote! { , _ });
             let nominal_license = plan
                 .carries_feature(name, Feature::NominalLicense)
                 .then(|| quote! { , _ });
@@ -681,7 +687,7 @@ fn lower_value_with_onset(
             Ok((
                 LoweredValue {
                     pattern: quote! { BuildValue::#variant(
-                        #binding #agreement #cardinality #number #determiner_number #nominal_license, #onset #possessive_ending
+                        #binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license, #onset #possessive_ending
                     ) },
                     expression: quote! { #binding.clone() },
                 },
@@ -718,6 +724,9 @@ fn lower_value(
             let determiner_number = plan
                 .carries_feature(name, Feature::DeterminerNumber)
                 .then(|| quote! { , _ });
+            let fused_head_license = plan
+                .carries_feature(name, Feature::FusedHeadLicense)
+                .then(|| quote! { , _ });
             let nominal_license = plan
                 .carries_feature(name, Feature::NominalLicense)
                 .then(|| quote! { , _ });
@@ -726,7 +735,7 @@ fn lower_value(
                 .category_carries_possessive_ending(name)
                 .then(|| quote! { , _ });
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::#variant(#binding #agreement #cardinality #number #determiner_number #nominal_license #onset #possessive_ending) },
+                pattern: quote! { BuildValue::#variant(#binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -827,7 +836,7 @@ fn lower_terminal_value(
             let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
             Ok(LoweredValue {
-                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { value: #binding, onset: _, number_license: _, nominal_license: _ }) },
+                pattern: quote! { BuildValue::Leaf(Leaf::#leaf { value: #binding, onset: _, number_license: _, fused_head_license: _, nominal_license: _ }) },
                 expression: quote! { #binding.clone() },
             })
         }
@@ -1019,6 +1028,18 @@ fn lower_zeroable_owner_value(
                         );
                         quote! { , #feature }
                     });
+                let fused_head_license = plan
+                    .carries_feature(name, Feature::FusedHeadLicense)
+                    .then(|| {
+                        let feature = lowering
+                            .binders
+                            .allocate(&format!("{}_fused_head_license", field.name()));
+                        lowering.role_features.insert(
+                            (field.name().to_owned(), Feature::FusedHeadLicense),
+                            LocalFeatureValue::Bound(feature.clone()),
+                        );
+                        quote! { , #feature }
+                    });
                 let nominal_license = plan
                     .carries_feature(name, Feature::NominalLicense)
                     .then(|| {
@@ -1036,7 +1057,7 @@ fn lower_zeroable_owner_value(
                     .category_carries_possessive_ending(name)
                     .then(|| quote! { , _ });
                 LoweredValue {
-                    pattern: quote! { BuildValue::#variant(#binding #agreement #cardinality #number #determiner_number #nominal_license #onset #possessive_ending) },
+                    pattern: quote! { BuildValue::#variant(#binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending) },
                     expression: quote! { #binding.clone() },
                 }
             } else {
@@ -1808,6 +1829,8 @@ fn lower_category_role(
     let carries_number = validated.category_carries_number(category_name);
     let carries_determiner_number =
         validated.carries_feature(category_name, Feature::DeterminerNumber);
+    let carries_fused_head_license =
+        validated.carries_feature(category_name, Feature::FusedHeadLicense);
     let carries_nominal_license = validated.carries_feature(category_name, Feature::NominalLicense);
     let carries_onset = validated.category_carries_onset(category_name);
     let carries_possessive_ending = validated.category_carries_possessive_ending(category_name);
@@ -1831,6 +1854,16 @@ fn lower_category_role(
             .allocate(&format!("{}_determiner_number", identifier_key(&role)));
         lowering.role_features.insert(
             (identifier_key(&role), Feature::DeterminerNumber),
+            LocalFeatureValue::Bound(name.clone()),
+        );
+        name
+    });
+    let fused_head_license = carries_fused_head_license.then(|| {
+        let name = lowering
+            .binders
+            .allocate(&format!("{}_fused_head_license", identifier_key(&role)));
+        lowering.role_features.insert(
+            (identifier_key(&role), Feature::FusedHeadLicense),
             LocalFeatureValue::Bound(name.clone()),
         );
         name
@@ -1869,12 +1902,13 @@ fn lower_category_role(
     let cardinality = cardinality.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let determiner_number = determiner_number.map(|value| quote! { , #value });
+    let fused_head_license = fused_head_license.map(|value| quote! { , #value });
     let nominal_license = nominal_license.map(|value| quote! { , #value });
     let onset = onset.map(|value| quote! { , #value });
     let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     lowering
         .patterns
-        .push(quote! { BuildValue::#category(#role_binding #agreement #cardinality #number #determiner_number #nominal_license #onset #possessive_ending) });
+        .push(quote! { BuildValue::#category(#role_binding #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending) });
     Ok(())
 }
 
@@ -2164,11 +2198,13 @@ fn lower_terminal_role(
             let value = lowering.binders.allocate(&identifier_key(&role));
             let onset = lowering.binders.allocate(&format!("{}_onset", identifier_key(&role)));
             let number_license = lowering.binders.allocate(&format!("{}_number_license", identifier_key(&role)));
+            let fused_head_license = lowering.binders.allocate(&format!("{}_fused_head_license", identifier_key(&role)));
             let nominal_license = lowering.binders.allocate(&format!("{}_nominal_license", identifier_key(&role)));
             lowering.role_features.insert((identifier_key(&role), Feature::Onset), LocalFeatureValue::Bound(onset.clone()));
             lowering.role_features.insert((identifier_key(&role), Feature::DeterminerNumber), LocalFeatureValue::Bound(number_license.clone()));
+            lowering.role_features.insert((identifier_key(&role), Feature::FusedHeadLicense), LocalFeatureValue::Bound(fused_head_license.clone()));
             lowering.role_features.insert((identifier_key(&role), Feature::NominalLicense), LocalFeatureValue::Bound(nominal_license.clone()));
-            lowering.patterns.push(quote! { BuildValue::Leaf(Leaf::#leaf { value: #value, onset: #onset, number_license: #number_license, nominal_license: #nominal_license }) });
+            lowering.patterns.push(quote! { BuildValue::Leaf(Leaf::#leaf { value: #value, onset: #onset, number_license: #number_license, fused_head_license: #fused_head_license, nominal_license: #nominal_license }) });
             lowering.field_values.insert(identifier_key(&role), quote! { #value.clone() });
             return Ok(());
         }
@@ -2803,6 +2839,8 @@ fn emit_success(
     let carries_number = validated.category_carries_number(row.category());
     let carries_determiner_number =
         validated.carries_feature(row.category(), Feature::DeterminerNumber);
+    let carries_fused_head_license =
+        validated.carries_feature(row.category(), Feature::FusedHeadLicense);
     let carries_nominal_license =
         validated.carries_feature(row.category(), Feature::NominalLicense);
     let carries_onset = validated.category_carries_onset(row.category());
@@ -2823,6 +2861,10 @@ fn emit_success(
         .then(|| construction_determiner_number(validated, row, lowering))
         .transpose()?
         .map(|value| quote! { , #value });
+    let fused_head_license = carries_fused_head_license
+        .then(|| construction_fused_head_license(validated, row, lowering))
+        .transpose()?
+        .map(|value| quote! { , #value });
     let nominal_license = carries_nominal_license
         .then(|| construction_nominal_license(validated, row, lowering))
         .transpose()?
@@ -2835,7 +2877,7 @@ fn emit_success(
         .then(|| construction_possessive_ending(validated, row, lowering))
         .transpose()?
         .map(|value| quote! { , #value });
-    let wrapped = quote! { BuildValue::#category(#category_value #agreement #cardinality #number #determiner_number #nominal_license #onset #possessive_ending) };
+    let wrapped = quote! { BuildValue::#category(#category_value #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending) };
     Ok(quote! { Ok(Some(#wrapped)) })
 }
 
@@ -2859,6 +2901,8 @@ fn emit_fallible_element_success(
     let carries_number = validated.category_carries_number(row.category());
     let carries_determiner_number =
         validated.carries_feature(row.category(), Feature::DeterminerNumber);
+    let carries_fused_head_license =
+        validated.carries_feature(row.category(), Feature::FusedHeadLicense);
     let carries_nominal_license =
         validated.carries_feature(row.category(), Feature::NominalLicense);
     let carries_onset = validated.category_carries_onset(row.category());
@@ -2867,6 +2911,7 @@ fn emit_fallible_element_success(
         && !carries_cardinality
         && !carries_number
         && !carries_determiner_number
+        && !carries_fused_head_license
         && !carries_nominal_license
         && !carries_onset
         && !carries_possessive_ending
@@ -2887,6 +2932,9 @@ fn emit_fallible_element_success(
         .transpose()?;
     let determiner_number = carries_determiner_number
         .then(|| construction_determiner_number(validated, row, lowering))
+        .transpose()?;
+    let fused_head_license = carries_fused_head_license
+        .then(|| construction_fused_head_license(validated, row, lowering))
         .transpose()?;
     let nominal_license = carries_nominal_license
         .then(|| construction_nominal_license(validated, row, lowering))
@@ -2917,6 +2965,7 @@ fn emit_fallible_element_success(
         let cardinality = cardinality.map(|value| quote! { , #value });
         let number = number.map(|value| quote! { , #value });
         let determiner_number = determiner_number.map(|value| quote! { , #value });
+        let fused_head_license = fused_head_license.map(|value| quote! { , #value });
         let nominal_license = nominal_license.map(|value| quote! { , #value });
         let onset = onset.map(|value| quote! { , #value });
         let possessive_ending = possessive_ending.map(|value| quote! { , #value });
@@ -2931,6 +2980,7 @@ fn emit_fallible_element_success(
                             #cardinality
                             #number
                             #determiner_number
+                            #fused_head_license
                             #nominal_license
                             #onset
                             #possessive_ending
@@ -2953,12 +3003,13 @@ fn emit_fallible_element_success(
     let cardinality = cardinality.map(|value| quote! { , #value });
     let number = number.map(|value| quote! { , #value });
     let determiner_number = determiner_number.map(|value| quote! { , #value });
+    let fused_head_license = fused_head_license.map(|value| quote! { , #value });
     let nominal_license = nominal_license.map(|value| quote! { , #value });
     let onset = onset.map(|value| quote! { , #value });
     let possessive_ending = possessive_ending.map(|value| quote! { , #value });
     Ok(quote! {
         #result
-            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #agreement #cardinality #number #determiner_number #nominal_license #onset #possessive_ending) })
+            .map(|#argument| { BuildValue::#category(#category::#variant(#argument) #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending) })
             .map(Some)
     })
 }
@@ -3142,6 +3193,21 @@ fn construction_nominal_license(
     Ok(resolved_feature_value_tokens(&output))
 }
 
+fn construction_fused_head_license(
+    validated: &SemanticPlan,
+    row: &ConstructionPlan,
+    lowering: &Lowering,
+) -> syn::Result<TokenStream> {
+    let output = resolve_feature_place(
+        validated,
+        row,
+        lowering,
+        &FeaturePlace::Construction(Feature::FusedHeadLicense),
+        &mut HashSet::new(),
+    )?;
+    Ok(resolved_feature_value_tokens(&output))
+}
+
 fn construction_cardinality(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
@@ -3262,12 +3328,14 @@ fn resolve_feature_place(
                 }
                 FeaturePlace::Construction(
                     Feature::DeterminerNumber
+                    | Feature::FusedHeadLicense
                     | Feature::NominalForm
                     | Feature::NominalLicense
                 )
                 | FeaturePlace::Role {
                     feature:
                         Feature::DeterminerNumber
+                        | Feature::FusedHeadLicense
                         | Feature::NominalForm
                         | Feature::NominalLicense,
                     ..
@@ -3433,6 +3501,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
+        FeatureValue::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
+        FeatureValue::FusedHead => quote! { FusedHeadLicense::FusedHead },
         FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
         FeatureValue::ModifiedSingularNoun => quote! { NominalForm::ModifiedSingularNoun },
         FeatureValue::SingularCoordination => quote! { NominalForm::SingularCoordination },

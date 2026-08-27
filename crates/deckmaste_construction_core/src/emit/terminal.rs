@@ -594,6 +594,7 @@ fn emit_lexeme_surface_helper(
         crate::Feature::Cardinality
         | crate::Feature::Compoundability
         | crate::Feature::DeterminerNumber
+        | crate::Feature::FusedHeadLicense
         | crate::Feature::NominalForm
         | crate::Feature::NominalLicense
         | crate::Feature::Onset

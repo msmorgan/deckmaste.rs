@@ -696,6 +696,7 @@ fn validate_sequence_feature_roles(
                     ParsedFeature::Cardinality
                     | ParsedFeature::Compoundability
                     | ParsedFeature::DeterminerNumber
+                    | ParsedFeature::FusedHeadLicense
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
                     | ParsedFeature::Number
@@ -2398,6 +2399,7 @@ fn validate_declaration_determinative_source(
                 combine(errors, syn::Error::new(member.lemma.span(), format!("duplicate declaration_determinative lemma `{lemma}`")));
             }
             validate_determinative_member_slot(&member.number_license_slots, &member.lemma, "number_license", &["SingularOnly", "PluralOnly", "Both"], errors);
+            validate_determinative_member_slot(&member.fused_head_license_slots, &member.lemma, "fused_head_license", &["NominalOnly", "FusedHead"], errors);
             validate_determinative_member_slot(&member.nominal_license_slots, &member.lemma, "nominal_license", &["CountNominal", "BareSingularNoun"], errors);
             match member.realization_slots.as_slice() {
                 [] => combine(errors, syn::Error::new(member.lemma.span(), "declaration_determinative member requires one `realizations` field")),
@@ -3411,6 +3413,7 @@ fn seal_category_feature_reads(
                 Feature::Agreement,
                 Feature::Cardinality,
                 Feature::DeterminerNumber,
+                Feature::FusedHeadLicense,
                 Feature::NominalForm,
                 Feature::NominalLicense,
                 Feature::Number,
@@ -4440,6 +4443,11 @@ fn generated_name_inventory(
                             "determiner_number",
                             "DeterminerNumber",
                         ),
+                        (
+                            Feature::FusedHeadLicense,
+                            "fused_head_license",
+                            "FusedHeadLicense",
+                        ),
                         (Feature::NominalForm, "nominal_form", "NominalForm"),
                         (Feature::NominalLicense, "nominal_license", "NominalLicense"),
                         (Feature::Number, "number", "Number"),
@@ -4580,6 +4588,9 @@ fn generated_name_inventory(
                         ParsedFeature::Compoundability => ("compoundability", "Compoundability"),
                         ParsedFeature::DeterminerNumber => {
                             ("determiner_number", "DeterminerNumber")
+                        }
+                        ParsedFeature::FusedHeadLicense => {
+                            ("fused_head_license", "FusedHeadLicense")
                         }
                         ParsedFeature::NominalForm => ("nominal_form", "NominalForm"),
                         ParsedFeature::NominalLicense => ("nominal_license", "NominalLicense"),
@@ -5176,6 +5187,7 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
+        Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
         Feature::Number => ParsedFeature::Number,
@@ -5225,6 +5237,7 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
+        Feature::FusedHeadLicense => ParsedFeature::FusedHeadLicense,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
         Feature::Number => ParsedFeature::Number,
@@ -5478,6 +5491,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 ParsedFeature::Agreement
                 | ParsedFeature::Compoundability
                 | ParsedFeature::DeterminerNumber
+                | ParsedFeature::FusedHeadLicense
                 | ParsedFeature::NominalForm
                 | ParsedFeature::NominalLicense
                 | ParsedFeature::Onset
@@ -8968,6 +8982,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             ParsedFeature::Agreement,
             ParsedFeature::Cardinality,
             ParsedFeature::DeterminerNumber,
+            ParsedFeature::FusedHeadLicense,
             ParsedFeature::NominalForm,
             ParsedFeature::NominalLicense,
             ParsedFeature::Number,
@@ -8997,6 +9012,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
         ) {
             let terminal = identifier_key(&binding.name);
             providers.insert((terminal.clone(), ParsedFeature::DeterminerNumber));
+            providers.insert((terminal.clone(), ParsedFeature::FusedHeadLicense));
             providers.insert((terminal, ParsedFeature::NominalLicense));
         }
         if let Some(crate::model::GeneratedCodecRecipe::DeclarationVerb(recipe)) =
@@ -9019,6 +9035,7 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             for feature in [
                 ParsedFeature::Agreement,
                 ParsedFeature::DeterminerNumber,
+                ParsedFeature::FusedHeadLicense,
                 ParsedFeature::NominalForm,
                 ParsedFeature::NominalLicense,
             ] {
@@ -9055,6 +9072,7 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::DeterminerNumber => "determiner_number",
+        ParsedFeature::FusedHeadLicense => "fused_head_license",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",
         ParsedFeature::Number => "number",
@@ -9512,6 +9530,7 @@ fn validate_lowerable_feature_compositions(
             (
                 ParsedFeaturePlace::Construction(
                     ParsedFeature::DeterminerNumber
+                    | ParsedFeature::FusedHeadLicense
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
                 ),
@@ -9563,6 +9582,7 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeaturePlace::Role {
                     feature:
                         ParsedFeature::DeterminerNumber
+                        | ParsedFeature::FusedHeadLicense
                         | ParsedFeature::NominalForm
                         | ParsedFeature::NominalLicense,
                     ..
@@ -9765,6 +9785,7 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::DeterminerNumber => "determiner_number",
+        ParsedFeature::FusedHeadLicense => "fused_head_license",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",
         ParsedFeature::Number => "number",
