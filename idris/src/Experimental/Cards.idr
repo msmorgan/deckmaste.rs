@@ -3254,7 +3254,7 @@ elspethsTalentGrant =
 opt : Card
 opt =
   Macros.card "Opt" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
-       [ Spell (Sequentially [ Does You "Scry" (Macros.lookAt (Macros.topCards 1))
+       [ Spell (Sequentially [ Macros.scryOne
                              , Macros.drawACard ]) ]
        Nothing
 
@@ -3262,13 +3262,13 @@ serumVisions : Card
 serumVisions =
   Macros.card "Serum Visions" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
        [ Spell (Sequentially [ Macros.drawACard
-                             , Does You "Scry" (Macros.lookAt (Macros.topCards 2)) ]) ]
+                             , Macros.scry (Lit 2) ]) ]
        Nothing
 
 consider : Card
 consider =
   Macros.card "Consider" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
-       [ Spell (Sequentially [ Does You "Surveil" (Macros.lookAt (Macros.topCards 1))
+       [ Spell (Sequentially [ Macros.surveilOne
                              , Macros.drawACard ]) ]
        Nothing
 
@@ -3276,7 +3276,7 @@ crystalBall : Card
 crystalBall =
   Macros.card "Crystal Ball" (Just [Macros.generic 3]) [] (MkTypeLine [] [Artifact])
        [ Macros.activated (Compound [Mana [Macros.generic 1], TapSymbol])
-                          (Does You "Scry" (Macros.lookAt (Macros.topCards 2))) ]
+                          (Macros.scry (Lit 2)) ]
        Nothing
 
 nefariousImp : Card
@@ -3287,7 +3287,7 @@ nefariousImp =
        , Macros.triggered Whenever
                           (Leaves (CountedGroup (Macros.atLeast 1)
                                          (And [Permanent, ControlledBy You])))
-                          (Does You "Scry" (Macros.lookAt (Macros.topCards 1))) ]
+                          (Macros.scryOne) ]
        (Just (2, 1))
 
 saheeliFiligreeMaster : Card
@@ -3297,7 +3297,7 @@ saheeliFiligreeMaster =
        [Legendary] (MkTypeLine [planeswalkerType "Saheeli"] [Planeswalker])
        [ Macros.activated (LoyaltySymbol (LoyaltyUp 1))
                           (Sequentially
-                      [ Does You "Scry" (Macros.lookAt (Macros.topCards 1))
+                      [ Macros.scryOne
                       , Macros.mayThen You
                           (SetStatus Tapped
                              (Macros.a (And [Macros.artifact, Macros.untapped,
@@ -4141,7 +4141,7 @@ riddleOfLightning =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
            [ Macros.choose (Macros.target Macros.anyTarget)
-           , Does You "Scry" (Macros.lookAt (Macros.topCards 3))
+           , Macros.scry (Lit 3)
            , Macros.revealCards Macros.topCard
            , DealDamage This (Macros.manaValueOf (That CardW)) (Macros.thatJoin) ]) ]
        Nothing
@@ -5059,7 +5059,7 @@ endlessAtlas =
 public export
 saheeliRaiPlusOne : Effect []
 saheeliRaiPlusOne =
-  Sequentially [ Does You "Scry" (Macros.lookAt (Macros.topCards 1))
+  Sequentially [ Macros.scryOne
                , DealDamage This (Lit 1) (Each Opponent) ]
 
 public export
@@ -7137,7 +7137,7 @@ gandalfWhiteRider =
                       [ Macros.gets (Each Macros.creatureYouControl)
                                     (PtUp (Lit 1)) (PtUp (Lit 0))
                                     (Just Macros.untilEndOfTurn)
-                      , Does You "Scry" (Macros.lookAt (Macros.topCards 1)) ])
+                      , Macros.scryOne ])
        , Macros.triggered When (Dies Macros.thisCreature)
                           (Macros.may You (Macros.move It (Macros.nthFromTop (Nth 5)))) ]
        (Just (3, 3))
@@ -8559,7 +8559,7 @@ public export
 multipleChoiceFirstArm : Effect []
 multipleChoiceFirstArm =
   If (CompareAmt (LetterVal X) Eq (Lit 1))
-     (Sequentially [ Does You "Scry" (Macros.lookAt (Macros.topCards 1))
+     (Sequentially [ Macros.scryOne
                    , Macros.drawACard ])
      Nothing
 
@@ -8977,8 +8977,7 @@ thoughtLashTrigger =
   Macros.triggered When
     (PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisEnchantment
               "CumulativeUpkeep")
-    (Does (That PlayerW) "Exile"
-          (Macros.move (Each (InZone (Macros.libraryOf They))) Macros.exileZ))
+    (Macros.exiles (That PlayerW) (Each (InZone (Macros.libraryOf They))))
 
 ||| Heart of Bogardan's header -- "When a player doesn't pay this
 ||| enchantment's cumulative upkeep, …", the second carrier of the declined

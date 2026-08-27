@@ -402,6 +402,13 @@ public export
 exile : (n : Noun bs Object) -> Effect bs
 exile n = Enact "Exile" (Move n exileZ noRiders)
 
+||| "<player> exiles <n>": `exile`'s agentive surface -- the same labeled
+||| move with the player performing it written as its subject.
+public export
+exiles : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
+         Effect bs
+exiles agent n = Does agent "Exile" (Move n exileZ noRiders)
+
 public export
 exileWithCounters : (n : Noun bs Object) -> (amt : Amount (nomIntro n)) ->
                     (kind : CounterKind) -> Effect bs
@@ -846,9 +853,15 @@ public export
 nthFromTopOrBottomZ : (n : LibOrdinal) -> ZoneExpr bs
 nthFromTopOrBottomZ n = LibraryAt (EitherEnd Nothing) Nothing (Just n) Bare
 
+||| "the top [amt] cards of your library": the slice a look opens over,
+||| with the count written as an amount rather than a literal.
+public export
+topSlice : (amt : Amount bs) -> Noun bs Object
+topSlice amt = LibrarySlice OnTop amt You
+
 public export
 topCards : (n : Nat) -> Noun bs Object
-topCards n = LibrarySlice OnTop (Lit n) You
+topCards n = topSlice (Lit n)
 
 public export
 topCard : Noun bs Object
@@ -1056,27 +1069,138 @@ mills agent amt whose =
   Does agent "Mill"
        (Move (LibrarySlice OnTop amt whose {sp}) graveyardZ noRiders)
 
+||| The context a scry's or surveil's split reads: the slice its look put
+||| in front of the player.
+public export
+lookedTop : (bs : Bindings) -> (amt : Amount bs) -> Bindings
+lookedTop bs amt = nomIntro (topSlice {bs} amt)
+
+||| The context the "and the rest" clause reads: what moving the chosen
+||| pile left of the looked-at group. [CR#608.2d] has the player announce
+||| the choice as the effect applies, so the unchosen stay behind and the
+||| next clause names them as the complement.
+public export
+lookedRest : (bs : Bindings) -> (0 mn : countManys Object bs = 1) ->
+             (z : Zone) -> Bindings
+lookedRest bs mn z = moveIntro {bs} Nothing (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh}) (Just z)
+
+||| The look a slice-partitioning keyword action opens with, over the
+||| player the clause has already named.
+public export
+theyLookAtTop : {bs : Bindings} -> (amt : Amount bs) ->
+                {auto 0 an : countOnes Player bs = 1} -> Effect bs
+theyLookAtTop amt =
+  Expose LookAt (They {ok = an})
+         (ExposedCards (LibrarySlice OnTop amt (They {ok = an})))
+
+||| "Scry [amt]" [CR#701.22a] in full: look at the top [amt] cards of your
+||| library, then put any number of them on the bottom of your library in
+||| any order and the rest on top of your library in any order. The split
+||| is the choice [CR#608.2d] has the player announce as the effect
+||| applies, so the unchosen read back as "the rest". `scryOne` writes the
+||| one-card spelling, which the singular slice forces.
+public export
+scry : {bs : Bindings} -> (amt : Amount bs) ->
+       {auto 0 mn : countManys Object (lookedTop bs amt) = 1} ->
+       {auto 0 ps : Placeable (tyOfThem (lookedTop bs amt)) Library} ->
+       {auto 0 tr : So (theRestOk (lookedRest (lookedTop bs amt) mn Library))} ->
+       {auto 0 pr : Placeable (tyOfGroup (lookedRest (lookedTop bs amt) mn Library)) Library} ->
+       Effect bs
+scry amt =
+  Does You "Scry" {kn = Oh}
+       (Sequentially [ lookAt (topSlice amt)
+                     , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                            (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = ps}
+                     , move (TheRest {ok = tr})
+                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pr} ])
+
+||| "Surveil [amt]" [CR#701.25a] in full: the same look and the same
+||| split, with the chosen pile going to the graveyard instead of under
+||| the library. No order clause rides that pile: the rule writes one only
+||| on the remainder.
+public export
+surveil : {bs : Bindings} -> (amt : Amount bs) ->
+          {auto 0 mn : countManys Object (lookedTop bs amt) = 1} ->
+          {auto 0 ps : Placeable (tyOfThem (lookedTop bs amt)) Graveyard} ->
+          {auto 0 tr : So (theRestOk (lookedRest (lookedTop bs amt) mn Graveyard))} ->
+          {auto 0 pr : Placeable (tyOfGroup (lookedRest (lookedTop bs amt) mn Graveyard)) Library} ->
+          Effect bs
+surveil amt =
+  Does You "Surveil" {kn = Oh}
+       (Sequentially [ lookAt (topSlice amt)
+                     , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
+                     , move (TheRest {ok = tr})
+                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pr} ])
+
+||| "Scry 1": [CR#701.22a] over a one-card slice. "Any number of them" of
+||| one card is a free choice and "the rest" is what declining it leaves
+||| on top, so the split is written as the offer -- the spelling the
+||| printed reminder text uses. The plural spelling is unavailable here,
+||| not merely unchosen: a one-card slice binds singular, and the group
+||| anaphor "them" and its complement both want a plural antecedent. The
+||| offer names the looked-at card by its word rather than as "it", which
+||| is what lets a scry stand in a clause that has already named an
+||| object: a cast spell is on the stack, and no card word reaches it.
+public export
+scryOne : {bs : Bindings} ->
+          {auto 0 iw : countWord CardW (lookedTop bs (Lit 1)) = 1} ->
+          {auto 0 pi : Placeable (tyOfThat CardW (lookedTop bs (Lit 1))) Library} ->
+          Effect bs
+scryOne =
+  Does You "Scry" {kn = Oh}
+       (Sequentially [ lookAt topCard
+                     , may You (move (That CardW {ok = iw}) onBottomZ {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pi}) ])
+
+||| "Surveil 1": [CR#701.25a] over a one-card slice, `scryOne`'s spelling
+||| with the graveyard as the offered destination.
+public export
+surveilOne : {bs : Bindings} ->
+             {auto 0 iw : countWord CardW (lookedTop bs (Lit 1)) = 1} ->
+             {auto 0 pi : Placeable (tyOfThat CardW (lookedTop bs (Lit 1))) Graveyard} ->
+             Effect bs
+surveilOne =
+  Does You "Surveil" {kn = Oh}
+       (Sequentially [ lookAt topCard
+                     , may You (move (That CardW {ok = iw}) graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
+
 ||| "Target player scries N." / "Target player surveils N."
 ||| [CR#701.22a] and [CR#701.25a] name one player and read that player's
-||| own library, so the subject is written once and the slice reads it
-||| back as the anaphor.
+||| own library, so the subject is written once and the slice, the split
+||| and both destinations read it back as the anaphor.
 public export
-playerScries : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
+playerScries : {bs : Bindings} -> (agent : Noun bs Player) ->
+               (amt : Amount (nomIntro agent)) ->
                {auto 0 an : countOnes Player (nomIntro agent) = 1} ->
+               {auto 0 mn : countManys Object (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
+               {auto 0 ps : Placeable (tyOfThem (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Library} ->
+               {auto 0 tr : So (theRestOk (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Library))} ->
+               {auto 0 pr : Placeable (tyOfGroup (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Library)) Library} ->
                Effect bs
 playerScries agent amt =
-  Does agent "Scry"
-       (Expose LookAt (They {ok = an})
-               (ExposedCards (LibrarySlice OnTop amt (They {ok = an}))))
+  Does agent "Scry" {kn = Oh}
+       (Sequentially [ theyLookAtTop amt {an}
+                     , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                            (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = ps}
+                     , move (TheRest {ok = tr})
+                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pr} ])
 
 public export
-playerSurveils : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
+playerSurveils : {bs : Bindings} -> (agent : Noun bs Player) ->
+                 (amt : Amount (nomIntro agent)) ->
                  {auto 0 an : countOnes Player (nomIntro agent) = 1} ->
+                 {auto 0 mn : countManys Object (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
+                 {auto 0 ps : Placeable (tyOfThem (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Graveyard} ->
+                 {auto 0 tr : So (theRestOk (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Graveyard))} ->
+                 {auto 0 pr : Placeable (tyOfGroup (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Graveyard)) Library} ->
                  Effect bs
 playerSurveils agent amt =
-  Does agent "Surveil"
-       (Expose LookAt (They {ok = an})
-               (ExposedCards (LibrarySlice OnTop amt (They {ok = an}))))
+  Does agent "Surveil" {kn = Oh}
+       (Sequentially [ theyLookAtTop amt {an}
+                     , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                            graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
+                     , move (TheRest {ok = tr})
+                            (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh}} {arr = Oh} {pl = pr} ])
 
 ||| "<player> loses N <kind> counters": the counted removal beside the
 ||| bare "all" spelling `LosesCounters` writes with the slot unfilled.
