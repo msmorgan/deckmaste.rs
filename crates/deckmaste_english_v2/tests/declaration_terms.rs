@@ -1,10 +1,13 @@
 use std::path::Path;
 
+use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::CounterKind;
 use deckmaste_english_v2::ast::DeclaredCounterKind;
 use deckmaste_english_v2::ast::Designation;
 use deckmaste_english_v2::ast::KeywordAbility;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::environment::CatalogProviderRow;
+use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::visit::Visitor;
 use deckmaste_english_v2::context::ParseContext;
@@ -138,9 +141,17 @@ fn structured_power_toughness_counters_remain_nonlexical_counter_kinds() {
         }
     }
 
-    let environment = ParserEnvironment::try_from_declarations(
+    let environment = ParserEnvironment::try_from_parts(
         read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"))
             .expect("builtin-v2 declarations load"),
+        [CatalogProviderRows::new(
+            CatalogProvider::CardNames,
+            [CatalogProviderRow::new(
+                "context-card",
+                "Context Card",
+                Onset::Consonant,
+            )],
+        )],
     )
     .expect("builtin declaration environment freezes");
     let parser = Parser::new(environment).expect("builtin environment supplies grammar rows");
