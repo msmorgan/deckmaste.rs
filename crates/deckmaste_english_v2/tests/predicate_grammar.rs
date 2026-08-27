@@ -3,6 +3,7 @@ use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::environment::VerbInventoryRef;
 use deckmaste_english_v2::parser::ParseError;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::SelectionResolution;
@@ -387,24 +388,26 @@ fn builds_keep_new_products_in_the_existing_typed_algebra() {
     let parser = parser();
     let context = context();
 
-    let flexible_mana = VerbPhrase::FlexibleMana(FlexibleMana {
-        amount: CardinalQuantity::Cardinal(CardinalQuantityValue {
-            number: CardinalNumber { magnitude: 1 },
-        }),
-        kind: FlexibleManaKind::Color,
-    });
-    let expected = Sentence::Imperative(
-        Imperative::new(Box::new(Predicate::Atomic(Box::new(flexible_mana.clone()))))
-            .expect("flexible mana is a valid bare imperative predicate"),
-    );
     let text = "Add one mana of any color.";
-    assert_eq!(parser.parse_sentence(text, &context), Ok(expected.clone()));
-    assert_eq!(expected.render(&context, parser.environment()), text);
-    assert_eq!(imperative_atomic(&parser, &context, text), flexible_mana,);
+    let sentence = parser
+        .parse_sentence(text, &context)
+        .expect("flexible mana frame parses");
+    let flexible_mana = imperative_atomic(&parser, &context, text);
+    assert!(matches!(
+        flexible_mana,
+        VerbPhrase::FlexibleMana(FlexibleMana {
+            amount: CardinalQuantity::Cardinal(CardinalQuantityValue {
+                number: CardinalNumber { magnitude: 1 },
+            }),
+            kind: FlexibleManaKind::Color,
+            ..
+        })
+    ));
+    assert_eq!(sentence.render(&context, parser.environment()), text);
     assert_eq!(
         exact_claim_trace(&parser, &context, text),
         [
-            ("Add".to_owned(), "lexeme:VerbLexeme/Add/bare".to_owned()),
+            ("Add".to_owned(), "core-verb:Add".to_owned()),
             (" one".to_owned(), "codec:CardinalNumber".to_owned()),
             (
                 " mana".to_owned(),
@@ -777,7 +780,8 @@ impl Visitor for ObjectFrameVisitor {
         }
         if matches!(
             &value.head,
-            TransitiveVerb::Declaration(head) if head.id().name() == "Exchange"
+            TransitiveVerb::Declaration(head)
+                if matches!(head.reference(), VerbInventoryRef::Declaration(id) if id.name() == "Exchange")
         ) {
             self.0.push("exchange");
         }
@@ -958,7 +962,10 @@ fn exchange_uses_declared_object_valence_and_a_typed_control_reference() {
     let TransitiveVerb::Declaration(head) = &predicate.head else {
         panic!("exchange retains its authored keyword-action identity")
     };
-    assert_eq!(head.id().name(), "Exchange");
+    assert!(matches!(
+        head.reference(),
+        VerbInventoryRef::Declaration(id) if id.name() == "Exchange"
+    ));
     assert!(matches!(predicate.object, Object::ObjectNominal(_)));
     let mut visitor = ObjectFrameVisitor::default();
     visitor.visit_ability(&ability);
@@ -1064,7 +1071,10 @@ fn token_descriptions_share_typed_power_toughness_and_copy_constituents() {
         let TransitiveVerb::Declaration(head) = &predicate.head else {
             panic!("{text:?} retains Create's declaration identity")
         };
-        assert_eq!(head.id().name(), "Create", "{text:?}");
+        assert!(matches!(
+            head.reference(),
+            VerbInventoryRef::Declaration(id) if id.name() == "Create"
+        ), "{text:?}");
         let mut visitor = ObjectFrameVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(
@@ -1399,7 +1409,10 @@ fn shared_active_frames_reuse_core_and_declared_heads_across_sentence_shapes() {
     let TransitiveVerb::Declaration(head) = &predicate.head else {
         panic!("declared transitive identity remains open")
     };
-    assert_eq!(head.id().name(), "Sacrifice");
+    assert!(matches!(
+        head.reference(),
+        VerbInventoryRef::Declaration(id) if id.name() == "Sacrifice"
+    ));
 
     let sentence = parser
         .parse_sentence("Control target player.", &context)
@@ -2096,11 +2109,11 @@ fn ast_keeps_each_linguistic_product_typed() {
 
     assert!(matches!(
         declarative_atomic(&parser, &context, "It deals damage."),
-        VerbPhrase::DealUnspecifiedDamage(DealUnspecifiedDamage { .. })
+        VerbPhrase::DealUnspecifiedDamage(DealDamageKind { .. })
     ));
     assert!(matches!(
         declarative_atomic(&parser, &context, "It gains life."),
-        VerbPhrase::GainUnspecifiedLife(GainUnspecifiedLife {})
+        VerbPhrase::GainUnspecifiedLife(GainUnspecifiedLife { .. })
     ));
 }
 
@@ -2220,10 +2233,10 @@ impl Visitor for TypedProductVisitor {
         "DeclaredTransitivePassivePredicateValue"
     );
     typed_product!(
-        visit_deal_unspecified_damage,
-        DealUnspecifiedDamage,
-        walk_deal_unspecified_damage,
-        "DealUnspecifiedDamage"
+        visit_deal_damage_kind,
+        DealDamageKind,
+        walk_deal_damage_kind,
+        "DealDamageKind"
     );
     typed_product!(
         visit_gain_unspecified_life,
@@ -2526,7 +2539,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
     );
     assert_frame!(
         "It deals damage.",
-        ["product:DealUnspecifiedDamage"],
+        ["product:DealDamageKind"],
         [
             ("It", "vocab:SubjectPronoun/It"),
             (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
@@ -2679,7 +2692,7 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
         &context,
         "Draw cards equal to the blue creature's toughness.",
     );
-    let VerbPhrase::DrawCardsEqualTo(DrawCardsEqualTo { equality }) = draw else {
+    let VerbPhrase::DrawCardsEqualTo(DrawCardsEqualTo { equality, .. }) = draw else {
         panic!("genitive scalar selects the existing draw-equality frame")
     };
     let ScalarEquality::ScalarEquality(ScalarEqualityValue { value }) = equality;
@@ -2718,6 +2731,7 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
     let VerbPhrase::DealDamageToEqualTo(DealDamageToEqualTo {
         recipient,
         equality,
+        ..
     }) = damage
     else {
         panic!("post-recipient equality selects its ordered damage frame")
@@ -2742,8 +2756,8 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
     ] {
         let predicate = imperative_atomic(&parser, &context, text);
         let equality = match predicate {
-            VerbPhrase::GainLifeEqualTo(GainLifeEqualTo { equality })
-            | VerbPhrase::DrawCardsEqualTo(DrawCardsEqualTo { equality }) => equality,
+            VerbPhrase::LifeEquality(LifeEquality { equality, .. })
+            | VerbPhrase::DrawCardsEqualTo(DrawCardsEqualTo { equality, .. }) => equality,
             other => panic!("{expected} scalar selected wrong frame: {other:?}"),
         };
         let ScalarEquality::ScalarEquality(ScalarEqualityValue { value }) = equality;
@@ -3794,25 +3808,25 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
 
     assert_frame!(
         "Deal X damage to target creature.",
-        VerbPhrase::DealDamage(_)
+        VerbPhrase::DealAmountDamage(_)
     );
     assert_frame!(
         "Deal damage equal to its power to target creature.",
         VerbPhrase::DealDamageEqualTo(_)
     );
-    assert_frame!("Gain that much life.", VerbPhrase::GainLife(_));
+    assert_frame!("Gain that much life.", VerbPhrase::LifeAmount(_));
     assert_frame!(
         "Gain life equal to its power.",
-        VerbPhrase::GainLifeEqualTo(_)
+        VerbPhrase::LifeEquality(_)
     );
-    assert_frame!("Lose 2 life.", VerbPhrase::LoseLife(_));
+    assert_frame!("Lose 2 life.", VerbPhrase::LifeAmount(_));
     assert_frame!(
         "Lose life equal to its toughness.",
-        VerbPhrase::LoseLifeEqualTo(_)
+        VerbPhrase::LifeEquality(_)
     );
-    assert_frame!("Pay X life.", VerbPhrase::PayLife(_));
-    assert_frame!("Pay {2}{B}.", VerbPhrase::PayMana(_));
-    assert_frame!("Add {B}{B}{B}.", VerbPhrase::AddMana(_));
+    assert_frame!("Pay X life.", VerbPhrase::LifeAmount(_));
+    assert_frame!("Pay {2}{B}.", VerbPhrase::ManaPhrase(_));
+    assert_frame!("Add {B}{B}{B}.", VerbPhrase::ManaPhrase(_));
     assert_frame!("Draw two cards.", VerbPhrase::DrawCards(_));
     assert_frame!(
         "Draw cards equal to its toughness.",
@@ -3832,6 +3846,7 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
                 imperative_atomic(&parser, &context, "Draw a card."),
                 VerbPhrase::DrawCards(DrawCards {
                     cards: CardQuantity::SingularCardQuantity(_),
+                    ..
                 })
             ),
         ),
@@ -3841,6 +3856,7 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
                 imperative_atomic(&parser, &context, "Draw two cards."),
                 VerbPhrase::DrawCards(DrawCards {
                     cards: CardQuantity::FixedCardQuantity(_),
+                    ..
                 })
             ),
         ),
@@ -3850,6 +3866,7 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
                 imperative_atomic(&parser, &context, "Draw X cards."),
                 VerbPhrase::DrawCards(DrawCards {
                     cards: CardQuantity::VariableCardQuantity(_),
+                    ..
                 })
             ),
         ),
@@ -3859,6 +3876,7 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
                 imperative_atomic(&parser, &context, "Draw that many cards."),
                 VerbPhrase::DrawCards(DrawCards {
                     cards: CardQuantity::AnaphoricCardQuantity(_),
+                    ..
                 })
             ),
         ),
@@ -3871,7 +3889,7 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
         ("Roll two six-sided dice.", "fixed"),
         ("Roll a d20.", "d20"),
     ] {
-        let VerbPhrase::RollDice(RollDice { dice }) = imperative_atomic(&parser, &context, text)
+        let VerbPhrase::RollDice(RollDice { dice, .. }) = imperative_atomic(&parser, &context, text)
         else {
             panic!("{text:?} selects RollDice")
         };
@@ -3938,7 +3956,7 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
     };
     assert_eq!(counter.magnitudes().len(), 2);
 
-    let VerbPhrase::PayMana(PayMana { mana }) = imperative_atomic(&parser, &context, "Pay {2}{B}.")
+    let VerbPhrase::ManaPhrase(ManaVerbPhrase { mana, .. }) = imperative_atomic(&parser, &context, "Pay {2}{B}.")
     else {
         unreachable!()
     };
@@ -3969,10 +3987,10 @@ macro_rules! trace_product {
 
 impl Visitor for ComplementVisitor {
     trace_product!(
-        visit_deal_damage,
-        DealDamage,
-        walk_deal_damage,
-        "DealDamage"
+        visit_deal_amount_damage,
+        DealAmountDamage,
+        walk_deal_amount_damage,
+        "DealAmountDamage"
     );
     trace_product!(
         visit_deal_damage_equal_to,
@@ -3980,23 +3998,19 @@ impl Visitor for ComplementVisitor {
         walk_deal_damage_equal_to,
         "DealDamageEqualTo"
     );
-    trace_product!(visit_gain_life, GainLife, walk_gain_life, "GainLife");
+    trace_product!(visit_life_amount, LifeAmount, walk_life_amount, "LifeAmount");
     trace_product!(
-        visit_gain_life_equal_to,
-        GainLifeEqualTo,
-        walk_gain_life_equal_to,
-        "GainLifeEqualTo"
+        visit_life_equality,
+        LifeEquality,
+        walk_life_equality,
+        "LifeEquality"
     );
-    trace_product!(visit_lose_life, LoseLife, walk_lose_life, "LoseLife");
     trace_product!(
-        visit_lose_life_equal_to,
-        LoseLifeEqualTo,
-        walk_lose_life_equal_to,
-        "LoseLifeEqualTo"
+        visit_mana_verb_phrase,
+        ManaVerbPhrase,
+        walk_mana_verb_phrase,
+        "ManaVerbPhrase"
     );
-    trace_product!(visit_pay_life, PayLife, walk_pay_life, "PayLife");
-    trace_product!(visit_pay_mana, PayMana, walk_pay_mana, "PayMana");
-    trace_product!(visit_add_mana, AddMana, walk_add_mana, "AddMana");
     trace_product!(visit_draw_cards, DrawCards, walk_draw_cards, "DrawCards");
     trace_product!(
         visit_draw_cards_equal_to,
@@ -4310,7 +4324,7 @@ fn typed_complements_visit_payloads_in_surface_order_with_exact_claims() {
     assert_eq!(
         visitor.0,
         [
-            "product:PayMana",
+            "product:ManaVerbPhrase",
             "verb:Pay",
             "scalar:2",
             "product:DrawCardsEqualTo",
@@ -4375,7 +4389,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     assert_family!(
         "Deal X damage to target creature.",
         [
-            "product:DealDamage",
+            "product:DealAmountDamage",
             "verb:Deal",
             "variable:X",
             "declared:Creature"
@@ -4423,7 +4437,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Gain that much life.",
-        ["product:GainLife", "verb:Gain"],
+        ["product:LifeAmount", "verb:Gain"],
         [
             ("Gain", "lexeme:VerbLexeme/Gain/bare"),
             (" that", "form:that_much/that_much/0"),
@@ -4435,7 +4449,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     assert_family!(
         "Gain life equal to its power.",
         [
-            "product:GainLifeEqualTo",
+            "product:LifeEquality",
             "verb:Gain",
             "possessive:Its",
             "characteristic:Power"
@@ -4452,7 +4466,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Lose 2 life.",
-        ["product:LoseLife", "verb:Lose", "scalar:2"],
+        ["product:LifeAmount", "verb:Lose", "scalar:2"],
         [
             ("Lose", "lexeme:VerbLexeme/Lose/bare"),
             (" 2", "codec:ScalarNumber"),
@@ -4463,7 +4477,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     assert_family!(
         "Lose life equal to its toughness.",
         [
-            "product:LoseLifeEqualTo",
+            "product:LifeEquality",
             "verb:Lose",
             "possessive:Its",
             "characteristic:Toughness"
@@ -4480,17 +4494,17 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Pay X life.",
-        ["product:PayLife", "verb:Pay", "variable:X"],
+        ["product:LifeAmount", "verb:Pay", "variable:X"],
         [
             ("Pay", "lexeme:VerbLexeme/Pay/bare"),
             (" X", "vocab:Variable/X"),
-            (" life", "form:pay_life/pay_life/2"),
+            (" life", "form:life_amount/life_amount/2"),
             (".", TERMINATOR),
         ]
     );
     assert_family!(
         "Pay {2}{B}.",
-        ["product:PayMana", "verb:Pay", "scalar:2", "symbol:Black"],
+        ["product:ManaVerbPhrase", "verb:Pay", "scalar:2", "symbol:Black"],
         [
             ("Pay", "lexeme:VerbLexeme/Pay/bare"),
             (" {", "form:symbol_run/symbol_run/0/prefix"),
@@ -4503,7 +4517,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Add {B}.",
-        ["product:AddMana", "verb:Add", "symbol:Black"],
+        ["product:ManaVerbPhrase", "verb:Add", "symbol:Black"],
         [
             ("Add", "lexeme:VerbLexeme/Add/bare"),
             (" {", "form:symbol_run/symbol_run/0/prefix"),
@@ -5251,7 +5265,7 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
     assert!(matches!(control.object, Object::ObjectPronoun(_)));
     assert!(matches!(
         control.predicate(),
-        VerbPhrase::DealDamage(DealDamage {
+        VerbPhrase::DealAmountDamage(DealAmountDamage {
             recipient: ToPhrase::ToPhrase(_),
             ..
         })

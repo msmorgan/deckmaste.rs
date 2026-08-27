@@ -493,6 +493,11 @@ constructions! {
     codec LifeAmountVerb { generate declaration_verb { position = Verb; tail = [Amount, "life"]; feature = Agreement; } }
     codec GainLifeVerb { generate declaration_verb { position = Verb; tail = ["life"]; feature = Agreement; } }
     codec LifeEqualityVerb { generate declaration_verb { position = Verb; tail = ["life", ScalarEquality]; feature = Agreement; } }
+    codec ManaPhraseVerb { generate declaration_verb { position = Verb; tail = [ManaPhrase]; feature = Agreement; } }
+    codec FlexibleManaVerb { generate declaration_verb { position = Verb; tail = [CardinalQuantity, "mana", "of", "any", FlexibleManaKind]; feature = Agreement; } }
+    codec CardQuantityVerb { generate declaration_verb { position = Verb; tail = [CardQuantity]; feature = Agreement; } }
+    codec CardsEqualityVerb { generate declaration_verb { position = Verb; tail = ["cards", ScalarEquality]; feature = Agreement; } }
+    codec DieObjectVerb { generate declaration_verb { position = Verb; tail = [DieObject]; feature = Agreement; } }
     codec DamageParticipleHead {
         generate declaration_verb {
             closed = DamageParticipleLexeme;
@@ -4148,43 +4153,34 @@ constructions! {
         derive agreement = head.agreement;
         form life_equality = verb(head) "life" equality;
     }
-    construction pay_life: VerbPhrase {
-        element PayLife { amount: Amount, }
-        derive agreement = verb.agreement;
-        form pay_life = verb(VerbLexeme::Pay) amount "life";
-    }
-    construction pay_mana: VerbPhrase {
-        element PayMana { mana: ManaPhrase, }
-        derive agreement = verb.agreement;
-        form pay_mana = verb(VerbLexeme::Pay) mana;
-    }
-    construction add_mana: VerbPhrase {
-        element AddMana { mana: ManaPhrase, }
-        derive agreement = verb.agreement;
-        form add_mana = verb(VerbLexeme::Add) mana;
+    construction mana_phrase: VerbPhrase {
+        element ManaVerbPhrase { head: lex ManaPhraseVerb, mana: ManaPhrase, }
+        derive agreement = head.agreement;
+        form mana_phrase = verb(head) mana;
     }
     construction flexible_mana: VerbPhrase {
         element FlexibleMana {
+            head: lex FlexibleManaVerb,
             amount: CardinalQuantity,
             kind: lex FlexibleManaKind,
         }
-        derive agreement = verb.agreement;
-        form flexible_mana = verb(VerbLexeme::Add) amount "mana" "of" "any" lex(kind);
+        derive agreement = head.agreement;
+        form flexible_mana = verb(head) amount "mana" "of" "any" lex(kind);
     }
     construction draw_cards: VerbPhrase {
-        element DrawCards { cards: CardQuantity, }
-        derive agreement = verb.agreement;
-        form draw_cards = verb(VerbLexeme::Draw) cards;
+        element DrawCards { head: lex CardQuantityVerb, cards: CardQuantity, }
+        derive agreement = head.agreement;
+        form draw_cards = verb(head) cards;
     }
     construction draw_cards_equal_to: VerbPhrase {
-        element DrawCardsEqualTo { equality: ScalarEquality, }
-        derive agreement = verb.agreement;
-        form draw_cards_equal_to = verb(VerbLexeme::Draw) "cards" equality;
+        element DrawCardsEqualTo { head: lex CardsEqualityVerb, equality: ScalarEquality, }
+        derive agreement = head.agreement;
+        form draw_cards_equal_to = verb(head) "cards" equality;
     }
     construction roll_dice: VerbPhrase {
-        element RollDice { dice: DieObject, }
-        derive agreement = verb.agreement;
-        form roll_dice = verb(VerbLexeme::Roll) dice;
+        element RollDice { head: lex DieObjectVerb, dice: DieObject, }
+        derive agreement = head.agreement;
+        form roll_dice = verb(head) dice;
     }
     construction put_counters: VerbPhrase {
         element PutCounters {
