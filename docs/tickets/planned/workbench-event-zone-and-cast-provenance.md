@@ -1,293 +1,114 @@
 ---
 needs: []
 ---
-# Read events by verb and zone, and finish the cast relation's provenance
+# Read events by verb and zone, and finish the cast relation's provenance — umbrella
 
-One unit over the zone-change event, the event-history lookback and the cast
-relation. These belong together because they share the zone catalog (the command
-zone is asked for by both the put-into headers and the cast-history lookback),
-share the coordination gap at zone phrases, and share the cast relation itself —
-`CastBy` seeds the stack for the history read, `CastFrom` is the provenance
-qualifier both frames hang off, and the ordinal binder blocks the keyword grants
-that the trigger side keeps routing here.
+**Umbrella record; claim the sub-tickets, not this one.** This ticket is
+split into four independently-claimable sub-rounds plus one routed mint,
+below. It carries no build work of its own.
 
-## The mill event, and the verbed event generally — 4 + 2 lines
+## Split, 2026-08-26
 
-The put-into-a-zone event landed and this did **not** fall out of it, which is
-the point. [CR#701.17a] makes milling "puts that many cards from the top of
-their library into their graveyard", so the transition IS `PutInto`'s with a
-library source and a graveyard destination — and the corpus still spells it with
-the VERB.
+The unit over the zone-change event, the event-history lookback and the cast
+relation was split into four semantically independent sub-rounds (none needs
+another's output; each has its own whole-card witness):
 
-Four supported lines write the header ("Whenever one or more nonland cards are
-milled": Mirelurk Queen, Screeching Scorchbeast, The Wise Mothman; Saruman
-writes the reflexive "when one or more cards are milled this way"), and two
-write the replacement ("If an opponent would mill one or more cards, they mill
-twice that many instead", Bruvac, The Water Crystal).
+- **`workbench-event-zone-1-verbed-event.md`** — the mill/discard EVENT
+  reading of a verb (the `VerbedAct`-style label-carrying `EventName`). Size
+  S.
+- **`workbench-event-zone-2-event-subjects.md`** — the dealer-side read of
+  damage in general, and the player-subject attack declaration
+  (`AttacksWith`). Size S.
+- **`workbench-event-zone-3-targeting-and-disjunction-arms.md`** — the
+  targeting relative clause (both voices: `BecomesTarget` event and the
+  targeting `Predicate`), and the un-gated `Leaves`, as the n-ary event
+  disjunction's arms. Size M.
+- **`workbench-event-zone-4-zone-catalog-and-reader-payload.md`** — the
+  `Command` zone row, the sorted `EventComplement` payload (zone + coordination),
+  and the cast-origin rider, as one mechanism. Size M.
 
-`VerbName` has had `Mill` for many chapters and `verbedMarkingOk Mill` is open,
-so what is missing is the **EVENT reading of a verb** — an event named by the
-keyword action rather than by the zone change it entails. That is core's
-`EventFilter::Act { verb, … }` and has no row here. Screeching Scorchbeast is
-the witness and also wants the counted group's size as an amount ("that many"),
-so it stays two gaps until that lands.
+Sequencing: serialise 1 → 2 → 3 (they share the same `EventName`/`Triggers`
+table block); sub-round 4 runs in parallel with any of them. If only one
+sub-round runs, it is sub-round 1 — its pin is architectural and the discard
+family (96 lines) is the largest single unblock in the bundle.
 
-## The command zone — 2 headers, and the history lookback's 21
+Each sub-round ticket carries, self-contained: the §0 stale-pointer
+corrections table below, the §1 constraint lists below, its own item list
+with quoted asks, its own re-measured corpus counts, its settled rulings,
+and its own open pins **now settled** by conductor ratification
+(2026-08-26) — pinned, do not reopen.
 
-`Zone` has five of [CR#400.1]'s zones and core's `Command` row "is still not
-ported" (the catalog's own comment). Two put-into headers name it: "Whenever
-your commander is put into the command zone from anywhere" (Myth Unbound) and
-"Whenever a creature you control dies or is put into the command zone"
-(Reyhan) — and **neither can be refused by `putDestZoneOk`, because there is no
-value to refuse.** Commander is already treated as card-held and zone-surviving,
-so the zone and the designation are one round's work.
+**One routed mint**, off the §6 dispositions below:
+`docs/tickets/planned/workbench-element-binder-reads.md` — the ordinal
+cast's residual 5 plus the Once Upon a Time re-check, and the per-member
+event count inside `AggregateOver`'s binder body.
 
-The same row is what 21 of the cast-history lookback lines want (below): `data
-Zone = Battlefield | Graveyard | Exile | Hand | Library | Stack` has no seventh,
-and adding one moves ten tables — `sameZone`, `searchableZone`,
-`putSourceZoneOk`, `putDestZoneOk`, `publicZone`, `exposableZone`, `destTypeOk`,
-`visibilityOk`, `playableFrom`, `zoneFits` — whose cells are unmeasured.
+## Stale pointers this ticket's original body carried
 
-## The coordinated source and destination — 5 lines
+The original body's pointers had drifted from the tree — it named tables
+that no longer exist (`sameZone`, `searchableZone`), a pin that isn't there
+(`badCastInGraveyard`), machinery that has been retired (`eventUse`,
+`eventSpan`, `replUseOk`, `triggerWordOk`), an `EventName` row count that is
+stale (26, not 34), and a "commander designation is settled in the same
+round" line that is simply false (`CommanderD` already exists — the `Zone`
+row is the actual gap). **The four sub-tickets carry the corrected
+pointers and constraint lists in full** (their own §0 and §1); this
+umbrella does not repeat them.
 
-Authority: [The kind index joins; union marking is spelling](../../decisions/kind-index-joins-union-marking-is-spelling.md)
-— the coordinated source and destination are ordinary coordination at the zone
-sort, not a marked union row.
+## §6 dispositions — not worth a sub-round, transcribed
 
-The coordinated EVENT landed and this half did not, because it is a disjunction
-of ZONE PHRASES rather than of clauses: "from your hand or library" (Desert
-Warfare), "from graveyards and/or the battlefield" (Ketramose), "from your
-library and/or your graveyard" (Laelia), and on the destination side Kaya,
-Spirits' Justice's "one or more creatures you control and/or creature cards in
-your graveyard".
+Two rows below are corrected from the split report: the report routed two
+items to `docs/tickets/done/workbench-amount-comparison-and-quantity.md`,
+which is **closed** — done tickets are not plans. Those two route instead to
+the newly-minted `docs/tickets/planned/workbench-element-binder-reads.md`.
+One row (Doc Aurlock) names `workbench-conditional-and-coordination`, which
+is also closed; its live successor `workbench-coordination-family.md` has
+been given the cross-check line directly.
 
-The `Or` predicate's shape may already reach it — a `ZoneExpr` disjunction is a
-smaller thing than an event one — but **nothing has measured which of `Or`'s
-four gates a zone phrase would have to answer**. Five lines in all, so it is a
-row rather than a round on its own, which is why it rides here.
+| Item | Disposition |
+|---|---|
+| *"The ORDINAL cast — 5 lines, plus 20 in trigger headers"* | **Half delivered, half misrouted.** `GameEvent.NthOccurrence` (`Triggers.idr:348`) landed in the event-algebra round and its docstring gives the cast spelling verbatim — the 20 trigger headers write today. The residual 5 (Maelstrom Nexus, Rain of Riches, Wild-Magic Sorcerer, The Twelfth Doctor, Zimone) want a **noun-phrase element binder over a turn's casts**. **Corrected routing: `docs/tickets/planned/workbench-element-binder-reads.md`** (not `workbench-amount-comparison-and-quantity`, which is closed). The next-spell/first-spell keyword grants stay blocked behind the binder wherever it lands. |
+| *"The zone DISJUNCTION on a cast's origin"* (Doc Aurlock, Aven Interrupter, Soulless Jailer) | **The parent contradicted itself.** Its "Closed, do not redo" section said: "DOC AURLOCK still does not land, on the zone DISJUNCTION … which belongs to `workbench-conditional-and-coordination`" — closed. **Corrected routing:** the cross-check ("if sub-round 4's zone-coordination pin lands, Doc Aurlock may fall out for free") has been appended to `docs/tickets/planned/workbench-coordination-family.md`, that ticket's live successor. |
+| *"The LIBRARY cell of `CastFrom`"* | **Not a sub-round.** The cell is already **open** — `playableFrom (Just Library) = True`, so `CastFrom (ZoneAt Library …)` type-checks today. Only a whole-card witness is owed, and both candidates carry a second unbuilt thing (Melek: a play permission over the top of a library; Fblthp: a coordinated "entered from your library **or** was cast from your library"). Rides sub-round 4 as a recorded ledger line (carried in that ticket's item list). *Note:* Fblthp's **second** ability benches once sub-round 3 lands, but that does not bench this cell — Fblthp's first ability is the one that writes it. |
+| *"The four delayed end-of-combat forms"* | **Unchanged and confirmed by the parent itself**: blocked on the "At this turn's next end of combat" delayed shell, "which no current machinery reaches". Carry forward as a ledger line; no sub-round takes them. |
+| *"Recorded measurement, not a gap"* — `negatable (CastBy _)` is False | **Not an item; a re-measure trigger.** It binds any round that mints the agentless passive ("target spell you control that wasn't cast", Errant, Street Artist). Sub-round 3 mints a `Predicate` row and so must **not** touch `negatable`'s `CastBy` cell; if it happens to mint the passive, the cell is re-measured rather than assumed. **Kept as a standing acceptance line on this umbrella** — see below. |
+| Routed: *"`lookbackComplementOk` refuses every joined complement, on a corpus zero"* | **A recorded fact, not a gap.** It is a re-measure trigger for sub-round 2 (whose new event's complement is exactly a "to X" phrase that could coordinate) and for sub-round 4 if the payload lands on `lookbackComplementOk`. Cited in both briefs; not scheduled anywhere. |
+| Routed: *"Once Upon a Time's history identity read"* | **Dormant.** "Neither built nor pinned; no rule makes it meaningless and no buildable card pays it." Worth one cheap re-check now that `NthOccurrence` exists. **Corrected routing: `docs/tickets/planned/workbench-element-binder-reads.md`**, assigned to whoever takes the ordinal binder there (not `workbench-amount-comparison-and-quantity`, closed). |
+| Routed: *"The per-member event count inside `AggregateOver`'s binder body"* | **Belongs with the element binder**, same as the ordinal residue — Thought Sponge and the Windfall/Jace's Archivist cycle need a per-member event subject inside a binder body. **Corrected routing: `docs/tickets/planned/workbench-element-binder-reads.md`**, together with the ordinal 5 (not `workbench-amount-comparison-and-quantity`, closed). |
+| *"Not this round's, recorded so they are not folded in"* — the MAGNITUDE read, the coordinated history read, the PROHIBITION family, the mana-SPEND purpose, Continue?, Bill Ferny | **Already fenced out.** Reproduced verbatim below as the standing do-not-fold-in list; no sub-round owns any of them. |
+| The closing paragraph, *"The `eventUse` / `eventSpan` / `ReplUse` triple over 26 `EventName` rows"* | **Stale — the tables no longer exist.** Replaced by the live seven-table list in each sub-ticket's §1.1, with a note that the closure-tables document's §2.2 is a demoted 2026-08-22 snapshot. |
 
-## What the history read and the cast-zone provenance already landed
+## Standing acceptance lines that remain on this umbrella
 
-The event-history read's third slot landed as a defaulted `EventComplement` on all
-three readers, gated by `lookbackComplementOk` (event x subject sort x complement
-sort) and `bareLookbackOk` (whether the slot may stand empty — two measured False
-cells, both pinned); `Predicate.CastFrom (z : ZoneExpr)` landed beside it, gated
-by `playableFrom` (SHARED with the play permission, every cell re-measured, none
-moved) and `WholeZone`, seeding no zone so `badCastInGraveyard` still stands, with
-the negation costing nothing (ordinary `Not`, two attested spellings). What is
-left is one region of reads with named blockers.
+These do not belong to any one sub-round; they bind whichever round happens
+to touch the relevant cell.
 
-### Sizing that must not be re-lost
+- **`negatable (CastBy _)` re-measure trigger.** The AGENTIVE negated cast
+  ("a spell you didn't cast") is ZERO lines, so `negatable (CastBy _)` is
+  False — but what the phrase would mean is attested one card over through
+  an agentless passive ("target spell you control that wasn't cast", Errant,
+  Street Artist), which is why the cell is REFUSED and not pinned. **A round
+  that mints the passive must re-measure the cell rather than assume it.**
 
-- The cast history read alone is 141 lines, of which only TWO write the bare
-  form; the complement was the construction, not its residue.
-- The by-source damage family is 48. The block relation's by-complement is 1 line
-  (Joven's Ferrets) — the other eight are present-tense `BlockerOf`/`BlockedBy`
-  descriptions, a different row, or the coordination below.
-- Three `lookbackSubjectOk` cells reopened with that landing: `CombatDamage
-  Object`, `TokenCreation Player`, `BlockedDeclaration Object`.
-- The cast-provenance family is 185 over FIVE frames — trigger header 80,
-  self-condition 37, history lookback 32, description 29, mana-spend purpose 7 —
-  beside 148 permission lines that are a different axis.
+- **Do-not-fold-in fence** — reproduced verbatim from this ticket's original
+  body; no sub-round owns any of these:
+  - The MAGNITUDE read (`EventSum`) — "if you gained 3 or more life this
+    turn" (15 lines) and Gollum, Obsessed Stalker's "life equal to the
+    amount of life you gained this turn". A complement is a participant and
+    this is a quantity; it stays ledgered on `EventCount`'s own row.
+  - The coordinated history read, 4 lines — "blocked or was blocked by a
+    Zombie this turn" (Time to Reflect, You Cannot Pass!, Venomous Breath,
+    Sea Troll): ONE complement shared across two events, which is the
+    coordinated EVENT and not this slot.
+  - The PROHIBITION family, 8 lines — "Players can't cast spells from
+    graveyards or libraries" (Grafdigger's Cage, Weathered Runestone,
+    Kunoros, Soulless Jailer, Ashes of the Abhorrent, Drannith Magistrate,
+    Avatar's Wrath, Experimental Frenzy). This is the PERMISSION's negation
+    and belongs to `MayPlay`/`PlaySource`.
+  - The mana-SPEND purpose, 7 lines — a zone-qualified `SpendPurpose`, which
+    belongs with the spend restrictions that name a cost.
+  - Continue?, whose zone-change surface is a different spelling from the
+    past verb these rows write; and Bill Ferny, still blocked on the
+    predefined-token catalog ([CR#111.10]) alone.
 
-## The dealer-subject read of damage IN GENERAL — 17 lines
-
-"Target creature that dealt damage to you this turn" (Reciprocate, Retaliate,
-Spear of Heliod, Giltspire Avenger, Brine Hag, Giant Albatross, Aegar, Hawkeye,
-Wolverine, Dunerider Outlaw, Whirling Dervish…). It has NO `EventName`:
-`DamageTaken` is the victim's side of the happening and `CombatDamage` is the
-combat dealer's; the general dealer's side is neither. These lines say "damage",
-not "combat damage" — an earlier comment counted two of them as combat damage and
-that correction is what exposed the gap.
-
-## The SECOND complement sort — 19 lines and 3
-
-The placement's ZONE (19 lines, "if a creature card was put into your graveyard
-from anywhere this turn", most naming a source zone as well as a destination) and
-the counter pair's KIND (3 lines). This slot's axis is `Kind` and neither is a
-noun of any sort, so `Placement`, `CounterPlacement` and `CounterRemoval` keep
-their False cells and would want a complement over `ZoneExpr` and one over
-`CounterKind`. THE DESIGN QUESTION: one mechanism with a sorted payload, or three
-tables.
-
-## The history LOOKBACK frame of a cast's origin — 32 lines, split 21/11
-
-- 21 are the commander family and want a COMMAND ZONE row (the ten-table cost is
-  recorded above).
-- The other 11 want the origin as a RIDER on `Happened`/`EventCount` and nothing
-  else — the cheaper half, landable without the zone row: the six "if you haven't
-  cast a spell from your hand this turn" cards, Laboratory Drudge, Impending
-  Flux, Surge of Brilliance, Spider-Man 2099, Approach.
-
-## The zone DISJUNCTION on a cast's origin
-
-"From your graveyard or from exile" (Doc Aurlock; Aven Interrupter; Soulless
-Jailer's "from graveyards or exile") — two origin clauses coordinated, the
-standing coordination gap at a new site.
-
-## The LIBRARY cell of `CastFrom` — open, probed, no cheap carrier
-
-The whole family writes it twice: Melek, Izzet Paragon's trigger header and
-Fblthp, the Lost's self-condition. Both carry a second unbuilt thing besides
-(Melek a play permission over the top of a library, Fblthp a coordinated
-entered-or-was-cast condition). The witness is owed.
-
-## The four delayed end-of-combat forms
-
-Unchanged and confirmed: their independent second blocker is the "At this turn's
-next end of combat" delayed shell, which no current machinery reaches.
-
-## Not this round's, recorded so they are not folded in
-
-- The MAGNITUDE read (`EventSum`) — "if you gained 3 or more life this turn" (15
-  lines) and Gollum, Obsessed Stalker's "life equal to the amount of life you
-  gained this turn". A complement is a participant and this is a quantity; it
-  stays ledgered on `EventCount`'s own row.
-- The coordinated history read, 4 lines — "blocked or was blocked by a Zombie
-  this turn" (Time to Reflect, You Cannot Pass!, Venomous Breath, Sea Troll): ONE
-  complement shared across two events, which is the coordinated EVENT and not
-  this slot.
-- The PROHIBITION family, 8 lines — "Players can't cast spells from graveyards or
-  libraries" (Grafdigger's Cage, Weathered Runestone, Kunoros, Soulless Jailer,
-  Ashes of the Abhorrent, Drannith Magistrate, Avatar's Wrath, Experimental
-  Frenzy). This is the PERMISSION's negation and belongs to `MayPlay`/`PlaySource`.
-- The mana-SPEND purpose, 7 lines — a zone-qualified `SpendPurpose`, which
-  belongs with the spend restrictions that name a cost.
-- Continue?, whose zone-change surface is a different spelling from the past verb
-  these rows write; and Bill Ferny, still blocked on the predefined-token catalog
-  ([CR#111.10]) alone.
-
-## What chapters sixty-four and sixty-five landed on the cast relation
-
-Chapter sixty-four landed the cast relation (`CastBy`, a predicate beside
-`ControlledBy` rather than a verb on it, seeding the stack) and the controller
-relation's two-zone domain (`zoneAdmit`), and chapter sixty-five removed the
-union head — never a construction, only `Or`'s mis-documented coordinator, so
-Goblin Electromancer, Arcane Melee, Mana Matrix and Aura of Silence landed there.
-97 of the 99 plain cost-modification lines are structurally writable now (the 2
-face-down heads are the remainder). Two pieces stayed out.
-
-### The TARGETING relative clause — 19 lines
-
-"Spells your opponents cast that target this creature cost {2} more to cast"
-(Icefall Regent and 8 siblings; 4 more write "spells you cast that target …").
-No targeting predicate exists AT ALL — nothing in `Predicate` describes an object
-by what it targets — so this is a vocabulary row and not a composition. Its
-complement is an ordinary noun; the relation is what is missing.
-
-### The ORDINAL cast — 5 lines, plus 20 in trigger headers
-
-"the first spell you cast each turn" (Maelstrom Nexus, Rain of Riches,
-Wild-Magic Sorcerer, The Twelfth Doctor, Zimone), plus 20 more writing "your
-first spell" in a trigger header. An ELEMENT BINDER over a turn's casts — the
-same shape
-[workbench-amount-comparison-and-quantity](workbench-amount-comparison-and-quantity.md)'s
-relativized per-element count wants — and the per-turn reset is a second unbuilt
-thing beside it.
-
-The next-spell and first-spell keyword GRANTS ("the next spell you cast this turn
-has cascade") wait on this binder. They are [CR#611.2f]'s regime, a continuous
-effect that begins to apply when the player next puts an appropriate spell on the
-stack; they are not the keyword row's own gap.
-
-### Recorded measurement, not a gap
-
-The AGENTIVE negated cast ("a spell you didn't cast") is ZERO lines, so
-`negatable (CastBy _)` is False — but what the phrase would mean is attested one
-card over through an agentless passive ("target spell you control that wasn't
-cast", Errant, Street Artist), which is why the cell is REFUSED and not pinned. A
-round that mints the passive must re-measure the cell rather than assume it.
-
-### Closed, do not redo
-
-The cast-from-zone origin qualifier landed as `Predicate.CastFrom` (chapter one
-hundred thirty-three), hung exactly where this work said to. Its count scoped one
-frame — 24 for the cost-modification and keyword-grant statics, 29 today with
-recent prints (Aven Interrupter, Emet-Selch, Zhulodok, Quandrix) — and never the
-family, which is 185 lines over five frames; a recon reading the 24 as a
-family-wide undercount had it backwards. DOC AURLOCK still does not land, on the
-zone DISJUNCTION ("from your graveyard or from exile"), which belongs to
-[workbench-conditional-and-coordination](workbench-conditional-and-coordination.md);
-PATRICIAN GEIST is benched as this frame's single-zone witness instead.
-
-## The closure grid this family owns
-
-Ranked below the workbench's fifteen top flip risks — the grid's many zeros are
-independent measurements, so a printing moves one cell and the closure survives —
-but every cell this family moves is one of them. A widening names the cell it
-moved and re-reads the grid rather than defaulting it, and a cell left closed
-says whether a rule or a count is closing it. Rows, evidence and widening costs:
-[the closure tables](../../idris-workbench-closure-tables.md) §2.2.
-
-The `eventUse` / `eventSpan` / `ReplUse` triple over 26 `EventName` rows
-(`Events.idr:107`–`659`).
-
-## Routed ledger items
-
-Items from closed round tickets that this ticket owns. One line each, citing
-the done ticket that recorded them.
-
-- **`lookbackComplementOk` refuses every joined complement, on a corpus zero.**
-  Under `kindOfW JoinW = Object \/ Player` a joined complement is now writable,
-  so the refusal is live rather than unreachable; 34 distinct "dealt damage by"
-  lines, five carrying "or", none writing a cross-kind union complement, so the
-  clause was not widened and the fact was recorded rather than gated —
-  `docs/tickets/done/workbench-union-family-macros.md`.
-- **Once Upon a Time's history identity read** ("if this spell is the first
-  spell you've cast this game") — neither built nor pinned; no rule makes it
-  meaningless and no buildable card pays it —
-  `docs/tickets/done/workbench-amount-comparison-and-quantity.md`.
-- **The per-member event count inside `AggregateOver`'s binder body** — Thought
-  Sponge's "the greatest number of cards an opponent has drawn this turn" and
-  the Windfall / Jace's Archivist cycle's "cards a player discarded this way";
-  the body admits an `Amount` but no per-member event subject exists —
-  `docs/tickets/done/workbench-amount-comparison-and-quantity.md`.
-
-## Consumption boundary
-
-`idris/src/Experimental.idr` (`PutInto`, `putDestZoneOk`, `Zone`, `ZoneExpr`,
-the `Or` predicate, `Predicate.CastFrom`, `Happened`, `EventCount`, `EventSum`,
-`EventComplement`, `Predicate`, `CastBy`, `negatable`, `zoneAdmit`),
-`idris/src/Experimental/Events.idr` (`EventName` and the event table's verb
-cells, `lookbackComplementOk`, `bareLookbackOk`, `lookbackSubjectOk`,
-`playableFrom`, `WholeZone`), `idris/src/Experimental/Words.idr` (`VerbName`,
-`verbedMarkingOk`, the zone words, origin and participle spelling), the pin
-modules `idris/src/Experimental/Proofs*.idr` (`badCastInGraveyard`, and pins in
-`ProofsD.idr`, `ProofsE.idr` and `ProofsG.idr`), evidence bench
-`idris/src/Experimental/Cards.idr`. No Rust crate. Core's `EventFilter::Act {
-verb, … }` is named as the shape precedent only.
-
-## Acceptance
-
-- The verbed event reads an event by its keyword action without duplicating the
-  put-into transition; the four headers and Bruvac's replacement write, and
-  Screeching Scorchbeast's second gap (the counted group as an amount) is
-  recorded rather than papered over.
-- `Command` is a `Zone` row, `putDestZoneOk` can refuse it, and the commander
-  designation is settled in the same round; Myth Unbound and Reyhan bench.
-- The zone-phrase disjunction either answers `Or`'s four gates with the answers
-  measured, or is declined with the five lines recorded.
-- The general dealer's side of damage gets its own `EventName` or a stated
-  reason it does not; the victim and combat-dealer rows are unchanged.
-- The second complement sort is decided as one sorted payload or as separate
-  tables, with the 19 and the 3 both accounted for.
-- If the command-zone row is taken, all ten named tables are measured in the same
-  round; if it is not, the cheaper 11 land as a rider without it.
-- `playableFrom`'s shared cells stay shared, and `badCastInGraveyard` still
-  stands.
-- The targeting predicate is a vocabulary row taking an ordinary noun complement,
-  not a composition over existing predicates.
-- The ordinal binder and the per-turn reset are answered together, or the reset
-  is deferred with its own statement of what remains.
-- `negatable (CastBy _)` stays a refusal and stays unpinned unless the passive is
-  minted in the same round, in which case the cell is re-measured.
-- `Predicate.CastFrom` and Patrician Geist's benched line are untouched.
-- `idris/scripts/build` PASS, no witness lost, no pin silently passing.
-
-Standard constraints apply.
-
-- **Routed from workbench-combat-assignment-and-forced-attack (close, 2026-08-26):** no attack-declaration event with a PLAYER subject — `Attacks`'s subject is `Noun bs Object`, so "Whenever an opponent attacks with one or more creatures" (Tahngarth, First Mate) never binds the opponent; [CR#508.3d] is the rule. An event-subject row, so it lands here.
-
-- **Routed from workbench-payment-events-and-replacement-disjunction (close, 2026-08-26):** the n-ary event disjunction is RULED a seat slot (never a `GameEvent` row — `eventName` totality; `Interceptable` distributes arm-by-arm; body reads whole-agreement discourse folded over a list; shape recorded on `AltEvent`/`GameEvent` docstrings) and waits only on its ARMS' vocabulary, which this ticket owns: a "becomes the target of" event row and a `Leaves` not gated to the battlefield (Giggling Skitterspike, Trouble in Pairs, Syr Konrad, Repeated Reverberation, Illusionary Mask — 5 lines, 3 seats). Mint the arms here, then the slot per the recorded shape.
-
-- **Routed from workbench-distinct-kind-count (close, 2026-08-26):** no card-discard `EventName` — "Whenever you discard a card" (All-Seeing Arbiter) cannot be written. An event row, so it lands here.
+Standard constraints apply to every sub-ticket claimed off this split.
