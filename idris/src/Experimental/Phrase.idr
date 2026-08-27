@@ -154,10 +154,12 @@ mutual
     NonbasicTypesOnly : ChoiceDomain (QSort (SubtypeQ Land))
     NumberAbove : (n : Nat) -> ChoiceDomain (QSort Number)
     ||| "choose an opponent", where a bare "choose a player" writes no
-    ||| domain. [CR#102.1] makes every player in the game a player and
-    ||| [CR#102.3] names the opponents as the proper subset of them, so
-    ||| the narrowing is the rules' own and not a second sort. 20 of the
-    ||| 28 supported player choosers write it.
+    ||| domain. [CR#102.1] makes every person in the game a player and
+    ||| [CR#102.2] names a player's opponent among them, so the narrowing
+    ||| is the rules' own and not a second sort; the `Opponent` head noun
+    ||| beside it defers the team reading [CR#102.3] and so does this. 29
+    ||| supported cards write a chosen-player read; 18 of them narrow the
+    ||| chooser to an opponent and 7 leave it at "a player".
     OpponentsOnly : ChoiceDomain PlayerC
     ||| "choose a number between [lo] and [hi]": the number sort's other
     ||| narrowing, a printed RANGE where `NumberAbove` writes a floor
