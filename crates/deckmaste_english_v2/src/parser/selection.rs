@@ -82,6 +82,61 @@ pub fn selection_exception_inventory()
     selection_exception_inventory_for(SELECTION_EXCEPTIONS, Construction::name)
 }
 
+/// Builds one decision through the real exception-selection algorithm for
+/// cross-crate gate tests.
+///
+/// # Panics
+///
+/// Panics if the sealed fixture stops producing a valid exception-resolved
+/// decision.
+#[doc(hidden)]
+#[cfg(feature = "test-support")]
+pub fn exception_decision_for_test() -> SelectionDecision {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum FixtureConstruction {
+        Left,
+        Right,
+    }
+
+    struct FixtureCandidate {
+        construction: FixtureConstruction,
+        positions: Vec<RulePosition<(), ()>>,
+    }
+
+    const fn name(construction: FixtureConstruction) -> &'static str {
+        match construction {
+            FixtureConstruction::Left => "FixtureLeft",
+            FixtureConstruction::Right => "FixtureRight",
+        }
+    }
+
+    let candidates = [FixtureConstruction::Left, FixtureConstruction::Right]
+        .into_iter()
+        .map(|construction| FixtureCandidate {
+            construction,
+            positions: vec![RulePosition::Nonterminal(())],
+        })
+        .collect();
+    let exceptions = [SelectionException {
+        id: "fixture-left-over-right",
+        left: FixtureConstruction::Left,
+        right: FixtureConstruction::Right,
+        winner: FixtureConstruction::Left,
+        rationale: "authenticate exception evidence propagation",
+    }];
+    let (_, decision) = selection_analysis_with_exceptions(
+        candidates,
+        |candidate| std::slice::from_ref(&candidate.construction),
+        |candidate| structural_specificity(&candidate.positions, |_| false),
+        |construction| name(construction).to_owned(),
+        name,
+        &exceptions,
+    )
+    .expect("the test exception inventory is valid")
+    .into_result_and_decision();
+    decision.expect("the test candidates produce a selection decision")
+}
+
 fn selection_exception_inventory_for<C>(
     exceptions: &[SelectionException<C>],
     construction_name: impl Fn(C) -> &'static str,

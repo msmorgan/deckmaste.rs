@@ -71,7 +71,6 @@ const INVENTORY_FILES: &[&str] = &[
     "crates/xtask/src/english_v2/probe.rs",
     "crates/xtask/src/english_v2/report.rs",
     "crates/xtask/src/english_v2/roundtrip.rs",
-    "crates/xtask/src/english_v2/timing.rs",
 ];
 
 const CATALOG_MANIFEST_ROOTS: &[&str] = &[

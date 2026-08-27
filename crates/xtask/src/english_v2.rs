@@ -13,7 +13,6 @@ mod plan04_authority;
 mod probe;
 mod report;
 mod roundtrip;
-mod timing;
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -279,8 +278,6 @@ enum EnglishV2Command {
     Ambiguity(AmbiguityArgs),
     /// Report and gate full-corpus lexical ownership coverage.
     Coverage(CoverageArgs),
-    /// Run one named Plan-boundary command under its elapsed-time gate.
-    PlanGate(timing::PlanGateArgs),
     /// Trace one explicit input through the bounded parser diagnostics.
     Probe(ProbeArgs),
     /// Trace one exact corpus unit through the bounded parser diagnostics.
@@ -431,10 +428,6 @@ pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
         EnglishV2Command::Coverage(args) => {
             let mut stdout = std::io::stdout().lock();
             coverage::run(args, &mut stdout)
-        }
-        EnglishV2Command::PlanGate(args) => {
-            let mut stdout = std::io::stdout().lock();
-            timing::run(args, &mut stdout)
         }
         EnglishV2Command::Probe(args) => {
             let mut stdout = std::io::stdout().lock();

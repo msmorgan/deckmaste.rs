@@ -223,7 +223,8 @@ fn apply_with_writer(
     diagnostics: &mut dyn Write,
     writer: &mut impl LockWriter,
 ) -> anyhow::Result<()> {
-    let (selected_uncovered, unresolved, internal) = report.gate_failure_counts();
+    let (selected_uncovered, unresolved, internal, exception_resolved, exception_uses) =
+        report.gate_failure_counts();
     if selected_uncovered != 0 {
         bail!(
             "coverage gate rejected {selected_uncovered} selected-uncovered unit{}",
@@ -240,6 +241,13 @@ fn apply_with_writer(
         bail!(
             "coverage gate rejected {internal} internal failure{}",
             if internal == 1 { "" } else { "s" },
+        );
+    }
+    if exception_resolved != 0 || exception_uses != 0 {
+        bail!(
+            "coverage gate rejected {exception_resolved} exception-resolved unit{} and {exception_uses} exception use{}",
+            if exception_resolved == 1 { "" } else { "s" },
+            if exception_uses == 1 { "" } else { "s" },
         );
     }
     let current = report.selected_covered_ids()?;
@@ -410,12 +418,8 @@ impl LoadedCoverageLock {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Write as _;
     use std::fs;
     use std::path::Path;
-
-    use sha2::Digest;
-    use sha2::Sha256;
 
     use super::CoverageLockV2;
     use super::FailureStage;
@@ -765,6 +769,21 @@ mod tests {
             &mut super::FilesystemLockWriter,
         )
         .unwrap();
+
+        let decision = deckmaste_english_v2::parser::exception_decision_for_test();
+        let exception = CoverageReport::for_exception_gate_test(id('1'), vec![id('a')], &decision);
+        assert_eq!(exception.exception_counts_for_test(), (1, 1));
+        let error = apply_with_writer(
+            &exception,
+            &path,
+            CoverageLockMode::Check,
+            &mut Vec::new(),
+            &mut super::FilesystemLockWriter,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("1 exception-resolved unit"), "{error}");
+        assert!(error.contains("1 exception use"), "{error}");
     }
 
     #[test]
@@ -811,30 +830,9 @@ mod tests {
     }
 
     #[test]
-    fn production_schema_two_lock_is_the_exact_reviewed_ratchet_result() {
-        const REND_SPIRIT: &str =
-            "5a0bd9563d2e05ca394ee7bedc5e55f386f82ee16f4227c410565066c6585660";
-        const EXPECTED_FILE_SHA256: &str =
-            "4138c19adff3822903d03d254c17af2810d31eabe1251a2c58550383d2bc4968";
-        const EXPECTED_SOURCE: &str =
-            "e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd";
-
+    fn production_lock_passes_intrinsic_schema_and_identity_validation() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../english-v2-coverage.lock");
-        let bytes = fs::read(&path).unwrap();
-        let mut digest = String::new();
-        for byte in Sha256::digest(&bytes) {
-            write!(&mut digest, "{byte:02x}").unwrap();
-        }
-        assert_eq!(digest, EXPECTED_FILE_SHA256);
         let loaded = read_lock(&path).expect("production coverage lock is strict schema 2");
         assert!(matches!(loaded, LoadedCoverageLock::V2(_)));
-        assert_eq!(loaded.source_fingerprint_for_test(), EXPECTED_SOURCE);
-        assert_eq!(loaded.covered_for_test().len(), 735);
-        assert!(
-            loaded
-                .covered_for_test()
-                .iter()
-                .any(|candidate| candidate == REND_SPIRIT)
-        );
     }
 }

@@ -13,13 +13,15 @@ use deckmaste_english_v2::parser::ParseAnalysis;
 use deckmaste_english_v2::parser::ParseAnalysisOutcome;
 use deckmaste_english_v2::parser::Parser;
 use deckmaste_english_v2::parser::SelectedOwnership as RuntimeSelectedOwnership;
+use deckmaste_english_v2::parser::SelectionDecision;
+use deckmaste_english_v2::parser::SelectionResolution;
 
 use super::CoverageArgs;
 use super::corpus::Corpus;
 use super::corpus::CorpusUnit;
 use super::corpus::map_corpus_units;
 
-const REPORT_SCHEMA_VERSION: u32 = 1;
+const REPORT_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum CoverageLockMode {
@@ -406,6 +408,8 @@ pub(super) struct CoverageRow {
     context_name: String,
     text: String,
     status: CoverageStatus,
+    exception_resolved: bool,
+    exception_uses: usize,
     selected: Option<SelectedCoverage>,
     internal_failure_kind: Option<CoverageInternalFailureKind>,
     message: Option<String>,
@@ -467,6 +471,8 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
     unit: &CorpusUnit,
     outcome: ParseAnalysisOutcome,
     ownership: Option<&Ownership>,
+    exception_resolved: bool,
+    exception_uses: usize,
     message: Option<&str>,
 ) -> CoverageRow {
     let mut row = CoverageRow {
@@ -477,6 +483,8 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
         context_name: unit.context_name().to_owned(),
         text: unit.text().to_owned(),
         status: CoverageStatus::InternalFailure,
+        exception_resolved,
+        exception_uses,
         selected: None,
         internal_failure_kind: None,
         message: message.map(str::to_owned),
@@ -530,6 +538,7 @@ pub(super) fn analysis_row<Ownership: SelectedOwnershipSource>(
 
 fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>) -> CoverageRow {
     let outcome = analysis.outcome();
+    let (exception_resolved, exception_uses) = selection_exception_evidence(analysis.decision());
     let error = analysis
         .clone()
         .into_parse_result()
@@ -544,6 +553,8 @@ fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>
             context_name: unit.context_name().to_owned(),
             text: unit.text().to_owned(),
             status: CoverageStatus::InternalFailure,
+            exception_resolved,
+            exception_uses,
             selected: None,
             internal_failure_kind: Some(
                 CoverageInternalFailureKind::ValidatedRootDidNotMaterialize,
@@ -551,7 +562,23 @@ fn runtime_analysis_row<V: Clone>(unit: &CorpusUnit, analysis: &ParseAnalysis<V>
             message: Some("selected analysis has no selected value".to_owned()),
         };
     }
-    analysis_row(unit, outcome, analysis.ownership(), error.as_deref())
+    analysis_row(
+        unit,
+        outcome,
+        analysis.ownership(),
+        exception_resolved,
+        exception_uses,
+        error.as_deref(),
+    )
+}
+
+fn selection_exception_evidence(decision: Option<&SelectionDecision>) -> (bool, usize) {
+    decision.map_or((false, 0), |decision| {
+        (
+            decision.resolution() == SelectionResolution::Exception,
+            decision.exception_uses().len(),
+        )
+    })
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
@@ -563,6 +590,8 @@ pub(super) struct CoverageSummary {
     parse_failures: usize,
     unresolved_ties: usize,
     internal_failures: usize,
+    exception_resolved: usize,
+    exception_uses: usize,
     roundtrip_mismatch_units: usize,
     ownership_failure_units: usize,
     claims: usize,
@@ -603,6 +632,8 @@ summary_getters!(
     parse_failures,
     unresolved_ties,
     internal_failures,
+    exception_resolved,
+    exception_uses,
     roundtrip_mismatch_units,
     ownership_failure_units,
     claims,
@@ -615,6 +646,14 @@ impl CoverageSummary {
         for row in rows {
             row.validate()?;
             checked_increment(&mut summary.total_units, "total_units")?;
+            if row.exception_resolved {
+                checked_increment(&mut summary.exception_resolved, "exception_resolved")?;
+            }
+            add_field(
+                &mut summary.exception_uses,
+                row.exception_uses,
+                "exception_uses",
+            )?;
             match row.status {
                 CoverageStatus::SelectedCovered => {
                     checked_increment(&mut summary.selected_units, "selected_units")?;
@@ -850,11 +889,13 @@ impl CoverageReport {
         &self.source_fingerprint
     }
 
-    pub(super) const fn gate_failure_counts(&self) -> (usize, usize, usize) {
+    pub(super) const fn gate_failure_counts(&self) -> (usize, usize, usize, usize, usize) {
         (
             self.summary.selected_uncovered_units,
             self.summary.unresolved_ties,
             self.summary.internal_failures,
+            self.summary.exception_resolved,
+            self.summary.exception_uses,
         )
     }
 
@@ -1097,6 +1138,8 @@ impl CoverageRow {
             context_name: "Fixture".to_owned(),
             text: "expected".to_owned(),
             status,
+            exception_resolved: false,
+            exception_uses: 0,
             selected: Some(SelectedCoverage {
                 rendered_text: if roundtrip_failure { "actual" } else { "expected" }.to_owned(),
                 ownership,
@@ -1119,6 +1162,8 @@ impl CoverageRow {
             context_name: "Fixture".to_owned(),
             text: "fixture".to_owned(),
             status,
+            exception_resolved: false,
+            exception_uses: 0,
             selected: None,
             internal_failure_kind: (status == CoverageStatus::InternalFailure)
                 .then_some(CoverageInternalFailureKind::OwnershipInspection),
@@ -1154,6 +1199,8 @@ impl CoverageRow {
             context_name: context_name.to_owned(),
             text: text.to_owned(),
             status,
+            exception_resolved: false,
+            exception_uses: 0,
             selected: Some(SelectedCoverage {
                 rendered_text: rendered.to_owned(),
                 ownership: CoverageOwnership::from_source(summary, failures),
@@ -1194,6 +1241,24 @@ impl CoverageSummary {
 
 #[cfg(test)]
 impl CoverageReport {
+    pub(super) fn for_exception_gate_test(
+        source_fingerprint: String,
+        covered: Vec<String>,
+        decision: &SelectionDecision,
+    ) -> Self {
+        let mut report = Self::for_gate_test(source_fingerprint, covered, 0, 0, 0, 0);
+        let row = report
+            .rows
+            .first_mut()
+            .expect("exception gate fixture requires one covered identity");
+        (row.exception_resolved, row.exception_uses) = selection_exception_evidence(Some(decision));
+        Self::try_new(report.source_fingerprint, report.rows).unwrap()
+    }
+
+    pub(super) const fn exception_counts_for_test(&self) -> (usize, usize) {
+        (self.summary.exception_resolved, self.summary.exception_uses)
+    }
+
     pub(super) fn for_gate_test(
         source_fingerprint: String,
         covered: Vec<String>,
@@ -1234,6 +1299,8 @@ impl CoverageReport {
                 context_name: "Covered".to_owned(),
                 text: String::new(),
                 status: CoverageStatus::SelectedCovered,
+                exception_resolved: false,
+                exception_uses: 0,
                 selected: Some(SelectedCoverage {
                     rendered_text: String::new(),
                     ownership: empty_ownership(),
@@ -1258,6 +1325,8 @@ impl CoverageReport {
                 context_name: "Uncovered".to_owned(),
                 text: String::new(),
                 status: CoverageStatus::SelectedUncovered,
+                exception_resolved: false,
+                exception_uses: 0,
                 selected: Some(SelectedCoverage {
                     rendered_text: String::new(),
                     ownership,
@@ -1495,6 +1564,8 @@ mod tests {
                 summary: valid_summary(false),
                 failures: all_failures(),
             }),
+            false,
+            0,
             None,
         );
         assert_eq!(uncovered.status(), CoverageStatus::SelectedUncovered);
@@ -1562,6 +1633,8 @@ mod tests {
                 summary: valid_summary(true),
                 failures: vec![],
             }),
+            false,
+            0,
             None,
         );
         assert_eq!(covered.status(), CoverageStatus::SelectedCovered);
@@ -1604,6 +1677,8 @@ mod tests {
                 &unit("Failure", "text"),
                 outcome,
                 None,
+                false,
+                0,
                 Some(message),
             );
             assert_eq!(row.status(), status);
@@ -1615,6 +1690,8 @@ mod tests {
             &unit("Missing ownership", "text"),
             ParseAnalysisOutcome::Selected,
             None,
+            false,
+            0,
             None,
         );
         assert_eq!(missing.status(), CoverageStatus::InternalFailure);
@@ -1680,6 +1757,8 @@ mod tests {
                 &unit("Internal", "text"),
                 outcome,
                 None,
+                false,
+                0,
                 Some("message"),
             );
             assert_eq!(
@@ -1761,7 +1840,7 @@ mod tests {
     }
 
     #[test]
-    fn summary_matches_all_twenty_seven_independently_derived_fields() {
+    fn summary_matches_all_twenty_nine_independently_derived_fields() {
         let report = independently_derived_report();
         let summary = report.summary();
         assert_eq!(summary.total_units(), 5);
@@ -1771,6 +1850,8 @@ mod tests {
         assert_eq!(summary.parse_failures(), 1);
         assert_eq!(summary.unresolved_ties(), 1);
         assert_eq!(summary.internal_failures(), 1);
+        assert_eq!(summary.exception_resolved(), 0);
+        assert_eq!(summary.exception_uses(), 0);
         assert_eq!(summary.roundtrip_mismatch_units(), 1);
         assert_eq!(summary.ownership_failure_units(), 1);
         assert_eq!(summary.claims(), 55);
@@ -1786,6 +1867,8 @@ mod tests {
                 "parse_failures": 1,
                 "unresolved_ties": 1,
                 "internal_failures": 1,
+                "exception_resolved": 0,
+                "exception_uses": 0,
                 "roundtrip_mismatch_units": 1,
                 "ownership_failure_units": 1,
                 "claims": 55,
@@ -1814,6 +1897,8 @@ mod tests {
     fn report_and_summary_json_have_the_exact_reviewed_fields() {
         let report = independently_derived_report();
         let json = serde_json::to_value(&report).unwrap();
+        assert_eq!(json["rows"][0]["exception_resolved"], false);
+        assert_eq!(json["rows"][0]["exception_uses"], 0);
         let summary_keys = json["summary"]
             .as_object()
             .unwrap()
@@ -1830,6 +1915,8 @@ mod tests {
                 "parse_failures",
                 "unresolved_ties",
                 "internal_failures",
+                "exception_resolved",
+                "exception_uses",
                 "roundtrip_mismatch_units",
                 "ownership_failure_units",
                 "claims",
@@ -1864,6 +1951,18 @@ mod tests {
                 .into_iter()
                 .collect()
         );
+    }
+
+    #[test]
+    fn real_exception_decision_serializes_row_and_summary_evidence() {
+        let decision = deckmaste_english_v2::parser::exception_decision_for_test();
+        let report = CoverageReport::for_exception_gate_test(id('a'), vec![id('1')], &decision);
+        let json = serde_json::to_value(report).unwrap();
+
+        assert_eq!(json["rows"][0]["exception_resolved"], true);
+        assert_eq!(json["rows"][0]["exception_uses"], 1);
+        assert_eq!(json["summary"]["exception_resolved"], 1);
+        assert_eq!(json["summary"]["exception_uses"], 1);
     }
 
     #[test]

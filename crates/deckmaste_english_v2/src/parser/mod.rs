@@ -112,6 +112,8 @@ pub use ownership::OwnershipSummary;
 pub use ownership::SelectedOwnership;
 pub use selection::SelectionExceptionInfo;
 pub use selection::SelectionExceptionInventoryError;
+#[cfg(feature = "test-support")]
+pub use selection::exception_decision_for_test;
 pub use selection::selection_exception_inventory;
 
 pub use crate::constructions::BuildRejection;
