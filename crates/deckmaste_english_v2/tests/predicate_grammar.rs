@@ -717,12 +717,7 @@ fn prevention_restriction_requirement_permission_exception_and_if_able_remain_li
         "This creature can't attack unless you control a Forest.",
         "This creature can't be blocked except by two or more creatures.",
     ] {
-        assert_selected_with_specificity(
-            &parser,
-            &context,
-            text,
-            text == "This creature attacks each combat if able.",
-        );
+        assert_selected_with_specificity(&parser, &context, text, true);
     }
 
     for crossed in [
@@ -800,7 +795,7 @@ fn declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
     let parser = parser();
     let context = context();
     let text = "Attach target Equipment to target creature.";
-    let ability = assert_selected(&parser, &context, text);
+    let ability = assert_selected_with_specificity(&parser, &context, text, true);
     assert!(matches!(
         imperative_atomic(&parser, &context, text),
         VerbPhrase::DeclaredToObjectPredicate(DeclaredToObjectPredicate { .. })
@@ -819,7 +814,7 @@ fn declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
             ),
             (
                 " target".to_owned(),
-                "form:target_determiner_phrase/target_determiner_phrase/0".to_owned(),
+                "determinative:DeterminativeHead/Target".to_owned(),
             ),
             (
                 " Equipment".to_owned(),
@@ -831,7 +826,7 @@ fn declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
             ),
             (
                 " target".to_owned(),
-                "form:target_determiner_phrase/target_determiner_phrase/0".to_owned(),
+                "determinative:DeterminativeHead/Target".to_owned(),
             ),
             (
                 " creature".to_owned(),
@@ -1205,7 +1200,7 @@ fn negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
         [
             (
                 "Target".to_owned(),
-                "form:target_determiner_phrase/target_determiner_phrase/0".to_owned(),
+                "determinative:DeterminativeHead/Target".to_owned(),
             ),
             (
                 " creature".to_owned(),
@@ -1268,7 +1263,7 @@ fn preposed_duration_attaches_to_finite_and_imperative_bodies() {
         "Until your next turn, target creature gets +1/+1.",
         "Until the end of your next turn, gain 1 life.",
     ] {
-        assert_selected(&parser, &context, text);
+        assert_selected_with_specificity(&parser, &context, text, true);
     }
 
     assert!(
@@ -1469,9 +1464,10 @@ fn shared_transitive_frame_preserves_visit_order_and_literal_claims() {
     assert_eq!(
         visitor.0,
         [
+            "core:Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Sacrifice\" })",
             "declared:Sacrifice",
             "noun:Player",
-            "core:Control",
+            "core:Core(Control)",
             "noun:Player",
         ]
     );
@@ -1498,7 +1494,7 @@ fn shared_transitive_frame_preserves_visit_order_and_literal_claims() {
             (
                 13,
                 20,
-                "form:target_determiner_phrase/target_determiner_phrase/0".to_owned(),
+                "determinative:DeterminativeHead/Target".to_owned(),
             ),
             (20, 27, "lexeme:CommonNoun/Player/singular".to_owned()),
             (
@@ -1510,7 +1506,7 @@ fn shared_transitive_frame_preserves_visit_order_and_literal_claims() {
             (
                 39,
                 46,
-                "form:target_determiner_phrase/target_determiner_phrase/0".to_owned(),
+                "determinative:DeterminativeHead/Target".to_owned(),
             ),
             (46, 53, "lexeme:CommonNoun/Player/singular".to_owned()),
             (
@@ -2377,7 +2373,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         [
             ("It", "vocab:SubjectPronoun/It"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" a", "form:indefinite_reference/a/0"),
+            (" a", "determinative:DeterminativeHead/IndefiniteArticle"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR)
         ]
@@ -2434,7 +2430,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             (" by", "form:blocked_by_status/blocked_by_status/1"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR)
@@ -2447,7 +2443,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             ("It", "vocab:SubjectPronoun/It"),
             (" didn't", "core-verb:Didnt"),
             (" cast", "lexeme:keyword_action/Cast/bare"),
-            (" a", "form:indefinite_reference/a/0"),
+            (" a", "determinative:DeterminativeHead/IndefiniteArticle"),
             (" spell", "lexeme:CommonNoun/Spell/singular"),
             (".", TERMINATOR)
         ]
@@ -2523,7 +2519,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             (" from", "form:from_phrase/from_phrase/0"),
             (
                 " the",
-                "form:definite_singular_reference/definite_singular_reference/0"
+                "determinative:DeterminativeHead/DefiniteArticle"
             ),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (".", TERMINATOR)
@@ -2550,7 +2546,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             "product:DeclaredTransitivePassivePredicateValue"
         ],
         [
-            ("A", "form:indefinite_reference/a/0"),
+            ("A", "determinative:DeterminativeHead/IndefiniteArticle"),
             (" spell", "lexeme:CommonNoun/Spell/singular"),
             (" was", "vocab:FiniteCopula/Was"),
             (" cast", "lexeme:keyword_action/Cast/participle"),
@@ -3009,10 +3005,11 @@ fn reduced_passive_relatives_postmodify_nominal_references() {
     let parser = parser();
     let context = context();
 
-    assert_selected(
+    assert_selected_with_specificity(
         &parser,
         &context,
         "Exile target Equipment attached to that creature.",
+        true,
     );
     assert_selected_with_specificity(
         &parser,
@@ -3159,7 +3156,7 @@ fn subject_gap_relatives_relay_nominal_agreement_into_finite_predicates() {
         "Destroy a creature that would attack.",
         "Destroy all permanents that are legendary.",
     ] {
-        assert_selected(&parser, &context, text);
+        assert_selected_with_specificity(&parser, &context, text, true);
     }
     for text in [
         "Destroy a creature that attack.",
@@ -3183,7 +3180,7 @@ fn determinative_partitives_take_ordinary_reference_phrase_complements() {
         "Put two of those into your hand.",
         "Put the rest on the bottom of your library.",
     ] {
-        assert_selected(&parser, &context, text);
+        assert_selected_with_specificity(&parser, &context, text, true);
     }
     let partitive_head = |text| {
         let predicate = imperative_transitive(&parser, &context, text);
@@ -3542,19 +3539,21 @@ fn where_attachments_take_an_ordinary_finite_clause() {
 }
 
 #[test]
-fn bare_target_nouns_remain_deferred_outside_the_target_determiner() {
+fn target_remains_productive_as_a_determiner_and_a_nominal_modifier() {
     let parser = parser();
     let context = context();
 
-    assert!(
-        parser
-            .parse("This creature deals 1 damage to any target.", &context)
-            .is_err(),
+    assert_selected_with_specificity(
+        &parser,
+        &context,
+        "This creature deals 1 damage to any target.",
+        true,
     );
-    assert_selected(
+    assert_selected_with_specificity(
         &parser,
         &context,
         "This creature deals 1 damage to target creature.",
+        true,
     );
     let coordinated = "Destroy target permanent card or creature card.";
     assert_selected_with_specificity(&parser, &context, coordinated, true);
@@ -4437,7 +4436,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" to", "form:to_phrase/to_phrase/0"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
@@ -4465,7 +4464,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" to", "form:to_phrase/to_phrase/0"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
@@ -4728,7 +4727,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" on", "form:on_phrase/on_phrase/0"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
@@ -4766,7 +4765,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" on", "form:on_phrase/on_phrase/0"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
@@ -4789,7 +4788,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" on", "form:on_phrase/on_phrase/0"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
@@ -4838,7 +4837,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" on", "form:on_phrase/on_phrase/0"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
@@ -4865,7 +4864,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" on", "form:on_phrase/on_phrase/0"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
@@ -4902,19 +4901,20 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Each player sacrifices a creature of their choice.",
         [
             "noun:Player",
+            "verb:Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Sacrifice\" })",
             "declared:Sacrifice",
             "declared:Creature",
             "possessive:Their",
             "noun:Choice"
         ],
         [
-            ("Each", "form:each_reference/each_reference/0"),
+            ("Each", "determinative:DeterminativeHead/Each"),
             (" player", "lexeme:CommonNoun/Player/singular"),
             (
                 " sacrifices",
                 "lexeme:keyword_action/Sacrifice/third_person_singular"
             ),
-            (" a", "form:indefinite_reference/a/0"),
+            (" a", "determinative:DeterminativeHead/IndefiniteArticle"),
             (" creature", "lexeme:type/Creature/singular"),
             (" of", "form:of_phrase/of_phrase/0"),
             (" their", "vocab:PossessiveDeterminerPronoun/Their"),
@@ -4924,11 +4924,17 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Target player discards two cards at random.",
-        ["noun:Player", "declared:Discard", "cardinal:2", "noun:Card"],
+        [
+            "noun:Player",
+            "verb:Declaration(DeclarationIdentity { kind: KeywordAction, name: \"Discard\" })",
+            "declared:Discard",
+            "cardinal:2",
+            "noun:Card"
+        ],
         [
             (
                 "Target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" player", "lexeme:CommonNoun/Player/singular"),
             (
@@ -4954,14 +4960,22 @@ fn target_and_card_name_boundaries_remain_grammatical_and_metadata_governed() {
         "Put two stun counters on two target creatures.",
         true,
     );
-    for malformed in [
+    assert_selected_with_specificity(
+        &parser,
+        &context,
         "Put two stun counters on target creatures.",
-        "Put two stun counters on two target creature.",
+        true,
+    );
+    assert_selected_with_specificity(
+        &parser,
+        &context,
         "Put two stun counters on the target of Context Card.",
-    ] {
+        true,
+    );
+    for malformed in ["Put two stun counters on two target creature."] {
         assert!(
             parser.parse(malformed, &context).is_err(),
-            "target remains a determiner with ordinary number agreement: {malformed:?}",
+            "target determiners and modifiers preserve ordinary number agreement: {malformed:?}",
         );
     }
 
@@ -5109,15 +5123,20 @@ fn typed_complements_reject_reciprocal_agreement_amount_number_and_determiners()
         "Remove a time counter on this card.",
         "Create token.",
         "Target player discards at random two cards.",
-        "Destroy target creatures.",
         "Destroy two target creature.",
-        "Destroy the target of Context Card.",
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
             "malformed reciprocal must reject {text:?}",
         );
     }
+    assert_selected_with_specificity(&parser, &context, "Destroy target creatures.", true);
+    assert_selected_with_specificity(
+        &parser,
+        &context,
+        "Destroy the target of Context Card.",
+        true,
+    );
 }
 
 #[test]
@@ -6340,7 +6359,10 @@ fn cost_position_reuses_the_typed_predicate_algebra() {
                 "Discard".to_owned(),
                 "lexeme:keyword_action/Discard/bare".to_owned(),
             ),
-            (" a".to_owned(), "form:indefinite_reference/a/0".to_owned(),),
+            (
+                " a".to_owned(),
+                "determinative:DeterminativeHead/IndefiniteArticle".to_owned(),
+            ),
             (
                 " card".to_owned(),
                 "lexeme:CommonNoun/Card/singular".to_owned(),
@@ -6645,19 +6667,25 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
 }
 
 #[test]
-fn distribution_does_not_bypass_productive_target_noun_deferral() {
+fn distribution_preserves_target_noun_boundaries() {
     let parser = parser();
     let context = context();
 
-    for text in [
-        "It deals 2 damage divided as you choose among one or two targets.",
+    assert!(
+        parser
+            .parse(
+                "It deals 2 damage divided as you choose among one or two targets.",
+                &context,
+            )
+            .is_err(),
+        "distribution keeps bare target nouns outside the productive target modifier",
+    );
+    assert_selected_with_specificity(
+        &parser,
+        &context,
         "It deals X damage divided evenly, rounded down, among any number of targets.",
-    ] {
-        assert!(
-            parser.parse(text, &context).is_err(),
-            "damage distribution must not mint a context-specific target noun: {text:?}",
-        );
-    }
+        true,
+    );
 }
 
 #[test]

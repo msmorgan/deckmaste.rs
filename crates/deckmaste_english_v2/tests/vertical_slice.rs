@@ -1140,8 +1140,17 @@ fn visitor_reaches_every_vertical_slice_leaf() {
     assert_eq!(
         visitor.verbs,
         vec![
+            VerbInventoryRef::Declaration(DeclarationId::new(
+                DeclarationKind::KeywordAction,
+                "Destroy",
+            )),
+            VerbInventoryRef::Declaration(DeclarationId::new(
+                DeclarationKind::KeywordAction,
+                "Connive",
+            )),
             VerbInventoryRef::Core(CoreVerbIdentity::Deal),
             VerbInventoryRef::Core(CoreVerbIdentity::Gain),
+            VerbInventoryRef::Core(CoreVerbIdentity::Control),
             VerbInventoryRef::Core(CoreVerbIdentity::Deal),
         ]
     );
