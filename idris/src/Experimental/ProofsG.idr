@@ -967,3 +967,11 @@ badVoicelessAct : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Scry" Nothing {vc = ok})
 badVoicelessAct ActiveAct impossible
 badVoicelessAct PassiveAct impossible
+
+
+||| "if you dealt damage to an opponent this turn"
+||| [CR#120.1] gives the dealing to an object and makes that object the damage's source; a player is never what dealt damage.
+public export
+badPlayerDamageDealer : Unspellable (Condition []) (\ok =>
+  Happened DamageDealing You Lookback.ThisTurn Nothing {sb = ok})
+badPlayerDamageDealer MkLookbackSubject impossible

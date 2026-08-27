@@ -242,3 +242,111 @@ sub-round 1** — its pin was architectural and the discard family is 96
 lines, the largest single unblock in the bundle.
 
 Standard constraints apply.
+
+## As landed (2026-08-26)
+
+Both items shipped. Signatures:
+
+- `EventName.DamageDealing` (`Events.idr`) — the general dealer's side, a
+  seventh name beside `DamageTaken` (victim) and `CombatDamage` (combat
+  dealer), per pin 1. **No `GameEvent` row**: both measured frames are
+  retrospective, so the name is read-only, on `LifeGain`/`LifeLoss`'s
+  precedent.
+- `GameEvent.AttacksWith : (who : Noun bs Player) -> (attackers : Noun
+  (nomIntro who) Object) -> {auto 0 zn : ZoneFits (nounZone attackers)
+  (Just Battlefield)} -> GameEvent bs` (`Triggers.idr`), per pin 2. The
+  ticket's `with` is spelled `attackers` — `with` is an Idris keyword.
+
+**CR delta.** The ticket's [CR#508.3d] is the *bare* "Whenever [a player]
+attacks". The row spells "attacks **with**", whose rule is **[CR#508.3c]**
+("Whenever [a player] attacks with [a creature]" — triggers when a creature
+that player controls is declared as an attacker). Blessed; [CR#508.3d] is
+not cited. [CR#120.1] is the dealer-side rule throughout: damage is dealt by
+OBJECTS, and the object that deals it is the source.
+
+**Seven tables for `DamageDealing`** — all stated, none left to a catch-all:
+`sameEventName` (reflexive pair); `eventHasMagnitude = True` ([CR#120.8], and
+attested: four "where X is the amount of damage it/this creature/those
+creatures dealt to that player" lines); `lookbackSubjectOk Object = True`,
+`Player = False` ([CR#120.1] — no rule anywhere has a player deal damage;
+`rule-search` for "a player deals" returns nothing); `lookbackComplementOk
+Object Object = True`, `Object Player = True`, else `False`;
+`bareLookbackOk Object = True`; `interceptOk = True` ([CR#614.1] — stated,
+unreached, since no prospective row exists); `spanEventOk = True`
+(uncited — the claim is about the duration vocabulary, not the CR).
+
+**Four tables for `AttacksWith`**: `eventName = AttackDeclaration` (no new
+name); `eventIntro = nomIntro attackers`; `eventAfter = nomIntro attackers`
+(pin 3 — the attackers are announced, and `who` rides in scope because
+`attackers` is typed at `nomIntro who`); `eventSubjectPlur = nounPlur who`.
+`delayedCtx` and `Interceptable` derive. `lookbackSubjectOk
+AttackDeclaration Player` and `lookbackComplementOk AttackDeclaration Player
+Object` already stood — the retrospective seat needed nothing, as §4 said.
+
+**Corpus, re-measured** (supported faces, `jq 'select(.supported)'`):
+
+- Dealer-subject damage: **19 lines / 19 cards**, above the parent's 17 and
+  above §3's 14 — §3 counted only `"dealt damage to"`, missing the bare
+  form. 13 write the recipient (8 `Predicate`, 5 `Condition`); **6 write it
+  bare** — Avenging Arrow, Case of the Burning Masks, Executioner's Swing,
+  Red Guardian Super-Soldier, Restore the Peace, Treacherous Greed — which
+  is why `bareLookbackOk` is `True` on attestation rather than tolerated.
+  Complement kinds: Player 8 ("to you", "to an opponent"), Object 5 ("to
+  it", "to this creature", "to another creature").
+- **§3 miscounts The Fallen.** "each opponent and planeswalker it has dealt
+  damage to this game" is a relative clause on the VICTIM, not the dealer:
+  `DamageTaken` with a `Player \/ Object` subject and an Object complement.
+  Ledgered below; not this name's cell.
+- Joined complement for `DamageDealing` (the §4 re-measure trigger):
+  **zero** — no dealer-side line writes "to X or Y". The name takes the
+  table's own refusal of a joined complement; the cross-table question stays
+  where `workbench-union-family-macros` routed it.
+- Player-subject attack: **55 header lines** confirmed exactly.
+
+**Witnesses** (`Experimental/Cards.idr`): `reciprocate` (whole card, {W}
+instant — the `Predicate` frame, Player complement); `whirlingDervish`
+(whole card — the `Condition` frame, the other complement kind);
+`militaryIntelligence` (whole card, {1}{U} — `AttacksWith You`);
+`aureliaTheLawAbove` (whole card, both triggers — `AttacksWith (a
+AnyPlayer)`, the described-player subject that makes the seat a player one);
+`tahngarthHeader` (header only, `AttacksWith anOpponent` — its tail is the
+sibling's, per §3).
+
+**Pin.** `badPlayerDamageDealer` (`ProofsG.idr`) — "if you dealt damage to
+an opponent this turn", refused at `LookbackSubject` on [CR#120.1]. The
+round's one rules-impossible refusal.
+
+**Deviation.** `whirlingDervish` writes the self-reference where the card
+prints "it": `condDelta (Happened _ _ _ _) = []`, so an intervening
+condition announces no mention for the body to read back. Recorded in the
+bench docstring and ledgered below.
+
+**Ledger — needs routing.**
+
+1. **Prospective dealer-side damage.** No `GameEvent` row spells "Whenever
+   [source] deals damage to [X]" outside combat; `DamageDealing` is
+   read-only, which is why its `interceptOk`/`spanEventOk` cells are stated
+   and unreached. Unmeasured here (out of §2's scope) — needs its own count
+   before a row.
+2. **`DamageTaken` with a joined-kind subject.** The Fallen's line needs
+   `lookbackComplementOk DamageTaken (Player \/ Object) Object`; the table
+   refuses every joined seat. Same family as the joined-complement item
+   already on `workbench-union-family-macros`.
+3. **An intervening condition announces nothing.** `condDelta` is `[]` at
+   `Happened`, so a body's "it" cannot reach the condition's subject. Costs
+   the printed anaphor on Whirling Dervish and its twin Dunerider Outlaw.
+4. **The 55's richer tails** (recorded, not built, per the §1.5 fence): the
+   counted-group "create that many … tokens" (Rabble Rousing, Screaming
+   Swarm, Varina), "the greatest power among those creatures" (Shriekwood
+   Devourer) and "their total power" (Witch-king) — superlative and total
+   over the group `eventAfter` now announces. The announcement is in place;
+   the readers are not.
+5. Tahngarth's two tail items stay on
+   `workbench-combat-assignment-and-forced-attack`, unchanged.
+
+**Gates.** `idris/scripts/build` clean 23/23, 0 errors / 0 warnings (from a
+removed `build/`). `cite check --list-noncompliant` empty; `cite check` 0
+stale of 17505; `cite bless` registered [CR#508.3c] (read against its
+claim); `jj diff --git | cite audit --diff` read on all 11 sites — one cite
+dropped in the process ([CR#120.1] on `spanEventOk`, which the rule did not
+support).

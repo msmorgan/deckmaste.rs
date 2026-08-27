@@ -34,6 +34,13 @@ data EventName = Death | Departure | Destruction | DamageTaken
                | DiceRoll
                | CostPayment | CostNonpayment
                | LifePayment
+               -- the DEALER's side of damage in general, which neither
+               -- `DamageTaken` (the victim's side) nor `CombatDamage`
+               -- (the combat dealer's) names. [CR#120.1] makes the object
+               -- that deals damage the SOURCE of it, so the two sides are
+               -- two events on `CombatDamage`'s own precedent, and not
+               -- one event under a `Role` slot.
+               | DamageDealing
                -- the EVENT reading of a keyword action, named by the act
                -- rather than by the transition it entails. The label is
                -- carried HERE rather than lifted into a row per verb:
@@ -124,6 +131,8 @@ sameEventName BlockDeclaration BlockDeclaration = True
 sameEventName BlockDeclaration _ = False
 sameEventName CombatDamage CombatDamage = True
 sameEventName CombatDamage _ = False
+sameEventName DamageDealing DamageDealing = True
+sameEventName DamageDealing _ = False
 sameEventName PartBeginning PartBeginning = True
 sameEventName PartBeginning _ = False
 sameEventName SpellCast SpellCast = True
@@ -203,6 +212,10 @@ interceptOk ChapterArrival = False
 -- is a thing that would happen -- Bruvac the Grandiloquent's "if an
 -- opponent would mill one or more cards".
 interceptOk (VerbedAct _) = True
+-- [CR#614.1] replaces an event that WOULD happen, and damage a source
+-- would deal is that event. No prospective row spells the dealer's side
+-- today, so the cell is stated rather than reached.
+interceptOk DamageDealing = True
 interceptOk _ = True
 
 ||| One phrase, one slot: `Until (StartOf …)` already spells a turn
@@ -213,6 +226,9 @@ spanEventOk PartBeginning = False
 -- an act is a moment, so "until [who] discards a card" spells an endpoint
 -- nothing else already writes.
 spanEventOk (VerbedAct _) = True
+-- "until [source] deals damage" is an endpoint no turn-part phrase
+-- already spells.
+spanEventOk DamageDealing = True
 spanEventOk _ = True
 
 ||| Which events HAPPEN in an amount, for the summed lookback to read:
@@ -228,6 +244,9 @@ public export
 eventHasMagnitude : EventName -> Bool
 eventHasMagnitude DamageTaken = True
 eventHasMagnitude CombatDamage = True
+-- the same number read from the dealer's side; [CR#120.8] makes a
+-- 0-damage deal no event there either.
+eventHasMagnitude DamageDealing = True
 eventHasMagnitude LifeGain = True
 eventHasMagnitude LifeLoss = True
 eventHasMagnitude Death = False
@@ -308,6 +327,11 @@ lookbackSubjectOk BlockDeclaration Object = True
 lookbackSubjectOk BlockDeclaration Player = False
 lookbackSubjectOk CombatDamage Object = True
 lookbackSubjectOk CombatDamage Player = False
+-- "target creature that dealt damage to you this turn". [CR#120.1] gives
+-- the dealing to an object and names no other dealer, so a player is
+-- never what dealt damage.
+lookbackSubjectOk DamageDealing Object = True
+lookbackSubjectOk DamageDealing Player = False
 lookbackSubjectOk PartBeginning Object = True
 lookbackSubjectOk PartBeginning Player = True
 lookbackSubjectOk SpellCast Object = False
@@ -400,6 +424,13 @@ lookbackComplementOk DamageTaken Player Object = True
 lookbackComplementOk DamageTaken _ _ = False
 lookbackComplementOk CombatDamage Object Player = True
 lookbackComplementOk CombatDamage _ _ = False
+-- the dealer's side names its recipient, which [CR#120.1] opens to a
+-- battle, creature or planeswalker as well as a player -- "dealt damage
+-- to it", "dealt damage to you". No dealer-side line writes a joined
+-- complement, so this name takes the table's own refusal of one.
+lookbackComplementOk DamageDealing Object Object = True
+lookbackComplementOk DamageDealing Object Player = True
+lookbackComplementOk DamageDealing _ _ = False
 lookbackComplementOk AttackDeclaration Player Object = True
 lookbackComplementOk AttackDeclaration Player Player = True
 lookbackComplementOk AttackDeclaration Object Player = True
@@ -454,6 +485,10 @@ bareLookbackOk AbilityActivation Player = False
 -- either way.
 bareLookbackOk (VerbedAct v) Player = not (actNamesPatient v)
 bareLookbackOk (VerbedAct _) Object = True
+-- "target creature that dealt damage this turn", with the recipient
+-- dropped, still names the event: [CR#120.1] makes every deal a deal to
+-- something, so nothing is left indeterminate by leaving it out.
+bareLookbackOk DamageDealing Object = True
 bareLookbackOk _ _ = True
 
 public export

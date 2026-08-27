@@ -3228,7 +3228,7 @@ ragingRavine =
                                          [ Macros.triggered Whenever
                                                             (Macros.attacks Macros.thisCreature)
                                                             (PutCounters (Lit 1)
-                                                                  (PrintedKind Macros.plusOnePlusOne) It) ]
+                                                                  (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature) ]
                                          Nothing)
                                 (Just Land))
                       (Just Macros.untilEndOfTurn)) ]
@@ -9602,3 +9602,95 @@ lilianasCaress =
                         (Just (Macros.a (InZone Macros.handZ))))
            (ChangeLife They (Down (Lit 2))) ]
        Nothing
+
+||| Reciprocate -- "Exile target creature that dealt damage to you this
+||| turn." The dealer-side damage read at its plainest, and the whole
+||| card: the described creature is what dealt the damage, "you" is what
+||| took it, and [CR#120.1] gives the dealing to the object alone.
+public export
+reciprocate : Card
+reciprocate =
+  Macros.card "Reciprocate" (Just [Macros.pip White]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Macros.exile
+                  (Macros.target
+                     (And [Macros.creature,
+                           Macros.happenedToInvolving DamageDealing
+                                                      Lookback.ThisTurn
+                                                      You]))) ]
+       Nothing
+
+||| Whirling Dervish -- "Protection from black / At the beginning of each
+||| end step, if this creature dealt damage to an opponent this turn, put
+||| a +1/+1 counter on it." The same event in the CONDITION frame, and
+||| the other complement kind. The body writes the self-reference rather
+||| than the printed "it": an intervening condition announces nothing
+||| (`condDelta` is empty at `Happened`), so the mention the printed
+||| anaphor reads back is not there to read.
+public export
+whirlingDervish : Card
+whirlingDervish =
+  Macros.card "Whirling Dervish" (Just [Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Human", creatureType "Monk"] [Creature])
+       [ Macros.keywordQuality "Protection" (ColorIs Black)
+       , Macros.triggeredIf At
+           (BeginningOf EndStep (ByWord EachPlayers))
+           (Macros.happenedInvolving DamageDealing Macros.thisCreature
+                                     Lookback.ThisTurn Macros.anOpponent)
+           (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature) ]
+       (Just (1, 1))
+
+||| Military Intelligence -- "Whenever you attack with two or more
+||| creatures, draw a card." The player-subject attack's whole card, and
+||| the family's plainest member: the subject is the attacking player and
+||| the attackers are the complement [CR#508.3c].
+public export
+militaryIntelligence : Card
+militaryIntelligence =
+  Macros.card "Military Intelligence"
+       (Just [Macros.generic 1, Macros.pip Blue]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered Whenever
+           (AttacksWith You (CountedGroup (Macros.atLeast 2) Macros.creature))
+           Macros.drawACard ]
+       Nothing
+
+||| Aurelia, the Law Above -- "Flying, vigilance, haste / Whenever a
+||| player attacks with three or more creatures, you draw a card. /
+||| Whenever a player attacks with five or more creatures, Aurelia deals
+||| 3 damage to each of your opponents and you gain 3 life." The subject
+||| written as a described player rather than "you", which is what makes
+||| the seat a player one and not a second spelling of `Attacks`.
+public export
+aureliaTheLawAbove : Card
+aureliaTheLawAbove =
+  Macros.card "Aurelia, the Law Above"
+       (Just [Macros.generic 3, Macros.pip Red, Macros.pip White]) [Legendary]
+       (MkTypeLine [creatureType "Angel"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.keyword "Vigilance"
+       , Macros.keyword "Haste"
+       , Macros.triggered Whenever
+           (AttacksWith (Macros.a AnyPlayer)
+                        (CountedGroup (Macros.atLeast 3) Macros.creature))
+           Macros.drawACard
+       , Macros.triggered Whenever
+           (AttacksWith (Macros.a AnyPlayer)
+                        (CountedGroup (Macros.atLeast 5) Macros.creature))
+           (Sequentially [ DealDamage This (Lit 3) (Each Opponent)
+                         , Macros.gainsLife You (Lit 3) ]) ]
+       (Just (4, 4))
+
+||| Tahngarth, First Mate's header alone -- "Whenever an opponent attacks
+||| with one or more creatures". The routed line that motivated the row.
+||| Its TAIL does not write: "choose a player or planeswalker that
+||| opponent is attacking" needs a description of a defender by what
+||| attacks it, and "Tahngarth is attacking that player or planeswalker"
+||| an assignment of an attacker to one, both of which stayed on
+||| `workbench-combat-assignment-and-forced-attack`. The card's blockers,
+||| not the row's.
+public export
+tahngarthHeader : GameEvent []
+tahngarthHeader =
+  AttacksWith Macros.anOpponent
+              (CountedGroup (Macros.atLeast 1) Macros.creature)

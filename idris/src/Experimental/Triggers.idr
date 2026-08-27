@@ -232,6 +232,26 @@ mutual
               (whom : AttackDefender (nomIntro n)) ->
               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
               GameEvent bs
+    ||| "Whenever you attack with one or more creatures", "Whenever a
+    ||| player attacks with five or more creatures": the same attack
+    ||| declaration read from the ATTACKING PLAYER's side. [CR#508.3c]
+    ||| states this header in the rules' own words and triggers it when a
+    ||| creature that player controls is declared as an attacker, so the
+    ||| player subject is the rules' own reading and not a paraphrase of
+    ||| `Attacks`.
+    ||| A second row and not a `Kind` on `Attacks`'s subject: that
+    ||| subject carries a battlefield gate and threads an
+    ||| `AttackDefender` on its own `nomIntro`, and this one has neither.
+    ||| [CR#508.1b] announces a defender per attacking CREATURE, and this
+    ||| header names the attackers where that slot would go.
+    ||| It announces those attackers, which the body reads back ("put a
+    ||| +1/+1 counter on each of them", "untap up to X lands, where X is
+    ||| the greatest power among those creatures").
+    ||| -- spelling: "[who] attack(s) with [attackers]"
+    AttacksWith : (who : Noun bs Player) ->
+                  (attackers : Noun (nomIntro who) Object) ->
+                  {auto 0 zn : ZoneFits (nounZone attackers) (Just Battlefield)} ->
+                  GameEvent bs
     Blocks : (n : Noun bs Object) ->
              (what : Maybe (Noun (nomIntro n) Object)) ->
              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -420,6 +440,7 @@ mutual
   eventName (LosesGame _) = GameLoss
   eventName (Enters _) = Entry
   eventName (Attacks _ _) = AttackDeclaration
+  eventName (AttacksWith _ _) = AttackDeclaration
   eventName (Blocks _ _) = BlockDeclaration
   eventName (BecomesBlocked _ _) = BlockedDeclaration
   eventName (DealsCombatDamage _ _) = CombatDamage
@@ -456,6 +477,7 @@ mutual
   eventIntro (Enters n) = nomIntro n
   eventIntro (Attacks n NoDefender) = nomIntro n
   eventIntro (Attacks _ (OneDefender whom)) = nomIntro whom
+  eventIntro (AttacksWith _ attackers) = nomIntro attackers
   eventIntro (Blocks n Nothing) = nomIntro n
   eventIntro (Blocks _ (Just what)) = nomIntro what
   eventIntro (BecomesBlocked n Nothing) = nomIntro n
@@ -510,6 +532,7 @@ mutual
   eventAfter (Enters n) = moveIntro Nothing n (Just Battlefield)
   eventAfter (Attacks n NoDefender) = selfSubjIntro n
   eventAfter (Attacks n (OneDefender whom)) = nounDelta whom ++ selfSubjIntro n
+  eventAfter (AttacksWith _ attackers) = nomIntro attackers
   eventAfter (Blocks n Nothing) = selfSubjIntro n
   eventAfter (Blocks _ (Just what)) = nomIntro what
   eventAfter (BecomesBlocked n Nothing) = selfSubjIntro n
@@ -556,6 +579,7 @@ mutual
   eventSubjectPlur (LosesGame who) = nounPlur who
   eventSubjectPlur (Enters n) = nounPlur n
   eventSubjectPlur (Attacks n _) = nounPlur n
+  eventSubjectPlur (AttacksWith who _) = nounPlur who
   eventSubjectPlur (Blocks n _) = nounPlur n
   eventSubjectPlur (BecomesBlocked n _) = nounPlur n
   eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
