@@ -534,11 +534,23 @@ noun phrases supply partitives, possessives, locatives, modifiers, and
 predicative nominals rather than resource-, zone-, controller-, or
 card-kind-specific categories.
 
-`target` remains a determiner. Productive noun uses such as *the target of*
-and *new targets* remain a named later boundary; admitting them requires an
-ordinary common-noun entry plus the already-ruling
-`common_noun_modifier` guard, not a damage-, distribution-, or
-counter-specific escape hatch.
+**Target-as-noun amendment (2026-08-27):** `target` remains a determiner.
+This supersedes the 2026-08-26 sentence that made admitting productive noun
+uses conditional on the `common_noun_modifier` guard. Admitting *the target
+of* and *new targets* is a lexicon change, not a grammar change: pin one
+`Determinative` lexical category and one `Det + Nominal` frame — with the
+multiword quantifying determiners as a second frame over the same nominal —
+then add an ordinary `CommonNoun::Target` entry and let the noun uses fall out
+of the frames. A singular count nominal in argument position already requires
+a determiner, so the bare-compound rival parse is excluded by machinery the
+grammar already has, and the guard's stated justification (preventing a
+targeted-NP *semantic* category) belongs to the downstream layer this
+amendment set assigns it to. A general rule never names a specific lexeme: if
+the corpus produces a genuine tie, the residual restriction is declaration or
+lexeme metadata — a compoundability feature on the noun entry, checked
+generically by the compounding rule — never a `require` naming `target` or any
+other word. Damage-, distribution-, and counter-specific escape hatches remain
+forbidden.
 
 Declaration-backed noun recipes have explicit, category-safe declaration-kind
 domains and, for subtypes, exact subtype-family domains. More than one such

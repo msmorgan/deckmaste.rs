@@ -55,7 +55,7 @@ The common corpus-analysis path is carried by the planned performance work.
 
 Unfiltered construction-core, construction, and English-v2 tests passed,
 including doctests. Strict all-target Clippy passed for those crates and
-xtask. Citation checks found zero noncompliant strings and validated 16,668
+xtask. Citation checks found zero noncompliant strings and validated 17,637
 citations with zero stale. The final review removed the remaining literal
 closed-morphology inventory mirror; source-derived axis completeness and
 independent irregular witnesses remain.

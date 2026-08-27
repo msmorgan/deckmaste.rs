@@ -9,10 +9,26 @@ Every accepted unit remains byte-exact, totally owned, and selected without
 ties or exceptions; final acceptance is 100% of the normalized corpus.
 
 Restore productive noun uses of target as an ordinary common noun while
-retaining determiner target. The noun path must implement the recorded
-common_noun_modifier guard so the two lexical roles cannot collapse into a
-targeted-NP semantic category. Re-cover these 49 identities retired at the
-Plan 09 boundary:
+retaining determiner target. Do this as a lexicon change on top of a pinned
+determiner system, not as a new guard: pin one Determinative lexical category
+(a/an, the, this, that, those, another, each, all, both, no, target, other
+target) and one Det + Nominal frame, with the multiword quantifying
+determiners (up to N, any number of, one or more, no more) as a second frame
+over the same nominal, then add CommonNoun::Target and let the noun uses fall
+out of those frames. That collapses the eight bare "target" literals and much
+of the 41-construction UnqualifiedReference sprawl in the same move.
+
+Do not implement the common_noun_modifier guard. A general rule never names a
+specific lexeme, and the bare-compound rival parse is already excluded because
+a singular count nominal in argument position requires a determiner. If the
+corpus then produces a genuine tie, the residual restriction is declaration or
+lexeme metadata — a compoundability feature on the noun entry, checked
+generically by the compounding rule — never a require naming a lexeme. Ruling:
+docs/decisions/english-v2-rewrite.md, target-as-noun amendment (2026-08-27).
+
+Re-cover these 49 identities retired at the Plan 09 boundary; the closing lock
+must contain all 49 (verify by comm against this list) and the list travels
+into done/ verbatim:
 
 ~~~text
 047a2aef7b3dad96a22d710fa59da8baa5fb478249dd57e1422dcc486f0cb900
@@ -79,16 +95,50 @@ Remove the following known game-semantic grammar islands:
   keep structured printed P/T notation as notation rather than semantics.
 - ControlPostmodifier encodes a compositional PP as a controller role.
   Hoist one shared under PP whose complement is an ordinary possessive noun
-  phrase or mass-noun phrase, and let movement/resultative frames consume that
-  constituent.
+  phrase or mass-noun phrase, and let the shared declared-valence frames
+  consume that constituent. The lexicalised movement and resultative frames do
+  not survive to consume it — see the verb work below.
 - Status and FaceOrientation partition ordinary predicative complements
   by MTG state. Replace them with general adjective and declared-participial
   predicative complements plus ordinary compositional by PPs.
 
-An external overfitting audit is scheduled. These four findings are a floor,
-not a census: audit the remaining grammar against the ADR rule that corpus
-examples prove linguistic constructions but never authorize semantic islands,
-and remove every additional violation it finds.
+The external overfitting audit has run. The four islands above are its floor;
+below are the three mechanisms underneath them, which are the scheduled work.
+Anything else the same rule catches — a general rule naming a specific lexeme,
+a lexicalised frame duplicating an open declared-valence frame, a require-guard
+transcribing a corpus census — is in scope for removal in the same pass.
+
+**Verb gating and lexicalised verb frames — one work item, not two.** All 17
+verb codecs are gated kinds = [KeywordAction], so a verb reaches the productive
+declared-valence machinery if and only if the Comprehensive Rules define it as
+a keyword action. Every ordinary English verb is therefore a hardcoded lexeme
+needing a hand-written construction per frame, which is what produced the ~35
+lexicalised one-verb VerbPhrase constructions. Dissolve the gate so ordinary
+declared verbs enter the machinery, and dissolve all ~35 constructions into the
+shared declared-valence frames in the same move. The damage/resource/card/
+counter half is the first island bullet above; the unscheduled remainder is the
+17 movement, possession and zone frames: put_into, put_onto, put_on, put_to,
+return_to, enter_location, enter_control, enter_resultative,
+enter_with_counters, leave_location, look_at, ordered_predicate,
+have_object_control, have_life, have_base_power_toughness,
+get_power_toughness, quoted_ability_predicate. Doing either half alone is a
+STOP: declaring Put with ObjectIntoObject valence while put_into still exists
+makes both match "put it into your graveyard" and the selection gate reports a
+genuine tie. Acceptance: no VerbPhrase construction is closed over a single
+verb lexeme, and the linguistic frames (V NP, V NP PP, V NP PP PP, V NP
+XP-resultative, V NP NP) are each one construction.
+
+**Missing declaration-kind consumers.** KeywordAbility, CounterKind and
+Designation are real DeclarationKind variants with zero construction
+consumers, and that absence is what forces the hand-written closed
+vocabularies. Add the codecs alongside the existing eight and mint the stub
+declarations; the vocabularies then have a home and the whitelists fall out
+rather than being replaced. Do this before the CounterName bullet above:
+deleting the vocabularies without the codecs re-grows them the next time a
+closed game vocabulary is needed. Acceptance: every DeclarationKind variant has
+a construction consumer, and CounterName, CounterfactualAbility, Status,
+FaceOrientation, PredicativeAdjective and the token NonCommonNoun are gone from
+the grammar as hand-written vocabulary.
 
 No per-task evidence, corpus-text copy, selected-ID function, snapshot, or
 plan-specific verifier may enter tracked source. Corpus work remains routine
