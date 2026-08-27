@@ -2717,7 +2717,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 99);
+        assert_eq!(keys.len(), 100);
         assert_representative_agreement_match(&first);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,

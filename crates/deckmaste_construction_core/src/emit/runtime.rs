@@ -2408,7 +2408,7 @@ mod tests {
                 format!("const CATEGORY : Category = Category :: {self_ty}"),
                 format!("const NAME : & 'static str = \"{self_ty}\""),
                 format!("const EOI : bool = {eoi}"),
-                format!("BuildValue :: {self_ty} (value) => Some (value)"),
+                format!("BuildValue :: {self_ty} (value , _) => Some (value)"),
                 "_ => None".to_owned(),
             ] {
                 assert!(
@@ -2478,18 +2478,18 @@ mod tests {
         assert_eq!(
             variants,
             [
-                ("Choice".to_owned(), vec!["Choice".to_owned()]),
+                ("Choice".to_owned(), vec!["Choice".to_owned(), "FeatureConstraint < Onset >".to_owned()]),
                 ("Holder".to_owned(), vec!["Holder".to_owned()]),
                 (
                     "RecursiveChoice".to_owned(),
-                    vec!["RecursiveChoice".to_owned()],
+                    vec!["RecursiveChoice".to_owned(), "FeatureConstraint < Onset >".to_owned()],
                 ),
                 (
                     "RecursiveBranch".to_owned(),
                     vec!["RecursiveBranch".to_owned()],
                 ),
-                ("LeftNode".to_owned(), vec!["LeftNode".to_owned()]),
-                ("RightNode".to_owned(), vec!["RightNode".to_owned()]),
+                ("LeftNode".to_owned(), vec!["LeftNode".to_owned(), "FeatureConstraint < Onset >".to_owned()]),
+                ("RightNode".to_owned(), vec!["RightNode".to_owned(), "FeatureConstraint < Onset >".to_owned()]),
                 (
                     "HolderMaybeOptional".to_owned(),
                     vec!["Option < LeftNode >".to_owned()],

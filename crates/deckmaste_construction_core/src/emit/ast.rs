@@ -1974,6 +1974,8 @@ mod tests {
                 "ActionStem",
                 "Agreement",
                 "Cardinality",
+                "Compoundability",
+                "ModifierLicense",
                 "DeterminerNumber",
                 "FusedHeadLicense",
                 "NominalForm",

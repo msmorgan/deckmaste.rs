@@ -2148,6 +2148,7 @@ mod tests {
             }
             construction only: Root {
                 element Only { head: lex DeterminativeHead, }
+                derive number = Values::Singular;
                 form only = lex(head);
             }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }

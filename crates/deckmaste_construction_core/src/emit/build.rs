@@ -2837,7 +2837,15 @@ fn lower_feature_guards(
         if feature != source_feature {
             continue;
         }
-        let target_field = row.field(&identifier_key(field))?;
+        let Some(target_field) = row
+            .fields()
+            .iter()
+            .find(|candidate| candidate.name_key() == identifier_key(field))
+        else {
+            // Form slots such as `verb` carry a feature equation but have no
+            // stored construction field to guard during materialization.
+            continue;
+        };
         if target_field.is_zeroable() {
             let optional = lowering
                 .field_values
@@ -4159,78 +4167,69 @@ mod tests {
         let items = super::emit(&plan).expect("invariant build fixture emits");
 
         for (rule, expected) in [
-            (
-                "ChildRecursive",
-                syn::parse_quote! {
-                    RuleId::ChildRecursive => match children {
-                        [
-                            BuildValue::Child(child),
-                            BuildValue::Leaf(Leaf::Mode(mode))
-                        ] => RecursiveNode::try_new(Box::new(child.clone()), *mode)
-                            .map(Child::Recursive)
-                            .map(BuildValue::Child)
+            ("ChildRecursive", syn::parse_quote! {
+                RuleId::ChildRecursive => match children {
+                    [BuildValue::Child(child, child_following_onset), BuildValue::Leaf(Leaf::Mode(mode))]
+                        if match *child_following_onset {
+                            FeatureConstraint::Any => true,
+                            FeatureConstraint::Exact(expected) => expected == match mode {
+                                Mode::One => Onset::Consonant,
+                                Mode::Two => Onset::Consonant,
+                            },
+                        } => RecursiveNode::try_new(Box::new(child.clone()), *mode)
+                            .map(|recursive| { BuildValue::Child(Child::Recursive(recursive), FeatureConstraint::<Onset>::Any) })
                             .map(Some),
-                        _ => Ok(None),
-                    }
-                },
-            ),
-            (
-                "RootCategoryGuarded",
-                syn::parse_quote! {
-                    RuleId::RootCategoryGuarded => match children {
-                        [
-                            BuildValue::Child(child)
-                        ] => CategoryGuarded::try_new(child.clone())
-                            .map(Root::CategoryGuarded)
-                            .map(BuildValue::Root)
+                    _ => Ok(None),
+                }
+            }),
+            ("RootCategoryGuarded", syn::parse_quote! {
+                RuleId::RootCategoryGuarded => match children {
+                    [BuildValue::Child(child, child_following_onset)]
+                        if match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
+                            (FeatureConstraint::Any, _) | (_, FeatureConstraint::Any) => true,
+                            (FeatureConstraint::Exact(left), FeatureConstraint::Exact(right)) => left == right,
+                        } => CategoryGuarded::try_new(child.clone())
+                            .map(|category_guarded| { BuildValue::Root(Root::CategoryGuarded(category_guarded), match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
+                                (FeatureConstraint::Any, right) => right,
+                                (left, FeatureConstraint::Any) => left,
+                                (FeatureConstraint::Exact(left), FeatureConstraint::Exact(_)) => FeatureConstraint::Exact(left),
+                            }) })
                             .map(Some),
-                        _ => Ok(None),
-                    }
-                },
-            ),
-            (
-                "RootVocabGuarded",
-                syn::parse_quote! {
-                    RuleId::RootVocabGuarded => match children {
-                        [
-                            BuildValue::Leaf(Leaf::Mode(mode))
-                        ] => VocabGuarded::try_new(*mode)
-                            .map(Root::VocabGuarded)
-                            .map(BuildValue::Root)
+                    _ => Ok(None),
+                }
+            }),
+            ("RootVocabGuarded", syn::parse_quote! {
+                RuleId::RootVocabGuarded => match children {
+                    [BuildValue::Leaf(Leaf::Mode(mode))] => VocabGuarded::try_new(*mode)
+                        .map(|vocab_guarded| { BuildValue::Root(Root::VocabGuarded(vocab_guarded), FeatureConstraint::<Onset>::Any) })
+                        .map(Some),
+                    _ => Ok(None),
+                }
+            }),
+            ("RootDnfGuarded", syn::parse_quote! {
+                RuleId::RootDnfGuarded => match children {
+                    [BuildValue::Leaf(Leaf::Mode(mode)), BuildValue::Child(child, child_following_onset)]
+                        if match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
+                            (FeatureConstraint::Any, _) | (_, FeatureConstraint::Any) => true,
+                            (FeatureConstraint::Exact(left), FeatureConstraint::Exact(right)) => left == right,
+                        } => DnfGuarded::try_new(*mode, child.clone())
+                            .map(|dnf_guarded| { BuildValue::Root(Root::DnfGuarded(dnf_guarded), match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
+                                (FeatureConstraint::Any, right) => right,
+                                (left, FeatureConstraint::Any) => left,
+                                (FeatureConstraint::Exact(left), FeatureConstraint::Exact(_)) => FeatureConstraint::Exact(left),
+                            }) })
                             .map(Some),
-                        _ => Ok(None),
-                    }
-                },
-            ),
-            (
-                "RootDnfGuarded",
-                syn::parse_quote! {
-                    RuleId::RootDnfGuarded => match children {
-                        [
-                            BuildValue::Leaf(Leaf::Mode(mode)),
-                            BuildValue::Child(child)
-                        ] => DnfGuarded::try_new(*mode, child.clone())
-                            .map(Root::DnfGuarded)
-                            .map(BuildValue::Root)
-                            .map(Some),
-                        _ => Ok(None),
-                    }
-                },
-            ),
-            (
-                "RootContextGuarded",
-                syn::parse_quote! {
-                    RuleId::RootContextGuarded => match children {
-                        [
-                            BuildValue::Leaf(Leaf::SelfReference(context_2))
-                        ] => ContextGuarded::try_new(*context_2, context)
-                            .map(Root::ContextGuarded)
-                            .map(BuildValue::Root)
-                            .map(Some),
-                        _ => Ok(None),
-                    }
-                },
-            ),
+                    _ => Ok(None),
+                }
+            }),
+            ("RootContextGuarded", syn::parse_quote! {
+                RuleId::RootContextGuarded => match children {
+                    [BuildValue::Leaf(Leaf::SelfReference(context_2))] => ContextGuarded::try_new(*context_2, context)
+                        .map(|context_guarded| { BuildValue::Root(Root::ContextGuarded(context_guarded), FeatureConstraint::<Onset>::Any) })
+                        .map(Some),
+                    _ => Ok(None),
+                }
+            }),
         ] {
             assert_eq!(build_arm(&items[0], rule), expected, "{rule} build arm");
         }
@@ -4253,8 +4252,6 @@ mod tests {
             for forbidden in [
                 "Child :: First",
                 "Child :: Second",
-                "Mode :: One",
-                "Mode :: Two",
                 "matches !",
             ] {
                 assert!(
@@ -4322,6 +4319,12 @@ mod tests {
                 RootContextGuarded,
             }
 
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum Onset { Consonant, Vowel }
+
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum FeatureConstraint<F> { Exact(F), Any }
+
             mod generated {
                 use super::*;
                 #(#runtime)*
@@ -4331,8 +4334,8 @@ mod tests {
 
             #[derive(Debug)]
             enum BuildValue {
-                Child(generated::Child),
-                Root(generated::Root),
+                Child(generated::Child, FeatureConstraint<Onset>),
+                Root(generated::Root, FeatureConstraint<Onset>),
                 Leaf(Leaf),
             }
 
@@ -4342,15 +4345,21 @@ mod tests {
                     marker: "materialization",
                 };
                 let valid = [
-                    BuildValue::Child(generated::Child::First(generated::FirstChild)),
+                    BuildValue::Child(
+                        generated::Child::First(generated::FirstChild),
+                        FeatureConstraint::Any,
+                    ),
                 ];
                 let invalid = [
-                    BuildValue::Child(generated::Child::Second(generated::SecondChild)),
+                    BuildValue::Child(
+                        generated::Child::Second(generated::SecondChild),
+                        FeatureConstraint::Any,
+                    ),
                 ];
 
                 assert!(matches!(
                     generated::build(RuleId::RootCategoryGuarded, &valid, &context),
-                    Some(BuildValue::Root(generated::Root::CategoryGuarded(_)))
+                    Some(BuildValue::Root(generated::Root::CategoryGuarded(_), _))
                 ));
                 assert!(generated::build(
                     RuleId::RootCategoryGuarded,
@@ -4676,7 +4685,7 @@ mod tests {
             .tokens
             .to_string();
         assert!(
-            source.contains("BuildValue :: Child (child , Agreement :: ThirdPersonSingular)"),
+            source.contains("BuildValue :: Child (child , Agreement :: ThirdPersonSingular , child_following_onset)"),
             "the required Mode::One arm must constrain the child agreement: {source}"
         );
         assert!(!source.contains("feature source was not bound"), "{source}");
@@ -4794,7 +4803,7 @@ mod tests {
                     BuildValue::Leaf(Leaf::Pair(BoundLeaf::Pair(left, right)))
                 ] => Ok(Some(BuildValue::Root(Root::Wrapped(Wrapped {
                     value: Pair::new(left.code, (Factory::wrap(right)))
-                })))),
+                }), FeatureConstraint::<Onset>::Any))),
                 _ => Ok(None),
             }
         };
@@ -5058,7 +5067,7 @@ mod tests {
 
         assert!(
             source.contains(
-                "BuildValue :: NounPhrase (NounPhrase :: PrefixedOnset (PrefixedOnset { modifier : * modifier }) , Onset :: Consonant)"
+                "BuildValue :: NounPhrase (NounPhrase :: PrefixedOnset (PrefixedOnset { modifier : * modifier }) , Onset :: Consonant , FeatureConstraint :: < Onset > :: Any)"
             ),
             "the prefix's consonantal onset overrides `artifact`: {source}"
         );
