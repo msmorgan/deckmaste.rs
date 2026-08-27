@@ -101,3 +101,5 @@ this round must not widen them.
 Standard constraints apply.
 
 - **Routed from workbench-counter-distributive-residues (close, 2026-08-26):** "If life was paid" (Nahiri, the Unforgiving) reads back a CAST-TIME payment; no condition row reaches the payment channel. It is a paid-readback, so it lands here.
+
+- **Shape note (2026-08-26):** unblocked — `workbench-named-memory-channels` closed with the no-carve-out ruling: readbacks here are LABEL-SORTED ANCHORED READS on the spell/permanent (state, like counters), no tag namespace. See that done ticket's As-landed.

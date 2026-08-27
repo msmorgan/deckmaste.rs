@@ -456,3 +456,24 @@ vocabulary; `ascribesAsSubtype`, `subtypeType`; the `Cyberman` catalog word;
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## Ruling (user, 2026-08-26): cross-ability chosen reads are a forward obligation, discharged at the card boundary
+
+The `EntersChoice → OfChosen` cross-ability linkage stops being telescope
+threading (`staticChoiceIntro`'s export through `abIntro` retires; `abIntro`
+collapses toward constant). Instead: the choice ability mints a FORWARD
+OBLIGATION — one that is nonsense unless a LATER ability of the same card
+discharges it by reading — and a new face law (sibling of
+`CardText`/`CardChapters`/`CardBox`, on `textDefines`' whole-sequence fold
+precedent) checks the pairing: every cross-ability chosen-read of sort q
+finds a chooser of sort q in an EARLIER ability, and every chooser finds a
+later reader. That is [CR#607.2d]'s linkage as a card law, running the same
+forward direction the binder contract already runs, one level up. NO second
+index on Effect — the obligation lives in one `So`-gate at the boundary
+where the whole text is visible. Fragment-level bare chosen-reads become
+tolerated overgeneration, refused at the face law. Default pin: HYBRID —
+intra-ability chooser→read stays anaphoric under `bs` (ProofsAnaphora
+untouched for those); only cross-ability reads move to the face law.
+Unified with the named-memory ruling (done/workbench-named-memory-channels):
+no cross-ability discourse anywhere — state for notes, forward-obligation
+card linkage for choices.

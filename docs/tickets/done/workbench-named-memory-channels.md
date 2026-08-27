@@ -185,8 +185,11 @@ the spell — no tag namespace.
 **Unified with the same-day chosen-value ruling** (recorded on
 `workbench-choice-chosen-and-ascription`): NO cross-ability discourse at all —
 notes/tags are state on the holder; chosen values are CARD-SCOPE LINKAGE
-[CR#607.2d] discharged by a face law over the whole AbilitySeq (cataphora-
-capable, order-free), not telescope threading. The forward-anaphora binder
+[CR#607.2d]: the choice ability mints a FORWARD OBLIGATION that is nonsense
+unless a LATER ability discharges it by reading — checked by a face law
+folding forward over the AbilitySeq (chooser strictly before reader), not by
+telescope threading. Not cataphora (user, 2026-08-26): the direction is the
+same forward direction the binder contract already runs, one level up. The forward-anaphora binder
 contract governs discourse within a text only, and survives untouched;
 ProofsAnaphora is additive-only under this ruling.
 
