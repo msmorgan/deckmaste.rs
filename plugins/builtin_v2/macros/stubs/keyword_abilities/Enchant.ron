@@ -3,5 +3,12 @@ KeywordAbility(
     spelling: "enchant",
     grammar: FixedKeyword(
         surface: "enchant",
+        determinative: (
+            number_license: SingularOnly,
+            nominal_license: BareSingularNoun,
+            realizations: [
+                (surface: "enchanted", phrase_number: Singular),
+            ],
+        ),
     ),
 )

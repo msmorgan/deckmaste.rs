@@ -988,11 +988,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             (43, 44, "structural:Sentences/sentences/terminator/0"),
             (44, 45, "structural:Sentences/sentences/separator/uniform/0"),
             (45, 52, "lexeme:keyword_action/Destroy/bare"),
-            (
-                52,
-                59,
-                "vocab:SimpleDeterminative/Target"
-            ),
+            (52, 59, "vocab:SimpleDeterminative/Target"),
             (59, 68, "lexeme:type/Creature/singular"),
             (68, 69, "structural:Sentences/sentences/terminator/0"),
         ]
@@ -2117,11 +2113,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (18, 19, "form:loyalty/loyalty/0/suffix"),
             (19, 21, "structural:Activated/costs/separator/last/0"),
             (21, 28, "lexeme:keyword_action/Destroy/bare"),
-            (
-                28,
-                35,
-                "vocab:SimpleDeterminative/Target"
-            ),
+            (28, 35, "vocab:SimpleDeterminative/Target"),
             (35, 44, "lexeme:type/Creature/singular"),
             (44, 46, "form:activated/activated/1"),
             (46, 49, "vocab:SubjectPronoun/You"),
@@ -2131,11 +2123,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (61, 62, "structural:Sentences/sentences/terminator/0"),
             (62, 63, "structural:Sentences/sentences/separator/uniform/0"),
             (63, 70, "lexeme:keyword_action/Destroy/bare"),
-            (
-                70,
-                77,
-                "vocab:SimpleDeterminative/Target"
-            ),
+            (70, 77, "vocab:SimpleDeterminative/Target"),
             (77, 86, "lexeme:type/Creature/singular"),
             (86, 87, "structural:Sentences/sentences/terminator/0"),
         ],

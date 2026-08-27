@@ -4420,9 +4420,7 @@ fn determiner_licenses_nominal(
     }
     let licenses_form = match nominal_license_for_determinative(det) {
         NominalLicense::CountNominal => true,
-        NominalLicense::BareSingularNoun => {
-            nominal_form == NominalForm::BareSingularNoun
-        }
+        NominalLicense::BareSingularNoun => nominal_form == NominalForm::BareSingularNoun,
     };
     let licenses_onset = match onset_license_for_determinative(det) {
         OnsetLicense::AnyOnset => true,

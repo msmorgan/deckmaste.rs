@@ -816,6 +816,119 @@ KeywordAction(
 }
 
 #[test]
+fn fixed_keyword_can_contribute_a_separate_determinative_row() {
+    let declaration = read_str(
+        source_path("Equip.ron"),
+        r#"
+KeywordAbility(
+    name: "Equip",
+    spelling: "equip",
+    grammar: FixedKeyword(
+        surface: "equip",
+        determinative: (
+            number_license: SingularOnly,
+            nominal_license: BareSingularNoun,
+            realizations: [(surface: "equipped", phrase_number: Singular)],
+        ),
+    ),
+)
+"#,
+    )
+    .expect("a keyword line may separately declare its participial determiner");
+    let grammar = declaration.grammar().expect("grammar normalizes");
+    assert_eq!(grammar.recipe(), &GrammarRecipe::FixedKeyword);
+    assert_eq!(grammar.surfaces().len(), 1);
+    assert_eq!(grammar.surfaces()[0].text(), "equip");
+    let determinative = grammar
+        .determinative()
+        .expect("the supplemental row is retained separately from FixedKeyword");
+    assert_eq!(
+        determinative.number_license(),
+        DeterminativeNumberLicense::SingularOnly
+    );
+    assert_eq!(
+        determinative.nominal_license(),
+        DeterminativeNominalLicense::BareSingularNoun
+    );
+    let [realization] = determinative.realizations() else {
+        panic!("one participial realization is retained")
+    };
+    assert_eq!(realization.surface(), "equipped");
+    assert_eq!(
+        realization.phrase_number(),
+        Some(DeterminativePhraseNumber::Singular)
+    );
+    assert_eq!(realization.following_onset(), None);
+    assert_eq!(realization.onset(), Onset::Vowel);
+}
+
+#[test]
+fn determinative_realizations_must_be_available_and_nonoverlapping() {
+    let empty = validation(
+        r#"
+KeywordAbility(
+    name: "Equip",
+    spelling: "equip",
+    grammar: FixedKeyword(
+        surface: "equip",
+        determinative: (
+            number_license: SingularOnly,
+            nominal_license: BareSingularNoun,
+            realizations: [],
+        ),
+    ),
+)
+"#,
+    );
+    assert_eq!(empty, ValidationError::EmptyDeterminativeRealizations);
+
+    let incompatible = validation(
+        r#"
+KeywordAbility(
+    name: "Equip",
+    spelling: "equip",
+    grammar: FixedKeyword(
+        surface: "equip",
+        determinative: (
+            number_license: SingularOnly,
+            nominal_license: BareSingularNoun,
+            realizations: [(surface: "equipped", phrase_number: Plural)],
+        ),
+    ),
+)
+"#,
+    );
+    assert!(matches!(
+        incompatible,
+        ValidationError::IncompatibleDeterminativeRealization { .. }
+    ));
+
+    let overlap = validation(
+        r#"
+KeywordAbility(
+    name: "Article",
+    spelling: "a",
+    grammar: FixedKeyword(
+        surface: "a",
+        determinative: (
+            number_license: SingularOnly,
+            nominal_license: CountNominal,
+            realizations: [
+                (surface: "a", phrase_number: Singular),
+                (surface: "an", following_onset: Vowel),
+            ],
+        ),
+    ),
+)
+"#,
+    );
+    assert!(matches!(
+        overlap,
+        ValidationError::OverlappingDeterminativeRealizations { .. }
+    ));
+}
+
+#[test]
 fn source_errors_always_carry_their_path_and_position() {
     let error = parse_error(
         r#"

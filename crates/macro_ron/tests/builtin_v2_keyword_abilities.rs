@@ -2,6 +2,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use macro_ron::v2::DeclarationKind;
+use macro_ron::v2::DeterminativeNominalLicense;
+use macro_ron::v2::DeterminativeNumberLicense;
+use macro_ron::v2::DeterminativePhraseNumber;
 use macro_ron::v2::GrammarRecipe;
 use macro_ron::v2::NormalizedDeclaration;
 use macro_ron::v2::SpellingPart;
@@ -101,5 +104,41 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
             [SpellingPart::Literal(surface.to_owned())]
         );
         assert_eq!(declaration.grammar().unwrap().surfaces()[0].text(), surface);
+    }
+}
+
+#[test]
+fn attachment_keywords_declare_their_participial_determinative_rows() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
+        .expect("builtin-v2 declarations must load");
+    for (name, surface) in [
+        ("Equip", "equipped"),
+        ("Enchant", "enchanted"),
+        ("Fortify", "fortified"),
+    ] {
+        let grammar = ability(&declarations, name)
+            .grammar()
+            .expect("keyword declaration contributes its primary grammar");
+        assert_eq!(grammar.recipe(), &GrammarRecipe::FixedKeyword);
+        let determinative = grammar
+            .determinative()
+            .expect("attachment keyword contributes an open Determinative row");
+        assert_eq!(
+            determinative.number_license(),
+            DeterminativeNumberLicense::SingularOnly
+        );
+        assert_eq!(
+            determinative.nominal_license(),
+            DeterminativeNominalLicense::BareSingularNoun
+        );
+        let [realization] = determinative.realizations() else {
+            panic!("{name} contributes one participial realization")
+        };
+        assert_eq!(realization.surface(), surface);
+        assert_eq!(
+            realization.phrase_number(),
+            Some(DeterminativePhraseNumber::Singular)
+        );
     }
 }

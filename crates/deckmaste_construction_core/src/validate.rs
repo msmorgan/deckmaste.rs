@@ -645,10 +645,22 @@ fn validate_sequence_feature_roles(
                 );
             }
             let category = match (feature, item) {
-                (ParsedFeature::Agreement, ValueKindPlan::Category(category) | ValueKindPlan::Sum(category))
+                (
+                    ParsedFeature::Agreement,
+                    ValueKindPlan::Category(category) | ValueKindPlan::Sum(category),
+                )
                 | (ParsedFeature::Onset, ValueKindPlan::Category(category)) => category,
-                (ParsedFeature::Agreement, ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) | ValueKindPlan::Product(_))
-                | (ParsedFeature::Onset, ValueKindPlan::Sum(_) | ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) | ValueKindPlan::Product(_)) => {
+                (
+                    ParsedFeature::Agreement,
+                    ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) | ValueKindPlan::Product(_),
+                )
+                | (
+                    ParsedFeature::Onset,
+                    ValueKindPlan::Sum(_)
+                    | ValueKindPlan::Lex(_)
+                    | ValueKindPlan::Identity(_)
+                    | ValueKindPlan::Product(_),
+                ) => {
                     combine(
                         &mut errors,
                         syn::Error::new(
@@ -683,13 +695,14 @@ fn validate_sequence_feature_roles(
                     ParsedFeature::Onset => Feature::Onset,
                     ParsedFeature::Cardinality
                     | ParsedFeature::DeterminerNumber
-                    | ParsedFeature::DeterminerPosition
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
                     | ParsedFeature::OnsetLicense
                     | ParsedFeature::Number
                     | ParsedFeature::Participle
-                    | ParsedFeature::PossessiveEnding => unreachable!("unsupported sequence feature was rejected"),
+                    | ParsedFeature::PossessiveEnding => {
+                        unreachable!("unsupported sequence feature was rejected")
+                    }
                 },
             );
         }
@@ -3267,7 +3280,6 @@ fn seal_category_feature_reads(
                 Feature::Agreement,
                 Feature::Cardinality,
                 Feature::DeterminerNumber,
-                Feature::DeterminerPosition,
                 Feature::NominalForm,
                 Feature::NominalLicense,
                 Feature::Number,
@@ -4292,8 +4304,11 @@ fn generated_name_inventory(
                     );
                     for (feature, spelling, display) in [
                         (Feature::Agreement, "agreement", "Agreement"),
-                        (Feature::DeterminerNumber, "determiner_number", "DeterminerNumber"),
-                        (Feature::DeterminerPosition, "determiner_position", "DeterminerPosition"),
+                        (
+                            Feature::DeterminerNumber,
+                            "determiner_number",
+                            "DeterminerNumber",
+                        ),
                         (Feature::NominalForm, "nominal_form", "NominalForm"),
                         (Feature::NominalLicense, "nominal_license", "NominalLicense"),
                         (Feature::Number, "number", "Number"),
@@ -4431,8 +4446,9 @@ fn generated_name_inventory(
                     let (spelling, display) = match feature {
                         ParsedFeature::Agreement => ("agreement", "Agreement"),
                         ParsedFeature::Cardinality => ("cardinality", "Cardinality"),
-                        ParsedFeature::DeterminerNumber => ("determiner_number", "DeterminerNumber"),
-                        ParsedFeature::DeterminerPosition => ("determiner_position", "DeterminerPosition"),
+                        ParsedFeature::DeterminerNumber => {
+                            ("determiner_number", "DeterminerNumber")
+                        }
                         ParsedFeature::NominalForm => ("nominal_form", "NominalForm"),
                         ParsedFeature::NominalLicense => ("nominal_license", "NominalLicense"),
                         ParsedFeature::OnsetLicense => ("onset_license", "OnsetLicense"),
@@ -5025,7 +5041,6 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
-        Feature::DeterminerPosition => ParsedFeature::DeterminerPosition,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
         Feature::OnsetLicense => ParsedFeature::OnsetLicense,
@@ -5075,7 +5090,6 @@ fn raw_sequence_reads_inherent_category_feature(
         Feature::Agreement => ParsedFeature::Agreement,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::DeterminerNumber => ParsedFeature::DeterminerNumber,
-        Feature::DeterminerPosition => ParsedFeature::DeterminerPosition,
         Feature::NominalForm => ParsedFeature::NominalForm,
         Feature::NominalLicense => ParsedFeature::NominalLicense,
         Feature::OnsetLicense => ParsedFeature::OnsetLicense,
@@ -5329,7 +5343,6 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                     .then(|| (identifier_key(field), ParsedFeature::Number)),
                 ParsedFeature::Agreement
                 | ParsedFeature::DeterminerNumber
-                | ParsedFeature::DeterminerPosition
                 | ParsedFeature::NominalForm
                 | ParsedFeature::NominalLicense
                 | ParsedFeature::OnsetLicense
@@ -8810,7 +8823,6 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             ParsedFeature::Agreement,
             ParsedFeature::Cardinality,
             ParsedFeature::DeterminerNumber,
-            ParsedFeature::DeterminerPosition,
             ParsedFeature::NominalForm,
             ParsedFeature::NominalLicense,
             ParsedFeature::Number,
@@ -8855,7 +8867,6 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             for feature in [
                 ParsedFeature::Agreement,
                 ParsedFeature::DeterminerNumber,
-                ParsedFeature::DeterminerPosition,
                 ParsedFeature::NominalForm,
                 ParsedFeature::NominalLicense,
                 ParsedFeature::OnsetLicense,
@@ -8892,7 +8903,6 @@ fn feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::DeterminerNumber => "determiner_number",
-        ParsedFeature::DeterminerPosition => "determiner_position",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",
         ParsedFeature::OnsetLicense => "onset_license",
@@ -9350,13 +9360,18 @@ fn validate_lowerable_feature_compositions(
             (
                 ParsedFeaturePlace::Construction(
                     ParsedFeature::DeterminerNumber
-                    | ParsedFeature::DeterminerPosition
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
                     | ParsedFeature::OnsetLicense,
                 ),
                 ParsedFeatureValue::FromRole(source),
-            ) => role_feature_is_constructible(raw, construction, &fields, &source.role, source.feature),
+            ) => role_feature_is_constructible(
+                raw,
+                construction,
+                &fields,
+                &source.role,
+                source.feature,
+            ),
             (
                 ParsedFeaturePlace::Role {
                     field,
@@ -9396,7 +9411,6 @@ fn validate_lowerable_feature_compositions(
                 ParsedFeaturePlace::Role {
                     feature:
                         ParsedFeature::DeterminerNumber
-                        | ParsedFeature::DeterminerPosition
                         | ParsedFeature::NominalForm
                         | ParsedFeature::NominalLicense
                         | ParsedFeature::OnsetLicense,
@@ -9599,7 +9613,6 @@ fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
         ParsedFeature::Agreement => "agreement",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::DeterminerNumber => "determiner_number",
-        ParsedFeature::DeterminerPosition => "determiner_position",
         ParsedFeature::NominalForm => "nominal_form",
         ParsedFeature::NominalLicense => "nominal_license",
         ParsedFeature::OnsetLicense => "onset_license",

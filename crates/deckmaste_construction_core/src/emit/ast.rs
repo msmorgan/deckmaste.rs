@@ -993,16 +993,24 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         crate::feature::FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         crate::feature::FeatureValue::Both => quote! { DeterminerNumber::Both },
-        crate::feature::FeatureValue::StandaloneOnly => quote! { DeterminerPosition::StandaloneOnly },
-        crate::feature::FeatureValue::PostQuantity => quote! { DeterminerPosition::PostQuantity },
         crate::feature::FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
-        crate::feature::FeatureValue::ModifiedSingularNoun => quote! { NominalForm::ModifiedSingularNoun },
-        crate::feature::FeatureValue::SingularCoordination => quote! { NominalForm::SingularCoordination },
+        crate::feature::FeatureValue::ModifiedSingularNoun => {
+            quote! { NominalForm::ModifiedSingularNoun }
+        }
+        crate::feature::FeatureValue::SingularCoordination => {
+            quote! { NominalForm::SingularCoordination }
+        }
         crate::feature::FeatureValue::BarePluralNoun => quote! { NominalForm::BarePluralNoun },
-        crate::feature::FeatureValue::ModifiedPluralNoun => quote! { NominalForm::ModifiedPluralNoun },
-        crate::feature::FeatureValue::PluralCoordination => quote! { NominalForm::PluralCoordination },
+        crate::feature::FeatureValue::ModifiedPluralNoun => {
+            quote! { NominalForm::ModifiedPluralNoun }
+        }
+        crate::feature::FeatureValue::PluralCoordination => {
+            quote! { NominalForm::PluralCoordination }
+        }
         crate::feature::FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
-        crate::feature::FeatureValue::LicensedBareSingularNoun => quote! { NominalLicense::BareSingularNoun },
+        crate::feature::FeatureValue::LicensedBareSingularNoun => {
+            quote! { NominalLicense::BareSingularNoun }
+        }
         crate::feature::FeatureValue::AnyOnset => quote! { OnsetLicense::AnyOnset },
         crate::feature::FeatureValue::ConsonantOnset => quote! { OnsetLicense::ConsonantOnset },
         crate::feature::FeatureValue::VowelOnset => quote! { OnsetLicense::VowelOnset },
@@ -1951,7 +1959,6 @@ mod tests {
                 "Agreement",
                 "Cardinality",
                 "DeterminerNumber",
-                "DeterminerPosition",
                 "NominalForm",
                 "NominalLicense",
                 "Number",

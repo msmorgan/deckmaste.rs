@@ -3,5 +3,12 @@ KeywordAbility(
     spelling: "equip",
     grammar: FixedKeyword(
         surface: "equip",
+        determinative: (
+            number_license: SingularOnly,
+            nominal_license: BareSingularNoun,
+            realizations: [
+                (surface: "equipped", phrase_number: Singular),
+            ],
+        ),
     ),
 )

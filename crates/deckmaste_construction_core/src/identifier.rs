@@ -17,7 +17,6 @@ pub(crate) const BUILD_VIOLATION_TYPE: &str = "BuildViolation";
 pub(crate) const AGREEMENT_TYPE: &str = "Agreement";
 pub(crate) const CARDINALITY_TYPE: &str = "Cardinality";
 pub(crate) const DETERMINER_NUMBER_TYPE: &str = "DeterminerNumber";
-pub(crate) const DETERMINER_POSITION_TYPE: &str = "DeterminerPosition";
 pub(crate) const NOMINAL_FORM_TYPE: &str = "NominalForm";
 pub(crate) const NOMINAL_LICENSE_TYPE: &str = "NominalLicense";
 pub(crate) const ONSET_LICENSE_TYPE: &str = "OnsetLicense";
@@ -49,7 +48,6 @@ pub(crate) const FIXED_RUNTIME_TYPE_NAMES: &[&str] = &[
     AGREEMENT_TYPE,
     CARDINALITY_TYPE,
     DETERMINER_NUMBER_TYPE,
-    DETERMINER_POSITION_TYPE,
     NOMINAL_FORM_TYPE,
     NOMINAL_LICENSE_TYPE,
     ONSET_LICENSE_TYPE,

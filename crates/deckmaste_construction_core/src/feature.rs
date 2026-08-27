@@ -12,7 +12,6 @@ pub(crate) enum Feature {
     Agreement,
     Cardinality,
     DeterminerNumber,
-    DeterminerPosition,
     NominalForm,
     NominalLicense,
     OnsetLicense,
@@ -39,8 +38,6 @@ pub(crate) enum FeatureValue {
     SingularOnly,
     PluralOnly,
     Both,
-    StandaloneOnly,
-    PostQuantity,
     BareSingularNoun,
     ModifiedSingularNoun,
     SingularCoordination,
@@ -99,7 +96,6 @@ impl Feature {
                 FeatureValue::PluralOnly,
                 FeatureValue::Both,
             ],
-            Self::DeterminerPosition => &[FeatureValue::StandaloneOnly, FeatureValue::PostQuantity],
             Self::NominalForm => &[
                 FeatureValue::BareSingularNoun,
                 FeatureValue::ModifiedSingularNoun,
@@ -108,8 +104,15 @@ impl Feature {
                 FeatureValue::ModifiedPluralNoun,
                 FeatureValue::PluralCoordination,
             ],
-            Self::NominalLicense => &[FeatureValue::CountNominal, FeatureValue::LicensedBareSingularNoun],
-            Self::OnsetLicense => &[FeatureValue::AnyOnset, FeatureValue::ConsonantOnset, FeatureValue::VowelOnset],
+            Self::NominalLicense => &[
+                FeatureValue::CountNominal,
+                FeatureValue::LicensedBareSingularNoun,
+            ],
+            Self::OnsetLicense => &[
+                FeatureValue::AnyOnset,
+                FeatureValue::ConsonantOnset,
+                FeatureValue::VowelOnset,
+            ],
             Self::Number => &[FeatureValue::Singular, FeatureValue::Plural],
             Self::Onset => &[FeatureValue::Consonant, FeatureValue::Vowel],
             Self::Participle => &[FeatureValue::Participle],
@@ -139,7 +142,6 @@ impl Feature {
             Self::Agreement => "agreement",
             Self::Cardinality => "cardinality",
             Self::DeterminerNumber => "determiner_number",
-            Self::DeterminerPosition => "determiner_position",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
             Self::OnsetLicense => "onset_license",
@@ -169,8 +171,6 @@ impl FeatureValue {
             Self::SingularOnly => "SingularOnly",
             Self::PluralOnly => "PluralOnly",
             Self::Both => "Both",
-            Self::StandaloneOnly => "StandaloneOnly",
-            Self::PostQuantity => "PostQuantity",
             Self::BareSingularNoun => "BareSingularNoun",
             Self::ModifiedSingularNoun => "ModifiedSingularNoun",
             Self::SingularCoordination => "SingularCoordination",
@@ -314,7 +314,6 @@ impl Feature {
             Self::Agreement => "agreement",
             Self::Cardinality => "cardinality",
             Self::DeterminerNumber => "determiner_number",
-            Self::DeterminerPosition => "determiner_position",
             Self::NominalForm => "nominal_form",
             Self::NominalLicense => "nominal_license",
             Self::OnsetLicense => "onset_license",
@@ -345,8 +344,6 @@ impl FeatureValue {
             Self::SingularOnly => "SingularOnly",
             Self::PluralOnly => "PluralOnly",
             Self::Both => "Both",
-            Self::StandaloneOnly => "StandaloneOnly",
-            Self::PostQuantity => "PostQuantity",
             Self::BareSingularNoun => "BareSingularNoun",
             Self::ModifiedSingularNoun => "ModifiedSingularNoun",
             Self::SingularCoordination => "SingularCoordination",
@@ -400,8 +397,6 @@ pub(crate) fn lower_constant(
         (model::Feature::DeterminerNumber, "SingularOnly") => FeatureValue::SingularOnly,
         (model::Feature::DeterminerNumber, "PluralOnly") => FeatureValue::PluralOnly,
         (model::Feature::DeterminerNumber, "Both") => FeatureValue::Both,
-        (model::Feature::DeterminerPosition, "StandaloneOnly") => FeatureValue::StandaloneOnly,
-        (model::Feature::DeterminerPosition, "PostQuantity") => FeatureValue::PostQuantity,
         (model::Feature::NominalForm, "BareSingularNoun") => FeatureValue::BareSingularNoun,
         (model::Feature::NominalForm, "ModifiedSingularNoun") => FeatureValue::ModifiedSingularNoun,
         (model::Feature::NominalForm, "SingularCoordination") => FeatureValue::SingularCoordination,
@@ -409,7 +404,9 @@ pub(crate) fn lower_constant(
         (model::Feature::NominalForm, "ModifiedPluralNoun") => FeatureValue::ModifiedPluralNoun,
         (model::Feature::NominalForm, "PluralCoordination") => FeatureValue::PluralCoordination,
         (model::Feature::NominalLicense, "CountNominal") => FeatureValue::CountNominal,
-        (model::Feature::NominalLicense, "BareSingularNoun") => FeatureValue::LicensedBareSingularNoun,
+        (model::Feature::NominalLicense, "BareSingularNoun") => {
+            FeatureValue::LicensedBareSingularNoun
+        }
         (model::Feature::OnsetLicense, "AnyOnset") => FeatureValue::AnyOnset,
         (model::Feature::OnsetLicense, "ConsonantOnset") => FeatureValue::ConsonantOnset,
         (model::Feature::OnsetLicense, "VowelOnset") => FeatureValue::VowelOnset,
@@ -425,11 +422,30 @@ pub(crate) fn lower_constant(
                 format!("`{name}` is not a cardinality value"),
             ));
         }
-        (model::Feature::DeterminerNumber, _) => return Err(syn::Error::new_spanned(path, format!("`{name}` is not a determiner-number value"))),
-        (model::Feature::DeterminerPosition, _) => return Err(syn::Error::new_spanned(path, format!("`{name}` is not a determiner-position value"))),
-        (model::Feature::NominalForm, _) => return Err(syn::Error::new_spanned(path, format!("`{name}` is not a nominal-form value"))),
-        (model::Feature::NominalLicense, _) => return Err(syn::Error::new_spanned(path, format!("`{name}` is not a nominal-license value"))),
-        (model::Feature::OnsetLicense, _) => return Err(syn::Error::new_spanned(path, format!("`{name}` is not an onset-license value"))),
+        (model::Feature::DeterminerNumber, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a determiner-number value"),
+            ));
+        }
+        (model::Feature::NominalForm, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a nominal-form value"),
+            ));
+        }
+        (model::Feature::NominalLicense, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a nominal-license value"),
+            ));
+        }
+        (model::Feature::OnsetLicense, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not an onset-license value"),
+            ));
+        }
         (model::Feature::Number, _) => {
             return Err(syn::Error::new_spanned(
                 path,
@@ -464,7 +480,6 @@ impl From<model::Feature> for Feature {
             model::Feature::Agreement => Self::Agreement,
             model::Feature::Cardinality => Self::Cardinality,
             model::Feature::DeterminerNumber => Self::DeterminerNumber,
-            model::Feature::DeterminerPosition => Self::DeterminerPosition,
             model::Feature::NominalForm => Self::NominalForm,
             model::Feature::NominalLicense => Self::NominalLicense,
             model::Feature::OnsetLicense => Self::OnsetLicense,

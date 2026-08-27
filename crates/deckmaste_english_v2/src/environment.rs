@@ -6,6 +6,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use macro_ron::v2::CustomTailAtom;
+use macro_ron::v2::DeterminativeNominalLicense;
+use macro_ron::v2::DeterminativeNumberLicense;
+use macro_ron::v2::DeterminativePhraseNumber;
 pub use macro_ron::v2::DeclarationIdentity as DeclarationId;
 use macro_ron::v2::DeclarationKind;
 pub use macro_ron::v2::GrammarPosition;
@@ -24,7 +27,25 @@ pub struct DeclarationRecord {
     id: DeclarationId,
     recipe: Option<GrammarRecipe>,
     surfaces: Vec<(SurfaceFeature, Onset, Arc<str>)>,
+    determinative: Option<DeterminativeRecord>,
     provenance: PathBuf,
+}
+
+/// The normalized selection and realization facts for one declaration-backed
+/// Determinative lemma.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DeterminativeRecord {
+    number_license: DeterminativeNumberLicense,
+    nominal_license: DeterminativeNominalLicense,
+    realizations: Vec<DeterminativeRealizationRecord>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DeterminativeRealizationRecord {
+    surface: Arc<str>,
+    onset: Onset,
+    phrase_number: Option<DeterminativePhraseNumber>,
+    following_onset: Option<Onset>,
 }
 
 impl DeclarationRecord {
@@ -55,6 +76,19 @@ impl DeclarationRecord {
         }
     }
 
+    /// Returns the declaration's Determinative selection facts, when declared.
+    #[must_use]
+    pub fn determinative_number_license(&self) -> Option<DeterminativeNumberLicense> {
+        self.determinative.as_ref().map(|row| row.number_license)
+    }
+
+    /// Returns the nominal family selected by this declaration-backed
+    /// Determinative, when declared.
+    #[must_use]
+    pub fn determinative_nominal_license(&self) -> Option<DeterminativeNominalLicense> {
+        self.determinative.as_ref().map(|row| row.nominal_license)
+    }
+
     /// Returns the normalized declaration's source path.
     #[must_use]
     pub fn provenance(&self) -> &Path {
@@ -82,6 +116,59 @@ pub struct DeclarationReading {
     feature: SurfaceFeature,
     surface: Arc<str>,
     onset: Onset,
+}
+
+/// One exact surface reading of a declaration-backed Determinative.
+///
+/// The realization conditions are parser-private facts. Materialized syntax
+/// stores only the declaration identity; rendering derives this row again from
+/// the following nominal's number and effective onset.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeterminativeReading {
+    id: DeclarationId,
+    surface: Arc<str>,
+    onset: Onset,
+    number_license: DeterminativeNumberLicense,
+    nominal_license: DeterminativeNominalLicense,
+    phrase_number: Option<DeterminativePhraseNumber>,
+    following_onset: Option<Onset>,
+}
+
+impl DeterminativeReading {
+    #[must_use]
+    pub fn id(&self) -> &DeclarationId {
+        &self.id
+    }
+
+    #[must_use]
+    pub fn surface(&self) -> &str {
+        &self.surface
+    }
+
+    #[must_use]
+    pub const fn onset(&self) -> Onset {
+        self.onset
+    }
+
+    #[must_use]
+    pub const fn number_license(&self) -> DeterminativeNumberLicense {
+        self.number_license
+    }
+
+    #[must_use]
+    pub const fn nominal_license(&self) -> DeterminativeNominalLicense {
+        self.nominal_license
+    }
+
+    #[must_use]
+    pub const fn phrase_number(&self) -> Option<DeterminativePhraseNumber> {
+        self.phrase_number
+    }
+
+    #[must_use]
+    pub const fn following_onset(&self) -> Option<Onset> {
+        self.following_onset
+    }
 }
 
 impl DeclarationReading {
@@ -236,6 +323,10 @@ struct EnvironmentData {
     initial_readings: BTreeMap<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>,
     running_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
     initial_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
+    determinative_readings: BTreeMap<Arc<str>, Vec<DeterminativeReading>>,
+    initial_determinative_readings: BTreeMap<Arc<str>, Vec<DeterminativeReading>>,
+    determinative_surface_byte_limit: usize,
+    initial_determinative_surface_byte_limit: usize,
     catalog_providers: BTreeMap<CatalogProvider, CatalogProviderData>,
 }
 

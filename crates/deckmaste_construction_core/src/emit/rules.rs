@@ -2088,7 +2088,9 @@ fn declaration_verb_feature(
             | FeatureValue::TwoPlus => Err(internal(
                 "declaration verb agreement has a non-agreement value",
             )),
-            _ => Err(internal("declaration verb agreement has a non-agreement value")),
+            _ => Err(internal(
+                "declaration verb agreement has a non-agreement value",
+            )),
         },
         Some(
             crate::feature::FeatureResolution::External

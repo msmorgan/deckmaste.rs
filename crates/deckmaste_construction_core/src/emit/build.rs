@@ -233,23 +233,30 @@ fn emit_arm_from_plan(
             .get(&field.name_key())
             .cloned()
             .ok_or_else(|| internal("checked zeroable field has no lowered value"))?;
-        let arguments = arguments.iter().map(|(role, feature)| {
-            lowering.role_features
-                .get(&(role.clone(), *feature))
-                .map(local_feature_value)
-                .map(|argument| resolved_feature_value_tokens(&argument))
-                .map(Ok)
-                .unwrap_or_else(|| {
-                    let value = lowering.field_values.get(role)
-                        .ok_or_else(|| internal("checked zeroable companion feature has no lowered value"))?;
-                    let field = row.field(role)?;
-                    if field.kind() != crate::semantic::ConstructionFieldKind::Category {
-                        return Err(internal("checked zeroable companion feature is not a category value"));
-                    }
-                    let helper = ident(&feature_helper(feature.key(), field.terminal()));
-                    Ok(quote! { #helper(&#value) })
-                })
-        }).collect::<syn::Result<Vec<_>>>()?;
+        let arguments = arguments
+            .iter()
+            .map(|(role, feature)| {
+                lowering
+                    .role_features
+                    .get(&(role.clone(), *feature))
+                    .map(local_feature_value)
+                    .map(|argument| resolved_feature_value_tokens(&argument))
+                    .map(Ok)
+                    .unwrap_or_else(|| {
+                        let value = lowering.field_values.get(role).ok_or_else(|| {
+                            internal("checked zeroable companion feature has no lowered value")
+                        })?;
+                        let field = row.field(role)?;
+                        if field.kind() != crate::semantic::ConstructionFieldKind::Category {
+                            return Err(internal(
+                                "checked zeroable companion feature is not a category value",
+                            ));
+                        }
+                        let helper = ident(&feature_helper(feature.key(), field.terminal()));
+                        Ok(quote! { #helper(&#value) })
+                    })
+            })
+            .collect::<syn::Result<Vec<_>>>()?;
         lowering
             .guards
             .push(quote! { #function((#value).as_ref(), #(#arguments),*) });
@@ -1115,12 +1122,8 @@ fn lower_sequence_rhs(
                         (value, Some(agreement), None)
                     }
                     Some(Feature::Onset) => {
-                        let (value, onset) = lower_value_with_onset(
-                            plan,
-                            value,
-                            &format!("item_{index}"),
-                            binders,
-                        )?;
+                        let (value, onset) =
+                            lower_value_with_onset(plan, value, &format!("item_{index}"), binders)?;
                         (value, None, Some(onset))
                     }
                     None => (
@@ -1149,8 +1152,8 @@ fn lower_sequence_rhs(
                 let binding = binders.allocate("tail");
                 let agreement = (feature == Some(Feature::Agreement))
                     .then(|| binders.allocate("tail_agreement"));
-                let onset = (feature == Some(Feature::Onset))
-                    .then(|| binders.allocate("tail_onset"));
+                let onset =
+                    (feature == Some(Feature::Onset)).then(|| binders.allocate("tail_onset"));
                 let feature_pattern = agreement
                     .as_ref()
                     .or(onset.as_ref())
@@ -3050,10 +3053,17 @@ fn resolve_feature_place(
                     ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
                 }
                 FeaturePlace::Construction(
-                    Feature::DeterminerNumber | Feature::DeterminerPosition | Feature::NominalForm | Feature::NominalLicense | Feature::OnsetLicense,
+                    Feature::DeterminerNumber
+                    | Feature::NominalForm
+                    | Feature::NominalLicense
+                    | Feature::OnsetLicense,
                 )
                 | FeaturePlace::Role {
-                    feature: Feature::DeterminerNumber | Feature::DeterminerPosition | Feature::NominalForm | Feature::NominalLicense | Feature::OnsetLicense,
+                    feature:
+                        Feature::DeterminerNumber
+                        | Feature::NominalForm
+                        | Feature::NominalLicense
+                        | Feature::OnsetLicense,
                     ..
                 } => {
                     let ty = ident(terminal_for_role(row, role)?);
@@ -3215,8 +3225,6 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
-        FeatureValue::StandaloneOnly => quote! { DeterminerPosition::StandaloneOnly },
-        FeatureValue::PostQuantity => quote! { DeterminerPosition::PostQuantity },
         FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
         FeatureValue::ModifiedSingularNoun => quote! { NominalForm::ModifiedSingularNoun },
         FeatureValue::SingularCoordination => quote! { NominalForm::SingularCoordination },
@@ -4243,11 +4251,11 @@ mod tests {
         ] {
             assert!(source.contains(required), "missing `{required}`: {source}");
         }
-        for forbidden in [
-            "item_0_onset == item_2_onset",
-            "item_0_onset == tail_onset",
-        ] {
-            assert!(!source.contains(forbidden), "unexpected `{forbidden}`: {source}");
+        for forbidden in ["item_0_onset == item_2_onset", "item_0_onset == tail_onset"] {
+            assert!(
+                !source.contains(forbidden),
+                "unexpected `{forbidden}`: {source}"
+            );
         }
     }
 

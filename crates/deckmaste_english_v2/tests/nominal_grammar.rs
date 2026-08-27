@@ -4056,10 +4056,30 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
             "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead",
             1,
             &[
-                (0, 7, LexicalProvenanceKind::Lexeme, "lexeme:keyword_action/Destroy/bare"),
-                (7, 14, LexicalProvenanceKind::Lexeme, "lexeme:CommonNoun/Target/singular"),
-                (14, 24, LexicalProvenanceKind::Lexeme, "lexeme:type/Artifact/plural"),
-                (24, 25, LexicalProvenanceKind::FormLiteral, "structural:Sentences/sentences/terminator/0"),
+                (
+                    0,
+                    7,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:keyword_action/Destroy/bare",
+                ),
+                (
+                    7,
+                    14,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:CommonNoun/Target/singular",
+                ),
+                (
+                    14,
+                    24,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:type/Artifact/plural",
+                ),
+                (
+                    24,
+                    25,
+                    LexicalProvenanceKind::FormLiteral,
+                    "structural:Sentences/sentences/terminator/0",
+                ),
             ][..],
         ),
         (
@@ -4069,12 +4089,42 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
             "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceCoordinatedNounPhrase/FullNounPhraseCoordinationFullOrNounPhraseCoordination/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             2,
             &[
-                (0, 7, LexicalProvenanceKind::Lexeme, "lexeme:keyword_action/Destroy/bare"),
-                (7, 14, LexicalProvenanceKind::Lexeme, "lexeme:CommonNoun/Target/singular"),
-                (14, 24, LexicalProvenanceKind::Lexeme, "lexeme:type/Creature/plural"),
-                (24, 28, LexicalProvenanceKind::FormLiteral, "structural:FullOrNounPhraseCoordination/members/separator/pair/0"),
-                (28, 41, LexicalProvenanceKind::Lexeme, "lexeme:type/Planeswalker/plural"),
-                (41, 42, LexicalProvenanceKind::FormLiteral, "structural:Sentences/sentences/terminator/0"),
+                (
+                    0,
+                    7,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:keyword_action/Destroy/bare",
+                ),
+                (
+                    7,
+                    14,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:CommonNoun/Target/singular",
+                ),
+                (
+                    14,
+                    24,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:type/Creature/plural",
+                ),
+                (
+                    24,
+                    28,
+                    LexicalProvenanceKind::FormLiteral,
+                    "structural:FullOrNounPhraseCoordination/members/separator/pair/0",
+                ),
+                (
+                    28,
+                    41,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:type/Planeswalker/plural",
+                ),
+                (
+                    41,
+                    42,
+                    LexicalProvenanceKind::FormLiteral,
+                    "structural:Sentences/sentences/terminator/0",
+                ),
             ][..],
         ),
         (
@@ -4084,12 +4134,37 @@ fn target_determiner_is_singular_and_target_as_noun_compounds_are_zero_headed() 
             "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierCommonNounModifier/PluralHeadTypePluralHead/VerbPhraseGainLife/AmountNumber",
             1,
             &[
-                (0, 6, LexicalProvenanceKind::Lexeme, "lexeme:CommonNoun/Target/singular"),
-                (6, 16, LexicalProvenanceKind::Lexeme, "lexeme:type/Creature/plural"),
-                (16, 21, LexicalProvenanceKind::Lexeme, "lexeme:VerbLexeme/Gain/bare"),
+                (
+                    0,
+                    6,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:CommonNoun/Target/singular",
+                ),
+                (
+                    6,
+                    16,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:type/Creature/plural",
+                ),
+                (
+                    16,
+                    21,
+                    LexicalProvenanceKind::Lexeme,
+                    "lexeme:VerbLexeme/Gain/bare",
+                ),
                 (21, 23, LexicalProvenanceKind::Codec, "codec:ScalarNumber"),
-                (23, 28, LexicalProvenanceKind::FormLiteral, "form:gain_life/gain_life/2"),
-                (28, 29, LexicalProvenanceKind::FormLiteral, "structural:Sentences/sentences/terminator/0"),
+                (
+                    23,
+                    28,
+                    LexicalProvenanceKind::FormLiteral,
+                    "form:gain_life/gain_life/2",
+                ),
+                (
+                    28,
+                    29,
+                    LexicalProvenanceKind::FormLiteral,
+                    "structural:Sentences/sentences/terminator/0",
+                ),
             ][..],
         ),
     ];
@@ -4149,11 +4224,15 @@ fn assert_target_as_noun_compound(
     let selected = analysis
         .selected()
         .unwrap_or_else(|| panic!("target-as-noun compound must select: {text:?}: {analysis:?}"));
-    let decision = analysis.decision().expect("selected compound retains a decision");
+    let decision = analysis
+        .decision()
+        .expect("selected compound retains a decision");
     assert_eq!(decision.candidates().len(), candidates, "{text:?}");
     assert_eq!(decision.resolution(), resolution, "{text:?}");
     assert!(decision.exception_uses().is_empty(), "{text:?}");
-    let selected_ordinal = decision.selected().expect("selected compound names its candidate");
+    let selected_ordinal = decision
+        .selected()
+        .expect("selected compound names its candidate");
     let selected_candidate = decision
         .candidates()
         .iter()
@@ -4172,7 +4251,9 @@ fn assert_target_as_noun_compound(
     assert_eq!(ast.zero_headed_nominals, zero_headed_nominals, "{text:?}");
     assert_eq!(ast.target_modifiers, 1, "{text:?}");
 
-    let ownership = analysis.ownership().expect("selected compound owns its bytes");
+    let ownership = analysis
+        .ownership()
+        .expect("selected compound owns its bytes");
     let project = |claims: &[deckmaste_english_v2::parser::LexicalClaim]| {
         claims
             .iter()
@@ -4969,10 +5050,7 @@ impl Visitor for CoordinationVisitor {
         deckmaste_english_v2::visit::walk_plural_nominal_coordination(self, value);
     }
 
-    fn visit_determined_nominal(
-        &mut self,
-        value: &deckmaste_english_v2::ast::DeterminedNominal,
-    ) {
+    fn visit_determined_nominal(&mut self, value: &deckmaste_english_v2::ast::DeterminedNominal) {
         self.events.push("DeterminedNominal");
         deckmaste_english_v2::visit::walk_determined_nominal(self, value);
     }

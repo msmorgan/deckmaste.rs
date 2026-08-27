@@ -231,9 +231,7 @@ fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
 
 fn indefinite(noun: Noun) -> NounPhrase {
     match noun {
-        Noun::Lexeme(noun) => {
-            determined_singular(SimpleDeterminative::A, Noun::Lexeme(noun))
-        }
+        Noun::Lexeme(noun) => determined_singular(SimpleDeterminative::A, Noun::Lexeme(noun)),
         Noun::Type(noun) => determined_singular(SimpleDeterminative::An, Noun::Type(noun)),
         Noun::ArtifactSubtype(noun) => {
             determined_singular(SimpleDeterminative::An, Noun::ArtifactSubtype(noun))
@@ -986,10 +984,7 @@ fn demonstrative_references_visit_their_unified_nominal_ast_nodes() {
     }
 
     for (value, expected) in [
-        (
-            that_noun(creature()),
-            "That creature deals 3 damage to it.",
-        ),
+        (that_noun(creature()), "That creature deals 3 damage to it."),
         (
             those_noun(creatures()),
             "Those creatures deal 3 damage to it.",

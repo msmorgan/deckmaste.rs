@@ -354,7 +354,10 @@ fn parse_field_kind(input: ParseStream<'_>, owner: &Ident, role: &Ident) -> syn:
                 }
                 content.parse::<Token![,]>()?;
             }
-            Some(ZeroableCheck { function, arguments })
+            Some(ZeroableCheck {
+                function,
+                arguments,
+            })
         } else {
             None
         };
@@ -772,7 +775,6 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
         "agreement" => Some(Feature::Agreement),
         "cardinality" => Some(Feature::Cardinality),
         "determiner_number" => Some(Feature::DeterminerNumber),
-        "determiner_position" => Some(Feature::DeterminerPosition),
         "nominal_form" => Some(Feature::NominalForm),
         "nominal_license" => Some(Feature::NominalLicense),
         "onset_license" => Some(Feature::OnsetLicense),

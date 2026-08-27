@@ -3,5 +3,12 @@ KeywordAbility(
     spelling: "fortify",
     grammar: FixedKeyword(
         surface: "fortify",
+        determinative: (
+            number_license: SingularOnly,
+            nominal_license: BareSingularNoun,
+            realizations: [
+                (surface: "fortified", phrase_number: Singular),
+            ],
+        ),
     ),
 )

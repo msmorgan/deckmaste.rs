@@ -480,7 +480,6 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
         Feature::Agreement,
         Feature::Cardinality,
         Feature::DeterminerNumber,
-        Feature::DeterminerPosition,
         Feature::NominalForm,
         Feature::NominalLicense,
         Feature::OnsetLicense,
@@ -492,7 +491,6 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
             let provider_helper = matches!(
                 feature,
                 Feature::DeterminerNumber
-                    | Feature::DeterminerPosition
                     | Feature::NominalForm
                     | Feature::NominalLicense
                     | Feature::OnsetLicense
@@ -525,12 +523,15 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
     }
     for feature in [
         Feature::DeterminerNumber,
-        Feature::DeterminerPosition,
         Feature::NominalForm,
         Feature::NominalLicense,
         Feature::OnsetLicense,
     ] {
-        for sum in validated.sums().iter().filter(|sum| validated.carries_feature(sum.name(), feature)) {
+        for sum in validated
+            .sums()
+            .iter()
+            .filter(|sum| validated.carries_feature(sum.name(), feature))
+        {
             items.push(emit_sum_feature_helper(validated, sum, feature)?);
         }
     }
@@ -1660,7 +1661,6 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
         Feature::Agreement => quote! { Agreement },
         Feature::Cardinality => quote! { Cardinality },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
-        Feature::DeterminerPosition => quote! { DeterminerPosition },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
         Feature::OnsetLicense => quote! { OnsetLicense },
@@ -3143,7 +3143,7 @@ fn render_declaration_verb_atom(
     method_writer: &TokenStream,
 ) -> syn::Result<TokenStream> {
     let (axis_value, feature) = match codec.feature_axis() {
-                    Feature::Agreement => {
+        Feature::Agreement => {
             let agreement = projected_verb_agreement(validated, construction, role, locals)?;
             let feature = quote! { match #agreement {
                 Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
@@ -3471,11 +3471,18 @@ fn feature_expr(
                 return match source_feature {
                     Feature::Agreement => Ok(quote! { agreement }),
                     Feature::Cardinality => Err(internal("verb slot does not provide cardinality")),
-                    Feature::DeterminerNumber => Err(internal("verb slot does not provide determiner number")),
-                    Feature::DeterminerPosition => Err(internal("verb slot does not provide determiner position")),
-                    Feature::NominalForm => Err(internal("verb slot does not provide nominal form")),
-                    Feature::NominalLicense => Err(internal("verb slot does not provide nominal license")),
-                    Feature::OnsetLicense => Err(internal("verb slot does not provide onset license")),
+                    Feature::DeterminerNumber => {
+                        Err(internal("verb slot does not provide determiner number"))
+                    }
+                    Feature::NominalForm => {
+                        Err(internal("verb slot does not provide nominal form"))
+                    }
+                    Feature::NominalLicense => {
+                        Err(internal("verb slot does not provide nominal license"))
+                    }
+                    Feature::OnsetLicense => {
+                        Err(internal("verb slot does not provide onset license"))
+                    }
                     Feature::Onset => implicit_verb_onset(validated, construction, locals),
                     Feature::Number => Err(internal("verb slot does not provide number")),
                     Feature::Participle => Ok(quote! { Participle::Participle }),
@@ -3532,7 +3539,7 @@ fn feature_expr(
                 let helper = ident(&feature_helper(feature_name(*source_feature), helper_owner));
                 let environment = (*source_feature == Feature::Onset
                     && validated.needs_parser_environment())
-                    .then(|| quote! { , environment });
+                .then(|| quote! { , environment });
                 let context = (*source_feature == Feature::Onset).then(|| quote! { , context });
                 return Ok(quote! {
                     #helper(
@@ -4177,7 +4184,6 @@ fn emit_feature_helper(
         Feature::Agreement => quote! { Agreement },
         Feature::Cardinality => quote! { Cardinality },
         Feature::DeterminerNumber => quote! { DeterminerNumber },
-        Feature::DeterminerPosition => quote! { DeterminerPosition },
         Feature::NominalForm => quote! { NominalForm },
         Feature::NominalLicense => quote! { NominalLicense },
         Feature::OnsetLicense => quote! { OnsetLicense },
@@ -4347,20 +4353,37 @@ fn emit_sum_feature_helper(
     let function = ident(&function_name);
     let ty = ident(sum.name());
     let return_ty = super::feature_type(feature);
-    let arms = sum.alternatives().iter().map(|alternative| {
-        let variant = ident(alternative.name());
-        let target = match alternative.value() {
-            ValueKindPlan::Category(category) | ValueKindPlan::Sum(category)
-                if validated.carries_feature(category, feature) => category,
-            _ => return Err(internal("feature-bearing sum alternative lacks a generated feature helper")),
-        };
-        let helper = ident(&feature_helper(feature_name(feature), target));
-        Ok(quote! { #ty::#variant(value) => #helper(value) })
-    }).collect::<syn::Result<Vec<_>>>()?;
+    let arms = sum
+        .alternatives()
+        .iter()
+        .map(|alternative| {
+            let variant = ident(alternative.name());
+            let target = match alternative.value() {
+                ValueKindPlan::Category(category) | ValueKindPlan::Sum(category)
+                    if validated.carries_feature(category, feature) =>
+                {
+                    category
+                }
+                _ => {
+                    return Err(internal(
+                        "feature-bearing sum alternative lacks a generated feature helper",
+                    ));
+                }
+            };
+            let helper = ident(&feature_helper(feature_name(feature), target));
+            Ok(quote! { #ty::#variant(value) => #helper(value) })
+        })
+        .collect::<syn::Result<Vec<_>>>()?;
     Ok(GeneratedItem::new(
-        ItemKey::Named { kind: NamedKind::Function, name: function_name },
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
         quote! { fn #function(value: &#ty) -> #return_ty { match value { #(#arms),* } } },
-        vec![DeclarationKey::new(DeclarationKind::AbstractSum, sum.name())],
+        vec![DeclarationKey::new(
+            DeclarationKind::AbstractSum,
+            sum.name(),
+        )],
     ))
 }
 
@@ -4738,8 +4761,6 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         FeatureValue::Both => quote! { DeterminerNumber::Both },
-        FeatureValue::StandaloneOnly => quote! { DeterminerPosition::StandaloneOnly },
-        FeatureValue::PostQuantity => quote! { DeterminerPosition::PostQuantity },
         FeatureValue::BareSingularNoun => quote! { NominalForm::BareSingularNoun },
         FeatureValue::ModifiedSingularNoun => quote! { NominalForm::ModifiedSingularNoun },
         FeatureValue::SingularCoordination => quote! { NominalForm::SingularCoordination },
@@ -4964,7 +4985,6 @@ fn feature_name(feature: Feature) -> &'static str {
         Feature::Participle => "participle",
         Feature::PossessiveEnding => "possessive_ending",
         Feature::DeterminerNumber => "determiner_number",
-        Feature::DeterminerPosition => "determiner_position",
         Feature::NominalForm => "nominal_form",
         Feature::NominalLicense => "nominal_license",
         Feature::OnsetLicense => "onset_license",
@@ -5039,11 +5059,7 @@ mod tests {
             .expect("root onset helper is generated")
             .tokens
             .to_string();
-        for required in [
-            "members . first ()",
-            "onset_for_item",
-            "context",
-        ] {
+        for required in ["members . first ()", "onset_for_item", "context"] {
             assert!(onset.contains(required), "missing `{required}`: {onset}");
         }
     }

@@ -1980,18 +1980,35 @@ impl SemanticPlan {
     }
 
     pub(crate) fn carries_feature(&self, value: &str, feature: Feature) -> bool {
-        fn carries(plan: &SemanticPlan, value: &str, feature: Feature, visiting: &mut HashSet<String>) -> bool {
+        fn carries(
+            plan: &SemanticPlan,
+            value: &str,
+            feature: Feature,
+            visiting: &mut HashSet<String>,
+        ) -> bool {
             if !visiting.insert(value.to_owned()) {
                 return false;
             }
-            let direct = plan.constructions.iter().filter(|construction| construction.category() == value).collect::<Vec<_>>();
+            let direct = plan
+                .constructions
+                .iter()
+                .filter(|construction| construction.category() == value)
+                .collect::<Vec<_>>();
             let result = if !direct.is_empty() {
                 direct.iter().all(|construction| plan.feature_equations(construction.construction_id()).iter().any(|equation| matches!(equation.target(), crate::feature::FeaturePlace::Construction(found) if *found == feature)))
             } else if let Some(sum) = plan.sums.iter().find(|sum| sum.name() == value) {
-                !sum.alternatives().is_empty() && sum.alternatives().iter().all(|alternative| match alternative.value() {
-                    ValueKindPlan::Category(category) | ValueKindPlan::Sum(category) => carries(plan, category, feature, visiting),
-                    ValueKindPlan::Product(_) | ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) => false,
-                })
+                !sum.alternatives().is_empty()
+                    && sum
+                        .alternatives()
+                        .iter()
+                        .all(|alternative| match alternative.value() {
+                            ValueKindPlan::Category(category) | ValueKindPlan::Sum(category) => {
+                                carries(plan, category, feature, visiting)
+                            }
+                            ValueKindPlan::Product(_)
+                            | ValueKindPlan::Lex(_)
+                            | ValueKindPlan::Identity(_) => false,
+                        })
             } else {
                 false
             };

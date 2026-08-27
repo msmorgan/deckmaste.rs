@@ -233,7 +233,6 @@ pub enum Feature {
     Agreement,
     Cardinality,
     DeterminerNumber,
-    DeterminerPosition,
     NominalForm,
     NominalLicense,
     OnsetLicense,

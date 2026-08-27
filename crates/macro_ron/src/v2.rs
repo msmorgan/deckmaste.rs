@@ -251,7 +251,62 @@ pub enum Grammar {
         surface: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         onset: Option<Onset>,
+        /// An additional determiner use of this keyword declaration.
+        ///
+        /// The fixed keyword remains the declaration's primary grammar row;
+        /// this supplemental row is indexed separately so its participial
+        /// surface can never scan as a keyword line.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        determinative: Option<DeterminativeGrammar>,
     },
+}
+
+/// The nominal-number selection licensed by one Determinative realization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum DeterminativeNumberLicense {
+    SingularOnly,
+    PluralOnly,
+    Both,
+}
+
+/// The kind of nominal selected by one Determinative realization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum DeterminativeNominalLicense {
+    CountNominal,
+    BareSingularNoun,
+}
+
+/// The phrase-number condition of one Determinative surface realization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum DeterminativePhraseNumber {
+    Singular,
+    Plural,
+}
+
+/// One authored surface selected from a Determinative lemma.
+///
+/// The conditions describe the following phrase, never a stored AST surface.
+/// This lets one lemma realize as `a`/`an` or `that`/`those` without making
+/// those spellings distinct AST members.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeterminativeRealization {
+    pub surface: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub onset: Option<Onset>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phrase_number: Option<DeterminativePhraseNumber>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub following_onset: Option<Onset>,
+}
+
+/// The required selection contract and realizations of one Determinative.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeterminativeGrammar {
+    pub number_license: DeterminativeNumberLicense,
+    pub nominal_license: DeterminativeNominalLicense,
+    pub realizations: Vec<DeterminativeRealization>,
 }
 
 /// The effective initial sound of one complete realized surface.
@@ -435,6 +490,7 @@ pub enum SpellingPart {
 pub struct GrammarRow {
     recipe: GrammarRecipe,
     surfaces: Vec<RealizedSurface>,
+    determinative: Option<DeterminativeRow>,
 }
 
 impl GrammarRow {
@@ -446,6 +502,74 @@ impl GrammarRow {
     #[must_use]
     pub fn surfaces(&self) -> &[RealizedSurface] {
         &self.surfaces
+    }
+
+    /// Returns the declaration's supplemental Determinative row, if it has one.
+    #[must_use]
+    pub fn determinative(&self) -> Option<&DeterminativeRow> {
+        self.determinative.as_ref()
+    }
+}
+
+/// A fully normalized Determinative grammar row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeterminativeRow {
+    number_license: DeterminativeNumberLicense,
+    nominal_license: DeterminativeNominalLicense,
+    realizations: Vec<RealizedDeterminativeSurface>,
+}
+
+impl DeterminativeRow {
+    #[must_use]
+    pub fn number_license(&self) -> DeterminativeNumberLicense {
+        self.number_license
+    }
+
+    #[must_use]
+    pub fn nominal_license(&self) -> DeterminativeNominalLicense {
+        self.nominal_license
+    }
+
+    #[must_use]
+    pub fn realizations(&self) -> &[RealizedDeterminativeSurface] {
+        &self.realizations
+    }
+}
+
+/// One Determinative surface with its frozen effective onset.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RealizedDeterminativeSurface {
+    surface: String,
+    onset: Onset,
+    onset_override: Option<Onset>,
+    phrase_number: Option<DeterminativePhraseNumber>,
+    following_onset: Option<Onset>,
+}
+
+impl RealizedDeterminativeSurface {
+    #[must_use]
+    pub fn surface(&self) -> &str {
+        &self.surface
+    }
+
+    #[must_use]
+    pub fn onset(&self) -> Onset {
+        self.onset
+    }
+
+    #[must_use]
+    pub fn onset_override(&self) -> Option<Onset> {
+        self.onset_override
+    }
+
+    #[must_use]
+    pub fn phrase_number(&self) -> Option<DeterminativePhraseNumber> {
+        self.phrase_number
+    }
+
+    #[must_use]
+    pub fn following_onset(&self) -> Option<Onset> {
+        self.following_onset
     }
 }
 
@@ -721,6 +845,17 @@ pub enum ValidationError {
     DuplicateCustomShape { shape: Vec<CustomTailAtom> },
     #[error("Custom Literal atoms must contain a nonempty, trimmed, single-line terminal span")]
     InvalidCustomLiteral,
+    #[error("Determinative grammar requires one or more realization rows")]
+    EmptyDeterminativeRealizations,
+    #[error(
+        "Determinative realization `{surface}` is incompatible with number license `{number_license:?}`"
+    )]
+    IncompatibleDeterminativeRealization {
+        surface: String,
+        number_license: DeterminativeNumberLicense,
+    },
+    #[error("Determinative realizations `{first}` and `{second}` overlap")]
+    OverlappingDeterminativeRealizations { first: String, second: String },
     #[error(
         "spelling head `{spelling_head}` does not match this declaration's grammar head `{grammar_head}`"
     )]
@@ -1245,7 +1380,7 @@ fn normalize_grammar(
     spelling: &[SpellingPart],
     grammar: Grammar,
 ) -> Result<GrammarRow, ReadError> {
-    let (grammar_head, recipe, surfaces) = match (grammar, source_map) {
+    let (grammar_head, recipe, surfaces, determinative) = match (grammar, source_map) {
         (
             Grammar::Verb {
                 bare,
@@ -1305,7 +1440,7 @@ fn normalize_grammar(
                     text,
                 });
             }
-            (bare, GrammarRecipe::Verb { valence }, surfaces)
+            (bare, GrammarRecipe::Verb { valence }, surfaces, None)
         }
         (
             Grammar::Noun {
@@ -1343,19 +1478,36 @@ fn normalize_grammar(
                     text,
                 });
             }
-            (singular, GrammarRecipe::Noun, surfaces)
+            (singular, GrammarRecipe::Noun, surfaces, None)
         }
         (Grammar::FixedTerm { surface, onset }, GrammarSourceMap::Fixed { surface: position }) => {
-            fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedTerm)?
+            let (head, recipe, surfaces) =
+                fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedTerm)?;
+            (head, recipe, surfaces, None)
         }
         (
             Grammar::FixedClause { surface, onset },
             GrammarSourceMap::Fixed { surface: position },
-        ) => fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedClause)?,
+        ) => {
+            let (head, recipe, surfaces) =
+                fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedClause)?;
+            (head, recipe, surfaces, None)
+        }
         (
-            Grammar::FixedKeyword { surface, onset },
+            Grammar::FixedKeyword {
+                surface,
+                onset,
+                determinative,
+            },
             GrammarSourceMap::Fixed { surface: position },
-        ) => fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedKeyword)?,
+        ) => {
+            let (head, recipe, surfaces) =
+                fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedKeyword)?;
+            let determinative = determinative
+                .map(|grammar| normalize_determinative(path, *position, grammar))
+                .transpose()?;
+            (head, recipe, surfaces, determinative)
+        }
         _ => {
             return Err(source_map_parse_error(
                 path,
@@ -1377,7 +1529,101 @@ fn normalize_grammar(
         ));
     }
 
-    Ok(GrammarRow { recipe, surfaces })
+    Ok(GrammarRow {
+        recipe,
+        surfaces,
+        determinative,
+    })
+}
+
+fn normalize_determinative(
+    path: &Path,
+    position: SourcePosition,
+    grammar: DeterminativeGrammar,
+) -> Result<DeterminativeRow, ReadError> {
+    if grammar.realizations.is_empty() {
+        return Err(validation_error_at(
+            path,
+            position,
+            ValidationError::EmptyDeterminativeRealizations,
+        ));
+    }
+    let mut realizations = Vec::with_capacity(grammar.realizations.len());
+    for realization in grammar.realizations {
+        if !number_license_allows(grammar.number_license, realization.phrase_number) {
+            return Err(validation_error_at(
+                path,
+                position,
+                ValidationError::IncompatibleDeterminativeRealization {
+                    surface: realization.surface,
+                    number_license: grammar.number_license,
+                },
+            ));
+        }
+        validate_surface(
+            path,
+            position,
+            "determinative realization",
+            &realization.surface,
+        )?;
+        let onset = normalized_onset(path, position, &realization.surface, realization.onset)?;
+        realizations.push(RealizedDeterminativeSurface {
+            surface: realization.surface,
+            onset,
+            onset_override: realization.onset,
+            phrase_number: realization.phrase_number,
+            following_onset: realization.following_onset,
+        });
+    }
+    for (index, left) in realizations.iter().enumerate() {
+        for right in &realizations[index + 1..] {
+            if determinative_conditions_overlap(left, right) {
+                return Err(validation_error_at(
+                    path,
+                    position,
+                    ValidationError::OverlappingDeterminativeRealizations {
+                        first: left.surface.clone(),
+                        second: right.surface.clone(),
+                    },
+                ));
+            }
+        }
+    }
+    Ok(DeterminativeRow {
+        number_license: grammar.number_license,
+        nominal_license: grammar.nominal_license,
+        realizations,
+    })
+}
+
+fn number_license_allows(
+    license: DeterminativeNumberLicense,
+    phrase_number: Option<DeterminativePhraseNumber>,
+) -> bool {
+    matches!(
+        (license, phrase_number),
+        (DeterminativeNumberLicense::Both, _)
+            | (
+                DeterminativeNumberLicense::SingularOnly,
+                None | Some(DeterminativePhraseNumber::Singular)
+            )
+            | (
+                DeterminativeNumberLicense::PluralOnly,
+                None | Some(DeterminativePhraseNumber::Plural)
+            )
+    )
+}
+
+fn determinative_conditions_overlap(
+    left: &RealizedDeterminativeSurface,
+    right: &RealizedDeterminativeSurface,
+) -> bool {
+    (left.phrase_number.is_none()
+        || right.phrase_number.is_none()
+        || left.phrase_number == right.phrase_number)
+        && (left.following_onset.is_none()
+            || right.following_onset.is_none()
+            || left.following_onset == right.following_onset)
 }
 
 fn fixed_grammar(
