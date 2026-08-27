@@ -281,7 +281,9 @@ constructions! {
             Plural = "taxes",
         },
         Token = "token",
-        Toughness = "toughness",
+        Toughness = "toughness" {
+            Plural = "toughnesses",
+        },
         Turn = "turn",
         Type = "type",
         Die = "die" {
@@ -321,7 +323,9 @@ constructions! {
         Cause = "cause",
         Become = "become",
         Cost = "cost",
-        Do = "do",
+        Do = "do" {
+            ThirdPersonSingular = "does",
+        },
         Be = "be" {
             Bare = "are",
             ThirdPersonSingular = "is",

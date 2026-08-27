@@ -788,7 +788,7 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Cost", SurfaceFeature::Bare, "cost"),
             ("Cost", SurfaceFeature::ThirdPersonSingular, "costs"),
             ("Do", SurfaceFeature::Bare, "do"),
-            ("Do", SurfaceFeature::ThirdPersonSingular, "dos"),
+            ("Do", SurfaceFeature::ThirdPersonSingular, "does"),
             ("Be", SurfaceFeature::Bare, "are"),
             ("Be", SurfaceFeature::ThirdPersonSingular, "is"),
         ]
@@ -876,7 +876,7 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
             ("Token", SurfaceFeature::Singular, "token"),
             ("Token", SurfaceFeature::Plural, "tokens"),
             ("Toughness", SurfaceFeature::Singular, "toughness"),
-            ("Toughness", SurfaceFeature::Plural, "toughnesss"),
+            ("Toughness", SurfaceFeature::Plural, "toughnesses"),
             ("Turn", SurfaceFeature::Singular, "turn"),
             ("Turn", SurfaceFeature::Plural, "turns"),
             ("Type", SurfaceFeature::Singular, "type"),
@@ -931,6 +931,80 @@ fn generated_morphology_is_the_only_closed_spelling_authority() {
         assert!(
             !scanner_literals.iter().any(|literal| literal == forbidden),
             "source-string surface mirror remains: {forbidden}"
+        );
+    }
+}
+
+#[test]
+fn task11_suffix_edge_overrides_generate_only_correct_english_surfaces() {
+    let source =
+        fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/constructions.rs"))
+            .expect("production constructions are readable");
+    let invocation = deckmaste_construction_core::invocation_from_source(&source)
+        .expect("production construction invocation is authentic");
+    let expansion = deckmaste_construction_core::generate(invocation.tokens)
+        .expect("production construction inventory compiles");
+    let surfaces = |terminal_name: &str| {
+        expansion
+            .terminal_contributions()
+            .iter()
+            .find(|terminal| terminal.name() == terminal_name)
+            .unwrap_or_else(|| panic!("{terminal_name} terminal contribution exists"))
+            .surfaces()
+            .iter()
+            .map(|row| (row.member(), row.feature(), row.surface()))
+            .collect::<Vec<_>>()
+    };
+    let verbs = surfaces("VerbLexeme");
+    let nouns = surfaces("CommonNoun");
+
+    for expected in [
+        ("May", SurfaceFeature::Bare, "may"),
+        ("May", SurfaceFeature::ThirdPersonSingular, "may"),
+        ("Do", SurfaceFeature::Bare, "do"),
+        ("Do", SurfaceFeature::ThirdPersonSingular, "does"),
+    ] {
+        assert!(
+            verbs.contains(&expected),
+            "missing verb surface {expected:?}"
+        );
+    }
+    for expected in [
+        ("Copy", SurfaceFeature::Plural, "copies"),
+        ("Library", SurfaceFeature::Plural, "libraries"),
+        ("Tax", SurfaceFeature::Plural, "taxes"),
+        ("Toughness", SurfaceFeature::Plural, "toughnesses"),
+    ] {
+        assert!(
+            nouns.contains(&expected),
+            "missing noun surface {expected:?}"
+        );
+    }
+    for malformed in ["mays", "dos"] {
+        assert!(
+            verbs.iter().all(|(_, _, surface)| *surface != malformed),
+            "generated verb inventory retained malformed {malformed:?}",
+        );
+    }
+    for malformed in ["copys", "librarys", "taxs", "toughnesss"] {
+        assert!(
+            nouns.iter().all(|(_, _, surface)| *surface != malformed),
+            "generated noun inventory retained malformed {malformed:?}",
+        );
+    }
+
+    let parser = parser();
+    let context = context();
+    for text in ["It does.", "Toughnesses gain 1 life."] {
+        let parsed = parser.parse(text, &context).unwrap_or_else(|error| {
+            panic!("correct irregular surface must parse {text:?}: {error}")
+        });
+        assert_eq!(parsed.render(&context, parser.environment()), text);
+    }
+    for text in ["It dos.", "Toughnesss gain 1 life."] {
+        assert!(
+            parser.parse(text, &context).is_err(),
+            "malformed generated surface must reject {text:?}",
         );
     }
 }
