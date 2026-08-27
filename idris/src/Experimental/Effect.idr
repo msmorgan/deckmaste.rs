@@ -919,8 +919,25 @@ mutual
            Effect bs
     Expose : (v : ExposeVerb) -> (who : Noun bs Player) ->
              (what : Exposed (nomIntro who)) -> Effect bs
+    ||| "Search [scope] for [q] [description]" [CR#701.23a]. The count is
+    ||| a slot because printed text writes it -- "up to two basic land
+    ||| cards", "a number of Plains cards equal to the difference"
+    ||| (Boreas Charger), "up to X basic land cards" (Celebrate the
+    ||| Harvest) -- and a bare "a card" is `exactly 1`, which is what the
+    ||| row spelled before the slot existed. It rides beside the
+    ||| description rather than inside it for `CountedGroup`'s reason: a
+    ||| description takes no count, and a group-level constraint ("with
+    ||| different names") has to have a group to ride.
+    ||| What the clause finds is announced at the count's own plurality,
+    ||| so the sentence that says where the cards GO -- a separate clause,
+    ||| since [CR#701.23e] makes even the reveal separate -- can name them
+    ||| as "those cards", "them", "one of them" or "the rest".
+    ||| -- spelling: "[who] search[es] [scope] for [q] [description]".
     Search : (who : Noun bs Player) -> (sc : SearchScope (nomIntro who)) ->
+             (q : Quantity (nomIntro who)) ->
              (p : Predicate (nomIntro who) Object) ->
+             {auto 0 nz : NonZeroQ q} ->
+             {auto 0 wf : WellFormedQ q} ->
              {auto 0 zf : ZoneFree p} -> Effect bs
     Shuffle : (whose : Noun bs Player) -> Effect bs
     ||| "Flip a coin", "Flip five coins", "target player flips a coin":
@@ -1439,7 +1456,7 @@ mutual
   heldUntilOk (AddMana _ _ _ _) = False
   heldUntilOk (Draw _ _) = False
   heldUntilOk (Expose _ _ _) = False
-  heldUntilOk (Search _ _ _) = False
+  heldUntilOk (Search _ _ _ _) = False
   heldUntilOk (Shuffle _) = False
   heldUntilOk (FlipCoins _ _) = False
   heldUntilOk (RollDice _ _ _) = False
@@ -1547,7 +1564,7 @@ mutual
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
   reflexEncloseUse (Draw _ _) = EncReflexive       -- 1 ([CR#121.1]: a PLAYER draws)
   reflexEncloseUse (Choose _ _) = EncReflexive       -- 1
-  reflexEncloseUse (Search _ _ _) = EncReflexive
+  reflexEncloseUse (Search _ _ _ _) = EncReflexive
   reflexEncloseUse (Shuffle _) = EncReflexive
   reflexEncloseUse (FlipCoins _ _) = EncReflexive
   reflexEncloseUse (RollDice _ _ _) = EncReflexive
@@ -1637,7 +1654,7 @@ mutual
   thisWayOutcomeOk (AddMana _ _ _ _) = True
   thisWayOutcomeOk (Draw _ _) = True
   thisWayOutcomeOk (Expose _ _ _) = True
-  thisWayOutcomeOk (Search _ _ _) = True
+  thisWayOutcomeOk (Search _ _ _ _) = True
   thisWayOutcomeOk (Shuffle _) = True
   thisWayOutcomeOk (FlipCoins _ _) = True
   thisWayOutcomeOk (RollDice _ _ _) = True
@@ -1735,7 +1752,7 @@ mutual
   costActionOk (AddMana who _ _ _) = costNounOk who
   costActionOk (Draw _ _) = True
   costActionOk (Expose _ who _) = costNounOk who
-  costActionOk (Search who _ _) = costNounOk who
+  costActionOk (Search who _ _ _) = costNounOk who
   costActionOk (Shuffle whose) = costNounOk whose
   costActionOk (FlipCoins who _) = costNounOk who
   costActionOk (RollDice who _ _) = costNounOk who
@@ -1873,7 +1890,7 @@ mutual
   effEq (Draw You a) (Draw You b) = boundEq a b
   effEq (Draw _ _) _ = False
   effEq (Expose _ _ _) _ = False
-  effEq (Search _ _ _) _ = False
+  effEq (Search _ _ _ _) _ = False
   effEq (Shuffle _) _ = False
   effEq (FlipCoins _ _) _ = False
   effEq (RollDice _ _ _) _ = False
@@ -1992,11 +2009,11 @@ mutual
   effIntro (Expose v who what) = exposedIntro what
   -- the found card is stamped by the label that found it, which is what
   -- keeps it out of a later shuffle [CR#701.24b].
-  effIntro (Search who sc p) =
-    MkBinding AD Object OneOf
+  effIntro (Search who sc q p) =
+    MkBinding AD Object (quantPlur q)
               (ObjectP (seedTy p) (searchZone sc)
                        (mkStamp (Just "Search") Nothing False) Nothing)
-      :: (predDelta p ++ searchDelta sc ++ nomIntro who)
+      :: (quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who)
   effIntro (Shuffle whose) = afterShuffle (nomIntro whose)
   effIntro (FlipCoins who count) = outcomeB CoinFlipped :: flipScopeIntro count
   effIntro (RollDice who count _) = outcomeB RollResult :: amtIntro count
@@ -2099,7 +2116,8 @@ mutual
   preIntro (AddMana who amt _ _) = amtIntro amt
   preIntro (Draw who amt) = amtIntro amt
   preIntro (Expose v who what) = exposedIntro what
-  preIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
+  preIntro (Search who sc q p) =
+    quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who
   preIntro (Shuffle whose) = nomIntro whose
   preIntro (FlipCoins who count) = flipScopeIntro count
   preIntro (RollDice who count _) = amtIntro count
@@ -2205,7 +2223,8 @@ mutual
   annIntro (AddMana who amt _ _) = amtIntro amt
   annIntro (Draw who amt) = amtIntro amt
   annIntro (Expose v who what) = exposedIntro what
-  annIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
+  annIntro (Search who sc q p) =
+    quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who
   annIntro (Shuffle whose) = nomIntro whose
   annIntro (FlipCoins who count) = flipScopeIntro count
   annIntro (RollDice who count _) = amtIntro count
@@ -2326,8 +2345,9 @@ mutual
   deedDelta (AddMana _ _ _ _) = []
   deedDelta (Draw who amt) = []
   deedDelta (Expose v who what) = []
-  deedDelta (Search who sc p) =
-    [MkBinding AD Object OneOf (ObjectP (seedTy p) (searchZone sc) Nothing Nothing)]
+  deedDelta (Search who sc q p) =
+    [MkBinding AD Object (quantPlur q)
+               (ObjectP (seedTy p) (searchZone sc) Nothing Nothing)]
   deedDelta (Shuffle whose) = []
   deedDelta (FlipCoins _ _) = [outcomeB CoinFlipped]
   deedDelta (RollDice _ _ _) = [outcomeB RollResult]

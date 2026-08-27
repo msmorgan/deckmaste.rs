@@ -1007,14 +1007,22 @@ revealsTheirHand who = Expose Reveal who (ExposedZone (handOf (They {ok})))
 public export
 searchLibraryFor : (p : Predicate bs Object) ->
                    {auto 0 zf : ZoneFree p} -> Effect bs
-searchLibraryFor p = Search You (OneZone yourLibrary) p {zf}
+searchLibraryFor p = Search You (OneZone yourLibrary) (exactly 1) p {zf}
+
+||| "Search your library for [q] [description]": the counted find.
+public export
+searchLibraryForCount : (q : Quantity bs) -> (p : Predicate bs Object) ->
+                        {auto 0 nz : NonZeroQ q} ->
+                        {auto 0 wf : WellFormedQ q} ->
+                        {auto 0 zf : ZoneFree p} -> Effect bs
+searchLibraryForCount q p = Search You (OneZone yourLibrary) q p {zf}
 
 ||| "Search <player>'s graveyard, hand, and library for …": the three-zone
 ||| sweep, possessor-anchored [CR#701.23a].
 public export
 searchZonesOf : (whose : Noun bs Player) -> (p : Predicate bs Object) ->
                 {auto 0 zf : ZoneFree p} -> Effect bs
-searchZonesOf whose p = Search You (GraveyardHandLibraryOf whose) p {zf}
+searchZonesOf whose p = Search You (GraveyardHandLibraryOf whose) (exactly 1) p {zf}
 
 ||| "<player> puts <it> into/onto <zone>": the agentive placement clause.
 public export

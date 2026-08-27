@@ -9477,6 +9477,29 @@ duneblastCard =
               Macros.pip Green])
        [] (MkTypeLine [] [Sorcery]) [Spell Cards.duneblast] Nothing
 
+||| Celebrate the Harvest, whole -- "Search your library for up to X
+||| basic land cards, where X is the number of different powers among
+||| creatures you control. Put those cards onto the battlefield tapped,
+||| then shuffle." The COUNTED search: the count is the search clause's
+||| own slot, and what it announces is plural, so the destination
+||| sentence names the batch as "those cards". [CR#701.23e] keeps that
+||| sentence separate, which is why the search row carries no destination
+||| of its own.
+public export
+celebrateTheHarvest : Card
+celebrateTheHarvest =
+  Macros.card "Celebrate the Harvest"
+       (Just [Macros.generic 3, Macros.pip Green]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ Macros.searchLibraryForCount (UpToOf (LetterVal X))
+                      (And [Macros.land, HasSupertype Basic])
+                  , Define X (DistinctCount (ValueAxis Power)
+                                (AllOf Macros.creatureYouControl))
+                  , Macros.putOntoBattlefieldTapped (Those CardW)
+                  , Macros.shuffle ]) ]
+       Nothing
+
 ||| Boreas Charger's description -- "an opponent who controls more lands
 ||| than you". The member-relative comparison: the count on the left is
 ||| taken on the opponent the phrase picks, the one on the right on the
@@ -9490,19 +9513,38 @@ opponentWithMoreLands =
     (CountOf (And [Macros.land, ControlledBy You]))
 
 ||| Boreas Charger's first clause -- "choose an opponent who controls more
-||| lands than you". Its SECOND clause does not write: "search your library
-||| for a number of Plains cards equal to the difference" needs a counted
-||| search, and `Search` carries no count. The card's blocker, not the
-||| row's.
+||| lands than you".
 public export
 boreasChargerChoice : Effect []
 boreasChargerChoice = Macros.choose (Macros.a Cards.opponentWithMoreLands)
 
 ||| ...and the margin that choice leaves readable, which is what the
-||| unwritable clause would have spent.
+||| search clause spends as its count.
 public export
 boreasChargerDifference : Amount (effIntro Cards.boreasChargerChoice)
 boreasChargerDifference = TheDifference
+
+||| Boreas Charger's spell text, whole -- "choose an opponent who
+||| controls more lands than you. Search your library for a number of
+||| Plains cards equal to the difference, reveal those cards, put one of
+||| them onto the battlefield tapped and the rest into your hand, then
+||| shuffle." The counted search at its hardest: the count is an AMOUNT
+||| the earlier clause left readable, and the plural mention the search
+||| announces is what the three sentences after it partition -- "those
+||| cards", "one of them", "the rest".
+||| The printed trigger frame ("When this creature leaves the
+||| battlefield, …") is elided: `opponentWithMoreLands` reads its own
+||| domain member back as "they", which pins it to the empty prefix.
+public export
+boreasChargerSpell : Effect []
+boreasChargerSpell =
+  Sequentially
+    [ Macros.choose (Macros.a Cards.opponentWithMoreLands)
+    , Macros.searchLibraryForCount (ExactlyOf TheDifference)
+                                   (HasSubtype (landType "Plains"))
+    , Macros.revealCards (Those CardW)
+    , Macros.putOntoBattlefieldTapped (Macros.oneOf (Those CardW))
+    , Macros.move TheRest Macros.handZ ]
 
 ||| Sandstone Oracle, whole -- "When this creature enters, choose an
 ||| opponent. If that player has more cards in hand than you, draw cards

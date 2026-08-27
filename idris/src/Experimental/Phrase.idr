@@ -2583,6 +2583,14 @@ mutual
     ||| written floor or exact amount waits on a measured line.
     ||| -- spelling: "up to [amt]".
     UpToOf : (a : Amount bs) -> Quantity bs
+    ||| "a number of [description] equal to [a]": the EXACT count that is
+    ||| a written amount, the arm `UpToOf`'s own note said would wait on a
+    ||| measured line. Boreas Charger's "a number of Plains cards equal to
+    ||| the difference" and Ondu Giant's kin write it; the ceiling reading
+    ||| of the same shape ("a number of basic land cards LESS THAN OR
+    ||| EQUAL TO the difference") is `UpToOf` and not this.
+    ||| -- spelling: "a number of [description] equal to [a]".
+    ExactlyOf : (a : Amount bs) -> Quantity bs
 
   public export
   data NonZeroQ : Quantity bs -> Type where
@@ -2592,6 +2600,9 @@ mutual
     -- X is positive; the statically-zero ceiling the literal arm refuses
     -- (badZeroGroup) cannot be written here.
     AmountCeiling : NonZeroQ (UpToOf a)
+    -- an exact amount may resolve to zero and still permits one when the
+    -- amount is positive, exactly as the ceiling arm does.
+    AmountExact : NonZeroQ (ExactlyOf a)
 
   public export
   ||| A range whose floor is above its ceiling picks out nothing;
@@ -2602,6 +2613,7 @@ mutual
   quantWellFormed (Range (Just _) Nothing) = True
   quantWellFormed (Range (Just lo) (Just hi)) = lte lo hi
   quantWellFormed (UpToOf _) = True
+  quantWellFormed (ExactlyOf _) = True
 
   public export
   WellFormedQ : Quantity bs -> Type
@@ -2613,6 +2625,9 @@ mutual
   quantPlur (Range _ _) = ManyOf
   -- "up to X creatures" is written plural whatever X resolves to.
   quantPlur (UpToOf _) = ManyOf
+  -- "a number of Plains cards equal to the difference" is written plural
+  -- whatever the amount resolves to, as the ceiling arm is.
+  quantPlur (ExactlyOf _) = ManyOf
 
   public export
   ||| [CR#700.2]: a mode is chosen from the list printed on the card, so a
@@ -2624,6 +2639,7 @@ mutual
   modesFit (Range (Just lo) Nothing) n = lte lo n
   modesFit (Range (Just lo) (Just hi)) n = lte hi n
   modesFit (UpToOf _) n = True
+  modesFit (ExactlyOf _) n = True
 
   public export
   ModesFit : Quantity bs -> Nat -> Type
@@ -2636,6 +2652,7 @@ mutual
   quantLiteral : {0 bs : Bindings} -> Quantity bs -> Bool
   quantLiteral (Range _ _) = True
   quantLiteral (UpToOf _) = False
+  quantLiteral (ExactlyOf _) = False
 
   ||| What a quantity's bound mentions: nothing for the literal ranges,
   ||| the amount's own delta for the amount ceiling — so "up to X target
@@ -2644,6 +2661,7 @@ mutual
   quantDelta : {bs : Bindings} -> Quantity bs -> List Binding
   quantDelta (Range _ _) = []
   quantDelta (UpToOf a) = amtDelta a
+  quantDelta (ExactlyOf a) = amtDelta a
 
   public export
   Bindingless : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
