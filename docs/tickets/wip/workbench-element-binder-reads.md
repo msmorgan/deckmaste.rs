@@ -87,3 +87,86 @@ Standard constraints apply.
   where the anaphor wants a single `Player` mention. Same per-member
   binder-read shape as this ticket's own `AggregateOver` item above; land
   together.
+
+## As landed
+
+Two of this ticket's four items rested on a premise that is wrong against the
+code, and the correction is the round's main result: **`AggregateOver`'s
+binder body already admits a per-member event subject.** The item that was
+costed as unbuilt writes today.
+
+**The per-member event count inside `AggregateOver` — DELIVERED, premise
+corrected.** The ticket says "the body admits an `Amount` but no per-member
+event subject exists today". It does: the domain binds one member at
+`TheD`/`OneOf`, the body reads it back as `They`, and `EventCount`'s own
+`who` slot takes a `Noun bs k`. Both named readings write with no grammar
+change at all:
+
+- `greatestCardsAnOpponentDrew : Amount []` —
+  `AggregateOver MaxOf Opponent (eventCount CardDrawn They ThisTurn)`, and
+  **Thought Sponge benches whole** (Flash, the entry counters at that count,
+  and the death trigger's power-equal draw).
+- `greatestCardsAPlayerDiscardedThisWay : Amount []` — the Windfall /
+  Jace's Archivist cycle's read, at a `VerbedAct "Discard"` event and the
+  `ThisWay` window, with the complement written because
+  `bareLookbackOk (VerbedAct v) Player` is `not (actNamesPatient v)` and
+  discarding names a patient.
+
+**The ordinal cast's residual 5 — a written verdict, with the blockers
+named.** Measured and confirmed at 5 supported cards: Maelstrom Nexus, Rain
+of Riches, The Twelfth Doctor, Wild-Magic Sorcerer, and **Zimone, Infinite
+Analyst** (the ticket wrote "Zimone" unqualified; that is the one — "The
+first spell you cast with {X} in its mana cost each turn costs {1} less").
+Three separate things block it, and only the first is what the ticket
+described:
+
+1. **The read cannot be `GameEvent`-keyed.** `Experimental.Triggers` imports
+   `Experimental.Phrase`, so a `Noun` row can never take a `GameEvent`, and
+   `NthOccurrence` — the landed ordinal wrapper — is a `GameEvent`
+   constructor. A noun-phrase ordinal read must be keyed by `EventName` plus
+   a subject and complement, the way `HappenedTo` and `EventCount` already
+   are. `Ordinal` itself is in `Words` and so is available at the noun sort;
+   the wrapper is not.
+2. **There is no recurring window.** `Lookback` is
+   `ThisTurn | ThisCombat | LastTurn | ThisGame | ThisWay` — every arm names
+   one span looked back over. "each turn" is a window that RESETS, and that
+   is the ticket's own "second unbuilt thing beside it". All five lines write
+   it, so it is not optional scope: no member of the family is writable
+   without it.
+3. **The grant regime is a third thing.** The five landed lines are static
+   abilities [CR#611.3]; the next-spell GRANTS the ticket routes behind this
+   binder ("the next spell you cast this turn has cascade") are
+   [CR#611.2f]'s regime instead — an effect that begins to apply when the
+   player next puts an appropriate spell on the stack. Two regimes, one
+   phrase shape.
+
+Not minted here: an `EventName`-keyed ordinal element row plus a recurring
+window sort plus the continuous-effect regime is a round of its own, and
+building the noun without the window would write no card. **Remainder for
+the coordinator.**
+
+**Once Upon a Time — re-checked, still dormant, and no longer independent.**
+"If this spell is the first spell you've cast this game" is an IDENTITY test
+at the condition seat: it asks whether a named object IS the ordinal-selected
+member of a cast history, not whether an ordinal-selected event happened.
+`NthOccurrence` answers the second question and only at the event sort, so
+its landing does not reach this. What would reach it is exactly the ordinal
+ELEMENT read item 1 above wants, written as a `Matches` complement — so this
+is no longer "dormant, nothing would build it" but "waits on the same
+element read", and it should travel with that remainder rather than being
+re-recorded separately. No pin: nothing about the read is rules-impossible.
+
+**Routed ledger item — the plural read-back mention: measured, blocker
+named.** "Each player scries N" measures at ONE supported card, Eager
+Construct ("each player may scry 1"); no supported line writes the
+unhedged form. Recorded as pins rather than prose:
+`eachPlayerBindsNoSingular : countOnes Player (nomIntro (Each AnyPlayer)) = 0`
+and `eachPlayerBindsAGroup : countManys Player … = 1`. `playerScries` and
+`playerSurveils` both gate on `countOnes Player (nomIntro agent) = 1`,
+because [CR#701.22a] and [CR#701.25a] each name ONE player and read that
+player's own library. The fix is the per-member binder shape this round just
+confirmed works at the AMOUNT sort, lifted to the EFFECT sort so a
+distributive agent's body is typed at a context where the member binds
+`TheD`/`OneOf`. Not taken: that changes how every `Each`-headed body is
+typed. **Remainder for the coordinator**, and it did NOT "land together"
+with the `AggregateOver` item, because that item needed nothing.

@@ -11033,3 +11033,70 @@ deepglowSkateRecipientRefused = Refl
 public export
 doubleYourOwnCounters : Effect []
 doubleYourOwnCounters = DoubleCountersOfOwnKinds You
+
+--------------------------------------------------------------------------------
+-- The per-member event count inside `AggregateOver`'s binder body.
+--------------------------------------------------------------------------------
+
+||| Thought Sponge's entry count -- "the greatest number of cards an
+||| opponent has drawn this turn". The element binder over a described
+||| domain, with an EVENT read in the body: the domain binds one opponent
+||| (`TheD`, `OneOf`) and the body names that member as `They`, which is
+||| exactly what `EventCount`'s subject slot takes. [CR#121.2] makes each
+||| draw its own event, so the number of cards a player drew is the
+||| number of drawing events with that player as subject.
+public export
+greatestCardsAnOpponentDrew : Amount []
+greatestCardsAnOpponentDrew =
+  AggregateOver MaxOf Opponent (Macros.eventCount CardDrawn They ThisTurn)
+
+||| Thought Sponge, whole -- "Flash / This creature enters with a number
+||| of +1/+1 counters on it equal to the greatest number of cards an
+||| opponent has drawn this turn. / When this creature dies, draw cards
+||| equal to its power."
+public export
+thoughtSponge : Card
+thoughtSponge =
+  Macros.card "Thought Sponge" (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Sponge"] [Creature])
+       [ Macros.keyword "Flash"
+       , Static (Macros.entersWithCounters Macros.thisCreature
+                   Cards.greatestCardsAnOpponentDrew Macros.plusOnePlusOne)
+       , Macros.triggered When (Dies Macros.thisCreature)
+                          (Draw You (StatOf Power Macros.thisCreature)) ]
+       (Just (1, 1))
+
+||| The Windfall / Jace's Archivist cycle's read -- "the greatest number of
+||| cards a player discarded this way". The same binder body at a
+||| VERBED-ACT event and the "this way" window: what a labelled act did in
+||| this very resolution, per member. [CR#603.2c] makes a multi-card
+||| discard one event with several occurrences, which is why the count is
+||| written over the cards the act named rather than over the acts.
+public export
+greatestCardsAPlayerDiscardedThisWay : Amount []
+greatestCardsAPlayerDiscardedThisWay =
+  AggregateOver MaxOf AnyPlayer
+    (Macros.eventCountInvolving (VerbedAct "Discard") They ThisWay
+       (AllOf {k = Object} (And [])))
+
+--------------------------------------------------------------------------------
+-- The plural read-back mention, measured.
+--------------------------------------------------------------------------------
+
+||| "Each player may scry 1" (Eager Construct) is still unwritable, and the
+||| measurement says why: `Each` mints its member set at `EachD ManyOf`, so
+||| the prefix a distributed body reads holds NO singular player mention,
+||| and every keyword action whose rule reads one player's own library
+||| gates on exactly that count ([CR#701.22a]'s scry, [CR#701.25a]'s
+||| surveil). The binder shape that answers it is the one
+||| `greatestCardsAnOpponentDrew` above uses -- a member bound at `TheD
+||| OneOf` for the body to read back -- lifted from the AMOUNT sort, where
+||| it works today, to the EFFECT sort, where a distributive agent's body
+||| is typed.
+public export
+eachPlayerBindsNoSingular : countOnes Player (nomIntro (Each {bs = []} AnyPlayer)) = 0
+eachPlayerBindsNoSingular = Refl
+
+public export
+eachPlayerBindsAGroup : countManys Player (nomIntro (Each {bs = []} AnyPlayer)) = 1
+eachPlayerBindsAGroup = Refl
