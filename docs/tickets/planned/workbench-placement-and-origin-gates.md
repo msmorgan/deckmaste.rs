@@ -40,3 +40,5 @@ payload. Four remainders, one region:
 Standard constraints apply.
 
 - **Routed from workbench-event-disjunction-seat (close, 2026-08-27):** an `EventSource` naming every zone but one — "from anywhere other than the battlefield" (9 sites; one printing excludes a SET, "a graveyard or exile"). Same negated-origin shape as item 2 here; UNBLOCKS Syr Konrad, the only whole-card three-armed header carrier.
+
+- **Routed from workbench-shuffle-into-library (close, 2026-08-27):** an ENTRY-ORIGIN seat — `Enters` carries no source-zone slot and `lookbackOriginOk` admits an origin for `SpellCast` alone, so "entered from your library" (Fblthp's first ability, and the "entered from …" family) has no seat prospective or retrospective. The `FromZones` payload is the mechanism; opening `Entry`'s cells is this ticket's origin-gate work, so it lands here.
