@@ -9,7 +9,13 @@
 //!  - `map idris [FILE]` — every `data` declaration in an Idris source file
 //!    (default `idris/src/Semantics.idr`), ADT or GADT style, with its
 //!    constructors.
+//!  - `map idris-dead [FILE] [--against FILE]…` — the same inventory, filtered
+//!    to the constructors that no witness file names (default witnesses: the
+//!    evidence bench and the pin modules). Diagnostic only — never a ratio and
+//!    never a gate: an unexercised constructor is normally just one no round
+//!    has needed a witness for yet.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -32,6 +38,9 @@ enum MapCmd {
     Enums(EnumsArgs),
     /// Dump every `data` declaration in an Idris source file.
     Idris(IdrisArgs),
+    /// List the constructors of an Idris source file's `data` declarations
+    /// that no witness file mentions.
+    IdrisDead(IdrisDeadArgs),
 }
 
 #[derive(Debug, Args)]
@@ -47,6 +56,18 @@ pub struct IdrisArgs {
     file: Option<PathBuf>,
 }
 
+#[derive(Debug, Args)]
+pub struct IdrisDeadArgs {
+    /// Idris source file whose `data` declarations are inventoried. Defaults
+    /// to `idris/src/Experimental/Words.idr`.
+    file: Option<PathBuf>,
+    /// A witness file to search for constructor occurrences; repeatable.
+    /// Defaults to the evidence bench (`Experimental/Cards.idr`) plus every
+    /// pin module (`Experimental/Proofs*.idr`).
+    #[arg(long = "against", value_name = "FILE")]
+    against: Vec<PathBuf>,
+}
+
 /// # Errors
 /// If the target directory/file is missing, unreadable, or (for `enums`) a
 /// `.rs` file fails to parse.
@@ -54,6 +75,7 @@ pub fn run(args: &MapArgs) -> anyhow::Result<()> {
     match &args.command {
         MapCmd::Enums(a) => run_enums(a),
         MapCmd::Idris(a) => run_idris(a),
+        MapCmd::IdrisDead(a) => run_idris_dead(a),
     }
 }
 
@@ -413,4 +435,252 @@ fn ident_at(s: &str) -> Option<String> {
 /// string literals — none of this file's `data` headers/ctors contain one).
 fn strip_comment(line: &str) -> &str {
     line.find("--").map_or(line, |pos| &line[..pos])
+}
+
+// ---------------------------------------------------------------------
+// `map idris-dead`
+// ---------------------------------------------------------------------
+
+/// Resolve `..` components lexically, so a path built from
+/// `CARGO_MANIFEST_DIR` prints as `…/idris/src/…` rather than
+/// `…/crates/xtask/../../idris/src/…`. Purely cosmetic: never used to open a
+/// file, so it need not consult the filesystem or follow symlinks.
+fn tidy(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir
+                if out
+                    .components()
+                    .next_back()
+                    .is_some_and(|last| matches!(last, std::path::Component::Normal(_))) =>
+            {
+                out.pop();
+            }
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// The directory holding the workbench's bench and pin modules.
+fn experimental_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../idris/src/Experimental")
+}
+
+/// # Errors
+/// If FILE or a witness file can't be read, or (with no `--against`) the
+/// default witness directory can't be listed or holds no witness.
+fn run_idris_dead(args: &IdrisDeadArgs) -> anyhow::Result<()> {
+    let file = args
+        .file
+        .clone()
+        .unwrap_or_else(|| experimental_dir().join("Words.idr"));
+    let witnesses = if args.against.is_empty() {
+        default_witnesses()?
+    } else {
+        args.against.clone()
+    };
+
+    let src = fs::read_to_string(&file).with_context(|| format!("reading {}", file.display()))?;
+
+    let mut seen = HashSet::new();
+    for path in &witnesses {
+        let text =
+            fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        collect_code_tokens(&text, &mut seen);
+    }
+
+    println!(
+        "# Constructors of {} that no witness file names.",
+        tidy(&file).display()
+    );
+    println!("# Witnesses:");
+    for path in &witnesses {
+        println!("#   {}", tidy(path).display());
+    }
+    println!("#");
+    println!("# Diagnostic only: not a coverage measure, not a ratio, and not");
+    println!("# wired into any build or CI step. An unexercised constructor is");
+    println!("# normally one no round has needed a witness for yet, which is a");
+    println!("# normal state for a bench that grows by proof. It is not on its");
+    println!("# own evidence that a pin or a bench card is missing (a pin still");
+    println!("# needs a named CR rule making the positive term meaningless).");
+    println!("#");
+    println!("# The search is by name, so it credits only constructors a witness");
+    println!("# spells. A constructor reached through a macro body, or one that");
+    println!("# only ever appears in a TYPE (an index a term leaves implicit), is");
+    println!("# reported here even though it is reached. Add the module that does");
+    println!("# spell it — `--against idris/src/Experimental/Macros.idr`, say — to");
+    println!("# credit that use.");
+    println!();
+
+    let mut any = false;
+    for decl in scan_idris_data(&src) {
+        let dead: Vec<&(String, usize)> = decl
+            .ctors
+            .iter()
+            .filter(|(name, _)| unexercised(name, &seen))
+            .collect();
+        if dead.is_empty() {
+            continue;
+        }
+        any = true;
+        println!("## {} — {}", decl.name, decl.line);
+        for (ctor_name, ctor_line) in dead {
+            println!("- {ctor_name} — {ctor_line}");
+        }
+        println!();
+    }
+    if !any {
+        println!("(every constructor is named by some witness file)");
+    }
+
+    Ok(())
+}
+
+/// Whether `name` is a searchable constructor no witness names.
+///
+/// An operator constructor (`(::)`) is never reported: it is spelled as an
+/// operator at every use site, so a name search can neither credit nor
+/// convict it.
+fn unexercised(name: &str, seen: &HashSet<String>) -> bool {
+    name.starts_with(|c: char| c.is_alphabetic()) && !seen.contains(name)
+}
+
+/// The evidence bench plus every pin module under `idris/src/Experimental`,
+/// in path order.
+fn default_witnesses() -> anyhow::Result<Vec<PathBuf>> {
+    let dir = experimental_dir();
+    let mut out = Vec::new();
+    for entry in fs::read_dir(&dir).with_context(|| format!("reading dir {}", dir.display()))? {
+        let path = entry
+            .with_context(|| format!("reading an entry of {}", dir.display()))?
+            .path();
+        if path.extension().is_some_and(|ext| ext == "idr")
+            && path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n == "Cards.idr" || n.starts_with("Proofs"))
+        {
+            out.push(path);
+        }
+    }
+    out.sort();
+    anyhow::ensure!(
+        !out.is_empty(),
+        "no bench or pin modules under {}",
+        dir.display()
+    );
+    Ok(out)
+}
+
+/// Collect every Idris identifier token in `src`'s *code* into `out`.
+///
+/// `|||` docstring lines, `--` line comments, and string-literal contents are
+/// skipped, so a name that occurs only in prose or in a card's printed name
+/// is not credited as a use. A qualifier is a separate token (`Macros.exile`
+/// yields `Macros` and `exile`), so a qualified constructor reference counts.
+///
+/// The scan cannot tell a constructor from a same-named type or function, so
+/// it errs towards crediting: this over-reports exercise, never under-reports
+/// it, which keeps the diagnostic list free of false accusations.
+fn collect_code_tokens(src: &str, out: &mut HashSet<String>) {
+    for line in src.lines() {
+        if line.trim_start().starts_with("|||") {
+            continue;
+        }
+        let chars: Vec<char> = line.chars().collect();
+        let mut token = String::new();
+        let mut in_string = false;
+        let mut i = 0;
+        while i < chars.len() {
+            let c = chars[i];
+            if in_string {
+                if c == '\\' {
+                    i += 2;
+                    continue;
+                }
+                if c == '"' {
+                    in_string = false;
+                }
+                i += 1;
+                continue;
+            }
+            if c == '"' {
+                flush_token(&mut token, out);
+                in_string = true;
+            } else if c == '-' && chars.get(i + 1) == Some(&'-') {
+                break;
+            } else if c.is_alphanumeric() || c == '_' || c == '\'' {
+                token.push(c);
+            } else {
+                flush_token(&mut token, out);
+            }
+            i += 1;
+        }
+        flush_token(&mut token, out);
+    }
+}
+
+/// Move `token` into `out` if it is a well-formed identifier, and clear it.
+fn flush_token(token: &mut String, out: &mut HashSet<String>) {
+    if token.starts_with(|c: char| c.is_alphabetic()) {
+        out.insert(std::mem::take(token));
+    } else {
+        token.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tokens(src: &str) -> HashSet<String> {
+        let mut out = HashSet::new();
+        collect_code_tokens(src, &mut out);
+        out
+    }
+
+    #[test]
+    fn credits_plain_and_qualified_uses() {
+        let seen = tokens("bolt = DealDamage This (Lit 3) (Macros.target Macros.anyTarget)\n");
+        assert!(seen.contains("DealDamage"));
+        assert!(seen.contains("Macros"));
+        assert!(seen.contains("anyTarget"));
+    }
+
+    #[test]
+    fn skips_docstrings_comments_and_strings() {
+        let seen = tokens(concat!(
+            "||| DocOnly is only ever named in this docstring.\n",
+            "x = Real -- CommentOnly\n",
+            "y = Name \"StringOnly\"\n",
+        ));
+        assert!(seen.contains("Real"));
+        assert!(!seen.contains("DocOnly"));
+        assert!(!seen.contains("CommentOnly"));
+        assert!(!seen.contains("StringOnly"));
+    }
+
+    #[test]
+    fn unexercised_ignores_operator_constructors() {
+        let seen = tokens("x = Used\n");
+        assert!(!unexercised("Used", &seen));
+        assert!(unexercised("Unused", &seen));
+        assert!(!unexercised("(::)", &seen));
+    }
+
+    #[test]
+    fn reports_only_constructors_no_witness_names() {
+        let decls = scan_idris_data("data Colour = Red | Green | Blue\n");
+        let seen = tokens("swamp = Green\n");
+        let dead: Vec<&str> = decls[0]
+            .ctors
+            .iter()
+            .filter(|(name, _)| unexercised(name, &seen))
+            .map(|(name, _)| name.as_str())
+            .collect();
+        assert_eq!(dead, ["Red", "Blue"]);
+    }
 }
