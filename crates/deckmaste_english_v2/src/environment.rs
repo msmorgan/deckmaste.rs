@@ -21,6 +21,7 @@ use macro_ron::v2::VerbValence;
 
 use crate::constructions::CatalogProvider;
 use crate::constructions::VerbFrameAtom;
+use crate::constructions::VerbFrameClass;
 use crate::constructions::VerbFrameKey;
 use crate::orthography::initial_surface;
 
@@ -40,13 +41,20 @@ pub struct DeclarationRecord {
 pub enum CoreVerbIdentity {
     Add,
     Attack,
+    Become,
     Block,
+    Can,
+    Cant,
+    Cause,
     Choose,
     Control,
     Copy,
+    Cost,
     Cycle,
     Deal,
     Die,
+    Didnt,
+    Do,
     Draw,
     Enter,
     Flip,
@@ -56,6 +64,8 @@ pub enum CoreVerbIdentity {
     Leave,
     Look,
     Lose,
+    May,
+    Must,
     Own,
     Pay,
     Prevent,
@@ -66,6 +76,7 @@ pub enum CoreVerbIdentity {
     Skip,
     Turn,
     Unattach,
+    Would,
 }
 
 impl CoreVerbIdentity {
@@ -73,13 +84,20 @@ impl CoreVerbIdentity {
         match self {
             Self::Add => "core-verb:Add",
             Self::Attack => "core-verb:Attack",
+            Self::Become => "core-verb:Become",
             Self::Block => "core-verb:Block",
+            Self::Can => "core-verb:Can",
+            Self::Cant => "core-verb:Cant",
+            Self::Cause => "core-verb:Cause",
             Self::Choose => "core-verb:Choose",
             Self::Control => "core-verb:Control",
             Self::Copy => "core-verb:Copy",
+            Self::Cost => "core-verb:Cost",
             Self::Cycle => "core-verb:Cycle",
             Self::Deal => "core-verb:Deal",
             Self::Die => "core-verb:Die",
+            Self::Didnt => "core-verb:Didnt",
+            Self::Do => "core-verb:Do",
             Self::Draw => "core-verb:Draw",
             Self::Enter => "core-verb:Enter",
             Self::Flip => "core-verb:Flip",
@@ -89,6 +107,8 @@ impl CoreVerbIdentity {
             Self::Leave => "core-verb:Leave",
             Self::Look => "core-verb:Look",
             Self::Lose => "core-verb:Lose",
+            Self::May => "core-verb:May",
+            Self::Must => "core-verb:Must",
             Self::Own => "core-verb:Own",
             Self::Pay => "core-verb:Pay",
             Self::Prevent => "core-verb:Prevent",
@@ -99,6 +119,7 @@ impl CoreVerbIdentity {
             Self::Skip => "core-verb:Skip",
             Self::Turn => "core-verb:Turn",
             Self::Unattach => "core-verb:Unattach",
+            Self::Would => "core-verb:Would",
         }
     }
 }
@@ -110,19 +131,34 @@ pub enum VerbInventoryRef {
     Declaration(DeclarationId),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum VerbProvenance<'a> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum VerbProvenance {
     Core(CoreVerbIdentity),
-    Declaration(&'a Path),
+    Declaration(PathBuf),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct CoreVerbRecord {
-    identity: CoreVerbIdentity,
-    valence: VerbValence,
-    frames: Vec<Vec<VerbFrameAtom>>,
+struct VerbInventoryRecord {
+    reference: VerbInventoryRef,
+    frames: Vec<OwnedVerbFrameKey>,
     surfaces: Vec<(SurfaceFeature, Onset, Arc<str>)>,
-    provenance: CoreVerbIdentity,
+    provenance: VerbProvenance,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct OwnedVerbFrameKey {
+    class: VerbFrameClass,
+    atoms: Vec<OwnedVerbFrameAtom>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum OwnedVerbFrameAtom {
+    Literal(String),
+    Amount,
+    ObjectNounPhrase,
+    PredicativeComplement,
+    Role(String),
+    OptionalRole(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -454,7 +490,7 @@ struct EnvironmentData {
     determinative_surface_byte_limit: usize,
     initial_determinative_surface_byte_limit: usize,
     catalog_providers: BTreeMap<CatalogProvider, CatalogProviderData>,
-    core_verbs: Vec<CoreVerbRecord>,
+    verb_inventory: BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
 }
 
 #[cfg(test)]
@@ -664,6 +700,7 @@ impl ParserEnvironment {
                 },
             );
         }
+        let verb_inventory = normalized_verb_inventory(&records);
 
         Ok(Self {
             data: Arc::new(EnvironmentData {
@@ -677,7 +714,7 @@ impl ParserEnvironment {
                 determinative_surface_byte_limit,
                 initial_determinative_surface_byte_limit,
                 catalog_providers: frozen_catalog_providers,
-                core_verbs: core_verb_seed_records(),
+                verb_inventory,
             }),
         })
     }
@@ -723,28 +760,22 @@ impl ParserEnvironment {
         )
     }
 
-    /// Returns whether one inventory row licenses a generated frame. Core
-    /// rows carry rich compiler-side frames; plugin rows retain the sealed
-    /// macro-RON valence vocabulary.
+    /// Returns whether one normalized inventory row licenses a generated frame.
     #[must_use]
     pub(crate) fn verb_frame_licenses(
         &self,
         reference: &VerbInventoryRef,
         frame: VerbFrameKey,
     ) -> bool {
-        match reference {
-            VerbInventoryRef::Core(identity) => self.data.core_verbs.iter().any(|record| {
-                record.identity == *identity
-                    && record
-                        .frames
-                        .iter()
-                        .any(|candidate| candidate.as_slice() == frame.atoms())
-            }),
-            VerbInventoryRef::Declaration(id) => self
-                .declaration(id.kind(), id.name())
-                .and_then(DeclarationRecord::valence)
-                .is_some_and(|valence| frame.matches_valence(valence)),
-        }
+        self.data
+            .verb_inventory
+            .get(reference)
+            .is_some_and(|record| {
+                record
+                    .frames
+                    .iter()
+                    .any(|candidate| candidate.matches(frame))
+            })
     }
 
     pub(crate) fn verb_inventory_surface(
@@ -752,19 +783,12 @@ impl ParserEnvironment {
         reference: &VerbInventoryRef,
         feature: SurfaceFeature,
     ) -> Option<&str> {
-        match reference {
-            VerbInventoryRef::Core(identity) => self
-                .data
-                .core_verbs
-                .iter()
-                .find(|record| record.identity == *identity)?
-                .surfaces
-                .iter()
-                .find_map(|(candidate, _, surface)| {
-                    (*candidate == feature).then_some(surface.as_ref())
-                }),
-            VerbInventoryRef::Declaration(id) => self.surface(id, feature),
-        }
+        self.data
+            .verb_inventory
+            .get(reference)?
+            .surfaces
+            .iter()
+            .find_map(|(candidate, _, surface)| (*candidate == feature).then_some(surface.as_ref()))
     }
 
     pub(crate) fn verb_inventory_onset(
@@ -772,17 +796,12 @@ impl ParserEnvironment {
         reference: &VerbInventoryRef,
         feature: SurfaceFeature,
     ) -> Option<Onset> {
-        match reference {
-            VerbInventoryRef::Core(identity) => self
-                .data
-                .core_verbs
-                .iter()
-                .find(|record| record.identity == *identity)?
-                .surfaces
-                .iter()
-                .find_map(|(candidate, onset, _)| (*candidate == feature).then_some(*onset)),
-            VerbInventoryRef::Declaration(id) => self.onset(id, feature),
-        }
+        self.data
+            .verb_inventory
+            .get(reference)?
+            .surfaces
+            .iter()
+            .find_map(|(candidate, onset, _)| (*candidate == feature).then_some(*onset))
     }
 
     pub(crate) fn verb_inventory_owner_id(
@@ -798,21 +817,11 @@ impl ParserEnvironment {
         }
     }
 
-    fn verb_inventory_provenance<'a>(
-        &'a self,
-        reference: &VerbInventoryRef,
-    ) -> Option<VerbProvenance<'a>> {
-        match reference {
-            VerbInventoryRef::Core(identity) => self
-                .data
-                .core_verbs
-                .iter()
-                .find(|record| record.identity == *identity)
-                .map(|record| VerbProvenance::Core(record.provenance)),
-            VerbInventoryRef::Declaration(id) => self
-                .declaration(id.kind(), id.name())
-                .map(|record| VerbProvenance::Declaration(record.provenance())),
-        }
+    fn verb_inventory_provenance(&self, reference: &VerbInventoryRef) -> Option<&VerbProvenance> {
+        self.data
+            .verb_inventory
+            .get(reference)
+            .map(|record| &record.provenance)
     }
 
     pub(crate) fn verb_inventory_readings(
@@ -821,39 +830,30 @@ impl ParserEnvironment {
         feature: SurfaceFeature,
         frame: VerbFrameKey,
     ) -> Vec<VerbInventoryReading> {
-        self.verb_inventory_readings_from(
-            self.readings(GrammarPosition::Verb, surface),
-            surface,
-            feature,
-            frame,
-            false,
-        )
+        self.verb_inventory_readings_from(surface, feature, frame, false)
     }
 
     fn verb_inventory_readings_from(
         &self,
-        declaration_readings: &[DeclarationReading],
         surface: &str,
         feature: SurfaceFeature,
         frame: VerbFrameKey,
         initial: bool,
     ) -> Vec<VerbInventoryReading> {
-        let mut result = declaration_readings
-            .iter()
-            .filter(|reading| reading.feature() == feature)
-            .map(|reading| VerbInventoryReading {
-                reference: VerbInventoryRef::Declaration(reading.id().clone()),
-                onset: reading.onset(),
+        self.data
+            .verb_inventory
+            .values()
+            .filter(|record| {
+                record
+                    .frames
+                    .iter()
+                    .any(|candidate| candidate.matches(frame))
             })
-            .filter(|reading| self.verb_frame_licenses(&reading.reference, frame))
-            .collect::<Vec<_>>();
-        result.extend(self.data.core_verbs.iter().filter_map(|record| {
-            record
-                .frames
-                .iter()
-                .any(|candidate| candidate.as_slice() == frame.atoms())
-                .then(|| {
-                    record.surfaces.iter().find(|(candidate, _, text)| {
+            .filter_map(|record| {
+                record
+                    .surfaces
+                    .iter()
+                    .find(|(candidate, _, text)| {
                         *candidate == feature
                             && if initial {
                                 initial_surface(text) == surface
@@ -861,14 +861,12 @@ impl ParserEnvironment {
                                 text.as_ref() == surface
                             }
                     })
-                })
-                .flatten()
-                .map(|(_, onset, _)| VerbInventoryReading {
-                    reference: VerbInventoryRef::Core(record.identity),
-                    onset: *onset,
-                })
-        }));
-        result
+                    .map(|(_, onset, _)| VerbInventoryReading {
+                        reference: record.reference.clone(),
+                        onset: *onset,
+                    })
+            })
+            .collect()
     }
 
     pub(crate) fn initial_verb_inventory_readings(
@@ -877,13 +875,7 @@ impl ParserEnvironment {
         feature: SurfaceFeature,
         frame: VerbFrameKey,
     ) -> Vec<VerbInventoryReading> {
-        self.verb_inventory_readings_from(
-            self.initial_readings(GrammarPosition::Verb, surface),
-            surface,
-            feature,
-            frame,
-            true,
-        )
+        self.verb_inventory_readings_from(surface, feature, frame, true)
     }
 
     fn filter_declaration_verb_readings<'a>(
@@ -1101,7 +1093,115 @@ fn valence_licenses_frame(valence: &VerbValence, frame: &[CustomTailAtom]) -> bo
     }
 }
 
-fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
+impl OwnedVerbFrameKey {
+    fn from_runtime(class: VerbFrameClass, atoms: &[VerbFrameAtom]) -> Self {
+        Self {
+            class,
+            atoms: atoms
+                .iter()
+                .copied()
+                .map(OwnedVerbFrameAtom::from)
+                .collect(),
+        }
+    }
+
+    fn predicate(atoms: &[VerbFrameAtom]) -> Self {
+        Self::from_runtime(VerbFrameClass::Predicate, atoms)
+    }
+
+    fn matches(&self, frame: VerbFrameKey) -> bool {
+        self.class == frame.class()
+            && self.atoms.len() == frame.atoms().len()
+            && self
+                .atoms
+                .iter()
+                .zip(frame.atoms())
+                .all(|(owned, runtime)| owned.matches(*runtime))
+    }
+}
+
+impl From<VerbFrameAtom> for OwnedVerbFrameAtom {
+    fn from(atom: VerbFrameAtom) -> Self {
+        match atom {
+            VerbFrameAtom::Literal(value) => Self::Literal(value.to_owned()),
+            VerbFrameAtom::Amount => Self::Amount,
+            VerbFrameAtom::ObjectNounPhrase => Self::ObjectNounPhrase,
+            VerbFrameAtom::PredicativeComplement => Self::PredicativeComplement,
+            VerbFrameAtom::Role(value) => Self::Role(value.to_owned()),
+            VerbFrameAtom::OptionalRole(value) => Self::OptionalRole(value.to_owned()),
+        }
+    }
+}
+
+impl OwnedVerbFrameAtom {
+    fn matches(&self, runtime: VerbFrameAtom) -> bool {
+        match (self, runtime) {
+            (Self::Literal(owned), VerbFrameAtom::Literal(runtime)) => owned == runtime,
+            (Self::Amount, VerbFrameAtom::Amount)
+            | (Self::ObjectNounPhrase, VerbFrameAtom::ObjectNounPhrase)
+            | (Self::PredicativeComplement, VerbFrameAtom::PredicativeComplement) => true,
+            (Self::Role(owned), VerbFrameAtom::Role(runtime))
+            | (Self::OptionalRole(owned), VerbFrameAtom::OptionalRole(runtime)) => owned == runtime,
+            _ => false,
+        }
+    }
+}
+
+fn normalize_plugin_valence(valence: &VerbValence) -> Vec<OwnedVerbFrameKey> {
+    let shapes = match valence {
+        VerbValence::Intransitive => vec![Vec::new()],
+        VerbValence::Transitive => vec![vec![CustomTailAtom::ObjectNounPhrase]],
+        VerbValence::Numerative => vec![vec![CustomTailAtom::Amount]],
+        VerbValence::Custom { shapes } => shapes.clone(),
+    };
+    let mut frames = Vec::new();
+    for shape in shapes {
+        let atoms = shape
+            .into_iter()
+            .map(|atom| match atom {
+                CustomTailAtom::Literal(value) => OwnedVerbFrameAtom::Literal(value),
+                CustomTailAtom::Amount => OwnedVerbFrameAtom::Amount,
+                CustomTailAtom::ObjectNounPhrase => OwnedVerbFrameAtom::ObjectNounPhrase,
+                CustomTailAtom::PredicativeComplement => OwnedVerbFrameAtom::PredicativeComplement,
+            })
+            .collect();
+        let frame = OwnedVerbFrameKey {
+            class: VerbFrameClass::Predicate,
+            atoms,
+        };
+        if !frames.contains(&frame) {
+            frames.push(frame);
+        }
+    }
+    frames
+}
+
+fn normalized_verb_inventory(
+    declarations: &BTreeMap<DeclarationKind, BTreeMap<Arc<str>, DeclarationRecord>>,
+) -> BTreeMap<VerbInventoryRef, VerbInventoryRecord> {
+    let mut inventory = core_verb_seed_records()
+        .into_iter()
+        .map(|record| (record.reference.clone(), record))
+        .collect::<BTreeMap<_, _>>();
+    for record in declarations.values().flat_map(BTreeMap::values) {
+        let Some(valence) = record.valence() else {
+            continue;
+        };
+        let reference = VerbInventoryRef::Declaration(record.id.clone());
+        inventory.insert(
+            reference.clone(),
+            VerbInventoryRecord {
+                reference,
+                frames: normalize_plugin_valence(valence),
+                surfaces: record.surfaces.clone(),
+                provenance: VerbProvenance::Declaration(record.provenance.clone()),
+            },
+        );
+    }
+    inventory
+}
+
+fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
     use CustomTailAtom::Literal;
     use CustomTailAtom::ObjectNounPhrase;
     use VerbFrameAtom::OptionalRole;
@@ -1110,11 +1210,10 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
     let seed = |_name: &str,
                 bare: &str,
                 third_person: &str,
-                valence: VerbValence,
+                _valence: VerbValence,
                 identity: CoreVerbIdentity,
-                frames: Vec<Vec<VerbFrameAtom>>| CoreVerbRecord {
-        identity,
-        valence,
+                frames: Vec<Vec<VerbFrameAtom>>| VerbInventoryRecord {
+        reference: VerbInventoryRef::Core(identity),
         surfaces: vec![
             (SurfaceFeature::Bare, Onset::Consonant, Arc::from(bare)),
             (
@@ -1123,8 +1222,30 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
                 Arc::from(third_person),
             ),
         ],
-        frames,
-        provenance: identity,
+        frames: frames
+            .iter()
+            .map(|atoms| OwnedVerbFrameKey::predicate(atoms))
+            .collect(),
+        provenance: VerbProvenance::Core(identity),
+    };
+    let class_seed = |name: &str,
+                      bare: &str,
+                      third_person: &str,
+                      identity: CoreVerbIdentity,
+                      class: VerbFrameClass| {
+        let mut record = seed(
+            name,
+            bare,
+            third_person,
+            VerbValence::Custom { shapes: Vec::new() },
+            identity,
+            Vec::new(),
+        );
+        record.frames = vec![OwnedVerbFrameKey {
+            class,
+            atoms: Vec::new(),
+        }];
+        record
     };
     let rich_valence = || VerbValence::Custom { shapes: Vec::new() };
 
@@ -1483,6 +1604,115 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
         ),
     ];
 
+    records.extend([
+        seed(
+            "Become",
+            "become",
+            "becomes",
+            rich_valence(),
+            CoreVerbIdentity::Become,
+            vec![vec![VerbFrameAtom::PredicativeComplement]],
+        ),
+        seed(
+            "Cause",
+            "cause",
+            "causes",
+            rich_valence(),
+            CoreVerbIdentity::Cause,
+            vec![vec![
+                Role("Object"),
+                VerbFrameAtom::Literal("to"),
+                Role("VerbPhrase"),
+            ]],
+        ),
+        seed(
+            "Cost",
+            "cost",
+            "costs",
+            rich_valence(),
+            CoreVerbIdentity::Cost,
+            vec![vec![
+                Role("ManaAmount"),
+                Role("CostComparisonDirection"),
+                Role("ControlledCostAction"),
+                OptionalRole("ForEachCostBasis"),
+            ]],
+        ),
+        class_seed(
+            "May",
+            "may",
+            "may",
+            CoreVerbIdentity::May,
+            VerbFrameClass::Auxiliary,
+        ),
+        class_seed(
+            "Can",
+            "can",
+            "can",
+            CoreVerbIdentity::Can,
+            VerbFrameClass::Auxiliary,
+        ),
+        class_seed(
+            "Cant",
+            "can't",
+            "can't",
+            CoreVerbIdentity::Cant,
+            VerbFrameClass::Auxiliary,
+        ),
+        class_seed(
+            "Must",
+            "must",
+            "must",
+            CoreVerbIdentity::Must,
+            VerbFrameClass::Auxiliary,
+        ),
+        class_seed(
+            "Didnt",
+            "didn't",
+            "didn't",
+            CoreVerbIdentity::Didnt,
+            VerbFrameClass::Auxiliary,
+        ),
+        class_seed(
+            "Would",
+            "would",
+            "would",
+            CoreVerbIdentity::Would,
+            VerbFrameClass::Auxiliary,
+        ),
+        class_seed(
+            "Do",
+            "do",
+            "does",
+            CoreVerbIdentity::Do,
+            VerbFrameClass::ProVerb,
+        ),
+    ]);
+
+    for (identity, atoms) in [
+        (CoreVerbIdentity::Choose, vec![Role("InfinitiveComplement")]),
+        (
+            CoreVerbIdentity::Put,
+            vec![
+                Role("Object"),
+                OptionalRole("FromPhrase"),
+                Role("OnPhrase"),
+                VerbFrameAtom::Literal("in"),
+                Role("ObjectOrder"),
+                VerbFrameAtom::Literal("order"),
+            ],
+        ),
+        (CoreVerbIdentity::Have, vec![Role("CounterfactualAbility")]),
+        (CoreVerbIdentity::Pay, vec![Role("ManaCostReference")]),
+    ] {
+        records
+            .iter_mut()
+            .find(|record| record.reference == VerbInventoryRef::Core(identity))
+            .expect("the extended core verb row exists")
+            .frames
+            .push(OwnedVerbFrameKey::predicate(&atoms));
+    }
+
     for (identity, surface) in [
         (CoreVerbIdentity::Attack, "attacked"),
         (CoreVerbIdentity::Choose, "chosen"),
@@ -1494,7 +1724,7 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
     ] {
         records
             .iter_mut()
-            .find(|record| record.identity == identity)
+            .find(|record| record.reference == VerbInventoryRef::Core(identity))
             .expect("the participle's core verb row exists")
             .surfaces
             .push((
@@ -1591,7 +1821,7 @@ mod tests {
                 "choose",
                 "chooses",
                 Some("chosen"),
-                1,
+                2,
             ),
             (CoreVerbIdentity::Control, "control", "controls", None, 1),
             (CoreVerbIdentity::Copy, "copy", "copies", None, 1),
@@ -1603,12 +1833,12 @@ mod tests {
             (CoreVerbIdentity::Flip, "flip", "flips", None, 1),
             (CoreVerbIdentity::Gain, "gain", "gains", None, 3),
             (CoreVerbIdentity::Get, "get", "gets", None, 1),
-            (CoreVerbIdentity::Have, "have", "has", None, 5),
+            (CoreVerbIdentity::Have, "have", "has", None, 6),
             (CoreVerbIdentity::Leave, "leave", "leaves", None, 2),
             (CoreVerbIdentity::Look, "look", "looks", None, 1),
             (CoreVerbIdentity::Lose, "lose", "loses", None, 3),
             (CoreVerbIdentity::Own, "own", "owns", None, 1),
-            (CoreVerbIdentity::Pay, "pay", "pays", None, 2),
+            (CoreVerbIdentity::Pay, "pay", "pays", None, 3),
             (
                 CoreVerbIdentity::Prevent,
                 "prevent",
@@ -1616,7 +1846,7 @@ mod tests {
                 Some("prevented"),
                 1,
             ),
-            (CoreVerbIdentity::Put, "put", "puts", Some("put"), 7),
+            (CoreVerbIdentity::Put, "put", "puts", Some("put"), 8),
             (CoreVerbIdentity::Remove, "remove", "removes", None, 1),
             (CoreVerbIdentity::Return, "return", "returns", None, 1),
             (CoreVerbIdentity::Roll, "roll", "rolls", None, 1),
@@ -1629,13 +1859,23 @@ mod tests {
                 None,
                 1,
             ),
+            (CoreVerbIdentity::Become, "become", "becomes", None, 1),
+            (CoreVerbIdentity::Cause, "cause", "causes", None, 1),
+            (CoreVerbIdentity::Cost, "cost", "costs", None, 1),
+            (CoreVerbIdentity::May, "may", "may", None, 1),
+            (CoreVerbIdentity::Can, "can", "can", None, 1),
+            (CoreVerbIdentity::Cant, "can't", "can't", None, 1),
+            (CoreVerbIdentity::Must, "must", "must", None, 1),
+            (CoreVerbIdentity::Didnt, "didn't", "didn't", None, 1),
+            (CoreVerbIdentity::Would, "would", "would", None, 1),
+            (CoreVerbIdentity::Do, "do", "does", None, 1),
         ];
 
         assert_eq!(records.len(), expected.len());
         for (record, (identity, bare, third_person, participle, frame_count)) in
             records.iter().zip(expected)
         {
-            assert_eq!(record.identity, identity);
+            assert_eq!(record.reference, VerbInventoryRef::Core(identity));
             assert_eq!(
                 record
                     .surfaces
@@ -1677,6 +1917,128 @@ mod tests {
                 "{identity:?} repeats a frame",
             );
         }
+    }
+
+    #[test]
+    fn normalized_verb_inventory_uses_one_frame_lookup_for_core_and_plugin_rows() {
+        let declaration = macro_ron::v2::read_str(
+            "/synthetic/Act.ron",
+            r#"KeywordAction(name:"Act",spelling:"act",grammar:Verb(bare:"act",third_person:"acts",valence:Transitive))"#,
+        )
+        .expect("synthetic keyword action is valid");
+        let environment = ParserEnvironment::try_from_declarations([declaration])
+            .expect("core and plugin verb rows normalize together");
+        let plugin = VerbInventoryRef::Declaration(DeclarationId::new(
+            DeclarationKind::KeywordAction,
+            "Act",
+        ));
+        let core = VerbInventoryRef::Core(CoreVerbIdentity::Attack);
+        let transitive = VerbFrameKey::new(&[VerbFrameAtom::ObjectNounPhrase]);
+        let intransitive = VerbFrameKey::new(&[]);
+        let auxiliary = VerbFrameKey::with_class(VerbFrameClass::Auxiliary, &[]);
+
+        assert!(environment.verb_frame_licenses(&plugin, transitive));
+        assert!(!environment.verb_frame_licenses(&plugin, intransitive));
+        assert!(!environment.verb_frame_licenses(&plugin, auxiliary));
+        assert!(environment.verb_frame_licenses(&core, transitive));
+        assert!(environment.verb_frame_licenses(&core, intransitive));
+        assert!(!environment.verb_frame_licenses(&core, auxiliary));
+        assert_eq!(
+            environment.verb_inventory_surface(&plugin, SurfaceFeature::ThirdPersonSingular),
+            Some("acts"),
+        );
+        assert!(matches!(
+            environment
+                .data
+                .verb_inventory
+                .get(&plugin)
+                .map(|record| &record.provenance),
+            Some(VerbProvenance::Declaration(_)),
+        ));
+        assert!(matches!(
+            environment
+                .data
+                .verb_inventory
+                .get(&core)
+                .map(|record| &record.provenance),
+            Some(VerbProvenance::Core(CoreVerbIdentity::Attack)),
+        ));
+    }
+
+    #[test]
+    fn special_core_verb_frames_are_exact_and_class_separated() {
+        use VerbFrameAtom::Literal;
+        use VerbFrameAtom::OptionalRole;
+        use VerbFrameAtom::Role;
+
+        let environment = ParserEnvironment::try_from_declarations([])
+            .expect("the core verb inventory freezes without plugins");
+        let core = |identity| VerbInventoryRef::Core(identity);
+        let predicate = |atoms| VerbFrameKey::new(atoms);
+        let auxiliary = VerbFrameKey::with_class(VerbFrameClass::Auxiliary, &[]);
+        let pro_verb = VerbFrameKey::with_class(VerbFrameClass::ProVerb, &[]);
+        let ordinary_empty = VerbFrameKey::new(&[]);
+
+        assert!(environment.verb_frame_licenses(
+            &core(CoreVerbIdentity::Become),
+            predicate(&[VerbFrameAtom::PredicativeComplement]),
+        ));
+        assert!(environment.verb_frame_licenses(
+            &core(CoreVerbIdentity::Cause),
+            predicate(&[Role("Object"), Literal("to"), Role("VerbPhrase")]),
+        ));
+        assert!(environment.verb_frame_licenses(
+            &core(CoreVerbIdentity::Choose),
+            predicate(&[Role("InfinitiveComplement")]),
+        ));
+        assert!(environment.verb_frame_licenses(
+            &core(CoreVerbIdentity::Put),
+            predicate(&[
+                Role("Object"),
+                OptionalRole("FromPhrase"),
+                Role("OnPhrase"),
+                Literal("in"),
+                Role("ObjectOrder"),
+                Literal("order"),
+            ]),
+        ));
+        assert!(environment.verb_frame_licenses(
+            &core(CoreVerbIdentity::Have),
+            predicate(&[Role("CounterfactualAbility")]),
+        ));
+        assert!(environment.verb_frame_licenses(
+            &core(CoreVerbIdentity::Pay),
+            predicate(&[Role("ManaCostReference")]),
+        ));
+        assert!(environment.verb_frame_licenses(
+            &core(CoreVerbIdentity::Cost),
+            predicate(&[
+                Role("ManaAmount"),
+                Role("CostComparisonDirection"),
+                Role("ControlledCostAction"),
+                OptionalRole("ForEachCostBasis"),
+            ]),
+        ));
+        for identity in [
+            CoreVerbIdentity::May,
+            CoreVerbIdentity::Can,
+            CoreVerbIdentity::Cant,
+            CoreVerbIdentity::Must,
+            CoreVerbIdentity::Didnt,
+            CoreVerbIdentity::Would,
+        ] {
+            assert!(environment.verb_frame_licenses(&core(identity), auxiliary));
+            assert!(!environment.verb_frame_licenses(&core(identity), ordinary_empty));
+        }
+        assert!(environment.verb_frame_licenses(&core(CoreVerbIdentity::Do), pro_verb));
+        assert!(!environment.verb_frame_licenses(&core(CoreVerbIdentity::Do), ordinary_empty));
+        assert_eq!(
+            environment.verb_inventory_surface(
+                &core(CoreVerbIdentity::Do),
+                SurfaceFeature::ThirdPersonSingular,
+            ),
+            Some("does"),
+        );
     }
 
     #[test]
