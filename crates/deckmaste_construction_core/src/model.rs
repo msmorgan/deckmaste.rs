@@ -81,6 +81,7 @@ pub struct Element {
 pub struct Field {
     pub name: Ident,
     pub kind: FieldKind,
+    pub check: Option<FieldCheck>,
 }
 
 #[derive(Debug)]
@@ -91,7 +92,6 @@ pub enum FieldKind {
     Zeroable {
         value_type: Path,
         item: Box<FieldKind>,
-        check: Option<ZeroableCheck>,
     },
     Optional(Box<FieldKind>),
     Sequence {
@@ -101,7 +101,7 @@ pub enum FieldKind {
 }
 
 #[derive(Debug)]
-pub struct ZeroableCheck {
+pub struct FieldCheck {
     pub function: Path,
     pub arguments: Vec<FeatureSlot>,
 }

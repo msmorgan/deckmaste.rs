@@ -76,7 +76,7 @@ use crate::model::VerbOperand;
 use crate::model::VisitMode;
 use crate::model::Vocab;
 use crate::model::VocabVariant;
-use crate::model::ZeroableCheck;
+use crate::model::FieldCheck;
 
 mod keyword {
     syn::custom_keyword!(checked);
@@ -319,8 +319,44 @@ fn parse_field(input: ParseStream<'_>, owner: &Ident) -> syn::Result<Field> {
     let name = input.parse()?;
     input.parse::<Token![:]>()?;
     let kind = parse_field_kind(input, owner, &name)?;
+    let check = parse_field_check(
+        input,
+        matches!(&kind, FieldKind::Zeroable { .. }).then_some("zeroable-check"),
+    )?;
     input.parse::<Token![,]>()?;
-    Ok(Field { name, kind })
+    Ok(Field { name, kind, check })
+}
+
+fn parse_field_check(
+    input: ParseStream<'_>,
+    legacy_label: Option<&str>,
+) -> syn::Result<Option<FieldCheck>> {
+    if !input.peek(keyword::checked) {
+        return Ok(None);
+    }
+    input.parse::<keyword::checked>()?;
+    input.parse::<keyword::by>()?;
+    let function = parse_generated_owned_callback_path(input)?;
+    let content;
+    parenthesized!(content in input);
+    let mut arguments = Vec::new();
+    while !content.is_empty() {
+        let role = content.parse()?;
+        content.parse::<Token![.]>()?;
+        let feature = content.call(Ident::parse_any)?;
+        let label = legacy_label.unwrap_or("field-check");
+        let feature = feature_from_ident(&feature)
+            .ok_or_else(|| content.error(format!("unknown {label} feature")))?;
+        arguments.push(FeatureSlot { role, feature });
+        if content.is_empty() {
+            break;
+        }
+        content.parse::<Token![,]>()?;
+    }
+    Ok(Some(FieldCheck {
+        function,
+        arguments,
+    }))
 }
 
 fn parse_field_kind(input: ParseStream<'_>, owner: &Ident, role: &Ident) -> syn::Result<FieldKind> {
@@ -335,36 +371,9 @@ fn parse_field_kind(input: ParseStream<'_>, owner: &Ident, role: &Ident) -> syn:
             ));
         }
         let item = Box::new(FieldKind::Category(parse_generated_owned_path(input)?));
-        let check = if input.peek(keyword::checked) {
-            input.parse::<keyword::checked>()?;
-            input.parse::<keyword::by>()?;
-            let function = parse_generated_owned_callback_path(input)?;
-            let content;
-            parenthesized!(content in input);
-            let mut arguments = Vec::new();
-            while !content.is_empty() {
-                let role = content.parse()?;
-                content.parse::<Token![.]>()?;
-                let feature = content.call(Ident::parse_any)?;
-                let feature = feature_from_ident(&feature)
-                    .ok_or_else(|| content.error("unknown zeroable-check feature"))?;
-                arguments.push(FeatureSlot { role, feature });
-                if content.is_empty() {
-                    break;
-                }
-                content.parse::<Token![,]>()?;
-            }
-            Some(ZeroableCheck {
-                function,
-                arguments,
-            })
-        } else {
-            None
-        };
         return Ok(FieldKind::Zeroable {
             value_type,
             item,
-            check,
         });
     }
     if input.peek(keyword::opt) {
@@ -2419,6 +2428,32 @@ mod tests {
     }
 
     #[test]
+    fn parses_checked_required_category_field() {
+        let declarations = crate::parse_declarations(quote::quote! {
+            construction checked: Root {
+                element Checked {
+                    head: Determinative checked by determinative_is_fused(head.fused_head_license),
+                }
+                form checked = head;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("checked required category field parses");
+        let Declaration::Construction(construction) = &declarations.declarations[0] else {
+            panic!("first declaration is a construction");
+        };
+        let field = &construction.element.fields[0];
+        assert!(matches!(&field.kind, crate::FieldKind::Category(path) if path.is_ident("Determinative")));
+        let check = field.check.as_ref().expect("field carries its callback");
+        assert_eq!(path(&check.function), "determinative_is_fused");
+        assert!(matches!(
+            check.arguments.as_slice(),
+            [crate::FeatureSlot { role, feature: crate::Feature::FusedHeadLicense }]
+                if role == "head"
+        ));
+    }
+
+    #[test]
     fn parses_structural_declarations() {
         let declarations = parse(
             r#"
@@ -2469,7 +2504,7 @@ mod tests {
         assert_eq!(holder.name, "Holder");
         assert!(matches!(
             &holder.fields[0],
-            crate::Field { name, kind: crate::FieldKind::Optional(item) }
+            crate::Field { name, kind: crate::FieldKind::Optional(item), check: None }
                 if name == "maybe"
                     && matches!(item.as_ref(), crate::FieldKind::Category(path) if path.is_ident("LeftNode"))
         ));
@@ -2508,7 +2543,7 @@ mod tests {
         };
         assert!(matches!(
             sentence.element.fields.as_slice(),
-            [crate::Field { name, kind: crate::FieldKind::Sequence { item, surface } }]
+            [crate::Field { name, kind: crate::FieldKind::Sequence { item, surface }, check: None }]
                 if name == "words"
                     && matches!(item.as_ref(), crate::FieldKind::Category(path) if path.is_ident("Sentence"))
                     && matches!(surface.separator.as_ref(), Some(crate::SeparatorSource::Uniform(crate::FixedSurfaceSource { atoms, .. }))

@@ -584,7 +584,7 @@ pub(crate) struct ConstructionFieldPlan {
     invariant_bearing: bool,
     accessor_mode: Option<AccessorMode>,
     zeroable: bool,
-    zeroable_check: Option<(syn::Path, Vec<(String, Feature)>)>,
+    field_check: Option<(syn::Path, Vec<(String, Feature)>)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3297,16 +3297,13 @@ impl ConstructionPlan {
                     invariant_bearing: false,
                     accessor_mode: None,
                     zeroable,
-                    zeroable_check: match &field.kind {
-                        crate::model::FieldKind::Zeroable { check, .. } => check.as_ref().map(|check| (
-                            check.function.clone(),
-                            check.arguments.iter().map(|argument| (
-                                identifier_key(&argument.role),
-                                Feature::from(argument.feature),
-                            )).collect(),
-                        )),
-                        _ => None,
-                    },
+                    field_check: field.check.as_ref().map(|check| (
+                        check.function.clone(),
+                        check.arguments.iter().map(|argument| (
+                            identifier_key(&argument.role),
+                            Feature::from(argument.feature),
+                        )).collect(),
+                    )),
                 })
             })
             .collect::<syn::Result<Vec<_>>>()?;
@@ -4169,8 +4166,8 @@ impl ConstructionFieldPlan {
         self.zeroable
     }
 
-    pub(crate) fn zeroable_check(&self) -> Option<(&syn::Path, &[(String, Feature)])> {
-        self.zeroable_check
+    pub(crate) fn field_check(&self) -> Option<(&syn::Path, &[(String, Feature)])> {
+        self.field_check
             .as_ref()
             .map(|(function, arguments)| (function, arguments.as_slice()))
     }

@@ -5531,10 +5531,16 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
         validate_feature_guarded_traversal_programs(construction, &mut errors);
         for field in &construction.element.fields {
             validate_resolved_field_kind(&field.kind, symbols, &mut errors);
-            if let FieldKind::Zeroable {
-                check: Some(check), ..
-            } = &field.kind
-            {
+            if let Some(check) = &field.check {
+                if !matches!(&field.kind, FieldKind::Category(_) | FieldKind::Zeroable { .. }) {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            field.name.span(),
+                            "checked fields require a category or zeroable category",
+                        ),
+                    );
+                }
                 for argument in &check.arguments {
                     check_feature_role(
                         &argument.role,
@@ -9867,6 +9873,24 @@ pub(crate) mod tests {
             .expect_err("fixture must be invalid")
             .into_compile_error()
             .to_string()
+    }
+
+    #[test]
+    fn checked_fields_reject_non_category_values() {
+        let diagnostic = error(quote! {
+            vocab Marker { One = "one", }
+            construction checked: Root {
+                element Checked {
+                    marker: lex Marker checked by only_fused(marker.fused_head_license),
+                }
+                form checked = lex(marker);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        });
+        assert!(
+            diagnostic.contains("checked fields require a category or zeroable category"),
+            "{diagnostic}"
+        );
     }
 
     #[test]

@@ -225,52 +225,30 @@ fn emit_arm_from_plan(
     }
     lower_feature_guards(plan, row, form, &mut lowering)?;
     for field in row.fields() {
-        let Some((function, arguments)) = field.zeroable_check() else {
+        let Some((function, arguments)) = field.field_check() else {
             continue;
         };
         let value = lowering
             .field_values
             .get(&field.name_key())
             .cloned()
-            .ok_or_else(|| internal("checked zeroable field has no lowered value"))?;
-        let arguments = arguments
-            .iter()
-            .map(|(role, feature)| {
-                if role == &field.name_key() {
-                    return Ok(lowering
-                        .role_features
-                        .get(&(role.clone(), *feature))
-                        .map(local_feature_value)
-                        .map(|argument| {
-                            let value = resolved_feature_value_tokens(&argument);
-                            quote! { Some(#value) }
-                        })
-                        .unwrap_or_else(|| quote! { None }));
-                }
-                lowering
-                    .role_features
-                    .get(&(role.clone(), *feature))
-                    .map(local_feature_value)
-                    .map(|argument| resolved_feature_value_tokens(&argument))
-                    .map(Ok)
-                    .unwrap_or_else(|| {
-                        let value = lowering.field_values.get(role).ok_or_else(|| {
-                            internal("checked zeroable companion feature has no lowered value")
-                        })?;
-                        let field = row.field(role)?;
-                        if field.kind() != crate::semantic::ConstructionFieldKind::Category {
-                            return Err(internal(
-                                "checked zeroable companion feature is not a category value",
-                            ));
-                        }
-                        let helper = ident(&feature_helper(feature.key(), field.terminal()));
-                        Ok(quote! { #helper(&#value) })
-                    })
-            })
-            .collect::<syn::Result<Vec<_>>>()?;
+            .ok_or_else(|| internal("checked field has no lowered value"))?;
+        let arguments = lower_checked_field_arguments(
+            row,
+            &lowering,
+            &field.name_key(),
+            &value,
+            field.is_zeroable(),
+            arguments,
+        )?;
+        let checked_value = if field.is_zeroable() {
+            quote! { (#value).as_ref() }
+        } else {
+            quote! { &#value }
+        };
         lowering
             .guards
-            .push(quote! { #function((#value).as_ref(), #(#arguments),*) });
+            .push(quote! { #function(#checked_value, #(#arguments),*) });
     }
     if let Some(guard) = super::emit_form_guard_expression(row, form_index, |domain, value| {
         let guard_role = domain.role();
@@ -372,6 +350,53 @@ fn emit_arm_from_plan(
             _ => Ok(None),
         },
     })
+}
+
+fn lower_checked_field_arguments(
+    row: &ConstructionPlan,
+    lowering: &Lowering,
+    owner: &str,
+    owner_value: &TokenStream,
+    zeroable_owner: bool,
+    arguments: &[(String, Feature)],
+) -> syn::Result<Vec<TokenStream>> {
+    arguments
+        .iter()
+        .map(|(role, feature)| {
+            if let Some(value) = lowering
+                .role_features
+                .get(&(role.clone(), *feature))
+                .map(local_feature_value)
+            {
+                let value = resolved_feature_value_tokens(&value);
+                return Ok(if zeroable_owner && role == owner {
+                    quote! { Some(#value) }
+                } else {
+                    value
+                });
+            }
+            if zeroable_owner && role == owner {
+                return Ok(quote! { None });
+            }
+            let value = if role == owner {
+                owner_value.clone()
+            } else {
+                lowering
+                    .field_values
+                    .get(role)
+                    .cloned()
+                    .ok_or_else(|| internal("checked field feature has no lowered value"))?
+            };
+            let source = row.field(role)?;
+            if source.kind() != crate::semantic::ConstructionFieldKind::Category {
+                return Err(internal(
+                    "checked field feature source is not a category value",
+                ));
+            }
+            let helper = ident(&feature_helper(feature.key(), source.terminal()));
+            Ok(quote! { #helper(&#value) })
+        })
+        .collect()
 }
 
 fn emit_product_arm(
@@ -3571,6 +3596,41 @@ mod tests {
                 && fallback.contains("Word :: Those")
                 && fallback.contains('!'),
             "{fallback}",
+        );
+    }
+
+    #[test]
+    fn checked_required_category_field_emits_a_build_only_guard() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction determiner: Determinative {
+                    element Determiner {}
+                    derive fused_head_license = Values::FusedHead;
+                    form determiner = "each";
+                }
+                construction partitive: Root {
+                    element Partitive {
+                        head: Determinative checked by determinative_is_fused(head.fused_head_license),
+                    }
+                    form partitive = head;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("checked required category fixture parses"),
+        )
+        .expect("checked required category fixture validates");
+        let source = super::emit(validated.semantic())
+            .expect("checked required category fixture emits")
+            .remove(0)
+            .tokens
+            .to_string();
+
+        for required in ["determinative_is_fused", "head_fused_head_license", "& head"] {
+            assert!(source.contains(required), "missing `{required}`: {source}");
+        }
+        assert!(
+            !source.contains("Partitive { head : head , fused_head_license"),
+            "transient feature must not enter the AST: {source}"
         );
     }
 
