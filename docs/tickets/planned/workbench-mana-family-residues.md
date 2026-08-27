@@ -200,3 +200,5 @@ No Rust crate.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-payment-event-residues (close, 2026-08-26):** mana named by what it was spent on — "for each {B} or {R} spent this way" (Balduvian Fallen's body). A payment-surface read, so it lands here.

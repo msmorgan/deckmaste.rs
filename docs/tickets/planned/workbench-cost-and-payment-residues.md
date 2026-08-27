@@ -390,3 +390,5 @@ No Rust crate.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-payment-event-residues (close, 2026-08-26):** the repeated-payment OFFER — "you may pay this cost one or more times" / "up to three times" (the 5 Adversaries, Tranquil Frillback). Not an event ([CR#603.12a] makes the trigger a reflexive); what is missing is cost-side: `Pay`/`Cost` carry no repetition and `Repeated` takes only a definite count. [CR#702.56a] writes the offer in rules language. Two Effect-side follow-ons gated on the offer landing: narrow `reflexEncloseUse (Repeated _ _)` for a repeated cost payment per [CR#603.12a], and the reflexive seat's restating spelling.
