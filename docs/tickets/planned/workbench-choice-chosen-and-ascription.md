@@ -477,3 +477,5 @@ untouched for those); only cross-ability reads move to the face law.
 Unified with the named-memory ruling (done/workbench-named-memory-channels):
 no cross-ability discourse anywhere — state for notes, forward-obligation
 card linkage for choices.
+
+- **Routed from workbench-amount-ceiling-read (close, 2026-08-26):** Truce / Temporary Truce's tail — "for each card less than two a player draws this way" reads the number NOT chosen against the ceiling; nothing announces it. A chosen-value read, so it lands here.

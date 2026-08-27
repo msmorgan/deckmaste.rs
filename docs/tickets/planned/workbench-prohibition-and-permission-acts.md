@@ -405,3 +405,5 @@ Rust crate.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-amount-ceiling-read (close, 2026-08-26):** ceilinged PERMISSIONS — "play up to N additional lands" (3 printed carriers) and "can block up to N additional creatures" (1): `MayPlayAdditionalLands`'s literal-bound gate carries the core's own "widening waits on a printed line" note, and the printed lines are now measured. Permission seats, so they land here.

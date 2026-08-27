@@ -428,3 +428,5 @@ Standard constraints apply.
 - **Routed from workbench-distinct-kind-count (close, 2026-08-26):** `Gains` introduces no readable object binding when the trigger already bound a subject — `It` finds two singular objects (Perrie, the Pulverizer). A mention/binding gap, so it lands here. Related: the counted-search line above also wants a DESTINATION slot on `Effect.Search` (Celebrate the Harvest searches "for … put onto the battlefield").
 
 - **Routed from workbench-verb-label-residues (close, 2026-08-26):** `afterShuffle` is owner-blind — it drops every unstamped library mention whichever library was shuffled, but [CR#701.24b] scopes to the shuffled one; the binding payload records a zone, not an owner. A payload/mention question, so it lands here.
+
+- **Routed from workbench-amount-ceiling-read (close, 2026-08-26):** "Discard up to two cards, then draw that many" (12 carriers) — a set ceiling plus a magnitude the discard clause must ANNOUNCE for "that many" to read; a mention/announcement gap, so it lands here.
