@@ -2392,6 +2392,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2418,6 +2419,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2440,6 +2442,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2467,6 +2470,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2489,6 +2493,7 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2544,6 +2549,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2570,6 +2576,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2629,6 +2636,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2653,6 +2661,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2678,6 +2687,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -2699,6 +2709,7 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
+                | TerminalPlan::DeclarationDeterminative(_)
                 | TerminalPlan::DeclarationNoun(_)
                 | TerminalPlan::DeclarationTerm(_) => None,
             })
@@ -5247,6 +5258,7 @@ impl TerminalPlan {
             Self::CatalogIdentity(plan) => plan.name(),
             Self::SignedDecimal(plan) => plan.codec_name(),
             Self::UnsignedNumber(plan) => plan.codec_name(),
+            Self::DeclarationDeterminative(plan) => plan.codec_name(),
             Self::DeclarationNoun(plan) => plan.codec_name(),
             Self::DeclarationTerm(plan) => plan.codec_name(),
         }
@@ -5266,6 +5278,7 @@ impl TerminalPlan {
             Self::Binding(_)
             | Self::SignedDecimal(_)
             | Self::UnsignedNumber(_)
+            | Self::DeclarationDeterminative(_)
             | Self::DeclarationNoun(_)
             | Self::DeclarationTerm(_) => "codec",
         };

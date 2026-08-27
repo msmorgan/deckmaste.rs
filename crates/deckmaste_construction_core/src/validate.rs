@@ -16226,6 +16226,8 @@ pub(crate) mod tests {
                         (value.source_index(), "codec", value.codec_name().to_owned(),),
                     crate::semantic::TerminalPlan::UnsignedNumber(value) =>
                         (value.source_index(), "codec", value.codec_name().to_owned(),),
+                    crate::semantic::TerminalPlan::DeclarationDeterminative(value) =>
+                        (value.source_index(), "codec", value.codec_name().to_owned(),),
                     crate::semantic::TerminalPlan::DeclarationNoun(value) =>
                         (value.source_index(), "codec", value.codec_name().to_owned(),),
                     crate::semantic::TerminalPlan::DeclarationTerm(value) =>
