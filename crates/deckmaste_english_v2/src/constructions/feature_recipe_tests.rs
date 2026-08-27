@@ -38,49 +38,69 @@ mod coordination_feature_recipes {
         })
     }
 
+    fn target_determinative(number: Number) -> Determinative {
+        match number {
+            Number::Singular => Determinative::SingularSimpleDeterminative(
+                SingularSimpleDeterminative::new(SimpleDeterminative::Target)
+                    .expect("target licenses a singular nominal"),
+            ),
+            Number::Plural => Determinative::PluralSimpleDeterminative(
+                PluralSimpleDeterminative::new(SimpleDeterminative::Target)
+                    .expect("target licenses a plural nominal"),
+            ),
+        }
+    }
+
+    fn determined(det: Determinative, nominal: Nominal) -> UnqualifiedReference {
+        UnqualifiedReference::DeterminedNominal(
+            DeterminedNominal::new(Determiner::Headed(det), nominal)
+                .expect("determiner and nominal number agree"),
+        )
+    }
+
     #[test]
     fn coordination_scopes_derive_exact_number_and_agreement() {
-        let singular_shared = noun_phrase(UnqualifiedReference::OrdinarySingularReference(
-            OrdinarySingularReference {
-                phrase: DeterminerPhrase::TargetCoordinationDeterminerPhrase(
-                    TargetCoordinationDeterminerPhrase {
-                        coordination: SingularNominalCoordination::SingularOrNominalCoordination(
-                            SingularOrNominalCoordination::new(vec![
-                                singular_member(CommonNoun::Player),
-                                singular_member(CommonNoun::Opponent),
-                            ])
-                            .expect("binary singular coordination satisfies minimum arity"),
-                        ),
-                    },
+        let singular_shared = noun_phrase(determined(
+            target_determinative(Number::Singular),
+            Nominal::SingularCoordinationNominalValue(SingularCoordinationNominalValue {
+                coordination: SingularNominalCoordination::SingularOrNominalCoordination(
+                    SingularOrNominalCoordination::new(vec![
+                        singular_member(CommonNoun::Player),
+                        singular_member(CommonNoun::Opponent),
+                    ])
+                    .expect("binary singular coordination satisfies minimum arity"),
                 ),
-            },
+            }),
         ));
-        let plural_shared = noun_phrase(UnqualifiedReference::OrdinaryPluralReference(
-            OrdinaryPluralReference {
-                selector: PluralSelector::TargetPluralCoordinationSelector(
-                    TargetPluralCoordinationSelector {
-                        coordination: PluralNominalCoordination::PluralOrNominalCoordination(
-                            PluralOrNominalCoordination::new(vec![
-                                plural_member(CommonNoun::Player),
-                                plural_member(CommonNoun::Opponent),
-                            ])
-                            .expect("binary plural coordination satisfies minimum arity"),
-                        ),
-                    },
+        let plural_shared = noun_phrase(determined(
+            target_determinative(Number::Plural),
+            Nominal::PluralCoordinationNominalValue(PluralCoordinationNominalValue {
+                coordination: PluralNominalCoordination::PluralOrNominalCoordination(
+                    PluralOrNominalCoordination::new(vec![
+                        plural_member(CommonNoun::Player),
+                        plural_member(CommonNoun::Opponent),
+                    ])
+                    .expect("binary plural coordination satisfies minimum arity"),
                 ),
-            },
+            }),
         ));
         let full_np = noun_phrase(UnqualifiedReference::CoordinatedNounPhrase(
             CoordinatedNounPhrase {
                 coordination: FullNounPhraseCoordination::FullAndNounPhraseCoordination(
-                    FullAndNounPhraseCoordination::new(vec![
-                        DeterminerPhrase::TargetDeterminerPhrase(TargetDeterminerPhrase {
-                            nominal: singular_nominal(CommonNoun::Player),
-                        }),
-                        DeterminerPhrase::TargetDeterminerPhrase(TargetDeterminerPhrase {
-                            nominal: singular_nominal(CommonNoun::Opponent),
-                        }),
-                    ])
+                    FullAndNounPhraseCoordination::new(Box::new(vec![
+                        determined(
+                            target_determinative(Number::Singular),
+                            Nominal::SingularNominalValue(SingularNominalValue {
+                                nominal: singular_nominal(CommonNoun::Player),
+                            }),
+                        ),
+                        determined(
+                            target_determinative(Number::Singular),
+                            Nominal::SingularNominalValue(SingularNominalValue {
+                                nominal: singular_nominal(CommonNoun::Opponent),
+                            }),
+                        ),
+                    ]))
                     .expect("binary full-NP coordination satisfies minimum arity"),
                 ),
             },

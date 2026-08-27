@@ -230,21 +230,42 @@ fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
 }
 
 fn indefinite(noun: Noun) -> NounPhrase {
-    noun_phrase(UnqualifiedReference::IndefiniteReference(
-        IndefiniteReference {
-            nominal: singular_nominal(noun),
-        },
-    ))
+    match noun {
+        Noun::Lexeme(noun) => {
+            determined_singular(SimpleDeterminative::A, Noun::Lexeme(noun))
+        }
+        Noun::Type(noun) => determined_singular(SimpleDeterminative::An, Noun::Type(noun)),
+        Noun::ArtifactSubtype(noun) => {
+            determined_singular(SimpleDeterminative::An, Noun::ArtifactSubtype(noun))
+        }
+    }
 }
 
 fn target_noun(noun: Noun) -> NounPhrase {
-    noun_phrase(UnqualifiedReference::OrdinarySingularReference(
-        OrdinarySingularReference::new(DeterminerPhrase::TargetDeterminerPhrase(
-            TargetDeterminerPhrase {
-                nominal: singular_nominal(noun),
-            },
-        ))
-        .expect("target determiner is an ordinary singular reference"),
+    determined_singular(SimpleDeterminative::Target, noun)
+}
+
+fn determined_singular(determiner: SimpleDeterminative, noun: Noun) -> NounPhrase {
+    let determiner = Determinative::SingularSimpleDeterminative(
+        SingularSimpleDeterminative::new(determiner)
+            .expect("test determiner licenses a singular nominal"),
+    );
+    let nominal = Nominal::SingularNominalValue(SingularNominalValue {
+        nominal: singular_nominal(noun),
+    });
+    noun_phrase(UnqualifiedReference::DeterminedNominal(
+        DeterminedNominal::new(Determiner::Headed(determiner), nominal)
+            .expect("test determiner agrees with its singular nominal"),
+    ))
+}
+
+fn determined_plural(determiner: Determiner, noun: Noun) -> NounPhrase {
+    let nominal = Nominal::PluralNominalValue(PluralNominalValue {
+        nominal: plural_nominal(noun),
+    });
+    noun_phrase(UnqualifiedReference::DeterminedNominal(
+        DeterminedNominal::new(determiner, nominal)
+            .expect("test determiner agrees with its plural nominal"),
     ))
 }
 
@@ -256,15 +277,14 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                     UnqualifiedLocativeStage {
                         reference: Box::new(ControllerStage::RelativeQualifiedReference(
                             RelativeQualifiedReference {
-                                reference: UnqualifiedReference::OrdinaryPluralReference(
-                                    OrdinaryPluralReference::new(
-                                        PluralSelector::UnmarkedPluralSelector(
-                                            UnmarkedPluralSelector {
-                                                nominal: plural_nominal(creatures()),
-                                            },
-                                        ),
+                                reference: UnqualifiedReference::DeterminedNominal(
+                                    DeterminedNominal::new(
+                                        Determiner::Zero,
+                                        Nominal::PluralNominalValue(PluralNominalValue {
+                                            nominal: plural_nominal(creatures()),
+                                        }),
                                     )
-                                    .expect("unmarked plural is valid for an ordinary reference"),
+                                    .expect("a zero determiner agrees with a plural nominal"),
                                 ),
                                 clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
                                     PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
@@ -296,11 +316,18 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
 }
 
 fn number_of(counted: Object) -> NounPhrase {
-    let number = UnqualifiedReference::DefiniteSingularReference(DefiniteSingularReference {
-        selector: SingularSelector::UnmarkedSingularSelector(UnmarkedSingularSelector {
-            nominal: singular_nominal(Noun::Lexeme(CommonNoun::Number)),
-        }),
-    });
+    let number = UnqualifiedReference::DeterminedNominal(
+        DeterminedNominal::new(
+            Determiner::Headed(Determinative::SingularSimpleDeterminative(
+                SingularSimpleDeterminative::new(SimpleDeterminative::The)
+                    .expect("the licenses a singular nominal"),
+            )),
+            Nominal::SingularNominalValue(SingularNominalValue {
+                nominal: singular_nominal(Noun::Lexeme(CommonNoun::Number)),
+            }),
+        )
+        .expect("the agrees with the singular number nominal"),
+    );
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
         reference: Box::new(NumericStage::UnqualifiedNumericStage(
             UnqualifiedNumericStage {
@@ -343,15 +370,15 @@ fn where_number_of(counted: Object) -> WhereClauseCategory {
 }
 
 fn that_noun(noun: Noun) -> NounPhrase {
-    noun_phrase(UnqualifiedReference::ThatReference(ThatReference {
-        nominal: singular_nominal(noun),
-    }))
+    determined_singular(SimpleDeterminative::That, noun)
 }
 
 fn those_noun(noun: Noun) -> NounPhrase {
-    noun_phrase(UnqualifiedReference::ThoseReference(ThoseReference {
-        nominal: plural_nominal(noun),
-    }))
+    let determiner = Determinative::PluralSimpleDeterminative(
+        PluralSimpleDeterminative::new(SimpleDeterminative::Those)
+            .expect("those licenses a plural nominal"),
+    );
+    determined_plural(Determiner::Headed(determiner), noun)
 }
 
 fn nominal_subject(value: NounPhrase) -> Subject {
@@ -924,11 +951,12 @@ fn renders_those_with_a_plural_noun_and_bare_verb() {
 }
 
 #[test]
-fn demonstrative_references_visit_their_distinct_typed_ast_nodes() {
+fn demonstrative_references_visit_their_unified_nominal_ast_nodes() {
     #[derive(Debug, PartialEq, Eq)]
     enum Event {
-        ThatReference,
-        ThoseReference,
+        DeterminedNominal,
+        Determinative,
+        Nominal,
         Head(DeclarationKind, String),
     }
 
@@ -936,14 +964,19 @@ fn demonstrative_references_visit_their_distinct_typed_ast_nodes() {
     struct DemonstrativeVisitor(Vec<Event>);
 
     impl Visitor for DemonstrativeVisitor {
-        fn visit_that_reference(&mut self, reference: &ThatReference) {
-            self.0.push(Event::ThatReference);
-            deckmaste_english_v2::visit::walk_that_reference(self, reference);
+        fn visit_determined_nominal(&mut self, nominal: &DeterminedNominal) {
+            self.0.push(Event::DeterminedNominal);
+            deckmaste_english_v2::visit::walk_determined_nominal(self, nominal);
         }
 
-        fn visit_those_reference(&mut self, reference: &ThoseReference) {
-            self.0.push(Event::ThoseReference);
-            deckmaste_english_v2::visit::walk_those_reference(self, reference);
+        fn visit_determinative(&mut self, determiner: &Determinative) {
+            self.0.push(Event::Determinative);
+            deckmaste_english_v2::visit::walk_determinative(self, determiner);
+        }
+
+        fn visit_nominal(&mut self, nominal: &Nominal) {
+            self.0.push(Event::Nominal);
+            deckmaste_english_v2::visit::walk_nominal(self, nominal);
         }
 
         fn visit_declaration_type_noun(&mut self, noun: &DeclarationTypeNoun) {
@@ -952,16 +985,14 @@ fn demonstrative_references_visit_their_distinct_typed_ast_nodes() {
         }
     }
 
-    for (value, expected, expected_event) in [
+    for (value, expected) in [
         (
             that_noun(creature()),
             "That creature deals 3 damage to it.",
-            Event::ThatReference,
         ),
         (
             those_noun(creatures()),
             "Those creatures deal 3 damage to it.",
-            Event::ThoseReference,
         ),
     ] {
         let sentence = declarative(
@@ -980,7 +1011,9 @@ fn demonstrative_references_visit_their_distinct_typed_ast_nodes() {
         assert_eq!(
             visitor.0,
             [
-                expected_event,
+                Event::DeterminedNominal,
+                Event::Determinative,
+                Event::Nominal,
                 Event::Head(DeclarationKind::Type, "Creature".to_owned(),),
             ],
         );

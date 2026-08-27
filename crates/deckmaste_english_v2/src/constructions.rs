@@ -142,7 +142,7 @@ constructions! {
         Untapped = "untapped",
     }
     vocab SingularDemonstrative { This = "this", That = "that", }
-    vocab Determinative {
+    vocab SimpleDeterminative {
         A = "a",
         An = "an",
         The = "the",
@@ -155,6 +155,7 @@ constructions! {
         Both = "both",
         No = "no",
         Any = "any",
+        Other = "other",
         Target = "target",
         OtherTarget = "other target",
     }
@@ -2685,7 +2686,7 @@ constructions! {
         require len(members) >= 2;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
-        derive onset = Values::Consonant;
+        derive onset = members.onset;
         form singular_and_nominal_coordination = members;
     }
     construction singular_or_nominal_coordination: SingularNominalCoordination {
@@ -2700,7 +2701,7 @@ constructions! {
         require len(members) >= 2;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
-        derive onset = Values::Consonant;
+        derive onset = members.onset;
         form singular_or_nominal_coordination = members;
     }
     construction singular_and_or_nominal_coordination: SingularNominalCoordination {
@@ -2715,74 +2716,8 @@ constructions! {
         require len(members) >= 2;
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
-        derive onset = Values::Consonant;
+        derive onset = members.onset;
         form singular_and_or_nominal_coordination = members;
-    }
-    construction determiner_scoped_and_nominal_pair: DeterminerScopedNominalCoordination {
-        element DeterminerScopedAndNominalPair {
-            first: SingularCoordinationMember,
-            second: SingularCoordinationMember,
-        }
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = first.onset;
-        form determiner_scoped_and_nominal_pair = first "and" second;
-    }
-    construction determiner_scoped_and_nominal_series: DeterminerScopedNominalCoordination {
-        element DeterminerScopedAndNominalSeries {
-            first: SingularCoordinationMember,
-            middle: seq SingularCoordinationMember separated by ", ",
-            last: SingularCoordinationMember,
-        }
-        require len(middle) >= 1;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = first.onset;
-        form determiner_scoped_and_nominal_series = first "," middle "," "and" last;
-    }
-    construction determiner_scoped_or_nominal_pair: DeterminerScopedNominalCoordination {
-        element DeterminerScopedOrNominalPair {
-            first: SingularCoordinationMember,
-            second: SingularCoordinationMember,
-        }
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = first.onset;
-        form determiner_scoped_or_nominal_pair = first "or" second;
-    }
-    construction determiner_scoped_or_nominal_series: DeterminerScopedNominalCoordination {
-        element DeterminerScopedOrNominalSeries {
-            first: SingularCoordinationMember,
-            middle: seq SingularCoordinationMember separated by ", ",
-            last: SingularCoordinationMember,
-        }
-        require len(middle) >= 1;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = first.onset;
-        form determiner_scoped_or_nominal_series = first "," middle "," "or" last;
-    }
-    construction determiner_scoped_and_or_nominal_pair: DeterminerScopedNominalCoordination {
-        element DeterminerScopedAndOrNominalPair {
-            first: SingularCoordinationMember,
-            second: SingularCoordinationMember,
-        }
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = first.onset;
-        form determiner_scoped_and_or_nominal_pair = first "and/or" second;
-    }
-    construction determiner_scoped_and_or_nominal_series: DeterminerScopedNominalCoordination {
-        element DeterminerScopedAndOrNominalSeries {
-            first: SingularCoordinationMember,
-            middle: seq SingularCoordinationMember separated by ", ",
-            last: SingularCoordinationMember,
-        }
-        require len(middle) >= 1;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = first.onset;
-        form determiner_scoped_and_or_nominal_series = first "," middle "," "and/or" last;
     }
     construction plural_and_nominal_coordination: PluralNominalCoordination {
         element PluralAndNominalCoordination {
@@ -2860,15 +2795,6 @@ constructions! {
         derive number = coordination.number;
         derive onset = coordination.onset;
         form plural_coordination_nominal_value = coordination;
-    }
-    construction determiner_scoped_coordination_nominal_value: Nominal {
-        element DeterminerScopedCoordinationNominalValue {
-            coordination: DeterminerScopedNominalCoordination,
-        }
-        derive agreement = coordination.agreement;
-        derive number = coordination.number;
-        derive onset = coordination.onset;
-        form determiner_scoped_coordination_nominal_value = coordination;
     }
     construction unmarked_singular_selector: SingularSelector {
         element UnmarkedSingularSelector { nominal: SingularNominal, }
@@ -2953,19 +2879,118 @@ constructions! {
         derive onset = Values::Vowel;
         form other_target_plural_selector = "other" "target" nominal;
     }
+    construction singular_simple_determinative: Determinative {
+        element SingularSimpleDeterminative { head: lex SimpleDeterminative, }
+        require head in [A, An, The, This, That, Another, Each, No, Any, Other, Target, OtherTarget];
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = head.onset;
+        form singular_simple_determinative = lex(head);
+    }
+    construction plural_simple_determinative: Determinative {
+        element PluralSimpleDeterminative { head: lex SimpleDeterminative, }
+        require head in [The, Those, All, Both, No, Any, Other, Target, OtherTarget];
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = head.onset;
+        form plural_simple_determinative = lex(head);
+    }
+    construction quantifier_marker: QuantifierMarker {
+        element QuantifierMarkerValue { determiner: lex SimpleDeterminative, }
+        require determiner in [Other, Target, OtherTarget];
+        form quantifier_marker = lex(determiner);
+    }
+    construction one_quantifying_determiner: Determinative {
+        element OneQuantifyingDeterminer {
+            count: CardinalQuantity,
+            marker: opt QuantifierMarker,
+        }
+        require count.cardinality is One;
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Consonant;
+        form one_quantifying_determiner = count marker;
+    }
+    construction plural_cardinal_quantifying_determiner: Determinative {
+        element PluralCardinalQuantifyingDeterminer {
+            count: CardinalQuantity,
+            marker: opt QuantifierMarker,
+        }
+        require count.cardinality is TwoPlus;
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Consonant;
+        form plural_cardinal_quantifying_determiner = count marker;
+    }
+    construction variable_quantifying_determiner: Determinative {
+        element VariableQuantifyingDeterminer {
+            count: lex Variable,
+            marker: opt QuantifierMarker,
+        }
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Consonant;
+        form variable_quantifying_determiner = lex(count) marker;
+    }
+    construction up_to_one_quantifying_determiner: Determinative {
+        element UpToOneQuantifyingDeterminer {
+            count: CardinalQuantity,
+            marker: opt QuantifierMarker,
+        }
+        require count.cardinality is One;
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = Values::Vowel;
+        form up_to_one_quantifying_determiner = "up" "to" count marker;
+    }
+    construction up_to_many_quantifying_determiner: Determinative {
+        element UpToManyQuantifyingDeterminer {
+            count: CardinalQuantity,
+            marker: opt QuantifierMarker,
+        }
+        require count.cardinality is TwoPlus;
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Vowel;
+        form up_to_many_quantifying_determiner = "up" "to" count marker;
+    }
+    construction any_number_quantifying_determiner: Determinative {
+        element AnyNumberQuantifyingDeterminer { marker: opt QuantifierMarker, }
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Vowel;
+        form any_number_quantifying_determiner = "any" "number" "of" marker;
+    }
+    construction one_or_more_quantifying_determiner: Determinative {
+        element OneOrMoreQuantifyingDeterminer { marker: opt QuantifierMarker, }
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Consonant;
+        form one_or_more_quantifying_determiner = "one" "or" "more" marker;
+    }
+    construction no_more_quantifying_determiner: Determinative {
+        element NoMoreQuantifyingDeterminer { marker: opt QuantifierMarker, }
+        derive agreement = Values::Bare;
+        derive number = Values::Plural;
+        derive onset = Values::Consonant;
+        form no_more_quantifying_determiner = "no" "more" marker;
+    }
+    construction counted_quantifying_determiner: Determinative {
+        element CountedQuantifyingDeterminer {
+            count: CountReference,
+            marker: opt QuantifierMarker,
+        }
+        derive agreement = count.agreement;
+        derive number = count.number;
+        derive onset = count.onset;
+        form counted_quantifying_determiner = count marker;
+    }
     construction named_card_reference: UnqualifiedReference {
         element NamedCardReference { name: identity CardName, }
         derive agreement = Values::ThirdPersonSingular;
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form named_card_reference = "a" "card" "named" identity(name);
-    }
-    construction ordinary_singular_reference: UnqualifiedReference {
-        element OrdinarySingularReference { phrase: DeterminerPhrase, }
-        derive agreement = phrase.agreement;
-        derive number = phrase.number;
-        derive onset = Values::Consonant;
-        form ordinary_singular_reference = phrase;
     }
     construction mass_common_noun_reference: UnqualifiedReference {
         element MassCommonNounReference { noun: lex MassCommonNoun, }
@@ -2997,18 +3022,6 @@ constructions! {
         derive number = Values::Plural;
         derive onset = Values::Consonant;
         form no_more_plural_reference = "no" "more" nominal;
-    }
-    construction ordinary_plural_reference: UnqualifiedReference {
-        element OrdinaryPluralReference { selector: PluralSelector, }
-        require any(
-            selector is UnmarkedPluralSelector,
-            selector is UnmarkedPluralCoordinationSelector,
-            selector is OtherPluralSelector
-        );
-        derive agreement = selector.agreement;
-        derive number = selector.number;
-        derive onset = selector.onset;
-        form ordinary_plural_reference = selector;
     }
     construction each_of_variable_reference: UnqualifiedReference {
         element EachOfVariableReference {
@@ -3100,7 +3113,7 @@ constructions! {
         }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
-        derive onset = Values::Consonant;
+        derive onset = possessor.onset;
         form possessed_singular_reference = lex(possessor) nominal;
     }
     construction possessed_plural_reference: UnqualifiedReference {
@@ -3110,27 +3123,27 @@ constructions! {
         }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
-        derive onset = Values::Consonant;
+        derive onset = possessor.onset;
         form possessed_plural_reference = lex(possessor) nominal;
     }
     construction genitive_determiner_singular_reference: UnqualifiedReference {
         element GenitiveDeterminerSingularReference {
-            possessor: DeterminerPhrase,
+            possessor: UnqualifiedReference,
             nominal: SingularNominal,
         }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
-        derive onset = possessor.onset;
+        derive onset = Values::Consonant;
         form genitive_determiner_singular_reference = suffix(possessor, "'s") nominal;
     }
     construction genitive_determiner_plural_reference: UnqualifiedReference {
         element GenitiveDeterminerPluralReference {
-            possessor: DeterminerPhrase,
+            possessor: UnqualifiedReference,
             nominal: PluralNominal,
         }
         derive agreement = nominal.agreement;
         derive number = nominal.number;
-        derive onset = possessor.onset;
+        derive onset = Values::Consonant;
         form genitive_determiner_plural_reference = suffix(possessor, "'s") nominal;
     }
     construction possessive_absolute_reference: UnqualifiedReference {
@@ -3150,41 +3163,20 @@ constructions! {
         derive onset = word.onset;
         form possessive_absolute_reference = lex(word);
     }
-    construction determined_nominal: DeterminerPhrase {
+    construction determined_nominal: UnqualifiedReference {
         element DeterminedNominal {
-            determiner: lex Determinative,
+            det: zeroable Determiner from Determinative checked by determiner_licenses_nominal(nominal.onset),
             nominal: Nominal,
         }
-        require any(
-            all(
-                determiner in [This, That, Another, Each, Target, OtherTarget],
-                nominal.number is Singular
-            ),
-            all(
-                determiner in [Those, All, Both],
-                nominal.number is Plural
-            ),
-            determiner in [The, No, Any]
-        );
-        derive agreement = nominal.agreement;
-        derive number = nominal.number;
-        form determined_nominal = lex(determiner) nominal;
-    }
-    construction indefinite_determiner_phrase: DeterminerPhrase {
-        element IndefiniteDeterminerPhrase { nominal: Nominal, }
-        require any(
-            nominal is SingularNominalValue,
-            nominal is DeterminerScopedCoordinationNominalValue
-        );
+        derive det.number = nominal.number;
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = nominal.onset;
-        form an when nominal.onset is Vowel = "an" nominal;
-        form a otherwise = "a" nominal;
+        form determined_nominal = det nominal;
     }
     construction full_and_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullAndNounPhraseCoordination {
-            members: seq DeterminerPhrase separated by position {
+            members: seq UnqualifiedReference separated by position {
                 pair = " and ";
                 first = ", ";
                 middle = ", ";
@@ -3198,7 +3190,7 @@ constructions! {
     }
     construction full_or_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullOrNounPhraseCoordination {
-            members: seq DeterminerPhrase separated by position {
+            members: seq UnqualifiedReference separated by position {
                 pair = " or ";
                 first = ", ";
                 middle = ", ";
@@ -3212,7 +3204,7 @@ constructions! {
     }
     construction full_and_or_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullAndOrNounPhraseCoordination {
-            members: seq DeterminerPhrase separated by position {
+            members: seq UnqualifiedReference separated by position {
                 pair = " and/or ";
                 first = ", ";
                 middle = ", ";
@@ -4379,6 +4371,17 @@ constructions! {
     root CountReference { eoi = true; standalone_render = true; }
     root ScalarReference { eoi = true; standalone_render = true; }
     root OracleText { eoi = true; standalone_render = true; }
+}
+
+fn determiner_licenses_nominal(det: Option<&Determinative>, onset: Onset) -> bool {
+    let Some(Determinative::SingularSimpleDeterminative(simple)) = det else {
+        return true;
+    };
+    match simple.head {
+        SimpleDeterminative::A => onset == Onset::Consonant,
+        SimpleDeterminative::An => onset == Onset::Vowel,
+        _ => true,
+    }
 }
 
 #[cfg(test)]

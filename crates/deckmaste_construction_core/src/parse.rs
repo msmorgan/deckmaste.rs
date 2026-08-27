@@ -76,6 +76,7 @@ use crate::model::VerbOperand;
 use crate::model::VisitMode;
 use crate::model::Vocab;
 use crate::model::VocabVariant;
+use crate::model::ZeroableCheck;
 
 mod keyword {
     syn::custom_keyword!(checked);
@@ -133,6 +134,7 @@ mod keyword {
     syn::custom_keyword!(visit);
     syn::custom_keyword!(vocab);
     syn::custom_keyword!(when);
+    syn::custom_keyword!(zeroable);
 }
 
 pub(crate) fn parse_declarations(tokens: TokenStream) -> syn::Result<Declarations> {
@@ -322,6 +324,42 @@ fn parse_field(input: ParseStream<'_>, owner: &Ident) -> syn::Result<Field> {
 }
 
 fn parse_field_kind(input: ParseStream<'_>, owner: &Ident, role: &Ident) -> syn::Result<FieldKind> {
+    if input.peek(keyword::zeroable) {
+        input.parse::<keyword::zeroable>()?;
+        let value_type = parse_generated_owned_path(input)?;
+        let from = input.call(Ident::parse_any)?;
+        if from != "from" {
+            return Err(syn::Error::new(
+                from.span(),
+                "zeroable fields require `from`",
+            ));
+        }
+        let item = Box::new(FieldKind::Category(parse_generated_owned_path(input)?));
+        let check = if input.peek(keyword::checked) {
+            input.parse::<keyword::checked>()?;
+            input.parse::<keyword::by>()?;
+            let function = parse_generated_owned_callback_path(input)?;
+            let content;
+            parenthesized!(content in input);
+            let role = content.parse()?;
+            content.parse::<Token![.]>()?;
+            let feature = content.call(Ident::parse_any)?;
+            let feature = feature_from_ident(&feature)
+                .ok_or_else(|| content.error("unknown zeroable-check feature"))?;
+            let argument = FeatureSlot { role, feature };
+            if !content.is_empty() {
+                return Err(content.error("zeroable checks accept one companion role"));
+            }
+            Some(ZeroableCheck { function, argument })
+        } else {
+            None
+        };
+        return Ok(FieldKind::Zeroable {
+            value_type,
+            item,
+            check,
+        });
+    }
     if input.peek(keyword::opt) {
         input.parse::<keyword::opt>()?;
         return parse_cardinality_inner(input, owner, role, "opt")
@@ -390,7 +428,7 @@ fn parse_cardinality_inner(
                 .map(|segment| segment.ident.to_string())
                 .collect::<Vec<_>>()
                 .join("::"),
-            FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
+            FieldKind::Zeroable { .. } | FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
                 unreachable!("atomic field kind")
             }
         };

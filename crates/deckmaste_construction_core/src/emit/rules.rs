@@ -71,6 +71,31 @@ impl SequenceOwnerState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum OwnerFieldBuildState {
+    ZeroableAbsent,
+    ZeroablePresent,
+    Sequence(SequenceOwnerState),
+}
+
+impl OwnerFieldBuildState {
+    fn suffix(self) -> String {
+        match self {
+            Self::ZeroableAbsent => "Absent".to_owned(),
+            Self::ZeroablePresent => "Present".to_owned(),
+            Self::Sequence(state) => state.suffix(),
+        }
+    }
+
+    fn spelling(self) -> String {
+        match self {
+            Self::ZeroableAbsent => "zeroable_absent".to_owned(),
+            Self::ZeroablePresent => "zeroable_present".to_owned(),
+            Self::Sequence(state) => state.spelling(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(super) enum RuleSymbolPlan {
     Authored {
@@ -152,11 +177,11 @@ impl RuleSymbolPlan {
 pub(super) enum RuleBuildPlan {
     Construction {
         index: usize,
-        sequence_states: Vec<SequenceOwnerBuildPlan>,
+        owner_states: Vec<OwnerFieldBuildPlan>,
     },
     Product {
         index: usize,
-        sequence_states: Vec<SequenceOwnerBuildPlan>,
+        owner_states: Vec<OwnerFieldBuildPlan>,
     },
     Sum {
         sum_index: usize,
@@ -176,9 +201,9 @@ pub(super) enum RuleBuildPlan {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct SequenceOwnerBuildPlan {
+pub(super) struct OwnerFieldBuildPlan {
     pub(super) role: String,
-    pub(super) state: SequenceOwnerState,
+    pub(super) state: OwnerFieldBuildState,
     pub(super) rhs_start: usize,
     pub(super) rhs_end: usize,
     pub(super) helper_category: Option<String>,
@@ -689,7 +714,7 @@ fn lower_construction_rows(
     let mut rows = Vec::new();
     for (form_index, form) in construction.forms().iter().enumerate() {
         let mut variants = vec![(
-            Vec::<SequenceOwnerBuildPlan>::new(),
+            Vec::<OwnerFieldBuildPlan>::new(),
             Vec::<RuleSymbolPlan>::new(),
         )];
         for (atom_index, atom) in form.atoms().iter().enumerate() {
@@ -757,7 +782,7 @@ fn lower_construction_rows(
         rows.extend(
             variants
                 .into_iter()
-                .map(|(sequence_states, rhs)| {
+                .map(|(owner_states, rhs)| {
                     let base_rule_id = if explicit_sum_owned {
                         let base = format!(
                             "{}Construction",
@@ -779,7 +804,7 @@ fn lower_construction_rows(
                                 .structural_plan()
                                 .map(|structural| (field.name_key(), structural))
                         }),
-                        &sequence_states,
+                        &owner_states,
                     )?;
                     Ok(RuleRowPlan {
                         id,
@@ -797,7 +822,7 @@ fn lower_construction_rows(
                         rhs,
                         build: RuleBuildPlan::Construction {
                             index: construction_index,
-                            sequence_states,
+                            owner_states,
                         },
                     })
                 })
@@ -812,7 +837,7 @@ fn lower_product_rows(
     product: &crate::semantic::ProductPlan,
 ) -> syn::Result<Vec<RuleRowPlan>> {
     let mut variants = vec![(
-        Vec::<SequenceOwnerBuildPlan>::new(),
+        Vec::<OwnerFieldBuildPlan>::new(),
         Vec::<RuleSymbolPlan>::new(),
     )];
     for field in product.fields() {
@@ -821,7 +846,7 @@ fn lower_product_rows(
     }
     variants
         .into_iter()
-        .map(|(sequence_states, rhs)| {
+        .map(|(owner_states, rhs)| {
             let base = format!("{}Product", crate::identifier::pascal_case(product.name()));
             let (id, role, state) = public_variant_metadata(
                 &base,
@@ -830,7 +855,7 @@ fn lower_product_rows(
                     .fields()
                     .iter()
                     .map(|field| (field.name().to_owned(), field)),
-                &sequence_states,
+                &owner_states,
             )?;
             Ok(RuleRowPlan {
                 id,
@@ -844,7 +869,7 @@ fn lower_product_rows(
                 rhs,
                 build: RuleBuildPlan::Product {
                     index: product_index,
-                    sequence_states,
+                    owner_states,
                 },
             })
         })
@@ -855,22 +880,28 @@ fn public_variant_metadata<'a>(
     base: &str,
     _owner: &str,
     fields: impl Iterator<Item = (String, &'a StructuralFieldPlan)>,
-    sequence_states: &[SequenceOwnerBuildPlan],
+    owner_states: &[OwnerFieldBuildPlan],
 ) -> syn::Result<(String, Option<String>, String)> {
-    if sequence_states.is_empty() {
+    if owner_states.is_empty() {
         return Ok((base.to_owned(), None, "public".to_owned()));
     }
-    if sequence_states.len() == 1 {
-        let SequenceOwnerBuildPlan { role, state, .. } = &sequence_states[0];
+    if owner_states.len() == 1 {
+        let OwnerFieldBuildPlan { role, state, .. } = &owner_states[0];
         let field = fields
             .into_iter()
             .find(|(candidate, _)| candidate == role)
             .map(|(_, field)| field)
-            .ok_or_else(|| internal("positional owner state has no structural field"))?;
-        let aggregate = field
-            .helper_names()
-            .ok_or_else(|| internal("positional sequence has no helper inventory"))?
-            .all()[0];
+            .ok_or_else(|| internal("owner state has no structural field"))?;
+        let aggregate = match state {
+            OwnerFieldBuildState::ZeroableAbsent | OwnerFieldBuildState::ZeroablePresent => {
+                format!("{base}{}", crate::identifier::pascal_case(role))
+            }
+            OwnerFieldBuildState::Sequence(_) => field
+                .helper_names()
+                .ok_or_else(|| internal("positional sequence has no helper inventory"))?
+                .all()[0]
+                .to_owned(),
+        };
         return Ok((
             format!("{aggregate}{}", state.suffix()),
             Some(role.clone()),
@@ -878,22 +909,22 @@ fn public_variant_metadata<'a>(
         ));
     }
     let mut suffix = String::new();
-    for field in sequence_states {
+    for field in owner_states {
         suffix.push_str(&crate::identifier::pascal_case(&field.role));
         suffix.push_str(&field.state.suffix());
     }
     Ok((
         format!("{base}{suffix}"),
         None,
-        "positional_product".to_owned(),
+        "structural_product".to_owned(),
     ))
 }
 
 fn combine_owner_variants(
-    current: Vec<(Vec<SequenceOwnerBuildPlan>, Vec<RuleSymbolPlan>)>,
+    current: Vec<(Vec<OwnerFieldBuildPlan>, Vec<RuleSymbolPlan>)>,
     field: &StructuralFieldPlan,
-    field_variants: &[(Option<SequenceOwnerState>, Vec<RuleSymbolPlan>)],
-) -> Vec<(Vec<SequenceOwnerBuildPlan>, Vec<RuleSymbolPlan>)> {
+    field_variants: &[(Option<OwnerFieldBuildState>, Vec<RuleSymbolPlan>)],
+) -> Vec<(Vec<OwnerFieldBuildPlan>, Vec<RuleSymbolPlan>)> {
     current
         .into_iter()
         .flat_map(|(states, rhs)| {
@@ -907,7 +938,7 @@ fn combine_owner_variants(
                         RuleSymbolPlan::Helper(category) => Some(category.clone()),
                         _ => None,
                     });
-                    states.push(SequenceOwnerBuildPlan {
+                    states.push(OwnerFieldBuildPlan {
                         role: field.name().to_owned(),
                         state: *state,
                         rhs_start,
@@ -924,11 +955,18 @@ fn combine_owner_variants(
 fn owner_field_variants(
     owner: &str,
     field: &StructuralFieldPlan,
-) -> syn::Result<Vec<(Option<SequenceOwnerState>, Vec<RuleSymbolPlan>)>> {
+) -> syn::Result<Vec<(Option<OwnerFieldBuildState>, Vec<RuleSymbolPlan>)>> {
     match field.kind() {
         StructuralFieldKindPlan::Required(value) => {
             Ok(vec![(None, vec![RuleSymbolPlan::Value(value.clone())])])
         }
+        StructuralFieldKindPlan::Zeroable(value) => Ok(vec![
+            (Some(OwnerFieldBuildState::ZeroableAbsent), Vec::new()),
+            (
+                Some(OwnerFieldBuildState::ZeroablePresent),
+                vec![RuleSymbolPlan::Value(value.clone())],
+            ),
+        ]),
         StructuralFieldKindPlan::Optional(_) => Ok(vec![(
             None,
             vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
@@ -941,17 +979,26 @@ fn owner_field_variants(
             Some(SeparatorPlan::Positional(rows)) => {
                 let mut variants = Vec::new();
                 if bounds.allows(0) {
-                    variants.push((Some(SequenceOwnerState::PositionalEmpty), Vec::new()));
+                    variants.push((
+                        Some(OwnerFieldBuildState::Sequence(
+                            SequenceOwnerState::PositionalEmpty,
+                        )),
+                        Vec::new(),
+                    ));
                 }
                 if bounds.allows(1) {
                     variants.push((
-                        Some(SequenceOwnerState::PositionalSingleton),
+                        Some(OwnerFieldBuildState::Sequence(
+                            SequenceOwnerState::PositionalSingleton,
+                        )),
                         item_with_terminator(item, surface.terminator(), owner, field.name()),
                     ));
                 }
                 if bounds.allows(2) {
                     variants.push((
-                        Some(SequenceOwnerState::PositionalPair),
+                        Some(OwnerFieldBuildState::Sequence(
+                            SequenceOwnerState::PositionalPair,
+                        )),
                         exact_positional_rhs(item, surface, rows, 2, owner, field.name())?,
                     ));
                 }
@@ -972,7 +1019,7 @@ fn owner_field_variants(
                         StructuralSurfacePolicy::SeparatorPositional(EdgeClass::First),
                     );
                     rhs.push(RuleSymbolPlan::Helper(helper_category(owner, field)?));
-                    variants.push((Some(state), rhs));
+                    variants.push((Some(OwnerFieldBuildState::Sequence(state)), rhs));
                 }
                 Ok(variants)
             }
@@ -980,9 +1027,16 @@ fn owner_field_variants(
                 if bounds.max().is_none() {
                     if bounds.min() == 0 {
                         return Ok(vec![
-                            (Some(SequenceOwnerState::UniformEmpty), Vec::new()),
                             (
-                                Some(SequenceOwnerState::UniformNonEmpty),
+                                Some(OwnerFieldBuildState::Sequence(
+                                    SequenceOwnerState::UniformEmpty,
+                                )),
+                                Vec::new(),
+                            ),
+                            (
+                                Some(OwnerFieldBuildState::Sequence(
+                                    SequenceOwnerState::UniformNonEmpty,
+                                )),
                                 vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
                             ),
                         ]);
@@ -995,14 +1049,21 @@ fn owner_field_variants(
 
                 let mut variants = Vec::new();
                 if bounds.allows(0) {
-                    variants.push((Some(SequenceOwnerState::UniformEmpty), Vec::new()));
+                    variants.push((
+                        Some(OwnerFieldBuildState::Sequence(
+                            SequenceOwnerState::UniformEmpty,
+                        )),
+                        Vec::new(),
+                    ));
                 }
                 if bounds
                     .max()
                     .is_some_and(|maximum| maximum >= bounds.min().max(1))
                 {
                     variants.push((
-                        Some(SequenceOwnerState::UniformNonEmpty),
+                        Some(OwnerFieldBuildState::Sequence(
+                            SequenceOwnerState::UniformNonEmpty,
+                        )),
                         vec![RuleSymbolPlan::Helper(helper_category(owner, field)?)],
                     ));
                 }
@@ -1024,7 +1085,10 @@ fn lower_helper_rows<'a>(
 ) -> syn::Result<Vec<RuleRowPlan>> {
     let mut rows = Vec::new();
     for (field_index, field) in fields {
-        if matches!(field.kind(), StructuralFieldKindPlan::Required(_)) {
+        if matches!(
+            field.kind(),
+            StructuralFieldKindPlan::Required(_) | StructuralFieldKindPlan::Zeroable(_)
+        ) {
             continue;
         }
         let aggregate = field.helper_names().map_or_else(
@@ -1040,7 +1104,7 @@ fn lower_helper_rows<'a>(
         let category = helper_category(owner, field)?;
         let role = Some(field.name().to_owned());
         match field.kind() {
-            StructuralFieldKindPlan::Required(_) => {}
+            StructuralFieldKindPlan::Required(_) | StructuralFieldKindPlan::Zeroable(_) => {}
             StructuralFieldKindPlan::Optional(value) => {
                 for (suffix, state, present, rhs) in [
                     ("Absent", "optional_absent", false, Vec::new()),
@@ -1757,6 +1821,9 @@ fn emit_position(
             .and_then(crate::semantic::ConstructionFieldPlan::structural_plan)
     {
         match structural.kind() {
+            StructuralFieldKindPlan::Zeroable(_) => {
+                return Err(internal("zeroable atom reached the unexpanded public rule"));
+            }
             StructuralFieldKindPlan::Optional(_) => {
                 let category = ident(&helper_category(construction.element_type(), structural)?);
                 return Ok(if adjacent_value {

@@ -157,42 +157,24 @@ fn linguistic_bodies_enclose_plain_and_triggered_sentence_sequences() {
 struct SubjectStructureVisitor(Vec<&'static str>);
 
 impl Visitor for SubjectStructureVisitor {
-    fn visit_indefinite_coordination_reference(&mut self, value: &IndefiniteCoordinationReference) {
-        self.0.push("IndefiniteCoordinationReference");
-        deckmaste_english_v2::visit::walk_indefinite_coordination_reference(self, value);
+    fn visit_determined_nominal(&mut self, value: &DeterminedNominal) {
+        self.0.push("DeterminedNominal");
+        deckmaste_english_v2::visit::walk_determined_nominal(self, value);
+    }
+
+    fn visit_determinative(&mut self, value: &Determinative) {
+        self.0.push("Determinative");
+        deckmaste_english_v2::visit::walk_determinative(self, value);
+    }
+
+    fn visit_nominal(&mut self, value: &Nominal) {
+        self.0.push("Nominal");
+        deckmaste_english_v2::visit::walk_nominal(self, value);
     }
 
     fn visit_full_or_noun_phrase_coordination(&mut self, value: &FullOrNounPhraseCoordination) {
         self.0.push("FullOrNounPhraseCoordination");
         deckmaste_english_v2::visit::walk_full_or_noun_phrase_coordination(self, value);
-    }
-
-    fn visit_determiner_scoped_nominal_coordination(
-        &mut self,
-        value: &DeterminerScopedNominalCoordination,
-    ) {
-        self.0.push("DeterminerScopedNominalCoordination");
-        deckmaste_english_v2::visit::walk_determiner_scoped_nominal_coordination(self, value);
-    }
-
-    fn visit_determiner_scoped_or_nominal_pair(&mut self, value: &DeterminerScopedOrNominalPair) {
-        self.0.push("DeterminerScopedOrNominalPair");
-        deckmaste_english_v2::visit::walk_determiner_scoped_or_nominal_pair(self, value);
-    }
-
-    fn visit_this_determiner_phrase(&mut self, value: &ThisDeterminerPhrase) {
-        self.0.push("ThisDeterminerPhrase");
-        deckmaste_english_v2::visit::walk_this_determiner_phrase(self, value);
-    }
-
-    fn visit_another_determiner_phrase(&mut self, value: &AnotherDeterminerPhrase) {
-        self.0.push("AnotherDeterminerPhrase");
-        deckmaste_english_v2::visit::walk_another_determiner_phrase(self, value);
-    }
-
-    fn visit_another_coordination_reference(&mut self, value: &AnotherCoordinationReference) {
-        self.0.push("AnotherCoordinationReference");
-        deckmaste_english_v2::visit::walk_another_coordination_reference(self, value);
     }
 
     fn visit_other_than_qualified_reference(&mut self, value: &OtherThanQualifiedReference) {
@@ -216,15 +198,17 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
     let witnesses = [
         (
             "Whenever a spell or ability deals 1 damage to you, you gain 1 life.",
-            "UnqualifiedReferenceIndefiniteCoordinationReference",
+            "UnqualifiedReferenceDeterminedNominal",
             &[
-                "IndefiniteCoordinationReference",
-                "DeterminerScopedNominalCoordination",
-                "DeterminerScopedOrNominalPair",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "SingularNominalCoordination",
+                "SingularOrNominalCoordination",
             ][..],
             &[
-                "form:indefinite_coordination_reference/a/0",
-                "form:determiner_scoped_or_nominal_pair/determiner_scoped_or_nominal_pair/1",
+                "vocab:SimpleDeterminative/A",
+                "structural:SingularOrNominalCoordination/members/separator/pair/0",
             ][..],
         ),
         (
@@ -232,26 +216,32 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
             &[
                 "FullOrNounPhraseCoordination",
-                "ThisDeterminerPhrase",
-                "AnotherDeterminerPhrase",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
             ][..],
             &[
                 "structural:FullOrNounPhraseCoordination/members/separator/pair/0",
-                "form:this_determiner_phrase/this_determiner_phrase/0",
-                "form:another_determiner_phrase/another_determiner_phrase/0",
+                "vocab:SimpleDeterminative/This",
+                "vocab:SimpleDeterminative/Another",
             ][..],
         ),
         (
             "Whenever an artifact or enchantment deals 1 damage to you, you gain 1 life.",
-            "UnqualifiedReferenceIndefiniteCoordinationReference",
+            "UnqualifiedReferenceDeterminedNominal",
             &[
-                "IndefiniteCoordinationReference",
-                "DeterminerScopedNominalCoordination",
-                "DeterminerScopedOrNominalPair",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "SingularNominalCoordination",
+                "SingularOrNominalCoordination",
             ][..],
             &[
-                "form:indefinite_coordination_reference/an/0",
-                "form:determiner_scoped_or_nominal_pair/determiner_scoped_or_nominal_pair/1",
+                "vocab:SimpleDeterminative/An",
+                "structural:SingularOrNominalCoordination/members/separator/pair/0",
             ][..],
         ),
         (
@@ -259,8 +249,12 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
             &[
                 "FullOrNounPhraseCoordination",
-                "ThisDeterminerPhrase",
-                "AnotherDeterminerPhrase",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
             ][..],
             &["structural:FullOrNounPhraseCoordination/members/separator/pair/0"][..],
         ),
@@ -269,17 +263,27 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             "FullNounPhraseCoordinationFullOrNounPhraseCoordination",
             &[
                 "FullOrNounPhraseCoordination",
-                "ThisDeterminerPhrase",
-                "AnotherDeterminerPhrase",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
             ][..],
             &["structural:FullOrNounPhraseCoordination/members/separator/pair/0"][..],
         ),
         (
             "Whenever another Villain and/or artifact deals 1 damage to you, you gain 1 life.",
-            "UnqualifiedReferenceAnotherCoordinationReference",
-            &["AnotherCoordinationReference"][..],
+            "UnqualifiedReferenceDeterminedNominal",
             &[
-                "form:another_coordination_reference/another_coordination_reference/0",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
+                "SingularNominalCoordination",
+                "SingularAndOrNominalCoordination",
+            ][..],
+            &[
+                "vocab:SimpleDeterminative/Another",
                 "structural:SingularAndOrNominalCoordination/members/separator/pair/0",
             ][..],
         ),
@@ -455,7 +459,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
         "AmongPhraseAmongPhrase",
         "ControllerStageRelativeQualifiedReference",
         "PositiveObjectGapRelativeClausePositiveObjectGapRelative",
-        "UnqualifiedReferenceThatReference",
+        "UnqualifiedReferenceDeterminedNominal",
     ] {
         assert!(
             construction_path.iter().any(|actual| actual == required),
@@ -492,7 +496,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
                 start: 96,
                 end: 101,
             },
-            "form:that_reference/that_reference/0",
+            "vocab:SimpleDeterminative/That",
         ),
         (
             TextSpan {
@@ -592,9 +596,19 @@ impl Visitor for ExistentialStructureVisitor {
         deckmaste_english_v2::visit::walk_positive_object_gap_relative_clause(self, value);
     }
 
-    fn visit_that_reference(&mut self, value: &ThatReference) {
-        self.0.push("ThatReference");
-        deckmaste_english_v2::visit::walk_that_reference(self, value);
+    fn visit_determined_nominal(&mut self, value: &DeterminedNominal) {
+        self.0.push("DeterminedNominal");
+        deckmaste_english_v2::visit::walk_determined_nominal(self, value);
+    }
+
+    fn visit_determinative(&mut self, value: &Determinative) {
+        self.0.push("Determinative");
+        deckmaste_english_v2::visit::walk_determinative(self, value);
+    }
+
+    fn visit_nominal(&mut self, value: &Nominal) {
+        self.0.push("Nominal");
+        deckmaste_english_v2::visit::walk_nominal(self, value);
     }
 }
 
@@ -659,7 +673,9 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
             "AmongPhraseValue",
             "RelativeQualifiedReference",
             "PositiveObjectGapRelative",
-            "ThatReference",
+            "DeterminedNominal",
+            "Determinative",
+            "Nominal",
         ],
     );
 }
@@ -957,7 +973,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             .collect::<Vec<_>>(),
         [
             (0, 8, "vocab:TriggerMarker/Whenever"),
-            (8, 10, "form:indefinite_reference/a/0"),
+            (8, 10, "vocab:SimpleDeterminative/A"),
             (10, 17, "lexeme:CommonNoun/Player/singular"),
             (
                 17,
@@ -975,7 +991,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             (
                 52,
                 59,
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "vocab:SimpleDeterminative/Target"
             ),
             (59, 68, "lexeme:type/Creature/singular"),
             (68, 69, "structural:Sentences/sentences/terminator/0"),
@@ -1523,7 +1539,7 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             .collect::<Vec<_>>(),
         [
             (0, 8, "vocab:TriggerMarker/Whenever"),
-            (8, 10, "form:indefinite_reference/a/0"),
+            (8, 10, "vocab:SimpleDeterminative/A"),
             (10, 17, "lexeme:CommonNoun/Player/singular"),
             (
                 17,
@@ -2104,7 +2120,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (
                 28,
                 35,
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "vocab:SimpleDeterminative/Target"
             ),
             (35, 44, "lexeme:type/Creature/singular"),
             (44, 46, "form:activated/activated/1"),
@@ -2118,7 +2134,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (
                 70,
                 77,
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "vocab:SimpleDeterminative/Target"
             ),
             (77, 86, "lexeme:type/Creature/singular"),
             (86, 87, "structural:Sentences/sentences/terminator/0"),
@@ -2301,6 +2317,45 @@ fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
     &controller.reference
 }
 
+fn is_indefinite_player(reference: &UnqualifiedReference) -> bool {
+    let UnqualifiedReference::DeterminedNominal(determined) = reference else {
+        return false;
+    };
+    let Determiner::Headed(Determinative::SingularSimpleDeterminative(det)) = determined.det()
+    else {
+        return false;
+    };
+    det.head() == SimpleDeterminative::A
+        && matches!(
+            &determined.nominal,
+            Nominal::SingularNominalValue(SingularNominalValue {
+                nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
+                    head: SingularHead::CommonSingularHead(CommonSingularHead {
+                        noun: CommonNoun::Player,
+                    }),
+                }),
+            })
+        )
+}
+
+fn indefinite_player_reference() -> UnqualifiedReference {
+    let det = Determinative::SingularSimpleDeterminative(
+        SingularSimpleDeterminative::new(SimpleDeterminative::A)
+            .expect("a licenses a singular nominal"),
+    );
+    let nominal = Nominal::SingularNominalValue(SingularNominalValue {
+        nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
+            head: SingularHead::CommonSingularHead(CommonSingularHead {
+                noun: CommonNoun::Player,
+            }),
+        }),
+    });
+    UnqualifiedReference::DeterminedNominal(
+        DeterminedNominal::new(Determiner::Headed(det), nominal)
+            .expect("an indefinite determiner agrees with a singular player nominal"),
+    )
+}
+
 fn subject_identity(subject: &Subject) -> &'static str {
     match subject {
         Subject::SubjectPronoun(PersonalSubject {
@@ -2311,15 +2366,7 @@ fn subject_identity(subject: &Subject) -> &'static str {
                 assert_eq!(reference.spelling(), SelfReferenceSpelling::Abbreviated);
                 "self:abbreviated"
             }
-            UnqualifiedReference::IndefiniteReference(IndefiniteReference {
-                nominal:
-                    SingularNominal::BareSingularNominal(BareSingularNominal {
-                        head:
-                            SingularHead::CommonSingularHead(CommonSingularHead {
-                                noun: CommonNoun::Player,
-                            }),
-                    }),
-            }) => "player",
+            reference if is_indefinite_player(reference) => "player",
             other => panic!("unexpected nominal coordination subject payload: {other:?}"),
         },
         other @ (Subject::SubjectPronoun(_) | Subject::VariableSubject(_)) => {
@@ -2857,19 +2904,7 @@ fn player_subject() -> Subject {
                         UnqualifiedLocativeStage {
                             reference: Box::new(ControllerStage::UnqualifiedControllerStage(
                                 UnqualifiedControllerStage {
-                                    reference: UnqualifiedReference::IndefiniteReference(
-                                        IndefiniteReference {
-                                            nominal: SingularNominal::BareSingularNominal(
-                                                BareSingularNominal {
-                                                    head: SingularHead::CommonSingularHead(
-                                                        CommonSingularHead {
-                                                            noun: CommonNoun::Player,
-                                                        },
-                                                    ),
-                                                },
-                                            ),
-                                        },
-                                    ),
+                                    reference: indefinite_player_reference(),
                                 },
                             )),
                         },
@@ -3367,15 +3402,7 @@ impl Visitor for AttachmentEnvelopeVisitor {
             }) => self.0.push("Subject:You"),
             Subject::SubjectNominal(NominalSubject { value }) => {
                 match unqualified_reference(value) {
-                    UnqualifiedReference::IndefiniteReference(IndefiniteReference {
-                        nominal:
-                            SingularNominal::BareSingularNominal(BareSingularNominal {
-                                head:
-                                    SingularHead::CommonSingularHead(CommonSingularHead {
-                                        noun: CommonNoun::Player,
-                                    }),
-                            }),
-                    }) => self.0.push("Subject:Player"),
+                    reference if is_indefinite_player(reference) => self.0.push("Subject:Player"),
                     other => panic!("unexpected trigger subject payload: {other:?}"),
                 }
             }
@@ -4462,7 +4489,7 @@ const ROOT_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "form:indefinite_reference/a/0"),
+    (8, 10, "vocab:SimpleDeterminative/A"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4494,7 +4521,7 @@ const TRIGGER_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "form:indefinite_reference/a/0"),
+    (8, 10, "vocab:SimpleDeterminative/A"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4526,7 +4553,7 @@ const TRIGGER_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "form:indefinite_reference/a/0"),
+    (8, 10, "vocab:SimpleDeterminative/A"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4558,7 +4585,7 @@ const TRIGGER_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "form:indefinite_reference/a/0"),
+    (8, 10, "vocab:SimpleDeterminative/A"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4590,7 +4617,7 @@ const TRIGGER_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "form:indefinite_reference/a/0"),
+    (8, 10, "vocab:SimpleDeterminative/A"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4622,7 +4649,7 @@ const TRIGGER_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "form:indefinite_reference/a/0"),
+    (8, 10, "vocab:SimpleDeterminative/A"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,

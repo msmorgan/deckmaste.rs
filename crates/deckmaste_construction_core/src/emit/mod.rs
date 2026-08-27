@@ -256,6 +256,7 @@ pub(super) fn structural_helper_categories(
         .flat_map(|carrier| {
             let base = carrier.category_variant();
             let states = match carrier.field.kind() {
+                StructuralFieldKindPlan::Zeroable(_) => Vec::new(),
                 StructuralFieldKindPlan::Optional(_) => {
                     vec![(StructuralHelperCategoryState::Optional, base)]
                 }
@@ -291,7 +292,7 @@ pub(super) fn structural_helper_categories(
 
 fn structural_carrier_kind(kind: &StructuralFieldKindPlan) -> Option<StructuralCarrierKind> {
     match kind {
-        StructuralFieldKindPlan::Required(_) => None,
+        StructuralFieldKindPlan::Required(_) | StructuralFieldKindPlan::Zeroable(_) => None,
         StructuralFieldKindPlan::Optional(_) => Some(StructuralCarrierKind::Optional),
         StructuralFieldKindPlan::Sequence { .. } => Some(StructuralCarrierKind::Sequence),
     }
@@ -321,7 +322,9 @@ pub(super) fn structural_carrier_type(kind: &StructuralFieldKindPlan) -> TokenSt
     let value = value_kind_type(kind.value());
     match kind {
         StructuralFieldKindPlan::Required(_) => quote! { #value },
-        StructuralFieldKindPlan::Optional(_) => quote! { Option<#value> },
+        StructuralFieldKindPlan::Zeroable(_) | StructuralFieldKindPlan::Optional(_) => {
+            quote! { Option<#value> }
+        }
         StructuralFieldKindPlan::Sequence { .. } => quote! { Vec<#value> },
     }
 }

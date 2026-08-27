@@ -552,9 +552,23 @@ fn validate_sequence_feature_roles(
                     Some(FieldKind::Sequence { .. })
                 )
             {
-                uses.entry(identifier_key(field))
-                    .or_default()
-                    .push((*feature, field.span()));
+                if *feature == ParsedFeature::Onset {
+                    combine(
+                        &mut errors,
+                        syn::Error::new(
+                            field.span(),
+                            format!(
+                                "{element}.{}: sequence onset is a first-member relay; derive construction onset from `{}.onset` instead",
+                                identifier_key(field),
+                                identifier_key(field),
+                            ),
+                        ),
+                    );
+                } else {
+                    uses.entry(identifier_key(field))
+                        .or_default()
+                        .push((*feature, field.span()));
+                }
             }
             if let ParsedFeatureValue::FromRole(source) = &equation.value
                 && matches!(
@@ -593,13 +607,13 @@ fn validate_sequence_feature_roles(
                 continue;
             }
             let feature = uses[0].0;
-            if feature != ParsedFeature::Agreement {
+            if !matches!(feature, ParsedFeature::Agreement | ParsedFeature::Onset) {
                 combine(
                     &mut errors,
                     syn::Error::new(
                         uses[0].1,
                         format!(
-                            "{element}.{role}: sequence feature propagation supports agreement only, found {}",
+                            "{element}.{role}: sequence feature propagation supports agreement or first-member onset, found {}",
                             feature_name(feature)
                         ),
                     ),
@@ -624,25 +638,30 @@ fn validate_sequence_feature_roles(
                     syn::Error::new(
                         uses[0].1,
                         format!(
-                            "{element}.{role}: sequence feature agreement requires a statically nonempty sequence"
+                            "{element}.{role}: sequence feature {} requires a statically nonempty sequence",
+                            feature_name(feature),
                         ),
                     ),
                 );
             }
-            let category = match item {
-                ValueKindPlan::Category(category) | ValueKindPlan::Sum(category) => category,
-                ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) | ValueKindPlan::Product(_) => {
+            let category = match (feature, item) {
+                (ParsedFeature::Agreement, ValueKindPlan::Category(category) | ValueKindPlan::Sum(category))
+                | (ParsedFeature::Onset, ValueKindPlan::Category(category)) => category,
+                (ParsedFeature::Agreement, ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) | ValueKindPlan::Product(_))
+                | (ParsedFeature::Onset, ValueKindPlan::Sum(_) | ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) | ValueKindPlan::Product(_)) => {
                     combine(
                         &mut errors,
                         syn::Error::new(
                             uses[0].1,
                             format!(
-                                "{element}.{role}: sequence feature agreement requires feature-bearing category items"
+                                "{element}.{role}: sequence feature {} requires feature-bearing category items",
+                                feature_name(feature),
                             ),
                         ),
                     );
                     continue;
                 }
+                _ => unreachable!("unsupported sequence feature was rejected"),
             };
             if !providers.contains(&(category.clone(), feature)) {
                 combine(
@@ -650,13 +669,24 @@ fn validate_sequence_feature_roles(
                     syn::Error::new(
                         uses[0].1,
                         format!(
-                            "{element}.{role}: category `{category}` does not provide agreement"
+                            "{element}.{role}: category `{category}` does not provide {}",
+                            feature_name(feature),
                         ),
                     ),
                 );
                 continue;
             }
-            result.insert((element.clone(), role), Feature::Agreement);
+            result.insert(
+                (element.clone(), role),
+                match feature {
+                    ParsedFeature::Agreement => Feature::Agreement,
+                    ParsedFeature::Onset => Feature::Onset,
+                    ParsedFeature::Cardinality
+                    | ParsedFeature::Number
+                    | ParsedFeature::Participle
+                    | ParsedFeature::PossessiveEnding => unreachable!("unsupported sequence feature was rejected"),
+                },
+            );
         }
     }
     finish(errors)?;
@@ -1169,6 +1199,12 @@ fn seal_structural_fields(
             let role = identifier_key(&field.name);
             let label = format!("{owner}.{role}");
             let (kind, helper_names, authored_structural) = match &field.kind {
+                FieldKind::Zeroable { item, .. } => (
+                    resolve_structural_field_value(item, &label, products, sums, symbols, errors)
+                        .map(StructuralFieldKindPlan::Zeroable),
+                    None,
+                    true,
+                ),
                 FieldKind::Optional(value) => (
                     resolve_structural_field_value(value, &label, products, sums, symbols, errors)
                         .map(StructuralFieldKindPlan::Optional),
@@ -1249,7 +1285,9 @@ fn resolve_structural_field_value_silent(
         FieldKind::Category(path) => (path, None),
         FieldKind::Lex(path) => (path, Some(false)),
         FieldKind::Identity(path) => (path, Some(true)),
-        FieldKind::Optional(_) | FieldKind::Sequence { .. } => return None,
+        FieldKind::Zeroable { .. } | FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
+            return None;
+        }
     };
     let name = path_name(path);
     match explicit {
@@ -1279,7 +1317,7 @@ fn resolve_structural_field_value(
         FieldKind::Category(path) => (path, None),
         FieldKind::Lex(path) => (path, Some(TerminalKind::Codec)),
         FieldKind::Identity(path) => (path, Some(TerminalKind::Identity)),
-        FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
+        FieldKind::Zeroable { .. } | FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
             unreachable!("the parser rejects nested structural cardinality")
         }
     };
@@ -1636,7 +1674,7 @@ fn structural_field_is_nullable(
         StructuralFieldKindPlan::Required(value) => {
             nullable.contains(&structural_value_node(value))
         }
-        StructuralFieldKindPlan::Optional(_) => true,
+        StructuralFieldKindPlan::Zeroable(_) | StructuralFieldKindPlan::Optional(_) => true,
         StructuralFieldKindPlan::Sequence {
             item,
             bounds,
@@ -1766,7 +1804,9 @@ fn validate_zero_width_cycles(
 
 fn field_can_expose_zero_width_edge(kind: &StructuralFieldKindPlan) -> bool {
     match kind {
-        StructuralFieldKindPlan::Required(_) | StructuralFieldKindPlan::Optional(_) => true,
+        StructuralFieldKindPlan::Required(_)
+        | StructuralFieldKindPlan::Zeroable(_)
+        | StructuralFieldKindPlan::Optional(_) => true,
         StructuralFieldKindPlan::Sequence {
             bounds, surface, ..
         } => {
@@ -3323,6 +3363,12 @@ fn validate_generated_owned_paths(raw: &Declarations) -> syn::Result<()> {
 
 fn validate_generated_owned_field_kind(kind: &FieldKind, errors: &mut Option<syn::Error>) {
     match kind {
+        FieldKind::Zeroable {
+            value_type, item, ..
+        } => {
+            validate_generated_owned_path(value_type, errors);
+            validate_generated_owned_field_kind(item, errors);
+        }
         FieldKind::Category(path) | FieldKind::Lex(path) | FieldKind::Identity(path) => {
             validate_generated_owned_path(path, errors);
         }
@@ -3496,23 +3542,18 @@ fn validate_namespaces(raw: &Declarations) -> syn::Result<(Symbols, Vec<String>)
                             ),
                         );
                     }
-                    let word = variant.word.value();
+                    let spelling = &variant.word;
+                    let word = spelling.value();
                     if word.is_empty() {
                         combine(
                             &mut errors,
-                            syn::Error::new(
-                                variant.word.span(),
-                                "vocab spelling must not be empty",
-                            ),
+                            syn::Error::new(spelling.span(), "vocab spelling must not be empty"),
                         );
                     }
                     if !words.insert(word.clone()) {
                         combine(
                             &mut errors,
-                            syn::Error::new(
-                                variant.word.span(),
-                                format!("duplicate word `{word}`"),
-                            ),
+                            syn::Error::new(spelling.span(), format!("duplicate word `{word}`")),
                         );
                     }
                 }
@@ -4188,6 +4229,7 @@ fn generated_name_inventory(
             FieldKind::Category(path) => Some(path_name(path)),
             FieldKind::Lex(_)
             | FieldKind::Identity(_)
+            | FieldKind::Zeroable { .. }
             | FieldKind::Optional(_)
             | FieldKind::Sequence { .. } => None,
         })
@@ -4366,6 +4408,7 @@ fn generated_name_inventory(
                                 FieldKind::Lex(path) => Some(path_name(path)),
                                 FieldKind::Category(_)
                                 | FieldKind::Identity(_)
+                                | FieldKind::Zeroable { .. }
                                 | FieldKind::Optional(_)
                                 | FieldKind::Sequence { .. } => None,
                             })
@@ -4689,7 +4732,7 @@ fn register_structural_field_names(
         let role = identifier_key(&field.name);
         let collision_role = format!("{owner}.{role}: generated helper name collision");
         match &field.kind {
-            FieldKind::Optional(_) => {
+            FieldKind::Zeroable { .. } | FieldKind::Optional(_) => {
                 let aggregate = format!("{}{}Optional", pascal_case(owner), pascal_case(&role));
                 names.register_rule_variant(
                     &format!("{aggregate}Absent"),
@@ -4974,6 +5017,14 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
             matches!(&equation.value, ParsedFeatureValue::FromRole(slot) if slot.feature == parsed_feature
                 && construction.element.fields.iter().any(|field| identifier_key(&field.name) == identifier_key(&slot.role) && matches!(&field.kind, FieldKind::Category(path) if path_name(path) == category))
                 && !construction.equations.iter().any(|writer| matches!(&writer.target, ParsedFeaturePlace::Role { field, feature: writer_feature } if identifier_key(field) == identifier_key(&slot.role) && *writer_feature == parsed_feature)))
+        }) || construction.equations.iter().any(|equation| {
+            matches!(&equation.target, ParsedFeaturePlace::Role { field, feature: target_feature }
+                if *target_feature == parsed_feature
+                    && construction.element.fields.iter().any(|candidate| {
+                        same_identifier(&candidate.name, field)
+                            && matches!(&candidate.kind, FieldKind::Zeroable { item, .. }
+                                if matches!(item.as_ref(), FieldKind::Category(path) if path_name(path) == category))
+                    }))
         }) || (feature == Feature::Number
             && construction
                 .forms
@@ -5286,6 +5337,22 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
         validate_feature_guarded_traversal_programs(construction, &mut errors);
         for field in &construction.element.fields {
             validate_resolved_field_kind(&field.kind, symbols, &mut errors);
+            if let FieldKind::Zeroable {
+                check: Some(check), ..
+            } = &field.kind
+            {
+                check_feature_role(
+                    &check.argument.role,
+                    check.argument.feature,
+                    &fields,
+                    symbols,
+                    &feature_providers,
+                    &local_vocab_providers,
+                    has_fixed_verb,
+                    &verb_operands,
+                    &mut errors,
+                );
+            }
         }
         for form in &construction.forms {
             validate_form_guard(construction, form, &fields, symbols, &mut errors);
@@ -5541,6 +5608,7 @@ fn validate_resolved_field_kind(
     errors: &mut Option<syn::Error>,
 ) {
     match kind {
+        FieldKind::Zeroable { item, .. } => validate_resolved_field_kind(item, symbols, errors),
         FieldKind::Category(path) => {
             let name = path_name(path);
             if !symbols.categories.contains(&name) && !symbols.structural_types.contains(&name) {
@@ -5638,7 +5706,7 @@ fn validate_form_guard_expr(
     match guard {
         RequireExprSource::OptionalPresence { role, .. } => match fields.get(&identifier_key(role))
         {
-            Some(FieldKind::Optional(_)) => {}
+            Some(FieldKind::Zeroable { .. } | FieldKind::Optional(_)) => {}
             Some(_) => combine(
                 errors,
                 syn::Error::new(
@@ -5951,7 +6019,12 @@ fn check_noun_role(
             .get(&path_name(path))
             .is_some_and(|info| info.codec_atom == Some(CodecAtomClass::Noun)),
         Some(FieldKind::Identity(_)) => false,
-        Some(FieldKind::Category(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
+        Some(
+            FieldKind::Category(_)
+            | FieldKind::Zeroable { .. }
+            | FieldKind::Optional(_)
+            | FieldKind::Sequence { .. },
+        )
         | None => return,
     };
     if !supported {
@@ -6009,6 +6082,21 @@ fn check_feature_role(
         return;
     }
     match fields.get(&identifier_key(role)) {
+        Some(FieldKind::Zeroable { item, .. }) => {
+            let FieldKind::Category(path) = item.as_ref() else {
+                unreachable!("zeroable fields contain categories")
+            };
+            let category = path_name(path);
+            if !providers.contains(&(category.clone(), feature)) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        role.span(),
+                        format!("category `{category}` does not provide {}", feature_name(feature)),
+                    ),
+                );
+            }
+        }
         Some(FieldKind::Category(path)) => {
             let category = path_name(path);
             if !providers.contains(&(category.clone(), feature)) {
@@ -6025,7 +6113,7 @@ fn check_feature_role(
             }
         }
         Some(FieldKind::Sequence { item, .. })
-            if feature == ParsedFeature::Agreement
+            if matches!(feature, ParsedFeature::Agreement | ParsedFeature::Onset)
                 && matches!(item.as_ref(), FieldKind::Category(path) if providers.contains(&(path_name(path), feature))) =>
         {
         }
@@ -6152,6 +6240,7 @@ fn check_role_kind(
 
 fn field_kind_leaf(kind: &FieldKind) -> &FieldKind {
     match kind {
+        FieldKind::Zeroable { item, .. } => field_kind_leaf(item),
         FieldKind::Optional(value) => field_kind_leaf(value),
         FieldKind::Sequence { item, .. } => field_kind_leaf(item),
         FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => kind,
@@ -6163,12 +6252,15 @@ fn finite_vocab_role(kind: &FieldKind) -> Option<(&syn::Path, bool)> {
         FieldKind::Lex(path) => Some((path, false)),
         FieldKind::Optional(inner) => match inner.as_ref() {
             FieldKind::Lex(path) => Some((path, true)),
-            FieldKind::Category(_) | FieldKind::Identity(_) => None,
+            FieldKind::Category(_) | FieldKind::Identity(_) | FieldKind::Zeroable { .. } => None,
             FieldKind::Optional(_) | FieldKind::Sequence { .. } => {
                 unreachable!("nested cardinalities are rejected while parsing")
             }
         },
-        FieldKind::Category(_) | FieldKind::Identity(_) | FieldKind::Sequence { .. } => None,
+        FieldKind::Category(_)
+        | FieldKind::Identity(_)
+        | FieldKind::Zeroable { .. }
+        | FieldKind::Sequence { .. } => None,
     }
 }
 
@@ -6185,7 +6277,12 @@ fn check_verb_role(
             .get(&path_name(path))
             .is_some_and(|info| info.agreement_verb || info.participle_verb),
         Some(FieldKind::Identity(_)) => false,
-        Some(FieldKind::Category(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
+        Some(
+            FieldKind::Category(_)
+            | FieldKind::Zeroable { .. }
+            | FieldKind::Optional(_)
+            | FieldKind::Sequence { .. },
+        )
         | None => return,
     };
     if !supported {
@@ -7358,6 +7455,12 @@ fn normalize_predicate(
         crate::RequireExprSource::OptionalPresence { role, present } => {
             let role_name = identifier_key(role);
             match fields.get(&role_name) {
+                Some(FieldKind::Zeroable { .. }) => Ok(vec![PredicateConjunctionPlan::new(vec![
+                    PredicateAtomPlan::new(
+                        PredicateSubjectPlan::OptionalPresenceRole { role: role.clone() },
+                        vec![PredicateMemberPlan::Presence(*present)],
+                    ),
+                ])]),
                 Some(kind @ FieldKind::Optional(_)) => {
                     let subject = finite_vocab_role(kind)
                         .filter(|(_, optional)| *optional)
@@ -7448,6 +7551,7 @@ fn resolve_predicate_atom(
                 }
                 Some(
                     FieldKind::Identity(_)
+                    | FieldKind::Zeroable { .. }
                     | FieldKind::Optional(_)
                     | FieldKind::Sequence { .. }
                     | FieldKind::Lex(_),
@@ -7793,6 +7897,7 @@ fn feature_place_is_constructible(
                         )
                             && matches!(kind, FieldKind::Lex(_) | FieldKind::Identity(_)))
                             || matches!(kind, FieldKind::Category(path) | FieldKind::Lex(path) if providers.contains(&(path_name(path), *feature)))
+                            || matches!(kind, FieldKind::Zeroable { item, .. } if matches!(item.as_ref(), FieldKind::Category(path) if providers.contains(&(path_name(path), *feature))))
                             || matches!(kind, FieldKind::Sequence { item, .. } if matches!(item.as_ref(), FieldKind::Category(path) if providers.contains(&(path_name(path), *feature))))
                     }),
                 ParsedFeaturePlace::Construction(_) => false,
@@ -8063,6 +8168,7 @@ fn validate_features(raw: &Declarations, symbols: &Symbols) -> syn::Result<Featu
                     FieldKind::Lex(path) => symbols.terminals.get(&path_name(path)),
                     FieldKind::Category(_)
                     | FieldKind::Identity(_)
+                    | FieldKind::Zeroable { .. }
                     | FieldKind::Optional(_)
                     | FieldKind::Sequence { .. } => None,
                 })
@@ -8282,6 +8388,7 @@ fn seal_category_render_capabilities(
                                 FieldKind::Category(category) => Some(path_name(category)),
                                 FieldKind::Lex(_)
                                 | FieldKind::Identity(_)
+                                | FieldKind::Zeroable { .. }
                                 | FieldKind::Optional(_)
                                 | FieldKind::Sequence { .. } => None,
                             })
@@ -8396,6 +8503,7 @@ fn seal_category_render_capabilities(
                                 }
                                 FieldKind::Lex(_)
                                 | FieldKind::Identity(_)
+                                | FieldKind::Zeroable { .. }
                                 | FieldKind::Optional(_)
                                 | FieldKind::Sequence { .. } => false,
                             }),
@@ -8410,6 +8518,7 @@ fn seal_category_render_capabilities(
                                 }
                                 FieldKind::Lex(_)
                                 | FieldKind::Identity(_)
+                                | FieldKind::Zeroable { .. }
                                 | FieldKind::Optional(_)
                                 | FieldKind::Sequence { .. } => false,
                             }),
@@ -8602,6 +8711,7 @@ fn validate_contextual_agreement_uses(
                         FieldKind::Category(category) => Some(path_name(category)),
                         FieldKind::Lex(_)
                         | FieldKind::Identity(_)
+                        | FieldKind::Zeroable { .. }
                         | FieldKind::Optional(_)
                         | FieldKind::Sequence { .. } => None,
                     })
@@ -9280,7 +9390,8 @@ fn role_provides_agreement(
                     _ => false,
                 })
         }
-        Some(FieldKind::Identity(_) | FieldKind::Optional(_)) | None => false,
+        Some(FieldKind::Identity(_) | FieldKind::Zeroable { .. } | FieldKind::Optional(_))
+        | None => false,
     }
 }
 
@@ -9290,6 +9401,7 @@ fn role_provides_number(
     role: &syn::Ident,
 ) -> bool {
     match fields.get(&identifier_key(role)) {
+        Some(FieldKind::Zeroable { .. }) => true,
         Some(FieldKind::Category(_)) => true,
         Some(FieldKind::Lex(path)) => {
             raw.declarations
@@ -9339,7 +9451,12 @@ fn role_provides_cardinality(
                         )
             )
         }),
-        Some(FieldKind::Identity(_) | FieldKind::Optional(_) | FieldKind::Sequence { .. })
+        Some(
+            FieldKind::Identity(_)
+            | FieldKind::Zeroable { .. }
+            | FieldKind::Optional(_)
+            | FieldKind::Sequence { .. },
+        )
         | None => false,
     }
 }
@@ -13554,7 +13671,7 @@ pub(crate) mod tests {
         });
         assert!(
             unsupported.contains(
-                "UnsupportedSequence.members: sequence feature propagation supports agreement only, found number"
+                "UnsupportedSequence.members: sequence feature propagation supports agreement or first-member onset, found number"
             ),
             "{unsupported}"
         );

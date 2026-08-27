@@ -174,26 +174,14 @@ fn environment_declaration_verb_readings_filter_position_surface_and_agreement()
             .collect::<Vec<_>>()
     };
 
-    assert_eq!(
-        names("echo", SurfaceFeature::Bare),
-        ["Right", "WrongKind"]
-    );
+    assert_eq!(names("echo", SurfaceFeature::Bare), ["Right", "WrongKind"]);
     assert_eq!(
         names("echoes", SurfaceFeature::ThirdPersonSingular),
         ["Right", "WrongKind"]
     );
-    assert!(
-        names("echo", SurfaceFeature::ThirdPersonSingular)
-        .is_empty()
-    );
-    assert!(
-        names("wane", SurfaceFeature::ThirdPersonSingular)
-        .is_empty()
-    );
-    assert!(
-        names("missing", SurfaceFeature::Bare)
-        .is_empty()
-    );
+    assert!(names("echo", SurfaceFeature::ThirdPersonSingular).is_empty());
+    assert!(names("wane", SurfaceFeature::ThirdPersonSingular).is_empty());
+    assert!(names("missing", SurfaceFeature::Bare).is_empty());
 }
 
 #[test]

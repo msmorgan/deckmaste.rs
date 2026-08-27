@@ -113,6 +113,11 @@ pub(crate) struct StructuralFieldPlan {
 #[derive(Debug, Clone)]
 pub(crate) enum StructuralFieldKindPlan {
     Required(ValueKindPlan),
+    /// A construction-owned derived value whose absent and present surface
+    /// branches are emitted directly by its owner.  It is deliberately not an
+    /// `Optional`: the derived value is required AST data, not a nullable
+    /// grammar category.
+    Zeroable(ValueKindPlan),
     Optional(ValueKindPlan),
     Sequence {
         item: ValueKindPlan,
@@ -354,7 +359,7 @@ impl StructuralFieldPlan {
 impl StructuralFieldKindPlan {
     pub(crate) fn value(&self) -> &ValueKindPlan {
         match self {
-            Self::Required(value) | Self::Optional(value) => value,
+            Self::Required(value) | Self::Zeroable(value) | Self::Optional(value) => value,
             Self::Sequence { item, .. } => item,
         }
     }
@@ -578,6 +583,8 @@ pub(crate) struct ConstructionFieldPlan {
     structural: Option<StructuralFieldPlan>,
     invariant_bearing: bool,
     accessor_mode: Option<AccessorMode>,
+    zeroable: bool,
+    zeroable_check: Option<(syn::Path, String, Feature)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2051,7 +2058,7 @@ impl SemanticPlan {
         let (sequence, value) = match field.structural_kind() {
             Some(StructuralFieldKindPlan::Sequence { item, .. }) => (true, item),
             Some(StructuralFieldKindPlan::Required(value)) => (false, value),
-            Some(StructuralFieldKindPlan::Optional(_)) => {
+            Some(StructuralFieldKindPlan::Zeroable(_) | StructuralFieldKindPlan::Optional(_)) => {
                 return AgreementAuthorityPlan::Exact;
             }
             None if field.kind() == ConstructionFieldKind::Category => {
@@ -3123,6 +3130,17 @@ impl ConstructionPlan {
             .fields
             .iter()
             .map(|field| {
+                let (kind, terminal, value_type, zeroable) = match &field.kind {
+                    crate::model::FieldKind::Zeroable { value_type, item, .. } => (
+                        ConstructionFieldKind::Category,
+                        match item.as_ref() {
+                            crate::model::FieldKind::Category(path) => path_key(path),
+                            _ => unreachable!("zeroable field items are categories"),
+                        },
+                        value_type.clone(),
+                        true,
+                    ),
+                    _ => {
                 let leaf = structural_field_source_leaf(&field.kind);
                 let (kind, terminal, value_type) = match leaf {
                     crate::model::FieldKind::Category(path) => (
@@ -3139,9 +3157,13 @@ impl ConstructionPlan {
                         path.clone(),
                     ),
                     crate::model::FieldKind::Optional(_)
+                    | crate::model::FieldKind::Zeroable { .. }
                     | crate::model::FieldKind::Sequence { .. } => unreachable!(
                         "the parser rejects nested structural cardinality before semantic lowering"
                     ),
+                };
+                (kind, terminal, value_type, false)
+                    }
                 };
                 let role = identifier_key(&field.name);
                 Ok(ConstructionFieldPlan {
@@ -3152,6 +3174,17 @@ impl ConstructionPlan {
                     structural: structural_fields.remove(&(construction_id.clone(), role)),
                     invariant_bearing: false,
                     accessor_mode: None,
+                    zeroable,
+                    zeroable_check: match &field.kind {
+                        crate::model::FieldKind::Zeroable { check, .. } => check.as_ref().map(|check| {
+                            (
+                                check.function.clone(),
+                                identifier_key(&check.argument.role),
+                                Feature::from(check.argument.feature),
+                            )
+                        }),
+                        _ => None,
+                    },
                 })
             })
             .collect::<syn::Result<Vec<_>>>()?;
@@ -3475,7 +3508,7 @@ fn structural_kind_is_nullable(
     nullable_types: &HashSet<String>,
 ) -> bool {
     match kind {
-        StructuralFieldKindPlan::Optional(_) => true,
+        StructuralFieldKindPlan::Zeroable(_) | StructuralFieldKindPlan::Optional(_) => true,
         StructuralFieldKindPlan::Sequence { bounds, .. } => bounds.min() == 0,
         StructuralFieldKindPlan::Required(value) => match value {
             ValueKindPlan::Category(name)
@@ -3593,7 +3626,7 @@ fn finite_domain(
     let feature = predicate_feature(predicate, &role);
     let structurally_optional = matches!(
         field.structural_kind(),
-        Some(StructuralFieldKindPlan::Optional(_))
+        Some(StructuralFieldKindPlan::Zeroable(_) | StructuralFieldKindPlan::Optional(_))
     );
     let vocab = terminals.iter().find_map(|terminal| match terminal {
         TerminalPlan::Vocab(vocab) if vocab.name() == field.terminal() => Some(vocab),
@@ -3982,6 +4015,7 @@ fn structural_field_source_leaf(kind: &crate::model::FieldKind) -> &crate::model
     match kind {
         crate::model::FieldKind::Optional(value) => structural_field_source_leaf(value),
         crate::model::FieldKind::Sequence { item, .. } => structural_field_source_leaf(item),
+        crate::model::FieldKind::Zeroable { item, .. } => structural_field_source_leaf(item),
         crate::model::FieldKind::Category(_)
         | crate::model::FieldKind::Lex(_)
         | crate::model::FieldKind::Identity(_) => kind,
@@ -4007,6 +4041,16 @@ impl ConstructionFieldPlan {
 
     pub(crate) fn value_type(&self) -> &syn::Path {
         &self.value_type
+    }
+
+    pub(crate) const fn is_zeroable(&self) -> bool {
+        self.zeroable
+    }
+
+    pub(crate) fn zeroable_check(&self) -> Option<(&syn::Path, &str, Feature)> {
+        self.zeroable_check
+            .as_ref()
+            .map(|(function, argument, feature)| (function, argument.as_str(), *feature))
     }
 
     #[allow(
@@ -6156,7 +6200,7 @@ impl VocabVariantPlan {
         &self.word
     }
 
-    pub(crate) fn onset(&self) -> macro_ron::v2::Onset {
+    pub(crate) const fn onset(&self) -> macro_ron::v2::Onset {
         self.onset
     }
 }

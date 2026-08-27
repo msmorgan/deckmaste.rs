@@ -128,8 +128,8 @@ impl EscapeHatchReport {
     }
 
     #[must_use]
-    /// Returns statically nonempty homogeneous sequence roles that participate
-    /// in generated feature flow. The feature is derived, never stored.
+    /// Returns statically nonempty sequence roles that participate in generated
+    /// feature flow. The feature is derived, never stored.
     pub fn sequence_feature_roles(&self) -> &[String] {
         &self.sequence_feature_roles
     }
@@ -284,7 +284,9 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
         .flat_map(|(_, _, fields)| fields)
         .filter_map(|(_, kind)| match kind {
             StructuralFieldKindPlan::Sequence { surface, .. } => surface.separator(),
-            StructuralFieldKindPlan::Required(_) | StructuralFieldKindPlan::Optional(_) => None,
+            StructuralFieldKindPlan::Required(_)
+            | StructuralFieldKindPlan::Zeroable(_)
+            | StructuralFieldKindPlan::Optional(_) => None,
         })
         .flat_map(|separator| match separator {
             SeparatorPlan::Uniform(surface) => vec![surface],
@@ -308,6 +310,11 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
                         stored_separator_fields.push(role);
                     }
                 }
+                StructuralFieldKindPlan::Zeroable(value) => {
+                    if stored_value_uses_separator_terminal(value, &separator_terminals) {
+                        stored_separator_fields.push(role);
+                    }
+                }
                 StructuralFieldKindPlan::Optional(value) => {
                     if stored_value_uses_separator_terminal(value, &separator_terminals) {
                         stored_separator_fields.push(role.clone());
@@ -316,8 +323,8 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
                 }
                 StructuralFieldKindPlan::Sequence { surface, .. } => {
                     sequence_roles.push(role.clone());
-                    if plan.sequence_feature(&owner, &field).is_some() {
-                        sequence_feature_roles.push(format!("{role}.agreement"));
+                    if let Some(feature) = plan.sequence_feature(&owner, &field) {
+                        sequence_feature_roles.push(format!("{role}.{}", feature.key()));
                     }
                     match surface.separator() {
                         Some(SeparatorPlan::Uniform(_)) => {

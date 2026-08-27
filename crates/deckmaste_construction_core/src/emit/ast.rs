@@ -94,6 +94,48 @@ pub(crate) fn emit(plan: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> {
             .into_iter()
             .flat_map(|(_, emitted)| emitted),
     );
+    let mut zeroable_types = HashMap::<String, (&syn::Path, &str, Vec<DeclarationKey>)>::new();
+    for construction in plan.constructions() {
+        for field in construction
+            .fields()
+            .iter()
+            .filter(|field| field.is_zeroable())
+        {
+            let value_type = field.value_type();
+            zeroable_types
+                .entry(quote! { #value_type }.to_string())
+                .and_modify(|(_, _, origins)| {
+                    origins.push(DeclarationKey::new(
+                        DeclarationKind::Construction,
+                        construction.construction_id(),
+                    ));
+                })
+                .or_insert_with(|| {
+                    (
+                        field.value_type(),
+                        field.terminal(),
+                        vec![DeclarationKey::new(
+                            DeclarationKind::Construction,
+                            construction.construction_id(),
+                        )],
+                    )
+                });
+        }
+    }
+    for (name, (ty, item, origins)) in zeroable_types {
+        let item = emitted_ident(item, Span::call_site());
+        items.push(GeneratedItem::new(
+            ItemKey::named_type(&name),
+            quote! {
+                #[derive(Debug, Clone, PartialEq, Eq)]
+                pub enum #ty {
+                    Zero,
+                    Headed(#item),
+                }
+            },
+            origins,
+        ));
+    }
     for construction in plan.constructions() {
         let ident = emitted_ident(construction.element_type(), construction.origin_span());
         let origins = vec![DeclarationKey::new(
@@ -275,10 +317,16 @@ fn emit_structural_accessor(field: &crate::semantic::StructuralFieldPlan) -> Tok
         crate::semantic::StructuralFieldKindPlan::Required(_) => quote! {
             pub const fn #name(&self) -> &#value { &self.#name }
         },
-        crate::semantic::StructuralFieldKindPlan::Optional(_) if field.is_recursive() => quote! {
-            pub fn #name(&self) -> Option<&#value> { self.#name.as_ref().as_ref() }
-        },
-        crate::semantic::StructuralFieldKindPlan::Optional(_) => quote! {
+        crate::semantic::StructuralFieldKindPlan::Zeroable(_)
+        | crate::semantic::StructuralFieldKindPlan::Optional(_)
+            if field.is_recursive() =>
+        {
+            quote! {
+                pub fn #name(&self) -> Option<&#value> { self.#name.as_ref().as_ref() }
+            }
+        }
+        crate::semantic::StructuralFieldKindPlan::Zeroable(_)
+        | crate::semantic::StructuralFieldKindPlan::Optional(_) => quote! {
             pub const fn #name(&self) -> Option<&#value> { self.#name.as_ref() }
         },
         crate::semantic::StructuralFieldKindPlan::Sequence { .. } if field.is_recursive() => {
@@ -339,8 +387,12 @@ fn emit_product(
                 .structural_plan()
                 .is_some_and(structural_field_is_constrained);
             let visibility =
-                (field.accessor_mode().is_none() && !structural_constraint).then(|| quote! { pub });
-            Ok(if let Some(structural) = field.structural_plan() {
+                (field.accessor_mode().is_none() && !structural_constraint && !field.is_zeroable())
+                    .then(|| quote! { pub });
+            Ok(if field.is_zeroable() {
+                let ty = field.value_type();
+                quote! { #visibility #name: #ty }
+            } else if let Some(structural) = field.structural_plan() {
                 let ty = super::structural_field_type(structural);
                 quote! { #visibility #name: #ty }
             } else {
@@ -366,6 +418,10 @@ fn emit_product(
 
 fn construction_requires_constructor(plan: &SemanticPlan, construction: &ConstructionPlan) -> bool {
     plan.construction_requires_checked_ast(construction)
+        || construction
+            .fields()
+            .iter()
+            .any(|field| field.is_zeroable())
         || construction.fields().iter().any(|field| {
             field
                 .structural_plan()
@@ -437,6 +493,15 @@ fn emit_invariant_impl(
         })
         .collect::<syn::Result<Vec<_>>>()?;
     let accessors = construction.fields().iter().filter_map(|field| {
+        if field.is_zeroable() {
+            let name = field.name();
+            let ty = field.value_type();
+            return Some(quote! {
+                pub const fn #name(&self) -> &#ty {
+                    &self.#name
+                }
+            });
+        }
         let structural_constraint = field
             .structural_plan()
             .is_some_and(structural_field_is_constrained);
@@ -619,7 +684,8 @@ fn emit_invariant_checks(
                     || matches!(
                         constrained.structural_kind(),
                         Some(
-                            crate::semantic::StructuralFieldKindPlan::Optional(_)
+                            crate::semantic::StructuralFieldKindPlan::Zeroable(_)
+                                | crate::semantic::StructuralFieldKindPlan::Optional(_)
                                 | crate::semantic::StructuralFieldKindPlan::Sequence { .. }
                         )
                     )
@@ -669,6 +735,9 @@ fn emit_sequence_feature_check(
     owner: &syn::LitStr,
     locals: &HashMap<String, syn::Ident>,
 ) -> syn::Result<TokenStream> {
+    if feature == crate::feature::Feature::Onset {
+        return Ok(TokenStream::new());
+    }
     if feature != crate::feature::Feature::Agreement {
         return Err(internal("unsupported checked sequence feature"));
     }
@@ -779,14 +848,22 @@ fn constructor_subject_expression(
             let field = construction.field(&identifier_key(role))?;
             if !matches!(
                 field.structural_kind(),
-                Some(crate::semantic::StructuralFieldKindPlan::Optional(_))
+                Some(
+                    crate::semantic::StructuralFieldKindPlan::Zeroable(_)
+                        | crate::semantic::StructuralFieldKindPlan::Optional(_)
+                )
             ) {
                 return Err(internal(
                     "optional-presence predicate subject is inconsistent with its field",
                 ));
             }
             let name = field_local(locals, field)?;
-            Ok(quote! { #name.is_some() })
+            if field.is_zeroable() {
+                let ty = field.value_type();
+                Ok(quote! { matches!(#name, #ty::Headed(_)) })
+            } else {
+                Ok(quote! { #name.is_some() })
+            }
         }
         PredicateSubjectPlan::RoleFeature { role, feature } => resolve_constructor_feature(
             plan,
@@ -945,6 +1022,10 @@ fn stored_field_type(
     field: &crate::semantic::ConstructionFieldPlan,
 ) -> TokenStream {
     if let Some(structural) = field.structural_plan() {
+        if field.is_zeroable() {
+            let ty = field.value_type();
+            return quote! { #ty };
+        }
         return super::structural_field_type(structural);
     }
     let ty = field.value_type();

@@ -893,10 +893,15 @@ mod tests {
     use crate::ast::WhereClauseCategory;
     use crate::ast::WithWhere;
     use crate::constructions::Agreement;
+    use crate::constructions::Determinative;
     use crate::constructions::FeatureConstraint;
     use crate::constructions::LexicalOwnerTemplate;
+    use crate::constructions::Nominal;
     use crate::constructions::Number;
     use crate::constructions::Onset;
+    use crate::constructions::SimpleDeterminative;
+    use crate::constructions::SingularNominalValue;
+    use crate::constructions::SingularSimpleDeterminative;
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
     use crate::environment::canonical_test_environment;
@@ -1074,15 +1079,30 @@ mod tests {
     }
 
     #[test]
-    fn indefinite_article_build_arms_reject_mismatched_frozen_onsets() {
+    fn determined_nominal_build_rejects_mismatched_frozen_article_onsets() {
         let parse_context = context("Context Card");
         let children = |article, onset| {
+            let determiner = Determinative::SingularSimpleDeterminative(
+                SingularSimpleDeterminative::new(article)
+                    .expect("a/an are singular determinatives"),
+            );
+            let determiner_onset = match article {
+                SimpleDeterminative::A => Onset::Consonant,
+                SimpleDeterminative::An => Onset::Vowel,
+                _ => unreachable!("fixture only exercises the indefinite articles"),
+            };
             [
-                BuildValue::Leaf(Leaf::Literal(article)),
-                BuildValue::SingularNominal(
-                    SingularNominal::BareSingularNominal(BareSingularNominal {
-                        head: SingularHead::CommonSingularHead(CommonSingularHead {
-                            noun: CommonNoun::Player,
+                BuildValue::Determinative(
+                    determiner,
+                    Agreement::ThirdPersonSingular,
+                    determiner_onset,
+                ),
+                BuildValue::Nominal(
+                    Nominal::SingularNominalValue(SingularNominalValue {
+                        nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
+                            head: SingularHead::CommonSingularHead(CommonSingularHead {
+                                noun: CommonNoun::Player,
+                            }),
                         }),
                     }),
                     Agreement::ThirdPersonSingular,
@@ -1093,8 +1113,8 @@ mod tests {
 
         assert!(
             super::build_checked(
-                RuleId::UnqualifiedReferenceIndefiniteReferenceAn,
-                &children("an", Onset::Vowel),
+                RuleId::UnqualifiedReferenceDeterminedNominalDetPresent,
+                &children(SimpleDeterminative::An, Onset::Vowel),
                 &parse_context,
             )
             .expect("matching vowel onset is a checked build")
@@ -1102,8 +1122,8 @@ mod tests {
         );
         assert!(
             super::build_checked(
-                RuleId::UnqualifiedReferenceIndefiniteReferenceA,
-                &children("a", Onset::Consonant),
+                RuleId::UnqualifiedReferenceDeterminedNominalDetPresent,
+                &children(SimpleDeterminative::A, Onset::Consonant),
                 &parse_context,
             )
             .expect("matching consonant onset is a checked build")
@@ -1111,16 +1131,16 @@ mod tests {
         );
         assert_eq!(
             super::build_checked(
-                RuleId::UnqualifiedReferenceIndefiniteReferenceAn,
-                &children("an", Onset::Consonant),
+                RuleId::UnqualifiedReferenceDeterminedNominalDetPresent,
+                &children(SimpleDeterminative::An, Onset::Consonant),
                 &parse_context,
             ),
             Ok(None)
         );
         assert_eq!(
             super::build_checked(
-                RuleId::UnqualifiedReferenceIndefiniteReferenceA,
-                &children("a", Onset::Vowel),
+                RuleId::UnqualifiedReferenceDeterminedNominalDetPresent,
+                &children(SimpleDeterminative::A, Onset::Vowel),
                 &parse_context,
             ),
             Ok(None)
@@ -1641,8 +1661,9 @@ mod tests {
                 Construction::NumericStageUnqualifiedNumericStage,
                 Construction::LocativeStageUnqualifiedLocativeStage,
                 Construction::ControllerStageUnqualifiedControllerStage,
-                Construction::UnqualifiedReferenceOrdinarySingularReference,
-                Construction::DeterminerPhraseTargetDeterminerPhrase,
+                Construction::UnqualifiedReferenceDeterminedNominal,
+                Construction::DeterminativeSingularSimpleDeterminative,
+                Construction::NominalSingularNominalValue,
                 Construction::SingularNominalBareSingularNominal,
                 Construction::SingularHeadTypeSingularHead,
             ]
@@ -1661,8 +1682,9 @@ mod tests {
                 RulePosition::Nonterminal(Category::LocativeStage),
                 RulePosition::Nonterminal(Category::ControllerStage),
                 RulePosition::Nonterminal(Category::UnqualifiedReference),
-                RulePosition::Nonterminal(Category::DeterminerPhrase),
-                RulePosition::Lexical(Lexical::Literal("target")),
+                RulePosition::Nonterminal(Category::Determinative),
+                RulePosition::Nonterminal(Category::Nominal),
+                RulePosition::Lexical(Lexical::SimpleDeterminative),
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
@@ -1693,7 +1715,7 @@ mod tests {
                 ),
                 (
                     crate::parser::TextSpan { start: 7, end: 14 },
-                    "form:target_determiner_phrase/target_determiner_phrase/0",
+                    "vocab:SimpleDeterminative/Target",
                 ),
                 (
                     crate::parser::TextSpan { start: 14, end: 23 },

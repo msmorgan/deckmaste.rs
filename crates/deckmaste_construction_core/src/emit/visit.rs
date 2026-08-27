@@ -651,7 +651,7 @@ fn walk_structural_field(
         StructuralFieldKindPlan::Required(value) => {
             walk_structural_value(plan, value, quote! { &#whole.#name })
         }
-        StructuralFieldKindPlan::Optional(value) => {
+        StructuralFieldKindPlan::Zeroable(value) | StructuralFieldKindPlan::Optional(value) => {
             let call = walk_structural_value(plan, value, quote! { value })?;
             Ok(quote! { if let Some(value) = #whole.#name.as_ref() { #call } })
         }
@@ -1047,6 +1047,14 @@ fn emit_construction_form_walker_calls(
             let call = match structural.kind() {
                 StructuralFieldKindPlan::Required(kind) => {
                     walk_structural_value(validated, kind, value)?
+                }
+                StructuralFieldKindPlan::Zeroable(kind) => {
+                    let visit = walk_structural_value(validated, kind, quote! { value })?;
+                    let ty = field.value_type();
+                    calls.push(quote! {
+                        if let #ty::Headed(value) = #value { #visit }
+                    });
+                    continue;
                 }
                 StructuralFieldKindPlan::Optional(kind) => {
                     let visit = walk_structural_value(validated, kind, quote! { value })?;

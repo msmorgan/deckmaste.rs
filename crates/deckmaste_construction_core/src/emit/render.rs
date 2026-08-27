@@ -1216,20 +1216,20 @@ fn emit_sequence_renderer(
         crate::identifier::pascal_case(field.name()),
     ));
     let sequence_feature = plan.sequence_feature(owner, field.name());
-    let render_value = if let Some(feature) = sequence_feature {
+    let render_value = if sequence_feature == Some(Feature::Agreement) {
         render_structural_value_with_feature(
             plan,
             item,
             &quote! { value },
             root_names,
-            feature,
+            Feature::Agreement,
             quote! { sequence_feature },
         )?
     } else {
         render_structural_value(plan, item, quote! { value }, root_names)?
     };
-    let feature_parameter = sequence_feature.map(|feature| {
-        let ty = super::feature_type(feature);
+    let feature_parameter = (sequence_feature == Some(Feature::Agreement)).then(|| {
+        let ty = super::feature_type(Feature::Agreement);
         quote! { , sequence_feature: #ty }
     });
     let context = structural_value_requires_context(plan, item)?
@@ -1341,7 +1341,7 @@ fn render_structural_field(
         StructuralFieldKindPlan::Required(value) => {
             render_structural_value(plan, value, quote! { &#whole.#name }, root_names)
         }
-        StructuralFieldKindPlan::Optional(value) => {
+        StructuralFieldKindPlan::Zeroable(value) | StructuralFieldKindPlan::Optional(value) => {
             let statement = render_structural_value(plan, value, quote! { value }, root_names)?;
             Ok(quote! {
                 if let Some(value) = #whole.#name.as_ref() { #statement }
@@ -2605,6 +2605,7 @@ fn render_construction_structural_field(
     root_names: &HashSet<String>,
 ) -> syn::Result<TokenStream> {
     let value = field_value(construction, role, locals)?;
+    let stored = construction.field(role)?;
     match field.kind() {
         StructuralFieldKindPlan::Required(kind) => {
             if let ValueKindPlan::Sum(sum) = kind
@@ -2635,6 +2636,16 @@ fn render_construction_structural_field(
                 render_structural_value(plan, kind, value, root_names)
             }
         }
+        StructuralFieldKindPlan::Zeroable(kind) => {
+            let render = render_structural_value(plan, kind, quote! { value }, root_names)?;
+            let ty = stored.value_type();
+            Ok(quote! {
+                match #value {
+                    #ty::Zero => {}
+                    #ty::Headed(value) => { #render }
+                }
+            })
+        }
         StructuralFieldKindPlan::Optional(kind) => {
             let render = render_structural_value(plan, kind, quote! { value }, root_names)?;
             let optional = if field.is_recursive() {
@@ -2656,6 +2667,7 @@ fn render_construction_structural_field(
                 .then(|| quote! { , environment });
             let feature = plan
                 .sequence_feature(construction.element_type(), field.name())
+                .filter(|feature| *feature == Feature::Agreement)
                 .map(|feature| {
                     sequence_role_feature_value(plan, construction, role, locals, item, feature)
                         .map(|value| quote! { , #value })
@@ -2674,6 +2686,9 @@ fn sequence_role_feature_value(
     item: &ValueKindPlan,
     feature: Feature,
 ) -> syn::Result<TokenStream> {
+    if feature != Feature::Agreement {
+        return Err(internal("sequence renderer feature must be agreement"));
+    }
     let target = FeaturePlace::Role {
         field: syn::Ident::new(role, construction.origin_span()),
         feature,
@@ -3464,24 +3479,34 @@ fn feature_expr(
                 && validated.sequence_feature(construction.element_type(), &role_key)
                     == Some(*source_feature)
             {
-                let helper_owner = match item {
-                    ValueKindPlan::Category(category) => category,
-                    ValueKindPlan::Sum(sum) if validated.sum_carries_agreement(sum) => sum,
-                    ValueKindPlan::Sum(_)
-                    | ValueKindPlan::Product(_)
-                    | ValueKindPlan::Lex(_)
-                    | ValueKindPlan::Identity(_) => {
+                let helper_owner = match (source_feature, item) {
+                    (_, ValueKindPlan::Category(category)) => category,
+                    (Feature::Agreement, ValueKindPlan::Sum(sum))
+                        if validated.sum_carries_agreement(sum) =>
+                    {
+                        sum
+                    }
+                    (_, ValueKindPlan::Sum(_))
+                    | (_, ValueKindPlan::Product(_))
+                    | (_, ValueKindPlan::Lex(_))
+                    | (_, ValueKindPlan::Identity(_)) => {
                         return Err(internal(
-                            "sequence feature source item does not carry agreement",
+                            "sequence feature source item does not carry its declared feature",
                         ));
                     }
                 };
                 let helper = ident(&feature_helper(feature_name(*source_feature), helper_owner));
+                let environment = (*source_feature == Feature::Onset
+                    && validated.needs_parser_environment())
+                    .then(|| quote! { , environment });
+                let context = (*source_feature == Feature::Onset).then(|| quote! { , context });
                 return Ok(quote! {
                     #helper(
                         #role_value
                             .first()
                             .expect("validated sequence feature source is statically nonempty")
+                        #context
+                        #environment
                     )
                 });
             }
@@ -4875,6 +4900,67 @@ mod tests {
         reason = "literal full-surface structural oracles retain detailed mismatch output"
     )]
     use quote::ToTokens;
+
+    #[test]
+    fn sequence_onset_rendering_uses_the_first_member_without_a_shared_parameter() {
+        let expansion = crate::generate(quote::quote! {
+            construction vowel: Item {
+                element VowelItem {}
+                derive onset = Values::Vowel;
+                form vowel = "apple";
+            }
+            construction consonant: Item {
+                element ConsonantItem {}
+                derive onset = Values::Consonant;
+                form consonant = "bear";
+            }
+            construction coordinated: Root {
+                element Coordinated {
+                    members: seq Item separated by position {
+                        pair = " and ";
+                        first = ", ";
+                        middle = ", ";
+                        last = ", and ";
+                    },
+                }
+                require len(members) >= 2;
+                derive onset = members.onset;
+                form coordinated = members;
+            }
+            construction article: Article {
+                element ArticleValue { value: Root, }
+                derive onset = value.onset;
+                form an when value.onset is Vowel = "an" value;
+                form a otherwise = "a" value;
+            }
+            root Article { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("first-member onset fixture generates");
+        let sequence = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Function, name } if name == "render_coordinated_members_sequence"))
+            .expect("sequence renderer is generated")
+            .tokens
+            .to_string();
+        assert!(sequence.contains("values : & [Item]"), "{sequence}");
+        assert!(!sequence.contains("sequence_feature"), "{sequence}");
+
+        let onset = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Function, name } if name == "onset_for_root"))
+            .expect("root onset helper is generated")
+            .tokens
+            .to_string();
+        for required in [
+            "members . first ()",
+            "onset_for_item",
+            "context",
+        ] {
+            assert!(onset.contains(required), "missing `{required}`: {onset}");
+        }
+    }
 
     #[test]
     fn closed_noun_onset_helper_matches_the_exact_member_and_number_row() {

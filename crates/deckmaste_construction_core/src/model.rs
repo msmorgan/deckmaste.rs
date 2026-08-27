@@ -88,11 +88,22 @@ pub enum FieldKind {
     Category(Path),
     Lex(Path),
     Identity(Path),
+    Zeroable {
+        value_type: Path,
+        item: Box<FieldKind>,
+        check: Option<ZeroableCheck>,
+    },
     Optional(Box<FieldKind>),
     Sequence {
         item: Box<FieldKind>,
         surface: SequenceSurfaceSource,
     },
+}
+
+#[derive(Debug)]
+pub struct ZeroableCheck {
+    pub function: Path,
+    pub argument: FeatureSlot,
 }
 
 #[derive(Debug)]

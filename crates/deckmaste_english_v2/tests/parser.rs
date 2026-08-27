@@ -110,8 +110,12 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        let UnqualifiedReference::IndefiniteReference(IndefiniteReference {
-            nominal: SingularNominal::BareSingularNominal(BareSingularNominal { head }),
+        let UnqualifiedReference::DeterminedNominal(DeterminedNominal {
+            nominal:
+                Nominal::SingularNominalValue(SingularNominalValue {
+                    nominal: SingularNominal::BareSingularNominal(BareSingularNominal { head }),
+                }),
+            ..
         }) = unqualified_reference(value)
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
@@ -137,11 +141,11 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         assert!(ownership.summary().covered());
         assert!(
             ownership.parsed_claims().iter().any(|claim| {
-                claim.kind() == LexicalProvenanceKind::FormLiteral
+                claim.kind() == LexicalProvenanceKind::Vocab
                     && text[claim.span().start..claim.span().end].trim()
                         == if text.contains(" an ") { "an" } else { "a" }
             }),
-            "article has exact form-literal ownership: {ownership:?}"
+            "article has exact vocabulary ownership: {ownership:?}"
         );
     }
 
@@ -448,6 +452,38 @@ fn plural_head(noun: Noun) -> PluralHead {
     }
 }
 
+fn singular_nominal_value(noun: Noun) -> Nominal {
+    Nominal::SingularNominalValue(SingularNominalValue {
+        nominal: singular_nominal(noun),
+    })
+}
+
+fn plural_nominal_value(noun: Noun) -> Nominal {
+    Nominal::PluralNominalValue(PluralNominalValue {
+        nominal: plural_nominal(noun),
+    })
+}
+
+fn singular_simple_determinative(head: SimpleDeterminative) -> Determinative {
+    Determinative::SingularSimpleDeterminative(
+        SingularSimpleDeterminative::new(head)
+            .expect("test determiner licenses a singular nominal"),
+    )
+}
+
+fn plural_simple_determinative(head: SimpleDeterminative) -> Determinative {
+    Determinative::PluralSimpleDeterminative(
+        PluralSimpleDeterminative::new(head).expect("test determiner licenses a plural nominal"),
+    )
+}
+
+fn determined_nominal(det: Determinative, nominal: Nominal) -> UnqualifiedReference {
+    UnqualifiedReference::DeterminedNominal(
+        DeterminedNominal::new(Determiner::Headed(det), nominal)
+            .expect("test determiner and nominal number agree"),
+    )
+}
+
 fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
         reference: Box::new(NumericStage::UnqualifiedNumericStage(
@@ -482,21 +518,16 @@ fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
 }
 
 fn indefinite(noun: Noun) -> NounPhrase {
-    noun_phrase(UnqualifiedReference::IndefiniteReference(
-        IndefiniteReference {
-            nominal: singular_nominal(noun),
-        },
+    noun_phrase(determined_nominal(
+        singular_simple_determinative(SimpleDeterminative::A),
+        singular_nominal_value(noun),
     ))
 }
 
 fn target_noun(noun: Noun) -> NounPhrase {
-    noun_phrase(UnqualifiedReference::OrdinarySingularReference(
-        OrdinarySingularReference::new(DeterminerPhrase::TargetDeterminerPhrase(
-            TargetDeterminerPhrase {
-                nominal: singular_nominal(noun),
-            },
-        ))
-        .expect("target determiner is an ordinary singular reference"),
+    noun_phrase(determined_nominal(
+        singular_simple_determinative(SimpleDeterminative::Target),
+        singular_nominal_value(noun),
     ))
 }
 
@@ -548,11 +579,10 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
 }
 
 fn number_of(counted: Object) -> NounPhrase {
-    let number = UnqualifiedReference::DefiniteSingularReference(DefiniteSingularReference {
-        selector: SingularSelector::UnmarkedSingularSelector(UnmarkedSingularSelector {
-            nominal: singular_nominal(Noun::Lexeme(CommonNoun::Number)),
-        }),
-    });
+    let number = determined_nominal(
+        singular_simple_determinative(SimpleDeterminative::The),
+        singular_nominal_value(Noun::Lexeme(CommonNoun::Number)),
+    );
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
         reference: Box::new(NumericStage::UnqualifiedNumericStage(
             UnqualifiedNumericStage {
@@ -595,15 +625,17 @@ fn where_number_of(counted: Object) -> WhereClauseCategory {
 }
 
 fn that_noun(noun: Noun) -> NounPhrase {
-    noun_phrase(UnqualifiedReference::ThatReference(ThatReference {
-        nominal: singular_nominal(noun),
-    }))
+    noun_phrase(determined_nominal(
+        singular_simple_determinative(SimpleDeterminative::That),
+        singular_nominal_value(noun),
+    ))
 }
 
 fn those_noun(noun: Noun) -> NounPhrase {
-    noun_phrase(UnqualifiedReference::ThoseReference(ThoseReference {
-        nominal: plural_nominal(noun),
-    }))
+    noun_phrase(determined_nominal(
+        plural_simple_determinative(SimpleDeterminative::Those),
+        plural_nominal_value(noun),
+    ))
 }
 
 fn nominal_subject(value: NounPhrase) -> Subject {
@@ -944,7 +976,7 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
 }
 
 #[test]
-fn demonstrative_references_select_distinct_typed_constructions() {
+fn demonstrative_references_select_the_unified_determined_nominal_construction() {
     let parser = parser();
     let environment = environment();
     let context = context("Context Card");
@@ -953,12 +985,12 @@ fn demonstrative_references_select_distinct_typed_constructions() {
         (
             "That creature deals 3 damage to it.",
             that_noun(creature()),
-            "UnqualifiedReferenceThatReference",
+            "UnqualifiedReferenceDeterminedNominal",
         ),
         (
             "Those creatures deal 3 damage to it.",
             those_noun(creatures()),
-            "UnqualifiedReferenceThoseReference",
+            "UnqualifiedReferenceDeterminedNominal",
         ),
     ] {
         let expected = declarative(
@@ -1345,8 +1377,9 @@ fn parser_analysis_repeats_exactly_and_preserves_selected_rendered_bytes() {
             "NumericStageUnqualifiedNumericStage".to_owned(),
             "LocativeStageUnqualifiedLocativeStage".to_owned(),
             "ControllerStageUnqualifiedControllerStage".to_owned(),
-            "UnqualifiedReferenceOrdinarySingularReference".to_owned(),
-            "DeterminerPhraseTargetDeterminerPhrase".to_owned(),
+            "UnqualifiedReferenceDeterminedNominal".to_owned(),
+            "DeterminativeSingularSimpleDeterminative".to_owned(),
+            "NominalSingularNominalValue".to_owned(),
             "SingularNominalBareSingularNominal".to_owned(),
             "SingularHeadTypeSingularHead".to_owned(),
         ]
@@ -1369,10 +1402,10 @@ fn parser_analysis_retains_complete_lexical_ownership() {
     assert_eq!((summary.claims(), summary.claimed_bytes()), (4, 24));
     assert_eq!(
         (summary.form_literal_claims(), summary.form_literal_bytes()),
-        (2, 8)
+        (1, 1)
     );
     assert_eq!((summary.lexeme_claims(), summary.lexeme_bytes()), (2, 16));
-    assert_eq!(summary.vocab_claims(), 0);
+    assert_eq!((summary.vocab_claims(), summary.vocab_bytes()), (1, 7));
     assert_eq!(summary.codec_claims(), 0);
     assert_eq!(summary.identity_claims(), 0);
     assert_eq!(summary.gap_spans(), 0);
@@ -1665,10 +1698,10 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
 
         if limit > 0 {
             let candidate = &trace.materialized_candidates().items()[0];
-            assert_eq!(candidate.construction_path().total(), 14);
-            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 14));
-            assert_eq!(candidate.specificity().total(), 16);
-            assert_eq!(candidate.specificity().shown(), usize::min(limit, 16));
+            assert_eq!(candidate.construction_path().total(), 15);
+            assert_eq!(candidate.construction_path().shown(), usize::min(limit, 15));
+            assert_eq!(candidate.specificity().total(), 17);
+            assert_eq!(candidate.specificity().shown(), usize::min(limit, 17));
         }
 
         if limit == usize::MAX {
@@ -1692,13 +1725,14 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
                     "NumericStageUnqualifiedNumericStage",
                     "LocativeStageUnqualifiedLocativeStage",
                     "ControllerStageUnqualifiedControllerStage",
-                    "UnqualifiedReferenceOrdinarySingularReference",
-                    "DeterminerPhraseTargetDeterminerPhrase",
+                    "UnqualifiedReferenceDeterminedNominal",
+                    "DeterminativeSingularSimpleDeterminative",
+                    "NominalSingularNominalValue",
                     "SingularNominalBareSingularNominal",
                     "SingularHeadTypeSingularHead",
                 ]
             );
-            assert_eq!(candidate.specificity().total(), 16);
+            assert_eq!(candidate.specificity().total(), 17);
             assert!(selection.unselected_candidates().items().is_empty());
             assert_eq!(selection.resolution(), complete.resolution());
             assert_eq!(selection.survivors().items(), complete.survivors());
