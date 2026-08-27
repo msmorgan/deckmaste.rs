@@ -39,40 +39,66 @@ pub struct DeclarationRecord {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum CoreVerbIdentity {
     Add,
+    Attack,
+    Block,
+    Choose,
+    Control,
+    Copy,
+    Cycle,
     Deal,
+    Die,
     Draw,
     Enter,
+    Flip,
     Gain,
     Get,
     Have,
     Leave,
     Look,
     Lose,
+    Own,
     Pay,
+    Prevent,
     Put,
     Remove,
     Return,
     Roll,
+    Skip,
+    Turn,
+    Unattach,
 }
 
 impl CoreVerbIdentity {
     pub const fn owner_id(self) -> &'static str {
         match self {
             Self::Add => "core-verb:Add",
+            Self::Attack => "core-verb:Attack",
+            Self::Block => "core-verb:Block",
+            Self::Choose => "core-verb:Choose",
+            Self::Control => "core-verb:Control",
+            Self::Copy => "core-verb:Copy",
+            Self::Cycle => "core-verb:Cycle",
             Self::Deal => "core-verb:Deal",
+            Self::Die => "core-verb:Die",
             Self::Draw => "core-verb:Draw",
             Self::Enter => "core-verb:Enter",
+            Self::Flip => "core-verb:Flip",
             Self::Gain => "core-verb:Gain",
             Self::Get => "core-verb:Get",
             Self::Have => "core-verb:Have",
             Self::Leave => "core-verb:Leave",
             Self::Look => "core-verb:Look",
             Self::Lose => "core-verb:Lose",
+            Self::Own => "core-verb:Own",
             Self::Pay => "core-verb:Pay",
+            Self::Prevent => "core-verb:Prevent",
             Self::Put => "core-verb:Put",
             Self::Remove => "core-verb:Remove",
             Self::Return => "core-verb:Return",
             Self::Roll => "core-verb:Roll",
+            Self::Skip => "core-verb:Skip",
+            Self::Turn => "core-verb:Turn",
+            Self::Unattach => "core-verb:Unattach",
         }
     }
 }
@@ -1102,7 +1128,7 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
     };
     let rich_valence = || VerbValence::Custom { shapes: Vec::new() };
 
-    vec![
+    let mut records = vec![
         seed(
             "Add",
             "add",
@@ -1119,6 +1145,54 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
                     Role("FlexibleManaKind"),
                 ],
             ],
+        ),
+        seed(
+            "Attack",
+            "attack",
+            "attacks",
+            rich_valence(),
+            CoreVerbIdentity::Attack,
+            vec![vec![], vec![VerbFrameAtom::ObjectNounPhrase]],
+        ),
+        seed(
+            "Block",
+            "block",
+            "blocks",
+            rich_valence(),
+            CoreVerbIdentity::Block,
+            vec![vec![], vec![VerbFrameAtom::ObjectNounPhrase]],
+        ),
+        seed(
+            "Choose",
+            "choose",
+            "chooses",
+            rich_valence(),
+            CoreVerbIdentity::Choose,
+            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
+        ),
+        seed(
+            "Control",
+            "control",
+            "controls",
+            rich_valence(),
+            CoreVerbIdentity::Control,
+            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
+        ),
+        seed(
+            "Copy",
+            "copy",
+            "copies",
+            rich_valence(),
+            CoreVerbIdentity::Copy,
+            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
+        ),
+        seed(
+            "Cycle",
+            "cycle",
+            "cycles",
+            rich_valence(),
+            CoreVerbIdentity::Cycle,
+            vec![vec![]],
         ),
         seed(
             "Deal",
@@ -1155,7 +1229,21 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
                     Role("ToPhrase"),
                     Role("ScalarEquality"),
                 ],
+                vec![VerbFrameAtom::Amount],
+                vec![
+                    VerbFrameAtom::ObjectNounPhrase,
+                    VerbFrameAtom::Literal("to"),
+                    VerbFrameAtom::ObjectNounPhrase,
+                ],
             ],
+        ),
+        seed(
+            "Die",
+            "die",
+            "dies",
+            rich_valence(),
+            CoreVerbIdentity::Die,
+            vec![vec![]],
         ),
         seed(
             "Draw",
@@ -1166,6 +1254,8 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
             vec![
                 vec![Role("CardQuantity")],
                 vec![VerbFrameAtom::Literal("cards"), Role("ScalarEquality")],
+                vec![VerbFrameAtom::ObjectNounPhrase],
+                vec![VerbFrameAtom::Amount],
             ],
         ),
         seed(
@@ -1175,6 +1265,7 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
             rich_valence(),
             CoreVerbIdentity::Enter,
             vec![
+                vec![],
                 vec![VerbFrameAtom::PredicativeComplement],
                 vec![
                     VerbFrameAtom::Literal("with"),
@@ -1188,6 +1279,14 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
                 ],
                 vec![Role("ControlPostmodifier")],
             ],
+        ),
+        seed(
+            "Flip",
+            "flip",
+            "flips",
+            rich_valence(),
+            CoreVerbIdentity::Flip,
+            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
             "Gain",
@@ -1231,6 +1330,7 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
                 ],
                 vec![Role("ScalarComparison"), VerbFrameAtom::Literal("life")],
                 vec![Role("Object"), Role("VerbPhrase")],
+                vec![VerbFrameAtom::ObjectNounPhrase],
             ],
         ),
         seed(
@@ -1239,7 +1339,7 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
             "leaves",
             rich_valence(),
             CoreVerbIdentity::Leave,
-            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
+            vec![vec![], vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
             "Look",
@@ -1260,7 +1360,16 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
             vec![
                 vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
                 vec![VerbFrameAtom::Literal("life"), Role("ScalarEquality")],
+                vec![VerbFrameAtom::ObjectNounPhrase],
             ],
+        ),
+        seed(
+            "Own",
+            "own",
+            "owns",
+            rich_valence(),
+            CoreVerbIdentity::Own,
+            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
             "Pay",
@@ -1272,6 +1381,14 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
                 vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
                 vec![Role("ManaPhrase")],
             ],
+        ),
+        seed(
+            "Prevent",
+            "prevent",
+            "prevents",
+            rich_valence(),
+            CoreVerbIdentity::Prevent,
+            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
             "Put",
@@ -1295,6 +1412,16 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
                 ],
                 vec![Role("Object"), OptionalRole("FromPhrase"), Role("OnPhrase")],
                 vec![Role("Object"), Role("ToPhrase")],
+                vec![
+                    VerbFrameAtom::ObjectNounPhrase,
+                    VerbFrameAtom::Literal("into"),
+                    VerbFrameAtom::ObjectNounPhrase,
+                ],
+                vec![
+                    VerbFrameAtom::ObjectNounPhrase,
+                    VerbFrameAtom::Literal("on"),
+                    VerbFrameAtom::ObjectNounPhrase,
+                ],
             ],
         ),
         seed(
@@ -1327,7 +1454,57 @@ fn core_verb_seed_records() -> Vec<CoreVerbRecord> {
             CoreVerbIdentity::Roll,
             vec![vec![Role("DieObject")]],
         ),
-    ]
+        seed(
+            "Skip",
+            "skip",
+            "skips",
+            rich_valence(),
+            CoreVerbIdentity::Skip,
+            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
+        ),
+        seed(
+            "Turn",
+            "turn",
+            "turns",
+            rich_valence(),
+            CoreVerbIdentity::Turn,
+            vec![vec![
+                VerbFrameAtom::Literal("face"),
+                VerbFrameAtom::Literal("up"),
+            ]],
+        ),
+        seed(
+            "Unattach",
+            "unattach",
+            "unattaches",
+            rich_valence(),
+            CoreVerbIdentity::Unattach,
+            vec![vec![VerbFrameAtom::ObjectNounPhrase]],
+        ),
+    ];
+
+    for (identity, surface) in [
+        (CoreVerbIdentity::Attack, "attacked"),
+        (CoreVerbIdentity::Choose, "chosen"),
+        (CoreVerbIdentity::Deal, "dealt"),
+        (CoreVerbIdentity::Draw, "drawn"),
+        (CoreVerbIdentity::Prevent, "prevented"),
+        (CoreVerbIdentity::Put, "put"),
+        (CoreVerbIdentity::Turn, "turned"),
+    ] {
+        records
+            .iter_mut()
+            .find(|record| record.identity == identity)
+            .expect("the participle's core verb row exists")
+            .surfaces
+            .push((
+                SurfaceFeature::Participle,
+                Onset::Consonant,
+                Arc::from(surface),
+            ));
+    }
+
+    records
 }
 
 #[cfg(test)]
@@ -1400,25 +1577,64 @@ mod tests {
     fn core_verb_seed_rows_have_exact_surfaces_and_deduplicated_frame_census() {
         let records = core_verb_seed_records();
         let expected = [
-            (CoreVerbIdentity::Add, "add", "adds", 2),
-            (CoreVerbIdentity::Deal, "deal", "deals", 5),
-            (CoreVerbIdentity::Draw, "draw", "draws", 2),
-            (CoreVerbIdentity::Enter, "enter", "enters", 4),
-            (CoreVerbIdentity::Gain, "gain", "gains", 3),
-            (CoreVerbIdentity::Get, "get", "gets", 1),
-            (CoreVerbIdentity::Have, "have", "has", 4),
-            (CoreVerbIdentity::Leave, "leave", "leaves", 1),
-            (CoreVerbIdentity::Look, "look", "looks", 1),
-            (CoreVerbIdentity::Lose, "lose", "loses", 2),
-            (CoreVerbIdentity::Pay, "pay", "pays", 2),
-            (CoreVerbIdentity::Put, "put", "puts", 5),
-            (CoreVerbIdentity::Remove, "remove", "removes", 1),
-            (CoreVerbIdentity::Return, "return", "returns", 1),
-            (CoreVerbIdentity::Roll, "roll", "rolls", 1),
+            (CoreVerbIdentity::Add, "add", "adds", None, 2),
+            (
+                CoreVerbIdentity::Attack,
+                "attack",
+                "attacks",
+                Some("attacked"),
+                2,
+            ),
+            (CoreVerbIdentity::Block, "block", "blocks", None, 2),
+            (
+                CoreVerbIdentity::Choose,
+                "choose",
+                "chooses",
+                Some("chosen"),
+                1,
+            ),
+            (CoreVerbIdentity::Control, "control", "controls", None, 1),
+            (CoreVerbIdentity::Copy, "copy", "copies", None, 1),
+            (CoreVerbIdentity::Cycle, "cycle", "cycles", None, 1),
+            (CoreVerbIdentity::Deal, "deal", "deals", Some("dealt"), 7),
+            (CoreVerbIdentity::Die, "die", "dies", None, 1),
+            (CoreVerbIdentity::Draw, "draw", "draws", Some("drawn"), 4),
+            (CoreVerbIdentity::Enter, "enter", "enters", None, 5),
+            (CoreVerbIdentity::Flip, "flip", "flips", None, 1),
+            (CoreVerbIdentity::Gain, "gain", "gains", None, 3),
+            (CoreVerbIdentity::Get, "get", "gets", None, 1),
+            (CoreVerbIdentity::Have, "have", "has", None, 5),
+            (CoreVerbIdentity::Leave, "leave", "leaves", None, 2),
+            (CoreVerbIdentity::Look, "look", "looks", None, 1),
+            (CoreVerbIdentity::Lose, "lose", "loses", None, 3),
+            (CoreVerbIdentity::Own, "own", "owns", None, 1),
+            (CoreVerbIdentity::Pay, "pay", "pays", None, 2),
+            (
+                CoreVerbIdentity::Prevent,
+                "prevent",
+                "prevents",
+                Some("prevented"),
+                1,
+            ),
+            (CoreVerbIdentity::Put, "put", "puts", Some("put"), 7),
+            (CoreVerbIdentity::Remove, "remove", "removes", None, 1),
+            (CoreVerbIdentity::Return, "return", "returns", None, 1),
+            (CoreVerbIdentity::Roll, "roll", "rolls", None, 1),
+            (CoreVerbIdentity::Skip, "skip", "skips", None, 1),
+            (CoreVerbIdentity::Turn, "turn", "turns", Some("turned"), 1),
+            (
+                CoreVerbIdentity::Unattach,
+                "unattach",
+                "unattaches",
+                None,
+                1,
+            ),
         ];
 
         assert_eq!(records.len(), expected.len());
-        for (record, (identity, bare, third_person, frame_count)) in records.iter().zip(expected) {
+        for (record, (identity, bare, third_person, participle, frame_count)) in
+            records.iter().zip(expected)
+        {
             assert_eq!(record.identity, identity);
             assert_eq!(
                 record
@@ -1433,6 +1649,22 @@ mod tests {
                     (*feature == SurfaceFeature::ThirdPersonSingular).then_some(surface.as_ref())
                 }),
                 Some(third_person),
+            );
+            assert_eq!(
+                record.surfaces.iter().find_map(|(feature, _, surface)| {
+                    (*feature == SurfaceFeature::Participle).then_some(surface.as_ref())
+                }),
+                participle,
+            );
+            assert_eq!(
+                record
+                    .surfaces
+                    .iter()
+                    .map(|(feature, _, _)| *feature)
+                    .collect::<std::collections::HashSet<_>>()
+                    .len(),
+                record.surfaces.len(),
+                "{identity:?} repeats a realized feature",
             );
             assert_eq!(record.frames.len(), frame_count, "{identity:?}");
             assert_eq!(

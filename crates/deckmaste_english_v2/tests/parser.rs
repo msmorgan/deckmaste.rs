@@ -5,8 +5,10 @@ use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
+use deckmaste_english_v2::environment::CoreVerbIdentity;
 use deckmaste_english_v2::environment::DeclarationId;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::environment::VerbInventoryRef;
 use deckmaste_english_v2::parser::BoundedParseOutcome;
 use deckmaste_english_v2::parser::Expectation;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
@@ -102,7 +104,7 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
             frame:
                 BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
                     TransitivePredicate {
-                        head: TransitiveVerb::Declaration(_),
+                        head: _,
                         object: Object::ObjectNominal(NominalObject { value }),
                     },
                 )),
@@ -549,9 +551,7 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                     PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
                                         PositiveObjectGapRelativeClauseValue {
                                             subject: subject_you(),
-                                            head: TransitiveVerb::Lexeme(
-                                                CoreTransitiveVerb::Control,
-                                            ),
+                                            head: core_transitive_head(CoreVerbIdentity::Control),
                                         },
                                     ),
                                 ))),
@@ -873,9 +873,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
 
     let count = paragraph(declarative(
         nominal_subject(creatures_you_control_with_power_at_most_two()),
-        VerbPhrase::GainLife(GainLife {
-            amount: variable_x(),
-        }),
+        gain_life(variable_x()),
     ));
     let count_text = count.render(&plain_context, &environment);
     assert_eq!(parser.parse(&count_text, &plain_context), Ok(count));
@@ -904,9 +902,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference,
         ))),
-        VerbPhrase::GainLife(GainLife {
-            amount: variable_x(),
-        }),
+        gain_life(variable_x()),
     ));
     let self_reference_text = self_reference.render(&abbreviated_context, &environment);
     assert_eq!(
@@ -1007,12 +1003,12 @@ fn demonstrative_references_select_the_unified_determined_nominal_construction()
     ] {
         let expected = declarative(
             nominal_subject(reference),
-            VerbPhrase::DealDamage(DealDamage {
-                amount: Amount::Number(NumberAmount {
+            deal_damage(
+                Amount::Number(NumberAmount {
                     number: ScalarNumber { magnitude: 3 },
                 }),
-                recipient: to_phrase(object_it()),
-            }),
+                to_phrase(object_it()),
+            ),
         );
 
         let trace = parser.trace_sentence(text, &context, TraceLimits::new(usize::MAX));
@@ -1113,17 +1109,44 @@ fn paragraph(sentence: Sentence) -> Ability {
     })
 }
 
+fn core_transitive_head(identity: CoreVerbIdentity) -> DeclarationTransitiveVerb {
+    DeclarationTransitiveVerb::new(&environment(), VerbInventoryRef::Core(identity))
+        .expect("core inventory row licenses the transitive frame")
+}
+
+fn gain_life(amount: Amount) -> VerbPhrase {
+    let head = DeclarationLifeAmountVerb::new(
+        &environment(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Gain),
+    )
+    .expect("Gain licenses the shared life-amount frame");
+    VerbPhrase::LifeAmount(LifeAmount { head, amount })
+}
+
+fn deal_damage(amount: Amount, recipient: ToPhrase) -> VerbPhrase {
+    let head = DeclarationDealAmountDamageVerb::new(
+        &environment(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Deal),
+    )
+    .expect("Deal licenses the amount-damage frame");
+    VerbPhrase::DealAmountDamage(DealAmountDamage {
+        head,
+        amount,
+        recipient,
+    })
+}
+
 fn destroy(object: Object) -> VerbPhrase {
     let environment = environment();
     let head = DeclarationTransitiveVerb::new(
         &environment,
-        DeclarationId::new(DeclarationKind::KeywordAction, "Destroy"),
+        VerbInventoryRef::Declaration(DeclarationId::new(DeclarationKind::KeywordAction, "Destroy")),
     )
     .expect("the builtin grammar declares transitive Destroy");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
             TransitivePredicate {
-                head: TransitiveVerb::Declaration(head),
+                head,
                 object,
             },
         )),
@@ -1134,13 +1157,13 @@ fn connive() -> VerbPhrase {
     let environment = environment();
     let head = DeclarationIntransitiveVerb::new(
         &environment,
-        DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
+        VerbInventoryRef::Declaration(DeclarationId::new(DeclarationKind::KeywordAction, "Connive")),
     )
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
             IntransitivePredicate {
-                head: IntransitiveVerb::Declaration(head),
+                head,
             },
         )),
     })
@@ -1176,10 +1199,7 @@ fn triggered_damage() -> Ability {
         connive_event(),
         vec![declarative(
             nominal_subject(that_noun(creature())),
-            VerbPhrase::DealDamage(DealDamage {
-                amount: variable_x(),
-                recipient: to_phrase(object_it()),
-            }),
+            deal_damage(variable_x(), to_phrase(object_it())),
         )],
     )
 }
@@ -1187,9 +1207,7 @@ fn triggered_damage() -> Ability {
 fn gain_life_sentence() -> Sentence {
     declarative(
         subject_you(),
-        VerbPhrase::GainLife(GainLife {
-            amount: variable_x(),
-        }),
+        gain_life(variable_x()),
     )
 }
 
@@ -1210,12 +1228,12 @@ fn zacama_deals_damage() -> Ability {
                 "Zacama, Primal Calamity",
             ),
         ))),
-        VerbPhrase::DealDamage(DealDamage {
-            amount: Amount::Number(NumberAmount {
+        deal_damage(
+            Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: to_phrase(target_creature()),
-        }),
+            to_phrase(target_creature()),
+        ),
     ))
 }
 
@@ -1433,11 +1451,11 @@ fn generated_morphology_closed_owner_ids_match_scan_and_render_claims() {
     for (text, expected) in [
         (
             "Deal X damage to target creature.",
-            "lexeme:VerbLexeme/Deal/bare",
+            "core-verb:Deal",
         ),
         (
             "It deals X damage to target creature.",
-            "lexeme:VerbLexeme/Deal/third_person_singular",
+            "core-verb:Deal",
         ),
         (
             "Whenever a player connives, you gain X life.",
@@ -1499,7 +1517,7 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame:
             BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(TransitivePredicate {
-                head: TransitiveVerb::Declaration(_),
+                head: _,
                 object: Object::ObjectNominal(NominalObject { value }),
             })),
     }) = predicate.as_ref()
@@ -1838,12 +1856,12 @@ fn no_comma_self_reference_parses_once_as_full_and_round_trips() {
         nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference(SelfReferenceSpelling::Full, "Context Card"),
         ))),
-        VerbPhrase::DealDamage(DealDamage {
-            amount: Amount::Number(NumberAmount {
+        deal_damage(
+            Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: to_phrase(target_creature()),
-        }),
+            to_phrase(target_creature()),
+        ),
     ));
 
     assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
@@ -1858,12 +1876,12 @@ fn self_reference_identity_preserves_its_inherent_case() {
         nominal_subject(noun_phrase(UnqualifiedReference::SelfReference(
             self_reference(SelfReferenceSpelling::Full, "eBay"),
         ))),
-        VerbPhrase::DealDamage(DealDamage {
-            amount: Amount::Number(NumberAmount {
+        deal_damage(
+            Amount::Number(NumberAmount {
                 number: ScalarNumber { magnitude: 3 },
             }),
-            recipient: to_phrase(target_creature()),
-        }),
+            to_phrase(target_creature()),
+        ),
     ));
 
     assert_eq!(parser().parse(text, &context), Ok(expected.clone()));
@@ -1947,7 +1965,7 @@ fn lexical_matches_reject_prefixes_of_longer_lexemes() {
         (
             "Zacama deals 3x damage to target creature.",
             "Zacama, Primal Calamity",
-            TextSpan { start: 13, end: 15 },
+            TextSpan { start: 14, end: 15 },
         ),
         (
             "Destroy target creaturex.",

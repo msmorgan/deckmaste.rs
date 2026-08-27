@@ -2,6 +2,7 @@ use deckmaste_english_v2::ast::*;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
+use deckmaste_english_v2::environment::CoreVerbIdentity;
 use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::environment::VerbInventoryRef;
 use deckmaste_english_v2::parser::ParseError;
@@ -50,7 +51,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Exile.ron",
-            r#"KeywordAction(name:"Exile",spelling:"exile",grammar:Verb(bare:"exile",valence:Custom(shapes:[[ObjectNounPhrase],[ObjectNounPhrase,PredicativeComplement]])))"#,
+            r#"KeywordAction(name:"Exile",spelling:"exile",grammar:Verb(bare:"exile",participle:"exiled",valence:Custom(shapes:[[ObjectNounPhrase],[ObjectNounPhrase,PredicativeComplement]])))"#,
         ),
         (
             "/synthetic/actions/Regenerate.ron",
@@ -771,17 +772,16 @@ impl Visitor for ObjectFrameVisitor {
     }
 
     fn visit_transitive_predicate(&mut self, value: &TransitivePredicate) {
-        match value.head {
-            TransitiveVerb::Lexeme(CoreTransitiveVerb::Copy) => self.0.push("copy"),
-            TransitiveVerb::Lexeme(CoreTransitiveVerb::Flip) => self.0.push("flip"),
-            TransitiveVerb::Lexeme(CoreTransitiveVerb::Lose) => self.0.push("lose-abilities"),
-            TransitiveVerb::Lexeme(CoreTransitiveVerb::Unattach) => self.0.push("unattach"),
+        match value.head.reference() {
+            VerbInventoryRef::Core(CoreVerbIdentity::Copy) => self.0.push("copy"),
+            VerbInventoryRef::Core(CoreVerbIdentity::Flip) => self.0.push("flip"),
+            VerbInventoryRef::Core(CoreVerbIdentity::Lose) => self.0.push("lose-abilities"),
+            VerbInventoryRef::Core(CoreVerbIdentity::Unattach) => self.0.push("unattach"),
             _ => {}
         }
         if matches!(
-            &value.head,
-            TransitiveVerb::Declaration(head)
-                if matches!(head.reference(), VerbInventoryRef::Declaration(id) if id.name() == "Exchange")
+            value.head.reference(),
+            VerbInventoryRef::Declaration(id) if id.name() == "Exchange"
         ) {
             self.0.push("exchange");
         }
@@ -918,19 +918,19 @@ fn quoted_deferred_interiors_remain_exact_ordinary_failures() {
 }
 
 #[test]
-fn closed_information_heads_parse_copy_and_flip_without_action_declarations() {
+fn inventory_information_heads_parse_copy_and_flip_without_action_declarations() {
     let parser = parser();
     let context = context();
     for (text, expected_head, expected_visit) in [
         (
             "Copy target instant or sorcery spell.",
-            CoreTransitiveVerb::Copy,
+            CoreVerbIdentity::Copy,
             "copy",
         ),
-        ("Flip a coin.", CoreTransitiveVerb::Flip, "flip"),
+        ("Flip a coin.", CoreVerbIdentity::Flip, "flip"),
         (
             "Unattach that Equipment.",
-            CoreTransitiveVerb::Unattach,
+            CoreVerbIdentity::Unattach,
             "unattach",
         ),
     ] {
@@ -942,8 +942,8 @@ fn closed_information_heads_parse_copy_and_flip_without_action_declarations() {
         );
         let predicate = imperative_transitive(&parser, &context, text);
         assert_eq!(
-            predicate.head,
-            TransitiveVerb::Lexeme(expected_head),
+            predicate.head.reference(),
+            &VerbInventoryRef::Core(expected_head),
             "{text:?}",
         );
         let mut visitor = ObjectFrameVisitor::default();
@@ -959,11 +959,8 @@ fn exchange_uses_declared_object_valence_and_a_typed_control_reference() {
     let text = "Exchange control of two target creatures.";
     let ability = assert_selected(&parser, &context, text);
     let predicate = imperative_transitive(&parser, &context, text);
-    let TransitiveVerb::Declaration(head) = &predicate.head else {
-        panic!("exchange retains its authored keyword-action identity")
-    };
     assert!(matches!(
-        head.reference(),
+        predicate.head.reference(),
         VerbInventoryRef::Declaration(id) if id.name() == "Exchange"
     ));
     assert!(matches!(predicate.object, Object::ObjectNominal(_)));
@@ -1068,11 +1065,8 @@ fn token_descriptions_share_typed_power_toughness_and_copy_constituents() {
     ] {
         let ability = assert_selected(&parser, &context, text);
         let predicate = imperative_transitive(&parser, &context, text);
-        let TransitiveVerb::Declaration(head) = &predicate.head else {
-            panic!("{text:?} retains Create's declaration identity")
-        };
         assert!(matches!(
-            head.reference(),
+            predicate.head.reference(),
             VerbInventoryRef::Declaration(id) if id.name() == "Create"
         ), "{text:?}");
         let mut visitor = ObjectFrameVisitor::default();
@@ -1199,7 +1193,7 @@ fn negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
             ),
             (
                 " gets".to_owned(),
-                "lexeme:VerbLexeme/Get/third_person_singular".to_owned(),
+                "core-verb:Get".to_owned(),
             ),
             (
                 " -".to_owned(),
@@ -1352,8 +1346,8 @@ fn ordinary_ability_nouns_parse_while_keyword_interiors_remain_deferred() {
     let ability = assert_selected(&parser, &context, text);
     let predicate = transitive_frame(&declarative_atomic(&parser, &context, text)).clone();
     assert!(matches!(
-        predicate.head,
-        TransitiveVerb::Lexeme(CoreTransitiveVerb::Lose)
+        predicate.head.reference(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Lose)
     ));
     let mut visitor = ObjectFrameVisitor::default();
     visitor.visit_ability(&ability);
@@ -1406,11 +1400,8 @@ fn shared_active_frames_reuse_core_and_declared_heads_across_sentence_shapes() {
         panic!("declared object verb has an atomic predicate envelope")
     };
     let predicate = transitive_frame(predicate.as_ref());
-    let TransitiveVerb::Declaration(head) = &predicate.head else {
-        panic!("declared transitive identity remains open")
-    };
     assert!(matches!(
-        head.reference(),
+        predicate.head.reference(),
         VerbInventoryRef::Declaration(id) if id.name() == "Sacrifice"
     ));
 
@@ -1425,8 +1416,8 @@ fn shared_active_frames_reuse_core_and_declared_heads_across_sentence_shapes() {
     };
     let predicate = transitive_frame(predicate.as_ref());
     assert!(matches!(
-        &predicate.head,
-        TransitiveVerb::Lexeme(CoreTransitiveVerb::Control)
+        predicate.head.reference(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Control)
     ));
 }
 
@@ -1438,7 +1429,7 @@ impl Visitor for LexicalVisitor {
         self.0.push(format!("declared:{}", declaration.name()));
     }
 
-    fn visit_core_transitive_verb(&mut self, verb: CoreTransitiveVerb) {
+    fn visit_verb_inventory(&mut self, verb: &VerbInventoryRef) {
         self.0.push(format!("core:{verb:?}"));
     }
 
@@ -1495,7 +1486,7 @@ fn shared_transitive_frame_preserves_visit_order_and_literal_claims() {
                 32,
                 "structural:AndPredicateCoordination/members/separator/pair/0".to_owned(),
             ),
-            (32, 39, "lexeme:CoreTransitiveVerb/Control/bare".to_owned()),
+            (32, 39, "core-verb:Control".to_owned()),
             (
                 39,
                 46,
@@ -1646,8 +1637,8 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
                     kind,
                 }) = predicate;
                 assert!(matches!(
-                    head,
-                    DamageParticipleHead::Lexeme(DamageParticipleLexeme::Deal)
+                    head.reference(),
+                    VerbInventoryRef::Core(CoreVerbIdentity::Deal)
                 ));
                 assert_eq!(*kind, expected_kind);
             }
@@ -1702,7 +1693,7 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
     }
 
     macro_rules! selected {
-        ($text:literal, $family:expr, [$(($surface:literal, $owner:literal)),+ $(,)?]) => {
+        ($text:literal, $family:expr, [$(($surface:literal, $owner:literal $(,)?)),+ $(,)?]) => {
             assert_selected_family(
                 &parser,
                 &context,
@@ -1718,17 +1709,20 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         IntegratedClause::Damage(DamageKind::Ordinary),
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
-            (" this", "form:this_reference/this_reference/0"),
+            (
+                " this",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" dealt", "core-verb:Deal"),
             (" damage", "vocab:DamageKind/Ordinary"),
             (",", "form:triggered/triggered/1"),
             (" it", "vocab:SubjectPronoun/It"),
-            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" deals", "core-verb:Deal"),
             (" that", "form:that_much/that_much/0"),
             (" much", "form:that_much/that_much/1"),
-            (" damage", "form:deal_damage/deal_damage/2"),
+            (" damage", "form:deal_amount_damage/deal_amount_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
             (" you", "vocab:ObjectPronoun/You"),
             (".", "structural:Sentences/sentences/terminator/0")
@@ -1739,16 +1733,19 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         IntegratedClause::Damage(DamageKind::Ordinary),
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
-            (" this", "form:this_reference/this_reference/0"),
+            (
+                " this",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" dealt", "core-verb:Deal"),
             (" damage", "vocab:DamageKind/Ordinary"),
             (",", "form:triggered/triggered/1"),
             (" you", "vocab:SubjectPronoun/You"),
-            (" gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" gain", "core-verb:Gain"),
             (" 1", "codec:ScalarNumber"),
-            (" life", "form:gain_life/gain_life/2"),
+            (" life", "form:life_amount/life_amount/2"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
     );
@@ -1757,19 +1754,22 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         IntegratedClause::Damage(DamageKind::Ordinary),
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
-            (" this", "form:this_reference/this_reference/0"),
+            (
+                " this",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" dealt", "core-verb:Deal"),
             (" damage", "vocab:DamageKind/Ordinary"),
             (",", "form:triggered/triggered/1"),
             (" it", "vocab:SubjectPronoun/It"),
-            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" deals", "core-verb:Deal"),
             (" that", "form:that_much/that_much/0"),
             (" much", "form:that_much/that_much/1"),
-            (" damage", "form:deal_damage/deal_damage/2"),
+            (" damage", "form:deal_amount_damage/deal_amount_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (" each", "form:each_reference/each_reference/0"),
+            (" each", "determinative:DeterminativeHead/Each"),
             (" player", "lexeme:CommonNoun/Player/singular"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
@@ -1792,24 +1792,24 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         "Whenever a creature is put into your graveyard from the battlefield, you gain 1 life.";
     const MOVEMENT_CLAIMS: &[(&str, &str)] = &[
         ("Whenever", "vocab:TriggerMarker/Whenever"),
-        (" a", "form:indefinite_reference/a/0"),
+        (" a", "determinative:DeterminativeHead/IndefiniteArticle"),
         (" creature", "lexeme:type/Creature/singular"),
         (" is", "vocab:FiniteCopula/Is"),
-        (" put", "lexeme:MovementParticipleLexeme/Put/participle"),
+        (" put", "core-verb:Put"),
         (" into", "form:into_phrase/into_phrase/0"),
         (" your", "vocab:PossessiveDeterminerPronoun/Your"),
         (" graveyard", "lexeme:CommonNoun/Graveyard/singular"),
         (" from", "form:from_phrase/from_phrase/0"),
         (
             " the",
-            "form:definite_singular_reference/definite_singular_reference/0",
+            "determinative:DeterminativeHead/DefiniteArticle",
         ),
         (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
         (",", "form:triggered/triggered/1"),
         (" you", "vocab:SubjectPronoun/You"),
-        (" gain", "lexeme:VerbLexeme/Gain/bare"),
+        (" gain", "core-verb:Gain"),
         (" 1", "codec:ScalarNumber"),
-        (" life", "form:gain_life/gain_life/2"),
+        (" life", "form:life_amount/life_amount/2"),
         (".", "structural:Sentences/sentences/terminator/0"),
     ];
     assert_selected_family(
@@ -1831,24 +1831,27 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         IntegratedClause::Orientation,
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
-            (" a", "form:indefinite_reference/a/0"),
+            (" a", "determinative:DeterminativeHead/IndefiniteArticle"),
             (" permanent", "lexeme:CommonNoun/Permanent/singular"),
             (" is", "vocab:FiniteCopula/Is"),
             (
                 " turned",
-                "lexeme:OrientationParticipleLexeme/Turn/participle"
+                "core-verb:Turn"
             ),
             (" face up", "vocab:FaceOrientation/FaceUp"),
             (",", "form:triggered/triggered/1"),
-            (" this", "form:this_reference/this_reference/0"),
+            (
+                " this",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" deals", "core-verb:Deal"),
             (" 1", "codec:ScalarNumber"),
-            (" damage", "form:deal_damage/deal_damage/2"),
+            (" damage", "form:deal_amount_damage/deal_amount_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", "structural:Sentences/sentences/terminator/0")
@@ -1859,17 +1862,20 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         IntegratedClause::Damage(DamageKind::Combat),
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
-            (" this", "form:this_reference/this_reference/0"),
+            (
+                " this",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" dealt", "core-verb:Deal"),
             (" combat damage", "vocab:DamageKind/Combat"),
             (",", "form:triggered/triggered/1"),
             (" you", "vocab:SubjectPronoun/You"),
-            (" gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" gain", "core-verb:Gain"),
             (" that", "form:that_much/that_much/0"),
             (" much", "form:that_much/that_much/1"),
-            (" life", "form:gain_life/gain_life/2"),
+            (" life", "form:life_amount/life_amount/2"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
     );
@@ -1878,18 +1884,21 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         IntegratedClause::Damage(DamageKind::Ordinary),
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
-            (" this", "form:this_reference/this_reference/0"),
+            (
+                " this",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" dealt", "core-verb:Deal"),
             (" damage", "vocab:DamageKind/Ordinary"),
             (",", "form:triggered/triggered/1"),
-            (" each", "form:each_reference/each_reference/0"),
+            (" each", "determinative:DeterminativeHead/Each"),
             (" opponent", "lexeme:CommonNoun/Opponent/singular"),
-            (" gains", "lexeme:VerbLexeme/Gain/third_person_singular"),
+            (" gains", "core-verb:Gain"),
             (" that", "form:that_much/that_much/0"),
             (" much", "form:that_much/that_much/1"),
-            (" life", "form:gain_life/gain_life/2"),
+            (" life", "form:life_amount/life_amount/2"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
     );
@@ -1898,21 +1907,24 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         IntegratedClause::Damage(DamageKind::Ordinary),
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
-            (" this", "form:this_reference/this_reference/0"),
+            (
+                " this",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" dealt", "core-verb:Deal"),
             (" damage", "vocab:DamageKind/Ordinary"),
             (",", "form:triggered/triggered/1"),
             (" it", "vocab:SubjectPronoun/It"),
-            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" deals", "core-verb:Deal"),
             (" that", "form:that_much/that_much/0"),
             (" much", "form:that_much/that_much/1"),
-            (" damage", "form:deal_damage/deal_damage/2"),
+            (" damage", "form:deal_amount_damage/deal_amount_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (".", "structural:Sentences/sentences/terminator/0")
@@ -1923,26 +1935,26 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         IntegratedClause::Movement,
         [
             ("Whenever", "vocab:TriggerMarker/Whenever"),
-            (" a", "form:indefinite_reference/a/0"),
+            (" a", "determinative:DeterminativeHead/IndefiniteArticle"),
             (" creature", "lexeme:type/Creature/singular"),
             (" you", "vocab:SubjectPronoun/You"),
-            (" control", "lexeme:CoreTransitiveVerb/Control/bare"),
+            (" control", "core-verb:Control"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" put", "lexeme:MovementParticipleLexeme/Put/participle"),
+            (" put", "core-verb:Put"),
             (" into", "form:into_phrase/into_phrase/0"),
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
             (" graveyard", "lexeme:CommonNoun/Graveyard/singular"),
             (" from", "form:from_phrase/from_phrase/0"),
             (
                 " the",
-                "form:definite_singular_reference/definite_singular_reference/0"
+                "determinative:DeterminativeHead/DefiniteArticle"
             ),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (",", "form:triggered/triggered/1"),
             (" you", "vocab:SubjectPronoun/You"),
-            (" gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" gain", "core-verb:Gain"),
             (" 1", "codec:ScalarNumber"),
-            (" life", "form:gain_life/gain_life/2"),
+            (" life", "form:life_amount/life_amount/2"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
     );
@@ -1956,15 +1968,15 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
             (" upkeep", "vocab:TurnPart/Upkeep"),
             (",", "form:triggered/triggered/1"),
             (" if", "form:finite_condition/finite_condition/0"),
-            (" all", "form:all_reference/all_reference/0"),
+            (" all", "determinative:DeterminativeHead/All"),
             (" creatures", "lexeme:type/Creature/plural"),
             (" are", "vocab:FiniteCopula/Are"),
             (" white", "vocab:Color/White"),
             (",", "form:finite_condition/finite_condition/2"),
             (" you", "vocab:SubjectPronoun/You"),
-            (" gain", "lexeme:VerbLexeme/Gain/bare"),
+            (" gain", "core-verb:Gain"),
             (" 1", "codec:ScalarNumber"),
-            (" life", "form:gain_life/gain_life/2"),
+            (" life", "form:life_amount/life_amount/2"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
     );
@@ -2370,7 +2382,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             (" is", "vocab:FiniteCopula/Is"),
             (" able", "form:predicative_ability/predicative_ability/0"),
             (" to", "form:predicative_ability/predicative_ability/1"),
-            (" attack", "lexeme:CoreIntransitiveVerb/Attack/bare"),
+            (" attack", "core-verb:Attack"),
             (".", TERMINATOR)
         ]
     );
@@ -2435,7 +2447,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         [
             ("It", "vocab:SubjectPronoun/It"),
             (" would", "lexeme:VerbLexeme/Would/third_person_singular"),
-            (" attack", "lexeme:CoreIntransitiveVerb/Attack/bare"),
+            (" attack", "core-verb:Attack"),
             (".", TERMINATOR)
         ]
     );
@@ -2465,7 +2477,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             ("It", "vocab:SubjectPronoun/It"),
             (" can't", "lexeme:VerbLexeme/Cant/third_person_singular"),
             (" be", "vocab:BareCopula/Be"),
-            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" dealt", "core-verb:Deal"),
             (" damage", "vocab:DamageKind/Ordinary"),
             (".", TERMINATOR)
         ]
@@ -2479,7 +2491,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         [
             ("It", "vocab:SubjectPronoun/It"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" dealt", "lexeme:DamageParticipleLexeme/Deal/participle"),
+            (" dealt", "core-verb:Deal"),
             (" combat damage", "vocab:DamageKind/Combat"),
             (".", TERMINATOR)
         ]
@@ -2493,7 +2505,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         [
             ("It", "vocab:SubjectPronoun/It"),
             (" is", "vocab:FiniteCopula/Is"),
-            (" put", "lexeme:MovementParticipleLexeme/Put/participle"),
+            (" put", "core-verb:Put"),
             (" into", "form:into_phrase/into_phrase/0"),
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
             (" graveyard", "lexeme:CommonNoun/Graveyard/singular"),
@@ -2517,7 +2529,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             (" is", "vocab:FiniteCopula/Is"),
             (
                 " turned",
-                "lexeme:OrientationParticipleLexeme/Turn/participle"
+                "core-verb:Turn"
             ),
             (" face up", "vocab:FaceOrientation/FaceUp"),
             (".", TERMINATOR)
@@ -2542,7 +2554,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         ["product:DealDamageKind"],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" deals", "lexeme:VerbLexeme/Deal/third_person_singular"),
+            (" deals", "core-verb:Deal"),
             (" damage", "vocab:DamageKind/Ordinary"),
             (".", TERMINATOR)
         ]
@@ -2552,7 +2564,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         ["product:GainUnspecifiedLife"],
         [
             ("It", "vocab:SubjectPronoun/It"),
-            (" gains", "lexeme:VerbLexeme/Gain/third_person_singular"),
+            (" gains", "core-verb:Gain"),
             (
                 " life",
                 "form:gain_unspecified_life/gain_unspecified_life/1"
@@ -4104,7 +4116,7 @@ impl Visitor for ComplementVisitor {
         walk_anaphoric_counter_quantity,
         "AnaphoricCounterQuantity"
     );
-    fn visit_verb_lexeme(&mut self, verb: VerbLexeme) {
+    fn visit_verb_inventory(&mut self, verb: &VerbInventoryRef) {
         self.0.push(format!("verb:{verb:?}"));
     }
 
@@ -4325,14 +4337,14 @@ fn typed_complements_visit_payloads_in_surface_order_with_exact_claims() {
         visitor.0,
         [
             "product:ManaVerbPhrase",
-            "verb:Pay",
+            "verb:Core(Pay)",
             "scalar:2",
             "product:DrawCardsEqualTo",
-            "verb:Draw",
+            "verb:Core(Draw)",
             "possessive:Its",
             "characteristic:Toughness",
             "product:PutCounters",
-            "verb:Put",
+            "verb:Core(Put)",
             "product:FixedCounterQuantity",
             "cardinal:2",
             "counter:Stun",
@@ -4390,14 +4402,14 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Deal X damage to target creature.",
         [
             "product:DealAmountDamage",
-            "verb:Deal",
+            "verb:Core(Deal)",
             "variable:X",
             "declared:Creature"
         ],
         [
-            ("Deal", "lexeme:VerbLexeme/Deal/bare"),
+            ("Deal", "core-verb:Deal"),
             (" X", "vocab:Variable/X"),
-            (" damage", "form:deal_damage/deal_damage/2"),
+            (" damage", "form:deal_amount_damage/deal_amount_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
             (
                 " target",
@@ -4411,13 +4423,13 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Deal damage equal to its power to target creature.",
         [
             "product:DealDamageEqualTo",
-            "verb:Deal",
+            "verb:Core(Deal)",
             "possessive:Its",
             "characteristic:Power",
             "declared:Creature"
         ],
         [
-            ("Deal", "lexeme:VerbLexeme/Deal/bare"),
+            ("Deal", "core-verb:Deal"),
             (
                 " damage",
                 "form:deal_damage_equal_to/deal_damage_equal_to/1"
@@ -4437,12 +4449,12 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Gain that much life.",
-        ["product:LifeAmount", "verb:Gain"],
+        ["product:LifeAmount", "verb:Core(Gain)"],
         [
-            ("Gain", "lexeme:VerbLexeme/Gain/bare"),
+            ("Gain", "core-verb:Gain"),
             (" that", "form:that_much/that_much/0"),
             (" much", "form:that_much/that_much/1"),
-            (" life", "form:gain_life/gain_life/2"),
+            (" life", "form:life_amount/life_amount/2"),
             (".", TERMINATOR),
         ]
     );
@@ -4450,13 +4462,13 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Gain life equal to its power.",
         [
             "product:LifeEquality",
-            "verb:Gain",
+            "verb:Core(Gain)",
             "possessive:Its",
             "characteristic:Power"
         ],
         [
-            ("Gain", "lexeme:VerbLexeme/Gain/bare"),
-            (" life", "form:gain_life_equal_to/gain_life_equal_to/1"),
+            ("Gain", "core-verb:Gain"),
+            (" life", "form:life_equality/life_equality/1"),
             (" equal", "form:scalar_equality/scalar_equality/0"),
             (" to", "form:scalar_equality/scalar_equality/1"),
             (" its", "vocab:PossessiveDeterminerPronoun/Its"),
@@ -4466,11 +4478,11 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Lose 2 life.",
-        ["product:LifeAmount", "verb:Lose", "scalar:2"],
+        ["product:LifeAmount", "verb:Core(Lose)", "scalar:2"],
         [
-            ("Lose", "lexeme:VerbLexeme/Lose/bare"),
+            ("Lose", "core-verb:Lose"),
             (" 2", "codec:ScalarNumber"),
-            (" life", "form:lose_life/lose_life/2"),
+            (" life", "form:life_amount/life_amount/2"),
             (".", TERMINATOR),
         ]
     );
@@ -4478,13 +4490,13 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Lose life equal to its toughness.",
         [
             "product:LifeEquality",
-            "verb:Lose",
+            "verb:Core(Lose)",
             "possessive:Its",
             "characteristic:Toughness"
         ],
         [
-            ("Lose", "lexeme:VerbLexeme/Lose/bare"),
-            (" life", "form:lose_life_equal_to/lose_life_equal_to/1"),
+            ("Lose", "core-verb:Lose"),
+            (" life", "form:life_equality/life_equality/1"),
             (" equal", "form:scalar_equality/scalar_equality/0"),
             (" to", "form:scalar_equality/scalar_equality/1"),
             (" its", "vocab:PossessiveDeterminerPronoun/Its"),
@@ -4494,9 +4506,9 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Pay X life.",
-        ["product:LifeAmount", "verb:Pay", "variable:X"],
+        ["product:LifeAmount", "verb:Core(Pay)", "variable:X"],
         [
-            ("Pay", "lexeme:VerbLexeme/Pay/bare"),
+            ("Pay", "core-verb:Pay"),
             (" X", "vocab:Variable/X"),
             (" life", "form:life_amount/life_amount/2"),
             (".", TERMINATOR),
@@ -4504,9 +4516,9 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Pay {2}{B}.",
-        ["product:ManaVerbPhrase", "verb:Pay", "scalar:2", "symbol:Black"],
+        ["product:ManaVerbPhrase", "verb:Core(Pay)", "scalar:2", "symbol:Black"],
         [
-            ("Pay", "lexeme:VerbLexeme/Pay/bare"),
+            ("Pay", "core-verb:Pay"),
             (" {", "form:symbol_run/symbol_run/0/prefix"),
             ("2", "codec:ScalarNumber"),
             ("}{", "structural:SymbolRun/symbols/separator/uniform/0"),
@@ -4517,9 +4529,9 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Add {B}.",
-        ["product:ManaVerbPhrase", "verb:Add", "symbol:Black"],
+        ["product:ManaVerbPhrase", "verb:Core(Add)", "symbol:Black"],
         [
-            ("Add", "lexeme:VerbLexeme/Add/bare"),
+            ("Add", "core-verb:Add"),
             (" {", "form:symbol_run/symbol_run/0/prefix"),
             ("B", "vocab:FixedCostSymbol/Black"),
             ("}", "form:symbol_run/symbol_run/0/suffix"),
@@ -4530,11 +4542,11 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Draw a card.",
         [
             "product:DrawCards",
-            "verb:Draw",
+            "verb:Core(Draw)",
             "product:SingularCardQuantity"
         ],
         [
-            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            ("Draw", "core-verb:Draw"),
             (" a", "form:singular_card_quantity/singular_card_quantity/0"),
             (
                 " card",
@@ -4547,12 +4559,12 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Draw two cards.",
         [
             "product:DrawCards",
-            "verb:Draw",
+            "verb:Core(Draw)",
             "product:FixedCardQuantity",
             "cardinal:2"
         ],
         [
-            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            ("Draw", "core-verb:Draw"),
             (" two", "codec:CardinalNumber"),
             (" cards", "form:fixed_card_quantity/fixed_card_quantity/1"),
             (".", TERMINATOR),
@@ -4562,12 +4574,12 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Draw X cards.",
         [
             "product:DrawCards",
-            "verb:Draw",
+            "verb:Core(Draw)",
             "product:VariableCardQuantity",
             "variable:X"
         ],
         [
-            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            ("Draw", "core-verb:Draw"),
             (" X", "vocab:Variable/X"),
             (
                 " cards",
@@ -4580,11 +4592,11 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Draw that many cards.",
         [
             "product:DrawCards",
-            "verb:Draw",
+            "verb:Core(Draw)",
             "product:AnaphoricCardQuantity"
         ],
         [
-            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            ("Draw", "core-verb:Draw"),
             (" that", "form:that_many/that_many/0"),
             (" many", "form:that_many/that_many/1"),
             (
@@ -4598,12 +4610,12 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Draw cards equal to its toughness.",
         [
             "product:DrawCardsEqualTo",
-            "verb:Draw",
+            "verb:Core(Draw)",
             "possessive:Its",
             "characteristic:Toughness"
         ],
         [
-            ("Draw", "lexeme:VerbLexeme/Draw/bare"),
+            ("Draw", "core-verb:Draw"),
             (" cards", "form:draw_cards_equal_to/draw_cards_equal_to/1"),
             (" equal", "form:scalar_equality/scalar_equality/0"),
             (" to", "form:scalar_equality/scalar_equality/1"),
@@ -4616,12 +4628,12 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Roll a six-sided die.",
         [
             "product:RollDice",
-            "verb:Roll",
+            "verb:Core(Roll)",
             "product:SingularDieObject",
             "die:SixSided"
         ],
         [
-            ("Roll", "lexeme:VerbLexeme/Roll/bare"),
+            ("Roll", "core-verb:Roll"),
             (" a", "form:singular_die_object/singular_die_object/0"),
             (" six-sided", "vocab:DieShape/SixSided"),
             (" die", "form:singular_die_object/singular_die_object/2"),
@@ -4632,13 +4644,13 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Roll two six-sided dice.",
         [
             "product:RollDice",
-            "verb:Roll",
+            "verb:Core(Roll)",
             "product:FixedDiceObject",
             "cardinal:2",
             "die:SixSided"
         ],
         [
-            ("Roll", "lexeme:VerbLexeme/Roll/bare"),
+            ("Roll", "core-verb:Roll"),
             (" two", "codec:CardinalNumber"),
             (" six-sided", "vocab:DieShape/SixSided"),
             (" dice", "form:fixed_dice_object/fixed_dice_object/2"),
@@ -4647,9 +4659,9 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Roll a d20.",
-        ["product:RollDice", "verb:Roll", "product:D20Object"],
+        ["product:RollDice", "verb:Core(Roll)", "product:D20Object"],
         [
-            ("Roll", "lexeme:VerbLexeme/Roll/bare"),
+            ("Roll", "core-verb:Roll"),
             (" a", "form:d20_object/d20_object/0"),
             (" d20", "form:d20_object/d20_object/1"),
             (".", TERMINATOR),
@@ -4659,7 +4671,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Put a +1/+1 counter on target creature.",
         [
             "product:PutCounters",
-            "verb:Put",
+            "verb:Core(Put)",
             "product:SingularCounterQuantity",
             "product:PositivePowerToughnessCounter",
             "scalar:1",
@@ -4667,7 +4679,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             "declared:Creature",
         ],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (" a", "form:singular_counter_quantity/a/0"),
             (
                 " +",
@@ -4697,7 +4709,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Put a -1/-1 counter on target creature.",
         [
             "product:PutCounters",
-            "verb:Put",
+            "verb:Core(Put)",
             "product:SingularCounterQuantity",
             "product:NegativePowerToughnessCounter",
             "scalar:1",
@@ -4705,7 +4717,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             "declared:Creature",
         ],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (" a", "form:singular_counter_quantity/a/0"),
             (
                 " -",
@@ -4735,13 +4747,13 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Put a time counter on target creature.",
         [
             "product:PutCounters",
-            "verb:Put",
+            "verb:Core(Put)",
             "product:SingularCounterQuantity",
             "counter:Time",
             "declared:Creature"
         ],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (" a", "form:singular_counter_quantity/a/0"),
             (" time", "vocab:CounterName/Time"),
             (" counter", "form:singular_counter_quantity/a/2"),
@@ -4758,13 +4770,13 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Put two stun counters on it.",
         [
             "product:PutCounters",
-            "verb:Put",
+            "verb:Core(Put)",
             "product:FixedCounterQuantity",
             "cardinal:2",
             "counter:Stun"
         ],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (" two", "codec:CardinalNumber"),
             (" stun", "vocab:CounterName/Stun"),
             (
@@ -4780,14 +4792,14 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Put X time counters on target creature.",
         [
             "product:PutCounters",
-            "verb:Put",
+            "verb:Core(Put)",
             "product:VariableCounterQuantity",
             "variable:X",
             "counter:Time",
             "declared:Creature"
         ],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (" X", "vocab:Variable/X"),
             (" time", "vocab:CounterName/Time"),
             (
@@ -4807,13 +4819,13 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Put that many charge counters on target creature.",
         [
             "product:PutCounters",
-            "verb:Put",
+            "verb:Core(Put)",
             "product:AnaphoricCounterQuantity",
             "counter:Charge",
             "declared:Creature"
         ],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (" that", "form:that_many/that_many/0"),
             (" many", "form:that_many/that_many/1"),
             (" charge", "vocab:CounterName/Charge"),
@@ -4834,14 +4846,14 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
         "Remove X time counters from this card.",
         [
             "product:RemoveCounters",
-            "verb:Remove",
+            "verb:Core(Remove)",
             "product:VariableCounterQuantity",
             "variable:X",
             "counter:Time",
             "noun:Card"
         ],
         [
-            ("Remove", "lexeme:VerbLexeme/Remove/bare"),
+            ("Remove", "core-verb:Remove"),
             (" X", "vocab:Variable/X"),
             (" time", "vocab:CounterName/Time"),
             (
@@ -4849,7 +4861,10 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
                 "form:variable_counter_quantity/variable_counter_quantity/2"
             ),
             (" from", "form:from_phrase/from_phrase/0"),
-            (" this", "form:this_reference/this_reference/0"),
+            (
+                " this",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (".", TERMINATOR),
         ]
@@ -5357,7 +5372,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     let context = context();
 
     macro_rules! assert_family {
-        ($text:literal, $specificity:literal, [$($visit:literal),+ $(,)?], [$(($surface:literal, $owner:expr)),+ $(,)?]) => {{
+        ($text:literal, $specificity:literal, [$($visit:literal),+ $(,)?], [$(($surface:literal, $owner:expr $(,)?)),+ $(,)?]) => {{
             let ability = assert_selected_with_specificity(&parser, &context, $text, $specificity);
             let mut visitor = MovementVisitor::default();
             visitor.visit_ability(&ability);
@@ -5376,7 +5391,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:PutInto", "product:IntoPhraseValue"],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (" that", "form:that_reference/that_reference/0"),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (" into", "form:into_phrase/into_phrase/0"),
@@ -5390,7 +5405,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:PutTo", "product:ToPhraseValue"],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (" that", "form:that_reference/that_reference/0"),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (" to", "form:to_phrase/to_phrase/0"),
@@ -5410,7 +5425,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             "product:DirectControlPostmodifier"
         ],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (
                 " target",
                 "form:target_determiner_phrase/target_determiner_phrase/0"
@@ -5450,7 +5465,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             "product:SingularOwnerPossessor"
         ],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (
                 " target",
                 "form:target_determiner_phrase/target_determiner_phrase/0"
@@ -5479,7 +5494,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             "product:PluralOwnerPossessor"
         ],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (
                 " target",
                 "form:target_determiner_phrase/target_determiner_phrase/0"
@@ -5510,7 +5525,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             "product:SingularOwnerPossessor"
         ],
         [
-            ("Return", "lexeme:VerbLexeme/Return/bare"),
+            ("Return", "core-verb:Return"),
             (
                 " target",
                 "form:target_determiner_phrase/target_determiner_phrase/0"
@@ -5548,9 +5563,12 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:EnterResultative", "product:PredicativeStatusValue"],
         [
-            ("This", "form:this_reference/this_reference/0"),
+            (
+                "This",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
+            (" enters", "core-verb:Enter"),
             (" tapped", "vocab:Status/Tapped"),
             (".", TERMINATOR)
         ]
@@ -5560,9 +5578,12 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:EnterLocation", "product:DirectControlPostmodifier"],
         [
-            ("This", "form:this_reference/this_reference/0"),
+            (
+                "This",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
+            (" enters", "core-verb:Enter"),
             (
                 " the",
                 "form:definite_singular_reference/definite_singular_reference/0"
@@ -5585,9 +5606,12 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:EnterControl", "product:DirectControlPostmodifier"],
         [
-            ("This", "form:this_reference/this_reference/0"),
+            (
+                "This",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
+            (" enters", "core-verb:Enter"),
             (
                 " under",
                 "form:direct_control_postmodifier/direct_control_postmodifier/0"
@@ -5605,9 +5629,12 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:LeaveLocation"],
         [
-            ("This", "form:this_reference/this_reference/0"),
+            (
+                "This",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" leaves", "lexeme:VerbLexeme/Leave/third_person_singular"),
+            (" leaves", "core-verb:Leave"),
             (
                 " the",
                 "form:definite_singular_reference/definite_singular_reference/0"
@@ -5625,7 +5652,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             "product:FixedPartitiveSelection"
         ],
         [
-            ("Look", "lexeme:VerbLexeme/Look/bare"),
+            ("Look", "core-verb:Look"),
             (" at", "form:look_at/look_at/1"),
             (" the", "form:positional_partitive/positional_partitive/0"),
             (" top", "vocab:EdgePosition/Top"),
@@ -5680,7 +5707,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ["product:TransitivePredicate", "product:InBareLocative"],
         [
             ("You", "vocab:SubjectPronoun/You"),
-            (" have", "lexeme:CoreTransitiveVerb/Have/bare"),
+            (" have", "core-verb:Have"),
             (" three", "codec:CardinalNumber"),
             (" or", "form:count_or_fewer/count_or_fewer/0"),
             (" fewer", "form:count_or_fewer/count_or_fewer/1"),
@@ -5696,7 +5723,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ["product:HaveLife"],
         [
             ("You", "vocab:SubjectPronoun/You"),
-            (" have", "lexeme:VerbLexeme/Have/bare"),
+            (" have", "core-verb:Have"),
             (" 10", "codec:ScalarNumber"),
             (" or", "form:scalar_or_less/scalar_or_less/1"),
             (" less", "form:scalar_or_less/scalar_or_less/2"),
@@ -5710,7 +5737,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ["product:TransitivePredicate"],
         [
             ("You", "vocab:SubjectPronoun/You"),
-            (" have", "lexeme:CoreTransitiveVerb/Have/bare"),
+            (" have", "core-verb:Have"),
             (" no", "form:no_singular_reference/no_singular_reference/0"),
             (" maximum", "vocab:AttributiveAdjective/Maximum"),
             (" hand", "lexeme:CommonNoun/Hand/singular"),
@@ -5723,11 +5750,11 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:HaveObjectControl", "product:ToPhraseValue"],
         [
-            ("Have", "lexeme:VerbLexeme/Have/bare"),
+            ("Have", "core-verb:Have"),
             (" her", "vocab:ObjectPronoun/Her"),
-            (" deal", "lexeme:VerbLexeme/Deal/bare"),
+            (" deal", "core-verb:Deal"),
             (" 2", "codec:ScalarNumber"),
-            (" damage", "form:deal_damage/deal_damage/2"),
+            (" damage", "form:deal_amount_damage/deal_amount_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
             (" you", "vocab:ObjectPronoun/You"),
             (".", TERMINATOR)
@@ -5738,7 +5765,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         true,
         ["product:OnPhraseValue"],
         [
-            ("Put", "lexeme:VerbLexeme/Put/bare"),
+            ("Put", "core-verb:Put"),
             (" two", "codec:CardinalNumber"),
             (" stun", "vocab:CounterName/Stun"),
             (
@@ -5755,7 +5782,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:FromPhraseValue"],
         [
-            ("Remove", "lexeme:VerbLexeme/Remove/bare"),
+            ("Remove", "core-verb:Remove"),
             (" X", "vocab:Variable/X"),
             (" time", "vocab:CounterName/Time"),
             (
@@ -5763,7 +5790,10 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
                 "form:variable_counter_quantity/variable_counter_quantity/2"
             ),
             (" from", "form:from_phrase/from_phrase/0"),
-            (" this", "form:this_reference/this_reference/0"),
+            (
+                " this",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+            ),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (".", TERMINATOR)
         ]
@@ -5941,7 +5971,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
             ),
             (
                 " block".to_owned(),
-                "lexeme:CoreIntransitiveVerb/Block/bare".to_owned(),
+                "core-verb:Block".to_owned(),
             ),
             (
                 " as".to_owned(),
@@ -5958,7 +5988,10 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
                 " didn't".to_owned(),
                 "vocab:CounterfactualNegativeAuxiliary/Didnt".to_owned(),
             ),
-            (" have".to_owned(), "lexeme:VerbLexeme/Have/bare".to_owned(),),
+            (
+                " have".to_owned(),
+                "lexeme:VerbLexeme/Have/bare".to_owned(),
+            ),
             (
                 " hexproof".to_owned(),
                 "vocab:CounterfactualAbility/Hexproof".to_owned(),
@@ -6024,12 +6057,12 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
             (" you".to_owned(), "vocab:SubjectPronoun/You".to_owned()),
             (
                 " control".to_owned(),
-                "lexeme:CoreTransitiveVerb/Control/bare".to_owned(),
+                "core-verb:Control".to_owned(),
             ),
             (" can".to_owned(), "lexeme:VerbLexeme/Can/bare".to_owned(),),
             (
                 " block".to_owned(),
-                "lexeme:CoreIntransitiveVerb/Block/bare".to_owned(),
+                "core-verb:Block".to_owned(),
             ),
             (
                 " as".to_owned(),
@@ -6247,7 +6280,7 @@ fn cost_position_reuses_the_typed_predicate_algebra() {
                 "form:instead_predicate/instead_predicate/1".to_owned(),
             ),
             (": ".to_owned(), "form:activated/activated/1".to_owned(),),
-            ("Draw".to_owned(), "lexeme:VerbLexeme/Draw/bare".to_owned(),),
+            ("Draw".to_owned(), "core-verb:Draw".to_owned(),),
             (
                 " a".to_owned(),
                 "form:singular_card_quantity/singular_card_quantity/0".to_owned(),
@@ -6407,9 +6440,10 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
     let DeclaredTransitivePassivePredicate::DeclaredTransitivePassivePredicate(
         DeclaredTransitivePassivePredicateValue { head },
     ) = declared;
-    let DeclaredTransitiveParticipleHead::Declaration(_) = head else {
-        panic!("regenerate is not duplicated as a core participle")
-    };
+    assert!(matches!(
+        head.reference(),
+        VerbInventoryRef::Declaration(id) if id.name() == "Regenerate"
+    ));
 
     let VerbPhrase::DealDistributedDamage(distributed) = declarative_atomic(
         &parser,
@@ -6481,7 +6515,7 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
             ("It".to_owned(), "vocab:SubjectPronoun/It".to_owned()),
             (
                 " deals".to_owned(),
-                "lexeme:VerbLexeme/Deal/third_person_singular".to_owned()
+                "core-verb:Deal".to_owned()
             ),
             (" 2".to_owned(), "codec:ScalarNumber".to_owned()),
             (

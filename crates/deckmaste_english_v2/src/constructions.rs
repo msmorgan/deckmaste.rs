@@ -336,59 +336,8 @@ constructions! {
             ThirdPersonSingular = "is",
         },
     }
-    lexeme CoreIntransitiveVerb using EnglishVerb {
-        Attack = "attack",
-        Block = "block",
-        Cycle = "cycle",
-        Die = "die" {
-            ThirdPersonSingular = "dies",
-        },
-        Enter = "enter",
-        Leave = "leave",
-    }
-    lexeme CoreTransitiveVerb using EnglishVerb {
-        Attack = "attack",
-        Block = "block",
-        Choose = "choose",
-        Control = "control",
-        Copy = "copy" {
-            ThirdPersonSingular = "copies",
-        },
-        Draw = "draw",
-        Flip = "flip",
-        Have = "have" {
-            ThirdPersonSingular = "has",
-        },
-        Lose = "lose",
-        Own = "own",
-        Prevent = "prevent",
-        Skip = "skip",
-        Unattach = "unattach" {
-            ThirdPersonSingular = "unattaches",
-        },
-    }
-    lexeme CoreNumerativeVerb using EnglishVerb { Draw = "draw", }
-    lexeme DamageParticipleLexeme using EnglishParticiple {
-        Deal = "deal" { Participle = "dealt", },
-    }
-    lexeme MovementParticipleLexeme using EnglishParticiple {
-        Put = "put" { Participle = "put", },
-    }
-    lexeme OrientationParticipleLexeme using EnglishParticiple { Turn = "turn", }
-    lexeme CoreTransitiveParticipleLexeme using EnglishParticiple {
-        Attack = "attack",
-        Choose = "choose" { Participle = "chosen", },
-        Exile = "exile" { Participle = "exiled", },
-        Prevent = "prevent",
-        Draw = "draw" { Participle = "drawn", },
-    }
-    lexeme CoreObjectOnParticipleLexeme using EnglishParticiple {
-        Put = "put" { Participle = "put", },
-    }
-
     codec IntransitiveVerb {
         generate declaration_verb {
-            closed = CoreIntransitiveVerb;
             position = Verb;
             tail = [];
             feature = Agreement;
@@ -396,7 +345,6 @@ constructions! {
     }
     codec TransitiveVerb {
         generate declaration_verb {
-            closed = CoreTransitiveVerb;
             position = Verb;
             tail = [ObjectNounPhrase];
             feature = Agreement;
@@ -404,7 +352,6 @@ constructions! {
     }
     codec NumerativeVerb {
         generate declaration_verb {
-            closed = CoreNumerativeVerb;
             position = Verb;
             tail = [Amount];
             feature = Agreement;
@@ -500,7 +447,6 @@ constructions! {
     codec DieObjectVerb { generate declaration_verb { position = Verb; tail = [DieObject]; feature = Agreement; } }
     codec DamageParticipleHead {
         generate declaration_verb {
-            closed = DamageParticipleLexeme;
             position = Verb;
             tail = [Amount];
             feature = Participle;
@@ -508,7 +454,6 @@ constructions! {
     }
     codec MovementParticipleHead {
         generate declaration_verb {
-            closed = MovementParticipleLexeme;
             position = Verb;
             tail = [moved: ObjectNounPhrase, "into", destination: ObjectNounPhrase];
             feature = Participle;
@@ -516,7 +461,6 @@ constructions! {
     }
     codec OrientationParticipleHead {
         generate declaration_verb {
-            closed = OrientationParticipleLexeme;
             position = Verb;
             tail = ["face", "up"];
             feature = Participle;
@@ -524,7 +468,6 @@ constructions! {
     }
     codec DeclaredTransitiveParticipleHead {
         generate declaration_verb {
-            closed = CoreTransitiveParticipleLexeme;
             position = Verb;
             tail = [ObjectNounPhrase];
             feature = Participle;
@@ -532,7 +475,6 @@ constructions! {
     }
     codec DeclaredToObjectParticipleHead {
         generate declaration_verb {
-            closed = DamageParticipleLexeme;
             position = Verb;
             tail = [
                 object: ObjectNounPhrase,
@@ -544,7 +486,6 @@ constructions! {
     }
     codec ObjectOnParticipleHead {
         generate declaration_verb {
-            closed = CoreObjectOnParticipleLexeme;
             position = Verb;
             tail = [
                 object: ObjectNounPhrase,

@@ -3,6 +3,7 @@ KeywordAction(
     spelling: "exile",
     grammar: Verb(
         bare: "exile",
+        participle: "exiled",
         valence: Custom(shapes: [
             [ObjectNounPhrase],
             [ObjectNounPhrase, PredicativeComplement],
