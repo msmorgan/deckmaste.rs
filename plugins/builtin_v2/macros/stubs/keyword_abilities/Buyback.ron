@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Buyback",
+    spelling: "buyback",
+    grammar: FixedKeyword(
+        surface: "buyback",
+    ),
+)

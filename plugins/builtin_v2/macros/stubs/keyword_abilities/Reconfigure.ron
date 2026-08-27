@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Reconfigure",
+    spelling: "reconfigure",
+    grammar: FixedKeyword(
+        surface: "reconfigure",
+    ),
+)

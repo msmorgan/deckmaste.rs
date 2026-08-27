@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Impending",
+    spelling: "impending",
+    grammar: FixedKeyword(
+        surface: "impending",
+    ),
+)

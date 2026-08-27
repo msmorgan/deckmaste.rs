@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Soulshift",
+    spelling: "soulshift",
+    grammar: FixedKeyword(
+        surface: "soulshift",
+    ),
+)

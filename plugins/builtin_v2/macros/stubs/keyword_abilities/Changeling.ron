@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Changeling",
+    spelling: "changeling",
+    grammar: FixedKeyword(
+        surface: "changeling",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Firebending",
+    spelling: "firebending",
+    grammar: FixedKeyword(
+        surface: "firebending",
+    ),
+)

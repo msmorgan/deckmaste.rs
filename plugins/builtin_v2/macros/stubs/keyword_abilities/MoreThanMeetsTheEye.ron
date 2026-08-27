@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "MoreThanMeetsTheEye",
+    spelling: "More Than Meets the Eye",
+    grammar: FixedKeyword(
+        surface: "More Than Meets the Eye",
+    ),
+)

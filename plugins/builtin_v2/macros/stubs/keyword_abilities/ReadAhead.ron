@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "ReadAhead",
+    spelling: "read ahead",
+    grammar: FixedKeyword(
+        surface: "read ahead",
+    ),
+)

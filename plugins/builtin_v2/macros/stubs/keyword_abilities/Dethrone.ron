@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Dethrone",
+    spelling: "dethrone",
+    grammar: FixedKeyword(
+        surface: "dethrone",
+    ),
+)

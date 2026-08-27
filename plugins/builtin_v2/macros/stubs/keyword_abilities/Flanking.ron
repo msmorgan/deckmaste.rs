@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Flanking",
+    spelling: "flanking",
+    grammar: FixedKeyword(
+        surface: "flanking",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Cascade",
+    spelling: "cascade",
+    grammar: FixedKeyword(
+        surface: "cascade",
+    ),
+)

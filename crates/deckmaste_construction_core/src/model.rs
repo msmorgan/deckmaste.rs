@@ -355,8 +355,16 @@ pub enum GeneratedCodecRecipe {
     EnglishCardinal(UnsignedNumberSource),
     UnsignedDecimal(UnsignedNumberSource),
     DeclarationNoun(DeclarationNounSource),
+    DeclarationTerm(DeclarationTermSource),
     DeclarationVerb(DeclarationVerbSource),
     Unsupported { name: Ident },
+}
+
+#[derive(Debug)]
+pub struct DeclarationTermSource {
+    pub recipe: Ident,
+    pub position_slots: Vec<GeneratedIdentSlot>,
+    pub kind_slots: Vec<DeclarationVerbKindsSource>,
 }
 
 #[derive(Debug)]

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Solved",
+    spelling: "solved",
+    grammar: FixedKeyword(
+        surface: "solved",
+    ),
+)

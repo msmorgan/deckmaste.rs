@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Flying",
+    spelling: "flying",
+    grammar: FixedKeyword(
+        surface: "flying",
+    ),
+)

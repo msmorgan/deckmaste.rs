@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Enlist",
+    spelling: "enlist",
+    grammar: FixedKeyword(
+        surface: "enlist",
+    ),
+)

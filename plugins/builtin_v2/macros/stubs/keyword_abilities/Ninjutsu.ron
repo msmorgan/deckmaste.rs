@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Ninjutsu",
+    spelling: "ninjutsu",
+    grammar: FixedKeyword(
+        surface: "ninjutsu",
+    ),
+)

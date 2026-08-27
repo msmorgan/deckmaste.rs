@@ -670,6 +670,27 @@ fn lower_terminal_value(
                 expression: quote! { #binding.clone() },
             })
         }
+        AtomTerminal::DeclarationTerm {
+            terminal_index,
+            plan,
+        } => {
+            let term = plan.codec_ident();
+            let binding = binders.allocate(preferred);
+            Ok(LoweredValue {
+                pattern: quote! {
+                    BuildValue::Leaf(Leaf::DeclarationTerm {
+                        terminal_index: #terminal_index,
+                        id: #binding,
+                        onset: _,
+                        possessive_ending: _,
+                    })
+                },
+                expression: quote! {
+                    #term::from_reading(#binding.clone())
+                        .expect("scanned declaration term preserves its codec kind")
+                },
+            })
+        }
         AtomTerminal::DeclarationVerb { plan, .. } => {
             let leaf = plan.codec_ident();
             let binding = binders.allocate(preferred);
@@ -1733,6 +1754,43 @@ fn lower_terminal_role(
             lowering
                 .field_values
                 .insert(identifier_key(&role), quote! { #value.clone() });
+            return Ok(());
+        }
+        AtomTerminal::DeclarationTerm {
+            terminal_index,
+            plan,
+        } => {
+            let term = plan.codec_ident();
+            let value = lowering.binders.allocate(&identifier_key(&role));
+            let onset = lowering
+                .binders
+                .allocate(&format!("{}_onset", identifier_key(&role)));
+            let possessive_ending = lowering
+                .binders
+                .allocate(&format!("{}_possessive_ending", identifier_key(&role)));
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::Onset),
+                LocalFeatureValue::Bound(onset.clone()),
+            );
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::PossessiveEnding),
+                LocalFeatureValue::Bound(possessive_ending.clone()),
+            );
+            lowering.patterns.push(quote! {
+                BuildValue::Leaf(Leaf::DeclarationTerm {
+                    terminal_index: #terminal_index,
+                    id: #value,
+                    onset: #onset,
+                    possessive_ending: #possessive_ending,
+                })
+            });
+            lowering.field_values.insert(
+                identifier_key(&role),
+                quote! {
+                    #term::from_reading(#value.clone())
+                        .expect("scanned declaration term preserves its codec kind")
+                },
+            );
             return Ok(());
         }
         AtomTerminal::DeclarationVerb { plan, .. } => {

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Forecast",
+    spelling: "forecast",
+    grammar: FixedKeyword(
+        surface: "forecast",
+    ),
+)

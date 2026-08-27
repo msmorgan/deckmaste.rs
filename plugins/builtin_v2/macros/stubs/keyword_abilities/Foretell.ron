@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Foretell",
+    spelling: "foretell",
+    grammar: FixedKeyword(
+        surface: "foretell",
+    ),
+)

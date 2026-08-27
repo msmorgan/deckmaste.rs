@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Hexproof",
+    spelling: "hexproof",
+    grammar: FixedKeyword(
+        surface: "hexproof",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "UmbraArmor",
+    spelling: "umbra armor",
+    grammar: FixedKeyword(
+        surface: "umbra armor",
+    ),
+)

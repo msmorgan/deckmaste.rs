@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "FirstStrike",
+    spelling: "first strike",
+    grammar: FixedKeyword(
+        surface: "first strike",
+    ),
+)

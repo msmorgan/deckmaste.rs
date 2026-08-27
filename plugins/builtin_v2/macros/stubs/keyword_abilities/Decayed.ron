@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Decayed",
+    spelling: "decayed",
+    grammar: FixedKeyword(
+        surface: "decayed",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Offering",
+    spelling: "offering",
+    grammar: FixedKeyword(
+        surface: "offering",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "ForMirrodin",
+    spelling: "for Mirrodin!",
+    grammar: FixedKeyword(
+        surface: "for Mirrodin!",
+    ),
+)

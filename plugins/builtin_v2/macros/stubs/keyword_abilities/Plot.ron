@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Plot",
+    spelling: "plot",
+    grammar: FixedKeyword(
+        surface: "plot",
+    ),
+)

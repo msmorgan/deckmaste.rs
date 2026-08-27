@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "AuraSwap",
+    spelling: "aura swap",
+    grammar: FixedKeyword(
+        surface: "aura swap",
+    ),
+)

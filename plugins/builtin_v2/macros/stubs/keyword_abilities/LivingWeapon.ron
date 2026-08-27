@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "LivingWeapon",
+    spelling: "living weapon",
+    grammar: FixedKeyword(
+        surface: "living weapon",
+    ),
+)

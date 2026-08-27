@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Rebound",
+    spelling: "rebound",
+    grammar: FixedKeyword(
+        surface: "rebound",
+    ),
+)

@@ -2127,6 +2127,9 @@ fn owner_template(plan: &SemanticPlan, terminal: &str) -> syn::Result<TokenStrea
             debug_assert_eq!(plan.position(), ::macro_ron::v2::GrammarPosition::Noun);
             Ok(quote! { LexicalOwnerTemplate::DeclarationNoun(#terminal_index) })
         }
+        AtomTerminal::DeclarationTerm { terminal_index, .. } => {
+            Ok(quote! { LexicalOwnerTemplate::DeclarationTerm(#terminal_index) })
+        }
         AtomTerminal::DeclarationVerb { terminal_index, .. } => {
             Ok(quote! { LexicalOwnerTemplate::DeclarationVerb(#terminal_index) })
         }
@@ -2167,6 +2170,9 @@ fn lexical_variant(plan: &SemanticPlan, name: &str) -> syn::Result<TokenStream> 
         AtomTerminal::DeclarationNoun { .. } => Err(internal(
             "declaration noun lexical matcher requires its sealed index",
         )),
+        AtomTerminal::DeclarationTerm { terminal_index, .. } => {
+            Ok(quote! { Lexical::DeclarationTerm(#terminal_index) })
+        }
         AtomTerminal::DeclarationVerb { .. } => Err(internal(
             "declaration verb lexical matcher requires its sealed index and Agreement",
         )),

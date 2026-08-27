@@ -2265,6 +2265,9 @@ fn validate_generated_codecs(raw: &Declarations) -> syn::Result<()> {
             crate::model::GeneratedCodecRecipe::DeclarationNoun(source) => {
                 validate_declaration_noun_source(raw, source, &mut errors);
             }
+            crate::model::GeneratedCodecRecipe::DeclarationTerm(source) => {
+                validate_declaration_term_source(source, &mut errors);
+            }
             crate::model::GeneratedCodecRecipe::DeclarationVerb(source) => {
                 validate_declaration_verb_source(raw, source, &mut errors);
             }
@@ -2331,8 +2334,166 @@ fn finish_generated_codec_validation(
     mut errors: Option<syn::Error>,
 ) -> syn::Result<()> {
     validate_declaration_noun_domains_are_pairwise_intentional(raw, &mut errors);
+    validate_declaration_term_domains_are_pairwise_intentional(raw, &mut errors);
     validate_declaration_verb_domains_are_pairwise_intentional(raw, &mut errors);
     finish(errors)
+}
+
+fn validate_declaration_term_domains_are_pairwise_intentional(
+    raw: &Declarations,
+    errors: &mut Option<syn::Error>,
+) {
+    let terms = raw
+        .declarations
+        .iter()
+        .filter_map(|declaration| {
+            let Declaration::Codec(binding) = declaration else {
+                return None;
+            };
+            let Some(crate::model::GeneratedCodecRecipe::DeclarationTerm(source)) =
+                &binding.generated
+            else {
+                return None;
+            };
+            let position = source.position_slots.first()?;
+            let kinds = source.kind_slots.first()?;
+            Some((
+                binding,
+                identifier_key(&position.value),
+                kinds
+                    .kinds
+                    .iter()
+                    .map(identifier_key)
+                    .collect::<BTreeSet<_>>(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    for (index, (left, left_position, left_kinds)) in terms.iter().enumerate() {
+        for (right, right_position, right_kinds) in &terms[index + 1..] {
+            if left_position != right_position {
+                continue;
+            }
+            if let Some(kind) = left_kinds.intersection(right_kinds).next() {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        right.name.span(),
+                        format!(
+                            "declaration_term domains `{}` and `{}` overlap at `{kind}/{left_position}`",
+                            left.name, right.name
+                        ),
+                    ),
+                );
+            }
+        }
+    }
+}
+
+fn validate_declaration_term_source(
+    source: &crate::model::DeclarationTermSource,
+    errors: &mut Option<syn::Error>,
+) {
+    let position = validate_single_ident_slot(
+        &source.position_slots,
+        &source.recipe,
+        "position",
+        "declaration_term",
+        errors,
+    );
+    let kinds = match source.kind_slots.as_slice() {
+        [] => {
+            combine(
+                errors,
+                syn::Error::new(
+                    source.recipe.span(),
+                    "declaration_term requires one `kinds` field",
+                ),
+            );
+            None
+        }
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate declaration_term field `kinds`",
+                    ),
+                );
+            }
+            Some(slot)
+        }
+    };
+
+    if let Some(position) = position
+        && !matches!(
+            identifier_key(position).as_str(),
+            "FixedTerm" | "FixedKeyword"
+        )
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                position.span(),
+                "declaration_term position must be `FixedTerm` or `FixedKeyword`",
+            ),
+        );
+    }
+
+    let Some(kinds) = kinds else { return };
+    if kinds.kinds.is_empty() {
+        combine(
+            errors,
+            syn::Error::new(
+                kinds.slot.span(),
+                "declaration_term kind set cannot be empty",
+            ),
+        );
+    }
+    let mut seen = HashSet::new();
+    for kind in &kinds.kinds {
+        let name = identifier_key(kind);
+        if !matches!(
+            name.as_str(),
+            "KeywordAbility" | "CounterKind" | "Designation"
+        ) {
+            combine(
+                errors,
+                syn::Error::new(
+                    kind.span(),
+                    "declaration_term kinds must be `KeywordAbility`, `CounterKind`, or `Designation`",
+                ),
+            );
+            continue;
+        }
+        if !seen.insert(name.clone()) {
+            combine(
+                errors,
+                syn::Error::new(
+                    kind.span(),
+                    format!("duplicate declaration_term kind `{name}`"),
+                ),
+            );
+        }
+        if let Some(position) = position {
+            let position = identifier_key(position);
+            let compatible = matches!(
+                (position.as_str(), name.as_str()),
+                ("FixedKeyword", "KeywordAbility") | ("FixedTerm", "CounterKind" | "Designation")
+            );
+            if !compatible {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        kind.span(),
+                        format!(
+                            "declaration kind `{name}` is not compatible with declaration_term position `{position}`"
+                        ),
+                    ),
+                );
+            }
+        }
+    }
 }
 
 fn validate_declaration_verb_domains_are_pairwise_intentional(
@@ -4398,7 +4559,8 @@ fn generated_name_inventory(
                         Some("declaration_verb")
                     }
                     Some(
-                        crate::model::GeneratedCodecRecipe::SignedDecimal(_)
+                        crate::model::GeneratedCodecRecipe::DeclarationTerm(_)
+                        | crate::model::GeneratedCodecRecipe::SignedDecimal(_)
                         | crate::model::GeneratedCodecRecipe::EnglishCardinal(_)
                         | crate::model::GeneratedCodecRecipe::UnsignedDecimal(_)
                         | crate::model::GeneratedCodecRecipe::Unsupported { .. },
@@ -10450,6 +10612,61 @@ pub(crate) mod tests {
         })
     }
 
+    fn declaration_term_error(body: &proc_macro2::TokenStream) -> String {
+        let raw = crate::parse_declarations(quote! {
+            codec Term {
+                generate declaration_term { #body }
+            }
+        });
+        match raw.and_then(|raw| super::validate_generated_codecs(&raw)) {
+            Ok(()) => panic!("fixture must be invalid"),
+            Err(error) => error.into_compile_error().to_string(),
+        }
+    }
+
+    #[test]
+    fn declaration_term_recipe_is_featureless_and_category_safe() {
+        let raw = crate::parse_declarations(quote! {
+            codec KeywordAbility {
+                generate declaration_term {
+                    position = FixedKeyword;
+                    kinds = [KeywordAbility];
+                }
+            }
+            codec FixedTerm {
+                generate declaration_term {
+                    position = FixedTerm;
+                    kinds = [CounterKind, Designation];
+                }
+            }
+        })
+        .expect("the exact declaration_term syntax parses");
+        super::validate_generated_codecs(&raw)
+            .expect("the compatible declaration kinds and positions validate");
+
+        assert!(
+            declaration_term_error(&quote! {
+                position = FixedTerm;
+                kinds = [KeywordAbility];
+            })
+            .contains("declaration kind `KeywordAbility` is not compatible")
+        );
+        assert!(
+            declaration_term_error(&quote! {
+                position = FixedKeyword;
+                kinds = [CounterKind];
+            })
+            .contains("declaration kind `CounterKind` is not compatible")
+        );
+        assert!(
+            declaration_term_error(&quote! {
+                position = Noun;
+                kinds = [Designation];
+            })
+            .contains("declaration_term position must be `FixedTerm` or `FixedKeyword`")
+        );
+    }
+
     fn declaration_verb_source_error(body: &proc_macro2::TokenStream) -> String {
         let raw = crate::parse_declarations(quote! {
             morphology EnglishVerb { feature = Agreement; recipe = english_verb; }
@@ -15701,6 +15918,8 @@ pub(crate) mod tests {
                     crate::semantic::TerminalPlan::UnsignedNumber(value) =>
                         (value.source_index(), "codec", value.codec_name().to_owned(),),
                     crate::semantic::TerminalPlan::DeclarationNoun(value) =>
+                        (value.source_index(), "codec", value.codec_name().to_owned(),),
+                    crate::semantic::TerminalPlan::DeclarationTerm(value) =>
                         (value.source_index(), "codec", value.codec_name().to_owned(),),
                 })
                 .collect::<Vec<_>>(),

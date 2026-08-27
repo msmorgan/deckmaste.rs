@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Persist",
+    spelling: "persist",
+    grammar: FixedKeyword(
+        surface: "persist",
+    ),
+)

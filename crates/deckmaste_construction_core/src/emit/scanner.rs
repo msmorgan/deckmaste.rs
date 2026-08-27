@@ -232,6 +232,9 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let declaration_noun_arms = declaration_noun_arms(plan);
     let unknown_declaration_noun_arm = (!declaration_noun_arms.is_empty())
         .then(|| quote! { Lexical::DeclarationNoun(_, _) => Vec::new(), });
+    let declaration_term_arms = declaration_term_arms(plan);
+    let unknown_declaration_term_arm = (!declaration_term_arms.is_empty())
+        .then(|| quote! { Lexical::DeclarationTerm(_) => Vec::new(), });
     let declaration_verb_arms = declaration_verb_arms(plan);
     let unknown_declaration_verb_arm = plan
         .runtime_declaration_verbs()
@@ -311,6 +314,8 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 #verb_lexeme_arm
                 #(#declaration_noun_arms,)*
                 #unknown_declaration_noun_arm
+                #(#declaration_term_arms,)*
+                #unknown_declaration_term_arm
                 #(#declaration_verb_arms,)*
                 #unknown_declaration_verb_arm
                 #unknown_declaration_participle_arm
@@ -543,6 +548,38 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             }
         }
     }).collect()
+}
+
+fn declaration_term_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
+    plan.runtime_declaration_terms()
+        .map(|(terminal_index, codec)| {
+            let position = crate::emit::grammar_position(codec.position());
+            let kinds = codec
+                .kinds()
+                .iter()
+                .map(|kind| crate::emit::declaration_kind(*kind));
+            quote! {
+                Lexical::DeclarationTerm(#terminal_index) => input
+                    .declaration_term_readings(
+                        #position,
+                        &[#(#kinds),*],
+                        terminal.right_boundary,
+                    )
+                    .into_iter()
+                    .map(|(end, id, onset)| LexicalMatch {
+                        end,
+                        value: Leaf::DeclarationTerm {
+                            terminal_index: #terminal_index,
+                            id,
+                            onset,
+                            possessive_ending: possessive_ending_at(input.text, end),
+                        },
+                        owner: None,
+                    })
+                    .collect()
+            }
+        })
+        .collect()
 }
 
 #[expect(

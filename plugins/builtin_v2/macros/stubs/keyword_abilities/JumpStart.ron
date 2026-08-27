@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "JumpStart",
+    spelling: "jump-start",
+    grammar: FixedKeyword(
+        surface: "jump-start",
+    ),
+)

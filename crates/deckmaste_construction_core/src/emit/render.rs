@@ -2488,6 +2488,14 @@ fn render_atom_statement(
                     locals,
                     &method_writer,
                 )
+            } else if validated.runtime_declaration_term_for(terminal).is_some() {
+                Ok(quote! {
+                    #method_writer.word(
+                        environment
+                            .surface((#value).id(), ::macro_ron::v2::SurfaceFeature::Fixed)
+                            .expect("stored declaration term remains in its parser environment"),
+                    );
+                })
             } else if let Some(vocab) = find_vocab(validated, terminal) {
                 let function = ident(&format!("render_{}", snake_case(vocab.name())));
                 let value = copy_value(construction, role, value)?;
@@ -2795,6 +2803,14 @@ fn render_owner(
                     &value,
                     locals,
                 );
+            }
+            if validated.runtime_declaration_term_for(terminal).is_some() {
+                return Ok(quote! {
+                    LexicalOwner::declaration_owner(
+                        (#value).id().clone(),
+                        ::macro_ron::v2::SurfaceFeature::Fixed,
+                    )
+                });
             }
             if let Some(vocab) = find_vocab(validated, terminal) {
                 let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
@@ -4723,7 +4739,8 @@ fn find_lexeme<'a>(validated: &'a SemanticPlan, name: &str) -> Option<&'a Lexeme
             | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
             | TerminalPlan::UnsignedNumber(_)
-            | TerminalPlan::DeclarationNoun(_) => None,
+            | TerminalPlan::DeclarationNoun(_)
+            | TerminalPlan::DeclarationTerm(_) => None,
         })
 }
 

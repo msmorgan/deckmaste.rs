@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Escape",
+    spelling: "escape",
+    grammar: FixedKeyword(
+        surface: "escape",
+    ),
+)

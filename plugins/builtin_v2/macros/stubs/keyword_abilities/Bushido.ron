@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Bushido",
+    spelling: "bushido",
+    grammar: FixedKeyword(
+        surface: "bushido",
+    ),
+)

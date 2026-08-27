@@ -610,6 +610,24 @@ constructions! {
             feature = Number;
         }
     }
+    codec KeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+        }
+    }
+    codec DeclaredCounterKind {
+        generate declaration_term {
+            position = FixedTerm;
+            kinds = [CounterKind];
+        }
+    }
+    codec Designation {
+        generate declaration_term {
+            position = FixedTerm;
+            kinds = [Designation];
+        }
+    }
     identity SelfReferenceSpelling {
         generate context {
             Full => card_name,

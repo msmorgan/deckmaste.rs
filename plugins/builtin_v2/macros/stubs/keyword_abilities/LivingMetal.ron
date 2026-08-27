@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "LivingMetal",
+    spelling: "living metal",
+    grammar: FixedKeyword(
+        surface: "living metal",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Splice",
+    spelling: "splice",
+    grammar: FixedKeyword(
+        surface: "splice",
+    ),
+)

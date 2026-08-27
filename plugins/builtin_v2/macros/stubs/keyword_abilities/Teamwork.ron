@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Teamwork",
+    spelling: "teamwork",
+    grammar: FixedKeyword(
+        surface: "teamwork",
+    ),
+)

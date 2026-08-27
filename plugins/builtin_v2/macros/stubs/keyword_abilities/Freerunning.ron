@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Freerunning",
+    spelling: "freerunning",
+    grammar: FixedKeyword(
+        surface: "freerunning",
+    ),
+)

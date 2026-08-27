@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "WebSlinging",
+    spelling: "web-slinging",
+    grammar: FixedKeyword(
+        surface: "web-slinging",
+    ),
+)

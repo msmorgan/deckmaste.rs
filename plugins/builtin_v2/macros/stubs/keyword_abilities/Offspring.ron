@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Offspring",
+    spelling: "offspring",
+    grammar: FixedKeyword(
+        surface: "offspring",
+    ),
+)

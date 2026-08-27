@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Myriad",
+    spelling: "myriad",
+    grammar: FixedKeyword(
+        surface: "myriad",
+    ),
+)

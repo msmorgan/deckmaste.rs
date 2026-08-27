@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Bloodthirst",
+    spelling: "bloodthirst",
+    grammar: FixedKeyword(
+        surface: "bloodthirst",
+    ),
+)

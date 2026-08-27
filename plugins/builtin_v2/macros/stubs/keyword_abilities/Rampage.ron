@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Rampage",
+    spelling: "rampage",
+    grammar: FixedKeyword(
+        surface: "rampage",
+    ),
+)

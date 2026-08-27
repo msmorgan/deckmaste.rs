@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "JobSelect",
+    spelling: "job select",
+    grammar: FixedKeyword(
+        surface: "job select",
+    ),
+)

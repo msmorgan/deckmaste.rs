@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Fuse",
+    spelling: "fuse",
+    grammar: FixedKeyword(
+        surface: "fuse",
+    ),
+)

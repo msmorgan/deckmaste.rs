@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Retrace",
+    spelling: "retrace",
+    grammar: FixedKeyword(
+        surface: "retrace",
+    ),
+)

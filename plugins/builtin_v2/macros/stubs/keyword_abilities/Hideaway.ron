@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Hideaway",
+    spelling: "hideaway",
+    grammar: FixedKeyword(
+        surface: "hideaway",
+    ),
+)

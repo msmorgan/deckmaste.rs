@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Eternalize",
+    spelling: "eternalize",
+    grammar: FixedKeyword(
+        surface: "eternalize",
+    ),
+)

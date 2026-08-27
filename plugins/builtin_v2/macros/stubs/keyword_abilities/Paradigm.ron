@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Paradigm",
+    spelling: "paradigm",
+    grammar: FixedKeyword(
+        surface: "paradigm",
+    ),
+)

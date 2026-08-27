@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Sunburst",
+    spelling: "sunburst",
+    grammar: FixedKeyword(
+        surface: "sunburst",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Entwine",
+    spelling: "entwine",
+    grammar: FixedKeyword(
+        surface: "entwine",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Daybound",
+    spelling: "daybound",
+    grammar: FixedKeyword(
+        surface: "daybound",
+    ),
+)

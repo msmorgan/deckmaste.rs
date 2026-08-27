@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Annihilator",
+    spelling: "annihilator",
+    grammar: FixedKeyword(
+        surface: "annihilator",
+    ),
+)

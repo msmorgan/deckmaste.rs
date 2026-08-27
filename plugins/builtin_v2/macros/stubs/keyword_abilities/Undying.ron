@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Undying",
+    spelling: "undying",
+    grammar: FixedKeyword(
+        surface: "undying",
+    ),
+)

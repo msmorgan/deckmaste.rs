@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Soulbond",
+    spelling: "soulbond",
+    grammar: FixedKeyword(
+        surface: "soulbond",
+    ),
+)

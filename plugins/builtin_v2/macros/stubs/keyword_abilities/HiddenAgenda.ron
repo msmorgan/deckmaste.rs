@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "HiddenAgenda",
+    spelling: "hidden agenda",
+    grammar: FixedKeyword(
+        surface: "hidden agenda",
+    ),
+)

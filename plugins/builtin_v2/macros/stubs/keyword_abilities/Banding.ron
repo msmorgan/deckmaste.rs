@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Banding",
+    spelling: "banding",
+    grammar: FixedKeyword(
+        surface: "banding",
+    ),
+)

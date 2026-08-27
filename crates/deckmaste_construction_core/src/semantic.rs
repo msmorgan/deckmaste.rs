@@ -707,6 +707,7 @@ pub(crate) enum TerminalPlan {
     SignedDecimal(SignedDecimalPlan),
     UnsignedNumber(UnsignedNumberPlan),
     DeclarationNoun(DeclarationNounPlan),
+    DeclarationTerm(DeclarationTermPlan),
 }
 
 impl TerminalPlan {
@@ -718,6 +719,7 @@ impl TerminalPlan {
                 | Self::ContextIdentity(_)
                 | Self::CatalogIdentity(_)
                 | Self::DeclarationNoun(_)
+                | Self::DeclarationTerm(_)
                 | Self::Binding(BindingPlan {
                     declaration_verb: Some(_),
                     ..
@@ -733,7 +735,8 @@ impl TerminalPlan {
             Self::Vocab(_)
             | Self::ContextIdentity(_)
             | Self::CatalogIdentity(_)
-            | Self::DeclarationNoun(_) => true,
+            | Self::DeclarationNoun(_)
+            | Self::DeclarationTerm(_) => true,
             Self::Binding(_) | Self::SignedDecimal(_) | Self::UnsignedNumber(_) => false,
         }
     }
@@ -756,6 +759,15 @@ pub(crate) struct DeclarationNounPlan {
     position: macro_ron::v2::GrammarPosition,
     kinds: Vec<DeclarationKindFamily>,
     feature_axis: Feature,
+}
+
+#[derive(Debug)]
+pub(crate) struct DeclarationTermPlan {
+    source_index: usize,
+    origin: DeclarationKey,
+    codec_ident: syn::Ident,
+    position: macro_ron::v2::GrammarPosition,
+    kinds: Vec<macro_ron::v2::DeclarationKind>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -904,6 +916,7 @@ struct RuntimeEmissionPlan {
     signed_decimal_index: Option<usize>,
     unsigned_number_indices: Vec<usize>,
     declaration_noun_indices: Vec<usize>,
+    declaration_term_indices: Vec<usize>,
     declaration_verb_indices: Vec<usize>,
     punctuation_literals: Vec<String>,
     scanner_origin_indices: Vec<usize>,
@@ -927,6 +940,7 @@ impl RuntimeEmissionPlan {
             signed_decimal_index: None,
             unsigned_number_indices: Vec::new(),
             declaration_noun_indices: Vec::new(),
+            declaration_term_indices: Vec::new(),
             declaration_verb_indices: Vec::new(),
             punctuation_literals: Vec::new(),
             scanner_origin_indices: Vec::new(),
@@ -997,6 +1011,9 @@ impl RuntimeEmissionPlan {
                 TerminalPlan::DeclarationNoun(_) => {
                     plan.declaration_noun_indices.push(index);
                 }
+                TerminalPlan::DeclarationTerm(_) => {
+                    plan.declaration_term_indices.push(index);
+                }
             }
         }
         plan.punctuation_literals = roots
@@ -1048,6 +1065,7 @@ impl RuntimeEmissionPlan {
             .chain(plan.signed_decimal_index.iter())
             .chain(&plan.unsigned_number_indices)
             .chain(&plan.declaration_noun_indices)
+            .chain(&plan.declaration_term_indices)
             .chain(&plan.declaration_verb_indices)
             .map(|&index| terminals[index].source_index())
             .collect::<BTreeSet<_>>();
@@ -1088,6 +1106,10 @@ pub(crate) enum AtomTerminal<'a> {
     DeclarationNoun {
         terminal_index: usize,
         plan: &'a DeclarationNounPlan,
+    },
+    DeclarationTerm {
+        terminal_index: usize,
+        plan: &'a DeclarationTermPlan,
     },
     DeclarationVerb {
         terminal_index: usize,
@@ -1354,6 +1376,12 @@ fn seal_terminals(
                     }
                     crate::model::GeneratedCodecRecipe::DeclarationNoun(_) => {
                         TerminalPlan::DeclarationNoun(DeclarationNounPlan::from_source(
+                            source_index,
+                            binding,
+                        ))
+                    }
+                    crate::model::GeneratedCodecRecipe::DeclarationTerm(_) => {
+                        TerminalPlan::DeclarationTerm(DeclarationTermPlan::from_source(
                             source_index,
                             binding,
                         ))
@@ -1683,6 +1711,7 @@ impl SemanticPlan {
     pub(crate) fn needs_parser_environment(&self) -> bool {
         self.has_open_declarations()
             || !self.runtime.declaration_noun_indices.is_empty()
+            || !self.runtime.declaration_term_indices.is_empty()
             || !self.runtime.declaration_verb_indices.is_empty()
             || !self.runtime.catalog_identity_indices.is_empty()
     }
@@ -1722,7 +1751,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => {
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => {
                     unreachable!("sealed runtime vocab index changed terminal kind")
                 }
             })
@@ -1780,6 +1810,25 @@ impl SemanticPlan {
         value_type: &str,
     ) -> Option<(usize, &DeclarationNounPlan)> {
         self.runtime_declaration_nouns()
+            .find(|(_, codec)| codec.codec_name() == value_type)
+    }
+
+    pub(crate) fn runtime_declaration_terms(
+        &self,
+    ) -> impl Iterator<Item = (usize, &DeclarationTermPlan)> {
+        self.runtime.declaration_term_indices.iter().map(|&index| {
+            let TerminalPlan::DeclarationTerm(codec) = &self.terminals[index] else {
+                unreachable!("sealed runtime declaration-term index changed terminal kind")
+            };
+            (index, codec)
+        })
+    }
+
+    pub(crate) fn runtime_declaration_term_for(
+        &self,
+        value_type: &str,
+    ) -> Option<(usize, &DeclarationTermPlan)> {
+        self.runtime_declaration_terms()
             .find(|(_, codec)| codec.codec_name() == value_type)
     }
 
@@ -2222,7 +2271,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test vocabulary is present");
         let word = vocab
@@ -2247,7 +2297,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test vocabulary is present");
         vocab.name = syn::Ident::new(new, vocab.name.span());
@@ -2268,7 +2319,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test binding is present");
         binding.name = syn::Ident::new(new, binding.name.span());
@@ -2294,7 +2346,8 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test signed_decimal codec is present");
         codec.sign_type = syn::Ident::new(sign_type, codec.sign_type.span());
@@ -2315,7 +2368,8 @@ impl SemanticPlan {
                 | TerminalPlan::ContextIdentity(_)
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test signed_decimal codec is present");
         let old = codec.codec_name.clone();
@@ -2369,7 +2423,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .collect()
     }
@@ -2394,7 +2449,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test context identity is present");
         identity.name = new.to_owned();
@@ -2452,7 +2508,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test context identity is present");
         identity.arms[0].accessor =
@@ -2475,7 +2532,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test binding is present");
         let build = binding
@@ -2499,7 +2557,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test binding is present");
         binding.value_type_name = syn::Ident::new(value, binding.value_type_name.span());
@@ -2519,7 +2578,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => None,
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => None,
             })
             .expect("test binding is present");
         binding.origin = DeclarationKey::new(DeclarationKind::Identity, binding.name());
@@ -2592,6 +2652,12 @@ impl SemanticPlan {
                         plan: row,
                     });
                 }
+                TerminalPlan::DeclarationTerm(row) if row.codec_name() == name => {
+                    return Ok(AtomTerminal::DeclarationTerm {
+                        terminal_index,
+                        plan: row,
+                    });
+                }
                 TerminalPlan::Vocab(_)
                 | TerminalPlan::Lexeme(_)
                 | TerminalPlan::Binding(_)
@@ -2599,7 +2665,8 @@ impl SemanticPlan {
                 | TerminalPlan::CatalogIdentity(_)
                 | TerminalPlan::SignedDecimal(_)
                 | TerminalPlan::UnsignedNumber(_)
-                | TerminalPlan::DeclarationNoun(_) => {}
+                | TerminalPlan::DeclarationNoun(_)
+                | TerminalPlan::DeclarationTerm(_) => {}
             }
         }
         Err(sealed_error("resolved atom terminal"))
@@ -4337,7 +4404,8 @@ fn accessor_mode(
             | TerminalPlan::CatalogIdentity(_)
             | TerminalPlan::SignedDecimal(_)
             | TerminalPlan::UnsignedNumber(_)
-            | TerminalPlan::DeclarationNoun(_) => AccessorMode::Borrow,
+            | TerminalPlan::DeclarationNoun(_)
+            | TerminalPlan::DeclarationTerm(_) => AccessorMode::Borrow,
         })
         .ok_or_else(|| sealed_error("invariant field terminal"))
 }
@@ -4924,6 +4992,7 @@ impl TerminalPlan {
             Self::SignedDecimal(plan) => plan.source_index(),
             Self::UnsignedNumber(plan) => plan.source_index(),
             Self::DeclarationNoun(plan) => plan.source_index(),
+            Self::DeclarationTerm(plan) => plan.source_index(),
         }
     }
 
@@ -4937,6 +5006,7 @@ impl TerminalPlan {
             Self::SignedDecimal(plan) => plan.codec_name(),
             Self::UnsignedNumber(plan) => plan.codec_name(),
             Self::DeclarationNoun(plan) => plan.codec_name(),
+            Self::DeclarationTerm(plan) => plan.codec_name(),
         }
     }
 
@@ -4955,7 +5025,8 @@ impl TerminalPlan {
             | Self::CatalogIdentity(_)
             | Self::SignedDecimal(_)
             | Self::UnsignedNumber(_)
-            | Self::DeclarationNoun(_) => Vec::new(),
+            | Self::DeclarationNoun(_)
+            | Self::DeclarationTerm(_) => Vec::new(),
         }
     }
 }
@@ -4972,6 +5043,7 @@ impl TerminalPlan {
             Self::SignedDecimal(plan) => plan.codec_name(),
             Self::UnsignedNumber(plan) => plan.codec_name(),
             Self::DeclarationNoun(plan) => plan.codec_name(),
+            Self::DeclarationTerm(plan) => plan.codec_name(),
         }
     }
 
@@ -4989,7 +5061,8 @@ impl TerminalPlan {
             Self::Binding(_)
             | Self::SignedDecimal(_)
             | Self::UnsignedNumber(_)
-            | Self::DeclarationNoun(_) => "codec",
+            | Self::DeclarationNoun(_)
+            | Self::DeclarationTerm(_) => "codec",
         };
         let mut capabilities = Vec::new();
         if self.supports_lex_atom() {
@@ -5591,6 +5664,7 @@ impl UnsignedNumberPlan {
             }
             crate::model::GeneratedCodecRecipe::SignedDecimal(_)
             | crate::model::GeneratedCodecRecipe::DeclarationNoun(_)
+            | crate::model::GeneratedCodecRecipe::DeclarationTerm(_)
             | crate::model::GeneratedCodecRecipe::DeclarationVerb(_)
             | crate::model::GeneratedCodecRecipe::Unsupported { .. } => {
                 unreachable!("validated unsigned numeral has its closed recipe")
@@ -5722,6 +5796,72 @@ impl DeclarationNounPlan {
 
     pub(crate) fn feature_axis(&self) -> Feature {
         self.feature_axis
+    }
+}
+
+impl DeclarationTermPlan {
+    fn from_source(source_index: usize, source: &crate::TerminalBinding) -> Self {
+        let Some(crate::model::GeneratedCodecRecipe::DeclarationTerm(recipe)) = &source.generated
+        else {
+            unreachable!("validated generated codec has the declaration_term recipe")
+        };
+        let position = match identifier_key(
+            &recipe
+                .position_slots
+                .first()
+                .expect("validated declaration_term has one position")
+                .value,
+        )
+        .as_str()
+        {
+            "FixedTerm" => macro_ron::v2::GrammarPosition::FixedTerm,
+            "FixedKeyword" => macro_ron::v2::GrammarPosition::FixedKeyword,
+            _ => unreachable!("validated declaration_term position is closed"),
+        };
+        let kinds = recipe
+            .kind_slots
+            .first()
+            .expect("validated declaration_term has one kind set")
+            .kinds
+            .iter()
+            .map(|kind| match identifier_key(kind).as_str() {
+                "KeywordAbility" => macro_ron::v2::DeclarationKind::KeywordAbility,
+                "CounterKind" => macro_ron::v2::DeclarationKind::CounterKind,
+                "Designation" => macro_ron::v2::DeclarationKind::Designation,
+                _ => unreachable!("validated declaration_term kind is closed"),
+            })
+            .collect();
+        Self {
+            source_index,
+            origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
+            codec_ident: source.name.clone(),
+            position,
+            kinds,
+        }
+    }
+
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
+    }
+
+    pub(crate) fn origin(&self) -> &DeclarationKey {
+        &self.origin
+    }
+
+    pub(crate) fn codec_name(&self) -> &str {
+        self.origin.name()
+    }
+
+    pub(crate) fn codec_ident(&self) -> &syn::Ident {
+        &self.codec_ident
+    }
+
+    pub(crate) fn position(&self) -> macro_ron::v2::GrammarPosition {
+        self.position
+    }
+
+    pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] {
+        &self.kinds
     }
 }
 

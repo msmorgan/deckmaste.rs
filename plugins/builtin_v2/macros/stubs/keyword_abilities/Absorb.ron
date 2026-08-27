@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Absorb",
+    spelling: "absorb",
+    grammar: FixedKeyword(
+        surface: "absorb",
+    ),
+)

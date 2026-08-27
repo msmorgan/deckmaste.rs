@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Trample",
+    spelling: "trample",
+    grammar: FixedKeyword(
+        surface: "trample",
+    ),
+)

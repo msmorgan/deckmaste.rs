@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "SpaceSculptor",
+    spelling: "space sculptor",
+    grammar: FixedKeyword(
+        surface: "space sculptor",
+    ),
+)

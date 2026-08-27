@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Devoid",
+    spelling: "devoid",
+    grammar: FixedKeyword(
+        surface: "devoid",
+    ),
+)

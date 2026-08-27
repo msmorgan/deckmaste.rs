@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Morph",
+    spelling: "morph",
+    grammar: FixedKeyword(
+        surface: "morph",
+    ),
+)

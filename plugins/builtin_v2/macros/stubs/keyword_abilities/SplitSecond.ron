@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "SplitSecond",
+    spelling: "split second",
+    grammar: FixedKeyword(
+        surface: "split second",
+    ),
+)

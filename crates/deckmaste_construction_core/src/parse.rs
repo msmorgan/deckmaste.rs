@@ -1394,7 +1394,8 @@ fn generated_terminal_binding(
         Some(GeneratedCodecRecipe::DeclarationNoun(_)) => Some(CodecAtomClass::Noun),
         Some(GeneratedCodecRecipe::DeclarationVerb(_)) => None,
         Some(
-            GeneratedCodecRecipe::SignedDecimal(_)
+            GeneratedCodecRecipe::DeclarationTerm(_)
+            | GeneratedCodecRecipe::SignedDecimal(_)
             | GeneratedCodecRecipe::EnglishCardinal(_)
             | GeneratedCodecRecipe::UnsignedDecimal(_)
             | GeneratedCodecRecipe::Unsupported { .. },
@@ -1504,6 +1505,46 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
     let recipe = input.call(Ident::parse_any)?;
     let content;
     braced!(content in input);
+    if recipe == "declaration_term" {
+        let mut position_slots = Vec::new();
+        let mut kind_slots = Vec::new();
+        while !content.is_empty() {
+            reject_doc_comment(&content)?;
+            let slot = content.call(Ident::parse_any)?;
+            content.parse::<Token![=]>()?;
+            match slot.to_string().as_str() {
+                "kinds" => {
+                    let kinds_content;
+                    bracketed!(kinds_content in content);
+                    let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
+                        &kinds_content,
+                        Ident::parse_any,
+                    )?
+                    .into_iter()
+                    .collect();
+                    kind_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
+                }
+                "position" => {
+                    let value = content.call(Ident::parse_any)?;
+                    position_slots.push(crate::model::GeneratedIdentSlot { slot, value });
+                }
+                _ => {
+                    return Err(syn::Error::new(
+                        slot.span(),
+                        "declaration_term recipe accepts only `position` and `kinds` fields",
+                    ));
+                }
+            }
+            content.parse::<Token![;]>()?;
+        }
+        return Ok(GeneratedCodecRecipe::DeclarationTerm(
+            crate::model::DeclarationTermSource {
+                recipe,
+                position_slots,
+                kind_slots,
+            },
+        ));
+    }
     if recipe == "declaration_noun" {
         let mut closed_slots = Vec::new();
         let mut position_slots = Vec::new();
@@ -3670,6 +3711,30 @@ mod tests {
             declarations.declarations[1],
             Declaration::Codec(_)
         ));
+    }
+
+    #[test]
+    fn parses_declaration_term_generated_codec_source() {
+        let declarations = parse(
+            r"
+                codec KeywordAbility {
+                    generate declaration_term {
+                        position = FixedKeyword;
+                        kinds = [KeywordAbility];
+                    }
+                }
+            ",
+        )
+        .expect("the featureless declaration_term recipe parses");
+
+        let [Declaration::Codec(binding)] = declarations.declarations.as_slice() else {
+            panic!("one generated codec is retained")
+        };
+        let Some(crate::GeneratedCodecRecipe::DeclarationTerm(source)) = &binding.generated else {
+            panic!("the codec retains a typed declaration_term recipe")
+        };
+        assert_eq!(source.position_slots[0].value, "FixedKeyword");
+        assert_eq!(source.kind_slots[0].kinds[0], "KeywordAbility");
     }
 
     #[test]

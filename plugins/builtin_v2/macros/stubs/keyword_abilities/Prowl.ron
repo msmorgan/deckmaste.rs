@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Prowl",
+    spelling: "prowl",
+    grammar: FixedKeyword(
+        surface: "prowl",
+    ),
+)

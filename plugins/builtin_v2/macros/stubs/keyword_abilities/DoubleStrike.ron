@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "DoubleStrike",
+    spelling: "double strike",
+    grammar: FixedKeyword(
+        surface: "double strike",
+    ),
+)

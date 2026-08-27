@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Harmonize",
+    spelling: "harmonize",
+    grammar: FixedKeyword(
+        surface: "harmonize",
+    ),
+)

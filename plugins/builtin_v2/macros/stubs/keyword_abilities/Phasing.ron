@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Phasing",
+    spelling: "phasing",
+    grammar: FixedKeyword(
+        surface: "phasing",
+    ),
+)

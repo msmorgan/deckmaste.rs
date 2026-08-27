@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Blitz",
+    spelling: "blitz",
+    grammar: FixedKeyword(
+        surface: "blitz",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Mayhem",
+    spelling: "mayhem",
+    grammar: FixedKeyword(
+        surface: "mayhem",
+    ),
+)

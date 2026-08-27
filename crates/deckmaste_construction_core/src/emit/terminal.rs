@@ -452,6 +452,60 @@ pub(crate) fn emit(
                     vec![origin],
                 ));
             }
+            TerminalPlan::DeclarationTerm(row) => {
+                let origin = row.origin().clone();
+                let term = row.codec_ident();
+                let allowed = row
+                    .kinds()
+                    .iter()
+                    .map(|kind| crate::emit::declaration_kind(*kind));
+                let position = crate::emit::grammar_position(row.position());
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(row.codec_name()),
+                    quote! {
+                        #[derive(Debug, Clone, PartialEq, Eq)]
+                        pub struct #term {
+                            id: ::macro_ron::v2::DeclarationIdentity,
+                        }
+                    },
+                    vec![origin.clone()],
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Impl {
+                        trait_name: None,
+                        self_ty: row.codec_name().to_owned(),
+                    },
+                    quote! {
+                        impl #term {
+                            pub fn new(
+                                environment: &crate::environment::ParserEnvironment,
+                                id: ::macro_ron::v2::DeclarationIdentity,
+                            ) -> Option<Self> {
+                                let recipe = environment.grammar_recipe(&id)?;
+                                (recipe.position() == #position)
+                                    .then_some(())
+                                    .and_then(|_| environment.surface(
+                                        &id,
+                                        ::macro_ron::v2::SurfaceFeature::Fixed,
+                                    ))
+                                    .and_then(|_| Self::from_reading(id))
+                            }
+
+                            pub(crate) fn from_reading(
+                                id: ::macro_ron::v2::DeclarationIdentity,
+                            ) -> Option<Self> {
+                                matches!(id.kind(), #(#allowed)|*)
+                                    .then_some(Self { id })
+                            }
+
+                            pub fn id(&self) -> &::macro_ron::v2::DeclarationIdentity {
+                                &self.id
+                            }
+                        }
+                    },
+                    vec![origin],
+                ));
+            }
         }
     }
     let catalog_identities = validated.runtime_catalog_identities().collect::<Vec<_>>();

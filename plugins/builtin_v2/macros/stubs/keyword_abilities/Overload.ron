@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Overload",
+    spelling: "overload",
+    grammar: FixedKeyword(
+        surface: "overload",
+    ),
+)

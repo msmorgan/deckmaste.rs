@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Recover",
+    spelling: "recover",
+    grammar: FixedKeyword(
+        surface: "recover",
+    ),
+)

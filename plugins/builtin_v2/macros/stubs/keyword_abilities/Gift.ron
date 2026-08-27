@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Gift",
+    spelling: "gift",
+    grammar: FixedKeyword(
+        surface: "gift",
+    ),
+)

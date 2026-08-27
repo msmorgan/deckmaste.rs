@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Lifelink",
+    spelling: "lifelink",
+    grammar: FixedKeyword(
+        surface: "lifelink",
+    ),
+)

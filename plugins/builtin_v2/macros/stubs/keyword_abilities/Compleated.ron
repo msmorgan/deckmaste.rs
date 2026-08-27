@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Compleated",
+    spelling: "compleated",
+    grammar: FixedKeyword(
+        surface: "compleated",
+    ),
+)

@@ -884,6 +884,60 @@ impl ScanInput<'_> {
         results
     }
 
+    pub(crate) fn declaration_term_readings(
+        &self,
+        position: GrammarPosition,
+        kinds: &[DeclarationKind],
+        right_boundary: LexicalBoundary,
+    ) -> Vec<(usize, DeclarationId, Onset)> {
+        let offset = self.position.byte_offset;
+        let initial = matches!(
+            self.position.case,
+            CasePosition::DocumentInitial | CasePosition::SentenceInitial
+        );
+        let prefix = usize::from(self.position.prefix == PrefixPosition::WordOwnedSpace);
+        let Some(remainder) = self.text.get(offset..) else {
+            return Vec::new();
+        };
+        let Some(surface_text) = (prefix == 0)
+            .then_some(remainder)
+            .or_else(|| remainder.strip_prefix(' '))
+        else {
+            return Vec::new();
+        };
+        let surface_byte_limit = if initial {
+            self.environment.initial_surface_byte_limit(position)
+        } else {
+            self.environment.running_surface_byte_limit(position)
+        };
+        let mut results = Vec::new();
+        for relative_end in surface_text
+            .char_indices()
+            .skip(1)
+            .map(|(end, _)| end)
+            .chain(std::iter::once(surface_text.len()))
+            .take_while(|&end| end <= surface_byte_limit)
+        {
+            let end = offset + prefix + relative_end;
+            if !permits_right_boundary(self.text, end, right_boundary) {
+                continue;
+            }
+            let candidate = &surface_text[..relative_end];
+            let readings = if initial {
+                self.environment.initial_readings(position, candidate)
+            } else {
+                self.environment.readings(position, candidate)
+            };
+            results.extend(readings.iter().filter_map(|reading| {
+                (reading.feature() == SurfaceFeature::Fixed && kinds.contains(&reading.id().kind()))
+                    .then(|| (end, reading.id().clone(), reading.onset()))
+            }));
+        }
+        results.sort();
+        results.dedup();
+        results
+    }
+
     pub(crate) fn declaration_verb_readings(
         &self,
         start: usize,

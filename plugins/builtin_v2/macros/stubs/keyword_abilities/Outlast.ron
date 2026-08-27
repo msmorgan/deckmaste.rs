@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Outlast",
+    spelling: "outlast",
+    grammar: FixedKeyword(
+        surface: "outlast",
+    ),
+)

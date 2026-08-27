@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Vigilance",
+    spelling: "vigilance",
+    grammar: FixedKeyword(
+        surface: "vigilance",
+    ),
+)

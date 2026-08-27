@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Afflict",
+    spelling: "afflict",
+    grammar: FixedKeyword(
+        surface: "afflict",
+    ),
+)

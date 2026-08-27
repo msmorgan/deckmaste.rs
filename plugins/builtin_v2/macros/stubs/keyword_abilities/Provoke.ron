@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Provoke",
+    spelling: "provoke",
+    grammar: FixedKeyword(
+        surface: "provoke",
+    ),
+)

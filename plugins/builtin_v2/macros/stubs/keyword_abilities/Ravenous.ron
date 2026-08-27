@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Ravenous",
+    spelling: "ravenous",
+    grammar: FixedKeyword(
+        surface: "ravenous",
+    ),
+)

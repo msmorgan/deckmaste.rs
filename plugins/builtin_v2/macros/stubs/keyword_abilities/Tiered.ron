@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Tiered",
+    spelling: "tiered",
+    grammar: FixedKeyword(
+        surface: "tiered",
+    ),
+)

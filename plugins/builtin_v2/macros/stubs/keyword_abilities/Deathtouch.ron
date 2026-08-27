@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Deathtouch",
+    spelling: "deathtouch",
+    grammar: FixedKeyword(
+        surface: "deathtouch",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Flashback",
+    spelling: "flashback",
+    grammar: FixedKeyword(
+        surface: "flashback",
+    ),
+)

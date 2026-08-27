@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Bestow",
+    spelling: "bestow",
+    grammar: FixedKeyword(
+        surface: "bestow",
+    ),
+)

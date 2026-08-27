@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Dash",
+    spelling: "dash",
+    grammar: FixedKeyword(
+        surface: "dash",
+    ),
+)

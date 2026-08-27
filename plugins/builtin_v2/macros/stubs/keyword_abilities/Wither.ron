@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Wither",
+    spelling: "wither",
+    grammar: FixedKeyword(
+        surface: "wither",
+    ),
+)

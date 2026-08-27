@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Modular",
+    spelling: "modular",
+    grammar: FixedKeyword(
+        surface: "modular",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Fading",
+    spelling: "fading",
+    grammar: FixedKeyword(
+        surface: "fading",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Horsemanship",
+    spelling: "horsemanship",
+    grammar: FixedKeyword(
+        surface: "horsemanship",
+    ),
+)

@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Exhaust",
+    spelling: "exhaust",
+    grammar: FixedKeyword(
+        surface: "exhaust",
+    ),
+)

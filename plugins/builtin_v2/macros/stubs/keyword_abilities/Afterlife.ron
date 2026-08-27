@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Afterlife",
+    spelling: "afterlife",
+    grammar: FixedKeyword(
+        surface: "afterlife",
+    ),
+)

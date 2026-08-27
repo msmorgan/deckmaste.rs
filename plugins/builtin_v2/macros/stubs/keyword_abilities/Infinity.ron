@@ -1,0 +1,8 @@
+KeywordAbility(
+    name: "Infinity",
+    spelling: "∞",
+    grammar: FixedKeyword(
+        surface: "∞",
+        onset: Vowel,
+    ),
+)

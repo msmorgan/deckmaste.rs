@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "MaxSpeed",
+    spelling: "max speed",
+    grammar: FixedKeyword(
+        surface: "max speed",
+    ),
+)

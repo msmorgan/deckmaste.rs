@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Unearth",
+    spelling: "unearth",
+    grammar: FixedKeyword(
+        surface: "unearth",
+    ),
+)

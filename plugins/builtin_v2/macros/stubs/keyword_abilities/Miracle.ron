@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Miracle",
+    spelling: "miracle",
+    grammar: FixedKeyword(
+        surface: "miracle",
+    ),
+)

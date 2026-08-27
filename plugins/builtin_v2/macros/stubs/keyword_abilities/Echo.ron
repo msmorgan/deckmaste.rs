@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Echo",
+    spelling: "echo",
+    grammar: FixedKeyword(
+        surface: "echo",
+    ),
+)

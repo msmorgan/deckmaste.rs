@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Partner",
+    spelling: "partner",
+    grammar: FixedKeyword(
+        surface: "partner",
+    ),
+)

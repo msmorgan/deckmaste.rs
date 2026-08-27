@@ -1,0 +1,7 @@
+KeywordAbility(
+    name: "Awaken",
+    spelling: "awaken",
+    grammar: FixedKeyword(
+        surface: "awaken",
+    ),
+)
