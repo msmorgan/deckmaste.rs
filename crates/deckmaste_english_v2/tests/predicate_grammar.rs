@@ -1771,7 +1771,7 @@ fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
     assert_selected_with_specificity(
         &parser,
         &context,
-        "At the beginning of each player's end step, if that player didn't cast a spell this turn, this enchantment deals 2 damage to that player.",
+        "At the beginning of each player's end step, if that player didn't cast a spell this turn, this enchantment deals 4 damage to that player.",
         true,
     );
 
@@ -5803,7 +5803,7 @@ fn task8_infinitive_requirement_counterfactual_and_order_products_are_typed() {
 
     for (text, expected, permits_specificity) in [
         (
-            "Whenever a spell or ability an opponent controls causes you to discard a card, you gain 2 life and you may draw a card.",
+            "Whenever a spell or ability an opponent controls causes you to discard a card, you gain 3 life and you may draw two cards.",
             &["object-infinitive"][..],
             true,
         ),
@@ -6230,7 +6230,7 @@ fn task8_cost_position_reuses_the_typed_predicate_algebra() {
 fn task8_object_internal_discarded_this_way_does_not_become_outer_manner() {
     let parser = parser();
     let context = context();
-    let text = "Target player discards two cards. Put up to one land card discarded this way onto the battlefield tapped under your control.";
+    let text = "Target player discards three cards. Put up to one artifact card discarded this way onto the battlefield tapped under your control.";
     let analysis = parser.analyze(text, &context);
     assert!(analysis.selected().is_none(), "{analysis:?}");
     assert!(analysis.decision().is_none(), "{analysis:?}");
@@ -6241,13 +6241,13 @@ fn task8_object_internal_discarded_this_way_does_not_become_outer_manner() {
         matches!(
             error,
             ParseError::Failure {
-                span: TextSpan { start: 68, end: 72 },
+                span: TextSpan { start: 74, end: 78 },
                 ..
             }
         ),
         "the declared participle stays object-internal and failure advances to its unsupported relative subject: {error:?}",
     );
-    assert_eq!(&text[68..72], "this");
+    assert_eq!(&text[74..78], "this");
 }
 
 #[derive(Default)]
@@ -6835,7 +6835,7 @@ fn task10d_then_sequences_select_pair_serial_and_intersentence_forms() {
         "Gain 1 life, then connive.",
         "Gain 1 life, connive, then draw a card.",
         "Draw three cards. Then discard two cards.",
-        "When this creature enters, you may search your library for a Goblin card, reveal that card, put it into your hand, then shuffle.",
+        "When this creature enters, you may search your library for a Sliver card, reveal that card, put it into your hand, then shuffle.",
     ] {
         assert_selected_with_specificity(&parser, &context, text, true);
     }
@@ -6873,7 +6873,7 @@ fn task10d_then_sequences_have_exact_ast_build_visit_and_structural_ownership() 
     let parser = parser();
     let context = context();
 
-    let auxiliary_text = "When this creature enters, you may search your library for a Goblin card, reveal that card, put it into your hand, then shuffle.";
+    let auxiliary_text = "When this creature enters, you may search your library for a Sliver card, reveal that card, put it into your hand, then shuffle.";
     let auxiliary = assert_selected_with_specificity(&parser, &context, auxiliary_text, true);
     assert_eq!(
         auxiliary.render(&context, parser.environment()),

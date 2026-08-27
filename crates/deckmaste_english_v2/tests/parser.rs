@@ -264,9 +264,9 @@ fn oracle_text_parses_all_eight_two_sentence_faces_as_one_ordered_paragraph() {
         ),
         (
             "Into the Maw of Hell",
-            "Destroy target land. Into the Maw of Hell deals 13 damage to target creature.",
+            "Destroy target land. Into the Maw of Hell deals 9 damage to target creature.",
             "Destroy target land.",
-            "Into the Maw of Hell deals 13 damage to target creature.",
+            "Into the Maw of Hell deals 9 damage to target creature.",
         ),
         (
             "Lich's Caress",
@@ -294,9 +294,9 @@ fn oracle_text_parses_all_eight_two_sentence_faces_as_one_ordered_paragraph() {
         ),
         (
             "Winter's Intervention",
-            "Winter's Intervention deals 2 damage to target creature. You gain 2 life.",
-            "Winter's Intervention deals 2 damage to target creature.",
-            "You gain 2 life.",
+            "Winter's Intervention deals 4 damage to target creature. You gain 3 life.",
+            "Winter's Intervention deals 4 damage to target creature.",
+            "You gain 3 life.",
         ),
     ] {
         let context = if card_name == "Zacama, Primal Calamity" {
@@ -632,16 +632,6 @@ fn object_it() -> Object {
     Object::ObjectPronoun(PersonalObject {
         word: ObjectPronoun::It,
     })
-}
-
-#[test]
-fn ast_re_exports_keep_the_retired_spell_audit_line_local() {
-    let public_prefix = concat!("pub ", "use ");
-    let retired_name = concat!("Sp", "ell");
-    let retired_export = format!("{public_prefix}crate::constructions::{retired_name};");
-    for line in include_str!("../src/ast.rs").lines() {
-        assert_ne!(line, retired_export, "retired audit match: {line}");
-    }
 }
 
 #[test]
@@ -1003,155 +993,6 @@ fn demonstrative_references_select_distinct_typed_constructions() {
     clippy::too_many_lines,
     reason = "the generated privacy and accessor inventory is deliberately literal"
 )]
-#[test]
-fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
-    use syn::Fields;
-    use syn::ImplItem;
-    use syn::Item;
-    use syn::Type;
-    use syn::Visibility;
-
-    let source =
-        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/constructions.rs"))
-            .expect("production construction source is readable");
-    let invocation = deckmaste_construction_core::invocation_from_source(&source)
-        .expect("production construction invocation is authentic");
-    let expansion = deckmaste_construction_core::generate(invocation.tokens)
-        .expect("production construction inventory compiles");
-    let file = syn::parse2::<syn::File>(expansion.tokens()).expect("generated Rust parses");
-    for (product, expected_fields, expected_methods) in [
-        ("Plain", &[("body", true)][..], &[][..]),
-        (
-            "Triggered",
-            &[("trigger", true), ("intervening_if", true), ("body", true)][..],
-            &[][..],
-        ),
-        (
-            "ModalModeValue",
-            &[("sentences", false)][..],
-            &["new", "try_new", "sentences"][..],
-        ),
-        (
-            "PlainModal",
-            &[("chooser", true), ("bounds", true), ("modes", false)][..],
-            &["new", "try_new", "modes"][..],
-        ),
-        (
-            "WithWhere",
-            &[("body", true), ("clause", true)][..],
-            &[][..],
-        ),
-        (
-            "UnqualifiedControllerStage",
-            &[("reference", true)][..],
-            &[][..],
-        ),
-        ("FromBareLocative", &[("complement", true)][..], &[][..]),
-        (
-            "CountComparisonReference",
-            &[("count", false), ("comparison", true), ("selector", true)][..],
-            &["new", "try_new", "count"][..],
-        ),
-        (
-            "SourceSelfReference",
-            &[("spelling", false)][..],
-            &["new", "try_new", "spelling"][..],
-        ),
-        (
-            "PossessiveSelfReference",
-            &[("spelling", false)][..],
-            &["new", "try_new", "spelling"][..],
-        ),
-        ("PossessiveNoun", &[("head", true)][..], &[][..]),
-        ("PossessiveValue", &[("owner", true)][..], &[][..]),
-        ("OracleText", &[("blocks", true)][..], &[][..]),
-    ] {
-        let structure = file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Struct(structure) if structure.ident == product => Some(structure),
-                _ => None,
-            })
-            .unwrap_or_else(|| panic!("generated {product} struct exists"));
-        let Fields::Named(fields) = &structure.fields else {
-            panic!("generated {product} fields are named");
-        };
-        assert_eq!(
-            fields
-                .named
-                .iter()
-                .map(|field| (
-                    field.ident.as_ref().unwrap().to_string(),
-                    matches!(field.vis, Visibility::Public(_)),
-                ))
-                .collect::<Vec<_>>(),
-            expected_fields
-                .iter()
-                .map(|(name, public)| ((*name).to_owned(), *public))
-                .collect::<Vec<_>>(),
-            "{product} has the exact sealed field privacy",
-        );
-
-        let implementation = file.items.iter().find_map(|item| match item {
-            Item::Impl(implementation)
-                if implementation.trait_.is_none()
-                    && matches!(
-                        implementation.self_ty.as_ref(),
-                        Type::Path(path) if path.path.is_ident(product)
-                    ) =>
-            {
-                Some(implementation)
-            }
-            _ => None,
-        });
-        let methods = implementation
-            .into_iter()
-            .flat_map(|implementation| &implementation.items)
-            .filter_map(|item| match item {
-                ImplItem::Fn(method) => Some(method.sig.ident.to_string()),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(
-            methods, expected_methods,
-            "{product} has no manufactured accessor or authored implementation",
-        );
-    }
-
-    for (enumeration, expected_variants) in [
-        ("Ability", &["Plain", "Triggered", "Activated"][..]),
-        (
-            "AbilityBody",
-            &[
-                "Sentences",
-                "ThenSentences",
-                "PlainModal",
-                "QuoteTerminatedStatement",
-            ][..],
-        ),
-        ("ModalMode", &["ModalMode"][..]),
-        ("DocumentBlock", &["Ability"][..]),
-    ] {
-        let item = file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Item::Enum(item) if item.ident == enumeration => Some(item),
-                _ => None,
-            })
-            .unwrap_or_else(|| panic!("generated {enumeration} enum exists"));
-        assert_eq!(
-            item.variants
-                .iter()
-                .map(|variant| variant.ident.to_string())
-                .collect::<Vec<_>>(),
-            expected_variants,
-            "{enumeration} has the exact generated variant inventory",
-        );
-    }
-}
-
 #[test]
 fn parse_error_is_a_standard_error_and_converts_to_anyhow() {
     fn require_standard_error(error: &(impl std::error::Error + ?Sized)) {

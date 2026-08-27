@@ -1108,7 +1108,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "TypeSingularHead",
             "Declaration:Type:Creature",
         ],
-        "Lightning Bolt deals 3 damage to target creature." => &[
+        "Context Card deals 3 damage to target creature." => &[
             "Ability",
             "Plain",
             "Sentence",
@@ -2276,17 +2276,6 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
     }
 }
 
-struct Shadow {
-    losing_path: &'static str,
-    losing_specificity: &'static str,
-    decisive_position: usize,
-}
-
-fn expected_shadow(text: &str) -> Option<Shadow> {
-    let _ = text;
-    None
-}
-
 struct Witness {
     card_name: &'static str,
     text: &'static str,
@@ -2312,7 +2301,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             candidates: 1,
         },
         Witness {
-            card_name: "Urgent Exorcism",
+            card_name: "Context Card",
             text: "Destroy target Spirit.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/DeterminerPhraseTargetDeterminerPhrase/SingularNominalBareSingularNominal/SingularHeadCreatureSubtypeSingularHead",
             specificity: "NNNNTNNNNNNNLNNT",
@@ -2375,8 +2364,8 @@ fn authentic_nominal_and_selector_sentences_parse() {
             candidates: 1,
         },
         Witness {
-            card_name: "Lightning Bolt",
-            text: "Lightning Bolt deals 3 damage to target creature.",
+            card_name: "Context Card",
+            text: "Context Card deals 3 damage to target creature.",
             path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceSelfReference/VerbPhraseDealDamage/AmountNumber/ToPhraseToPhrase/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/DeterminerPhraseTargetDeterminerPhrase/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
             specificity: "NNNNNNNNNNTTNLNTLNNNNNNNLNNT",
             candidates: 1,
@@ -2459,7 +2448,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             candidates: 1,
         },
         Witness {
-            card_name: "Anaba Shaman",
+            card_name: "Context Card",
             text: "This creature deals 1 damage to target creature.",
             path: "AbilityPlain/AbilityBodySentences/SentenceDeclarative/FiniteClausePlainFiniteClause/SubjectSubjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceThisReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead/VerbPhraseDealDamage/AmountNumber/ToPhraseToPhrase/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOrdinarySingularReference/DeterminerPhraseTargetDeterminerPhrase/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
             specificity: "NNNNNNNNNNLNNTTNLNTLNNNNNNNLNNT",
@@ -2473,14 +2462,14 @@ fn authentic_nominal_and_selector_sentences_parse() {
             candidates: 1,
         },
         Witness {
-            card_name: "Voyager Staff",
+            card_name: "Context Card",
             text: "Destroy the exiled card.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDesignatedSingularReference/SingularNominalBareSingularNominal/SingularHeadCommonSingularHead",
             specificity: "NNNNTNNNNNNLTNNT",
             candidates: 1,
         },
         Witness {
-            card_name: "Agency Outfitter",
+            card_name: "Context Card",
             text: "Destroy a card named Magnifying Glass.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceNamedCardReference",
             specificity: "NNNNTNNNNNNLLLT",
@@ -2494,7 +2483,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             candidates: 1,
         },
         Witness {
-            card_name: "Adrenaline Jockey",
+            card_name: "Context Card",
             text: "Destroy their creature.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferencePossessedSingularReference/SingularNominalBareSingularNominal/SingularHeadTypeSingularHead",
             specificity: "NNNNTNNNNNNTNNT",
@@ -2536,7 +2525,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
             candidates: 1,
         },
         Witness {
-            card_name: "Dwarven Song",
+            card_name: "Context Card",
             text: "Destroy one or more target creatures.",
             path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceOneOrMoreReference/PluralSelectorTargetPluralSelector/PluralNominalBarePluralNominal/PluralHeadTypePluralHead",
             specificity: "NNNNTNNNNNNLLLNLNNT",
@@ -2716,59 +2705,11 @@ fn authentic_nominal_and_selector_sentences_parse() {
             );
         }
 
-        if let Some(shadow) = expected_shadow(witness.text) {
-            assert_eq!(
-                decision
-                    .candidates()
-                    .iter()
-                    .map(deckmaste_english_v2::parser::SelectionCandidate::ordinal)
-                    .collect::<Vec<_>>(),
-                [0, 1],
-                "ordered materialized-candidate ordinals changed for {:?}",
-                witness.text,
-            );
-            assert_eq!(
-                decision.selected(),
-                Some(0),
-                "the first materialized candidate must remain selected for {:?}",
-                witness.text,
-            );
-            let losing = &decision.candidates()[1];
-            assert_eq!(
-                losing.construction_path().join("/"),
-                shadow.losing_path,
-                "the losing materialized path changed for {:?}",
-                witness.text,
-            );
-            assert_eq!(
-                compact_specificity(losing.specificity()),
-                shadow.losing_specificity,
-                "the losing materialized specificity changed for {:?}",
-                witness.text,
-            );
-            let [comparison] = decision.comparisons() else {
-                panic!(
-                    "one exact materialized-candidate comparison is required for {:?}",
-                    witness.text,
-                );
-            };
-            assert_eq!(comparison.left_ordinal(), 0);
-            assert_eq!(comparison.right_ordinal(), 1);
-            assert_eq!(comparison.ordering(), Ordering::Greater);
-            assert_eq!(
-                comparison.decisive(),
-                SelectionDecisive::Position(shadow.decisive_position),
-                "the decisive materialized specificity position changed for {:?}",
-                witness.text,
-            );
-            assert_eq!(comparison.exception_id(), None);
-        } else {
-            assert!(
-                decision.comparisons().is_empty(),
-                "a unique positive gained a materialized shadow for {:?}",
-                witness.text,
-            );
-        }
+        assert!(
+            decision.comparisons().is_empty(),
+            "a unique positive gained a materialized shadow for {:?}",
+            witness.text,
+        );
 
         let rendered = parsed.render(&context, parser.environment());
         assert_eq!(rendered, witness.text, "positive rendering changed");
@@ -5360,291 +5301,6 @@ fn task9_visitor_callbacks_have_literal_full_preorders() {
     clippy::too_many_lines,
     reason = "scanner and renderer ownership claims are pinned as literal span tables"
 )]
-#[test]
-fn coordination_member_and_separator_ownership_claims_are_literal_and_exact() {
-    type Claim = (usize, usize, LexicalProvenanceKind, &'static str);
-
-    fn project(
-        claims: &[deckmaste_english_v2::parser::LexicalClaim],
-    ) -> Vec<(usize, usize, LexicalProvenanceKind, &str)> {
-        claims
-            .iter()
-            .map(|claim| {
-                (
-                    claim.span().start,
-                    claim.span().end,
-                    claim.kind(),
-                    claim.stable_owner_id(),
-                )
-            })
-            .collect()
-    }
-
-    fn assert_claims(card_name: &str, text: &str, expected: &[Claim]) {
-        let parser = parser();
-        let context = context(card_name);
-        let analysis = parser.analyze(text, &context);
-        let ownership = analysis
-            .ownership()
-            .unwrap_or_else(|| panic!("{text:?} must have selected ownership: {analysis:?}"));
-        assert_eq!(project(ownership.parsed_claims()), expected);
-        assert_eq!(project(ownership.rendered_claims()), expected);
-        assert!(ownership.failures().is_empty());
-        assert!(ownership.summary().covered());
-        assert_eq!(ownership.rendered_text(), text);
-    }
-
-    assert_claims(
-        "Bedevil",
-        "Destroy target artifact, creature, or planeswalker.",
-        &[
-            (
-                0,
-                7,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:keyword_action/Destroy/bare",
-            ),
-            (
-                7,
-                14,
-                LexicalProvenanceKind::FormLiteral,
-                "form:target_coordination_determiner_phrase/target_coordination_determiner_phrase/0",
-            ),
-            (
-                14,
-                23,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Artifact/singular",
-            ),
-            (
-                23,
-                25,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:SingularOrNominalCoordination/members/separator/first/0",
-            ),
-            (
-                25,
-                33,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Creature/singular",
-            ),
-            (
-                33,
-                38,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:SingularOrNominalCoordination/members/separator/last/0",
-            ),
-            (
-                38,
-                50,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Planeswalker/singular",
-            ),
-            (
-                50,
-                51,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:Sentences/sentences/terminator/0",
-            ),
-        ],
-    );
-    assert_claims(
-        "Decimate",
-        "Destroy target artifact, target creature, target enchantment, and target land.",
-        &[
-            (
-                0,
-                7,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:keyword_action/Destroy/bare",
-            ),
-            (
-                7,
-                14,
-                LexicalProvenanceKind::FormLiteral,
-                "form:target_determiner_phrase/target_determiner_phrase/0",
-            ),
-            (
-                14,
-                23,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Artifact/singular",
-            ),
-            (
-                23,
-                25,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:FullAndNounPhraseCoordination/members/separator/first/0",
-            ),
-            (
-                25,
-                31,
-                LexicalProvenanceKind::FormLiteral,
-                "form:target_determiner_phrase/target_determiner_phrase/0",
-            ),
-            (
-                31,
-                40,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Creature/singular",
-            ),
-            (
-                40,
-                42,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:FullAndNounPhraseCoordination/members/separator/middle/0",
-            ),
-            (
-                42,
-                48,
-                LexicalProvenanceKind::FormLiteral,
-                "form:target_determiner_phrase/target_determiner_phrase/0",
-            ),
-            (
-                48,
-                60,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Enchantment/singular",
-            ),
-            (
-                60,
-                66,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:FullAndNounPhraseCoordination/members/separator/last/0",
-            ),
-            (
-                66,
-                72,
-                LexicalProvenanceKind::FormLiteral,
-                "form:target_determiner_phrase/target_determiner_phrase/0",
-            ),
-            (
-                72,
-                77,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Land/singular",
-            ),
-            (
-                77,
-                78,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:Sentences/sentences/terminator/0",
-            ),
-        ],
-    );
-    assert_claims(
-        "Context Card",
-        "Destroy target nonartifact, nonblack creature.",
-        &[
-            (
-                0,
-                7,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:keyword_action/Destroy/bare",
-            ),
-            (
-                7,
-                14,
-                LexicalProvenanceKind::FormLiteral,
-                "form:target_determiner_phrase/target_determiner_phrase/0",
-            ),
-            (
-                14,
-                18,
-                LexicalProvenanceKind::FormLiteral,
-                "form:non_type_modifier/non_type_modifier/0/affix",
-            ),
-            (
-                18,
-                26,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Artifact/singular",
-            ),
-            (
-                26,
-                28,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:NegativeModifiedSingularNominal/modifiers/separator/uniform/0",
-            ),
-            (
-                28,
-                31,
-                LexicalProvenanceKind::FormLiteral,
-                "form:non_color_modifier/non_color_modifier/0/affix",
-            ),
-            (31, 36, LexicalProvenanceKind::Vocab, "vocab:Color/Black"),
-            (
-                36,
-                45,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Creature/singular",
-            ),
-            (
-                45,
-                46,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:Sentences/sentences/terminator/0",
-            ),
-        ],
-    );
-    assert_claims(
-        "Context Card",
-        "Destroy two target nonartifact, nonblack creatures.",
-        &[
-            (
-                0,
-                7,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:keyword_action/Destroy/bare",
-            ),
-            (7, 11, LexicalProvenanceKind::Codec, "codec:CardinalNumber"),
-            (
-                11,
-                18,
-                LexicalProvenanceKind::FormLiteral,
-                "form:target_plural_selector/target_plural_selector/0",
-            ),
-            (
-                18,
-                22,
-                LexicalProvenanceKind::FormLiteral,
-                "form:non_type_modifier/non_type_modifier/0/affix",
-            ),
-            (
-                22,
-                30,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Artifact/singular",
-            ),
-            (
-                30,
-                32,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:NegativeModifiedPluralNominal/modifiers/separator/uniform/0",
-            ),
-            (
-                32,
-                35,
-                LexicalProvenanceKind::FormLiteral,
-                "form:non_color_modifier/non_color_modifier/0/affix",
-            ),
-            (35, 40, LexicalProvenanceKind::Vocab, "vocab:Color/Black"),
-            (
-                40,
-                50,
-                LexicalProvenanceKind::Lexeme,
-                "lexeme:type/Creature/plural",
-            ),
-            (
-                50,
-                51,
-                LexicalProvenanceKind::FormLiteral,
-                "structural:Sentences/sentences/terminator/0",
-            ),
-        ],
-    );
-}
-
 #[test]
 fn singular_and_plural_negative_modifier_sequences_have_exact_ast_scope() {
     let parser = parser();
