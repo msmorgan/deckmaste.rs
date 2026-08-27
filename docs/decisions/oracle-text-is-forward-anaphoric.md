@@ -24,8 +24,9 @@ conditions. A new constructor is reviewed against them.
    later. Every constructor telescope types each argument in the previous
    arguments' output.
 3. **The gate resolves to a binding that is IN `bs`**, by counted uniqueness
-   or — where the text marks the read as existential rather than unique — by
-   counted existence.
+   — over every compatible mention, or over the narrower set the consuming
+   verb's own rule admits — or, where the text marks the read as existential
+   rather than unique, by counted existence.
 4. **A binding a construction mints for a sibling argument is derived from
    that construction's own earlier arguments**, never from a later one. This
    is the clause that separates a scoped binder from a cataphor.
@@ -38,6 +39,43 @@ equations over the threading functions.
 Widening a gate so that it reads something other than `bs` — or adding a
 constructor whose argument reads a later argument's mint — is a change to this
 contract, not an implementation detail.
+
+### Counted uniqueness is scoped by the consuming verb's rule
+
+Clause 3's refinement, ruled 2026-08-27. A read's candidate set may be
+narrowed to the CARRIER the consuming verb's own rule demands of its object,
+and the gate then counts uniqueness over that narrower set. [CR#109.2] gives
+the three carriers — a description naming neither a zone nor a carrier word
+means a permanent on the battlefield, "card" names a card in a stated zone
+[CR#109.2a], "spell" one on the stack [CR#109.2b] — and a verb's own rule
+picks among them: [CR#701.21a] lets a player sacrifice a permanent and nothing
+else, so "When this creature becomes the target of a spell or ability,
+sacrifice it" has one candidate in the sacrifice slot's carrier even though
+the header announced the targeting spell beside the creature.
+
+This is a refinement of clause 3 and not a third resolution form. The gate is
+still a count, still a `countBy` fold, still over `bs` alone; only the
+per-binding test is narrower. It is emphatically NOT a preference: there is no
+find-first, no nearest-wins, no determiner tiebreak. Two candidates sharing the
+slot's carrier still refuse, and those lines write definite descriptions
+instead — the guide's editorial rule, unchanged.
+
+The carrier is the verb's, not a word the card prints, so the core constructor
+(`Noun.ItAt`, gated on `Words.countOnesAt`) is written only by a macro, and a
+macro that writes one names the rule that gives its slot that carrier. The
+split read of a union mention is the same clause-3 shape at a different fact:
+`Noun.ThatHalf` gates each arm on the union its arms SHARE
+(`Words.countUnionHalf`), because both arms name halves of one mention, not on
+each arm's word being unique in the whole prefix.
+
+The residue this leaves is measured, not assumed. Of ~2,541 corpus occurrences
+where a bare "it" has two or more singular object antecedents in scope,
+carrier-scoping resolves ~1,656 and ~886 (95% CI 710–1,061; ~700 cards) have
+both candidates in the same carrier and stay refused — 67 of 69 sampled
+same-carrier pairs are battlefield/battlefield. Clause-recency, the rejected
+alternative, is recorded as held in reserve against that number; it is not
+implemented, because it would replace the count with a find-first and cost the
+`countBy` witness lemmas that make clause 3 checkable.
 
 ### The retired lifting devices
 

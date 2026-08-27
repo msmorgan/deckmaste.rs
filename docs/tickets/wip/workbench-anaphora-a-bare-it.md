@@ -242,3 +242,222 @@ sub-round runs, it is A: it is the only one whose decision the other four have
 to live with."
 
 Standard constraints apply.
+
+---
+
+## As landed (2026-08-27)
+
+### A1 — the mechanism
+
+Carrier-scoped counted uniqueness. A verb slot's own rule names the CARRIER it
+demands of its object; the read counts uniqueness over the mentions that
+carrier admits, and over nothing else. Never a preference: no find-first, no
+nearest-wins, no determiner tiebreak.
+
+`Words.idr` (beside `countOnes`, after `onStackZone`):
+
+```idris
+data SlotCarrier = PermanentSlot | CardSlot | SpellSlot   -- [CR#109.2,109.2a,109.2b]
+slotZoneOk  : SlotCarrier -> Maybe Zone -> Bool           -- onFieldZone / isCardZone / onStackZone
+itAtReaches : SlotCarrier -> Binding -> Bool              -- itReaches OneOf b && slotZoneOk sl (bindingZone b)
+countOnesAt : SlotCarrier -> Bindings -> Nat
+provOfItAt  : SlotCarrier -> Bindings -> Maybe Stamp
+zoneOfItAt  : SlotCarrier -> Bindings -> Maybe Zone
+tyOfItAt    : SlotCarrier -> Bindings -> Maybe CardType
+```
+
+`Phrase.idr` (`Noun`, beside `It`; `It`'s own constructor and gate UNTOUCHED):
+
+```idris
+ItAt : (sl : SlotCarrier) -> {auto 0 ok : countOnesAt sl bs = 1} -> Noun bs Object
+```
+
+plus `setZoneItAt` and one row per new constructor in `nounEqRef`, `nounDelta`,
+`anchorPhrase`, `choosable`, `groupMention`, `costNounOk`, `nounIsYou`,
+`nounTargeted`, `counterMemoryOk`, `moveDestOk`, `moveIntro`, `nounZone`,
+`nounTy`, `nounPlur`.
+
+`Macros.idr` — the only carrier for `ItAt`, per the macro-only doctrine:
+`itAsPermanent`, `itAsCard` (carrier selectors), `sacrificeIt` ([CR#701.21a]),
+`itsACard` ([CR#109.2]). `SpellSlot` is a total-table row with **zero written
+carriers** — recorded at its zero, not pinned, per
+`done/workbench-pins-refuse-rules-impossibility-only.md`.
+
+**Why a zone test and not `NounWord`.** `countWord`'s `wordNow` refuses `SelfD`
+outright ("the event subject's own self-mention: 'it' reads it, the
+demonstrative noun words do not"), so a `NounWord`-scoped read cannot see the
+becomes-target family's intended referent at all; and `halfReaches PermanentW`
+ignores the zone, so it reads the spell half of "a spell or ability" as a
+permanent (the tolerated overgeneration recorded in
+`planned/workbench-coordination-family.md`). Reading `bindingZone` sidesteps
+both: a join half carries no zone, so an unzoned mention is admitted by NO
+slot rather than by all of them.
+
+### A2 — the demonstrative, gated on the union the arms share
+
+`countWord` was NOT widened. New counter and constructor instead:
+
+```idris
+countUnionHalf : NounWord -> Bindings -> Nat   -- singular + joinedPayload + halfReaches
+zoneOfUnionHalf, tyOfUnionHalf : NounWord -> Bindings -> ...
+ThatHalf : (w : NounWord) -> {auto 0 ok : countUnionHalf w bs = 1} -> Noun bs (kindOfW w)
+```
+
+`thatSplitController` / `splitOverPlaneswalker` / `splitOverPermanent` and
+`Cards.eachCreatureThatSplitControls` regated from `countWord w bs = 1` to
+`countUnionHalf w bs = 1`; the arms are `ThatHalf`. Every existing split-read
+card (Lavalanche, Flame Wave, Chandra's Fury, Angrath, Which of You Burns
+Brightest?) still writes.
+
+### A3 — `moveIntro p This z` mints `SelfD`
+
+```idris
+moveIntro p This z =
+  MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing) Nothing) :: bs
+```
+
+Sequenced after A1, and A1 paid for it immediately: the new mint broke
+Ghor-Clan Rampager (the discard cost's card became a second singular object
+beside the target attacking creature), and the permanent-carrier read fixed it
+in place. That card's elided coordinated subject is now
+`Macros.gains Macros.itAsPermanent …` with its rule named at the site
+([CR#702.19a,506.3]).
+
+### The Soul of Emancipation reach decision — DECIDED: the word reaches
+
+`wordReaches PermanentW` now admits a referent a labeled action took OFF the
+battlefield, read by the stamp's `wasField`:
+
+```idris
+stampWasField : Maybe Stamp -> Bool
+wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn pv _)) =
+  onFieldZone zn || stampWasField pv
+```
+
+Grounds: [CR#608.2h] reads an object the effect has moved by its last known
+information, so the read is rules-meaningful and a refusal needs a rule that
+makes it meaningless — [CR#110.1] gives the reason the read is LKI, not a
+reason to refuse it. **15 supported lines write the shape** (Carnivorous
+Canopy, Chain of Acid, Cindervines, Commander Sofia Daguerre, Destructive
+Revelry, Feed the Swarm, Filigree Fracture, Hit // Run, Kellan Inquisitive
+Prodigy, Liliana's Defeat, Nissa's Defeat, Orim's Thunder, Soul of
+Emancipation, Starke of Rath, Transforming Flourish). And the participle read
+already asked exactly this fact: `verbedWordOk PermanentW = wasF`, no zone
+demand. The demonstrative was the inconsistent one.
+
+`badThatPermanentDeparted` (`Proofs.idr:335`) still refuses and its docstring
+was retagged: the word now REACHES, and what refuses is the status change —
+there is nothing on the battlefield to tap [CR#110.1]. No pin passes silently.
+
+Benched: **Destructive Revelry, whole card.**
+
+**Soul of Emancipation is still blocked, on a different and now-visible
+cause.** `Those PermanentW` resolves; `ForEachOf`'s body then wants
+`ControllerOf It`, and `elemIntro` mints the loop member beside the enters
+trigger's own self mention — two battlefield-carrier candidates, so the read is
+Perrie-class residue under policy (b). Two ledger items fall out (below).
+
+### Residue measurement (policy (b))
+
+Measured over `data/derived/cards.jsonl`, `select(.supported)` = 32,568 rows,
+reminder text stripped, scope = the ability paragraph up to the `it`.
+
+| stage | count |
+|---|---|
+| bare-`it` occurrences (non-expletive) | 8,724 |
+| ≥2 distinct singular object referents announced before the `it` (detector frame) | 3,105 exact |
+| genuinely ambiguous (hand-verified rate over 240 stratified samples) | ≈ 2,541 |
+| **different carrier → carrier-scoping resolves** | **≈ 1,656 (65.2%)** |
+| **same carrier → stays REFUSED** | **≈ 886** (95% CI 710–1,061; ~700 cards) |
+
+Of 69 hand-classified same-carrier pairs, **67 are battlefield/battlefield** (1
+library/library, 1 exile/exile). The residue is a battlefield problem.
+Largest same-carrier families inside the frame (exact regex counts, 257 occ. /
+228 cards deduped): self-trigger header + `target <permanent>` in the same
+clause (128/110, Perrie's family); `create a token that's a copy of X, except
+it …` (128/101); `attach <this Equipment> to it` (64/61); `gain control of
+target … Untap it` (43/35); `each creature blocking it` (38/38).
+
+**Clause-recency is held in reserve, not implemented.** 886 is large. The
+number is recorded here and in the ADR; implementing recency would replace the
+count with a find-first and cost the `countBy` witness lemmas that make the
+binder contract's clause 3 checkable, so it is a separate, deliberate decision.
+
+### ADR amendment (`docs/decisions/oracle-text-is-forward-anaphoric.md`)
+
+Clause 3 now reads, verbatim:
+
+> 3. **The gate resolves to a binding that is IN `bs`**, by counted uniqueness
+>    — over every compatible mention, or over the narrower set the consuming
+>    verb's own rule admits — or, where the text marks the read as existential
+>    rather than unique, by counted existence.
+
+plus a new subsection **"Counted uniqueness is scoped by the consuming verb's
+rule"** carrying the ruling's provenance (2026-08-27), the three [CR#109.2]
+carriers, the "NOT a preference" fence, the macro-only-carrier rule, `ThatHalf`
+as the same clause-3 shape at the shared union, and the residue number with
+clause-recency recorded as held in reserve.
+
+### ProofsAnaphora restatement
+
+§2 — two new fold identities: `countOnesAtIsFold` (at `itAtReaches sl`) and
+`countUnionHalfIsFold` (at the new `unionHalf w` test). Both are ordinary
+`countBy` folds, which is the whole point: the scoped read is a count.
+
+§3 — two new pairs: `itAtReadsOnlyPrefix`/`itAtResolvesInPrefix` and
+`thatHalfReadsOnlyPrefix`/`thatHalfResolvesInPrefix`, both resolving through
+the existing `countByWitness`. **No new witness lemma was owed** — the split
+report priced one on the assumption the gate would stop being `= 1`; it did
+not.
+
+§5 — `nomIntroIsDeltaThenPrefix`, `condIntroIsDeltaThenPrefix`,
+`gateSplitsAtNomIntro` and `gateSplitsAtCondIntro` **hold unchanged and
+re-typecheck as written**: `It`'s gate is untouched and every threading
+function still has the shape `delta ++ bs`. Three new lemmas state the same
+for the new gates: `slotGateSplitsAtNomIntro`, `slotGateSplitsAtCondIntro`
+(the card-carrier read is written in a condition), `unionHalfGateSplitsAtNomIntro`.
+
+§1 and §4 unchanged. `It`'s own §3 entries untouched, as designed.
+
+### Bench
+
+| card | outcome |
+|---|---|
+| **Frost Walker**, whole card | WRITES. The becomes-target family: 18 distinct lines / 29 card rows / 30 occurrences (corrected from "18 lines"), all different-carrier, all unblocked by this. |
+| **Bioplasm** | The round's item WRITES: `bioplasmCardTest` at `bioplasmAfterExile`, with `bioplasmTwoCandidates : countOnes Object … = 2` proving the bare read is genuinely refused there. The whole card does NOT write — "the exiled creature card's power" is a participle read at a type word and `verbedWordOk (TypeW t)` demands `wasField`, which a library card lacks. Sub-round B's item, not this one. Family: 9 cards. |
+| **Perrie, the Pulverizer** | REFUSED, by design. Both candidates battlefield-carrier. Archetype of the 128-occurrence largest residue family. |
+| **Heart of Bogardan**, whole card | WRITES. |
+| **Twinshot Sniper**, whole card | WRITES. |
+| **Destructive Revelry**, whole card | WRITES (the reach decision's witness). |
+| **Soul of Emancipation** | Still blocked — reach decided and fixed, second ambiguity is residue. |
+| **Ghor-Clan Rampager** | Kept writing across A3, via the permanent-carrier read. |
+
+Gates: `idris/scripts/build` 23/23, 0 errors, 0 warnings.
+`cargo xtask cite check --list-noncompliant` empty; `cite check` 0 stale (1
+rule blessed: [CR#702.19a]); `cite audit --diff` 29 sites read against their
+rules
+(three `[CR#109.2a]` sites corrected to `[CR#109.2]` — the former demands
+the description name a zone, and "it's a creature card" names none; one
+`[CR#115.1a]` corrected to `[CR#115.1]`).
+
+### Ledger — needs routing
+
+1. **`elemIntro` drops the stamp.** `elemIntro grp` mints the loop member with
+   `ObjectP (nounTy grp) (nounZone grp) Nothing Nothing`, so a member of a
+   group a labeled action just moved loses its `wasField` and is not reachable
+   as "that permanent" — while the group itself now is. Announcement-audit
+   shape → **sub-round C**.
+2. **"For each of those X, its Y" reads against the trigger's own self
+   mention.** Soul of Emancipation's remaining block: `elemIntro`'s member and
+   the enters trigger's self mention are both battlefield-carrier. Residue
+   under policy (b) unless the loop member is given a determiner the read can
+   discriminate on → **sub-round C**, or the recency reserve.
+3. **The 886-occurrence same-carrier residue.** Recorded above with its
+   families. Route as a standing measurement against any future recency
+   decision; the five named families are its shape.
+4. **`SpellSlot` at zero.** A `SlotCarrier` row with no written carrier,
+   recorded on the cell per the pins doctrine. Reopens if a printed line reads
+   a bare "it" in a slot whose rule takes a spell.
+5. **`halfReaches` ignores the zone.** Untouched here (the pronoun sidesteps it
+   by reading `bindingZone`), still the tolerated overgeneration recorded in
+   `planned/workbench-coordination-family.md`.
