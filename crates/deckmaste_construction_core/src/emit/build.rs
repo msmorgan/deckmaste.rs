@@ -3497,6 +3497,12 @@ fn feature_is_read(
 ) -> bool {
     validated.feature_equations(row.construction_id()).iter().any(|equation| {
         matches!(equation.value(), FeatureExpr::FromRole { role: source, feature: found } if identifier_key(source) == identifier_key(role) && *found == feature)
+    }) || row.fields().iter().any(|field| {
+        field.field_check().is_some_and(|(_, arguments)| {
+            arguments.iter().any(|(source, found)| {
+                source == &identifier_key(role) && *found == feature
+            })
+        })
     })
 }
 
@@ -3693,6 +3699,48 @@ mod tests {
         ] {
             assert!(source.contains(required), "missing `{required}`: {source}");
         }
+    }
+
+    #[test]
+    fn checked_callback_binds_companion_category_feature_without_a_helper() {
+        let validated = crate::validate_declarations(
+            crate::parse_declarations(quote::quote! {
+                construction determiner: Determinative {
+                    element Determiner {}
+                    derive fused_head_license = Values::FusedHead;
+                    form determiner = "each";
+                }
+                construction object: Object {
+                    element ObjectNode {}
+                    derive number = Values::Plural;
+                    form object = "creatures";
+                }
+                construction partitive: Root {
+                    element Partitive {
+                        head: Determinative checked by accepts_partitive(
+                            head.fused_head_license,
+                            whole.number,
+                        ),
+                        whole: Object,
+                    }
+                    form partitive = head whole;
+                }
+                root Root { punctuation = "."; eoi = true; standalone_render = true; }
+            })
+            .expect("callback companion-feature fixture parses"),
+        )
+        .expect("callback companion-feature fixture validates");
+        let source = super::emit(validated.semantic())
+            .expect("callback companion-feature fixture emits")
+            .remove(0)
+            .tokens
+            .to_string();
+
+        assert!(source.contains("whole_number"), "missing direct binding: {source}");
+        assert!(
+            !source.contains("number_for_object"),
+            "must not fall back to a helper: {source}"
+        );
     }
 
     fn shared_rhs_structural_plan() -> crate::semantic::SemanticPlan {

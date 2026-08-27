@@ -5216,6 +5216,26 @@ fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Featu
                 .flat_map(|form| &form.atoms)
                 .any(|atom| matches!(atom, FormAtom::Noun(_)))
             && path_name(&construction.category) == category)
+        || construction.element.fields.iter().any(|field| {
+            field.check.as_ref().is_some_and(|check| {
+                check.arguments.iter().any(|argument| {
+                    argument.feature == parsed_feature
+                        && construction.element.fields.iter().any(|source| {
+                            same_identifier(&source.name, &argument.role)
+                                && matches!(
+                                    &source.kind,
+                                    FieldKind::Category(path)
+                                        if path_name(path) == category
+                                )
+                                    || matches!(
+                                        &source.kind,
+                                        FieldKind::Zeroable { item, .. }
+                                            if matches!(item.as_ref(), FieldKind::Category(path) if path_name(path) == category)
+                                    )
+                        })
+                })
+            })
+        })
     })
 }
 
@@ -9903,6 +9923,38 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("feature-bearing lexical field accepts a build-only check");
+    }
+
+    #[test]
+    fn checked_callback_arguments_mark_companion_category_features_as_reads() {
+        let validated = validate(quote! {
+            construction determiner: Determinative {
+                element Determiner {}
+                derive fused_head_license = Values::FusedHead;
+                form determiner = "each";
+            }
+            construction object: Object {
+                element ObjectNode {}
+                derive number = Values::Plural;
+                form object = "creatures";
+            }
+            construction partitive: Root {
+                element Partitive {
+                    head: Determinative checked by accepts_partitive(
+                        head.fused_head_license,
+                        whole.number,
+                    ),
+                    whole: Object,
+                }
+                form partitive = head whole;
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("callback companion-feature fixture validates");
+        assert!(validated.semantic().category_reads_feature(
+            "Object",
+            crate::feature::Feature::Number,
+        ));
     }
 
     #[test]

@@ -1643,7 +1643,8 @@ impl SemanticPlan {
         validate_generated_associated_names(&constructions, &products)?;
         seal_invariant_category_feature_reads(&constructions, &mut category_reads);
         seal_form_guard_category_feature_reads(&constructions, &equations, &mut category_reads)?;
-        let number_carry_categories = number_carry_categories(&constructions, &equations);
+        seal_checked_field_category_feature_reads(&constructions, &mut category_reads)?;
+        let number_carry_categories = number_carry_categories(&constructions, &equations, &category_reads);
         let cardinality_carry_categories = cardinality_carry_categories(&constructions, &equations);
         let onset_carry_categories = onset_carry_categories(&constructions, &equations);
         let possessive_ending_carry_categories =
@@ -2939,6 +2940,29 @@ fn seal_form_guard_category_feature_reads(
                 if field.kind() == ConstructionFieldKind::Category {
                     category_reads
                         .entry(field.terminal().to_owned())
+                        .or_default()
+                        .insert(*feature);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn seal_checked_field_category_feature_reads(
+    constructions: &[ConstructionPlan],
+    category_reads: &mut HashMap<String, HashSet<Feature>>,
+) -> syn::Result<()> {
+    for construction in constructions {
+        for field in construction.fields() {
+            let Some((_, arguments)) = field.field_check() else {
+                continue;
+            };
+            for (role, feature) in arguments {
+                let source = construction.field(role)?;
+                if source.kind() == ConstructionFieldKind::Category {
+                    category_reads
+                        .entry(source.terminal().to_owned())
                         .or_default()
                         .insert(*feature);
                 }
@@ -4785,6 +4809,7 @@ fn form_atom_span(atom: &FormAtom) -> Span {
 fn number_carry_categories(
     constructions: &[ConstructionPlan],
     equations: &HashMap<String, Vec<feature::FeatureEquation>>,
+    category_reads: &HashMap<String, HashSet<Feature>>,
 ) -> HashSet<String> {
     let mut carried = HashSet::new();
     loop {
@@ -4802,7 +4827,10 @@ fn number_carry_categories(
                         })
                     })
                 })
-                || carried.contains(&construction.category);
+                || carried.contains(&construction.category)
+                || category_reads
+                    .get(&construction.category)
+                    .is_some_and(|reads| reads.contains(&Feature::Number));
             if !output_is_needed {
                 continue;
             }
