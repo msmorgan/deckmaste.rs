@@ -1,4 +1,17 @@
 ||| The workbench's evidence bench: typechecking positives and pinned negatives over real cards.
+|||
+||| Selection principle: an entry is added when a construction, keyword, or
+||| interaction needs a witness for some round's work. The bench is not a
+||| random sample of the corpus, not a curated-for-coverage set, and not a
+||| representative one; it grows by proof, card by card, as rounds need
+||| evidence.
+|||
+||| A card's absence from this file is therefore not a claim about that card.
+||| It says only that no round has yet needed it as a witness. Absence is a
+||| normal, un-alarming state, and the fraction of the corpus present here is
+||| not a quantity this workbench tracks: the bench exists to show that the
+||| rules text is self-consistent and that every card *can* be represented,
+||| not to census what has been printed.
 module Experimental.Cards
 
 import Experimental

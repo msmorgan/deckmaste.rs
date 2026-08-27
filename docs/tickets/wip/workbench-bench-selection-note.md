@@ -47,3 +47,27 @@ discretion. No Rust crate, no other Idris source.
   ticket's recorded rationale rather than silently reintroducing it.
 
 Standard constraints apply.
+
+## As landed
+
+- `idris/src/Experimental/Cards.idr`'s module docstring now states the
+  selection principle in three parts: entries are added when a construction,
+  keyword, or interaction needs a witness for a round's work; the bench is
+  explicitly *not* random, curated-for-coverage, or corpus-representative; and
+  a card's absence is not a claim about that card, only that no round has
+  needed it yet. The docstring also says outright that the corpus fraction is
+  not a quantity the workbench tracks, so a future reader has to argue against
+  a stated position rather than fill a silence.
+- The principle was judged durable enough to record on both sides, so the
+  optional half was taken as well: a paragraph in
+  `docs/memory/rulings/measurements-live-in-pins.md` derives bench growth from
+  the same doctrine that governs pins, and its `INDEX.md` routing entry was
+  extended to match.
+- The docstring deliberately does **not** cite the memory note. `Cards.idr` is
+  tracked source, and `docs/memory/README.md` forbids tracked files from
+  referencing local memory (the dependency is one-way). The docstring
+  therefore stands on its own wording; the memory note is the side that
+  carries the cross-reference.
+- No coverage-percentage or corpus-sampling mechanism was introduced.
+- Gate: `idris2 --build mtg-dev.ipkg` clean (15/15 modules, `Experimental.Cards`
+  at 12/15); full `idris/scripts/build` run recorded on the second ticket.
