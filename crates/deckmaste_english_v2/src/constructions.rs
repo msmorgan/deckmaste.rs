@@ -295,47 +295,6 @@ constructions! {
             Plural = "dice",
         },
     }
-    lexeme VerbLexeme using EnglishVerb {
-        May = "may" { ThirdPersonSingular = "may", },
-        Can = "can" { ThirdPersonSingular = "can", },
-        Cant = "can't" { ThirdPersonSingular = "can't", },
-        Must = "must" { ThirdPersonSingular = "must", },
-        Didnt = "didn't" { ThirdPersonSingular = "didn't", },
-        Would = "would" { ThirdPersonSingular = "would", },
-        Add = "add",
-        Choose = "choose",
-        Deal = "deal",
-        Draw = "draw",
-        Enter = "enter",
-        Gain = "gain",
-        Get = "get" {
-            ThirdPersonSingular = "gets",
-        },
-        Lose = "lose",
-        Pay = "pay",
-        Prevent = "prevent",
-        Put = "put",
-        Remove = "remove",
-        Roll = "roll",
-        Have = "have" {
-            ThirdPersonSingular = "has",
-        },
-        Look = "look",
-        Leave = "leave",
-        Control = "control",
-        Own = "own",
-        Return = "return",
-        Cause = "cause",
-        Become = "become",
-        Cost = "cost",
-        Do = "do" {
-            ThirdPersonSingular = "does",
-        },
-        Be = "be" {
-            Bare = "are",
-            ThirdPersonSingular = "is",
-        },
-    }
     codec IntransitiveVerb {
         generate declaration_verb {
             position = Verb;
@@ -506,10 +465,80 @@ constructions! {
             feature = Agreement;
         }
     }
-    codec EnterResultativeVerb {
+    codec PredicativeComplementVerb {
         generate declaration_verb {
+            class = Predicate;
             position = Verb;
             tail = [PredicativeComplement];
+            feature = Agreement;
+        }
+    }
+    codec AuxiliaryVerb {
+        generate declaration_verb {
+            class = Auxiliary;
+            position = Verb;
+            tail = [];
+            feature = Agreement;
+        }
+    }
+    codec ObjectInfinitiveVerb {
+        generate declaration_verb {
+            class = Predicate;
+            position = Verb;
+            tail = [Object, "to", VerbPhrase];
+            feature = Agreement;
+        }
+    }
+    codec ChooseInfinitiveVerb {
+        generate declaration_verb {
+            class = Predicate;
+            position = Verb;
+            tail = [InfinitiveComplement];
+            feature = Agreement;
+        }
+    }
+    codec OrderedVerb {
+        generate declaration_verb {
+            class = Predicate;
+            position = Verb;
+            tail = [Object, FromPhrase?, OnPhrase, "in", ObjectOrder, "order"];
+            feature = Agreement;
+        }
+    }
+    codec CounterfactualHaveVerb {
+        generate declaration_verb {
+            class = Predicate;
+            position = Verb;
+            tail = [CounterfactualAbility];
+            feature = Agreement;
+        }
+    }
+    codec RatherThanManaCostVerb {
+        generate declaration_verb {
+            class = Predicate;
+            position = Verb;
+            tail = [ManaCostReference];
+            feature = Agreement;
+        }
+    }
+    codec CostComparisonVerb {
+        generate declaration_verb {
+            class = Predicate;
+            position = Verb;
+            tail = [
+                ManaAmount,
+                CostComparisonDirection,
+                ControlledCostAction,
+                ForEachCostBasis?,
+            ];
+            feature = Agreement;
+        }
+    }
+    codec ProVerbHead {
+        generate declaration_verb {
+            class = ProVerb;
+            position = Verb;
+            tail = [];
             feature = Agreement;
         }
     }
@@ -1607,9 +1636,12 @@ constructions! {
         form bare_copular_predicate = lex(copula) complement;
     }
     construction change_state_predicate: ChangeStatePredicate {
-        element ChangeStatePredicateValue { complement: PredicativeComplement, }
-        derive agreement = verb.agreement;
-        form change_state_predicate = verb(VerbLexeme::Become) complement;
+        element ChangeStatePredicateValue {
+            head: lex PredicativeComplementVerb,
+            complement: PredicativeComplement,
+        }
+        derive agreement = head.agreement;
+        form change_state_predicate = verb(head) complement;
     }
     construction passive_damage_predicate: PassiveDamagePredicate {
         element PassiveDamagePredicateValue {
@@ -1661,35 +1693,10 @@ constructions! {
         derive agreement = Values::Bare;
         form bare_passive_predicate = lex(copula) predicate;
     }
-    construction may_auxiliary: AuxiliaryHead {
-        element MayAuxiliary {}
-        derive agreement = verb.agreement;
-        form may_auxiliary = verb(VerbLexeme::May);
-    }
-    construction can_auxiliary: AuxiliaryHead {
-        element CanAuxiliary {}
-        derive agreement = verb.agreement;
-        form can_auxiliary = verb(VerbLexeme::Can);
-    }
-    construction cant_auxiliary: AuxiliaryHead {
-        element CantAuxiliary {}
-        derive agreement = verb.agreement;
-        form cant_auxiliary = verb(VerbLexeme::Cant);
-    }
-    construction must_auxiliary: AuxiliaryHead {
-        element MustAuxiliary {}
-        derive agreement = verb.agreement;
-        form must_auxiliary = verb(VerbLexeme::Must);
-    }
-    construction didnt_auxiliary: AuxiliaryHead {
-        element DidntAuxiliary {}
-        derive agreement = verb.agreement;
-        form didnt_auxiliary = verb(VerbLexeme::Didnt);
-    }
-    construction would_auxiliary: AuxiliaryHead {
-        element WouldAuxiliary {}
-        derive agreement = verb.agreement;
-        form would_auxiliary = verb(VerbLexeme::Would);
+    construction inventory_auxiliary: AuxiliaryHead {
+        element InventoryAuxiliary { head: lex AuxiliaryVerb, }
+        derive agreement = head.agreement;
+        form inventory_auxiliary = verb(head);
     }
     construction state_duration_predicate: StateDurationPredicate {
         element StateDurationPredicateValue {
@@ -1701,12 +1708,13 @@ constructions! {
     }
     construction object_infinitive_predicate: ObjectInfinitivePredicate {
         element ObjectInfinitivePredicateValue {
+            head: lex ObjectInfinitiveVerb,
             object: Object,
             complement: VerbPhrase,
         }
-        derive agreement = verb.agreement;
+        derive agreement = head.agreement;
         derive complement.agreement = Values::Bare;
-        form object_infinitive_predicate = verb(VerbLexeme::Cause) object "to" complement;
+        form object_infinitive_predicate = verb(head) object "to" complement;
     }
     construction infinitive_complement: InfinitiveComplement {
         element InfinitiveComplementValue {
@@ -1717,9 +1725,12 @@ constructions! {
         form infinitive_complement = lex(negator) "to" predicate;
     }
     construction choose_infinitive_predicate: VerbPhrase {
-        element ChooseInfinitivePredicate { complement: InfinitiveComplement, }
-        derive agreement = verb.agreement;
-        form choose_infinitive_predicate = verb(VerbLexeme::Choose) complement;
+        element ChooseInfinitivePredicate {
+            head: lex ChooseInfinitiveVerb,
+            complement: InfinitiveComplement,
+        }
+        derive agreement = head.agreement;
+        form choose_infinitive_predicate = verb(head) complement;
     }
     construction requirement_predicate: RequirementPredicate {
         element RequirementPredicateValue {
@@ -1758,14 +1769,15 @@ constructions! {
     }
     construction ordered_predicate: OrderedPredicate {
         element OrderedPredicateValue {
+            head: lex OrderedVerb,
             object: Object,
             source: opt FromPhrase,
             destination: OnPhrase,
             order: lex ObjectOrder,
         }
-        derive agreement = verb.agreement;
+        derive agreement = head.agreement;
         form ordered_predicate =
-            verb(VerbLexeme::Put) object source destination "in" lex(order) "order";
+            verb(head) object source destination "in" lex(order) "order";
     }
     construction counterfactual_status_clause: CounterfactualStatusClause {
         element CounterfactualStatusClauseValue {
@@ -1788,11 +1800,12 @@ constructions! {
         element CounterfactualNegativeAbilityClauseValue {
             subject: Subject,
             auxiliary: lex CounterfactualNegativeAuxiliary,
+            head: lex CounterfactualHaveVerb,
             ability: lex CounterfactualAbility,
         }
-        derive verb.agreement = Values::Bare;
+        derive head.agreement = Values::Bare;
         form counterfactual_negative_ability_clause =
-            subject lex(auxiliary) verb(VerbLexeme::Have) lex(ability);
+            subject lex(auxiliary) verb(head) lex(ability);
     }
     construction counterfactual_past_ability_clause: CounterfactualPastAbilityClause {
         element CounterfactualPastAbilityClauseValue {
@@ -1875,13 +1888,14 @@ constructions! {
     construction rather_than_mana_cost_predicate: RatherThanManaCostPredicate {
         element RatherThanManaCostPredicateValue {
             action: VerbPhrase,
+            head: lex RatherThanManaCostVerb,
             reference: ManaCostReference,
         }
         derive action.agreement = Values::Bare;
         derive agreement = action.agreement;
-        derive verb.agreement = Values::Bare;
+        derive head.agreement = Values::Bare;
         form rather_than_mana_cost_predicate =
-            action "rather" "than" verb(VerbLexeme::Pay) reference;
+            action "rather" "than" verb(head) reference;
     }
     construction without_paying_mana_cost_predicate: WithoutPayingManaCostPredicate {
         element WithoutPayingManaCostPredicateValue {
@@ -1900,14 +1914,15 @@ constructions! {
     }
     construction cost_comparison_predicate: CostComparisonPredicate {
         element CostComparisonPredicateValue {
+            head: lex CostComparisonVerb,
             amount: ManaAmount,
             direction: lex CostComparisonDirection,
             action: ControlledCostAction,
             basis: opt ForEachCostBasis,
         }
-        derive agreement = verb.agreement;
+        derive agreement = head.agreement;
         form cost_comparison_predicate =
-            verb(VerbLexeme::Cost) amount lex(direction) action basis;
+            verb(head) amount lex(direction) action basis;
     }
     construction for_each_cost_basis: ForEachCostBasis {
         element ForEachCostBasisValue { object: Object, }
@@ -4047,9 +4062,9 @@ constructions! {
         form base_verb_phrase = frame;
     }
     construction pro_verb_predicate: VerbPhrase {
-        element ProVerbPredicate {}
-        derive agreement = verb.agreement;
-        form pro_verb_predicate = verb(VerbLexeme::Do);
+        element ProVerbPredicate { head: lex ProVerbHead, }
+        derive agreement = head.agreement;
+        form pro_verb_predicate = verb(head);
     }
     construction declared_object_predicative_verb_phrase: VerbPhrase {
         element DeclaredObjectPredicativeVerbPhrase {
@@ -4332,7 +4347,7 @@ constructions! {
         form return_to = verb(head) object source destination result control;
     }
     construction enter_resultative: VerbPhrase {
-        element EnterResultative { head: lex EnterResultativeVerb, result: PredicativeComplement, }
+        element EnterResultative { head: lex PredicativeComplementVerb, result: PredicativeComplement, }
         derive agreement = head.agreement;
         form enter_resultative = verb(head) result;
     }
