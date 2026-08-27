@@ -137,21 +137,31 @@ mutual
   ||| results the header watches for. [CR#706.3a] writes the same three
   ||| forms for a results table's left column -- a single number, a
   ||| two-ended range, a one-ended "N+" -- and the printed headers
-  ||| write all three ("a 6", "a 1 or 2", "a 4 or higher"), so the test
-  ||| is the quantity vocabulary's literal range and needs nothing of
-  ||| its own. The gates are `RollRow`'s: a range whose floor tops its
-  ||| ceiling matches no result, and a die is numbered from 1
+  ||| write all three ("a 6", "a 1 or 2", "a 4 or higher"), so the
+  ||| ranged test is the quantity vocabulary's literal range and needs
+  ||| nothing of its own. The gates are `RollRow`'s: a range whose floor
+  ||| tops its ceiling matches no result, and a die is numbered from 1
   ||| [CR#706.1a], so a ceiling of zero matches none either.
   ||| A test is not a third `DiceBatch` arm. The batch is the
   ||| determiner the header writes, and a tested header may write
   ||| either alongside it ("a 4 or higher on a die") or write the range
   ||| in the determiner's place.
+  ||| `HighestNatural` is the one test no range spells. [CR#706.2] makes
+  ||| the natural result the number on the top face BEFORE any modifier,
+  ||| so a modified 20 is a result of 20 and not the natural one; and
+  ||| [CR#706.1a] numbers each die from 1 to its own N, so the highest
+  ||| natural result is a different number for every die the header may
+  ||| watch and is a literal for none of them.
+  ||| -- spelling: with `ResultIn`, "a [q]"; with `HighestNatural`,
+  ||| "a die's highest natural result".
   public export
-  data RollTest : Maybe (Quantity bs) -> Type where
-    AnyResult : RollTest Nothing
-    ResultIn : {auto 0 nz : NonZeroQ q} ->
+  data RollWatch : Bindings -> Type where
+    AnyResult : RollWatch bs
+    ResultIn : (q : Quantity bs) ->
+               {auto 0 nz : NonZeroQ q} ->
                {auto 0 wf : WellFormedQ q} ->
-               {auto 0 lt : So (quantLiteral q)} -> RollTest (Just q)
+               {auto 0 lt : So (quantLiteral q)} -> RollWatch bs
+    HighestNatural : RollWatch bs
 
   ||| What a payment event has announced by the time its cost is named:
   ||| the payer when the clause writes one, and nothing when the passive
@@ -289,8 +299,7 @@ mutual
     ||| -- spelling: with `ManyDice`, "[who] roll(s) one or more dice";
     ||| with `OneDie`, "[who] roll(s) a die".
     RollsDice : (who : Noun bs Player) -> (many : DiceBatch) ->
-                (res : Maybe (Quantity bs)) ->
-                {auto 0 rt : RollTest res} -> GameEvent bs
+                (res : RollWatch bs) -> GameEvent bs
     ||| "When a player doesn't pay this enchantment's cumulative upkeep",
     ||| "Whenever you pay this enchantment's cumulative upkeep",
     ||| "Whenever this creature's cumulative upkeep is paid": a stated
@@ -412,7 +421,17 @@ mutual
   eventIntro (StatBecomes _ _ v) = amtIntro v
   eventIntro (Regenerates n) = nomIntro n
   eventIntro (FlipEvent who _) = nomIntro who
-  eventIntro (RollsDice who _ _) = nomIntro who
+  -- the roll it announces is the roll that WOULD happen: a replacement
+  -- reads `eventIntro`, and [CR#614.6] keeps the replaced event from
+  -- happening at all, so what stands there is the dice the instruction
+  -- called for and not any result. That one mention carries both halves
+  -- "instead roll that many dice plus one" needs -- the count for
+  -- `ThatMuch` and the kind for `ThoseDice` -- because [CR#706.1] has
+  -- the roll specify them together. The singular determiner announces
+  -- nothing, on `CounterEvent`'s model: "that many" needs a number the
+  -- text wrote, and "a die" wrote none.
+  eventIntro (RollsDice who OneDie _) = nomIntro who
+  eventIntro (RollsDice who ManyDice _) = outcomeB DiceRolled :: nomIntro who
   eventIntro (PaysCost _ _ whose _) = nomIntro whose
   eventIntro (PaysLife who) = nomIntro who
   eventIntro (NthOccurrence _ ev) = eventIntro ev
@@ -454,6 +473,10 @@ mutual
   eventAfter (StatBecomes n _ v) = amtDelta v ++ selfSubjIntro n
   eventAfter (Regenerates n) = selfSubjIntro n
   eventAfter (FlipEvent who _) = nomIntro who
+  -- and the roll that DID happen leaves its result, never the dice it
+  -- called for: [CR#706.2] makes the number on the die the result of
+  -- that roll, and that is the one number a trigger's tail reads back
+  -- ("put that many +1/+1 counters on this creature").
   eventAfter (RollsDice who _ _) = outcomeB RollResult :: nomIntro who
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
   eventAfter (PaysLife who) = outcomeB LifeLost :: nomIntro who

@@ -422,7 +422,7 @@ badTableWithoutRoll Refl impossible
 ||| [CR#706.1].
 public export
 badNoughtSidedDie : Unspellable (Effect []) (\ok =>
-  RollDice You (Lit 1) 0 {nz = ok})
+  RollDice You (Lit 1) (SidesOf 0 {nz = ok}))
 badNoughtSidedDie ItIsSucc impossible
 
 ||| a planeswalker card printed with no starting loyalty
@@ -662,6 +662,17 @@ badStoreResultsWithoutRoll : Unspellable (Effect []) (\ok =>
   StoreResults Macros.thisCreature {ok})
 badStoreResultsWithoutRoll Refl impossible
 
+||| "Roll that many dice." with no roll announced before it.
+||| [CR#706.1] has a rolling instruction specify what kind of die to roll;
+||| the anaphoric arm specifies none of its own, taking the kind an
+||| announced roll already carried, so with nothing announced it names no
+||| die. `wyllExtraDie` is the same word written where the announcement
+||| stands.
+public export
+badAnaphoricSidesWithoutRoll : Unspellable (Effect []) (\ok =>
+  RollDice You (Lit 1) (ThoseDice {ok}))
+badAnaphoricSidesWithoutRoll Refl impossible
+
 ||| "If you rolled doubles, sacrifice this creature." with no roll.
 ||| [CR#706.5] defines the phrase over "each of those rolls", which is the
 ||| roll the clause made; with none made the phrase compares nothing.
@@ -692,8 +703,8 @@ badCoinCameUpOnAbility Oh impossible
 ||| ground on which a results-table row of zero is refused.
 public export
 badZeroRollTest : Unspellable (GameEvent []) (\ok =>
-  RollsDice You OneDie (Just (Range Nothing (Just 0)))
-            {rt = ResultIn {nz = ok} {wf = Oh} {lt = Oh}})
+  RollsDice You OneDie (ResultIn (Range Nothing (Just 0))
+                                 {nz = ok} {wf = Oh} {lt = Oh}))
 badZeroRollTest MaxAtLeastOne impossible
 
 

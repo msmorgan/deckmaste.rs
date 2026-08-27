@@ -1821,12 +1821,12 @@ fromTo lo hi = Range (Just lo) (Just hi)
 ||| "Flip a coin." [CR#705.1]
 public export
 flipACoin : Effect bs
-flipACoin = FlipCoins You (Lit 1)
+flipACoin = FlipCoins You (FlipCount (Lit 1))
 
 ||| "Flip [n] coins."
 public export
 flipCoins : (n : Nat) -> Effect bs
-flipCoins n = FlipCoins You (Lit n)
+flipCoins n = FlipCoins You (FlipCount (Lit n))
 
 ||| "If you win the flip, …" [CR#705.2]
 public export
@@ -1849,13 +1849,13 @@ comesUp face = FlipFace face {fl}
 ||| die", which is the other spelling [CR#706.1a].
 public export
 rollADie : (sides : Nat) -> {auto 0 nz : IsSucc sides} -> Effect bs
-rollADie sides = RollDice You (Lit 1) sides {nz}
+rollADie sides = RollDice You (Lit 1) (SidesOf sides {nz})
 
 ||| "Roll [count] d[sides]."
 public export
 rollDice : (count : Nat) -> (sides : Nat) -> {auto 0 nz : IsSucc sides} ->
            Effect bs
-rollDice count sides = RollDice You (Lit count) sides {nz}
+rollDice count sides = RollDice You (Lit count) (SidesOf sides {nz})
 
 ||| "the result" [CR#706.2]
 public export
@@ -1890,12 +1890,12 @@ youLoseACoinFlip = FlipEvent You LosesFlip
 ||| "Whenever you roll one or more dice, …" [CR#706.7]
 public export
 youRollDice : GameEvent bs
-youRollDice = RollsDice You ManyDice Nothing
+youRollDice = RollsDice You ManyDice AnyResult
 
 ||| "Whenever you roll a die, …" -- the singular determiner [CR#706.7].
 public export
 youRollADie : GameEvent bs
-youRollADie = RollsDice You OneDie Nothing
+youRollADie = RollsDice You OneDie AnyResult
 
 ||| "Whenever you roll a 4 or higher, …", "Whenever you roll a 6, …":
 ||| the roll header carrying a result test [CR#706.3a].
@@ -1904,7 +1904,20 @@ youRollResultIn : (q : Quantity bs) ->
                   {auto 0 nz : NonZeroQ q} ->
                   {auto 0 wf : WellFormedQ q} ->
                   {auto 0 lt : So (quantLiteral q)} -> GameEvent bs
-youRollResultIn q = RollsDice You OneDie (Just q) {rt = ResultIn {nz} {wf} {lt}}
+youRollResultIn q = RollsDice You OneDie (ResultIn q {nz} {wf} {lt})
+
+||| "Whenever you roll a die's highest natural result, …" -- the test
+||| against the die's own maximum [CR#706.2,706.1a].
+public export
+youRollHighestNatural : GameEvent bs
+youRollHighestNatural = RollsDice You OneDie HighestNatural
+
+||| "Flip a coin for each [each]." [CR#705.1]
+public export
+flipACoinFor : {k : Kind} -> (each : Noun bs k) ->
+               {auto 0 pl : nounPlur each = ManyOf} ->
+               {auto 0 rk : So (kindLte k (Object \/ Player))} -> Effect bs
+flipACoinFor each = FlipCoins You (FlipPer each {pl} {rk})
 
 ||| "[lo] or higher" as a results range [CR#706.3a].
 public export

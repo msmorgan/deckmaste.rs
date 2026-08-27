@@ -1990,6 +1990,31 @@ mutual
   lifeIntro (Down a) = amtIntro a
   lifeIntro (Set a) = amtIntro a
 
+  ||| How many coins a flip instruction calls for: a written number, or
+  ||| one coin per member of a described set. [CR#705.1] makes a coin a
+  ||| physical randomiser that belongs to no referent, so a flip made FOR
+  ||| a thing is not a flip made BY it -- and [CR#705.2] gives the flip to
+  ||| "the player who flips the coin", which is the instruction's subject
+  ||| in both arms. That is why the per-member arm is a second slot and
+  ||| never a plural subject: Warp Vortex's "flip a coin for each opponent
+  ||| you have" then reads "for each flip YOU win".
+  ||| Kind-polymorphic under the coarse join `CoinCameUp` uses, because
+  ||| both kinds are printed ("for each creature", "for each opponent");
+  ||| plural, because one member is `FlipCount (Lit 1)` written out.
+  ||| -- spelling: with `FlipCount`, "[n] coin(s)"; with `FlipPer`,
+  ||| "a coin for each [each]".
+  public export
+  data FlipScope : Bindings -> Type where
+    FlipCount : (n : Amount bs) -> FlipScope bs
+    FlipPer : {k : Kind} -> (each : Noun bs k) ->
+              {auto 0 pl : nounPlur each = ManyOf} ->
+              {auto 0 rk : So (kindLte k (Object \/ Player))} -> FlipScope bs
+
+  public export
+  flipScopeIntro : {bs : Bindings} -> FlipScope bs -> Bindings
+  flipScopeIntro (FlipCount n) = amtIntro n
+  flipScopeIntro (FlipPer each) = nomIntro each
+
   public export
   readAmount : {0 bs : Bindings} -> Amount bs -> Bool
   readAmount (Lit _) = False

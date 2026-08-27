@@ -8257,6 +8257,22 @@ xenosquirrelsShift : Effect []
 xenosquirrelsShift =
   Sequentially [Macros.rollADie 6, ShiftResult (Lit 1)]
 
+||| Wyll, Blade of Frontiers, first line -- "If you would roll one or more
+||| dice, instead roll that many dice plus one and ignore the lowest
+||| roll." Barbarian Class's level-1 line is the same sentence, and Pixie
+||| Guide's is it under an ability word. The replacement side of the
+||| ignore instruction: the would-event announces the dice it called for
+||| [CR#706.1], never a result, since [CR#614.6] keeps the replaced roll
+||| from happening; "that many" reads that count and the bare "dice"
+||| reads its kind.
+public export
+wyllExtraDie : Effect []
+wyllExtraDie =
+  Macros.ifWouldInstead Macros.youRollDice
+    (Sequentially [ RollDice You (Plus ThatMuch (Lit 1)) ThoseDice
+                  , IgnoreRolls (IgnoreExtreme LowestRoll) ])
+    Nothing
+
 ||| Atomwheel Acrobats, first line: "Whenever you roll a 1 or 2, put that
 ||| many +1/+1 counters on this creature." The two-ended result test
 ||| [CR#706.3a], and the body reading the result back as "that many".
@@ -8288,6 +8304,31 @@ monoxaRollTrigger =
                                     (KeywordAbility "Lifelink" Nothing)
                                     (Just Macros.untilEndOfTurn)) ])
 
+||| Netherese Puzzle-Ward, second line: "Perfect Illumination — Whenever
+||| you roll a die's highest natural result, draw a card." The test no
+||| literal range spells: [CR#706.2] takes the natural result before any
+||| modifier and [CR#706.1a] numbers each die to its own N, so the
+||| header's number depends on the die it watches. The ability word is
+||| not written.
+public export
+netheresePuzzleWardIllumination : Ability
+netheresePuzzleWardIllumination =
+  Macros.triggered Whenever Macros.youRollHighestNatural Macros.drawACard
+
+||| Resolute Veggiesaur, second line: "Whenever you roll your third die
+||| each turn, put a +1/+1 counter on this creature." No vocabulary of its
+||| own: the ordinal occurrence word over the roll event, under the window
+||| that resets it. "Each turn" is benched as the every-player window,
+||| which is the same span in the spelling `TriggerWindow` carries.
+public export
+resoluteVeggiesaurThirdDie : Ability
+resoluteVeggiesaurThirdDie =
+  Macros.triggeredOnlyDuring Whenever
+    (NthOccurrence (Nth 3) Macros.youRollADie)
+    (DuringWindow Turn (Just EachPlayers))
+    (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                 Macros.thisCreature)
+
 ||| Fractured Powerstone, second line: "{T}: Roll the planar die.
 ||| Activate only as a sorcery." The planar die's instruction row
 ||| [CR#901.3a]; it announces no number, since [CR#706.7] has every
@@ -8296,6 +8337,16 @@ public export
 fracturedPowerstonePlanarRoll : Ability
 fracturedPowerstonePlanarRoll =
   Macros.activatedOnlyDuring TapSymbol (RollPlanarDie You) AsSorcery
+
+||| Missy's end-step line, benched as the branch it writes: "you draw a
+||| card and chaos ensues." [CR#311.7] admits the instruction beside the
+||| die face — a chaos ability triggers "if a resolving spell or ability
+||| says that chaos ensues" — so the sentence needs no planar roll. The
+||| villainous choice that frames the two branches is its own family and
+||| is not written.
+public export
+missyChaosBranch : Effect []
+missyChaosBranch = Sequentially [Macros.drawACard, ChaosEnsues]
 
 ||| Farideh, Devil's Chosen, her roll trigger's second sentence: "If any
 ||| of those results was 10 or higher, draw a card." The existential over
@@ -8331,9 +8382,36 @@ celebr8000Doubles =
 public export
 goblinAssassinCoinTails : Effect []
 goblinAssassinCoinTails =
-  Sequentially [ FlipCoins (Each AnyPlayer) (Lit 1)
+  Sequentially [ FlipCoins (Each AnyPlayer) (FlipCount (Lit 1))
                , Macros.sacrifice (Each (And [AnyPlayer, CoinCameUp Tails]))
                                   (Macros.a Macros.creature) ]
+
+||| Rakdos, the Showstopper's trigger body: "flip a coin for each creature
+||| that isn't a Demon, Devil, or Imp. Destroy each creature whose coin
+||| comes up tails." The per-member flip: [CR#705.1] leaves the coin owned
+||| by no referent and [CR#705.2] gives the flip to whoever flips it, so
+||| the described set is a second slot on the instruction and the subject
+||| stays the flipper.
+public export
+rakdosShowstopperFlips : Effect []
+rakdosShowstopperFlips =
+  Sequentially
+    [ Macros.flipACoinFor
+        (Each (And [ Macros.creature
+                   , Not (Or [ HasSubtype (creatureType "Demon")
+                             , HasSubtype (creatureType "Devil")
+                             , HasSubtype (creatureType "Imp") ]) ]))
+    , Macros.destroy (Each (And [Macros.creature, CoinCameUp Tails])) ]
+
+||| Warp Vortex's first sentence, benched alone: "flip a coin for each
+||| opponent you have." The per-member flip over the player kind beside
+||| Rakdos's over the object kind [CR#705.1]. The line's remaining
+||| sentences count the flips you WON and the ones you lost;
+||| `CoinsShowing` counts coins by the face they came up, which is
+||| [CR#705.2]'s other reading, and the called one has no count word.
+public export
+warpVortexFlips : Effect []
+warpVortexFlips = Macros.flipACoinFor (Each Opponent)
 
 ||| Centaur of Attention
 ||| "When this creature enters, roll five six-sided dice and store those

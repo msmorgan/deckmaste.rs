@@ -883,23 +883,29 @@ mutual
     ||| because printed text writes it ("Flip X coins"), and a bare flip
     ||| is `Lit 1`.
     ||| It introduces the flip so those readings have something to name.
-    ||| -- spelling: "[who] flip[s] [count] coin(s)"; with `You` in the
-    ||| subject slot, the imperative "Flip a coin."
-    FlipCoins : (who : Noun bs Player) -> (count : Amount (nomIntro who)) ->
+    ||| The count slot is a `FlipScope`, so the same row writes the flip
+    ||| made FOR each member of a described set ("flip a coin for each
+    ||| creature that isn't a Demon, Devil, or Imp"): [CR#705.1] leaves a
+    ||| coin owned by no referent and [CR#705.2] gives the flip to whoever
+    ||| flips it, so the per-member arm changes how many coins there are
+    ||| and never who the subject is.
+    ||| -- spelling: "[who] flip[s] [count]"; with `You` in the subject
+    ||| slot, the imperative "Flip a coin."
+    FlipCoins : (who : Noun bs Player) -> (count : FlipScope (nomIntro who)) ->
                 Effect bs
     ||| "Roll a d20", "Roll two six-sided dice", "roll that many dice":
     ||| [CR#706.1]'s instruction, which "will specify what kind of die to
     ||| roll and how many of those dice to roll" — so both are written
-    ||| arguments and neither has a default. [CR#706.1a] fixes what the
-    ||| kind is: N equally likely outcomes numbered from 1 to N, N a
-    ||| positive integer, spelled either "dN" or "N-sided". The gate is
-    ||| that positivity and no more; a nought-sided die has no outcome to
-    ||| land on, and every other N the rule allows.
+    ||| arguments and neither has a default. The kind is a `DieSides`,
+    ||| which carries [CR#706.1a]'s positivity on its written arm and,
+    ||| on its anaphoric one, the kind an announced roll already named —
+    ||| what "instead roll that many dice plus one" writes over a roll it
+    ||| replaces.
     ||| It introduces the roll's number, which "the result" reads
     ||| [CR#706.2] and a results table ranges over [CR#706.3a].
-    ||| -- spelling: "[who] roll[s] [count] d[sides]"
+    ||| -- spelling: "[who] roll[s] [count] [sides]"
     RollDice : (who : Noun bs Player) -> (count : Amount (nomIntro who)) ->
-               (sides : Nat) -> {auto 0 nz : IsSucc sides} -> Effect bs
+               (sides : DieSides (amtIntro count)) -> Effect bs
     ||| The results table [CR#706.3]: the striations that read the roll
     ||| the text has already made. A separate clause rather than a slot on
     ||| `RollDice`, because [CR#706.3b] binds the roll, "any additional
@@ -962,6 +968,20 @@ mutual
     ||| card; this is the instruction a card's own ability gives.
     ||| -- spelling: "[who] roll[s] the planar die".
     RollPlanarDie : (who : Noun bs Player) -> Effect bs
+    ||| "chaos ensues": the instruction beside the die face. [CR#311.7]
+    ||| admits it outright — a chaos ability triggers "if the chaos symbol
+    ||| is rolled on the planar die, if a resolving spell or ability says
+    ||| that chaos ensues, or if a resolving spell or ability states that
+    ||| chaos ensues for a particular object" — so a card may say it
+    ||| without a planar roll anywhere in the sentence, which is how both
+    ||| printed lines write it.
+    ||| No subject and no slot. The rule's middle clause gives the
+    ||| instruction no participant, and the object-scoped third clause is
+    ||| written by no supported line. It mints nothing: what ensues is a
+    ||| trigger on the plane card [CR#311.7], not a phrase this sentence
+    ||| can go on to read.
+    ||| -- spelling: "chaos ensues".
+    ChaosEnsues : Effect bs
     ||| "and store those results on it": [CR#706.8a]'s noting of both the
     ||| kind of die rolled and the result of each roll. Gated on the roll
     ||| the same clause made, since those results are what it stores.
@@ -1295,6 +1315,7 @@ mutual
   heldUntilOk (IgnoreRolls _) = False
   heldUntilOk (ShiftResult _) = False
   heldUntilOk (RollPlanarDie _) = False
+  heldUntilOk ChaosEnsues = False
   heldUntilOk (StoreResults _) = False
   heldUntilOk (RerollStored _ _ _) = False
   heldUntilOk (Continuously _ _) = False
@@ -1401,6 +1422,7 @@ mutual
   reflexEncloseUse (IgnoreRolls _) = EncAgentless
   reflexEncloseUse (ShiftResult _) = EncAgentless
   reflexEncloseUse (RollPlanarDie _) = EncReflexive
+  reflexEncloseUse ChaosEnsues = EncAgentless
   reflexEncloseUse (StoreResults _) = EncAgentless
   reflexEncloseUse (RerollStored _ _ _) = EncReflexive
   -- [CR#603.12] writes the reflexive over what a player did or didn't
@@ -1487,6 +1509,7 @@ mutual
   thisWayOutcomeOk (IgnoreRolls _) = True
   thisWayOutcomeOk (ShiftResult _) = True
   thisWayOutcomeOk (RollPlanarDie _) = True
+  thisWayOutcomeOk ChaosEnsues = True
   thisWayOutcomeOk (StoreResults _) = True
   thisWayOutcomeOk (RerollStored _ _ _) = True
   thisWayOutcomeOk (Continuously _ _) = True
@@ -1584,6 +1607,7 @@ mutual
   costActionOk (ShiftResult _) = False
   costActionOk (StoreResults _) = False
   costActionOk (RollPlanarDie who) = costNounOk who
+  costActionOk ChaosEnsues = False
   costActionOk (RerollStored who _ _) = costNounOk who
   costActionOk (Continuously _ _) = False
   costActionOk (Throughout _ _) = False
@@ -1716,6 +1740,7 @@ mutual
   effEq (IgnoreRolls _) _ = False
   effEq (ShiftResult _) _ = False
   effEq (RollPlanarDie _) _ = False
+  effEq ChaosEnsues _ = False
   effEq (StoreResults _) _ = False
   effEq (RerollStored _ _ _) _ = False
   effEq (Continuously _ _) _ = False
@@ -1826,12 +1851,13 @@ mutual
               (ObjectP (seedTy p) (searchZone sc) (mkStamp (Just "Search") Nothing) Nothing)
       :: (predDelta p ++ searchDelta sc ++ nomIntro who)
   effIntro (Shuffle whose) = afterShuffle (nomIntro whose)
-  effIntro (FlipCoins who count) = outcomeB CoinFlipped :: amtIntro count
+  effIntro (FlipCoins who count) = outcomeB CoinFlipped :: flipScopeIntro count
   effIntro (RollDice who count _) = outcomeB RollResult :: amtIntro count
   effIntro (ResultsTable rows) = bs
   effIntro (IgnoreRolls _) = bs
   effIntro (ShiftResult amt) = amtIntro amt
   effIntro (RollPlanarDie who) = nomIntro who
+  effIntro ChaosEnsues = bs
   effIntro (StoreResults on) = nomIntro on
   effIntro (RerollStored _ _ whose) = nomIntro whose
   effIntro (Continuously se _) = staticIntro se
@@ -1914,12 +1940,13 @@ mutual
   preIntro (Expose v who what) = exposedIntro what
   preIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
   preIntro (Shuffle whose) = nomIntro whose
-  preIntro (FlipCoins who count) = amtIntro count
+  preIntro (FlipCoins who count) = flipScopeIntro count
   preIntro (RollDice who count _) = amtIntro count
   preIntro (ResultsTable rows) = bs
   preIntro (IgnoreRolls _) = bs
   preIntro (ShiftResult amt) = amtIntro amt
   preIntro (RollPlanarDie who) = nomIntro who
+  preIntro ChaosEnsues = bs
   preIntro (StoreResults on) = nomIntro on
   preIntro (RerollStored _ _ whose) = nomIntro whose
   preIntro (Continuously se _) = staticIntro se
@@ -1993,12 +2020,13 @@ mutual
   annIntro (Expose v who what) = exposedIntro what
   annIntro (Search who sc p) = predDelta p ++ searchDelta sc ++ nomIntro who
   annIntro (Shuffle whose) = nomIntro whose
-  annIntro (FlipCoins who count) = amtIntro count
+  annIntro (FlipCoins who count) = flipScopeIntro count
   annIntro (RollDice who count _) = amtIntro count
   annIntro (ResultsTable rows) = bs
   annIntro (IgnoreRolls _) = bs
   annIntro (ShiftResult amt) = amtIntro amt
   annIntro (RollPlanarDie who) = nomIntro who
+  annIntro ChaosEnsues = bs
   annIntro (StoreResults on) = nomIntro on
   annIntro (RerollStored _ _ whose) = nomIntro whose
   annIntro (Continuously se _) = staticIntro se
@@ -2121,6 +2149,7 @@ mutual
   deedDelta (ShiftResult _) = []
   -- [CR#706.7]: no numerical result to announce.
   deedDelta (RollPlanarDie _) = []
+  deedDelta ChaosEnsues = []
   deedDelta (StoreResults _) = []
   deedDelta (RerollStored _ _ _) = []
   deedDelta (Continuously se _) = []

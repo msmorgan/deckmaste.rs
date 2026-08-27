@@ -605,6 +605,12 @@ data KindAxis : Type where
 public export
 data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  | DamagePrevented | RollResult | CoinFlipped
+                 -- the dice a roll CALLED FOR, which is not the number it
+                 -- produced: [CR#706.1] has the instruction specify "how
+                 -- many of those dice to roll", and the replacement side
+                 -- reads that back off a roll that never happened
+                 -- [CR#614.6] -- "instead roll THAT MANY dice plus one".
+                 | DiceRolled
                  | NamedNumber
                  -- `RepeatCount` is the number of iterations a repetition
                  -- WROTE, not the size of the batch it produced:
@@ -988,6 +994,8 @@ Eq OutcomeSort where
   (==) RollResult _ = False
   (==) CoinFlipped CoinFlipped = True
   (==) CoinFlipped _ = False
+  (==) DiceRolled DiceRolled = True
+  (==) DiceRolled _ = False
   (==) NamedNumber NamedNumber = True
   (==) NamedNumber _ = False
   (==) RepeatCount RepeatCount = True
@@ -1033,6 +1041,23 @@ countOutcomes s (MkBinding _ Outcome OneOf (OutcomeP s') :: bs) =
   if s == s' then S (countOutcomes s bs) else countOutcomes s bs
 countOutcomes s (_ :: bs) = countOutcomes s bs
 
+||| Which die a rolling instruction names. [CR#706.1] has such an effect
+||| "specify what kind of die to roll", and [CR#706.1a] fixes a written
+||| kind as N equally likely outcomes numbered from 1 to N with N
+||| positive -- the gate on the written arm.
+||| The anaphoric arm names no kind of its own; it takes the one an
+||| announced roll already carried, the way [CR#706.3c] defines "Roll
+||| again" as using "the same kind of and number of dice originally
+||| called for". It is what the replacement side writes -- "instead roll
+||| that many DICE plus one", where the bare word repeats the replaced
+||| roll's kind -- so it is gated on that roll's announcement.
+||| -- spelling: with `SidesOf`, "d[n]" or "[n]-sided"; with `ThoseDice`,
+||| the bare "dice", or "them" when the count is anaphoric too.
+public export
+data DieSides : Bindings -> Type where
+  SidesOf : (n : Nat) -> {auto 0 nz : IsSucc n} -> DieSides bs
+  ThoseDice : {auto 0 ok : countOutcomes DiceRolled bs = 1} -> DieSides bs
+
 ||| Whether the discourse carries damage some clause has dealt -- the whole
 ||| licence a "...this way" back-reference needs. [CR#608.2c] is what makes
 ||| the reading available (later text may modify the meaning of earlier
@@ -1074,6 +1099,9 @@ outcomeIsQuantity CountersPut = True
 outcomeIsQuantity DamagePrevented = True
 outcomeIsQuantity RollResult = True
 outcomeIsQuantity CoinFlipped = False
+-- the dice a roll called for are a number the instruction wrote
+-- [CR#706.1], which is what "that many dice" reads.
+outcomeIsQuantity DiceRolled = True
 -- a defining sentence names a number outright [CR#604.3,208.1], so the
 -- anaphor that reads a quantity back ("that number") has one to name.
 outcomeIsQuantity NamedNumber = True
