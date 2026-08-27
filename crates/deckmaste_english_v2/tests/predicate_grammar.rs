@@ -1065,10 +1065,13 @@ fn token_descriptions_share_typed_power_toughness_and_copy_constituents() {
     ] {
         let ability = assert_selected(&parser, &context, text);
         let predicate = imperative_transitive(&parser, &context, text);
-        assert!(matches!(
-            predicate.head.reference(),
-            VerbInventoryRef::Declaration(id) if id.name() == "Create"
-        ), "{text:?}");
+        assert!(
+            matches!(
+                predicate.head.reference(),
+                VerbInventoryRef::Declaration(id) if id.name() == "Create"
+            ),
+            "{text:?}"
+        );
         let mut visitor = ObjectFrameVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(
@@ -1800,10 +1803,7 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
         (" your", "vocab:PossessiveDeterminerPronoun/Your"),
         (" graveyard", "lexeme:CommonNoun/Graveyard/singular"),
         (" from", "form:from_phrase/from_phrase/0"),
-        (
-            " the",
-            "determinative:DeterminativeHead/DefiniteArticle",
-        ),
+        (" the", "determinative:DeterminativeHead/DefiniteArticle"),
         (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
         (",", "form:triggered/triggered/1"),
         (" you", "vocab:SubjectPronoun/You"),
@@ -1834,10 +1834,7 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
             (" a", "determinative:DeterminativeHead/IndefiniteArticle"),
             (" permanent", "lexeme:CommonNoun/Permanent/singular"),
             (" is", "vocab:FiniteCopula/Is"),
-            (
-                " turned",
-                "core-verb:Turn"
-            ),
+            (" turned", "core-verb:Turn"),
             (" face up", "vocab:FaceOrientation/FaceUp"),
             (",", "form:triggered/triggered/1"),
             (
@@ -1849,10 +1846,7 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
             (" 1", "codec:ScalarNumber"),
             (" damage", "form:deal_amount_damage/deal_amount_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
@@ -1922,10 +1916,7 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
             (" much", "form:that_much/that_much/1"),
             (" damage", "form:deal_amount_damage/deal_amount_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", "structural:Sentences/sentences/terminator/0")
         ]
@@ -1945,10 +1936,7 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
             (" graveyard", "lexeme:CommonNoun/Graveyard/singular"),
             (" from", "form:from_phrase/from_phrase/0"),
-            (
-                " the",
-                "determinative:DeterminativeHead/DefiniteArticle"
-            ),
+            (" the", "determinative:DeterminativeHead/DefiniteArticle"),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (",", "form:triggered/triggered/1"),
             (" you", "vocab:SubjectPronoun/You"),
@@ -2527,10 +2515,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
         [
             ("It", "vocab:SubjectPronoun/It"),
             (" is", "vocab:FiniteCopula/Is"),
-            (
-                " turned",
-                "core-verb:Turn"
-            ),
+            (" turned", "core-verb:Turn"),
             (" face up", "vocab:FaceOrientation/FaceUp"),
             (".", TERMINATOR)
         ]
@@ -3210,7 +3195,10 @@ fn determinative_partitives_take_ordinary_reference_phrase_complements() {
         "Put the of them into your hand.",
         "Put target of them into your hand.",
     ] {
-        assert!(parser.parse(invalid, &context).is_err(), "reject {invalid:?}");
+        assert!(
+            parser.parse(invalid, &context).is_err(),
+            "reject {invalid:?}"
+        );
     }
 }
 
@@ -3827,10 +3815,7 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
         VerbPhrase::DealDamageEqualTo(_)
     );
     assert_frame!("Gain that much life.", VerbPhrase::LifeAmount(_));
-    assert_frame!(
-        "Gain life equal to its power.",
-        VerbPhrase::LifeEquality(_)
-    );
+    assert_frame!("Gain life equal to its power.", VerbPhrase::LifeEquality(_));
     assert_frame!("Lose 2 life.", VerbPhrase::LifeAmount(_));
     assert_frame!(
         "Lose life equal to its toughness.",
@@ -3901,7 +3886,8 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
         ("Roll two six-sided dice.", "fixed"),
         ("Roll a d20.", "d20"),
     ] {
-        let VerbPhrase::RollDice(RollDice { dice, .. }) = imperative_atomic(&parser, &context, text)
+        let VerbPhrase::RollDice(RollDice { dice, .. }) =
+            imperative_atomic(&parser, &context, text)
         else {
             panic!("{text:?} selects RollDice")
         };
@@ -3968,7 +3954,8 @@ fn typed_complement_products_expose_checked_generated_ast_shapes() {
     };
     assert_eq!(counter.magnitudes().len(), 2);
 
-    let VerbPhrase::ManaPhrase(ManaVerbPhrase { mana, .. }) = imperative_atomic(&parser, &context, "Pay {2}{B}.")
+    let VerbPhrase::ManaPhrase(ManaVerbPhrase { mana, .. }) =
+        imperative_atomic(&parser, &context, "Pay {2}{B}.")
     else {
         unreachable!()
     };
@@ -4010,7 +3997,12 @@ impl Visitor for ComplementVisitor {
         walk_deal_damage_equal_to,
         "DealDamageEqualTo"
     );
-    trace_product!(visit_life_amount, LifeAmount, walk_life_amount, "LifeAmount");
+    trace_product!(
+        visit_life_amount,
+        LifeAmount,
+        walk_life_amount,
+        "LifeAmount"
+    );
     trace_product!(
         visit_life_equality,
         LifeEquality,
@@ -4516,7 +4508,12 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
     );
     assert_family!(
         "Pay {2}{B}.",
-        ["product:ManaVerbPhrase", "verb:Core(Pay)", "scalar:2", "symbol:Black"],
+        [
+            "product:ManaVerbPhrase",
+            "verb:Core(Pay)",
+            "scalar:2",
+            "symbol:Black"
+        ],
         [
             ("Pay", "core-verb:Pay"),
             (" {", "form:symbol_run/symbol_run/0/prefix"),
@@ -5096,14 +5093,14 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
     let parser = parser();
     let context = context();
     for (text, permits_specificity) in [
-        ("Put that card into your hand.", false),
-        ("Put that card to your hand.", false),
+        ("Put that card into your hand.", true),
+        ("Put that card to your hand.", true),
         (
             "Put target creature card from your graveyard onto the battlefield tapped under your control.",
             true,
         ),
-        ("Put target creature on top of its owner's library.", false),
-        ("Return target creature to its owner's hand.", false),
+        ("Put target creature on top of its owner's library.", true),
+        ("Return target creature to its owner's hand.", true),
         (
             "Return target creature card from your graveyard to the battlefield tapped under its owner's control.",
             true,
@@ -5114,8 +5111,8 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
             true,
         ),
         ("This creature enters under your control.", false),
-        ("This creature leaves the battlefield.", false),
-        ("One or more cards leave your graveyard.", false),
+        ("This creature leaves the battlefield.", true),
+        ("One or more cards leave your graveyard.", true),
     ] {
         assert_selected_with_specificity(&parser, &context, text, permits_specificity);
     }
@@ -5139,10 +5136,13 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
             &parser,
             &context,
             text,
-            matches!(
-                text,
-                "This creature enters a coin." | "Search a creature card for your library."
-            ),
+            text.starts_with("Put ")
+                || text.starts_with("Return ")
+                || text.starts_with("This creature leaves ")
+                || matches!(
+                    text,
+                    "This creature enters a coin." | "Search a creature card for your library."
+                ),
         );
     }
 }
@@ -5180,10 +5180,11 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
     assert!(matches!(
         imperative_atomic(&parser, &context, "Put that card into your hand."),
         VerbPhrase::PutInto(PutInto {
+            head,
             source: None,
             destination: IntoPhrase::IntoPhrase(_),
             ..
-        })
+        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Put))
     ));
     assert!(matches!(
         imperative_atomic(
@@ -5192,12 +5193,14 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
             "Put target creature card from your graveyard onto the battlefield tapped under your control."
         ),
         VerbPhrase::PutOnto(PutOnto {
+            head,
             source: Some(FromPhrase::FromPhrase(_)),
             destination: OntoPhrase::OntoPhrase(_),
             result,
             control: Some(ControlPostmodifier::DirectControlPostmodifier(_)),
             ..
-        }) if matches!(result.as_ref(), Some(PredicativeComplement::Status(_)))
+        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Put))
+            && matches!(result.as_ref(), Some(PredicativeComplement::Status(_)))
     ));
     assert!(matches!(
         imperative_atomic(
@@ -5206,24 +5209,27 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
             "Put target creature on top of its owner's library."
         ),
         VerbPhrase::PutOn(PutOn {
+            head,
             destination: OnPhrase::OnEdgePhrase(OnEdgePhrase {
                 complement,
             }),
             ..
-        }) if matches!(
-            complement.as_ref(),
-            EdgeOfPhrase::EdgeOfPhrase(EdgeOfPhraseValue { whole, .. })
-                if matches!(whole.as_ref(), Object::ObjectNominal(_))
-        )
+        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Put))
+            && matches!(
+                complement.as_ref(),
+                EdgeOfPhrase::EdgeOfPhrase(EdgeOfPhraseValue { whole, .. })
+                    if matches!(whole.as_ref(), Object::ObjectNominal(_))
+            )
     ));
     assert!(matches!(
         imperative_atomic(&parser, &context, "Put that card to your hand."),
         VerbPhrase::PutTo(PutTo {
+            head,
             object: Object::ObjectNominal(_),
             destination: ToPhrase::ToPhrase(ToPhraseValue {
                 complement: Object::ObjectNominal(_),
             }),
-        })
+        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Put))
     ));
     assert!(matches!(
         imperative_atomic(
@@ -5232,12 +5238,14 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
             "Return target creature card from your graveyard to the battlefield tapped under its owner's control."
         ),
         VerbPhrase::ReturnTo(ReturnTo {
+            head,
             source: Some(FromPhrase::FromPhrase(_)),
             destination: ToPhrase::ToPhrase(_),
             result,
             control: Some(ControlPostmodifier::OwnerControlPostmodifier(_)),
             ..
-        }) if matches!(result.as_ref(), Some(PredicativeComplement::Status(_)))
+        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Return))
+            && matches!(result.as_ref(), Some(PredicativeComplement::Status(_)))
     ));
     let VerbPhrase::LookAt(LookAt {
         object: Object::ObjectNominal(nominal),
@@ -5388,11 +5396,14 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
 
     assert_family!(
         "Put that card into your hand.",
-        false,
-        ["product:PutInto", "product:IntoPhraseValue"],
+        true,
+        [
+            "product:PutInto",
+            "product:IntoPhraseValue"
+        ],
         [
             ("Put", "core-verb:Put"),
-            (" that", "form:that_reference/that_reference/0"),
+            (" that", "determinative:DeterminativeHead/DistalDemonstrative"),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (" into", "form:into_phrase/into_phrase/0"),
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
@@ -5402,11 +5413,11 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     );
     assert_family!(
         "Put that card to your hand.",
-        false,
+        true,
         ["product:PutTo", "product:ToPhraseValue"],
         [
             ("Put", "core-verb:Put"),
-            (" that", "form:that_reference/that_reference/0"),
+            (" that", "determinative:DeterminativeHead/DistalDemonstrative"),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (" to", "form:to_phrase/to_phrase/0"),
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
@@ -5428,7 +5439,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             ("Put", "core-verb:Put"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (" card", "lexeme:CommonNoun/Card/singular"),
@@ -5438,7 +5449,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             (" onto", "form:onto_phrase/onto_phrase/0"),
             (
                 " the",
-                "form:definite_singular_reference/definite_singular_reference/0"
+                "determinative:DeterminativeHead/DefiniteArticle"
             ),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (" tapped", "vocab:Status/Tapped"),
@@ -5456,28 +5467,27 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     );
     assert_family!(
         "Put target creature on top of its owner's library.",
-        false,
+        true,
         [
             "product:PutOn",
             "product:OnEdgePhrase",
-            "product:EdgeOfPhraseValue",
-            "product:OwnerPossessedReference",
-            "product:SingularOwnerPossessor"
+            "product:EdgeOfPhraseValue"
         ],
         [
             ("Put", "core-verb:Put"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (" on", "form:on_edge_phrase/on_edge_phrase/0"),
             (" top", "vocab:EdgePosition/Top"),
             (" of", "form:edge_of_phrase/top/1"),
             (" its", "vocab:PossessiveDeterminerPronoun/Its"),
+            (" owner", "lexeme:CommonNoun/Owner/singular"),
             (
-                " owner's",
-                "form:singular_owner_possessor/singular_owner_possessor/1"
+                "'s",
+                "form:genitive_determiner_singular_reference/genitive_determiner_singular_reference/0/affix"
             ),
             (" library", "lexeme:CommonNoun/Library/singular"),
             (".", TERMINATOR)
@@ -5485,7 +5495,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     );
     assert_family!(
         "Put target creature on the bottom of their owners' library.",
-        false,
+        true,
         [
             "product:PutOn",
             "product:OnEdgePhrase",
@@ -5497,7 +5507,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             ("Put", "core-verb:Put"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (" on", "form:on_edge_phrase/on_edge_phrase/0"),
@@ -5528,7 +5538,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             ("Return", "core-verb:Return"),
             (
                 " target",
-                "form:target_determiner_phrase/target_determiner_phrase/0"
+                "determinative:DeterminativeHead/Target"
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (" card", "lexeme:CommonNoun/Card/singular"),
@@ -5538,7 +5548,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             (" to", "form:to_phrase/to_phrase/0"),
             (
                 " the",
-                "form:definite_singular_reference/definite_singular_reference/0"
+                "determinative:DeterminativeHead/DefiniteArticle"
             ),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (" tapped", "vocab:Status/Tapped"),
@@ -5568,7 +5578,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
                 "determinative:DeterminativeHead/ProximalDemonstrative",
             ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" enters", "core-verb:Enter"),
+            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
             (" tapped", "vocab:Status/Tapped"),
             (".", TERMINATOR)
         ]
@@ -5583,10 +5593,10 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
                 "determinative:DeterminativeHead/ProximalDemonstrative",
             ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" enters", "core-verb:Enter"),
+            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
             (
                 " the",
-                "form:definite_singular_reference/definite_singular_reference/0"
+                "determinative:DeterminativeHead/DefiniteArticle"
             ),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (
@@ -5611,7 +5621,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
                 "determinative:DeterminativeHead/ProximalDemonstrative",
             ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" enters", "core-verb:Enter"),
+            (" enters", "lexeme:VerbLexeme/Enter/third_person_singular"),
             (
                 " under",
                 "form:direct_control_postmodifier/direct_control_postmodifier/0"
@@ -5626,7 +5636,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     );
     assert_family!(
         "This creature leaves the battlefield.",
-        false,
+        true,
         ["product:LeaveLocation"],
         [
             (
@@ -5634,10 +5644,10 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
                 "determinative:DeterminativeHead/ProximalDemonstrative",
             ),
             (" creature", "lexeme:type/Creature/singular"),
-            (" leaves", "core-verb:Leave"),
+            (" leaves", "lexeme:VerbLexeme/Leave/third_person_singular"),
             (
                 " the",
-                "form:definite_singular_reference/definite_singular_reference/0"
+                "determinative:DeterminativeHead/DefiniteArticle"
             ),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (".", TERMINATOR)
@@ -5652,7 +5662,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             "product:FixedPartitiveSelection"
         ],
         [
-            ("Look", "core-verb:Look"),
+            ("Look", "lexeme:VerbLexeme/Look/bare"),
             (" at", "form:look_at/look_at/1"),
             (" the", "form:positional_partitive/positional_partitive/0"),
             (" top", "vocab:EdgePosition/Top"),
@@ -5695,7 +5705,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
                 " for",
                 "form:declared_object_for_object_frame/declared_object_for_object_frame/2"
             ),
-            (" a", "form:indefinite_reference/a/0"),
+            (" a", "determinative:DeterminativeHead/IndefiniteArticle"),
             (" creature", "lexeme:type/Creature/singular"),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (".", TERMINATOR)
@@ -5723,7 +5733,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ["product:HaveLife"],
         [
             ("You", "vocab:SubjectPronoun/You"),
-            (" have", "core-verb:Have"),
+            (" have", "lexeme:VerbLexeme/Have/bare"),
             (" 10", "codec:ScalarNumber"),
             (" or", "form:scalar_or_less/scalar_or_less/1"),
             (" less", "form:scalar_or_less/scalar_or_less/2"),
@@ -5738,7 +5748,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         [
             ("You", "vocab:SubjectPronoun/You"),
             (" have", "core-verb:Have"),
-            (" no", "form:no_singular_reference/no_singular_reference/0"),
+            (" no", "determinative:DeterminativeHead/No"),
             (" maximum", "vocab:AttributiveAdjective/Maximum"),
             (" hand", "lexeme:CommonNoun/Hand/singular"),
             (" size", "lexeme:CommonNoun/Size/singular"),
@@ -5750,7 +5760,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:HaveObjectControl", "product:ToPhraseValue"],
         [
-            ("Have", "core-verb:Have"),
+            ("Have", "lexeme:VerbLexeme/Have/bare"),
             (" her", "vocab:ObjectPronoun/Her"),
             (" deal", "core-verb:Deal"),
             (" 2", "codec:ScalarNumber"),
@@ -5969,10 +5979,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
                 " can".to_owned(),
                 "lexeme:VerbLexeme/Can/third_person_singular".to_owned(),
             ),
-            (
-                " block".to_owned(),
-                "core-verb:Block".to_owned(),
-            ),
+            (" block".to_owned(), "core-verb:Block".to_owned(),),
             (
                 " as".to_owned(),
                 "form:intransitive_as_though_predicate/intransitive_as_though_predicate/1"
@@ -5988,10 +5995,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
                 " didn't".to_owned(),
                 "vocab:CounterfactualNegativeAuxiliary/Didnt".to_owned(),
             ),
-            (
-                " have".to_owned(),
-                "lexeme:VerbLexeme/Have/bare".to_owned(),
-            ),
+            (" have".to_owned(), "lexeme:VerbLexeme/Have/bare".to_owned(),),
             (
                 " hexproof".to_owned(),
                 "vocab:CounterfactualAbility/Hexproof".to_owned(),
@@ -6055,15 +6059,9 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
                 "lexeme:type/Creature/plural".to_owned(),
             ),
             (" you".to_owned(), "vocab:SubjectPronoun/You".to_owned()),
-            (
-                " control".to_owned(),
-                "core-verb:Control".to_owned(),
-            ),
+            (" control".to_owned(), "core-verb:Control".to_owned(),),
             (" can".to_owned(), "lexeme:VerbLexeme/Can/bare".to_owned(),),
-            (
-                " block".to_owned(),
-                "core-verb:Block".to_owned(),
-            ),
+            (" block".to_owned(), "core-verb:Block".to_owned(),),
             (
                 " as".to_owned(),
                 "form:intransitive_as_though_predicate/intransitive_as_though_predicate/1"
@@ -6363,6 +6361,14 @@ impl Visitor for DistributionVisitor {
         deckmaste_english_v2::visit::walk_remove_counters(self, value);
     }
 
+    fn visit_verb_inventory(&mut self, verb: &VerbInventoryRef) {
+        match verb {
+            VerbInventoryRef::Core(CoreVerbIdentity::Put) => self.0.push("verb:Core(Put)"),
+            VerbInventoryRef::Core(CoreVerbIdentity::Remove) => self.0.push("verb:Core(Remove)"),
+            _ => {}
+        }
+    }
+
     fn visit_declaration(&mut self, declaration: &DeclarationIdentity) {
         if declaration.kind() == macro_ron::v2::DeclarationKind::KeywordAction
             && declaration.name() == "Regenerate"
@@ -6459,11 +6465,15 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
         })
     ));
 
-    let VerbPhrase::PutCounters(PutCounters { counters, .. }) =
+    let VerbPhrase::PutCounters(PutCounters { head, counters, .. }) =
         imperative_atomic(&parser, &context, "Put an oil counter on this creature.")
     else {
         unreachable!()
     };
+    assert!(matches!(
+        head.reference(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Put)
+    ));
     assert!(matches!(
         counters,
         CounterQuantity::SingularCounterQuantity(SingularCounterQuantity {
@@ -6473,13 +6483,17 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
         })
     ));
 
-    let VerbPhrase::RemoveCounters(RemoveCounters { counters, .. }) = imperative_atomic(
+    let VerbPhrase::RemoveCounters(RemoveCounters { head, counters, .. }) = imperative_atomic(
         &parser,
         &context,
         "Remove a counter from a nonland permanent you control.",
     ) else {
         unreachable!()
     };
+    assert!(matches!(
+        head.reference(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Remove)
+    ));
     assert!(matches!(
         counters,
         CounterQuantity::UnnamedSingularCounterQuantity(_)
@@ -6501,7 +6515,9 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
             "regenerate-declaration",
             "distributed-damage",
             "put-counters",
+            "verb:Core(Put)",
             "remove-counters",
+            "verb:Core(Remove)",
         ]
     );
 
@@ -6513,10 +6529,7 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
         ),
         [
             ("It".to_owned(), "vocab:SubjectPronoun/It".to_owned()),
-            (
-                " deals".to_owned(),
-                "core-verb:Deal".to_owned()
-            ),
+            (" deals".to_owned(), "core-verb:Deal".to_owned()),
             (" 2".to_owned(), "codec:ScalarNumber".to_owned()),
             (
                 " damage".to_owned(),
@@ -6545,7 +6558,7 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
             (" two".to_owned(), "codec:CardinalNumber".to_owned()),
             (
                 " target".to_owned(),
-                "form:target_plural_selector/target_plural_selector/0".to_owned()
+                "vocab:AttributiveAdjective/Target".to_owned()
             ),
             (
                 " creatures".to_owned(),

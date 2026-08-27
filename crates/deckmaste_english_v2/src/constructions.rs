@@ -445,6 +445,67 @@ constructions! {
     codec CardQuantityVerb { generate declaration_verb { position = Verb; tail = [CardQuantity]; feature = Agreement; } }
     codec CardsEqualityVerb { generate declaration_verb { position = Verb; tail = ["cards", ScalarEquality]; feature = Agreement; } }
     codec DieObjectVerb { generate declaration_verb { position = Verb; tail = [DieObject]; feature = Agreement; } }
+    codec CounterOnVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [CounterQuantity, OnPhrase];
+            feature = Agreement;
+        }
+    }
+    codec CounterFromVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [CounterQuantity, FromPhrase];
+            feature = Agreement;
+        }
+    }
+    codec ObjectFromIntoVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [Object, FromPhrase?, IntoPhrase];
+            feature = Agreement;
+        }
+    }
+    codec ObjectFromOntoResultControlVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [
+                Object,
+                FromPhrase?,
+                OntoPhrase,
+                PredicativeComplement?,
+                ControlPostmodifier?,
+            ];
+            feature = Agreement;
+        }
+    }
+    codec ObjectFromOnVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [Object, FromPhrase?, OnPhrase];
+            feature = Agreement;
+        }
+    }
+    codec ObjectToVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [Object, ToPhrase];
+            feature = Agreement;
+        }
+    }
+    codec ObjectFromToResultControlVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [
+                Object,
+                FromPhrase?,
+                ToPhrase,
+                PredicativeComplement?,
+                ControlPostmodifier?,
+            ];
+            feature = Agreement;
+        }
+    }
     codec DamageParticipleHead {
         generate declaration_verb {
             position = Verb;
@@ -4125,67 +4186,74 @@ constructions! {
     }
     construction put_counters: VerbPhrase {
         element PutCounters {
+            head: lex CounterOnVerb,
             counters: CounterQuantity,
             recipient: OnPhrase,
         }
-        derive agreement = verb.agreement;
-        form put_counters = verb(VerbLexeme::Put) counters recipient;
+        derive agreement = head.agreement;
+        form put_counters = verb(head) counters recipient;
     }
     construction remove_counters: VerbPhrase {
         element RemoveCounters {
+            head: lex CounterFromVerb,
             counters: CounterQuantity,
             source: FromPhrase,
         }
-        derive agreement = verb.agreement;
-        form remove_counters = verb(VerbLexeme::Remove) counters source;
+        derive agreement = head.agreement;
+        form remove_counters = verb(head) counters source;
     }
     construction put_into: VerbPhrase {
         element PutInto {
+            head: lex ObjectFromIntoVerb,
             object: Object,
             source: opt FromPhrase,
             destination: IntoPhrase,
         }
-        derive agreement = verb.agreement;
-        form put_into = verb(VerbLexeme::Put) object source destination;
+        derive agreement = head.agreement;
+        form put_into = verb(head) object source destination;
     }
     construction put_onto: VerbPhrase {
         element PutOnto {
+            head: lex ObjectFromOntoResultControlVerb,
             object: Object,
             source: opt FromPhrase,
             destination: OntoPhrase,
             result: opt PredicativeComplement,
             control: opt ControlPostmodifier,
         }
-        derive agreement = verb.agreement;
-        form put_onto = verb(VerbLexeme::Put) object source destination result control;
+        derive agreement = head.agreement;
+        form put_onto = verb(head) object source destination result control;
     }
     construction put_on: VerbPhrase {
         element PutOn {
+            head: lex ObjectFromOnVerb,
             object: Object,
             source: opt FromPhrase,
             destination: OnPhrase,
         }
-        derive agreement = verb.agreement;
-        form put_on = verb(VerbLexeme::Put) object source destination;
+        derive agreement = head.agreement;
+        form put_on = verb(head) object source destination;
     }
     construction put_to: VerbPhrase {
         element PutTo {
+            head: lex ObjectToVerb,
             object: Object,
             destination: ToPhrase,
         }
-        derive agreement = verb.agreement;
-        form put_to = verb(VerbLexeme::Put) object destination;
+        derive agreement = head.agreement;
+        form put_to = verb(head) object destination;
     }
     construction return_to: VerbPhrase {
         element ReturnTo {
+            head: lex ObjectFromToResultControlVerb,
             object: Object,
             source: opt FromPhrase,
             destination: ToPhrase,
             result: opt PredicativeComplement,
             control: opt ControlPostmodifier,
         }
-        derive agreement = verb.agreement;
-        form return_to = verb(VerbLexeme::Return) object source destination result control;
+        derive agreement = head.agreement;
+        form return_to = verb(head) object source destination result control;
     }
     construction enter_resultative: VerbPhrase {
         element EnterResultative { result: PredicativeComplement, }
@@ -4358,10 +4426,7 @@ constructions! {
     root OracleText { eoi = true; standalone_render = true; }
 }
 
-fn determinative_is_fused(
-    _head: &Determinative,
-    fused_head_license: FusedHeadLicense,
-) -> bool {
+fn determinative_is_fused(_head: &Determinative, fused_head_license: FusedHeadLicense) -> bool {
     fused_head_license == FusedHeadLicense::FusedHead
 }
 
