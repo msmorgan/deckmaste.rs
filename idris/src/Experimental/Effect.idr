@@ -343,7 +343,7 @@ mutual
       ||| -- spelling: "enters with your choice of a [k1], [k2], or [k3]
       ||| counter on it" (Denry Klin).
       EntersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
-                           (kind : CounterKindSource) ->
+                           (kind : CounterKindSource bs) ->
                            (mark : EntryCounterMark) ->
                            StaticEffect bs
       EntersChoice : (n : Noun bs Object) -> (q : ChoiceSort) ->
@@ -1116,7 +1116,7 @@ mutual
     ||| given at all.
     ||| -- spelling: "put your choice of a [k1], [k2], or [k3] counter on
     ||| [on]" (Me, the Immortal).
-    PutCounters : (amt : Amount bs) -> (kind : CounterKindSource) ->
+    PutCounters : (amt : Amount bs) -> (kind : CounterKindSource bs) ->
                   (on : Noun (amtIntro amt) Object) ->
                   {auto 0 pm : PerMember on} ->
                   {auto 0 sc : CounterSourceScope kind Object} -> Effect bs

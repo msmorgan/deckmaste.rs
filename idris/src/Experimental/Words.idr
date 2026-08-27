@@ -3817,26 +3817,49 @@ data CounterKindNamed : Kind -> Maybe CounterKind -> Type where
 ||| and with the chooser unwritten, "a [k1] counter or a [k2] counter"
 ||| (Dwarven Armorer).
 public export
-data CounterKindSource : Type where
-  PrintedKind : CounterKind -> CounterKindSource
+data CounterKindSource : Bindings -> Type where
+  PrintedKind : CounterKind -> CounterKindSource bs
   ||| The menu has to have an arm: [CR#122.1] places a counter of some
   ||| name, and an empty list names none. A ONE-arm menu and a repeated
   ||| arm are both tolerated and both unwritten -- each is performable,
   ||| and each says what `PrintedKind` says, since [CR#122.1] makes
   ||| counters with the same name interchangeable.
   ChosenKind : (menu : List CounterKind) ->
-               {auto 0 ne : NonEmpty menu} -> CounterKindSource
+               {auto 0 ne : NonEmpty menu} -> CounterKindSource bs
+  ||| "a counter of that kind": the kind an earlier clause BOUND, read
+  ||| back [CR#607.2d]. Both binders write it -- the chooser ("choose a
+  ||| kind of counter ... put a counter of that kind") and the
+  ||| distributive pass ("for each kind of counter on [n], put another
+  ||| counter of that kind on it") -- because both leave one
+  ||| `Quality CounterKindQ` mention and the read asks only that there be
+  ||| exactly one.
+  ||| MEASURED ZERO of benched carriers, and the blocker is never this
+  ||| arm: of the 13 supported lines, 4 give the counter to "that
+  ||| permanent or player" and `PutCounters` takes an object; 4 write a
+  ||| chooser this grammar cannot spell ("choose a COUNTER on a permanent
+  ||| you control", "at random ... from among [menu]"); 2 write "on it"
+  ||| where two permanents are in scope and the pronoun refuses; 1 puts
+  ||| the pass inside a static; 1 mixes a printed kind and a bound one in
+  ||| one menu; 1 needs a partitive holder. Each is somebody else's cell.
+  ||| RECORDED OVERGENERATION: `counterSourceScope` answers True at every
+  ||| kind here, where a printed word answers [CR#122.1]'s own scope. A
+  ||| bound kind's scope is whatever the binder drew it from and no slot
+  ||| carries that, so the gate has nothing to ask; every printed line
+  ||| binds from a holder that could hold it.
+  BoundKind : {auto 0 ok : countChoice (QSort CounterKindQ) bs = 1} ->
+              CounterKindSource bs
 
 ||| Every arm has to name a counter the recipient can hold: [CR#122.1]
 ||| puts a counter on an object or a player, so an arm at the other
 ||| scope is an arm no one could pick.
 public export
-counterSourceScope : CounterKindSource -> Kind -> Bool
+counterSourceScope : {0 bs : Bindings} -> CounterKindSource bs -> Kind -> Bool
 counterSourceScope (PrintedKind c) k = counterScope c == k
 counterSourceScope (ChosenKind menu) k = all (\c => counterScope c == k) menu
+counterSourceScope BoundKind k = True
 
 public export
-CounterSourceScope : CounterKindSource -> Kind -> Type
+CounterSourceScope : {bs : Bindings} -> CounterKindSource bs -> Kind -> Type
 CounterSourceScope s k = So (counterSourceScope s k)
 
 public export
