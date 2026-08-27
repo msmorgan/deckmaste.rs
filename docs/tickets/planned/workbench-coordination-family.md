@@ -305,3 +305,10 @@ Standard constraints apply.
 - **Routed from workbench-ability-kind-heads (close, 2026-08-27):** a discourse JOIN for DISAGREEING coordination arms — Repeated Reverberation's body wants "that spell or ability" over three arms whose after-discourses differ, but `sharedCtx` is whole-agreement-or-bare by the seat round's settled verdict; a join would be a deliberate re-decision of that verdict, made here or refused here with the rule. Supersedes the earlier "coordinated anaphor" line (its grammar half landed: `AbilityJoinW`, Shimmering Glasskite whole). Also: a join half carries no ZONE (`joinHalfPayload` drops it), so `halfReaches PermanentW` reads the spell half of a "spell or ability" mention as "that permanent" — tolerated overgeneration, newly reachable, same union-read machinery.
 
 - **Routed from workbench-shuffle-into-library (close, 2026-08-27):** the coordinated MASS object — "shuffles their hand and graveyard into their library" (21 sentences). `Both (AllOf (InZone …)) (AllOf (InZone …))` may already write it — probe before building; bench either way. A coordination surface, so it lands here.
+
+- **Routed from workbench-choice-b-sorts-and-reads (close, 2026-08-27):**
+  Talion's three-way characteristic disjunction — `Or [Compare ManaValue…,
+  Compare Power…, Compare Toughness…]` is refused by `parallelDisjuncts`'
+  `seedsUniform` because `seedType (Compare c _ _) = comparedType c` differs
+  per arm; the honest shape is a characteristic LIST on `Compare`, a
+  coordination decision. 1 supported line.

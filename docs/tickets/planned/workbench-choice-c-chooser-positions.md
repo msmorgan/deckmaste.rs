@@ -24,3 +24,7 @@ Pins:
 
 Acceptance: the umbrella's chooser lines. `idris/scripts/build` PASS.
 Standard constraints apply.
+
+Routed from choice-B (close, 2026-08-27): once the attach chooser lands, the
+marked-read generalization (`OfLastChosenColor` → `OfLastChosen q`) is a
+five-line change that buys Psychic Paper — take it with the attach position.
