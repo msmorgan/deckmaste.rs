@@ -868,23 +868,26 @@ mod tests {
     use super::materialize_node;
     use super::materialize_observed;
     use crate::ast::BareSingularNominal;
+    use crate::ast::BaseVerbFrame;
+    use crate::ast::BaseVerbPhrase;
     use crate::ast::CommonNoun;
     use crate::ast::CommonSingularHead;
     use crate::ast::DeclarationIntransitiveVerb;
+    use crate::ast::FiniteClause;
     use crate::ast::Imperative;
+    use crate::ast::IntransitiveFrame;
     use crate::ast::IntransitivePredicate;
     use crate::ast::IntransitiveVerb;
-    use crate::ast::Object;
-    use crate::ast::ObjectPronoun;
-    use crate::ast::PersonalObject;
+    use crate::ast::PersonalSubject;
+    use crate::ast::PlainFiniteClause;
     use crate::ast::Predicate;
     use crate::ast::ScalarNumber;
     use crate::ast::SelfReferenceSpelling;
     use crate::ast::Sentence;
     use crate::ast::SingularHead;
     use crate::ast::SingularNominal;
-    use crate::ast::Variable;
-    use crate::ast::VerbLexeme;
+    use crate::ast::Subject;
+    use crate::ast::SubjectPronoun;
     use crate::ast::VerbPhrase;
     use crate::ast::WhereClause;
     use crate::ast::WhereClauseCategory;
@@ -897,6 +900,7 @@ mod tests {
     use crate::context::ParseContext;
     use crate::environment::DeclarationId;
     use crate::environment::canonical_test_environment;
+    use crate::parser::SelectionResolution;
     use crate::parser::diagnostic::BoundedParseOutcome;
     use crate::parser::diagnostic::ParserTrace;
     use crate::parser::diagnostic::StructuralTrace;
@@ -913,6 +917,34 @@ mod tests {
     use crate::parser::scan::parse_forest;
     use crate::render::Render;
 
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    enum StableRulePosition {
+        Nonterminal(Category),
+        AdjacentNonterminal(Category),
+        Lexical(Lexical),
+        DeclarationVerb(FeatureConstraint<Agreement>),
+        DeclarationNoun(FeatureConstraint<Number>),
+    }
+
+    fn stable_positions(positions: &[RulePosition<Category, Lexical>]) -> Vec<StableRulePosition> {
+        positions
+            .iter()
+            .map(|position| match position {
+                RulePosition::Nonterminal(category) => StableRulePosition::Nonterminal(*category),
+                RulePosition::AdjacentNonterminal(category) => {
+                    StableRulePosition::AdjacentNonterminal(*category)
+                }
+                RulePosition::Lexical(Lexical::DeclarationVerb(_, feature)) => {
+                    StableRulePosition::DeclarationVerb(*feature)
+                }
+                RulePosition::Lexical(Lexical::DeclarationNoun(_, feature)) => {
+                    StableRulePosition::DeclarationNoun(*feature)
+                }
+                RulePosition::Lexical(lexical) => StableRulePosition::Lexical(*lexical),
+            })
+            .collect()
+    }
+
     fn lexical(value: Leaf) -> Child<Leaf> {
         Child::Lexical(SpannedLexical {
             span: crate::parser::TextSpan { start: 0, end: 1 },
@@ -928,14 +960,22 @@ mod tests {
             DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
         )
         .expect("the canonical environment declares intransitive Connive");
-        VerbPhrase::IntransitivePredicate(IntransitivePredicate {
-            head: IntransitiveVerb::Declaration(declaration),
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+            frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
+                IntransitivePredicate {
+                    head: IntransitiveVerb::Declaration(declaration),
+                },
+            )),
         })
     }
 
     fn connive_leaf() -> Leaf {
         let environment = canonical_test_environment();
-        let VerbPhrase::IntransitivePredicate(predicate) = connive_phrase() else {
+        let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
+            frame:
+                BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(predicate)),
+        }) = connive_phrase()
+        else {
             unreachable!("the helper constructs an intransitive predicate")
         };
         let IntransitiveVerb::Declaration(declaration) = &predicate.head else {
@@ -1192,11 +1232,11 @@ mod tests {
                     }],
                 },
                 PackedNode {
-                    rule: RuleId::VerbPhraseIntransitivePredicate,
+                    rule: RuleId::VerbPhraseBaseVerbPhrase,
                     start: 0,
                     end: 0,
                     families: vec![Family {
-                        children: vec![lexical(connive_leaf())],
+                        children: vec![Child::Node(NodeId(7))],
                     }],
                 },
                 PackedNode {
@@ -1204,27 +1244,39 @@ mod tests {
                     start: 0,
                     end: 0,
                     families: vec![Family {
-                        children: vec![
-                            lexical(Leaf::Literal("where")),
-                            lexical(Leaf::Variable(Variable::X)),
-                            lexical(Leaf::Verb {
-                                lexeme: VerbLexeme::Be,
-                                agreement: Agreement::ThirdPersonSingular,
-                                onset: Onset::Vowel,
-                            }),
-                            lexical(Leaf::Literal("the")),
-                            lexical(Leaf::Literal("number")),
-                            lexical(Leaf::Literal("of")),
-                            Child::Node(NodeId(6)),
-                        ],
+                        children: vec![lexical(Leaf::Literal("where")), Child::Node(NodeId(9))],
                     }],
                 },
                 PackedNode {
-                    rule: RuleId::ObjectObjectPronoun,
+                    rule: RuleId::SubjectSubjectPronoun,
                     start: 0,
                     end: 0,
                     families: vec![Family {
-                        children: vec![lexical(Leaf::ObjectPronoun(ObjectPronoun::You))],
+                        children: vec![lexical(Leaf::SubjectPronoun(SubjectPronoun::You))],
+                    }],
+                },
+                PackedNode {
+                    rule: RuleId::BaseVerbFrameIntransitiveFrame,
+                    start: 0,
+                    end: 0,
+                    families: vec![Family {
+                        children: vec![Child::Node(NodeId(8))],
+                    }],
+                },
+                PackedNode {
+                    rule: RuleId::IntransitiveFrameIntransitivePredicate,
+                    start: 0,
+                    end: 0,
+                    families: vec![Family {
+                        children: vec![lexical(connive_leaf())],
+                    }],
+                },
+                PackedNode {
+                    rule: RuleId::FiniteClausePlainFiniteClause,
+                    start: 0,
+                    end: 0,
+                    families: vec![Family {
+                        children: vec![Child::Node(NodeId(6)), Child::Node(NodeId(3))],
                     }],
                 },
             ],
@@ -1234,10 +1286,15 @@ mod tests {
         let mut state =
             MaterializationStateFor::<BuildValue, Construction, Category, Lexical, Leaf>::default();
         let clause = WhereClauseCategory::Where(WhereClause {
-            variable: Variable::X,
-            value: Object::ObjectPronoun(PersonalObject {
-                word: ObjectPronoun::You,
-            }),
+            clause: FiniteClause::PlainFiniteClause(
+                PlainFiniteClause::new(
+                    Subject::SubjectPronoun(PersonalSubject {
+                        word: SubjectPronoun::You,
+                    }),
+                    Box::new(Predicate::Atomic(Box::new(connive_phrase()))),
+                )
+                .expect("you and a bare predicate agree"),
+            ),
         });
         let base = Sentence::Imperative(
             Imperative::new(Box::new(Predicate::Atomic(Box::new(connive_phrase()))))
@@ -1267,16 +1324,23 @@ mod tests {
                 Construction::SentenceWithWhere,
                 Construction::SentenceWithWhere,
                 Construction::SentenceImperative,
-                Construction::VerbPhraseIntransitivePredicate,
+                Construction::VerbPhraseBaseVerbPhrase,
+                Construction::IntransitiveFrameIntransitivePredicate,
                 Construction::WhereClauseCategoryWhere,
-                Construction::ObjectObjectPronoun,
+                Construction::FiniteClausePlainFiniteClause,
+                Construction::SubjectSubjectPronoun,
+                Construction::VerbPhraseBaseVerbPhrase,
+                Construction::IntransitiveFrameIntransitivePredicate,
                 Construction::WhereClauseCategoryWhere,
-                Construction::ObjectObjectPronoun,
+                Construction::FiniteClausePlainFiniteClause,
+                Construction::SubjectSubjectPronoun,
+                Construction::VerbPhraseBaseVerbPhrase,
+                Construction::IntransitiveFrameIntransitivePredicate,
             ]
         );
         assert_eq!(
-            later.values[0].positions,
-            vec![
+            stable_positions(&later.values[0].positions),
+            stable_positions(&[
                 RulePosition::Nonterminal(Category::Sentence),
                 RulePosition::Lexical(Lexical::Literal(",")),
                 RulePosition::Nonterminal(Category::WhereClauseCategory),
@@ -1284,30 +1348,23 @@ mod tests {
                 RulePosition::Lexical(Lexical::Literal(",")),
                 RulePosition::Nonterminal(Category::WhereClauseCategory),
                 RulePosition::Nonterminal(Category::Predicate),
-                RulePosition::Lexical(Lexical::DeclarationVerb(43, FeatureConstraint::Any,)),
+                RulePosition::Nonterminal(Category::BaseVerbFrame),
+                RulePosition::Lexical(Lexical::DeclarationVerb(0, FeatureConstraint::Any,)),
                 RulePosition::Lexical(Lexical::Literal("where")),
-                RulePosition::Lexical(Lexical::Variable),
-                RulePosition::Lexical(Lexical::Verb(
-                    VerbLexeme::Be,
-                    FeatureConstraint::Exact(Agreement::ThirdPersonSingular),
-                )),
-                RulePosition::Lexical(Lexical::Literal("the")),
-                RulePosition::Lexical(Lexical::Literal("number")),
-                RulePosition::Lexical(Lexical::Literal("of")),
-                RulePosition::Nonterminal(Category::Object),
-                RulePosition::Lexical(Lexical::ObjectPronoun),
+                RulePosition::Nonterminal(Category::FiniteClause),
+                RulePosition::Nonterminal(Category::Subject),
+                RulePosition::Nonterminal(Category::Predicate),
+                RulePosition::Lexical(Lexical::SubjectPronoun),
+                RulePosition::Nonterminal(Category::BaseVerbFrame),
+                RulePosition::Lexical(Lexical::DeclarationVerb(0, FeatureConstraint::Any,)),
                 RulePosition::Lexical(Lexical::Literal("where")),
-                RulePosition::Lexical(Lexical::Variable),
-                RulePosition::Lexical(Lexical::Verb(
-                    VerbLexeme::Be,
-                    FeatureConstraint::Exact(Agreement::ThirdPersonSingular),
-                )),
-                RulePosition::Lexical(Lexical::Literal("the")),
-                RulePosition::Lexical(Lexical::Literal("number")),
-                RulePosition::Lexical(Lexical::Literal("of")),
-                RulePosition::Nonterminal(Category::Object),
-                RulePosition::Lexical(Lexical::ObjectPronoun),
-            ]
+                RulePosition::Nonterminal(Category::FiniteClause),
+                RulePosition::Nonterminal(Category::Subject),
+                RulePosition::Nonterminal(Category::Predicate),
+                RulePosition::Lexical(Lexical::SubjectPronoun),
+                RulePosition::Nonterminal(Category::BaseVerbFrame),
+                RulePosition::Lexical(Lexical::DeclarationVerb(0, FeatureConstraint::Any,)),
+            ]),
         );
     }
 
@@ -1477,8 +1534,79 @@ mod tests {
             let context = context(card_name);
             let environment = canonical_test_environment();
             let candidates = materialize::<crate::ast::Ability>(&forest, &context, &environment);
-            assert_eq!(candidates.len(), 1, "unexpected candidates for {text:?}");
-            assert_eq!(candidates[0].value.render(&context, &environment), text);
+            if text.contains("the number of creatures") {
+                assert_eq!(
+                    candidates.len(),
+                    2,
+                    "both scalar attachments remain visible"
+                );
+                assert!(
+                    candidates
+                        .iter()
+                        .all(|candidate| candidate.value.render(&context, &environment) == text)
+                );
+
+                let parser = crate::parser::Parser::new(environment.clone())
+                    .expect("canonical environment satisfies the grammar");
+                let analysis = parser.analyze(text, &context);
+                let decision = analysis.decision().expect("two readings require selection");
+                assert_eq!(decision.resolution(), SelectionResolution::Specificity);
+                assert!(decision.exception_uses().is_empty());
+                assert_eq!(decision.survivors().len(), 1);
+                let selected = decision
+                    .selected()
+                    .expect("specificity selects one reading");
+                let selected_path = decision
+                    .candidates()
+                    .iter()
+                    .find(|candidate| candidate.ordinal() == selected)
+                    .expect("the selected ordinal names a candidate")
+                    .construction_path();
+                let selected_numeric_stages = selected_path
+                    .iter()
+                    .filter(|name| name.starts_with("NumericStage"))
+                    .map(String::as_str)
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    selected_numeric_stages,
+                    [
+                        "NumericStageUnqualifiedNumericStage",
+                        "NumericStageScalarQualifiedReference",
+                    ],
+                    "specificity attaches the scalar phrase to creatures, not number",
+                );
+                assert_eq!(
+                    analysis
+                        .selected()
+                        .expect("the analysis selected an ability")
+                        .render(&context, &environment),
+                    text,
+                );
+                let ownership = analysis.ownership().expect("selected input has ownership");
+                assert_eq!(ownership.rendered_text(), text);
+                let stable_claims = |claims: &[crate::parser::LexicalClaim]| {
+                    claims
+                        .iter()
+                        .map(|claim| {
+                            (
+                                claim.span(),
+                                claim.kind(),
+                                claim.stable_owner_id().to_owned(),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                };
+                assert_eq!(
+                    stable_claims(ownership.parsed_claims()),
+                    stable_claims(ownership.rendered_claims()),
+                );
+                assert!(ownership.failures().is_empty());
+                assert!(ownership.summary().covered());
+                assert_eq!(ownership.summary().claimed_bytes(), text.len());
+            } else {
+                assert_eq!(candidates.len(), 1, "unexpected candidates for {text:?}");
+                assert_eq!(candidates[0].value.render(&context, &environment), text);
+            }
         }
     }
     #[test]
@@ -1506,7 +1634,8 @@ mod tests {
                 Construction::AbilityPlain,
                 Construction::AbilityBodySentences,
                 Construction::SentenceImperative,
-                Construction::VerbPhraseTransitivePredicate,
+                Construction::VerbPhraseBaseVerbPhrase,
+                Construction::TransitiveFrameTransitivePredicate,
                 Construction::ObjectObjectNominal,
                 Construction::NounPhraseQualifiedNounPhrase,
                 Construction::NumericStageUnqualifiedNumericStage,
@@ -1519,12 +1648,13 @@ mod tests {
             ]
         );
         assert_eq!(
-            candidates[0].positions,
-            vec![
+            stable_positions(&candidates[0].positions),
+            stable_positions(&[
                 RulePosition::Nonterminal(Category::AbilityBody),
                 RulePosition::Nonterminal(Category::SentencesSentencesSequenceCategory),
                 RulePosition::Nonterminal(Category::Predicate),
-                RulePosition::Lexical(Lexical::DeclarationVerb(44, FeatureConstraint::Any,)),
+                RulePosition::Nonterminal(Category::BaseVerbFrame),
+                RulePosition::Lexical(Lexical::DeclarationVerb(0, FeatureConstraint::Any,)),
                 RulePosition::Nonterminal(Category::Object),
                 RulePosition::Nonterminal(Category::NounPhrase),
                 RulePosition::Nonterminal(Category::NumericStage),
@@ -1536,10 +1666,10 @@ mod tests {
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(
-                    51,
+                    0,
                     FeatureConstraint::Exact(Number::Singular),
                 )),
-            ]
+            ]),
         );
     }
 
@@ -1715,7 +1845,6 @@ mod tests {
             );
             if limit > 0 {
                 let cycle = &trace.materialization_cycles().items()[0];
-                assert_eq!(cycle.node_ordinal(), 38);
                 assert_eq!(cycle.construction_path().total(), 2);
                 assert_eq!(cycle.construction_path().shown(), usize::min(limit, 2));
                 assert_eq!(

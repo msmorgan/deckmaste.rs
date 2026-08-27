@@ -4429,9 +4429,9 @@ mod task9_feature_tests {
                 UnqualifiedNumericStage {
                     reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                         UnqualifiedLocativeStage {
-                            reference: ControllerStage::UnqualifiedControllerStage(
+                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
                                 UnqualifiedControllerStage { reference },
-                            ),
+                            )),
                         },
                     )),
                 },
@@ -4527,9 +4527,9 @@ mod task10_feature_tests {
                 UnqualifiedNumericStage {
                     reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                         UnqualifiedLocativeStage {
-                            reference: ControllerStage::UnqualifiedControllerStage(
+                            reference: Box::new(ControllerStage::UnqualifiedControllerStage(
                                 UnqualifiedControllerStage { reference },
-                            ),
+                            )),
                         },
                     )),
                 },

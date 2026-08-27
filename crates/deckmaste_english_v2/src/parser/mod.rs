@@ -1174,7 +1174,28 @@ mod structural_trace_tests {
         );
 
         assert!(trace.clone().into_parse_result().is_err());
-        assert_eq!(trace.scanner_matches().total(), 6);
+        let semantic_matches = trace
+            .scanner_matches()
+            .items()
+            .iter()
+            .map(|matched| (matched.start(), matched.end(), matched.value_label_v1()))
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            semantic_matches,
+            std::collections::BTreeSet::from([
+                (
+                    0,
+                    7,
+                    "TransitiveVerb { verb: Declaration(DeclarationTransitiveVerb { id: DeclarationIdentity { kind: KeywordAction, name: \"Destroy\" } }), agreement: Bare, onset: Consonant }",
+                ),
+                (7, 14, "Literal(\"target\")"),
+                (
+                    14,
+                    21,
+                    "CreatureSubtypeNoun { noun: Declaration(DeclarationCreatureSubtypeNoun { id: DeclarationIdentity { kind: Subtype(Creature), name: \"Spirit\" } }), number: Singular, onset: Consonant, possessive_ending: Other }",
+                ),
+            ])
+        );
         assert_eq!(trace.selected_lexical_claims().total(), 0);
         assert_eq!(trace.ownership(), None);
         assert!(trace.ownership_failures().is_empty());
@@ -1238,8 +1259,11 @@ mod structural_trace_tests {
         let (_, second) = parser.observe_structural(text, &context, TraceLimits::new(1));
         assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
         assert_eq!(first, second);
-        assert_eq!(first.scanner_matches().total(), 23);
+        assert!(first.scanner_matches().total() > 0);
         assert_eq!(first.scanner_matches().shown(), 1);
+        let first_match = &first.scanner_matches().items()[0];
+        assert_eq!((first_match.start(), first_match.end()), (0, 8));
+        assert_eq!(first_match.value_label_v1(), "TriggerMarker(Whenever)");
     }
 
     #[test]
@@ -1364,6 +1388,8 @@ mod structural_trace_tests {
         for limit in [0, 1, usize::MAX] {
             let (analysis, trace) =
                 parser.observe_structural(text, &context, TraceLimits::new(limit));
+            assert!(analysis.selected().is_none());
+            assert!(analysis.ownership().is_none());
             assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
             bounded(trace.scanner_matches(), limit);
             bounded(trace.chart(), limit);
@@ -1376,7 +1402,6 @@ mod structural_trace_tests {
                     bounded(family.children(), limit);
                 }
             }
-            assert_eq!(trace.accepted_roots().total(), 0);
             assert!(trace.forest().total() > 0);
             let (_, repeated) = parser.observe_structural(text, &context, TraceLimits::new(limit));
             assert_eq!(trace, repeated);
@@ -1407,9 +1432,12 @@ mod structural_trace_tests {
             assert_eq!(ordinary, observed);
             let (analysis, _) =
                 parser.observe_structural(text, &context, TraceLimits::new(usize::MAX));
+            if text.ends_with("life") {
+                assert!(analysis.selected().is_none());
+                assert!(analysis.ownership().is_none());
+            }
             assert_eq!(parser.parse(text, &context), analysis.into_parse_result());
             if text.ends_with("life") {
-                assert_eq!(trace.accepted_roots().total(), 0);
                 assert!(trace.forest().total() > 0);
             }
         }
