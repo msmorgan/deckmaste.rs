@@ -10990,3 +10990,46 @@ exileTopThenPutFromAmong =
   Sequentially [ Macros.exile (Macros.topCards 7)
                , Macros.move (Macros.oneFromAmong Macros.creature Them)
                              Macros.battlefieldZ ]
+
+--------------------------------------------------------------------------------
+-- The self-reading counter row's multiplicative twin.
+--------------------------------------------------------------------------------
+
+||| Vorel of the Hull Clade, whole -- "{G}{U}, {T}: Double the number of
+||| each kind of counter on target artifact, creature, or land." The
+||| MULTIPLICATIVE self-reading distributive at a single recipient: the
+||| permanent's own counters are both the kinds and the counts, and the
+||| clause names neither.
+public export
+vorelOfTheHullClade : Card
+vorelOfTheHullClade =
+  Macros.card "Vorel of the Hull Clade"
+       (Just [Macros.generic 1, Macros.pip Green, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Merfolk"] [Creature])
+       [ Macros.activated
+           (Compound [Mana [Macros.pip Green, Macros.pip Blue], TapSymbol])
+           (DoubleCountersOfOwnKinds
+              (Macros.target (Or [Macros.artifact, Macros.creature, Macros.land]))) ]
+       (Just (1, 4))
+
+||| Deepglow Skate's recipient -- "any number of target permanents" --
+||| is refused here, and not by anything this row decided: `PerMember` is
+||| every counter row's gate, and a bare plural target group fails it
+||| exactly as it fails `PutCounters`'. The printed lines that distribute
+||| a counter operation over a group write the word ("on each of up to
+||| four target creatures"), and this one distributes without it. The
+||| measurement, recorded rather than worked around: of the eleven
+||| supported doubling lines, ten name a single recipient and this is
+||| the one that does not.
+public export
+deepglowSkateRecipientRefused :
+  perMemberOk (TargetGroup {bs = []} Macros.anyNumber Permanent) = False
+deepglowSkateRecipientRefused = Refl
+
+||| Aetheric Amplifier's second mode -- "Double the number of each kind of
+||| counter you have". The player seat of the same row: [CR#122.1] places
+||| a counter on an object OR a player, so the doubling has kinds to
+||| range over at either seat and the union index is not a courtesy.
+public export
+doubleYourOwnCounters : Effect []
+doubleYourOwnCounters = DoubleCountersOfOwnKinds You

@@ -1227,6 +1227,34 @@ mutual
     GiveCountersOfOwnKinds : {k : Kind} -> (on : Noun bs k) ->
                              {auto 0 hk : So (kindLte k (Object \/ Player))} ->
                              {auto 0 pm : PerMember on} -> Effect bs
+    ||| The MULTIPLICATIVE twin of the self-reading distributive: every
+    ||| kind of counter the recipient already carries is doubled. It is
+    ||| the same self-reading -- the recipient's own counters are both
+    ||| the kinds and the counts, with nothing announced anywhere -- and
+    ||| it is NOT [CR#701.34a]'s giving: proliferate adds ONE per kind
+    ||| whatever the holder has, and this adds however many the holder
+    ||| already had. That is why it is a row beside
+    ||| `GiveCountersOfOwnKinds` rather than an operation slot on it: the
+    ||| two differ in the arithmetic, not in a direction, and the
+    ||| REMOVING direction the slot would also have to serve is at a
+    ||| measured zero over the supported corpus.
+    ||| Amount-fixed for `GiveCountersOfOwnKinds`' reason, measured
+    ||| rather than assumed: doubling is the only multiplier any
+    ||| supported line writes, and a written count outside the operation
+    ||| ("do this twice") is `Repeated` over the whole action.
+    ||| Kind-indexed at [CR#122.1]'s own pair, a marker placed on an
+    ||| object or a player, because the player seat is printed
+    ||| ("double the number of each kind of counter you have", Aetheric
+    ||| Amplifier) beside the permanent one.
+    ||| A recipient holding no counters is doubled to nothing, which is
+    ||| the arithmetic applied and not a defect, so no gate demands a
+    ||| counter.
+    ||| -- spelling: "double the number of each kind of counter on [on]";
+    ||| at the player seat, "double the number of each kind of counter
+    ||| you have".
+    DoubleCountersOfOwnKinds : {k : Kind} -> (on : Noun bs k) ->
+                               {auto 0 hk : So (kindLte k (Object \/ Player))} ->
+                               {auto 0 pm : PerMember on} -> Effect bs
     ||| Counters leave a player in a stated number as well as all at
     ||| once: [CR#728.1]'s own rules text has a player remove "one rad
     ||| counter from themselves", and printed removal lines count what
@@ -1477,6 +1505,7 @@ mutual
   heldUntilOk (PutSameCounters _ _) = False
   heldUntilOk (PutCountersOfThoseKinds _ _) = False
   heldUntilOk (GiveCountersOfOwnKinds _) = False
+  heldUntilOk (DoubleCountersOfOwnKinds _) = False
   heldUntilOk (Enact _ (Move _ _ _)) = True
   heldUntilOk (Enact _ _) = False
   heldUntilOk (Does _ _ _) = False
@@ -1559,6 +1588,7 @@ mutual
   reflexEncloseUse (PutSameCounters _ _) = EncReflexive
   reflexEncloseUse (PutCountersOfThoseKinds _ _) = EncReflexive
   reflexEncloseUse (GiveCountersOfOwnKinds _) = EncReflexive
+  reflexEncloseUse (DoubleCountersOfOwnKinds _) = EncReflexive
   reflexEncloseUse (Move _ _ _) = EncReflexive       -- 3
   reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
@@ -1675,6 +1705,7 @@ mutual
   thisWayOutcomeOk (PutSameCounters _ _) = True
   thisWayOutcomeOk (PutCountersOfThoseKinds _ _) = True
   thisWayOutcomeOk (GiveCountersOfOwnKinds _) = True
+  thisWayOutcomeOk (DoubleCountersOfOwnKinds _) = True
   thisWayOutcomeOk (Enact _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
   thisWayOutcomeOk (Pay _ _) = True
@@ -1773,6 +1804,7 @@ mutual
   costActionOk (MoveCounters _ _ src dst) = costNounOk src && costNounOk dst
   costActionOk (PutSameCounters src dst) = costNounOk src && costNounOk dst
   costActionOk (GiveCountersOfOwnKinds on) = costNounOk on
+  costActionOk (DoubleCountersOfOwnKinds on) = costNounOk on
   -- the distributive kind anaphor reads an announced batch; no cost
   -- announces one, so the clause instructs nothing at payment.
   costActionOk (PutCountersOfThoseKinds _ _) = False
@@ -1911,6 +1943,7 @@ mutual
   effEq (PutSameCounters _ _) _ = False
   effEq (PutCountersOfThoseKinds _ _) _ = False
   effEq (GiveCountersOfOwnKinds _) _ = False
+  effEq (DoubleCountersOfOwnKinds _) _ = False
   effEq (Enact v e) (Enact w f) = v == w && effEq e f
   effEq (Enact _ _) _ = False
   effEq (Does _ _ _) _ = False
@@ -2039,6 +2072,7 @@ mutual
   effIntro (PutSameCounters src dst) = nomIntro dst
   effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   effIntro (GiveCountersOfOwnKinds on) = nomIntro on
+  effIntro (DoubleCountersOfOwnKinds on) = nomIntro on
   effIntro (Enact v (Move what to _)) =
     afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
   effIntro (Enact v (SetStatus _ n)) = stampIntro (Just v) n
@@ -2148,6 +2182,7 @@ mutual
   preIntro (PutSameCounters src dst) = nomIntro dst
   preIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   preIntro (GiveCountersOfOwnKinds on) = nomIntro on
+  preIntro (DoubleCountersOfOwnKinds on) = nomIntro on
   preIntro (Enact v (Move what to _)) = nomIntro what
   preIntro (Enact _ e) = preIntro e
   preIntro (Does s v (Move what to _)) = nomIntro what
@@ -2281,6 +2316,7 @@ mutual
   annIntro (PutSameCounters src dst) = nomIntro dst
   annIntro (PutCountersOfThoseKinds amt on) = nomIntro on
   annIntro (GiveCountersOfOwnKinds on) = nomIntro on
+  annIntro (DoubleCountersOfOwnKinds on) = nomIntro on
   annIntro (Enact v (Move what to _)) = nomIntro what
   annIntro (Enact _ e) = annIntro e
   annIntro (Does s v (Move what to _)) = nomIntro what
@@ -2424,6 +2460,7 @@ mutual
   deedDelta (PutSameCounters src dst) = []
   deedDelta (PutCountersOfThoseKinds amt on) = []
   deedDelta (GiveCountersOfOwnKinds on) = []
+  deedDelta (DoubleCountersOfOwnKinds on) = []
   deedDelta (Enact v (Move what to _)) = []
   deedDelta (Enact _ e) = deedDelta e
   deedDelta (Does s v (Move what to _)) = []
