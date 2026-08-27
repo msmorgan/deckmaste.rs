@@ -38,3 +38,5 @@ landed `ForEachKindOf` (value bound as a quality via `kindValueIntro`) and
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-event-zone-4-zone-catalog-and-reader-payload (close, 2026-08-26):** the counter-pair KIND complement (3 measured lines) is blocked on SORT, not count — the payload is a `CounterKind` and no quality sort carries it. The counter-kind sort is this ticket's item, so the complement lands here with it.
