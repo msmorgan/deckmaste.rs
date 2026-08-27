@@ -306,9 +306,9 @@ fn assert_selected_with_specificity(
 }
 
 #[derive(Default)]
-struct Task10Visitor(Vec<&'static str>);
+struct PredicateVisitor(Vec<&'static str>);
 
-impl Visitor for Task10Visitor {
+impl Visitor for PredicateVisitor {
     fn visit_transitive_requirement_predicate_value(
         &mut self,
         value: &TransitiveRequirementPredicateValue,
@@ -366,24 +366,24 @@ impl Visitor for Task10Visitor {
     }
 }
 
-fn task10_visits(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Vec<&'static str> {
-    task10_visits_with_specificity(parser, context, text, false)
+fn parse_and_visit(parser: &Parser, context: &ParseContext<'_>, text: &str) -> Vec<&'static str> {
+    parse_and_visit_with_specificity(parser, context, text, false)
 }
 
-fn task10_visits_with_specificity(
+fn parse_and_visit_with_specificity(
     parser: &Parser,
     context: &ParseContext<'_>,
     text: &str,
     permits_specificity: bool,
 ) -> Vec<&'static str> {
     let ability = assert_selected_with_specificity(parser, context, text, permits_specificity);
-    let mut visitor = Task10Visitor::default();
+    let mut visitor = PredicateVisitor::default();
     visitor.visit_ability(&ability);
     visitor.0
 }
 
 #[test]
-fn task10_builds_keep_new_products_in_the_existing_typed_algebra() {
+fn builds_keep_new_products_in_the_existing_typed_algebra() {
     let parser = parser();
     let context = context();
 
@@ -511,7 +511,7 @@ fn task10_builds_keep_new_products_in_the_existing_typed_algebra() {
 }
 
 #[test]
-fn task10_combat_frames_keep_active_valence_passive_agents_and_if_able_distinct() {
+fn combat_frames_keep_active_valence_passive_agents_and_if_able_distinct() {
     let parser = parser();
     let context = context();
 
@@ -552,7 +552,7 @@ fn task10_combat_frames_keep_active_valence_passive_agents_and_if_able_distinct(
     }
 
     assert_eq!(
-        task10_visits_with_specificity(
+        parse_and_visit_with_specificity(
             &parser,
             &context,
             "Whenever this creature blocks or becomes blocked by a creature, draw a card.",
@@ -561,7 +561,7 @@ fn task10_combat_frames_keep_active_valence_passive_agents_and_if_able_distinct(
         ["predicate-coordination"],
     );
     assert_eq!(
-        task10_visits(
+        parse_and_visit(
             &parser,
             &context,
             "Target creature attacks target opponent this turn if able.",
@@ -569,7 +569,7 @@ fn task10_combat_frames_keep_active_valence_passive_agents_and_if_able_distinct(
         ["transitive-requirement"],
     );
     assert_eq!(
-        task10_visits(
+        parse_and_visit(
             &parser,
             &context,
             "This creature can't be blocked except by two or more creatures.",
@@ -590,7 +590,7 @@ fn task10_combat_frames_keep_active_valence_passive_agents_and_if_able_distinct(
 }
 
 #[test]
-fn task10_damage_life_mana_and_continuous_state_use_typed_ordinary_products() {
+fn damage_life_mana_and_continuous_state_use_typed_ordinary_products() {
     let parser = parser();
     let context = context();
 
@@ -607,15 +607,15 @@ fn task10_damage_life_mana_and_continuous_state_use_typed_ordinary_products() {
         assert_selected(&parser, &context, text);
     }
     assert_eq!(
-        task10_visits(&parser, &context, "Add one mana of any color."),
+        parse_and_visit(&parser, &context, "Add one mana of any color."),
         ["flexible-mana"],
     );
     assert_eq!(
-        task10_visits_with_specificity(&parser, &context, "This permanent is all colors.", true,),
+        parse_and_visit_with_specificity(&parser, &context, "This permanent is all colors.", true,),
         ["nominal"],
     );
     assert_eq!(
-        task10_visits_with_specificity(
+        parse_and_visit_with_specificity(
             &parser,
             &context,
             "This permanent is all colors and this creature becomes tapped.",
@@ -637,12 +637,12 @@ fn task10_damage_life_mana_and_continuous_state_use_typed_ordinary_products() {
 }
 
 #[test]
-fn task10_replacement_entry_and_skip_surfaces_reuse_clause_and_predicate_algebra() {
+fn replacement_entry_and_skip_surfaces_reuse_clause_and_predicate_algebra() {
     let parser = parser();
     let context = context();
 
     assert_eq!(
-        task10_visits(
+        parse_and_visit(
             &parser,
             &context,
             "If a card would be put into your graveyard from anywhere, exile it instead.",
@@ -650,7 +650,7 @@ fn task10_replacement_entry_and_skip_surfaces_reuse_clause_and_predicate_algebra
         ["from-anywhere"],
     );
     assert_eq!(
-        task10_visits(
+        parse_and_visit(
             &parser,
             &context,
             "This creature enters with two +1/+1 counters on it.",
@@ -658,7 +658,7 @@ fn task10_replacement_entry_and_skip_surfaces_reuse_clause_and_predicate_algebra
         ["enter-with-counters"],
     );
     assert_eq!(
-        task10_visits(
+        parse_and_visit(
             &parser,
             &context,
             "As this artifact enters, choose a color.",
@@ -686,12 +686,12 @@ fn task10_replacement_entry_and_skip_surfaces_reuse_clause_and_predicate_algebra
 }
 
 #[test]
-fn task10_prevention_restriction_requirement_permission_exception_and_if_able_remain_linguistic() {
+fn prevention_restriction_requirement_permission_exception_and_if_able_remain_linguistic() {
     let parser = parser();
     let context = context();
 
     assert_eq!(
-        task10_visits(
+        parse_and_visit(
             &parser,
             &context,
             "Prevent the next 3 damage that would be dealt to target creature this turn.",
@@ -729,9 +729,9 @@ fn task10_prevention_restriction_requirement_permission_exception_and_if_able_re
 }
 
 #[derive(Default)]
-struct Task9ObjectVisitor(Vec<&'static str>);
+struct ObjectFrameVisitor(Vec<&'static str>);
 
-impl Visitor for Task9ObjectVisitor {
+impl Visitor for ObjectFrameVisitor {
     fn visit_declared_to_object_predicate(&mut self, value: &DeclaredToObjectPredicate) {
         self.0.push("declared-to-object");
         deckmaste_english_v2::visit::walk_declared_to_object_predicate(self, value);
@@ -786,7 +786,7 @@ impl Visitor for Task9ObjectVisitor {
 }
 
 #[test]
-fn task9_declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
+fn declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
     let parser = parser();
     let context = context();
     let text = "Attach target Equipment to target creature.";
@@ -796,7 +796,7 @@ fn task9_declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
         VerbPhrase::DeclaredToObjectPredicate(DeclaredToObjectPredicate { .. })
     ));
 
-    let mut visitor = Task9ObjectVisitor::default();
+    let mut visitor = ObjectFrameVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["declared-to-object"]);
 
@@ -836,7 +836,7 @@ fn task9_declared_to_object_frame_parses_attach_without_a_card_specific_rule() {
 }
 
 #[test]
-fn task9_quote_boundary_recurses_only_through_an_ordinary_ability() {
+fn quote_boundary_recurses_only_through_an_ordinary_ability() {
     let parser = parser();
     let context = context();
     let text = r#"All Slivers have "When this permanent enters, draw a card.""#;
@@ -855,7 +855,7 @@ fn task9_quote_boundary_recurses_only_through_an_ordinary_ability() {
         panic!("quoted complement stores the ordinary triggered ability AST")
     };
 
-    let mut visitor = Task9ObjectVisitor::default();
+    let mut visitor = ObjectFrameVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["quoted-ability"]);
     let claims = exact_claim_trace(&parser, &context, text);
@@ -871,7 +871,7 @@ fn task9_quote_boundary_recurses_only_through_an_ordinary_ability() {
 }
 
 #[test]
-fn task9_quoted_plan10_interiors_remain_exact_ordinary_failures() {
+fn quoted_deferred_interiors_remain_exact_ordinary_failures() {
     let parser = parser();
     let context = context();
     let documents = [
@@ -885,7 +885,7 @@ fn task9_quoted_plan10_interiors_remain_exact_ordinary_failures() {
             assert_ne!(
                 analysis.outcome(),
                 deckmaste_english_v2::parser::ParseAnalysisOutcome::Selected,
-                "Plan 10 quote interior must not select: {text:?}",
+                "deferred quote interior must not select: {text:?}",
             );
             if let Some(decision) = analysis.decision() {
                 assert!(decision.candidates().iter().all(|candidate| {
@@ -897,9 +897,9 @@ fn task9_quoted_plan10_interiors_remain_exact_ordinary_failures() {
             }
             let error = analysis
                 .into_parse_result()
-                .expect_err("Plan 10 quote interior remains an ordinary failure");
+                .expect_err("deferred quote interior remains an ordinary failure");
             let deckmaste_english_v2::parser::ParseError::Failure { span, .. } = error else {
-                panic!("Plan 10 quote interior has exact ordinary failure class: {error:?}")
+                panic!("deferred quote interior has exact ordinary failure class: {error:?}")
             };
             (span.start, span.end, text[span.start..span.end].to_owned())
         })
@@ -914,7 +914,7 @@ fn task9_quoted_plan10_interiors_remain_exact_ordinary_failures() {
 }
 
 #[test]
-fn task9_closed_information_heads_parse_copy_and_flip_without_action_declarations() {
+fn closed_information_heads_parse_copy_and_flip_without_action_declarations() {
     let parser = parser();
     let context = context();
     for (text, expected_head, expected_visit) in [
@@ -942,14 +942,14 @@ fn task9_closed_information_heads_parse_copy_and_flip_without_action_declaration
             TransitiveVerb::Lexeme(expected_head),
             "{text:?}",
         );
-        let mut visitor = Task9ObjectVisitor::default();
+        let mut visitor = ObjectFrameVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(visitor.0, [expected_visit], "{text:?}");
     }
 }
 
 #[test]
-fn task9_exchange_uses_declared_object_valence_and_a_typed_control_reference() {
+fn exchange_uses_declared_object_valence_and_a_typed_control_reference() {
     let parser = parser();
     let context = context();
     let text = "Exchange control of two target creatures.";
@@ -960,7 +960,7 @@ fn task9_exchange_uses_declared_object_valence_and_a_typed_control_reference() {
     };
     assert_eq!(head.id().name(), "Exchange");
     assert!(matches!(predicate.object, Object::ObjectNominal(_)));
-    let mut visitor = Task9ObjectVisitor::default();
+    let mut visitor = ObjectFrameVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["exchange"]);
 }
@@ -982,7 +982,7 @@ fn declared_custom_valences_select_one_frame_per_linguistic_shape() {
 }
 
 #[test]
-fn task9_vote_uses_declared_for_object_valence_and_productive_common_noun_choices() {
+fn vote_uses_declared_for_object_valence_and_productive_common_noun_choices() {
     let parser = parser();
     let context = context();
     let text = "Starting with her, each player votes for death or taxes.";
@@ -1005,7 +1005,7 @@ fn task9_vote_uses_declared_for_object_valence_and_productive_common_noun_choice
             word: ObjectPronoun::Her,
         })
     ));
-    let mut visitor = Task9ObjectVisitor::default();
+    let mut visitor = ObjectFrameVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["declared-for-object"]);
 
@@ -1014,14 +1014,14 @@ fn task9_vote_uses_declared_for_object_valence_and_productive_common_noun_choice
         "Starting with target player, each player votes for card or token.",
     ] {
         let ability = assert_selected_with_specificity(&parser, &context, productive, true);
-        let mut visitor = Task9ObjectVisitor::default();
+        let mut visitor = ObjectFrameVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(visitor.0, ["declared-for-object"]);
     }
 }
 
 #[test]
-fn task9_maximum_hand_size_is_a_typed_copular_scalar_statement() {
+fn maximum_hand_size_is_a_typed_copular_scalar_statement() {
     let parser = parser();
     let context = context();
     let text = "Your maximum hand size is seven.";
@@ -1043,13 +1043,13 @@ fn task9_maximum_hand_size_is_a_typed_copular_scalar_statement() {
         value.complement.as_ref(),
         PredicativeComplement::Scalar(_)
     ));
-    let mut visitor = Task9ObjectVisitor::default();
+    let mut visitor = ObjectFrameVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["predicative-scalar"]);
 }
 
 #[test]
-fn task9_token_descriptions_share_typed_power_toughness_and_copy_constituents() {
+fn token_descriptions_share_typed_power_toughness_and_copy_constituents() {
     let parser = parser();
     let context = context();
     for (text, expected_visit) in [
@@ -1065,7 +1065,7 @@ fn task9_token_descriptions_share_typed_power_toughness_and_copy_constituents() 
             panic!("{text:?} retains Create's declaration identity")
         };
         assert_eq!(head.id().name(), "Create", "{text:?}");
-        let mut visitor = Task9ObjectVisitor::default();
+        let mut visitor = ObjectFrameVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(
             visitor.0,
@@ -1076,7 +1076,7 @@ fn task9_token_descriptions_share_typed_power_toughness_and_copy_constituents() 
 }
 
 #[test]
-fn task9_power_toughness_predicates_keep_modifier_and_base_value_frames_distinct() {
+fn power_toughness_predicates_keep_modifier_and_base_value_frames_distinct() {
     let parser = parser();
     let context = context();
     for (text, expected_visit) in [
@@ -1090,7 +1090,7 @@ fn task9_power_toughness_predicates_keep_modifier_and_base_value_frames_distinct
         ),
     ] {
         let ability = assert_selected(&parser, &context, text);
-        let mut visitor = Task9ObjectVisitor::default();
+        let mut visitor = ObjectFrameVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(visitor.0, [expected_visit], "{text:?}");
     }
@@ -1113,9 +1113,9 @@ fn task9_power_toughness_predicates_keep_modifier_and_base_value_frames_distinct
 }
 
 #[derive(Default)]
-struct Task10aPowerToughnessVisitor(Vec<&'static str>);
+struct PowerToughnessVisitor(Vec<&'static str>);
 
-impl Visitor for Task10aPowerToughnessVisitor {
+impl Visitor for PowerToughnessVisitor {
     fn visit_clause_coordination(&mut self, value: &ClauseCoordination) {
         self.0.push("clause-coordination");
         deckmaste_english_v2::visit::walk_clause_coordination(self, value);
@@ -1139,7 +1139,7 @@ impl Visitor for Task10aPowerToughnessVisitor {
 }
 
 #[test]
-fn task10a_negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
+fn negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
     let parser = parser();
     let context = context();
     let text = "Target creature gets -1/-1 until end of turn.";
@@ -1173,7 +1173,7 @@ fn task10a_negative_adjustments_build_render_visit_and_claim_the_typed_sign_prod
     );
     assert_eq!(ability.render(&context, parser.environment()), text);
 
-    let mut visitor = Task10aPowerToughnessVisitor::default();
+    let mut visitor = PowerToughnessVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["negative-magnitude", "negative-magnitude"]);
     assert_eq!(
@@ -1256,7 +1256,7 @@ fn preposed_duration_attaches_to_finite_and_imperative_bodies() {
 }
 
 #[test]
-fn task10a_fixed_variable_asymmetric_and_crossed_adjustments_share_existing_amounts() {
+fn fixed_variable_asymmetric_and_crossed_adjustments_share_existing_amounts() {
     let parser = parser();
     let context = context();
     for (text, expected_visits) in [
@@ -1278,14 +1278,14 @@ fn task10a_fixed_variable_asymmetric_and_crossed_adjustments_share_existing_amou
         ),
     ] {
         let ability = assert_selected(&parser, &context, text);
-        let mut visitor = Task10aPowerToughnessVisitor::default();
+        let mut visitor = PowerToughnessVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(visitor.0, expected_visits, "{text:?}");
     }
 
     let text = "This creature gets -1/-1 and target creature gets +1/+1.";
     let ability = assert_selected(&parser, &context, text);
-    let mut visitor = Task10aPowerToughnessVisitor::default();
+    let mut visitor = PowerToughnessVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(
         visitor.0,
@@ -1300,7 +1300,7 @@ fn task10a_fixed_variable_asymmetric_and_crossed_adjustments_share_existing_amou
 }
 
 #[test]
-fn task10a_adjustment_sign_slash_pairing_and_agreement_boundaries_are_reciprocal() {
+fn adjustment_sign_slash_pairing_and_agreement_boundaries_are_reciprocal() {
     let parser = parser();
     let context = context();
 
@@ -1335,7 +1335,7 @@ fn task10a_adjustment_sign_slash_pairing_and_agreement_boundaries_are_reciprocal
 }
 
 #[test]
-fn task9_ordinary_ability_nouns_parse_while_keyword_interiors_remain_plan10() {
+fn ordinary_ability_nouns_parse_while_keyword_interiors_remain_deferred() {
     let parser = parser();
     let context = context();
     let text = "Target creature loses all abilities.";
@@ -1345,17 +1345,17 @@ fn task9_ordinary_ability_nouns_parse_while_keyword_interiors_remain_plan10() {
         predicate.head,
         TransitiveVerb::Lexeme(CoreTransitiveVerb::Lose)
     ));
-    let mut visitor = Task9ObjectVisitor::default();
+    let mut visitor = ObjectFrameVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["lose-abilities"]);
 
-    for plan10_keyword_interior in [
+    for deferred_keyword_interior in [
         "Target creature gains flying until end of turn.",
         "Creatures you control have vigilance.",
     ] {
         assert!(
-            parser.parse(plan10_keyword_interior, &context).is_err(),
-            "bare keyword ability remains a Plan 10 boundary: {plan10_keyword_interior:?}",
+            parser.parse(deferred_keyword_interior, &context).is_err(),
+            "bare keyword ability remains a deferred boundary: {deferred_keyword_interior:?}",
         );
     }
 }
@@ -1578,9 +1578,9 @@ fn copular_change_auxiliary_and_passive_minimal_pairs_select() {
     clippy::items_after_statements,
     clippy::match_same_arms,
     clippy::too_many_lines,
-    reason = "one exhaustive integration table keeps every Task 7 clause family and AST oracle together"
+    reason = "one exhaustive integration table keeps every finite clause family and AST oracle together"
 )]
-fn task7_finite_clause_families_compose_in_triggers_and_conditions() {
+fn finite_clause_families_compose_in_triggers_and_conditions() {
     let parser = parser();
     let context = context();
     #[derive(Debug, Clone, Copy)]
@@ -1986,7 +1986,7 @@ fn copular_change_auxiliary_and_passive_reciprocals_reject() {
 }
 
 #[test]
-fn task7_ast_keeps_each_linguistic_product_typed() {
+fn ast_keeps_each_linguistic_product_typed() {
     let parser = parser();
     let context = context();
     for (text, expected) in [
@@ -2105,9 +2105,9 @@ fn task7_ast_keeps_each_linguistic_product_typed() {
 }
 
 #[derive(Default)]
-struct Task7Visitor(Vec<String>);
+struct TypedProductVisitor(Vec<String>);
 
-macro_rules! task7_product {
+macro_rules! typed_product {
     ($method:ident, $type:ty, $walk:ident, $label:literal) => {
         fn $method(&mut self, value: &$type) {
             self.0.push(concat!("product:", $label).to_owned());
@@ -2116,116 +2116,116 @@ macro_rules! task7_product {
     };
 }
 
-impl Visitor for Task7Visitor {
-    task7_product!(
+impl Visitor for TypedProductVisitor {
+    typed_product!(
         visit_copular_clause_value,
         CopularClauseValue,
         walk_copular_clause_value,
         "CopularClauseValue"
     );
-    task7_product!(
+    typed_product!(
         visit_predicative_adjective_value,
         PredicativeAdjectiveValue,
         walk_predicative_adjective_value,
         "PredicativeAdjectiveValue"
     );
-    task7_product!(
+    typed_product!(
         visit_predicative_color_value,
         PredicativeColorValue,
         walk_predicative_color_value,
         "PredicativeColorValue"
     );
-    task7_product!(
+    typed_product!(
         visit_predicative_nominal_value,
         PredicativeNominalValue,
         walk_predicative_nominal_value,
         "PredicativeNominalValue"
     );
-    task7_product!(
+    typed_product!(
         visit_predicative_status_value,
         PredicativeStatusValue,
         walk_predicative_status_value,
         "PredicativeStatusValue"
     );
-    task7_product!(
+    typed_product!(
         visit_blocked_by_status_value,
         BlockedByStatusValue,
         walk_blocked_by_status_value,
         "BlockedByStatusValue"
     );
-    task7_product!(
+    typed_product!(
         visit_predicative_ability_value,
         PredicativeAbilityValue,
         walk_predicative_ability_value,
         "PredicativeAbilityValue"
     );
-    task7_product!(
+    typed_product!(
         visit_predicative_power_toughness_value,
         PredicativePowerToughnessValue,
         walk_predicative_power_toughness_value,
         "PredicativePowerToughnessValue"
     );
-    task7_product!(
+    typed_product!(
         visit_bare_copular_predicate_value,
         BareCopularPredicateValue,
         walk_bare_copular_predicate_value,
         "BareCopularPredicateValue"
     );
-    task7_product!(
+    typed_product!(
         visit_change_state_predicate_value,
         ChangeStatePredicateValue,
         walk_change_state_predicate_value,
         "ChangeStatePredicateValue"
     );
-    task7_product!(
+    typed_product!(
         visit_auxiliary_predicate_value,
         AuxiliaryPredicateValue,
         walk_auxiliary_predicate_value,
         "AuxiliaryPredicateValue"
     );
-    task7_product!(
+    typed_product!(
         visit_bare_passive_predicate_value,
         BarePassivePredicateValue,
         walk_bare_passive_predicate_value,
         "BarePassivePredicateValue"
     );
-    task7_product!(
+    typed_product!(
         visit_passive_finite_clause_value,
         PassiveFiniteClauseValue,
         walk_passive_finite_clause_value,
         "PassiveFiniteClauseValue"
     );
-    task7_product!(
+    typed_product!(
         visit_passive_damage_predicate_value,
         PassiveDamagePredicateValue,
         walk_passive_damage_predicate_value,
         "PassiveDamagePredicateValue"
     );
-    task7_product!(
+    typed_product!(
         visit_passive_movement_predicate_value,
         PassiveMovementPredicateValue,
         walk_passive_movement_predicate_value,
         "PassiveMovementPredicateValue"
     );
-    task7_product!(
+    typed_product!(
         visit_passive_orientation_predicate_value,
         PassiveOrientationPredicateValue,
         walk_passive_orientation_predicate_value,
         "PassiveOrientationPredicateValue"
     );
-    task7_product!(
+    typed_product!(
         visit_declared_transitive_passive_predicate_value,
         DeclaredTransitivePassivePredicateValue,
         walk_declared_transitive_passive_predicate_value,
         "DeclaredTransitivePassivePredicateValue"
     );
-    task7_product!(
+    typed_product!(
         visit_deal_unspecified_damage,
         DealUnspecifiedDamage,
         walk_deal_unspecified_damage,
         "DealUnspecifiedDamage"
     );
-    task7_product!(
+    typed_product!(
         visit_gain_unspecified_life,
         GainUnspecifiedLife,
         walk_gain_unspecified_life,
@@ -2264,7 +2264,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
                         | "A spell was cast."
                 ),
             );
-            let mut visitor = Task7Visitor::default();
+            let mut visitor = TypedProductVisitor::default();
             visitor.visit_ability(&ability);
             assert_eq!(visitor.0, [$($visit),+], "exact visitor trace for {:?}", $text);
             assert_eq!(
@@ -5723,9 +5723,9 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
 }
 
 #[derive(Default)]
-struct Task8Visitor(Vec<&'static str>);
+struct AdjunctVisitor(Vec<&'static str>);
 
-impl Visitor for Task8Visitor {
+impl Visitor for AdjunctVisitor {
     fn visit_object_infinitive_predicate_value(&mut self, value: &ObjectInfinitivePredicateValue) {
         self.0.push("object-infinitive");
         deckmaste_english_v2::visit::walk_object_infinitive_predicate_value(self, value);
@@ -5797,7 +5797,7 @@ impl Visitor for Task8Visitor {
 }
 
 #[test]
-fn task8_infinitive_requirement_counterfactual_and_order_products_are_typed() {
+fn infinitive_requirement_counterfactual_and_order_products_are_typed() {
     let parser = parser();
     let context = context();
 
@@ -5829,7 +5829,7 @@ fn task8_infinitive_requirement_counterfactual_and_order_products_are_typed() {
     ] {
         let ability =
             assert_selected_with_specificity(&parser, &context, text, permits_specificity);
-        let mut visitor = Task8Visitor::default();
+        let mut visitor = AdjunctVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(visitor.0, expected, "exact typed products for {text:?}");
     }
@@ -5840,7 +5840,7 @@ fn task8_infinitive_requirement_counterfactual_and_order_products_are_typed() {
     clippy::too_many_lines,
     reason = "the three counterfactual finite-clause frames share one exhaustive typed audit"
 )]
-fn task8_as_though_owns_the_attested_counterfactual_finite_family() {
+fn as_though_owns_the_attested_counterfactual_finite_family() {
     let parser = parser();
     let context = context();
 
@@ -5871,7 +5871,7 @@ fn task8_as_though_owns_the_attested_counterfactual_finite_family() {
         ),
     ] {
         let ability = assert_selected(&parser, &context, text);
-        let mut visitor = Task8Visitor::default();
+        let mut visitor = AdjunctVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(
             visitor.0, expected,
@@ -6017,7 +6017,7 @@ fn task8_as_though_owns_the_attested_counterfactual_finite_family() {
 }
 
 #[test]
-fn task8_purpose_duration_and_instead_products_are_typed() {
+fn purpose_duration_and_instead_products_are_typed() {
     let parser = parser();
     let context = context();
 
@@ -6030,33 +6030,33 @@ fn task8_purpose_duration_and_instead_products_are_typed() {
     ] {
         let ability =
             assert_selected_with_specificity(&parser, &context, text, permits_specificity);
-        let mut visitor = Task8Visitor::default();
+        let mut visitor = AdjunctVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(visitor.0, [expected], "exact typed product for {text:?}");
     }
 }
 
 #[test]
-fn task8_this_way_keeps_predicate_manner_scope() {
+fn this_way_keeps_predicate_manner_scope() {
     let parser = parser();
     let context = context();
     let text = "You didn't create a token this way.";
     let ability = assert_selected(&parser, &context, text);
-    let mut visitor = Task8Visitor::default();
+    let mut visitor = AdjunctVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["manner"]);
 
     let text = "Attack this way.";
     let ability = assert_selected(&parser, &context, text);
-    let mut visitor = Task8Visitor::default();
+    let mut visitor = AdjunctVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["manner"]);
 }
 
 #[derive(Default)]
-struct Task8SurfaceVisitor(Vec<String>);
+struct AdjunctSurfaceVisitor(Vec<String>);
 
-impl Visitor for Task8SurfaceVisitor {
+impl Visitor for AdjunctSurfaceVisitor {
     fn visit_may_auxiliary(&mut self, _value: &MayAuxiliary) {
         self.0.push("auxiliary:May".to_owned());
     }
@@ -6086,7 +6086,7 @@ impl Visitor for Task8SurfaceVisitor {
 }
 
 #[test]
-fn task8_permission_restriction_exception_random_and_order_surfaces_are_scoped() {
+fn permission_restriction_exception_random_and_order_surfaces_are_scoped() {
     let parser = parser();
     let context = context();
     for (text, expected) in [
@@ -6112,14 +6112,14 @@ fn task8_permission_restriction_exception_random_and_order_surfaces_are_scoped()
         ),
     ] {
         let ability = assert_selected(&parser, &context, text);
-        let mut visitor = Task8SurfaceVisitor::default();
+        let mut visitor = AdjunctSurfaceVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(visitor.0, expected, "exact scoped surface for {text:?}");
     }
 }
 
 #[test]
-fn task8_attachment_movement_does_not_silently_change_scope() {
+fn attachment_movement_does_not_silently_change_scope() {
     let parser = parser();
     let context = context();
     for text in [
@@ -6141,7 +6141,7 @@ fn task8_attachment_movement_does_not_silently_change_scope() {
 }
 
 #[test]
-fn task8_cost_position_reuses_the_typed_predicate_algebra() {
+fn cost_position_reuses_the_typed_predicate_algebra() {
     let parser = parser();
     let context = context();
     let text = "{1}, Discard a card instead: Draw a card.";
@@ -6166,7 +6166,7 @@ fn task8_cost_position_reuses_the_typed_predicate_algebra() {
         Some(activated),
     );
 
-    let mut visitor = Task8Visitor::default();
+    let mut visitor = AdjunctVisitor::default();
     visitor.visit_ability(&ability);
     assert_eq!(visitor.0, ["instead"]);
     assert_eq!(
@@ -6227,7 +6227,7 @@ fn task8_cost_position_reuses_the_typed_predicate_algebra() {
 }
 
 #[test]
-fn task8_object_internal_discarded_this_way_does_not_become_outer_manner() {
+fn object_internal_discarded_this_way_does_not_become_outer_manner() {
     let parser = parser();
     let context = context();
     let text = "Target player discards three cards. Put up to one artifact card discarded this way onto the battlefield tapped under your control.";
@@ -6251,9 +6251,9 @@ fn task8_object_internal_discarded_this_way_does_not_become_outer_manner() {
 }
 
 #[derive(Default)]
-struct Task10bVisitor(Vec<&'static str>);
+struct DistributionVisitor(Vec<&'static str>);
 
-impl Visitor for Task10bVisitor {
+impl Visitor for DistributionVisitor {
     fn visit_state_duration_predicate_value(&mut self, value: &StateDurationPredicateValue) {
         self.0.push("state-duration");
         deckmaste_english_v2::visit::walk_state_duration_predicate_value(self, value);
@@ -6294,9 +6294,9 @@ impl Visitor for Task10bVisitor {
 #[test]
 #[allow(
     clippy::too_many_lines,
-    reason = "the positive authority checks all Task 10B typed frames, ASTs, visits, and claims together"
+    reason = "the positive authority checks all distribution frames, ASTs, visits, and claims together"
 )]
-fn task10b_passive_distribution_and_counter_frames_select_typed_products() {
+fn passive_distribution_and_counter_frames_select_typed_products() {
     let parser = parser();
     let context = context();
 
@@ -6403,7 +6403,7 @@ fn task10b_passive_distribution_and_counter_frames_select_typed_products() {
         CounterQuantity::UnnamedSingularCounterQuantity(_)
     ));
 
-    let mut visitor = Task10bVisitor::default();
+    let mut visitor = DistributionVisitor::default();
     let ability = assert_selected_with_specificity(
         &parser,
         &context,
@@ -6478,7 +6478,7 @@ fn task10b_passive_distribution_and_counter_frames_select_typed_products() {
 }
 
 #[test]
-fn task10b_distribution_does_not_bypass_productive_target_noun_deferral() {
+fn distribution_does_not_bypass_productive_target_noun_deferral() {
     let parser = parser();
     let context = context();
 
@@ -6494,7 +6494,7 @@ fn task10b_distribution_does_not_bypass_productive_target_noun_deferral() {
 }
 
 #[test]
-fn task10b_frame_reciprocals_reject_crossed_morphology_and_boundaries() {
+fn frame_reciprocals_reject_crossed_morphology_and_boundaries() {
     let parser = parser();
     let context = context();
     for text in [
@@ -6520,13 +6520,13 @@ fn task10b_frame_reciprocals_reject_crossed_morphology_and_boundaries() {
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "crossed Task 10B frame must reject {text:?}",
+            "crossed distribution frame must reject {text:?}",
         );
     }
 }
 
 #[test]
-fn task10b_scope_rejects_copular_duration_and_global_composite_amounts() {
+fn scope_rejects_copular_duration_and_global_composite_amounts() {
     let parser = parser();
     let context = context();
     let accepted = [
@@ -6539,12 +6539,12 @@ fn task10b_scope_rejects_copular_duration_and_global_composite_amounts() {
     .collect::<Vec<_>>();
     assert!(
         accepted.is_empty(),
-        "Task 10B-only syntax leaked through global products: {accepted:?}",
+        "distribution-only syntax leaked through global products: {accepted:?}",
     );
 }
 
 #[test]
-fn task10c_cost_frames_select_their_complete_typed_paths() {
+fn cost_frames_select_their_complete_typed_paths() {
     let parser = parser();
     let context = context();
 
@@ -6568,7 +6568,7 @@ fn task10c_cost_frames_select_their_complete_typed_paths() {
 }
 
 #[test]
-fn task10c_cost_frame_reciprocals_reject_crossed_boundaries() {
+fn cost_frame_reciprocals_reject_crossed_boundaries() {
     let parser = parser();
     let context = context();
 
@@ -6588,13 +6588,13 @@ fn task10c_cost_frame_reciprocals_reject_crossed_boundaries() {
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "crossed Task 10C frame must reject {text:?}",
+            "crossed cost frame must reject {text:?}",
         );
     }
 }
 
 #[test]
-fn task10c_cost_scope_rejects_missing_complements_modifiers_and_shortcuts() {
+fn cost_scope_rejects_missing_complements_modifiers_and_shortcuts() {
     let parser = parser();
     let context = context();
 
@@ -6618,15 +6618,15 @@ fn task10c_cost_scope_rejects_missing_complements_modifiers_and_shortcuts() {
     ] {
         assert!(
             parser.parse(text, &context).is_err(),
-            "Task 10C scope must reject {text:?}",
+            "cost scope must reject {text:?}",
         );
     }
 }
 
 #[derive(Default)]
-struct Task10cVisitor(Vec<&'static str>);
+struct CostFrameVisitor(Vec<&'static str>);
 
-impl Visitor for Task10cVisitor {
+impl Visitor for CostFrameVisitor {
     fn visit_additional_cost(&mut self, value: &AdditionalCost) {
         self.0.push("additional-cost");
         deckmaste_english_v2::visit::walk_additional_cost(self, value);
@@ -6694,7 +6694,7 @@ impl Visitor for Task10cVisitor {
 }
 
 #[test]
-fn task10c_cost_products_keep_ast_render_visit_and_lexical_ownership() {
+fn cost_products_keep_ast_render_visit_and_lexical_ownership() {
     let parser = parser();
     let context = context();
 
@@ -6736,7 +6736,7 @@ fn task10c_cost_products_keep_ast_render_visit_and_lexical_ownership() {
     ] {
         let ability = assert_selected_with_specificity(&parser, &context, text, true);
         assert_eq!(ability.render(&context, parser.environment()), text);
-        let mut visitor = Task10cVisitor::default();
+        let mut visitor = CostFrameVisitor::default();
         visitor.visit_ability(&ability);
         assert_eq!(visitor.0, expected, "typed visit path for {text:?}");
     }
@@ -6825,7 +6825,7 @@ fn task10c_cost_products_keep_ast_render_visit_and_lexical_ownership() {
 }
 
 #[test]
-fn task10d_then_sequences_select_pair_serial_and_intersentence_forms() {
+fn then_sequences_select_pair_serial_and_intersentence_forms() {
     let parser = parser();
     let context = context();
 
@@ -6852,7 +6852,7 @@ fn task10d_then_sequences_select_pair_serial_and_intersentence_forms() {
 }
 
 #[test]
-fn task10d_then_sequences_have_exact_ast_build_visit_and_structural_ownership() {
+fn then_sequences_have_exact_ast_build_visit_and_structural_ownership() {
     #[derive(Default)]
     struct ThenVisitor {
         sequences: usize,
@@ -7007,7 +7007,7 @@ fn task10d_then_sequences_have_exact_ast_build_visit_and_structural_ownership() 
 }
 
 #[test]
-fn task10d_then_sequences_reject_malformed_punctuation_case_spacing_and_singletons() {
+fn then_sequences_reject_malformed_punctuation_case_spacing_and_singletons() {
     let parser = parser();
     let context = context();
 

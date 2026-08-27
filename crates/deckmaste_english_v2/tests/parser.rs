@@ -1675,7 +1675,7 @@ fn parser_trace_selected_projection_is_exact_bounded_repeatable_and_private_resu
             let candidate = &trace.materialized_candidates().items()[0];
             let parsed = parser.parse(text, &context).expect("selected ability");
             let analysis = parser.analyze(text, &context);
-            let complete = analysis.decision().expect("complete Task 3 decision");
+            let complete = analysis.decision().expect("complete selection decision");
             assert_eq!(candidate.ordinal(), 0);
             assert_eq!(candidate.rendered(), text);
             assert_eq!(candidate.ast_debug_v1(), format!("{parsed:?}"));

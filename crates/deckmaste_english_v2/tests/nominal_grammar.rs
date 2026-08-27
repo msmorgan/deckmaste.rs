@@ -800,7 +800,7 @@ fn compact_specificity(specificity: &[SpecificityTier]) -> String {
 
 #[allow(
     clippy::too_many_lines,
-    reason = "Task 8 pins one literal ordered visitor vector per authentic positive"
+    reason = "one literal ordered visitor vector is pinned per authentic positive"
 )]
 fn expected_visitor_events(text: &str) -> &'static [&'static str] {
     match text {
@@ -2272,7 +2272,7 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "CommonSingularHead",
             "CommonNoun:Name",
         ],
-        unexpected => panic!("missing literal Task 8 visitor vector for {unexpected:?}"),
+        unexpected => panic!("missing literal visitor vector for {unexpected:?}"),
     }
 }
 
@@ -2286,7 +2286,7 @@ struct Witness {
 
 #[allow(
     clippy::too_many_lines,
-    reason = "the complete Task 8 witness table is deliberately literal and reviewable"
+    reason = "the complete witness table is deliberately literal and reviewable"
 )]
 #[test]
 fn authentic_nominal_and_selector_sentences_parse() {
@@ -2675,7 +2675,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
         );
         assert!(
             decision.exception_uses().is_empty(),
-            "Task 8 has no selection exceptions: {:?}",
+            "the nominal witnesses have no selection exceptions: {:?}",
             witness.text,
         );
         let selected_ordinal = decision.selected().expect("the positive selects");
@@ -2872,7 +2872,7 @@ fn general_event_relative_remains_an_exact_ordinary_parse_failure() {
     assert_eq!(analysis.outcome(), ParseAnalysisOutcome::ParseFailure);
     let error = analysis
         .into_parse_result()
-        .expect_err("general event relatives remain outside Task 10");
+        .expect_err("general event relatives remain a deferred boundary");
     assert_ordinary_parse_failure(&error);
 }
 
@@ -3233,7 +3233,7 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     );
 }
 
-const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
+const TYPED_VISITOR_CASES: &[(&str, &[&str])] = &[
     (
         "Creatures you control gain 2 life.",
         &[
@@ -3464,7 +3464,7 @@ const TASK10_VISITOR_CASES: &[(&str, &[&str])] = &[
     ),
 ];
 
-fn assert_task10_visitor_preorders(cases: &[(&str, &[&str])]) {
+fn assert_typed_visitor_preorders(cases: &[(&str, &[&str])]) {
     let parser = parser();
     let context = context("Context Card");
     for &(text, expected) in cases {
@@ -3473,7 +3473,7 @@ fn assert_task10_visitor_preorders(cases: &[(&str, &[&str])]) {
             .unwrap_or_else(|error| panic!("{text:?} must parse: {error:?}"));
         let mut visitor = NominalVisitor::default();
         visitor.visit_ability(&parsed);
-        let task10_events = visitor
+        let events = visitor
             .events
             .iter()
             .filter(|event| {
@@ -3560,7 +3560,7 @@ fn assert_task10_visitor_preorders(cases: &[(&str, &[&str])]) {
             .collect::<Vec<_>>();
         if was_legacy_relative {
             assert!(
-                task10_events.starts_with(&[
+                events.starts_with(&[
                     "QualifiedNounPhrase",
                     "NumericStage",
                     "UnqualifiedNumericStage",
@@ -3569,17 +3569,17 @@ fn assert_task10_visitor_preorders(cases: &[(&str, &[&str])]) {
                     "ControllerStage",
                     "UnqualifiedReference",
                 ]),
-                "generic object-gap relative preorder for {text:?}: {task10_events:?}",
+                "generic object-gap relative preorder for {text:?}: {events:?}",
             );
         } else {
-            assert_eq!(task10_events, expected, "visitor preorder for {text:?}");
+            assert_eq!(events, expected, "visitor preorder for {text:?}");
         }
     }
 }
 
 #[test]
-fn task10_visitor_callbacks_have_literal_typed_preorders() {
-    assert_task10_visitor_preorders(TASK10_VISITOR_CASES);
+fn visitor_callbacks_have_literal_typed_preorders() {
+    assert_typed_visitor_preorders(TYPED_VISITOR_CASES);
 }
 
 #[test]
@@ -5161,7 +5161,7 @@ fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
 }
 
 #[test]
-fn task9_visitor_callbacks_have_literal_full_preorders() {
+fn visitor_callbacks_have_literal_full_preorders() {
     let parser = parser();
     let context = context("Context Card");
     for (text, expected) in [

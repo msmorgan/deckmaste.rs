@@ -400,7 +400,7 @@ fn indefinite_coordination_articles_follow_the_realized_head_onset() {
 }
 
 #[test]
-fn existential_there_preserves_its_pivot_before_the_plan09_predicate_boundary() {
+fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
     let parser = parser();
     let context = context("Mask of Intolerance", false);
     let controlled = "At the beginning of each player's upkeep, if there are four or more basic land types among lands that player controls, you gain 1 life.";
