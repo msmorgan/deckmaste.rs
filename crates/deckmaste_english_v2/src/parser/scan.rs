@@ -941,7 +941,6 @@ impl ScanInput<'_> {
     pub(crate) fn declaration_verb_readings(
         &self,
         start: usize,
-        kinds: &[DeclarationKind],
         frame: &VerbFrameKey,
         feature: SurfaceFeature,
     ) -> Vec<(usize, DeclarationId)> {
@@ -997,10 +996,10 @@ impl ScanInput<'_> {
             let candidate = &surface_text[..relative_end];
             let readings = if initial {
                 self.environment
-                    .initial_declaration_verb_readings(kinds, candidate, feature, &frame)
+                    .initial_declaration_verb_readings(candidate, feature, &frame)
             } else {
                 self.environment
-                    .declaration_verb_readings(kinds, candidate, feature, &frame)
+                    .declaration_verb_readings(candidate, feature, &frame)
             };
             results.extend(
                 readings

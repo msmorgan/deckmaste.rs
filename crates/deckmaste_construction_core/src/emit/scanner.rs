@@ -591,11 +591,6 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         .map(|(terminal_index, codec)| {
             let verb = codec.codec_ident();
             let declaration = codec.declaration_value_ident();
-            let kinds = codec
-                .kinds()
-                .iter()
-                .map(|kind| crate::emit::declaration_kind(*kind))
-                .collect::<Vec<_>>();
             let frame_atoms = codec
                 .frame_key()
                 .atoms()
@@ -692,7 +687,6 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         }
                         for (end, id) in input.declaration_verb_readings(
                             input.position.byte_offset,
-                            &[#(#kinds),*],
                             &frame,
                             match agreement {
                                 Agreement::Bare => ::macro_ron::v2::SurfaceFeature::Bare,
@@ -731,10 +725,9 @@ fn declaration_verb_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         let mut matches = Vec::new();
                         #closed_scan
                         let frame = VerbFrameKey::new(&[#(#frame_atoms),*]);
-                        for (end, id) in input.declaration_verb_readings(
-                            input.position.byte_offset,
-                            &[#(#kinds),*],
-                            &frame,
+                    for (end, id) in input.declaration_verb_readings(
+                        input.position.byte_offset,
+                        &frame,
                             ::macro_ron::v2::SurfaceFeature::Participle,
                         ) {
                             #declaration_filter

@@ -440,14 +440,12 @@ impl ParserEnvironment {
     #[must_use]
     pub fn declaration_verb_readings(
         &self,
-        kinds: &[DeclarationKind],
         surface: &str,
         feature: SurfaceFeature,
         frame: &[CustomTailAtom],
     ) -> Vec<&DeclarationReading> {
         self.filter_declaration_verb_readings(
             self.readings(GrammarPosition::Verb, surface),
-            kinds,
             feature,
             frame,
         )
@@ -455,14 +453,12 @@ impl ParserEnvironment {
 
     pub(crate) fn initial_declaration_verb_readings(
         &self,
-        kinds: &[DeclarationKind],
         surface: &str,
         feature: SurfaceFeature,
         frame: &[CustomTailAtom],
     ) -> Vec<&DeclarationReading> {
         self.filter_declaration_verb_readings(
             self.initial_readings(GrammarPosition::Verb, surface),
-            kinds,
             feature,
             frame,
         )
@@ -471,13 +467,11 @@ impl ParserEnvironment {
     fn filter_declaration_verb_readings<'a>(
         &'a self,
         readings: &'a [DeclarationReading],
-        kinds: &[DeclarationKind],
         feature: SurfaceFeature,
         frame: &[CustomTailAtom],
     ) -> Vec<&'a DeclarationReading> {
         readings
             .iter()
-            .filter(|reading| kinds.contains(&reading.id().kind()))
             .filter(|reading| reading.feature() == feature)
             .filter(|reading| {
                 self.declaration(reading.id().kind(), reading.id().name())

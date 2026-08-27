@@ -1613,7 +1613,6 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
     if recipe == "declaration_verb" {
         let mut closed_slots = Vec::new();
         let mut position_slots = Vec::new();
-        let mut kind_slots = Vec::new();
         let mut name_slots = Vec::new();
         let mut tail_slots = Vec::new();
         let mut feature_slots = Vec::new();
@@ -1622,17 +1621,6 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
             let slot = content.call(Ident::parse_any)?;
             content.parse::<Token![=]>()?;
             match slot.to_string().as_str() {
-                "kinds" => {
-                    let kinds_content;
-                    bracketed!(kinds_content in content);
-                    let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
-                        &kinds_content,
-                        Ident::parse_any,
-                    )?
-                    .into_iter()
-                    .collect();
-                    kind_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
-                }
                 "names" => {
                     let names_content;
                     bracketed!(names_content in content);
@@ -1693,7 +1681,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 _ => {
                     return Err(syn::Error::new(
                         slot.span(),
-                        "declaration_verb recipe accepts only `closed`, `position`, `kinds`, `names`, `tail`, and `feature` fields",
+                        "declaration_verb recipe accepts only `closed`, `position`, `names`, `tail`, and `feature` fields",
                     ));
                 }
             }
@@ -1704,7 +1692,6 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 recipe,
                 closed_slots,
                 position_slots,
-                kind_slots,
                 name_slots,
                 tail_slots,
                 feature_slots,
@@ -3746,7 +3733,6 @@ mod tests {
                     generate declaration_verb {
                         closed = CoreTransitiveVerb;
                         position = Verb;
-                        kinds = [KeywordAction];
                         tail = ["with", Amount, ObjectNounPhrase];
                         feature = Agreement;
                     }
@@ -3763,7 +3749,6 @@ mod tests {
         };
         assert_eq!(source.closed_slots[0].value, "CoreTransitiveVerb");
         assert_eq!(source.position_slots[0].value, "Verb");
-        assert_eq!(source.kind_slots[0].kinds[0], "KeywordAction");
         assert!(matches!(
             source.tail_slots[0].atoms.as_slice(),
             [
@@ -3791,7 +3776,6 @@ mod tests {
                 codec SearchForVerb {
                     generate declaration_verb {
                         position = Verb;
-                        kinds = [KeywordAction];
                         tail = [
                             location: ObjectNounPhrase,
                             "for",

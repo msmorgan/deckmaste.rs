@@ -1020,10 +1020,6 @@ mod tests {
         );
         assert_eq!(object.closed_lexeme().expect("closed branch"), "CoreVerb");
         assert_eq!(object.position(), macro_ron::v2::GrammarPosition::Verb);
-        assert_eq!(
-            object.kinds(),
-            [macro_ron::v2::DeclarationKind::KeywordAction]
-        );
         assert_eq!(object.feature_axis(), crate::feature::Feature::Agreement);
         assert_eq!(
             object.frame_key().atoms(),
@@ -1955,7 +1951,6 @@ mod tests {
                 generate declaration_verb {
                     closed = CoreVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [ObjectNounPhrase];
                     feature = Agreement;
                 }

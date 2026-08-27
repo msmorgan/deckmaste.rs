@@ -2523,11 +2523,6 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
             {
                 continue;
             }
-            let kind_overlap = left_domain
-                .kinds
-                .intersection(&right_domain.kinds)
-                .next()
-                .cloned();
             let names_overlap = match (&left_domain.names, &right_domain.names) {
                 (None, None) => true,
                 (Some(left), Some(right)) => left.intersection(right).next().is_some(),
@@ -2537,13 +2532,13 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
                 .closed
                 .as_ref()
                 .is_some_and(|left_closed| right_domain.closed.as_ref() == Some(left_closed));
-            if let Some(kind) = kind_overlap.filter(|_| names_overlap) {
+            if names_overlap {
                 combine(
                     errors,
                     syn::Error::new(
                         right.name.span(),
                         format!(
-                            "declaration_verb domains `{}` and `{}` overlap at `{kind}/{}/{}`",
+                            "declaration_verb domains `{}` and `{}` overlap at `{}/{}`",
                             left.name, right.name, left_domain.position, left_domain.tail
                         ),
                     ),
@@ -2571,7 +2566,6 @@ fn validate_declaration_verb_domains_are_pairwise_intentional(
 struct DeclarationVerbDomain {
     closed: Option<String>,
     position: String,
-    kinds: BTreeSet<String>,
     names: Option<BTreeSet<String>>,
     feature: String,
     tail: String,
@@ -2581,7 +2575,6 @@ fn declaration_verb_domain(
     source: &crate::model::DeclarationVerbSource,
 ) -> Option<DeclarationVerbDomain> {
     let position = source.position_slots.first()?;
-    let kinds = source.kind_slots.first()?;
     let feature = source.feature_slots.first()?;
     let tail = source.tail_slots.first()?;
     let tail = tail
@@ -2607,7 +2600,6 @@ fn declaration_verb_domain(
             .first()
             .map(|slot| identifier_key(&slot.value)),
         position: identifier_key(&position.value),
-        kinds: kinds.kinds.iter().map(identifier_key).collect(),
         names: source
             .name_slots
             .first()
@@ -2730,7 +2722,6 @@ fn validate_declaration_verb_source(
         "declaration_verb",
         errors,
     );
-    let kinds = validate_declaration_verb_kinds(source, errors);
     validate_declaration_verb_names(source, errors);
     validate_declaration_verb_tail(source, errors);
 
@@ -2810,7 +2801,6 @@ fn validate_declaration_verb_source(
             ),
         }
     }
-    let _ = kinds;
 }
 
 fn validate_declaration_verb_names(
@@ -2854,67 +2844,6 @@ fn validate_declaration_verb_names(
             );
         }
     }
-}
-
-fn validate_declaration_verb_kinds<'a>(
-    source: &'a crate::model::DeclarationVerbSource,
-    errors: &mut Option<syn::Error>,
-) -> Option<&'a crate::model::DeclarationVerbKindsSource> {
-    let kinds = match source.kind_slots.as_slice() {
-        [] => {
-            combine(
-                errors,
-                syn::Error::new(
-                    source.recipe.span(),
-                    "declaration_verb requires one `kinds` field",
-                ),
-            );
-            return None;
-        }
-        [slot, rest @ ..] => {
-            for duplicate in rest {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        duplicate.slot.span(),
-                        "duplicate declaration_verb field `kinds`",
-                    ),
-                );
-            }
-            slot
-        }
-    };
-    if kinds.kinds.is_empty() {
-        combine(
-            errors,
-            syn::Error::new(
-                kinds.slot.span(),
-                "declaration_verb kind set cannot be empty",
-            ),
-        );
-    }
-    let mut seen = HashSet::new();
-    for kind in &kinds.kinds {
-        let name = identifier_key(kind);
-        if name != "KeywordAction" {
-            combine(
-                errors,
-                syn::Error::new(
-                    kind.span(),
-                    "declaration_verb kinds must be `KeywordAction`",
-                ),
-            );
-        } else if !seen.insert(name.clone()) {
-            combine(
-                errors,
-                syn::Error::new(
-                    kind.span(),
-                    format!("duplicate declaration_verb kind `{name}`"),
-                ),
-            );
-        }
-    }
-    Some(kinds)
 }
 
 fn validate_declaration_verb_tail(
@@ -10693,7 +10622,6 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     closed = CoreVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = ["with", Amount, ObjectNounPhrase];
                     feature = Agreement;
                 }
@@ -10707,7 +10635,6 @@ pub(crate) mod tests {
             codec SearchForVerb {
                 generate declaration_verb {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [
                         location: ObjectNounPhrase,
                         "for",
@@ -10724,7 +10651,6 @@ pub(crate) mod tests {
         for (body, expected) in [
             (
                 quote! {
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 },
@@ -10734,7 +10660,6 @@ pub(crate) mod tests {
                 quote! {
                     position = Verb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 },
@@ -10743,25 +10668,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    tail = [];
-                    feature = Agreement;
-                },
-                "declaration_verb requires one `kinds` field",
-            ),
-            (
-                quote! {
-                    position = Verb;
-                    kinds = [KeywordAction];
-                    kinds = [KeywordAction];
-                    tail = [];
-                    feature = Agreement;
-                },
-                "duplicate declaration_verb field `kinds`",
-            ),
-            (
-                quote! {
-                    position = Verb;
-                    kinds = [KeywordAction];
                     feature = Agreement;
                 },
                 "declaration_verb requires one `tail` field",
@@ -10769,7 +10675,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                 },
                 "declaration_verb requires one `feature` field",
@@ -10777,7 +10682,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                     feature = Agreement;
@@ -10789,7 +10693,6 @@ pub(crate) mod tests {
                     closed = CoreVerb;
                     closed = CoreVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 },
@@ -10799,7 +10702,6 @@ pub(crate) mod tests {
                 quote! {
                     closed = Missing;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 },
@@ -10809,7 +10711,6 @@ pub(crate) mod tests {
                 quote! {
                     closed = EmptyVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 },
@@ -10819,7 +10720,6 @@ pub(crate) mod tests {
                 quote! {
                     closed = Nouns;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 },
@@ -10828,7 +10728,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Noun;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 },
@@ -10837,34 +10736,15 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [];
-                    tail = [];
-                    feature = Agreement;
-                },
-                "kind set cannot be empty",
-            ),
-            (
-                quote! {
-                    position = Verb;
-                    kinds = [KeywordAction, KeywordAction];
-                    tail = [];
-                    feature = Agreement;
-                },
-                "duplicate declaration_verb kind `KeywordAction`",
-            ),
-            (
-                quote! {
-                    position = Verb;
                     kinds = [KeywordAbility];
                     tail = [];
                     feature = Agreement;
                 },
-                "kinds must be `KeywordAction`",
+                "declaration_verb recipe accepts only `closed`, `position`, `names`, `tail`, and `feature` fields",
             ),
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [""];
                     feature = Agreement;
                 },
@@ -10873,7 +10753,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [Amount, Amount];
                     feature = Agreement;
                 },
@@ -10882,7 +10761,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = ["with", "with"];
                     feature = Agreement;
                 },
@@ -10891,7 +10769,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [location: ObjectNounPhrase, ObjectNounPhrase];
                     feature = Agreement;
                 },
@@ -10900,7 +10777,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [location: ObjectNounPhrase, location: ObjectNounPhrase];
                     feature = Agreement;
                 },
@@ -10909,7 +10785,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [preposition: "for"];
                     feature = Agreement;
                 },
@@ -10918,7 +10793,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     tail = [Amount];
                     feature = Agreement;
@@ -10928,7 +10802,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Number;
                 },
@@ -10937,7 +10810,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [Clause];
                     feature = Agreement;
                 },
@@ -10946,12 +10818,11 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                     valence = Transitive;
                 },
-                "recipe accepts only `closed`, `position`, `kinds`, `names`, `tail`, and `feature` fields",
+                "recipe accepts only `closed`, `position`, `names`, `tail`, and `feature` fields",
             ),
         ] {
             let message = declaration_verb_source_error(&body);
@@ -10968,7 +10839,6 @@ pub(crate) mod tests {
             codec FirstVerb {
                 generate declaration_verb {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [Amount];
                     feature = Agreement;
                 }
@@ -10976,7 +10846,6 @@ pub(crate) mod tests {
             codec LaterVerb {
                 generate declaration_verb {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [Amount];
                     feature = Agreement;
                 }
@@ -10988,7 +10857,7 @@ pub(crate) mod tests {
             .to_string();
         assert!(
             error.contains(
-                "declaration_verb domains `FirstVerb` and `LaterVerb` overlap at `KeywordAction/Verb/[Amount]`"
+                "declaration_verb domains `FirstVerb` and `LaterVerb` overlap at `Verb/[Amount]`"
             ),
             "{error}"
         );
@@ -10997,7 +10866,6 @@ pub(crate) mod tests {
             codec FirstSearchVerb {
                 generate declaration_verb {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [location: ObjectNounPhrase, "for", sought: ObjectNounPhrase];
                     feature = Agreement;
                 }
@@ -11005,7 +10873,6 @@ pub(crate) mod tests {
             codec LaterSearchVerb {
                 generate declaration_verb {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [source: ObjectNounPhrase, "for", object: ObjectNounPhrase];
                     feature = Agreement;
                 }
@@ -11017,7 +10884,7 @@ pub(crate) mod tests {
             .to_string();
         assert!(
             error.contains(
-                "declaration_verb domains `FirstSearchVerb` and `LaterSearchVerb` overlap at `KeywordAction/Verb/[ObjectNounPhrase, Literal(\"for\"), ObjectNounPhrase]`"
+                "declaration_verb domains `FirstSearchVerb` and `LaterSearchVerb` overlap at `Verb/[ObjectNounPhrase, Literal(\"for\"), ObjectNounPhrase]`"
             ),
             "{error}"
         );
@@ -11026,7 +10893,6 @@ pub(crate) mod tests {
             codec IntransitiveVerb {
                 generate declaration_verb {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 }
@@ -11034,7 +10900,6 @@ pub(crate) mod tests {
             codec NumerativeVerb {
                 generate declaration_verb {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [Amount];
                     feature = Agreement;
                 }
@@ -12979,7 +12844,6 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     closed = CoreIntransitiveVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 }
@@ -12988,7 +12852,6 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     closed = CoreTransitiveVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [ObjectNounPhrase];
                     feature = Agreement;
                 }
@@ -12997,7 +12860,6 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     closed = CoreNumerativeVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [Amount];
                     feature = Agreement;
                 }
@@ -13050,7 +12912,6 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     closed = CoreIntransitiveVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 }
@@ -14172,7 +14033,6 @@ pub(crate) mod tests {
             codec TransitiveVerb {
                 generate declaration_verb {
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [ObjectNounPhrase];
                     feature = Agreement;
                 }
@@ -14232,7 +14092,6 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     closed = ParticipleVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [ObjectNounPhrase];
                     feature = Participle;
                 }
@@ -14253,7 +14112,6 @@ pub(crate) mod tests {
                 generate declaration_verb {
                     closed = FiniteVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [ObjectNounPhrase];
                     feature = Participle;
                 }

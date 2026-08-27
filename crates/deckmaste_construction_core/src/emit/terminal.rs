@@ -127,11 +127,6 @@ pub(crate) fn emit(
                 let origin = row.origin().clone();
                 let verb = row.codec_ident();
                 let declaration = row.declaration_value_ident();
-                let allowed = row
-                    .kinds()
-                    .iter()
-                    .map(|kind| crate::emit::declaration_kind(*kind))
-                    .collect::<Vec<_>>();
                 let position = crate::emit::grammar_position(row.position());
                 let frame_atoms = row
                     .frame_key()
@@ -172,9 +167,6 @@ pub(crate) fn emit(
                                 environment: &crate::environment::ParserEnvironment,
                                 id: ::macro_ron::v2::DeclarationIdentity,
                             ) -> Option<Self> {
-                                if !matches!(id.kind(), #(#allowed)|*) {
-                                    return None;
-                                }
                                 let recipe = environment.grammar_recipe(&id)?;
                                 if recipe.position() != #position {
                                     return None;

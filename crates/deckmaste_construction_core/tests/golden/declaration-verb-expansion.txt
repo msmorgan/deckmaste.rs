@@ -7,9 +7,6 @@ impl DeclarationTransitiveVerb {
         environment: &crate::environment::ParserEnvironment,
         id: ::macro_ron::v2::DeclarationIdentity,
     ) -> Option<Self> {
-        if !matches!(id.kind(), ::macro_ron::v2::DeclarationKind::KeywordAction) {
-            return None;
-        }
         let recipe = environment.grammar_recipe(&id)?;
         if recipe.position() != ::macro_ron::v2::GrammarPosition::Verb {
             return None;

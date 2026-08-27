@@ -828,7 +828,6 @@ pub(crate) struct DeclarationVerbPlan {
     declaration_value_ident: syn::Ident,
     closed_lexeme: Option<syn::Ident>,
     position: macro_ron::v2::GrammarPosition,
-    kinds: Vec<macro_ron::v2::DeclarationKind>,
     names: Vec<String>,
     frame_key: VerbFrameKey,
     feature_axis: Feature,
@@ -5894,17 +5893,6 @@ impl DeclarationVerbPlan {
                 })
                 .collect(),
         );
-        let kinds = recipe
-            .kind_slots
-            .first()
-            .expect("validated declaration_verb has one kind set")
-            .kinds
-            .iter()
-            .map(|kind| match identifier_key(kind).as_str() {
-                "KeywordAction" => macro_ron::v2::DeclarationKind::KeywordAction,
-                _ => unreachable!("validated declaration_verb kind is closed"),
-            })
-            .collect();
         Self {
             source_index,
             origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
@@ -5915,7 +5903,6 @@ impl DeclarationVerbPlan {
             ),
             closed_lexeme: recipe.closed_slots.first().map(|slot| slot.value.clone()),
             position: macro_ron::v2::GrammarPosition::Verb,
-            kinds,
             names: recipe
                 .name_slots
                 .first()
@@ -5964,10 +5951,6 @@ impl DeclarationVerbPlan {
 
     pub(crate) fn position(&self) -> macro_ron::v2::GrammarPosition {
         self.position
-    }
-
-    pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] {
-        &self.kinds
     }
 
     pub(crate) fn names(&self) -> &[String] {

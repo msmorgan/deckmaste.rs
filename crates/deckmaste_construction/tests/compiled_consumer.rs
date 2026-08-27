@@ -1185,7 +1185,6 @@ pub mod declaration_verb_fixture {
         fn declaration_verb_readings(
             &self,
             start: usize,
-            kinds: &[macro_ron::v2::DeclarationKind],
             frame: &VerbFrameKey,
             feature: macro_ron::v2::SurfaceFeature,
         ) -> Vec<(usize, macro_ron::v2::DeclarationIdentity)> {
@@ -1193,7 +1192,6 @@ pub mod declaration_verb_fixture {
             self.environment
                 .declarations()
                 .iter()
-                .filter(|declaration| kinds.contains(&declaration.identity().kind()))
                 .filter_map(|declaration| {
                     let grammar = declaration.grammar()?;
                     (grammar.recipe().position() == macro_ron::v2::GrammarPosition::Verb)
@@ -1303,7 +1301,6 @@ pub mod declaration_verb_fixture {
             generate declaration_verb {
                 closed = CoreVerb;
                 position = Verb;
-                kinds = [KeywordAction];
                 tail = [ObjectNounPhrase];
                 feature = Agreement;
             }
@@ -1311,7 +1308,6 @@ pub mod declaration_verb_fixture {
         codec NumerativeVerb {
             generate declaration_verb {
                 position = Verb;
-                kinds = [KeywordAction];
                 tail = [Amount];
                 feature = Agreement;
             }
@@ -1319,7 +1315,6 @@ pub mod declaration_verb_fixture {
         codec IntransitiveVerb {
             generate declaration_verb {
                 position = Verb;
-                kinds = [KeywordAction];
                 tail = [];
                 feature = Agreement;
             }
@@ -1327,7 +1322,6 @@ pub mod declaration_verb_fixture {
         codec TransitiveParticiple {
             generate declaration_verb {
                 position = Verb;
-                kinds = [KeywordAction];
                 tail = [ObjectNounPhrase];
                 feature = Participle;
             }
@@ -1814,7 +1808,6 @@ pub mod declaration_verb_fixture {
             }
             .declaration_verb_readings(
                 0,
-                &[macro_ron::v2::DeclarationKind::KeywordAction],
                 &VerbFrameKey::new(atoms),
                 macro_ron::v2::SurfaceFeature::Bare,
             )

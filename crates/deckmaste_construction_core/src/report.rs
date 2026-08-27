@@ -789,7 +789,6 @@ mod tests {
                 generate declaration_verb {
                     closed = CoreVerb;
                     position = Verb;
-                    kinds = [KeywordAction];
                     tail = [];
                     feature = Agreement;
                 }

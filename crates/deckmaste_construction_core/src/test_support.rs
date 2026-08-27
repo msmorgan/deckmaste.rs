@@ -346,7 +346,6 @@ pub(crate) fn declaration_verb_tokens(tail: &proc_macro2::TokenStream) -> proc_m
             generate declaration_verb {
                 closed = CoreVerb;
                 position = Verb;
-                kinds = [KeywordAction];
                 tail = [#tail];
                 feature = Agreement;
             }

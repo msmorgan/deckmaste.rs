@@ -4,7 +4,6 @@ constructions! {
     codec Verb {
         generate declaration_verb {
             position = Verb;
-            kinds = [KeywordAction];
             tail = [Clause];
             feature = Agreement;
         }

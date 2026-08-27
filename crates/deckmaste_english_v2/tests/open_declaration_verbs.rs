@@ -103,7 +103,7 @@ fn environment_declaration_verb_readings_use_literal_exact_frame_membership() {
     .expect("synthetic declaration frame matrix freezes");
     let names = |surface, feature, frame: &[CustomTailAtom]| {
         environment
-            .declaration_verb_readings(&[DeclarationKind::KeywordAction], surface, feature, frame)
+            .declaration_verb_readings(surface, feature, frame)
             .into_iter()
             .map(|reading| reading.id().name().to_owned())
             .collect::<Vec<_>>()
@@ -115,7 +115,7 @@ fn environment_declaration_verb_readings_use_literal_exact_frame_membership() {
             SurfaceFeature::Bare,
             &[CustomTailAtom::ObjectNounPhrase]
         ),
-        ["FirstAct", "SecondAct"]
+        ["FirstAct", "SecondAct", "WrongKind"]
     );
     assert_eq!(names("rest", SurfaceFeature::Bare, &[]), ["Rest"]);
     assert_eq!(
@@ -146,7 +146,7 @@ fn environment_declaration_verb_readings_use_literal_exact_frame_membership() {
 }
 
 #[test]
-fn environment_declaration_verb_readings_filter_kind_position_surface_and_agreement() {
+fn environment_declaration_verb_readings_filter_position_surface_and_agreement() {
     let environment = environment_from([
         declaration(
             "/synthetic/actions/Right.ron",
@@ -166,60 +166,32 @@ fn environment_declaration_verb_readings_filter_kind_position_surface_and_agreem
         ),
     ])
     .expect("synthetic declaration filters freeze");
-    let names = |kinds: &[DeclarationKind], surface, feature| {
+    let names = |surface, feature| {
         environment
-            .declaration_verb_readings(kinds, surface, feature, &[CustomTailAtom::ObjectNounPhrase])
+            .declaration_verb_readings(surface, feature, &[CustomTailAtom::ObjectNounPhrase])
             .into_iter()
             .map(|reading| reading.id().name().to_owned())
             .collect::<Vec<_>>()
     };
 
     assert_eq!(
-        names(
-            &[DeclarationKind::KeywordAction],
-            "echo",
-            SurfaceFeature::Bare
-        ),
-        ["Right"]
+        names("echo", SurfaceFeature::Bare),
+        ["Right", "WrongKind"]
     );
     assert_eq!(
-        names(
-            &[DeclarationKind::KeywordAction],
-            "echoes",
-            SurfaceFeature::ThirdPersonSingular
-        ),
-        ["Right"]
+        names("echoes", SurfaceFeature::ThirdPersonSingular),
+        ["Right", "WrongKind"]
     );
     assert!(
-        names(
-            &[DeclarationKind::KeywordAction],
-            "echo",
-            SurfaceFeature::ThirdPersonSingular
-        )
+        names("echo", SurfaceFeature::ThirdPersonSingular)
         .is_empty()
     );
     assert!(
-        names(
-            &[DeclarationKind::KeywordAction],
-            "wane",
-            SurfaceFeature::ThirdPersonSingular
-        )
+        names("wane", SurfaceFeature::ThirdPersonSingular)
         .is_empty()
     );
-    assert_eq!(
-        names(
-            &[DeclarationKind::KeywordAbility],
-            "echo",
-            SurfaceFeature::Bare
-        ),
-        ["WrongKind"]
-    );
     assert!(
-        names(
-            &[DeclarationKind::KeywordAction],
-            "missing",
-            SurfaceFeature::Bare
-        )
+        names("missing", SurfaceFeature::Bare)
         .is_empty()
     );
 }
@@ -286,7 +258,7 @@ fn open_declaration_synthetic_verbs_parse_and_render_both_agreements_exactly() {
 }
 
 #[test]
-fn category_homonym_does_not_replace_the_requested_action_identity() {
+fn category_homonyms_remain_distinct_declaration_identities() {
     let mut rows = synthetic_verb_rows();
     rows.push(declaration(
         "/synthetic/abilities/Destroy.ron",
@@ -299,14 +271,9 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
         "the environment must retain both category-safe identities"
     );
     let parser = Parser::new(environment).unwrap();
-    let ability = parser
-        .parse("Frindle target player.", &context())
-        .expect("only the requested declaration category reaches the shared frame");
-    let mut visitor = IdentityVisitor::default();
-    visitor.visit_ability(&ability);
-    assert_eq!(
-        visitor.events.first().map(String::as_str),
-        Some("declaration:KeywordAction/Destroy")
+    assert!(
+        parser.parse("Frindle target player.", &context()).is_err(),
+        "equal-surface, equal-frame declarations in distinct categories remain ambiguous"
     );
 
     let ability_only = environment_from([declaration(
@@ -314,9 +281,16 @@ fn category_homonym_does_not_replace_the_requested_action_identity() {
         r#"KeywordAbility(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",valence:Transitive))"#,
     )])
     .unwrap();
-    let parser = Parser::new(ability_only)
-        .expect("another declaration category is not a fixed parser requirement");
-    assert!(parser.parse("Frindle target player.", &context()).is_err());
+    let parser = Parser::new(ability_only).expect("declaration categories share the open frame");
+    let ability = parser
+        .parse("Frindle target player.", &context())
+        .expect("a non-action verb declaration reaches the shared frame");
+    let mut visitor = IdentityVisitor::default();
+    visitor.visit_ability(&ability);
+    assert_eq!(
+        visitor.events.first().map(String::as_str),
+        Some("declaration:KeywordAbility/Destroy")
+    );
 }
 
 #[derive(Default)]

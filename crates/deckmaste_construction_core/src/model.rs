@@ -399,7 +399,6 @@ pub struct DeclarationVerbSource {
     pub recipe: Ident,
     pub closed_slots: Vec<GeneratedIdentSlot>,
     pub position_slots: Vec<GeneratedIdentSlot>,
-    pub kind_slots: Vec<DeclarationVerbKindsSource>,
     pub name_slots: Vec<DeclarationVerbNamesSource>,
     pub tail_slots: Vec<DeclarationVerbTailSource>,
     pub feature_slots: Vec<GeneratedIdentSlot>,
