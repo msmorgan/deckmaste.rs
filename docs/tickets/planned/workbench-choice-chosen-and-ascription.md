@@ -488,13 +488,40 @@ Unified with the named-memory ruling (done/workbench-named-memory-channels):
 no cross-ability discourse anywhere — state for notes, forward-obligation
 card linkage for choices.
 
+**Finding (sub-round A, 2026-08-27): the mechanism above is refused by the
+code and the ruling needs a re-decision.** Nothing of it landed; the details,
+the probe and the counts are in
+[choice-A's As-landed section](../wip/workbench-choice-a-obligation-face-law.md).
+Two blockers, both measured rather than argued. (1) `staticChoiceIntro`'s
+export through `abIntro` is the ONLY source of a `Quality` binding in a card's
+ability-sequence context — `qualityB`'s other call site is
+`Phrase.kindValueIntro`, the intra-ability distributive the HYBRID pin keeps —
+and `ProofsAnaphora` pins all four chosen-read gates as reads of `bs`
+verbatim, so byte-identity forbids relaxing them. Collapsing `abIntro`
+therefore strands every cross-ability read: probed at **32 errors over 32
+benched cards**, reverted. The only escapes are relaxing those gates (breaks
+the HYBRID pin) or declaring the face's choices in a `CardFace` field, which
+is the card-level prenex slot list
+[oracle-text-is-forward-anaphoric](../../decisions/oracle-text-is-forward-anaphoric.md)
+retired. (2) The half the face law would ADD — every chooser finds a later
+reader — needs a whole-grammar read detector (~500 constructor cases;
+`textDefines`' shallow precedent does not transfer, because chosen reads sit
+inside activated effects, mana producers and keyword parameters), and it
+refuses no rule: [CR#607.2d] describes the linked pair, nothing makes an
+unread chooser illegal, and [CR#607.5a] makes the converse — a read with no
+linked chooser — "undefined" and inert rather than illegal. What the telescope
+already enforces is [CR#607.2d]'s linkage in the forward direction: a
+cross-ability chosen read of sort q resolves to the unique EARLIER chooser of
+that sort. Until this is re-decided, sub-rounds B–E should treat the choice
+linkage as unchanged.
+
 - **Routed from workbench-amount-ceiling-read (close, 2026-08-26):** Truce / Temporary Truce's tail — "for each card less than two a player draws this way" reads the number NOT chosen against the ceiling; nothing announces it. A chosen-value read, so it lands here.
 
 - **Routed from workbench-chosen-counter-kind (close, 2026-08-26):** the BOARD-READ kind chooser (~13 lines — "choose a kind of counter on target permanent", Bribe Taker's second arm, Crystalline Giant's at-random + exclusion domain) — a chooser POSITION over a counter-kind sort, the biggest thing behind minting one; plus Grimdancer's plural pick with distinctness. Chooser positions are this ticket's, so they land here.
 
 - **Routed from workbench-axis-distributive-reads (close, 2026-08-26):** the numeric-characteristic chosen read — `chosenQualityReadOk Number = False` blocks Celestial Judgment's "a creature with that power" after the `ValueAxis Power` pass binds the value; Hurkyl's "a card of that type" is the card-type twin. Chosen-value reads, so they land here.
 
-- **Routed from workbench-anaphora-mentions-and-creation (split into five sub-tickets, 2026-08-27):** cross-ability memory — Phyrexian Ingester's static line reading "the exiled creature card's power" off its own imprint-style trigger, and Drach'Nyen's twin. §1.3's no-cross-ability-discourse ruling (carried by every anaphora sub-ticket) forecloses threading a mention between abilities; whatever survives is a card-scope FORWARD OBLIGATION under this ticket's own 2026-08-26 ruling (the `EntersChoice → OfChosen` forward-obligation face law). Cross-check: confirm that ruling's shape actually covers this same-card, cross-ability pair before treating either card as delivered by it.
+- **CLOSED 2026-08-27 (sub-round A, cross-check answered NO — and both cards benched anyway):** cross-ability memory — Phyrexian Ingester's static line reading "the exiled creature card's power" off its own imprint-style trigger, and Drach'Nyen's twin. The 2026-08-26 ruling's shape does **not** cover them and could not have: it is [CR#607.2d]'s chosen-value linkage over a `Quality` binding (`qualityB`/`countQuality`/`QualitySort`), while these two are [CR#607.2a]'s exile linkage over an **Object** mention, which no `QualitySort` denotes. They needed no cross-ability channel either — [CR#607.2a] equates "the exiled cards" with cards "exiled with [this object]", one linked pair under either spelling, and `Predicate.ExiledWith` over `LinkSource.SelfLinked` writes the second **deictically** off `This`, reading no mention. Both elaborated first attempt and are benched as `phyrexianIngester` and `drachNyen`. Residue, and it is the subtype cell already listed above, not a discourse gap: Drach'Nyen's read is written against `thisArtifact` because `SortedSelfLinked` covers `AsType t This Nothing` only, so "exiled with this Equipment" stays shut.
 
 - **Routed from workbench-quality-sort-gaps (close, 2026-08-27):** the chosen-quality consolidation — `SetsChosenBasicType` is now REDUNDANT machinery (minted only because no sort carried the land type; fold it into the general chosen-quality statics — 3 witnesses + 1 ProofsF pin move with it); the `CounterKindSource` bound-kind arm (the single node holding all 13 `CounterKindQ` lines); and the counter-event reader blockers recorded on the `Events.idr` rows (`lookbackSubjectOk` shut at both kinds; no noun names ONE kind). All chosen-value machinery, so they land here.
 

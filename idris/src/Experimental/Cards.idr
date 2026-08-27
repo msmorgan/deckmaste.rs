@@ -2362,6 +2362,48 @@ phyrexianIngesterPump =
                                          ExiledWith Macros.thisCreature])))
                   , Define Y (StatOf Toughness (That CardW)) ])
 
+||| Phyrexian Ingester, whole. The imprint trigger exiles and the static
+||| line reads the card it exiled: [CR#607.2a]'s exile linkage, not
+||| [CR#607.2d]'s chosen-value linkage. The read needs no cross-ability
+||| mention because [CR#607.2a] equates "the exiled cards" with cards
+||| "exiled with [this object]" -- the same linked pair under either
+||| spelling -- so `ExiledWith This` writes it deictically.
+phyrexianIngester : Card
+phyrexianIngester =
+  Macros.card "Phyrexian Ingester"
+       (Just [Macros.generic 6, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Phyrexian", creatureType "Beast"] [Creature])
+       [ AbilityWord Imprint
+           (Macros.triggered When (Enters Macros.thisCreature Nothing)
+                             (Macros.may You
+                                (Macros.exile
+                                   (Macros.target
+                                      (And [Macros.creature, Macros.nontoken])))))
+       , phyrexianIngesterPump ]
+       (Just (3, 3))
+
+||| Drach'Nyen, the same shape on an Equipment: the enters trigger exiles
+||| up to one creature and the equipment's static line reads "the exiled
+||| card's power". Its linkage word is unprinted, so the read is written
+||| against the card type ([CR#607.2a] again); `thisEquipment` would want
+||| the subtype linkage cell, which is not this round's.
+drachNyen : Card
+drachNyen =
+  Macros.card "Drach'Nyen"
+       (Just [Macros.generic 4, Macros.pip Black, Macros.pip Red]) [Legendary]
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Macros.triggered When (Enters Macros.thisEquipment Nothing)
+                          (Macros.exile (TargetGroup (Macros.upTo 1) Macros.creature))
+       , Static (AndAlso [ Gains (AttachHost Equipped (TypeW Creature))
+                                 (KeywordAbility "Menace" Nothing)
+                         , Gets (AttachHost Equipped (TypeW Creature))
+                                (PtUp (LetterVal X)) (PtUp (Lit 0))
+                         , Define X
+                             (StatOf Power
+                                (Macros.a (ExiledWith Macros.thisArtifact))) ])
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
+       Nothing
+
 ||| Soul's Might: "Put X +1/+1 counters on target creature, where X is
 ||| that creature's power." The definition reads the mention its own
 ||| clause introduced, which is why it must be written after it.
