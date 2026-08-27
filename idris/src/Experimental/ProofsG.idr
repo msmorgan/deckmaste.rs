@@ -891,3 +891,43 @@ badMixedScopeCounterMenu : Unspellable (Effect []) (\ok =>
   PutCounters (Lit 1) (ChosenKind [Macros.plusOnePlusOne, Poison])
               (Macros.target Macros.creature) {sc = ok})
 badMixedScopeCounterMenu Oh impossible
+
+||| "For each color among permanents you control, add one mana of that
+||| color", bridged through the count.
+||| A counted iteration leaves its body the amount's own mentions and a
+||| number; [CR#105.1]'s five colours are what the axis ranges over and
+||| the count discards them, so "of that color" finds nothing to read.
+||| This is why the distributive pass binds the value itself.
+public export
+badRepeatedCarriesNoColor : Unspellable (Effect []) (\ok =>
+  Repeated (DistinctCount ColorAxis (AllOf (And [Permanent, ControlledBy You])))
+           (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []))
+badRepeatedCarriesNoColor Refl impossible
+
+||| "For each color among permanents you control, … of that creature
+||| type."
+||| The pass binds a value ON its axis: [CR#105.1]'s colours are what
+||| `ColorAxis` ranges over and [CR#205.3e]'s subtypes are not among them,
+||| so the crossing names a value the pass never had.
+public export
+badAxisValueCrossing : Unspellable (Effect []) (\ok =>
+  ForEachKindOf ColorAxis (AllOf (And [Permanent, ControlledBy You]))
+                CreatureType (Draw You (Lit 1)) {sc = ok})
+badAxisValueCrossing Refl impossible
+
+||| "target permanent that's exactly one color"
+||| [CR#105.2a] gives exactly one of the five colours its own printed
+||| word, "monocolored", and [CR#105.2c] does the same at none, so the
+||| counted spelling has nothing left to say below two.
+public export
+badExactlyOneColor : Unspellable (Predicate [] Object) (\ok =>
+  ExactlyColors 1 {ok = ok})
+badExactlyOneColor Oh impossible
+
+||| "target permanent that's exactly six colors"
+||| [CR#105.1] closes the colours at five, so a sixth is a colour no
+||| object could be.
+public export
+badExactlySixColors : Unspellable (Predicate [] Object) (\ok =>
+  ExactlyColors 6 {ok = ok})
+badExactlySixColors Oh impossible

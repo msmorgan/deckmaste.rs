@@ -9387,3 +9387,64 @@ generalTazriPump =
                      (PtUp (LetterVal X)) (PtUp (LetterVal X))
                      (Just Macros.untilEndOfTurn)
        , Define X (DistinctCount ColorAxis (Those (TypeW Creature))) ])
+
+||| Bloom Tender's mana ability -- "Vivid — {T}: For each color among
+||| permanents you control, add one mana of that color." The distributive
+||| pass at the colour axis, and the reason it is not a counted
+||| iteration: "of that color" reads the value the pass bound, which a
+||| count discards. Faeburrow Elder's second line is the same ability
+||| without the ability word.
+public export
+bloomTenderMana : Ability
+bloomTenderMana =
+  AbilityWord Vivid
+    (Macros.activated TapSymbol
+       (ForEachKindOf ColorAxis
+          (AllOf (And [Permanent, ControlledBy You])) Color
+          (AddMana You (Lit 1) (OfChosenColor Nothing) [])))
+
+||| Faeburrow Elder's pump -- "This creature gets +1/+1 for each color
+||| among permanents you control." The SCALING reading of the same words
+||| as `bloomTenderMana`, on the same card: no pass and no bound value,
+||| the distinct count under `Times`.
+public export
+faeburrowElderPump : Ability
+faeburrowElderPump =
+  Static (Gets Macros.thisCreature
+               (PtUp (Times 1 (DistinctCount ColorAxis
+                                 (AllOf (And [Permanent, ControlledBy You])))))
+               (PtUp (Times 1 (DistinctCount ColorAxis
+                                 (AllOf (And [Permanent, ControlledBy You]))))))
+
+||| Tarnation Vista's second mana ability -- "{1}, {T}: For each color
+||| among monocolored permanents you control, add one mana of that
+||| color." The pass's domain narrowed by a predicate [CR#105.2a], which
+||| is where every restriction on these lines lives.
+public export
+tarnationVistaMana : Ability
+tarnationVistaMana =
+  Macros.activated
+    (Compound [Mana [Macros.generic 1], TapSymbol])
+    (ForEachKindOf ColorAxis
+       (AllOf (And [Permanent, Monocolored, ControlledBy You])) Color
+       (AddMana You (Lit 1) (OfChosenColor Nothing) []))
+
+||| Niv-Mizzet, Guildpact's combat trigger -- "Whenever Niv-Mizzet deals
+||| combat damage to a player, it deals X damage to any target, target
+||| player draws X cards, and you gain X life, where X is the number of
+||| different color pairs among permanents you control that are exactly
+||| two colors." The pair axis [CR#105.5] with the restriction the card
+||| writes on its own domain.
+public export
+nivMizzetGuildpactTrigger : Ability
+nivMizzetGuildpactTrigger =
+  Macros.triggered Whenever
+    (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
+    (Sequentially
+       [ DealDamage Macros.thisCreature (LetterVal X)
+                    (Macros.target Macros.anyTarget)
+       , Draw (Macros.target AnyPlayer) (LetterVal X)
+       , ChangeLife You (Up (LetterVal X))
+       , Define X (DistinctCount ColorPairAxis
+                     (AllOf (And [Permanent, ControlledBy You,
+                                  ExactlyColors 2]))) ])

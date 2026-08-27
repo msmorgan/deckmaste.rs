@@ -205,6 +205,15 @@ mutual
     IsColorless : Predicate bs Object
     Multicolored : Predicate bs Object
     Monocolored : Predicate bs Object
+    ||| "that's exactly two colors", "exactly three colors": how many of
+    ||| [CR#105.1]'s colours an object is, counted rather than bounded --
+    ||| `Multicolored` is [CR#105.2b]'s two-or-more and `Monocolored`
+    ||| [CR#105.2a]'s one. `colorCountOk` floors it at two and ceilings it
+    ||| at five: the lower counts are printed with their own words and
+    ||| there is no sixth colour.
+    ||| -- spelling: "exactly [n] colors"
+    ExactlyColors : (n : Nat) -> {auto 0 ok : So (colorCountOk n)} ->
+                    Predicate bs Object
     HasSupertype : (s : Supertype) -> Predicate bs Object
     Named : (src : NameSource bs) -> Predicate bs Object
     HasDesignation : (d : Designation) ->
@@ -400,6 +409,7 @@ mutual
   seedZone IsColorless = Nothing
   seedZone Multicolored = Nothing
   seedZone Monocolored = Nothing
+  seedZone (ExactlyColors _) = Nothing
   seedZone (HasSupertype _) = Nothing
   seedZone (Named _) = Nothing
   seedZone (HasDesignation d) = designationSeedZone d
@@ -479,6 +489,7 @@ mutual
   seedType IsColorless = Nothing
   seedType Multicolored = Nothing
   seedType Monocolored = Nothing
+  seedType (ExactlyColors _) = Nothing
   seedType (HasSupertype _) = Nothing
   seedType (Named _) = Nothing
   seedType (HasDesignation d) = designationSeedType d
@@ -553,6 +564,7 @@ mutual
   hasHead IsColorless = False
   hasHead Multicolored = False
   hasHead Monocolored = False
+  hasHead (ExactlyColors _) = False
   hasHead (HasSupertype _) = False
   hasHead (Named _) = False
   hasHead (HasDesignation _) = False
@@ -730,6 +742,8 @@ mutual
   predEq Multicolored _ = False
   predEq Monocolored Monocolored = True
   predEq Monocolored _ = False
+  predEq (ExactlyColors a) (ExactlyColors b) = a == b
+  predEq (ExactlyColors _) _ = False
   predEq (HasSupertype a) (HasSupertype b) = a == b
   predEq (HasSupertype _) _ = False
   predEq (Named a) (Named b) = a == b
@@ -1178,6 +1192,7 @@ mutual
   predSays IsColorless = True
   predSays Multicolored = True
   predSays Monocolored = True
+  predSays (ExactlyColors _) = True
   predSays (HasSupertype _) = True
   predSays (Named _) = True
   predSays (HasDesignation _) = True
@@ -1239,6 +1254,7 @@ mutual
   predNegFree IsColorless = True
   predNegFree Multicolored = True
   predNegFree Monocolored = True
+  predNegFree (ExactlyColors _) = True
   predNegFree (HasSupertype _) = True
   predNegFree (Named _) = True
   predNegFree (HasDesignation _) = True
@@ -1520,6 +1536,15 @@ mutual
     MkBinding TheD Object OneOf (ObjectP (nounTy grp) (nounZone grp) Nothing Nothing)
       :: nomIntro grp
 
+  ||| `elemIntro`'s twin at the VALUE: what a distributive pass over an
+  ||| axis leaves its body -- the value the pass is running over, bound as
+  ||| a quality of the axis's sort, over the domain's own mentions. Where
+  ||| `elemIntro` hands the body a member of the group, this hands it a
+  ||| label the group's members carry.
+  public export
+  kindValueIntro : {bs : Bindings} -> QualitySort -> Noun bs Object -> Bindings
+  kindValueIntro q dom = qualityB q :: nomIntro dom
+
   public export
   predDelta : {bs : Bindings} -> {k : Kind} -> Predicate bs k -> List Binding
   predDelta (AbilityOf n) = nounDelta n
@@ -1536,6 +1561,7 @@ mutual
   predDelta IsColorless = []
   predDelta Multicolored = []
   predDelta Monocolored = []
+  predDelta (ExactlyColors _) = []
   predDelta (HasSupertype _) = []
   predDelta (Named src) = nameSrcDelta src
   predDelta (HasDesignation _) = []

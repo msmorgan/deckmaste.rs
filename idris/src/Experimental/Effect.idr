@@ -1206,6 +1206,34 @@ mutual
                 (body : Effect (elemIntro grp)) ->
                 {auto 0 pl : nounPlur grp = ManyOf} ->
                 Effect bs
+    ||| "For each color among permanents you control, add one mana of
+    ||| that color": the DISTRIBUTIVE twin of `DistinctCount`. One pass
+    ||| per distinct value the axis takes over the domain, where
+    ||| `ForEachOf` runs one pass per MEMBER -- the readings come apart
+    ||| for `DistinctCount`'s reason, that one object carries several
+    ||| card types [CR#205.2b] and several colours [CR#105.2].
+    ||| NOT `Repeated (DistinctCount ax dom)`: every printed line of this
+    ||| shape reads the value back ("of that color", "of that type",
+    ||| "with that power"), and a counted iteration exports the count and
+    ||| the body's own delta, never a value on the axis. So the pass
+    ||| BINDS the value, and binds it as a quality, which is the sort the
+    ||| existing chosen-quality reads already take: no new read is minted
+    ||| for "that color".
+    ||| The sort rides beside the axis and is gated to agree with it, as
+    ||| `Aggregate` carries its kind beside its `ProjAxis`. An axis whose
+    ||| values `QualitySort` does not yet name has no spelling here; see
+    ||| `kindAxisSort`.
+    ||| UNGATED on plurality, as `DistinctCount` is: a single object
+    ||| still takes several values on these axes.
+    ||| -- spelling: "for each [axis] among [domain], [body]"; the
+    ||| SCALING reading of the same words ("draw a card for each color
+    ||| among permanents you control") is no iteration at all and is
+    ||| `Times` over `DistinctCount`.
+    ForEachKindOf : (ax : KindAxis) -> (dom : Noun bs Object) ->
+                    (q : QualitySort) ->
+                    {auto 0 sc : kindAxisSort ax = Just q} ->
+                    (body : Effect (kindValueIntro q dom)) ->
+                    Effect bs
     Repeat : (rep : Repetition bs) -> Effect bs
     ||| "[body] [n] times": the counted iteration, and the canonical
     ||| expansion of every counted keyword action -- "discard three
@@ -1337,6 +1365,7 @@ mutual
   heldUntilOk (Unless _ _ _) = False
   heldUntilOk (Define _ _) = False
   heldUntilOk (ForEachOf _ _) = False
+  heldUntilOk (ForEachKindOf _ _ _ _) = False
   heldUntilOk (Repeat _) = False
   heldUntilOk (Repeated _ _) = False
   heldUntilOk (Sequentially _) = False
@@ -1434,6 +1463,7 @@ mutual
   reflexEncloseUse (Unless _ _ _) = EncNotOneAction
   reflexEncloseUse (Define _ _) = EncAgentless
   reflexEncloseUse (ForEachOf _ _) = EncNotOneAction
+  reflexEncloseUse (ForEachKindOf _ _ _ _) = EncNotOneAction
   reflexEncloseUse (Repeat _) = EncNotOneAction
   reflexEncloseUse (Repeated _ _) = EncNotOneAction
   reflexEncloseUse (Sequentially _) = EncNotOneAction
@@ -1529,6 +1559,7 @@ mutual
   thisWayOutcomeOk (Unless _ _ _) = True
   thisWayOutcomeOk (Define _ _) = True
   thisWayOutcomeOk (ForEachOf _ _) = True
+  thisWayOutcomeOk (ForEachKindOf _ _ _ _) = True
   thisWayOutcomeOk (Repeat _) = True
   thisWayOutcomeOk (Repeated _ _) = True
   thisWayOutcomeOk (Sequentially _) = True
@@ -1633,6 +1664,7 @@ mutual
   -- amount; admitted so the cost telescope can carry "where X is".
   costActionOk (Define _ _) = True
   costActionOk (ForEachOf _ body) = costActionOk body
+  costActionOk (ForEachKindOf _ _ _ body) = costActionOk body
   costActionOk (Repeat _) = False
   costActionOk (Repeated _ body) = costRepeatedOk body
   costActionOk (Sequentially _) = False
@@ -1762,6 +1794,7 @@ mutual
   effEq (Unless _ _ _) _ = False
   effEq (Define _ _) _ = False
   effEq (ForEachOf _ _) _ = False
+  effEq (ForEachKindOf _ _ _ _) _ = False
   effEq (Repeat _) _ = False
   effEq (Repeated _ _) _ = False
   effEq (Sequentially _) _ = False
@@ -1888,6 +1921,7 @@ mutual
   effIntro (Unless e who c) = bs
   effIntro (Define l amt) = defineLetter l (amtIntro amt)
   effIntro (ForEachOf _ _) = bs
+  effIntro (ForEachKindOf _ _ _ _) = bs
   effIntro (Repeat _) = bs
   effIntro (Repeated n body) =
     outcomeB RepeatCount :: (pluralizeDelta (effDelta body) ++ amtIntro n)
@@ -1969,6 +2003,7 @@ mutual
   preIntro (Unless e who c) = annIntro e
   preIntro (Define l amt) = defineLetter l (amtIntro amt)
   preIntro (ForEachOf _ _) = bs
+  preIntro (ForEachKindOf _ _ _ _) = bs
   preIntro (Repeat _) = bs
   preIntro (Repeated n _) = amtIntro n
   preIntro (Sequentially es) = preIntros es
@@ -2049,6 +2084,7 @@ mutual
   annIntro (Unless e who c) = annIntro e
   annIntro (Define l amt) = defineLetter l (amtIntro amt)
   annIntro (ForEachOf _ _) = bs
+  annIntro (ForEachKindOf _ _ _ _) = bs
   annIntro (Repeat _) = bs
   annIntro (Repeated n _) = amtIntro n
   annIntro (Sequentially es) = bs
@@ -2174,6 +2210,7 @@ mutual
   deedDelta (Unless e who c) = []
   deedDelta (Define _ _) = []
   deedDelta (ForEachOf _ _) = []
+  deedDelta (ForEachKindOf _ _ _ _) = []
   deedDelta (Repeat _) = []
   deedDelta (Repeated _ _) = []
   deedDelta (Sequentially es) = []

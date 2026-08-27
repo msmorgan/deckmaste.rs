@@ -601,6 +601,41 @@ data KindAxis : Type where
   ValueAxis : Characteristic -> KindAxis
   ||| "the number of different kinds of counters among …"
   CounterKindAxis : KindAxis
+  ||| "the number of different color pairs among …": [CR#105.5]'s ten
+  ||| pairs. Its own arm and not `ColorAxis` under a restriction, because
+  ||| its values are PAIRS -- a permanent that is white and blue supplies
+  ||| one value here and two on `ColorAxis`.
+  ColorPairAxis : KindAxis
+
+||| The sort at which a distributive pass over an axis BINDS the value it
+||| is running over. `ForEachKindOf` carries it beside the axis, and the
+||| body reads it back through the chosen-quality reads that already
+||| exist, so the pass mints no read of its own.
+||| `Nothing` is a vocabulary gap, never a refusal. [CR#205.2a]'s card
+||| types, [CR#205.3e]'s subtypes off the creature type, [CR#105.5]'s
+||| pairs and [CR#122.1]'s counter kinds are all nameable things, and the
+||| corpus writes a choice over three of them ("choose a card type",
+||| "choose a land type", "choose a kind of counter"); `QualitySort`
+||| carries none of them yet.
+public export
+kindAxisSort : KindAxis -> Maybe QualitySort
+kindAxisSort CardTypeAxis = Nothing
+kindAxisSort PermanentTypeAxis = Nothing
+kindAxisSort ColorAxis = Just Color
+kindAxisSort (SubtypeAxis Creature _) = Just CreatureType
+kindAxisSort (SubtypeAxis _ _) = Nothing
+kindAxisSort (ValueAxis _) = Just Number
+kindAxisSort CounterKindAxis = Nothing
+kindAxisSort ColorPairAxis = Nothing
+
+||| How many of [CR#105.1]'s five colours an object may be said to be
+||| EXACTLY. Two is the floor because the lower counts have printed words
+||| of their own -- [CR#105.2a]'s "monocolored" and [CR#105.2c]'s
+||| "colorless" -- and five the ceiling because there is no sixth colour
+||| to be.
+public export
+colorCountOk : Nat -> Bool
+colorCountOk n = n >= 2 && n <= 5
 
 public export
 data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
