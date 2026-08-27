@@ -1320,7 +1320,9 @@ concordantCrossroads =
        [ Static (Gains (AllOf Macros.creature) (Macros.keyword "Haste")) ] Nothing
 
 ||| Selenia — a vanguard card [CR#313.1], whose whole printed text is one
-||| static. [CR#205.2a]'s vanguard row reaches a real type line.
+||| static. [CR#205.2a]'s vanguard row reaches a real type line, and
+||| `cardClassOf` reads it as a `CommandZoneCard`: [CR#313.4] is what
+||| licenses the static from the command zone, not the permanent frame.
 selenia : Card
 selenia =
   Macros.card "Selenia" Nothing [] (MkTypeLine [] [Vanguard])

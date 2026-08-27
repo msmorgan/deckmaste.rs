@@ -54,6 +54,24 @@ badTapSorcery : Unspellable Card (\ok =>
 badTapSorcery Oh impossible
 
 
+||| "{T}: Draw a card." printed on a vanguard card
+||| "{T}" taps a permanent [CR#107.5], and a vanguard card never is one [CR#313.2].
+public export
+badTapVanguard : Unspellable Card (\ok =>
+  Macros.card "Impossible Tap Vanguard" Nothing [] (MkTypeLine [] [Vanguard])
+       [Activated TapSymbol Macros.drawACard Nothing Nothing Nothing] Nothing {tx = ok})
+badTapVanguard Oh impossible
+
+
+||| "Flying" printed as a bare line on a vanguard card
+||| [CR#702.9b] is a creature's ability, and a vanguard card never is a permanent [CR#313.2].
+public export
+badKeywordOnVanguard : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Vanguard])
+       [KeywordAbility "Flying" Nothing] Nothing {tx = ok})
+badKeywordOnVanguard Oh impossible
+
+
 ||| a creature card printed with no power or toughness
 ||| A creature card writes its two numbers [CR#208.1].
 public export

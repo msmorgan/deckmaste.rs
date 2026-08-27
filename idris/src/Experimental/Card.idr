@@ -15,13 +15,24 @@ public export
 CardSupers : List Supertype -> Type
 CardSupers ss = So (supersDistinct ss)
 
+||| The three card frames the rules distinguish: a card that can be put
+||| onto the battlefield [CR#110.4a], one that is cast and resolves off the
+||| stack [CR#112.1], and one that stays in the command zone and is neither
+||| [CR#309.2c,311.2,312.2,313.2,314.2,315.3].
 public export
-data CardClass = PermanentCard | SpellCard
+data CardClass = PermanentCard | SpellCard | CommandZoneCard
 
+||| `typesCombinable` refuses a permanent type beside a spell type but
+||| admits a command-zone type beside either, no rule refusing that, so the
+||| order here decides a mixed line: the command-zone type's rule is the one
+||| that says where the card stays, and it wins.
 public export
 cardClassOf : List CardType -> CardClass
 cardClassOf [] = PermanentCard
-cardClassOf (t :: ts) = if spellCardType t then SpellCard else cardClassOf ts
+cardClassOf (t :: ts) =
+  if commandZoneType t then CommandZoneCard
+  else if spellCardType t then SpellCard
+  else cardClassOf ts
 
 public export
 anyPermanentType : List CardType -> Bool
@@ -34,10 +45,20 @@ anySpellType [] = False
 anySpellType (t :: ts) = spellCardType t || anySpellType ts
 
 public export
+anyCommandZoneType : List CardType -> Bool
+anyCommandZoneType [] = False
+anyCommandZoneType (t :: ts) = commandZoneType t || anyCommandZoneType ts
+
+public export
 hasNonKindredType : List CardType -> Bool
 hasNonKindredType [] = False
 hasNonKindredType (t :: ts) = not (t == Kindred) || hasNonKindredType ts
 
+||| Overgenerated at its zero: a command-zone type beside any other type
+||| passes, because no rule refuses it. [CR#300.2] admits more than one card
+||| type without excluding these six, and each per-type rule prohibits the
+||| card's movement rather than its type line, which [CR#101.2] already
+||| resolves. No printed card writes such a line.
 public export
 typesCombinable : List CardType -> Bool
 typesCombinable tys =
@@ -65,6 +86,7 @@ public export
 keywordCardOk : CardClass -> KeywordLabel -> Bool
 keywordCardOk PermanentCard k = maybe False onPermanentCard (keywordFactsFor k)
 keywordCardOk SpellCard k = maybe False onSpellCard (keywordFactsFor k)
+keywordCardOk CommandZoneCard k = maybe False onCommandZoneCard (keywordFactsFor k)
 
 public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
@@ -93,6 +115,22 @@ cardAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
 cardAbilityOk SpellCard (AlsoForKeywords ab _) = cardAbilityOk SpellCard ab
 cardAbilityOk SpellCard (Spell _) = True
 cardAbilityOk SpellCard (AbilityWord _ ab) = cardAbilityOk SpellCard ab
+-- A command-zone card is never a permanent and is never cast
+-- [CR#309.2c,311.2,312.2,313.2,314.2,315.3], so it prints no spell
+-- ability [CR#113.3a] and its activated ability's cost is read off the
+-- battlefield for the same reason a spell card's is [CR#113.6j].
+-- [CR#311.4,313.4,314.4] give these cards static, triggered and activated
+-- abilities from the command zone. Overgenerated: a conspiracy's rule stops
+-- at static and triggered [CR#315.5] and a dungeon's names its rooms'
+-- triggers [CR#309.4c], but the class is the six types together and no rule
+-- reads a narrower list off a shared frame.
+cardAbilityOk CommandZoneCard (KeywordAbility k _) = keywordCardOk CommandZoneCard k
+cardAbilityOk CommandZoneCard (Activated c _ _ _ _) = costOffBattlefield c
+cardAbilityOk CommandZoneCard (Triggered _ _ _ _ _ _ _) = True
+cardAbilityOk CommandZoneCard (Static _) = True
+cardAbilityOk CommandZoneCard (AlsoForKeywords ab _) = cardAbilityOk CommandZoneCard ab
+cardAbilityOk CommandZoneCard (Spell _) = False
+cardAbilityOk CommandZoneCard (AbilityWord _ ab) = cardAbilityOk CommandZoneCard ab
 
 public export
 cardTextOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs -> Bool

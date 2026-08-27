@@ -2042,9 +2042,18 @@ record KeywordFacts where
   ||| whether a permanent card may print the word
   onPermanentCard : Bool
   ||| whether an instant or sorcery card may print it. `Card.idr`'s
-  ||| `keywordCardOk` reads this pair and says why the question is not
+  ||| `keywordCardOk` reads these three and says why the question is not
   ||| `regime`'s re-asked.
   onSpellCard : Bool
+  ||| whether a card that stays in the command zone may print it. Nearly
+  ||| every word's rule speaks of a permanent, of casting, or of a zone
+  ||| such a card can never reach, so nearly every row is False. Storied
+  ||| is the exception: [CR#702.195a] names no bearer at all, and
+  ||| [CR#313.4,314.4,315.5] give the card a static ability that
+  ||| functions from the command zone. Ascend is the near miss --
+  ||| [CR#702.131a,702.131b] give the word a reading on a spell and on a
+  ||| permanent and nowhere else.
+  onCommandZoneCard : Bool
 
 ||| The keyword vocabulary, open by construction: a row is a word and
 ||| what its rule says about it.
@@ -2057,42 +2066,42 @@ record KeywordFacts where
 public export
 keywordFacts : List KeywordFacts
 keywordFacts =
-  --                                  param        ctr   regime              perm  spell
-  [ MkKeywordFacts "Haste"            NoParam      True  Nothing             True  False
-  , MkKeywordFacts "Flying"           NoParam      True  Nothing             True  False
-  , MkKeywordFacts "Trample"          NoParam      True  Nothing             True  False
-  , MkKeywordFacts "Vigilance"        NoParam      True  Nothing             True  False
-  , MkKeywordFacts "Deathtouch"       NoParam      True  (Just AtResolution) True  False
-  , MkKeywordFacts "DoubleStrike"     NoParam      True  Nothing             True  False
-  , MkKeywordFacts "FirstStrike"      NoParam      True  Nothing             True  False
-  , MkKeywordFacts "Reach"            NoParam      True  Nothing             True  False
-  , MkKeywordFacts "Convoke"          NoParam      False (Just AtCasting)    True  True
-  , MkKeywordFacts "Improvise"        NoParam      False (Just AtCasting)    True  True
-  , MkKeywordFacts "Storm"            NoParam      False (Just AtCasting)    True  True
-  , MkKeywordFacts "Lifelink"         NoParam      True  (Just AtResolution) True  False
-  , MkKeywordFacts "Ward"             CostParam    False Nothing             True  False
-  , MkKeywordFacts "Protection"       QualityParam False Nothing             True  False
-  , MkKeywordFacts "Enchant"          SubjectParam False Nothing             True  False
-  , MkKeywordFacts "Equip"            CostParam    False Nothing             True  False
-  , MkKeywordFacts "Ascend"           NoParam      False Nothing             True  True
-  , MkKeywordFacts "Storied"          NoParam      False Nothing             True  False
-  , MkKeywordFacts "Renown"           NumberParam  False Nothing             True  False
-  , MkKeywordFacts "Indestructible"   NoParam      True  Nothing             True  False
-  , MkKeywordFacts "Flash"            NoParam      False (Just AtCasting)    True  True
-  , MkKeywordFacts "CumulativeUpkeep" CostParam    False Nothing             True  False
-  , MkKeywordFacts "Echo"             CostParam    False Nothing             True  False
-  , MkKeywordFacts "Hexproof"         NoParam      True  Nothing             True  False
-  , MkKeywordFacts "Menace"           NoParam      True  Nothing             True  False
-  , MkKeywordFacts "Skulk"            NoParam      False Nothing             True  False
-  , MkKeywordFacts "Bushido"          NumberParam  False Nothing             True  False
-  , MkKeywordFacts "Unearth"          CostParam    False Nothing             True  False
-  , MkKeywordFacts "Flashback"        CostParam    False Nothing             False True
-  , MkKeywordFacts "Dredge"           NumberParam  False Nothing             True  True
-  , MkKeywordFacts "Retrace"          NoParam      False Nothing             True  True
-  , MkKeywordFacts "Cycling"          CostParam    False Nothing             True  True
-  , MkKeywordFacts "Ninjutsu"         CostParam    False Nothing             True  False
-  , MkKeywordFacts "Miracle"          CostParam    False Nothing             True  True
-  , MkKeywordFacts "Warp"             CostParam    False (Just AtCasting)    True  True
+  --                                  param        ctr   regime              perm  spell cz
+  [ MkKeywordFacts "Haste"            NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "Flying"           NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "Trample"          NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "Vigilance"        NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "Deathtouch"       NoParam      True  (Just AtResolution) True  False False
+  , MkKeywordFacts "DoubleStrike"     NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "FirstStrike"      NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "Reach"            NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "Convoke"          NoParam      False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Improvise"        NoParam      False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Storm"            NoParam      False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Lifelink"         NoParam      True  (Just AtResolution) True  False False
+  , MkKeywordFacts "Ward"             CostParam    False Nothing             True  False False
+  , MkKeywordFacts "Protection"       QualityParam False Nothing             True  False False
+  , MkKeywordFacts "Enchant"          SubjectParam False Nothing             True  False False
+  , MkKeywordFacts "Equip"            CostParam    False Nothing             True  False False
+  , MkKeywordFacts "Ascend"           NoParam      False Nothing             True  True  False
+  , MkKeywordFacts "Storied"          NoParam      False Nothing             True  False True
+  , MkKeywordFacts "Renown"           NumberParam  False Nothing             True  False False
+  , MkKeywordFacts "Indestructible"   NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "Flash"            NoParam      False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "CumulativeUpkeep" CostParam    False Nothing             True  False False
+  , MkKeywordFacts "Echo"             CostParam    False Nothing             True  False False
+  , MkKeywordFacts "Hexproof"         NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "Menace"           NoParam      True  Nothing             True  False False
+  , MkKeywordFacts "Skulk"            NoParam      False Nothing             True  False False
+  , MkKeywordFacts "Bushido"          NumberParam  False Nothing             True  False False
+  , MkKeywordFacts "Unearth"          CostParam    False Nothing             True  False False
+  , MkKeywordFacts "Flashback"        CostParam    False Nothing             False True  False
+  , MkKeywordFacts "Dredge"           NumberParam  False Nothing             True  True  False
+  , MkKeywordFacts "Retrace"          NoParam      False Nothing             True  True  False
+  , MkKeywordFacts "Cycling"          CostParam    False Nothing             True  True  False
+  , MkKeywordFacts "Ninjutsu"         CostParam    False Nothing             True  False False
+  , MkKeywordFacts "Miracle"          CostParam    False Nothing             True  True  False
+  , MkKeywordFacts "Warp"             CostParam    False (Just AtCasting)    True  True  False
   ]
 
 public export
@@ -2950,28 +2959,6 @@ subsFitLine (s :: ss) tys =
 
 
 
-||| Printed order of the type words on a type line. Spelling-only: no gate
-||| consumes it, and a type line's meaning does not depend on it. Awaiting a
-||| home in english_v2's type-line construction (ticket
-||| workbench-type-line-order-is-spelling).
-public export
-typePrintOrder : CardType -> Nat
-typePrintOrder Kindred = 0
-typePrintOrder Enchantment = 1
-typePrintOrder Artifact = 2
-typePrintOrder Land = 3
-typePrintOrder Creature = 4
-typePrintOrder Planeswalker = 5
-typePrintOrder Battle = 6
-typePrintOrder Instant = 7
-typePrintOrder Sorcery = 8
-typePrintOrder Conspiracy = 9
-typePrintOrder Dungeon = 10
-typePrintOrder Phenomenon = 11
-typePrintOrder Plane = 12
-typePrintOrder Scheme = 13
-typePrintOrder Vanguard = 14
-
 public export
 permanentType : CardType -> Bool
 permanentType Creature = True
@@ -3014,6 +3001,29 @@ spellCardType Phenomenon = False
 spellCardType Plane = False
 spellCardType Scheme = False
 spellCardType Vanguard = False
+
+||| The third answer beside `permanentType` and `spellCardType`, not a gap
+||| in either: the card types whose own rule keeps the card in the command
+||| zone, where it is no permanent and is never cast -- [CR#315.3]
+||| conspiracy, [CR#309.2c] dungeon, [CR#312.2] phenomenon, [CR#311.2]
+||| plane, [CR#314.2] scheme, [CR#313.2] vanguard.
+public export
+commandZoneType : CardType -> Bool
+commandZoneType Conspiracy = True
+commandZoneType Dungeon = True
+commandZoneType Phenomenon = True
+commandZoneType Plane = True
+commandZoneType Scheme = True
+commandZoneType Vanguard = True
+commandZoneType Creature = False
+commandZoneType Artifact = False
+commandZoneType Land = False
+commandZoneType Enchantment = False
+commandZoneType Instant = False
+commandZoneType Sorcery = False
+commandZoneType Planeswalker = False
+commandZoneType Battle = False
+commandZoneType Kindred = False
 
 public export
 placeableTy : Maybe CardType -> Bool
