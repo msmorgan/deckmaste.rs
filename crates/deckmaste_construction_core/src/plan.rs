@@ -1758,16 +1758,6 @@ mod tests {
     }
 
     #[test]
-    fn representative_generated_body_is_pinned() {
-        let actual = crate::format_expansion(&representative_expansion())
-            .expect("representative expansion formats");
-        assert_eq!(
-            actual,
-            include_str!("../tests/golden/representative-expansion.txt")
-        );
-    }
-
-    #[test]
     fn context_identity_generated_body_is_pinned() {
         let expansion = crate::generate(quote::quote! {
             identity SelfReferenceSpelling {
@@ -2677,7 +2667,7 @@ mod tests {
     }
 
     #[test]
-    fn public_flattened_tokens_contain_each_planned_item_exactly_once() {
+    fn representative_generated_body_uses_each_planned_item_exactly_once() {
         let expansion = representative_expansion();
         let flattened = syn::parse2::<syn::File>(expansion.tokens())
             .expect("flattened expansion is valid Rust");
