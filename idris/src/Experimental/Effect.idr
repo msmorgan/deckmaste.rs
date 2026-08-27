@@ -1994,7 +1994,8 @@ mutual
   -- keeps it out of a later shuffle [CR#701.24b].
   effIntro (Search who sc p) =
     MkBinding AD Object OneOf
-              (ObjectP (seedTy p) (searchZone sc) (mkStamp (Just "Search") Nothing) Nothing)
+              (ObjectP (seedTy p) (searchZone sc)
+                       (mkStamp (Just "Search") Nothing False) Nothing)
       :: (predDelta p ++ searchDelta sc ++ nomIntro who)
   effIntro (Shuffle whose) = afterShuffle (nomIntro whose)
   effIntro (FlipCoins who count) = outcomeB CoinFlipped :: flipScopeIntro count

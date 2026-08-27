@@ -1911,10 +1911,18 @@ mutual
   nounDelta (OwnerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
   nounDelta (Designated _ _) = []
 
+  ||| What a per-member pass hands its body: ONE member of the group,
+  ||| under the group's own type, zone and stamp. The stamp comes along
+  ||| because a member of a batch a label acted on is a thing that label
+  ||| acted on -- "for each of those exiled creatures, …" leaves the body
+  ||| able to say "the exiled creature", and to know the member was on the
+  ||| battlefield, which the participle read asks of every referent it
+  ||| names.
   public export
   elemIntro : {bs : Bindings} -> Noun bs Object -> Bindings
   elemIntro grp =
-    MkBinding TheD Object OneOf (ObjectP (nounTy grp) (nounZone grp) Nothing Nothing)
+    MkBinding TheD Object OneOf
+              (ObjectP (nounTy grp) (nounZone grp) (nounProv grp) Nothing)
       :: nomIntro grp
 
   ||| `elemIntro`'s twin at the VALUE: what a distributive pass over an
@@ -3481,7 +3489,7 @@ mutual
   public export
   setZone : Maybe VerbLabel -> Maybe Zone -> Binding -> Binding
   setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og)) =
-    MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn) og)
+    MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn (not (oldZn == z))) og)
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
   setZone p z (MkBinding det (Quality q) plur QualityP) =
     MkBinding det (Quality q) plur QualityP
@@ -3608,15 +3616,63 @@ mutual
   -- object a cost discarded is the same object under the same
   -- determiner. It names no card type, because `This` names none.
   moveIntro p This z =
-    MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing) Nothing) :: bs
-  moveIntro p (AttachHost _ _) z = bs
-  moveIntro p (AsType t n _) z = MkBinding TheD Object OneOf (ObjectP (Just t) z (mkStamp p Nothing) Nothing) :: bs
+    MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing) :: bs
+  -- an attachment's host is announced where it is moved or stamped, on
+  -- `selfSubjDelta`'s rows: the attach word names a referent no delta of
+  -- its own mints, so a clause acting on it would otherwise leave the
+  -- next sentence with nothing to read.
+  moveIntro p (AttachHost _ (TypeW t)) z =
+    MkBinding TheD Object OneOf
+              (ObjectP (Just t) z (mkStamp p (Just Battlefield)
+                                            (not (z == Just Battlefield))) Nothing)
+      :: bs
+  moveIntro p (AttachHost _ PermanentW) z =
+    MkBinding TheD Object OneOf
+              (ObjectP Nothing z (mkStamp p (Just Battlefield)
+                                           (not (z == Just Battlefield))) Nothing)
+      :: bs
+  moveIntro p (AttachHost _ PlayerW) z = MkBinding TheD Player OneOf PlayerP :: bs
+  moveIntro p (AttachHost _ w) z = bs
+  -- the ascribed self is the SOURCE under a card type, so it is announced
+  -- under `SelfD` exactly as the bare `This` is: "this creature" and
+  -- "this" name one object, and the demonstrative noun words read
+  -- neither.
+  moveIntro p (AsType t This _) z =
+    MkBinding SelfD Object OneOf
+              (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing)
+      :: bs
+  moveIntro p (AsType t n _) z =
+    MkBinding TheD Object OneOf
+              (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing)
+      :: bs
   moveIntro p You z = bs
   moveIntro p (PlayerGroup _) z = bs
   moveIntro p They z = bs
   moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
   moveIntro p (OwnerOf n) z = nomIntro (OwnerOf n)
   moveIntro p (Designated d n) z = bs
+
+  ||| The stamp the mention's antecedent carries, read like `nounZone`.
+  ||| Only an ANAPHOR reports one: a stamp is written onto a binding by a
+  ||| labeled action, so a phrase that describes its referent afresh names
+  ||| nothing any label acted on, and a deictic names the source, which no
+  ||| clause of this text has acted on either.
+  public export
+  nounProv : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Stamp
+  nounProv TheRest = provOfGroup bs
+  nounProv It = provOfIt bs
+  nounProv (ItAt sl) = provOfItAt sl bs
+  nounProv (ItVerbed v) = provOfVerbedIt v bs
+  nounProv Them = provOfThem bs
+  nounProv (That w) = provOfThat w bs
+  nounProv (ThatHalf w) = provOfUnionHalf w bs
+  nounProv (Those w) = provOfThose w bs
+  nounProv (TheVerbed v w _) = provOfVerbed v w bs
+  nounProv (ThoseVerbed v w _) = provOfManyVerbed v w bs
+  nounProv (EachOf grp) = nounProv grp
+  nounProv (NamesAgree _ grp) = nounProv grp
+  nounProv (SomeOf _ _ grp) = nounProv grp
+  nounProv _ = Nothing
 
   public export
   nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone

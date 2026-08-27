@@ -1129,11 +1129,18 @@ public export
 actDestOf : VerbLabel -> Maybe Zone
 actDestOf v = verbFactsFor v >>= actDest
 
+||| What a labeled action left on the mention it acted on: WHICH label
+||| acted, whether it found the referent on the battlefield, and whether
+||| it took the referent out of the zone it was in. The third fact is not
+||| derivable from the first two -- a label may move its patient
+||| ("exile it") or leave it where it stands ("tap it") -- and only a
+||| MOVE takes the counters with it [CR#400.7].
 public export
 record Stamp where
   constructor MkStamp
   verb : VerbLabel
   wasField : Bool
+  moved : Bool
 
 public export
 data Origin = TokenOrigin | CopyOrigin
@@ -1622,7 +1629,7 @@ samePlur ManyOf ManyOf = True
 
 public export
 sameStamp : Stamp -> Stamp -> Bool
-sameStamp (MkStamp v f) (MkStamp w g) = v == w && f == g
+sameStamp (MkStamp v f m) (MkStamp w g n) = v == w && f == g && m == n
 
 public export
 sameOrigin : Origin -> Origin -> Bool
@@ -1769,14 +1776,15 @@ pluralizeDelta (b :: bs) = pluralizeBinding b :: pluralizeDelta bs
 
 ||| [CR#122.2]: counters on an object cease to exist when it moves from
 ||| one zone to another, so a clause that reads counters off a referent an
-||| earlier clause moved names none [CR#400.7]. No table over labels is
-||| consulted, and none could be: a stamp is written only where a labeled
-||| action MOVED its patient (`moveIntro`), so carrying one is already the
-||| evidence that the referent changed zones.
+||| earlier clause moved names none [CR#400.7]. Carrying a stamp is NOT
+||| that evidence on its own -- a label that changed its patient's state
+||| and left it where it stood stamps the same mention ("each creature
+||| tapped this way") -- so the question is asked of the fact the stamp
+||| records, and of no table over labels.
 public export
 stampMoves : Maybe Stamp -> Bool
 stampMoves Nothing = False
-stampMoves (Just _) = True
+stampMoves (Just (MkStamp _ _ mv)) = mv
 
 ||| Whether a labeled action found this referent on the battlefield.
 ||| [CR#110.1] stops it being a permanent as it leaves, so a later clause
@@ -1788,7 +1796,7 @@ stampMoves (Just _) = True
 public export
 stampWasField : Maybe Stamp -> Bool
 stampWasField Nothing = False
-stampWasField (Just (MkStamp _ wasF)) = wasF
+stampWasField (Just (MkStamp _ wasF _)) = wasF
 
 ||| The stamp a payload was left with, read like `payloadZone`.
 public export
@@ -1959,14 +1967,17 @@ tyOfItAt sl (b :: bs) =
 ||| The provenance a LABELED action leaves on the mention it acted on,
 ||| whatever the action did to it: a move writes one ("the exiled card"),
 ||| and so does a status change ("each creature tapped this way"). What
-||| the stamp records is that this label acted on this referent, plus
-||| whether it found it on the battlefield -- never which kind of body
-||| the label rode. Body shapes past those two get a row when a printed
-||| line needs one.
+||| the stamp records is that this label acted on this referent, whether
+||| it found it on the battlefield, and whether it carried it out of the
+||| zone it was in -- never which kind of body the label rode. Body shapes
+||| past those get a row when a printed line needs one.
+||| The caller says whether the referent moved, because the caller is the
+||| one holding both zones: `setZone` compares them, and the two deictic
+||| rows know their subject's zone without a binding to read it off.
 public export
-mkStamp : Maybe VerbLabel -> Maybe Zone -> Maybe Stamp
-mkStamp Nothing oldZn = Nothing
-mkStamp (Just v) oldZn = Just (MkStamp v (onFieldZone oldZn))
+mkStamp : Maybe VerbLabel -> (oldZn : Maybe Zone) -> (moved : Bool) -> Maybe Stamp
+mkStamp Nothing oldZn moved = Nothing
+mkStamp (Just v) oldZn moved = Just (MkStamp v (onFieldZone oldZn) moved)
 
 ||| Which word reaches ONE HALF of a union mention, where `JoinW` reads
 ||| the whole. The two halves take DIFFERENT gates. The class half ECHOES
@@ -2106,15 +2117,15 @@ kindOfW AbilityJoinW = Object \/ Ability
 
 public export
 stampedBy : VerbLabel -> Stamp -> Bool
-stampedBy v (MkStamp v' _) = v == v'
+stampedBy v (MkStamp v' _ _) = v == v'
 
 public export
 verbedWordOk : NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
-verbedWordOk (TypeW t) (MkStamp _ wasF) ty zn = wasF && tyIs t ty
+verbedWordOk (TypeW t) (MkStamp _ wasF _) ty zn = wasF && tyIs t ty
 verbedWordOk CardW st ty zn = isCardZone zn
 verbedWordOk SpellW st ty zn = onStackZone zn
 verbedWordOk PlayerW st ty zn = False
-verbedWordOk PermanentW (MkStamp _ wasF) ty zn = wasF
+verbedWordOk PermanentW (MkStamp _ wasF _) ty zn = wasF
 verbedWordOk TokenW st ty zn = False
 verbedWordOk CopyW st ty zn = False
 verbedWordOk JoinW st ty zn = False
@@ -2349,6 +2360,50 @@ zoneOfThose w (b :: bs) =
   case (b.plur, wordNow w b) of
     (ManyOf, True) => bindingZone b
     _ => zoneOfThose w bs
+
+||| The stamp readers, `zoneOf…`'s twins at the provenance field. Only a
+||| mention that READS BACK a binding can report one: a stamp is written
+||| onto a binding by a labeled action, so a phrase describing its
+||| referent afresh names nothing any label has acted on.
+public export
+provOfGroup : Bindings -> Maybe Stamp
+provOfGroup bs = restSource bs >>= (\b => payloadProv b.payload)
+
+public export
+provOfThat : NounWord -> Bindings -> Maybe Stamp
+provOfThat w [] = Nothing
+provOfThat w (b :: bs) =
+  case (b.plur, wordNow w b) of
+    (OneOf, True) => payloadProv b.payload
+    _ => provOfThat w bs
+
+public export
+provOfThose : NounWord -> Bindings -> Maybe Stamp
+provOfThose w [] = Nothing
+provOfThose w (b :: bs) =
+  case (b.plur, wordNow w b) of
+    (ManyOf, True) => payloadProv b.payload
+    _ => provOfThose w bs
+
+public export
+provOfVerbed : VerbLabel -> NounWord -> Bindings -> Maybe Stamp
+provOfVerbed v w [] = Nothing
+provOfVerbed v w (b :: bs) =
+  if verbedMatch v w b then payloadProv b.payload else provOfVerbed v w bs
+
+public export
+provOfManyVerbed : VerbLabel -> NounWord -> Bindings -> Maybe Stamp
+provOfManyVerbed v w [] = Nothing
+provOfManyVerbed v w (b :: bs) =
+  if verbedMatchMany v w b then payloadProv b.payload else provOfManyVerbed v w bs
+
+public export
+provOfUnionHalf : NounWord -> Bindings -> Maybe Stamp
+provOfUnionHalf w [] = Nothing
+provOfUnionHalf w (b :: bs) =
+  if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
+    then payloadProv b.payload
+    else provOfUnionHalf w bs
 
 public export
 tyOfIt : Bindings -> Maybe CardType

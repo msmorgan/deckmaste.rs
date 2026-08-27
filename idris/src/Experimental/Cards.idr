@@ -10444,11 +10444,15 @@ nekrataalRider =
        (And [Macros.creature, Not Macros.artifact, Not (ColorIs Black)])))
 
 ||| Two battlefield creatures stand there -- the one that entered and the
-||| one the trigger destroyed -- so the demonstrative is refused, and so
-||| is the bare pronoun.
+||| one the trigger destroyed -- but only ONE of them is a creature the
+||| demonstrative can name: the entering creature is announced as the
+||| SOURCE, under `SelfD`, and the demonstrative noun words do not read a
+||| self-mention. So Nekrataal's printed "that creature" resolves, while
+||| the bare pronoun below still has two candidates -- which is why the
+||| printed rider spells the demonstrative and not "it".
 public export
-nekrataalTwoCreatureWords : countWord (TypeW Creature) Cards.nekrataalRider = 2
-nekrataalTwoCreatureWords = Refl
+nekrataalOneCreatureWord : countWord (TypeW Creature) Cards.nekrataalRider = 1
+nekrataalOneCreatureWord = Refl
 
 public export
 nekrataalTwoObjects : countOnes Object Cards.nekrataalRider = 2
@@ -10459,6 +10463,38 @@ nekrataalTwoObjects = Refl
 public export
 nekrataalOneDestroyed : countVerbedIt "Destroy" Cards.nekrataalRider = 1
 nekrataalOneDestroyed = Refl
+
+||| ...so Nekrataal's printed rider writes as printed -- "When this
+||| creature enters, destroy target nonartifact, nonblack creature. That
+||| creature can't be regenerated."
+public export
+nekrataalWhole : Card
+nekrataalWhole =
+  Macros.card "Nekrataal" (Just [Macros.generic 2, Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Human", creatureType "Assassin"] [Creature])
+       [ Macros.keyword "FirstStrike"
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (CantBe (Macros.destroy (Macros.target
+                      (And [Macros.creature, Not Macros.artifact,
+                            Not (ColorIs Black)])))
+                   Regenerated (That (TypeW Creature))) ]
+       (Just (2, 1))
+
+||| "Sacrifice this artifact: Exile target creature. At the beginning of
+||| the next end step, return that card to the battlefield." The line
+||| `Proofs.badBareCardRead` refuses once the sacrificed half is a
+||| DESCRIBED creature: written with the source, the sacrificed card is
+||| announced under `SelfD`, which no demonstrative noun word reads, so
+||| "that card" has the exiled creature and nothing else.
+public export
+selfSacrificeThenExile : Ability
+selfSacrificeThenExile =
+  Macros.activated (Do (Macros.sacrifice You Macros.thisArtifact))
+    (Sequentially
+       [ Macros.exile (Macros.target Macros.creature)
+       , Delayed (BeginningOf EndStep NoPossessor) [] Nothing
+                 (Move (That CardW) Macros.battlefieldZ
+                       (MkMoveRiders [] Nothing Nothing)) ])
 
 ||| Engulfing Flames' rider reads here -- "Engulfing Flames deals 1
 ||| damage to target creature. It can't be regenerated this turn."

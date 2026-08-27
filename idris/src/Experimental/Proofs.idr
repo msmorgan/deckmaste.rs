@@ -285,11 +285,15 @@ badVerbedAmbig : Unspellable Ability (\ok =>
 badVerbedAmbig Refl impossible
 
 
-||| "Sacrifice this artifact: Exile target creature. At the beginning of the end step, return that card to the battlefield."
-||| Two card mentions make "that card" ambiguous.
+||| "Sacrifice a creature: Exile target creature. At the beginning of the end step, return that card to the battlefield."
+||| Two card mentions make "that card" ambiguous. The sacrificed half is
+||| written as a DESCRIBED creature and not as the source: a moved self is
+||| announced under `SelfD`, which the demonstrative noun words do not
+||| read, so the source would leave one candidate rather than two --
+||| `Cards.selfSacrificeThenExile` is that line written.
 public export
 badBareCardRead : Unspellable Ability (\ok =>
-  Activated (Do (Macros.sacrifice You Macros.thisArtifact))
+  Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
             (Sequentially [Macros.exile (Macros.target Macros.creature),
                            Delayed (BeginningOf EndStep NoPossessor) [] Nothing (Move (That CardW {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing))]) Nothing Nothing Nothing)
 badBareCardRead Refl impossible
