@@ -330,7 +330,11 @@ badPermanentInstant Oh impossible
 
 
 ||| "Destroy target permanent. Tap that permanent."
-||| Destruction retags to the graveyard, and [CR#110.1] takes the word away with the zone.
+||| The word REACHES the departed referent -- [CR#608.2h] reads an object
+||| the effect has moved by its last known information, and 15 supported
+||| lines write it ("… deals 2 damage to that permanent's controller").
+||| What refuses is the status change: [CR#110.1] stops the object being a
+||| permanent as it leaves, so there is nothing on the battlefield to tap.
 public export
 badThatPermanentDeparted : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Permanent),

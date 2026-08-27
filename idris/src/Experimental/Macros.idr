@@ -85,9 +85,9 @@ thatJoin = That JoinW {ok}
 public export
 thatSplitController : (cls : Noun bs Object) ->
                       {auto 0 one : nounPlur cls = OneOf} ->
-                      {auto 0 pk : countWord PlayerW bs = 1} ->
+                      {auto 0 pk : countUnionHalf PlayerW bs = 1} ->
                       Noun bs Player
-thatSplitController cls = EitherOf (That PlayerW {ok = pk}) (ControllerOf cls {one})
+thatSplitController cls = EitherOf (ThatHalf PlayerW {ok = pk}) (ControllerOf cls {one})
 
 ||| "that player or that planeswalker's controller": the split read over a
 ||| union head whose object half named its card type, so the class arm
@@ -95,10 +95,10 @@ thatSplitController cls = EitherOf (That PlayerW {ok = pk}) (ControllerOf cls {o
 ||| -- spelling: "that player or that planeswalker's controller".
 public export
 splitOverPlaneswalker : {bs : Bindings} ->
-                        {auto 0 ck : countWord (TypeW Planeswalker) bs = 1} ->
-                        {auto 0 pk : countWord PlayerW bs = 1} ->
+                        {auto 0 ck : countUnionHalf (TypeW Planeswalker) bs = 1} ->
+                        {auto 0 pk : countUnionHalf PlayerW bs = 1} ->
                         Noun bs Player
-splitOverPlaneswalker = thatSplitController (That (TypeW Planeswalker) {ok = ck}) {pk}
+splitOverPlaneswalker = thatSplitController (ThatHalf (TypeW Planeswalker) {ok = ck}) {pk}
 
 ||| "that player or that permanent's controller": the split read over the
 ||| class word [CR#115.4], whose object half named no card type, so the
@@ -106,10 +106,10 @@ splitOverPlaneswalker = thatSplitController (That (TypeW Planeswalker) {ok = ck}
 ||| -- spelling: "that player or that permanent's controller".
 public export
 splitOverPermanent : {bs : Bindings} ->
-                     {auto 0 ck : countWord PermanentW bs = 1} ->
-                     {auto 0 pk : countWord PlayerW bs = 1} ->
+                     {auto 0 ck : countUnionHalf PermanentW bs = 1} ->
+                     {auto 0 pk : countUnionHalf PlayerW bs = 1} ->
                      Noun bs Player
-splitOverPermanent = thatSplitController (That PermanentW {ok = ck}) {pk}
+splitOverPermanent = thatSplitController (ThatHalf PermanentW {ok = ck}) {pk}
 
 
 public export
@@ -472,6 +472,34 @@ sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
 sacrifice agent n =
   Does agent "Sacrifice" (Move n graveyardZ noRiders)
 
+||| The bare pronoun read at the PERMANENT carrier: the slot's rule takes
+||| something on the battlefield [CR#109.2,110.1], so the candidates are
+||| the battlefield mentions and a spell or a card the same clause named
+||| is not among them. The macro layer is the only carrier for `ItAt`,
+||| and a site that writes this one names the rule that gives its slot
+||| this carrier.
+public export
+itAsPermanent : {auto 0 ok : countOnesAt PermanentSlot bs = 1} -> Noun bs Object
+itAsPermanent = ItAt PermanentSlot {ok}
+
+||| The same at the CARD carrier: the slot writes the word "card", which
+||| [CR#109.2] is what takes such a description off the battlefield.
+public export
+itAsCard : {auto 0 ok : countOnesAt CardSlot bs = 1} -> Noun bs Object
+itAsCard = ItAt CardSlot {ok}
+
+||| "…, sacrifice it". [CR#701.21a] lets a player sacrifice a permanent
+||| and nothing else, so the slot's own rule bounds what the pronoun may
+||| resolve to and the macro supplies that carrier -- which is why the
+||| body of a becomes-target trigger writes, though its header announced
+||| the targeting spell beside the permanent it targeted.
+public export
+sacrificeIt : (agent : Noun bs Player) ->
+              {auto 0 ok : countOnesAt PermanentSlot (nomIntro agent) = 1} ->
+              {auto 0 zn : OnBattlefield (zoneOfItAt PermanentSlot (nomIntro agent))} ->
+              Effect bs
+sacrificeIt agent = sacrifice agent (itAsPermanent {ok}) {ok = zn}
+
 public export
 discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
            {auto 0 dk : DiscardOk n} -> Effect bs
@@ -806,6 +834,20 @@ itIsntA : (p : Predicate bs Object) -> {auto 0 ok : countOnes Object bs = 1} ->
           {auto 0 zc : ZoneFits (zoneOfIt bs) (seedZone p)} ->
           {auto 0 nf : predNegFree p = True} -> Condition bs
 itIsntA p = NotCond (itsA p {ok} {sy} {zc})
+
+||| "If it's a creature card, …": the copula's complement writes the word
+||| "card", which [CR#109.2] takes off the battlefield outright, so the
+||| pronoun reads the card candidates and not every singular
+||| object the clause announced. The word "card" is the READ's carrier
+||| here, not a zone the sentence states -- which is why the complement
+||| stays the bare type word.
+public export
+itsACard : (p : Predicate bs Object) ->
+           {auto 0 ok : countOnesAt CardSlot bs = 1} ->
+           {auto 0 sy : PredSays p} ->
+           {auto 0 zc : ZoneFits (zoneOfItAt CardSlot bs) (seedZone p)} ->
+           Condition bs
+itsACard p = Matches (itAsCard {ok}) p {sy} {zc}
 
 
 public export

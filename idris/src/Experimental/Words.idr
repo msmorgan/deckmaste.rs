@@ -1765,6 +1765,18 @@ stampMoves : Maybe Stamp -> Bool
 stampMoves Nothing = False
 stampMoves (Just _) = True
 
+||| Whether a labeled action found this referent on the battlefield.
+||| [CR#110.1] stops it being a permanent as it leaves, so a later clause
+||| naming it "that permanent" is reading last known information
+||| [CR#608.2h] -- which is the reading 15 supported lines write ("Destroy
+||| target artifact or enchantment. … deals 2 damage to THAT PERMANENT's
+||| controller"). The participle read already asks this same fact
+||| (`verbedWordOk PermanentW`); the demonstrative asks it here.
+public export
+stampWasField : Maybe Stamp -> Bool
+stampWasField Nothing = False
+stampWasField (Just (MkStamp _ wasF)) = wasF
+
 ||| The stamp a payload was left with, read like `payloadZone`.
 public export
 payloadProv : Payload k -> Maybe Stamp
@@ -1873,6 +1885,64 @@ onStackZone (Just Library) = False
 onStackZone (Just Stack) = True
 onStackZone (Just Command) = False
 
+||| The carrier a verb slot's own rule demands of the object it acts on,
+||| and so the candidates a bare "it" written in that slot may resolve
+||| to. [CR#109.2] gives the three: a description naming neither a zone
+||| nor a carrier word means a permanent on the battlefield, "card" names
+||| a card in a stated zone [CR#109.2a], and "spell" one on the stack
+||| [CR#109.2b]. The rows are the same three sorts `PermanentW`, `CardW`
+||| and `SpellW` filter on, read here off the ZONE alone: this is what a
+||| verb demands of its object, not a word the card prints.
+||| Sacrifice is the worked example -- [CR#701.21a] lets a player
+||| sacrifice a permanent and nothing else -- so "…, sacrifice it" after
+||| a header that announced a spell and the permanent it targeted has one
+||| candidate, not two.
+public export
+data SlotCarrier = PermanentSlot | CardSlot | SpellSlot
+
+public export
+slotZoneOk : SlotCarrier -> Maybe Zone -> Bool
+slotZoneOk PermanentSlot zn = onFieldZone zn
+slotZoneOk CardSlot zn = isCardZone zn
+slotZoneOk SpellSlot zn = onStackZone zn
+
+||| `itReaches` narrowed to one slot's carrier. A mention that places its
+||| referent nowhere is admitted by no slot: a union half carries no zone
+||| of its own, so "a spell or ability" stands outside every verb's
+||| candidate set rather than inside all of them.
+public export
+itAtReaches : SlotCarrier -> Binding -> Bool
+itAtReaches sl b = itReaches OneOf b && slotZoneOk sl (bindingZone b)
+
+||| `countOnes Object` over the candidates one verb slot admits. Still
+||| counted uniqueness and still a fold over the reading-order prefix;
+||| the narrowing is of WHICH mentions are candidates, not of how the
+||| winner is picked. Where two candidates share the slot's carrier the
+||| count is 2 and the read is refused, as it is today.
+public export
+countOnesAt : SlotCarrier -> Bindings -> Nat
+countOnesAt sl [] = Z
+countOnesAt sl (b :: bs) =
+  if itAtReaches sl b then S (countOnesAt sl bs) else countOnesAt sl bs
+
+public export
+provOfItAt : SlotCarrier -> Bindings -> Maybe Stamp
+provOfItAt sl [] = Nothing
+provOfItAt sl (b :: bs) =
+  if itAtReaches sl b then payloadProv b.payload else provOfItAt sl bs
+
+public export
+zoneOfItAt : SlotCarrier -> Bindings -> Maybe Zone
+zoneOfItAt sl [] = Nothing
+zoneOfItAt sl (b :: bs) =
+  if itAtReaches sl b then bindingZone b else zoneOfItAt sl bs
+
+public export
+tyOfItAt : SlotCarrier -> Bindings -> Maybe CardType
+tyOfItAt sl [] = Nothing
+tyOfItAt sl (b :: bs) =
+  if itAtReaches sl b then bindingTy b else tyOfItAt sl bs
+
 ||| The provenance a LABELED action leaves on the mention it acted on,
 ||| whatever the action did to it: a move writes one ("the exiled card"),
 ||| and so does a status change ("each creature tapped this way"). What
@@ -1957,7 +2027,12 @@ wordReaches PlayerW (MkBinding _ _ _ LetterP) = False
 wordReaches PlayerW (MkBinding _ _ _ TurnRefP) = False
 wordReaches PlayerW (MkBinding _ _ _ AbilityP) = False
 wordReaches PlayerW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PlayerW pl
-wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn _ _)) = onFieldZone zn
+-- on the battlefield now, or where a labeled action took it off the
+-- battlefield: [CR#608.2h] reads a departed referent by its last known
+-- information, and [CR#110.1] is why the read is that and not the
+-- current state.
+wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn pv _)) =
+  onFieldZone zn || stampWasField pv
 wordReaches PermanentW (MkBinding _ _ _ PlayerP) = False
 wordReaches PermanentW (MkBinding _ _ _ QualityP) = False
 wordReaches PermanentW (MkBinding _ _ _ (OutcomeP _)) = False
@@ -2124,6 +2199,38 @@ countWord w (b :: bs) =
   case (b.plur, wordNow w b) of
     (OneOf, True) => S (countWord w bs)
     _ => countWord w bs
+
+||| How many UNION mentions the prefix holds a half of which this word
+||| names. The split read of a union ("that player or that planeswalker's
+||| controller") writes one arm per half [CR#115.1], and both arms name
+||| halves of the SAME mention, so what makes the pair unambiguous is
+||| that one union answers to them -- not that each arm's word is unique
+||| in the whole prefix. A header that already announced a player leaves
+||| `countWord PlayerW` at 2 and this at 1, which is the difference
+||| between refusing Heart of Bogardan's body and writing it.
+public export
+countUnionHalf : NounWord -> Bindings -> Nat
+countUnionHalf w [] = Z
+countUnionHalf w (b :: bs) =
+  if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
+    then S (countUnionHalf w bs)
+    else countUnionHalf w bs
+
+public export
+zoneOfUnionHalf : NounWord -> Bindings -> Maybe Zone
+zoneOfUnionHalf w [] = Nothing
+zoneOfUnionHalf w (b :: bs) =
+  if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
+    then bindingZone b
+    else zoneOfUnionHalf w bs
+
+public export
+tyOfUnionHalf : NounWord -> Bindings -> Maybe CardType
+tyOfUnionHalf w [] = Nothing
+tyOfUnionHalf w (b :: bs) =
+  if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
+    then bindingTy b
+    else tyOfUnionHalf w bs
 
 ||| "those tokens" names the characteristics definition a create clause
 ||| wrote [CR#111.3], not the objects; [CR#111.7] ends the objects when

@@ -8080,8 +8080,35 @@ ghorClanRampager =
                       (Sequentially
                   [Macros.gets (Macros.target (And [Macros.creature, Attacking]))
                                (PtUp (Lit 4)) (PtUp (Lit 4)) (Just Macros.untilEndOfTurn),
-                   Macros.gains It (Macros.keyword "Trample") (Just Macros.untilEndOfTurn)]))
+                   -- the elided coordinated subject, read at the permanent
+                   -- carrier: trample modifies an attacking creature's combat
+                   -- damage [CR#702.19a] and only a creature attacks
+                   -- [CR#506.3], so the card the discard cost put in the
+                   -- graveyard is not a candidate.
+                   Macros.gains Macros.itAsPermanent
+                                (Macros.keyword "Trample") (Just Macros.untilEndOfTurn)]))
 
+
+||| Twinshot Sniper, whole card -- "Reach / When this creature enters, it
+||| deals 2 damage to any target. / Channel — {1}{R}, Discard this card:
+||| It deals 2 damage to any target." The Channel line's pronoun reads
+||| what the COST announced: a bare `This` moved to a zone now mints its
+||| own mention, on the ascribed self's model, so the discarded card is in
+||| the discourse the ability body reads.
+public export
+twinshotSniper : Card
+twinshotSniper =
+  Macros.card "Twinshot Sniper"
+       (Just [Macros.generic 3, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Goblin", creatureType "Archer"] [Artifact, Creature])
+       [ Macros.keyword "Reach"
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (DealDamage It (Lit 2) (Macros.target Macros.anyTarget))
+       , AbilityWord Channel
+           (Macros.activated (Compound [Mana [Macros.generic 1, Macros.pip Red],
+                                        Do (Macros.discards You This)])
+                             (DealDamage It (Lit 2) (Macros.target Macros.anyTarget))) ]
+       (Just (2, 3))
 
 ||| Balance of Power: "If target opponent has more cards in hand than you,
 ||| draw cards equal to the difference." The leading condition hands its
@@ -8917,8 +8944,8 @@ targetOpponentOrPlaneswalker =
 public export
 eachCreatureThatSplitControls :
   {bs : Bindings} ->
-  {auto 0 ck : countWord (TypeW Planeswalker) bs = 1} ->
-  {auto 0 pk : countWord PlayerW bs = 1} ->
+  {auto 0 ck : countUnionHalf (TypeW Planeswalker) bs = 1} ->
+  {auto 0 pk : countUnionHalf PlayerW bs = 1} ->
   Noun bs Object
 eachCreatureThatSplitControls =
   Each (And [Macros.creature, ControlledBy (Macros.splitOverPlaneswalker {ck} {pk})])
@@ -9233,6 +9260,26 @@ public export
 heartOfBogardanHeader : GameEvent []
 heartOfBogardanHeader =
   PaysCost (Just (Macros.a AnyPlayer)) Unpaid Macros.thisEnchantment "CumulativeUpkeep"
+
+||| Heart of Bogardan, whole card. Its body writes now that the split
+||| read is gated on the union mention its two arms share rather than on
+||| each arm's word being unique in the whole prefix -- the header
+||| announces the non-payer, so "that player" had two singular player
+||| mentions to choose between and exactly one union to name a half of.
+public export
+heartOfBogardan : Card
+heartOfBogardan =
+  Macros.card "Heart of Bogardan"
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.keywordCosting "CumulativeUpkeep" (Mana [Macros.generic 2])
+       , Macros.triggered When Cards.heartOfBogardanHeader
+           (Sequentially
+              [ Simultaneously
+                  [ DealDamage This (LetterVal X) Cards.targetPlayerOrPlaneswalker
+                  , DealDamage This (LetterVal X) Cards.eachCreatureThatSplitControls ]
+              , Define X (Minus (Times 2 (CountersOn Age Macros.thisEnchantment)) (Lit 2)) ]) ]
+       Nothing
 
 ||| Balduvian Fallen's header -- "Whenever this creature's cumulative
 ||| upkeep is paid, …", the passive voice: the cost is the surface subject
@@ -10148,6 +10195,62 @@ shimmeringGlasskite =
            OncePerTurn
            (Macros.counterSpell (That AbilityJoinW)) ]
        (Just (2, 3))
+
+||| Frost Walker, whole card -- "When this creature becomes the target
+||| of a spell or ability, sacrifice it." The bare pronoun read at the
+||| carrier its verb demands: the header announces the targeting spell as
+||| well as the creature [CR#115.1], and [CR#701.21a] lets a player
+||| sacrifice only a permanent, so one of the two candidates is in the
+||| slot's carrier and the count is 1. 19 supported lines write this
+||| sentence; the other 18 differ only in the permanent word and in what
+||| rides beside it.
+public export
+frostWalker : Card
+frostWalker =
+  Macros.card "Frost Walker"
+       (Just [Macros.generic 1, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Elemental"] [Creature])
+       [ Macros.triggered When
+           (BecomesTarget Macros.thisCreature
+              (Macros.a (Joined Macros.spell (AbilityHead AnyOnStack))))
+           (Macros.sacrificeIt You) ]
+       (Just (4, 1))
+
+||| Destructive Revelry, whole card -- "Destroy target artifact or
+||| enchantment. Destructive Revelry deals 2 damage to that permanent's
+||| controller." The permanent word after the zone change its own clause
+||| caused: [CR#110.1] stops the object being a permanent as it leaves the
+||| battlefield, and [CR#608.2h] is why the later clause still reads it --
+||| by last known information. 15 supported lines write this shape.
+public export
+destructiveRevelry : Card
+destructiveRevelry =
+  Macros.card "Destructive Revelry" (Just [Macros.pip Red, Macros.pip Green]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.destroy (Macros.target (Or [Macros.artifact, Macros.enchantment]))
+                  , DealDamage This (Lit 2) (ControllerOf (That PermanentW)) ]) ]
+       Nothing
+
+||| Bioplasm's prefix at its second sentence -- "Whenever this creature
+||| attacks, exile the top card of your library. If it's a creature card,
+||| …". Two singular object mentions stand there.
+public export
+bioplasmAfterExile : Bindings
+bioplasmAfterExile =
+  effIntro {bs = eventAfter {bs = []} (Attacks Macros.thisCreature NoDefender)}
+           (Macros.exile Macros.topCard)
+
+||| ...which is why the bare pronoun is refused there and the card-carrier
+||| read is not: [CR#109.2] takes a description including the word "card"
+||| off the battlefield, and the attacking creature is on the battlefield.
+public export
+bioplasmTwoCandidates : countOnes Object Cards.bioplasmAfterExile = 2
+bioplasmTwoCandidates = Refl
+
+public export
+bioplasmCardTest : Condition Cards.bioplasmAfterExile
+bioplasmCardTest = Macros.itsACard Macros.creature
 
 ||| Fuming Effigy, whole card -- "Whenever one or more cards leave your
 ||| graveyard, this creature deals 1 damage to each opponent." The

@@ -259,6 +259,34 @@ countManyWordIsFold w (MkBinding d j ManyOf p :: bs)
   _ | False = countManyWordIsFold w bs
 countManyWordIsFold w (MkBinding d j OneOf p :: bs) = countManyWordIsFold w bs
 
+||| What `countOnesAt` folds: `countOnes Object`'s own test narrowed to
+||| the candidates one verb slot's carrier admits. The narrowing is a
+||| per-binding test like every other, so the scoped read is a `countBy`
+||| fold and inherits the split and witness lemmas unchanged -- which is
+||| the whole reason the sort-scoped read is a count and not a
+||| preference.
+public export
+countOnesAtIsFold : (sl : SlotCarrier) -> (bs : Bindings) ->
+                    countOnesAt sl bs = countBy (itAtReaches sl) bs
+countOnesAtIsFold sl [] = Refl
+countOnesAtIsFold sl (b :: bs) with (itAtReaches sl b)
+  _ | True = cong S (countOnesAtIsFold sl bs)
+  _ | False = countOnesAtIsFold sl bs
+
+||| What `countUnionHalf` folds: a singular UNION mention one half of
+||| which the split arm's word names.
+public export
+unionHalf : NounWord -> Binding -> Bool
+unionHalf w b = isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
+
+public export
+countUnionHalfIsFold : (w : NounWord) -> (bs : Bindings) ->
+                       countUnionHalf w bs = countBy (unionHalf w) bs
+countUnionHalfIsFold w [] = Refl
+countUnionHalfIsFold w (b :: bs) with (unionHalf w b)
+  _ | True = cong S (countUnionHalfIsFold w bs)
+  _ | False = countUnionHalfIsFold w bs
+
 ||| The definite participle read ("the exiled card") already folds a
 ||| per-binding test, so its identity is the fold at that very test.
 public export
@@ -396,6 +424,28 @@ itResolvesInPrefix : (bs : Bindings) -> countOnes Object bs = 1 ->
 itResolvesInPrefix bs ok = resolveOnes Object bs ok
 
 
+-- "it" again, read at the carrier its consuming verb's rule admits.
+
+||| The scoped pronoun asks its context ONE question too, and the same
+||| kind of question: how many of the prefix's mentions the slot's
+||| carrier admits. The slot is a word on the constructor, not a second
+||| context, so the gate still names `bs` and nothing else.
+public export
+itAtReadsOnlyPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
+                      countOnesAt sl bs = 1 -> Noun bs Object
+itAtReadsOnlyPrefix sl bs ok = ItAt sl {bs} {ok}
+
+||| ...and it resolves to a mention IN the prefix, by the same witness
+||| lemma the unscoped read uses. Narrowing the candidates changed which
+||| binding comes back, never where it comes from.
+public export
+itAtResolvesInPrefix : (sl : SlotCarrier) -> (bs : Bindings) ->
+                       countOnesAt sl bs = 1 ->
+                       (b : Binding ** (Elem b bs, So (itAtReaches sl b)))
+itAtResolvesInPrefix sl bs ok =
+  countByWitness (itAtReaches sl) bs Z (trans (sym (countOnesAtIsFold sl bs)) ok)
+
+
 -- "they": the player pronoun.
 
 public export
@@ -434,6 +484,24 @@ thatResolvesInPrefix : (bs : Bindings) -> (w : NounWord) -> countWord w bs = 1 -
                        (b : Binding ** (Elem b bs, So (wordOne w b)))
 thatResolvesInPrefix bs w ok =
   countByWitness (wordOne w) bs Z (trans (sym (countWordIsFold w bs)) ok)
+
+
+-- "that <noun word>" as ONE ARM of a union's split read.
+
+||| The split arm's gate counts the UNION mentions its word names a half
+||| of. That is a smaller fact than the demonstrative's, not a different
+||| kind of fact: still a fold over the prefix, still counted uniqueness.
+public export
+thatHalfReadsOnlyPrefix : (bs : Bindings) -> (w : NounWord) ->
+                          countUnionHalf w bs = 1 -> Noun bs (kindOfW w)
+thatHalfReadsOnlyPrefix bs w ok = ThatHalf w {bs} {ok}
+
+public export
+thatHalfResolvesInPrefix : (bs : Bindings) -> (w : NounWord) ->
+                           countUnionHalf w bs = 1 ->
+                           (b : Binding ** (Elem b bs, So (unionHalf w b)))
+thatHalfResolvesInPrefix bs w ok =
+  countByWitness (unionHalf w) bs Z (trans (sym (countUnionHalfIsFold w bs)) ok)
 
 
 -- "those <noun word>": the sorted plural demonstrative.
@@ -905,6 +973,48 @@ gateSplitsAtCondIntro bs c j =
         (trans (countBySplit (oneOfKind j) (condDelta c) bs)
                (cong2 (+) (sym (countOnesIsFold j (condDelta c)))
                           (sym (countOnesIsFold j bs))))
+
+||| The SCOPED gate splits the same way. Narrowing which mentions are
+||| candidates does not change that a threaded context is `delta ++ bs`
+||| and that a fold over it is the sum of the two -- so the sort-scoped
+||| read costs §5 nothing beyond its own statement, and the unscoped
+||| lemmas above stand untouched because `It`'s gate is untouched.
+public export
+slotGateSplitsAtNomIntro : (bs : Bindings) -> (k : Kind) -> (n : Noun bs k) ->
+                           (sl : SlotCarrier) ->
+                           countOnesAt sl (nomIntro n) =
+                             countOnesAt sl (nounDelta n) + countOnesAt sl bs
+slotGateSplitsAtNomIntro bs k n sl =
+  trans (countOnesAtIsFold sl (nounDelta n ++ bs))
+        (trans (countBySplit (itAtReaches sl) (nounDelta n) bs)
+               (cong2 (+) (sym (countOnesAtIsFold sl (nounDelta n)))
+                          (sym (countOnesAtIsFold sl bs))))
+
+||| ...and at a condition's context, which is where the card-carrier read
+||| is written ("exile the top card of your library. If IT's a creature
+||| card, …").
+public export
+slotGateSplitsAtCondIntro : (bs : Bindings) -> (c : Condition bs) ->
+                            (sl : SlotCarrier) ->
+                            countOnesAt sl (condIntro c) =
+                              countOnesAt sl (condDelta c) + countOnesAt sl bs
+slotGateSplitsAtCondIntro bs c sl =
+  trans (countOnesAtIsFold sl (condDelta c ++ bs))
+        (trans (countBySplit (itAtReaches sl) (condDelta c) bs)
+               (cong2 (+) (sym (countOnesAtIsFold sl (condDelta c)))
+                          (sym (countOnesAtIsFold sl bs))))
+
+||| The split arm's gate, likewise.
+public export
+unionHalfGateSplitsAtNomIntro : (bs : Bindings) -> (k : Kind) -> (n : Noun bs k) ->
+                                (w : NounWord) ->
+                                countUnionHalf w (nomIntro n) =
+                                  countUnionHalf w (nounDelta n) + countUnionHalf w bs
+unionHalfGateSplitsAtNomIntro bs k n w =
+  trans (countUnionHalfIsFold w (nounDelta n ++ bs))
+        (trans (countBySplit (unionHalf w) (nounDelta n) bs)
+               (cong2 (+) (sym (countUnionHalfIsFold w (nounDelta n)))
+                          (sym (countUnionHalfIsFold w bs))))
 
 ||| The sequential telescope hands each member exactly its predecessors'
 ||| output. A member typed anywhere else would not fit here.

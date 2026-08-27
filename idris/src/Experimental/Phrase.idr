@@ -1665,10 +1665,37 @@ mutual
                  {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Object
     TheRest : {auto 0 ok : So (theRestOk bs)} -> Noun bs Object
     It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
+    ||| "it", read at the carrier the CONSUMING VERB's rule admits
+    ||| rather than across every singular object mention. [CR#109.2]
+    ||| gives a verb slot its carrier and [CR#701.21a] lets a player
+    ||| sacrifice a permanent and nothing else, so "…, sacrifice it"
+    ||| after a becomes-target header has one candidate on the
+    ||| battlefield even though the header announced the targeting spell
+    ||| too. The gate is `It`'s, narrowed: counted uniqueness over a
+    ||| smaller candidate set, never a preference among a larger one, so
+    ||| two candidates sharing the slot's carrier still refuse.
+    ||| The carrier is the verb's, not a word the card prints, so only a
+    ||| macro writes this: an author choosing one by hand would be
+    ||| choosing the verb's own rule.
+    ||| -- spelling: "it", exactly as `It` spells.
+    ItAt : (sl : SlotCarrier) -> {auto 0 ok : countOnesAt sl bs = 1} ->
+           Noun bs Object
     They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
     Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
     Those : (w : NounWord) -> {auto 0 ok : countManyWord w bs = 1} -> Noun bs (kindOfW w)
     That : (w : NounWord) -> {auto 0 ok : countWord w bs = 1} -> Noun bs (kindOfW w)
+    ||| One ARM of the split read of a union mention: "that player" in
+    ||| "that player or that planeswalker's controller". `EitherOf`'s two
+    ||| arms are read in the same context and name halves of the SAME
+    ||| union [CR#115.1], so the pair is gated on that one mention being
+    ||| unique rather than on each arm's word being unique in the whole
+    ||| prefix — which is what a header announcing a second player of its
+    ||| own would otherwise break. The word is the half echo
+    ||| `halfReaches` already defines; the whole-union read stays `That
+    ||| JoinW`.
+    ||| -- spelling: the half's own word, as the demonstrative spells it.
+    ThatHalf : (w : NounWord) -> {auto 0 ok : countUnionHalf w bs = 1} ->
+               Noun bs (kindOfW w)
     AttachHost : (w : AttachWord) -> (h : NounWord) ->
                  {auto 0 ok : AttachHeadOk w h} -> Noun bs (kindOfW h)
     TheVerbed : (v : VerbLabel) -> (w : NounWord) ->
@@ -1716,11 +1743,13 @@ mutual
   nounEqRef TheRest _ = False
   nounEqRef It It = True
   nounEqRef It _ = False
+  nounEqRef (ItAt _) _ = False
   nounEqRef They They = True
   nounEqRef They _ = False
   nounEqRef Them _ = False
   nounEqRef (Those _) _ = False
   nounEqRef (That _) _ = False
+  nounEqRef (ThatHalf _) _ = False
   nounEqRef (AttachHost _ _) _ = False
   nounEqRef (TheVerbed _ _ _) _ = False
   nounEqRef (ThoseVerbed _ _ _) _ = False
@@ -1783,9 +1812,11 @@ mutual
       :: (quantDelta q ++ nounDelta grp)
   nounDelta TheRest = []
   nounDelta It = []
+  nounDelta (ItAt _) = []
   nounDelta They = []
   nounDelta Them = []
   nounDelta (That w) = []
+  nounDelta (ThatHalf w) = []
   nounDelta (AttachHost _ _) = []
   nounDelta (Those w) = []
   nounDelta (TheVerbed v w _) = []
@@ -2544,10 +2575,12 @@ mutual
   anchorPhrase (NamesAgree _ grp) = anchorPhrase grp
   anchorPhrase TheRest = False
   anchorPhrase It = True
+  anchorPhrase (ItAt _) = True
   anchorPhrase They = True
   anchorPhrase Them = True
   anchorPhrase (Those _) = True
   anchorPhrase (That _) = True
+  anchorPhrase (ThatHalf _) = True
   anchorPhrase (AttachHost _ _) = True
   anchorPhrase (TheVerbed _ _ _) = True
   anchorPhrase (ThoseVerbed _ _ _) = True
@@ -2588,10 +2621,12 @@ mutual
   choosable (NamesAgree _ grp) = choosable grp
   choosable TheRest = False
   choosable It = False
+  choosable (ItAt _) = False
   choosable They = False
   choosable Them = False
   choosable (Those _) = False
   choosable (That _) = False
+  choosable (ThatHalf _) = False
   choosable (AttachHost _ _) = False
   choosable (TheVerbed _ _ _) = False
   choosable (ThoseVerbed _ _ _) = False
@@ -2639,8 +2674,10 @@ mutual
   groupMention (NamesAgree _ grp) = groupMention grp
   groupMention TheRest = False
   groupMention It = False
+  groupMention (ItAt _) = False
   groupMention They = False
   groupMention (That _) = False
+  groupMention (ThatHalf _) = False
   groupMention (AttachHost _ _) = False
   groupMention (TheVerbed _ _ _) = False
   groupMention (ThoseVerbed _ _ _) = True
@@ -3158,10 +3195,12 @@ mutual
   costNounOk (SomeOf _ grp) = costNounOk grp
   costNounOk TheRest = True
   costNounOk It = True
+  costNounOk (ItAt _) = True
   costNounOk They = True
   costNounOk Them = True
   costNounOk (Those _) = True
   costNounOk (That _) = True
+  costNounOk (ThatHalf _) = True
   costNounOk (AttachHost _ _) = True
   costNounOk (TheVerbed _ _ _) = False
   costNounOk (ThoseVerbed _ _ _) = False
@@ -3189,10 +3228,12 @@ mutual
   nounIsYou (SomeOf _ _) = False
   nounIsYou TheRest = False
   nounIsYou It = False
+  nounIsYou (ItAt _) = False
   nounIsYou They = False
   nounIsYou Them = False
   nounIsYou (Those _) = False
   nounIsYou (That _) = False
+  nounIsYou (ThatHalf _) = False
   nounIsYou (AttachHost _ _) = False
   nounIsYou (TheVerbed _ _ _) = False
   nounIsYou (ThoseVerbed _ _ _) = False
@@ -3220,10 +3261,12 @@ mutual
   nounTargeted (SomeOf _ grp) = nounTargeted grp
   nounTargeted TheRest = False
   nounTargeted It = False
+  nounTargeted (ItAt _) = False
   nounTargeted They = False
   nounTargeted Them = False
   nounTargeted (Those _) = False
   nounTargeted (That _) = False
+  nounTargeted (ThatHalf _) = False
   nounTargeted (AttachHost _ _) = False
   nounTargeted (TheVerbed _ _ _) = False
   nounTargeted (ThoseVerbed _ _ _) = False
@@ -3243,6 +3286,7 @@ mutual
   public export
   counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   counterMemoryOk It = not (stampMoves (provOfIt bs))
+  counterMemoryOk (ItAt sl) = not (stampMoves (provOfItAt sl bs))
   counterMemoryOk Them = not (stampMoves (provOfThem bs))
   -- a participle read names a referent some labeled action MOVED, so
   -- the counters it had are gone by the same rules.
@@ -3261,6 +3305,7 @@ mutual
   public export
   moveDestOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   moveDestOk It = False
+  moveDestOk (ItAt _) = False
   moveDestOk Them = False
   moveDestOk _ = True
 
@@ -3346,6 +3391,22 @@ mutual
     if itReaches OneOf b then setZone p z b :: bs else b :: setZoneIt p z bs
 
   public export
+  setZoneItAt : SlotCarrier -> Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
+  setZoneItAt sl p z [] = []
+  setZoneItAt sl p z (b :: bs) =
+    if itAtReaches sl b then setZone p z b :: bs else b :: setZoneItAt sl p z bs
+
+  ||| A union half is re-zoned as the whole mention is: the pair is one
+  ||| binding, and moving what one arm names moves the mention.
+  public export
+  setZoneUnionHalf : Maybe VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
+  setZoneUnionHalf p w z [] = []
+  setZoneUnionHalf p w z (b :: bs) =
+    if isOne b.plur && joinedPayload b.payload && halfReaches w b.payload
+      then setZone p z b :: bs
+      else b :: setZoneUnionHalf p w z bs
+
+  public export
   setZoneThem : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
   setZoneThem p z [] = []
   setZoneThem p z (b :: bs) =
@@ -3408,12 +3469,19 @@ mutual
   moveIntro p nn@(SomeOf _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p TheRest z = groupSpent bs
   moveIntro p It z = setZoneIt p z bs
+  moveIntro p (ItAt sl) z = setZoneItAt sl p z bs
   moveIntro p Them z = setZoneThem p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
+  moveIntro p (ThatHalf w) z = setZoneUnionHalf p w z bs
   moveIntro p (Those w) z = setZoneThose p w z bs
   moveIntro p (TheVerbed v w _) z = setZoneVerbed p v w z bs
   moveIntro p (ThoseVerbed v w _) z = setZoneManyVerbed p v w z bs
-  moveIntro p This z = bs
+  -- a moved bare self is announced like an ascribed one: `condDelta` and
+  -- `selfSubjIntro` already mint `SelfD` for `AsType t This _`, and the
+  -- object a cost discarded is the same object under the same
+  -- determiner. It names no card type, because `This` names none.
+  moveIntro p This z =
+    MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing) Nothing) :: bs
   moveIntro p (AttachHost _ _) z = bs
   moveIntro p (AsType t n _) z = MkBinding TheD Object OneOf (ObjectP (Just t) z (mkStamp p Nothing) Nothing) :: bs
   moveIntro p You z = bs
@@ -3443,9 +3511,11 @@ mutual
   nounZone (SomeOf _ grp) = nounZone grp
   nounZone TheRest = zoneOfGroup bs
   nounZone It = zoneOfIt bs
+  nounZone (ItAt sl) = zoneOfItAt sl bs
   nounZone They = Nothing
   nounZone Them = zoneOfThem bs
   nounZone (That w) = zoneOfThat w bs
+  nounZone (ThatHalf w) = zoneOfUnionHalf w bs
   nounZone (AttachHost _ h) = attachHostZone h
   nounZone (Those w) = zoneOfThose w bs
   nounZone (TheVerbed v w _) = zoneOfVerbed v w bs
@@ -3476,9 +3546,11 @@ mutual
   nounTy (SomeOf _ grp) = nounTy grp
   nounTy TheRest = tyOfGroup bs
   nounTy It = tyOfIt bs
+  nounTy (ItAt sl) = tyOfItAt sl bs
   nounTy They = Nothing
   nounTy Them = tyOfThem bs
   nounTy (That w) = tyOfThat w bs
+  nounTy (ThatHalf w) = tyOfUnionHalf w bs
   nounTy (AttachHost _ h) = attachHostTy h
   nounTy (Those w) = tyOfThose w bs
   nounTy (TheVerbed v w _) = tyOfVerbed v w bs
@@ -3526,9 +3598,11 @@ mutual
   nounPlur (SomeOf q _) = quantPlur q
   nounPlur TheRest = ManyOf
   nounPlur It = OneOf
+  nounPlur (ItAt _) = OneOf
   nounPlur They = OneOf
   nounPlur Them = ManyOf
   nounPlur (That w) = OneOf
+  nounPlur (ThatHalf w) = OneOf
   nounPlur (AttachHost _ _) = OneOf
   nounPlur (Those w) = ManyOf
   nounPlur (TheVerbed v w _) = OneOf
