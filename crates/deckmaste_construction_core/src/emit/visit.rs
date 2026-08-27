@@ -740,7 +740,6 @@ fn emit_declaration_determinative_walker(
         },
         quote! {
             pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, det: &#ty) {
-                visitor.visit_determinative_head(det);
                 if let #ty::Declared(id) = det {
                     visitor.visit_declaration(id);
                 }
@@ -2118,6 +2117,46 @@ mod tests {
             runtime_origins,
             [crate::DeclarationKind::Codec, crate::DeclarationKind::Codec],
             "both the codec callback and its leaf callback retain codec provenance",
+        );
+    }
+
+    #[test]
+    fn declaration_determinative_walker_visits_children_without_reentering_itself() {
+        let expansion = crate::generate(quote::quote! {
+            codec DeterminativeHead {
+                generate declaration_determinative {
+                    closed = [
+                        Each {
+                            number_license = SingularOnly;
+                            fused_head_license = FusedHead;
+                            nominal_license = CountNominal;
+                            realizations = [{ surface = "each"; }];
+                        },
+                    ];
+                }
+            }
+            construction only: Root {
+                element Only { head: lex DeterminativeHead, }
+                form only = lex(head);
+            }
+            root Root { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("declaration determinative visitor fixture is valid");
+        let source = expansion
+            .items()
+            .iter()
+            .map(|item| item.tokens.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            source.contains(
+                "if let DeterminativeHead :: Declared (id) = det { visitor . visit_declaration (id) ; }"
+            ),
+            "declared determinatives expose their declaration child: {source}",
+        );
+        assert!(
+            !source.contains("visitor . visit_determinative_head (det)"),
+            "the walker must not re-enter its own default callback: {source}",
         );
     }
 
