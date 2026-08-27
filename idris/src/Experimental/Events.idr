@@ -646,6 +646,7 @@ castComplementOk (Just Graveyard) = True
 castComplementOk (Just Exile) = True
 castComplementOk (Just Hand) = True
 castComplementOk (Just Library) = True
+castComplementOk (Just Command) = True
 
 public export
 castableTy : PlayVerb -> Maybe CardType -> Bool
@@ -679,6 +680,9 @@ playableFrom (Just Graveyard) = True
 playableFrom (Just Exile) = True
 playableFrom (Just Hand) = True
 playableFrom (Just Library) = True
+-- [CR#903.8] states the permission outright: "a player may cast a
+-- commander they own from the command zone".
+playableFrom (Just Command) = True
 -- an object on the stack has already been cast, so nothing may be
 -- played from it [CR#112.1].
 playableFrom (Just Stack) = False
@@ -692,6 +696,26 @@ public export
 -- have been the play source, so this reuses playableFrom's table.
 complementLocates : Maybe Zone -> Bool
 complementLocates z = playableFrom z
+
+||| Which zones a RETROSPECTIVE reader may name as an event's origin --
+||| the "from [zone]" a `Happened`/`EventCount`/`HappenedTo` writes beside
+||| the event it looks back on. A cast admits exactly `playableFrom`'s
+||| zones, and for the same reason: [CR#601.2a] moves the card out of the
+||| zone it was in, so the origin the clause names is a zone it could have
+||| been cast from. [CR#903.8] is the family that reads it back -- "for
+||| each previous time the player casting it has cast it from the command
+||| zone that game" -- and the printed lines write the hand and a
+||| graveyard alongside the command zone.
+||| No other event names an origin here. A placement's clause does write
+||| one ("put into your graveyard from the battlefield"), but
+||| `lookbackSubjectOk` admits no subject for `Placement` at any kind, so
+||| no reader reaches it; the rest have both ends fixed by their own rule
+||| and write neither -- [CR#700.4] makes "dies" MEAN a move from the
+||| battlefield to a graveyard, so a death clause names neither end.
+public export
+lookbackOriginOk : EventName -> Zone -> Bool
+lookbackOriginOk SpellCast z = playableFrom (Just z)
+lookbackOriginOk _ _ = False
 
 public export
 data CastableTy : PlayVerb -> Maybe CardType -> Type where

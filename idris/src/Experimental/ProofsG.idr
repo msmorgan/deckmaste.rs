@@ -136,6 +136,43 @@ badCastFromStack : Unspellable (Predicate [] Object) (\ok =>
 badCastFromStack Oh impossible
 
 
+||| "… that died from the battlefield this turn."
+||| [CR#700.4] fixes both ends of a death -- the term MEANS "is put into a graveyard from the battlefield" -- so the clause has no origin left to name.
+public export
+badDeathOriginZone : Unspellable (Predicate [] Object) (\ok =>
+  HappenedTo Death Lookback.ThisTurn
+             (Just (FromZones [Macros.battlefieldZ] Nothing {ok = ok})))
+badDeathOriginZone Oh impossible
+
+
+||| "if you've cast a spell from the stack this turn"
+||| The origin rider rides `playableFrom`: [CR#112.1] puts the card ON the stack as it is cast, so the stack is where a cast ends and never where one starts.
+public export
+badCastOriginFromStack : Unspellable (Condition []) (\ok =>
+  Happened SpellCast You Lookback.ThisTurn
+           (Just (FromZones [Macros.stackZ] Nothing {ok = ok})))
+badCastOriginFromStack Oh impossible
+
+
+||| "if you've cast a spell from this turn"
+||| Coordination at the zone sort still names zones; one that names none is no origin.
+public export
+badEmptyOriginCoordination : Unspellable (Condition []) (\ok =>
+  Happened SpellCast You Lookback.ThisTurn
+           (Just (FromZones [] Nothing {ok = ok})))
+badEmptyOriginCoordination Oh impossible
+
+
+||| "if you've cast a spell from your hand from the command zone this turn"
+||| One zone payload to a complement: the second "from" names nothing the first left unsaid.
+public export
+badNestedOriginPayload : Unspellable (Condition []) (\ok =>
+  Happened SpellCast You Lookback.ThisTurn
+           (Just (FromZones [Macros.handZ]
+                    (Just (FromZones [Macros.commandZ] Nothing)) {pl = ok})))
+badNestedOriginPayload Oh impossible
+
+
 ||| "If you control an artifact, create a token."
 ||| A coordination offers two clauses or more; at one it spells what the bare condition spells.
 public export

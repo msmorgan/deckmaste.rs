@@ -128,6 +128,12 @@ public export
 stackZ : ZoneExpr bs
 stackZ = ZoneAt Stack Bare
 
+||| The command zone is shared [CR#400.1], so it takes no possessor and
+||| the printed lines write it bare -- "the command zone", never "your".
+public export
+commandZ : ZoneExpr bs
+commandZ = ZoneAt Command Bare
+
 public export
 spell : Predicate bs Object
 spell = InZone stackZ
@@ -1711,6 +1717,46 @@ eventCountInvolving : {k : Kind} -> {kc : Kind} -> (ev : EventName) ->
                       {auto 0 sb : LookbackSubject ev k} -> Amount bs
 eventCountInvolving ev who w what =
   EventCount ev who w (Just (Involving what {cp})) {cw} {sb}
+
+||| "if you haven't cast a spell from your hand this turn": a lookback
+||| condition whose complement names the event's origin zone beside its
+||| participant.
+public export
+happenedFrom : {k : Kind} -> {kc : Kind} -> (ev : EventName) ->
+               (who : Noun bs k) -> (w : Lookback) ->
+               (what : Noun (nomIntro who) kc) ->
+               (zs : List (ZoneExpr (nomIntro who))) ->
+               {auto 0 cp : LookbackComplement ev k kc} ->
+               {auto 0 pl : So (complementPlain
+                                  (Just (Involving {bs = nomIntro who} what {cp})))} ->
+               {auto 0 zo : So (lookbackZonesOk ev zs)} ->
+               {auto 0 cw : ComplementWritten
+                              (Just (FromZones zs
+                                       (Just (Involving what {cp})) {pl} {ok = zo}))} ->
+               {auto 0 sb : LookbackSubject ev k} -> Condition bs
+happenedFrom ev who w what zs =
+  Happened ev who w
+    (Just (FromZones zs (Just (Involving what {cp})) {pl} {ok = zo})) {cw} {sb}
+
+||| "for each time you've cast your commander from the command zone this
+||| game": `happenedFrom`'s counted twin, the commander tax's readback
+||| [CR#903.8].
+public export
+eventCountFrom : {k : Kind} -> {kc : Kind} -> (ev : EventName) ->
+                 (who : Noun bs k) -> (w : Lookback) ->
+                 (what : Noun (nomIntro who) kc) ->
+                 (zs : List (ZoneExpr (nomIntro who))) ->
+                 {auto 0 cp : LookbackComplement ev k kc} ->
+                 {auto 0 pl : So (complementPlain
+                                    (Just (Involving {bs = nomIntro who} what {cp})))} ->
+                 {auto 0 zo : So (lookbackZonesOk ev zs)} ->
+                 {auto 0 cw : ComplementWritten
+                                (Just (FromZones zs
+                                         (Just (Involving what {cp})) {pl} {ok = zo}))} ->
+                 {auto 0 sb : LookbackSubject ev k} -> Amount bs
+eventCountFrom ev who w what zs =
+  EventCount ev who w
+    (Just (FromZones zs (Just (Involving what {cp})) {pl} {ok = zo})) {cw} {sb}
 
 ||| "At the beginning of enchanted player's upkeep, …": a turn part
 ||| possessed by a noun rather than by a quantifier word.

@@ -738,8 +738,13 @@ data Determiner = TargetD | AD | EachD | AllD | TheD | PartD
                 | CountD
                 | SelfD
 
+||| [CR#400.1]'s seven zones. A sideboard is not among them and is not
+||| added beside `Command`: [CR#400.11a] puts sideboard cards outside the
+||| game, and [CR#400.11] states outright that outside the game is not a
+||| zone.
 public export
 data Zone = Battlefield | Graveyard | Exile | Hand | Library | Stack
+          | Command
 
 public export
 Eq Zone where
@@ -755,6 +760,8 @@ Eq Zone where
   (==) Library _ = False
   (==) Stack Stack = True
   (==) Stack _ = False
+  (==) Command Command = True
+  (==) Command _ = False
 
 public export
 data LibPos = OnTop | OnBottom
@@ -1458,12 +1465,15 @@ publicZone Exile = True
 publicZone Hand = False
 publicZone Library = False
 publicZone Stack = True
+-- [CR#400.2] lists the command zone among the public zones.
+publicZone Command = True
 
 public export
 data ExposeVerb = LookAt | Reveal
 
--- [CR#400.2]: battlefield, graveyard and exile are already public zones,
--- so revealing them says nothing; the library is hidden but too large.
+-- [CR#400.2]: battlefield, graveyard, exile and command are already
+-- public zones, so revealing them says nothing; the library is hidden but
+-- too large.
 public export
 exposableZone : Zone -> Bool
 exposableZone Hand = True
@@ -1472,6 +1482,7 @@ exposableZone Graveyard = False
 exposableZone Exile = False
 exposableZone Library = True
 exposableZone Stack = False
+exposableZone Command = False
 
 public export
 ExposableZone : Zone -> Type
@@ -1625,6 +1636,9 @@ isCardZone (Just Exile) = True
 isCardZone (Just Hand) = True
 isCardZone (Just Library) = True
 isCardZone (Just Stack) = False
+-- [CR#903.3d]: an effect naming a commander in a zone names a CARD in
+-- that zone, so the command zone's objects take the card word.
+isCardZone (Just Command) = True
 
 public export
 onFieldZone : Maybe Zone -> Bool
@@ -1635,6 +1649,7 @@ onFieldZone (Just Exile) = False
 onFieldZone (Just Hand) = False
 onFieldZone (Just Library) = False
 onFieldZone (Just Stack) = False
+onFieldZone (Just Command) = False
 
 public export
 onStackZone : Maybe Zone -> Bool
@@ -1645,6 +1660,7 @@ onStackZone (Just Exile) = False
 onStackZone (Just Hand) = False
 onStackZone (Just Library) = False
 onStackZone (Just Stack) = True
+onStackZone (Just Command) = False
 
 ||| The provenance a LABELED action leaves on the mention it acted on,
 ||| whatever the action did to it: a move writes one ("the exiled card"),
@@ -3265,6 +3281,14 @@ destTypeOk ty Exile = True
 destTypeOk ty Hand = True
 destTypeOk ty Library = True
 destTypeOk ty Stack = True
+-- ungated like every zone but the battlefield. [CR#903.3] admits a
+-- creature, Vehicle or Spacecraft card and [CR#903.3a] any card whose own
+-- ability says it may be a commander, [CR#400.4b] keeps five further
+-- types in the zone outright, and the legendary supertype the first of
+-- those turns on is no card TYPE -- so the type slot alone refuses
+-- nothing here. A described placement of an instant card into the command
+-- zone overgenerates and is tolerated; no printed line writes one.
+destTypeOk ty Command = True
 
 public export
 Placeable : Maybe CardType -> Zone -> Type

@@ -104,6 +104,9 @@ mutual
   putDestZoneOk Library = True
   putDestZoneOk Hand = True
   putDestZoneOk Battlefield = True
+  -- [CR#903.9a] and [CR#903.9b] both write the move as putting the card
+  -- into the command zone, and Myth Unbound's header watches it.
+  putDestZoneOk Command = True
   putDestZoneOk Stack = False
 
   public export
@@ -120,6 +123,11 @@ mutual
   putSourceZoneOk Graveyard = True
   putSourceZoneOk Library = True
   putSourceZoneOk Exile = True
+  -- nothing refuses a move out of the command zone -- Hellkite Courser
+  -- prints one -- so the source stays open. No header among the 48
+  -- supported command-zone lines watches one; a measured zero, not a
+  -- refusal.
+  putSourceZoneOk Command = True
   putSourceZoneOk Hand = False
   putSourceZoneOk Stack = False
 

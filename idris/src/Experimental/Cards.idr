@@ -9694,3 +9694,59 @@ tahngarthHeader : GameEvent []
 tahngarthHeader =
   AttacksWith Macros.anOpponent
               (CountedGroup (Macros.atLeast 1) Macros.creature)
+
+||| Myth Unbound's header -- "Whenever your commander is put into the
+||| command zone from anywhere, draw a card." The command-zone row's
+||| witness: [CR#903.9a] and [CR#903.9b] both write the move as putting
+||| the card INTO the command zone, so `putDestZoneOk` has a value to
+||| admit where before it had none. The card's OTHER line, "your commander
+||| costs {1} less to cast for each time it's been cast from the command
+||| zone this game", does not write: it needs a cost-reduction static
+||| effect, of which the tree has none, and its passive names no caster
+||| where `EventCount` requires a subject noun. Commander's Insignia is
+||| the same family's active voice and does write.
+public export
+mythUnboundTrigger : Ability
+mythUnboundTrigger =
+  Macros.triggered Whenever
+    (Macros.putIntoFrom Macros.yourCommander Macros.commandZ FromAnywhere)
+    Macros.drawACard
+
+||| Commander's Insignia -- "Creatures you control get +1/+1 for each time
+||| you've cast your commander from the command zone this game." The
+||| origin rider's whole card, and the largest family that reads one back:
+||| [CR#903.8]'s commander tax counts casts "from the command zone that
+||| game", and 21 supported lines write the count.
+public export
+commandersInsignia : Card
+commandersInsignia =
+  Macros.card "Commander's Insignia"
+       (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (Gets (AllOf Macros.creatureYouControl)
+                      (PtUp (Macros.eventCountFrom SpellCast You
+                               Lookback.ThisGame Macros.yourCommander
+                               [Macros.commandZ]))
+                      (PtUp (Macros.eventCountFrom SpellCast You
+                               Lookback.ThisGame Macros.yourCommander
+                               [Macros.commandZ]))) ]
+       Nothing
+
+||| Jem Lightfoote, Sky Explorer -- "Flying, vigilance. At the beginning of
+||| your end step, if you haven't cast a spell from your hand this turn,
+||| draw a card." The origin rider away from the command zone: the same
+||| payload with the hand in it, and the cheapest of the seven supported
+||| lines that read a cast's origin without needing the new zone row.
+public export
+jemLightfooteSkyExplorer : Card
+jemLightfooteSkyExplorer =
+  Macros.card "Jem Lightfoote, Sky Explorer"
+       (Just [Macros.generic 2, Macros.pip White, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Scout"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.keyword "Vigilance"
+       , Macros.triggeredIf At (BeginningOf EndStep (ByWord Yours))
+           (NotCond (Macros.happenedFrom SpellCast You Lookback.ThisTurn
+                       (Macros.a Macros.spell) [Macros.handOf You]))
+           Macros.drawACard ]
+       (Just (3, 3))

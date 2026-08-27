@@ -283,3 +283,159 @@ it is sub-round 1, not this one** — sub-round 1's pin was architectural and
 the discard family is 96 lines, the largest single unblock in the bundle.
 
 Standard constraints apply.
+
+## 8. As landed (2026-08-26)
+
+### The seventh `Zone` row
+
+`Command` lands on `Words.idr:742`, with the `Sideboard` refusal recorded on
+the type's own docstring: [CR#400.11a] puts sideboard cards outside the game
+and [CR#400.11] states outright that outside the game is not a zone, so it
+is not a zone to add. All **eleven** tables of §1.4 were measured:
+
+| Table | Cell | The rule that decides it |
+|---|---|---|
+| `Eq Zone` | own pair | identity |
+| `publicZone` | `True` | [CR#400.2] lists command among the public zones |
+| `exposableZone` | `False` | public, so revealing it says nothing [CR#400.2] |
+| `isCardZone` | `True` | [CR#903.3d]: an effect naming a commander in a zone names a CARD in that zone |
+| `onFieldZone` | `False` | not the battlefield |
+| `onStackZone` | `False` | not the stack |
+| `destTypeOk` | `True` | [CR#903.3]/[CR#903.3a] gate commanders by supertype and by granted ability as much as by type, and [CR#400.4b] keeps five further types in the zone; the type slot alone refuses nothing. Instant-into-command-zone overgenerates, tolerated, zero printed lines |
+| `castComplementOk` | `True` | a cast complement names what casting makes the object, not where it is |
+| `playableFrom` | `True` | [CR#903.8] states the permission outright |
+| `complementLocates` | rides `playableFrom` | shared cell stays shared; 15 supported lines write "in the command zone" |
+| `putDestZoneOk` | `True` | [CR#903.9a] and [CR#903.9b] both write the move as putting the card INTO the command zone |
+| `putSourceZoneOk` | `True` | nothing refuses a move out (Hellkite Courser prints one); **measured zero** headers watch one, recorded not refused |
+
+`Possessable` gains no constructor: [CR#400.1] makes the command zone shared,
+and the printed lines write it bare. `Macros.commandZ` is the bare zone.
+
+### The sorted second payload (pins 1 + 2, one mechanism)
+
+`EventComplement` gains `FromZones` (`Phrase.idr`), carrying a **list** of
+`ZoneExpr` and, optionally, the participant complement it modifies:
+
+```idris
+FromZones : (zs : List (ZoneExpr bs)) ->
+            (what : Maybe (EventComplement bs ev ks)) ->
+            {auto 0 pl : So (complementPlain what)} ->
+            {auto 0 ok : So (lookbackZonesOk ev zs)} ->
+            EventComplement bs ev ks
+```
+
+It wraps rather than replaces `Involving` because the dominant family writes
+both in one complement — "you've cast **your commander** **from the command
+zone**" is a participant AND an origin — and writes the zone alone under the
+passive. `complementPlain` refuses a second zone payload inside the first.
+The gate is `Events.lookbackOriginOk : EventName -> Zone -> Bool`, whose only
+open row is `SpellCast`, riding `playableFrom` for the same reason
+`Predicate.CastFrom` does ([CR#601.2a] moves the card out of the zone it was
+in). All three readers — `Happened`, `EventCount`, `HappenedTo` — get it for
+free, since each already carries `Maybe (EventComplement …)`.
+
+**Pin 3, the zone coordination**, is the `List` and nothing else: ordinary
+coordination at the zone sort per
+`docs/decisions/kind-index-joins-union-marking-is-spelling.md`, no marked
+union row, and no `Or` gate to measure.
+
+Wrappers `Macros.happenedFrom` / `Macros.eventCountFrom`.
+
+Pins: `badDeathOriginZone`, `badCastOriginFromStack`,
+`badEmptyOriginCoordination`, `badNestedOriginPayload` (`ProofsG.idr`).
+
+### Re-measured (supported corpus, `.text` lines)
+
+- **Command zone mentions: 48** (parent said 49).
+- **Put-into headers naming it: exactly 2** — Myth Unbound and Reyhan, as
+  the ticket said.
+- **Commander lookback family: 21, not ~17.** The parent's number was
+  right and this ticket's re-estimate was low. Captain Vargus Wrath,
+  Commander's Insight, Commander's Insignia, Echo Storm, Empyrial Storm,
+  Font of Magic, Fury Storm, Genesis Storm, Hatut Zeraze Strike Force,
+  Henzie "Toolbox" Torre, Jeska Thrice Reborn, Jirina Kudro, Jyoti,
+  Liesa Shroud of Dusk, Myth Unbound, Opal Palace, Skull Storm, Study Hall,
+  The Swarmlord, Thunderclap Drake, Vanguard of the Restless. Sixteen write
+  the active "you've cast [a|your] commander from the command zone this
+  game"; Myth Unbound, Opal Palace and Study Hall write the agentless
+  passive; Liesa writes "for each previous time you've cast this spell".
+- **The cheaper origin riders: 7, not 11.** The six identical end-step
+  "if you haven't cast a spell from your hand this turn" lines (Canyon
+  Crab, Emergent Haunting, Inventive Wingsmith, Jem Lightfoote, Prairie
+  Dog, Wrangler of the Damned) plus Laboratory Drudge's "you've cast a
+  spell from a graveyard … this turn". The parent's remaining ~3 are
+  Impending Flux, Surge of Brilliance and Spider-Man 2099, which write
+  **"from anywhere other than your hand"** — a NEGATED origin, a separate
+  and more expensive shape, ledgered below.
+- **The placement's zone complement: 61 lines** under "(was|were) put
+  (into|there)" + a window, not 19 and not 10 — but ~35 of those are the
+  relative-clause reading ("card in your graveyard that was put there from
+  the battlefield this turn"), ~13 are conditions and ~5 counts. Not built
+  this round; see the blocker below.
+- **The counter pair's KIND complement: 3, and the count survives** —
+  Fairgrounds Trumpeter ("a +1/+1 counter was put on a permanent under
+  your control this turn"), Wakka Devoted Guardian (kindless), Churning
+  Reservoir ("an oil counter was removed from a permanent you controlled
+  this turn"). It is **dropped from this round on sort, not on count**: its
+  payload is a `CounterKind`, not a `ZoneExpr`, and
+  `lookbackSubjectOk CounterPlacement`/`CounterRemoval` are `False` at both
+  kinds, so no reader reaches it. Ledgered.
+
+### Witnesses benched (`Cards.idr`)
+
+- `mythUnboundTrigger` — "Whenever your commander is put into the command
+  zone from anywhere, draw a card." The `Command` row's witness.
+- `commandersInsignia` — whole card. The origin rider at the command zone,
+  the 21-line family's active voice.
+- `jemLightfooteSkyExplorer` — whole card. The origin rider at the hand,
+  the cheaper seven's cheapest whole line.
+
+### Blockers, named
+
+- **Myth Unbound is not whole.** Its first line, "Your commander costs {1}
+  less to cast for each time it's been cast from the command zone this
+  game", is blocked twice over: the tree has **no cost-reduction static
+  effect** at all, and the line's agentless passive names no caster where
+  `EventCount` requires a subject noun. Commander's Insignia carries the
+  same reading in the active voice and does write.
+- **Reyhan, Last of the Abzan** — as the ticket predicted: an `AltEvent`
+  coordination header whose body reads back "it"/"that many". Not chased.
+- **The placement's zone complement did not land**, and the reason is
+  structural rather than a preference. `lookbackSubjectOk Placement` is
+  `False` at Object and at Player, so no reader reaches a placement at all;
+  and a placement complement wants an ARRIVAL zone beside the origin, whose
+  gates (`putDestZoneOk`, `putSourceZoneOk`) live in `Triggers.idr`, which
+  imports `Phrase.idr` — they are not reachable from where
+  `EventComplement` is declared. `FromZones` is nonetheless the mechanism
+  it will use: the gate is keyed on the event, so `Placement` gets its cell
+  when its subject row opens.
+
+### Ledger — needs routing to live planned tickets
+
+1. **The `CastFrom` library cell** — recorded, not built, as the ticket
+   directs. Melek and Fblthp each carry a second unbuilt thing. Witness
+   still owed.
+2. **The counter pair's `CounterKind` complement** — 3 lines, measured
+   above; wants `lookbackSubjectOk CounterPlacement/CounterRemoval` opened
+   and a `CounterKind` payload of the same shape as `FromZones`.
+3. **The placement's zone complement** — 61 lines, blocked as above; needs
+   the `Placement` subject row and the arrival-zone gates re-homed out of
+   `Triggers.idr`.
+4. **The negated origin** — "from anywhere other than your hand", 3 lines
+   (Impending Flux, Surge of Brilliance, Spider-Man 2099). `FromZones`
+   carries a positive list only.
+5. **Drift found: `putDestZoneOk`'s docstring contradicts its own table.**
+   `Triggers.idr` says "The battlefield is excluded because English writes
+   'put ONTO the battlefield', never 'into' it [CR#603.6a]" while the cell
+   below reads `putDestZoneOk Battlefield = True`. Both landed together in
+   the `idris: extract Experimental.Triggers layer` change. Not touched
+   here: the fix direction (correct the prose, or close the cell) is a
+   judgment call, and closing the cell during a concurrent round is the
+   wrong move. §4 of this ticket leans on the doc's claim as settled and
+   should not.
+6. **`badCastFromBattlefield` is still HELD** and its note points at "the
+   zone round". This sub-round did not settle it — no rule categorically
+   refuses a cast from the battlefield, so `playableFrom Battlefield =
+   False` may be a count-based refusal, and flipping it cascades through
+   `castComplementOk`, `CastFrom` and the pin itself. Out of this round's
+   named scope.

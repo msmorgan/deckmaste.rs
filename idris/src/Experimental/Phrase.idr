@@ -120,6 +120,24 @@ mutual
     Involving : {kc : Kind} -> (what : Noun bs kc) ->
                 {auto 0 cp : LookbackComplement ev ks kc} ->
                 EventComplement bs ev ks
+    ||| The complement's SECOND payload sort -- a zone where `Involving`
+    ||| carries a participant. It names where the event's object came
+    ||| from: [CR#601.2a] moves a cast card out of the zone it was in, and
+    ||| [CR#903.8] is the family that reads that origin back, "for each
+    ||| previous time the player casting it has cast it from the command
+    ||| zone that game". The participant it wraps is optional because
+    ||| English writes the two in one complement ("you've cast your
+    ||| commander from the command zone") and writes the zone alone where
+    ||| no participant is named ("if you haven't cast a spell from your
+    ||| hand this turn" names both; Myth Unbound's passive names only the
+    ||| zone). Coordination is a plain list at the zone sort and no marked
+    ||| union row -- "from your hand or library" is two zones.
+    ||| -- spelling: "[what] from [zs]", the zones joined by "or".
+    FromZones : (zs : List (ZoneExpr bs)) ->
+                (what : Maybe (EventComplement bs ev ks)) ->
+                {auto 0 pl : So (complementPlain what)} ->
+                {auto 0 ok : So (lookbackZonesOk ev zs)} ->
+                EventComplement bs ev ks
 
   public export
   data ComplementWritten : {0 bs : Bindings} -> {0 ev : EventName} ->
@@ -130,6 +148,29 @@ mutual
                ComplementWritten {bs} {ev} {ks} Nothing
     Written : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
               {0 c : EventComplement bs ev ks} -> ComplementWritten (Just c)
+
+  ||| One zone payload to a complement: a zone list wraps a participant,
+  ||| never a second zone list.
+  public export
+  complementPlain : {0 bs : Bindings} -> {0 ev : EventName} -> {0 ks : Kind} ->
+                    Maybe (EventComplement bs ev ks) -> Bool
+  complementPlain Nothing = True
+  complementPlain (Just (Involving _)) = True
+  complementPlain (Just (FromZones _ _)) = False
+
+  ||| Every named zone must be one the event's clause may name as its
+  ||| origin, and a coordination that names none is no coordination.
+  public export
+  lookbackZonesOk : {0 bs : Bindings} -> EventName -> List (ZoneExpr bs) -> Bool
+  lookbackZonesOk _ [] = False
+  lookbackZonesOk ev (z :: zs) =
+    lookbackOriginOk ev (zoneSort z) && allOriginZonesOk ev zs
+
+  public export
+  allOriginZonesOk : {0 bs : Bindings} -> EventName -> List (ZoneExpr bs) -> Bool
+  allOriginZonesOk _ [] = True
+  allOriginZonesOk ev (z :: zs) =
+    lookbackOriginOk ev (zoneSort z) && allOriginZonesOk ev zs
 
   public export
   data Predicate : Bindings -> Kind -> Type where
@@ -1689,6 +1730,13 @@ mutual
                     Maybe (EventComplement bs ev ks) -> List Binding
   complementDelta Nothing = []
   complementDelta (Just (Involving what)) = nounDelta what
+  complementDelta (Just (FromZones zs what)) =
+    zonesDelta zs ++ complementDelta what
+
+  public export
+  zonesDelta : {bs : Bindings} -> List (ZoneExpr bs) -> List Binding
+  zonesDelta [] = []
+  zonesDelta (z :: zs) = zoneDelta z ++ zonesDelta zs
 
   public export
   data Amount : Bindings -> Type where
