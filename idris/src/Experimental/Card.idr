@@ -100,42 +100,97 @@ staticOnSpellCardOk (OnlyWhile se _ _) = staticOnSpellCardOk se
 staticOnSpellCardOk _ = False
 
 public export
-cardAbilityOk : {0 bs : Bindings} -> CardClass -> AbilityAt bs -> Bool
-cardAbilityOk PermanentCard (KeywordAbility k _) = keywordCardOk PermanentCard k
-cardAbilityOk PermanentCard (Activated _ _ _ _ _) = True
-cardAbilityOk PermanentCard (Triggered _ _ _ _ _ _ _) = True
-cardAbilityOk PermanentCard (Static _) = True
-cardAbilityOk PermanentCard (AlsoForKeywords ab _) = cardAbilityOk PermanentCard ab
-cardAbilityOk PermanentCard (Spell _) = False
-cardAbilityOk PermanentCard (AbilityWord _ ab) = cardAbilityOk PermanentCard ab
-cardAbilityOk SpellCard (KeywordAbility k _) = keywordCardOk SpellCard k
-cardAbilityOk SpellCard (Activated c _ _ _ _) = costOffBattlefield c
-cardAbilityOk SpellCard (Triggered _ _ _ _ _ _ _) = True
-cardAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
-cardAbilityOk SpellCard (AlsoForKeywords ab _) = cardAbilityOk SpellCard ab
-cardAbilityOk SpellCard (Spell _) = True
-cardAbilityOk SpellCard (AbilityWord _ ab) = cardAbilityOk SpellCard ab
+classAbilityOk : {0 bs : Bindings} -> CardClass -> AbilityAt bs -> Bool
+classAbilityOk PermanentCard (KeywordAbility k _) = keywordCardOk PermanentCard k
+classAbilityOk PermanentCard (Activated _ _ _ _ _) = True
+classAbilityOk PermanentCard (Triggered _ _ _ _ _ _ _) = True
+classAbilityOk PermanentCard (Static _) = True
+classAbilityOk PermanentCard (AlsoForKeywords ab _) = classAbilityOk PermanentCard ab
+classAbilityOk PermanentCard (Spell _) = False
+classAbilityOk PermanentCard (AbilityWord _ ab) = classAbilityOk PermanentCard ab
+classAbilityOk SpellCard (KeywordAbility k _) = keywordCardOk SpellCard k
+classAbilityOk SpellCard (Activated c _ _ _ _) = costOffBattlefield c
+classAbilityOk SpellCard (Triggered _ _ _ _ _ _ _) = True
+classAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
+classAbilityOk SpellCard (AlsoForKeywords ab _) = classAbilityOk SpellCard ab
+classAbilityOk SpellCard (Spell _) = True
+classAbilityOk SpellCard (AbilityWord _ ab) = classAbilityOk SpellCard ab
 -- A command-zone card is never a permanent and is never cast
 -- [CR#309.2c,311.2,312.2,313.2,314.2,315.3], so it prints no spell
 -- ability [CR#113.3a] and its activated ability's cost is read off the
 -- battlefield for the same reason a spell card's is [CR#113.6j].
 -- [CR#311.4,313.4,314.4] give these cards static, triggered and activated
--- abilities from the command zone. Overgenerated: a conspiracy's rule stops
--- at static and triggered [CR#315.5] and a dungeon's names its rooms'
--- triggers [CR#309.4c], but the class is the six types together and no rule
--- reads a narrower list off a shared frame.
-cardAbilityOk CommandZoneCard (KeywordAbility k _) = keywordCardOk CommandZoneCard k
-cardAbilityOk CommandZoneCard (Activated c _ _ _ _) = costOffBattlefield c
-cardAbilityOk CommandZoneCard (Triggered _ _ _ _ _ _ _) = True
-cardAbilityOk CommandZoneCard (Static _) = True
-cardAbilityOk CommandZoneCard (AlsoForKeywords ab _) = cardAbilityOk CommandZoneCard ab
-cardAbilityOk CommandZoneCard (Spell _) = False
-cardAbilityOk CommandZoneCard (AbilityWord _ ab) = cardAbilityOk CommandZoneCard ab
+-- abilities from the command zone. That is the SHARED frame; where one
+-- type's own rule reads a narrower list, `commandZoneTypeAbilityOk` below
+-- says so, and `cardAbilityOk` asks both.
+classAbilityOk CommandZoneCard (KeywordAbility k _) = keywordCardOk CommandZoneCard k
+classAbilityOk CommandZoneCard (Activated c _ _ _ _) = costOffBattlefield c
+classAbilityOk CommandZoneCard (Triggered _ _ _ _ _ _ _) = True
+classAbilityOk CommandZoneCard (Static _) = True
+classAbilityOk CommandZoneCard (AlsoForKeywords ab _) = classAbilityOk CommandZoneCard ab
+classAbilityOk CommandZoneCard (Spell _) = False
+classAbilityOk CommandZoneCard (AbilityWord _ ab) = classAbilityOk CommandZoneCard ab
+
+||| What ONE command-zone type's own rule licenses, where that rule reads
+||| a narrower list than the shared frame. Three of the six read the frame
+||| exactly -- [CR#311.4], [CR#313.4] and [CR#314.4] each give a plane, a
+||| vanguard and a scheme card "any number of static, triggered, and/or
+||| activated abilities" -- so those three have nothing to say here and
+||| fall to the catch-all, as does every type that is not a command-zone
+||| type at all.
+|||
+||| Two read narrower. [CR#315.5] gives a conspiracy card static or
+||| triggered abilities and stops: no activated ability is licensed from
+||| the command zone, where the plane, vanguard and scheme rules each name
+||| one. [CR#309.4c] is narrower still -- a dungeon card's abilities are
+||| its ROOMS' triggered abilities, whose full text the rule writes out,
+||| and it licenses their triggering and nothing else.
+|||
+||| Phenomena are left OPEN, and deliberately: [CR#312.5] states that each
+||| phenomenon card has the encounter trigger, which is a fact about what
+||| such cards carry and not a list of what they may carry. It is the only
+||| rule about a phenomenon's abilities, and it neither licenses nor
+||| refuses a static or an activated one -- and stating no licence is not
+||| refusing one, so this cell stands open rather than shut on a rule that
+||| does not say it.
+|||
+||| Measured at ZERO throughout: of the 443 cards in the corpus carrying
+||| one of these six types (29 conspiracies, 21 phenomena, 184 planes, 102
+||| schemes, 107 vanguards; no dungeon is a card there at all), not one is
+||| supported. So both refusals refuse a line no vintage-playable card
+||| writes. They are taken anyway because a rule REFUSES them, which is
+||| the line the tolerated-overgeneration doctrine draws: an overgeneration
+||| no rule refuses is recorded at its zero, and one a rule refuses is
+||| closed whatever the count.
+public export
+commandZoneTypeAbilityOk : {0 bs : Bindings} -> CardType -> AbilityAt bs -> Bool
+commandZoneTypeAbilityOk t (AlsoForKeywords ab _) = commandZoneTypeAbilityOk t ab
+commandZoneTypeAbilityOk t (AbilityWord _ ab) = commandZoneTypeAbilityOk t ab
+commandZoneTypeAbilityOk Conspiracy (Activated _ _ _ _ _) = False
+commandZoneTypeAbilityOk Dungeon (KeywordAbility _ _) = False
+commandZoneTypeAbilityOk Dungeon (Activated _ _ _ _ _) = False
+commandZoneTypeAbilityOk Dungeon (Static _) = False
+commandZoneTypeAbilityOk _ _ = True
+
+||| ...over the whole printed line, because [CR#300.2] lets a card name
+||| more than one type and each named type's own rule binds the card.
+public export
+commandZoneTypesAbilityOk : {0 bs : Bindings} -> List CardType -> AbilityAt bs -> Bool
+commandZoneTypesAbilityOk [] a = True
+commandZoneTypesAbilityOk (t :: ts) a =
+  commandZoneTypeAbilityOk t a && commandZoneTypesAbilityOk ts a
+
+||| An ability a card may print: its FRAME's licence and its own TYPES'.
+||| The frame is the shared one three of the command-zone rules state
+||| verbatim; the types are where the other two narrow it.
+public export
+cardAbilityOk : {0 bs : Bindings} -> List CardType -> AbilityAt bs -> Bool
+cardAbilityOk tys a = classAbilityOk (cardClassOf tys) a && commandZoneTypesAbilityOk tys a
 
 public export
 cardTextOk : {0 bs : Bindings} -> List CardType -> AbilitySeq bs -> Bool
 cardTextOk tys [] = True
-cardTextOk tys (a :: as) = cardAbilityOk (cardClassOf tys) a && cardTextOk tys as
+cardTextOk tys (a :: as) = cardAbilityOk tys a && cardTextOk tys as
 
 public export
 chapterLineOk : {0 bs : Bindings} -> List Subtype -> AbilityAt bs -> Bool

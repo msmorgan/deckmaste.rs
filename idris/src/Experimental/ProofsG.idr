@@ -591,6 +591,28 @@ badSpellFlipHalf : Unspellable Card (\ok =>
            {ah = ok})
 badSpellFlipHalf Oh impossible
 
+||| an activated ability printed on a conspiracy card
+||| [CR#315.5] gives a conspiracy card "any number of static or triggered
+||| abilities" and licenses only those from the command zone, where
+||| [CR#311.4], [CR#313.4] and [CR#314.4] each name an activated one too. The
+||| shared command-zone frame admits it; the type's own rule does not.
+public export
+badConspiracyActivated : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Conspiracy])
+       [ Macros.activated (Mana [Macros.generic 1]) Macros.drawACard ] Nothing {tx = ok})
+badConspiracyActivated Oh impossible
+
+||| a static ability printed on a dungeon card
+||| [CR#309.4c] writes out the full text of every ability a dungeon card has --
+||| one triggered room ability per room -- and licenses their triggering and
+||| nothing else, so no static ability sits on the card.
+public export
+badDungeonStatic : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Dungeon])
+       [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 1)
+                   Macros.plusOnePlusOne) ] Nothing {tx = ok})
+badDungeonStatic Oh impossible
+
 
 ||| "your opponents' devotion to black"
 ||| [CR#700.5] defines devotion per player -- a count among the mana costs of
