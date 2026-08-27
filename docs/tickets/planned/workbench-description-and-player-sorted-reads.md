@@ -201,6 +201,15 @@ which case the spelling stands and the renderer owes it — or a GENUINE CROSSIN
 in which case the determiner is a row after all. Decide it; do not re-open the
 partitive widening, which was already refused.
 
+**RULED (user, 2026-08-27): single environment.** Neither fork. There is no
+second spelling environment for replacement statics, and no determiner row: the
+covariance rule is the only rule, and "one of your opponents" is a spelling of
+`Indefinite Opponent`. The three violating lines (Fiendish Duo, Gisela, Rem
+Karolus) are exceptional card templating, owned by an eventual RON macro that
+respells the same concept — the macro layer absorbs the exception, the grammar
+does not. The round builds nothing for the three lines beyond recording them as
+macro-owed; the 80/83 spelling read proceeds on the measured covariance.
+
 ### Fixed either way
 
 `groupMention (PlayerGroup _)` stays False. Its own reader measured 8 lines
