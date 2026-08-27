@@ -366,7 +366,7 @@ badChapterIntervening Oh impossible
 ||| the lore counter's placement [CR#714.2b].
 public export
 badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
-  Intercepts (ChapterMark [ChapterI]) [] Macros.drawACard Repeatedly {ok})
+  Intercepts (ChapterMark [ChapterI]) [] Macros.drawACard Repeatedly Nothing {ok})
 badChapterReplacement Oh impossible
 
 

@@ -1011,7 +1011,7 @@ ifWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                  (d : Maybe (Duration (eventIntro ev))) ->
                  {auto 0 ok : Interceptable ev} ->
                  {auto 0 sp : SpanOk Replacement d} -> Effect bs
-ifWouldInstead ev repl d = Continuously (Intercepts ev [] repl Repeatedly {ok}) d {sp}
+ifWouldInstead ev repl d = Continuously (Intercepts ev [] repl Repeatedly Nothing {ok}) d {sp}
 
 public export
 nextTimeWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
@@ -1019,7 +1019,7 @@ nextTimeWouldInstead : (ev : GameEvent bs) -> (repl : Effect (eventIntro ev)) ->
                        {auto 0 ok : Interceptable ev} ->
                        {auto 0 sp : SpanOk Replacement d} -> Effect bs
 nextTimeWouldInstead ev repl d =
-  Continuously (Intercepts ev [] repl NextTimeOnly {ok}) d {sp}
+  Continuously (Intercepts ev [] repl NextTimeOnly Nothing {ok}) d {sp}
 
 public export
 preventAll : (kind : DamageKind) -> (scope : DamageScope bs) ->

@@ -834,7 +834,7 @@ turnInScopeResolvesInPrefix bs ok = resolveOnes TurnRef bs ok
 -- clause wrote [CR#111.3].
 
 ||| `countTokenSpecs` is the one gate whose definition overlaps its
-||| patterns on three fields at once, so it is not restated as a
+||| patterns on two fields at once, so it is not restated as a
 ||| `countBy` fold here; what it shares with every gate above is stated
 ||| directly instead. The structural fact — the gate takes the context
 ||| and nothing else — is this function's existence.
@@ -848,6 +848,33 @@ tokenAsThoseReadsOnlyPrefix bs ok = TokenAsThose {bs} {ok}
 public export
 noTokenAsThoseWithoutAntecedent : Not (countTokenSpecs [] = 1)
 noTokenAsThoseWithoutAntecedent Refl impossible
+
+||| The gate counts a DEFINITION, so plurality is not one of the fields it
+||| reads: a create clause that made one token satisfies it exactly as a
+||| clause that made a batch does [CR#111.3]. Both halves are witnessed,
+||| because the singular half is what this gate used to refuse.
+public export
+oneTokenIsOneSpec :
+  countTokenSpecs [MkBinding AD Object OneOf
+                             (ObjectP (Just Creature) (Just Battlefield)
+                                      Nothing (Just TokenOrigin))] = 1
+oneTokenIsOneSpec = Refl
+
+public export
+manyTokensAreOneSpec :
+  countTokenSpecs [MkBinding AD Object ManyOf
+                             (ObjectP (Just Creature) (Just Battlefield)
+                                      Nothing (Just TokenOrigin))] = 1
+manyTokensAreOneSpec = Refl
+
+||| A non-token object leaves no definition whatever its plurality, which
+||| is the fact `badAnaphoricTokenAfterNonToken` (ProofsE) spells as a card.
+public export
+oneNonTokenIsNoSpec :
+  countTokenSpecs [MkBinding TheD Object OneOf
+                             (ObjectP (Just Creature) (Just Battlefield)
+                                      Nothing Nothing)] = 0
+oneNonTokenIsNoSpec = Refl
 
 
 -- "of their choice": the determiner marking on a noun some player named

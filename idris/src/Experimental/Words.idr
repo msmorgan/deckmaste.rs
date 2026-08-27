@@ -2235,11 +2235,17 @@ tyOfUnionHalf w (b :: bs) =
 ||| "those tokens" names the characteristics definition a create clause
 ||| wrote [CR#111.3], not the objects; [CR#111.7] ends the objects when
 ||| they leave the battlefield and leaves that definition standing.
+||| PLURALITY-BLIND: one token defines characteristics exactly as a batch
+||| does, so a create clause that made ONE leaves a definition to read --
+||| Prismari Pianist writes "create a 1/1 blue and red Elemental creature
+||| token. ... create three of THOSE TOKENS instead", and Mr. House writes
+||| the singular anaphor itself ("instead create THAT TOKEN and a Treasure
+||| token"), one spelling of this constructor rather than a second word.
 public export
 countTokenSpecs : Bindings -> Nat
 countTokenSpecs [] = Z
 countTokenSpecs (MkBinding SelfD _ _ _ :: bs) = countTokenSpecs bs
-countTokenSpecs (MkBinding _ _ ManyOf (ObjectP _ _ _ og) :: bs) =
+countTokenSpecs (MkBinding _ _ _ (ObjectP _ _ _ og) :: bs) =
   if isTokenOrigin og then S (countTokenSpecs bs) else countTokenSpecs bs
 countTokenSpecs (_ :: bs) = countTokenSpecs bs
 
@@ -2294,6 +2300,16 @@ tyOfThose w (b :: bs) =
   case (b.plur, wordNow w b) of
     (ManyOf, True) => bindingTy b
     _ => tyOfThose w bs
+
+||| `tyOfThose` with the plurality demand dropped, for the reads that take
+||| a DEFINITION rather than a batch of objects: `countTokenSpecs` counts
+||| a token-origin binding whatever its plurality, and the head type the
+||| anaphor reads back has to be found in the same place the gate counted.
+public export
+tyOfThoseAny : NounWord -> Bindings -> Maybe CardType
+tyOfThoseAny w [] = Nothing
+tyOfThoseAny w (b :: bs) =
+  if wordNow w b then bindingTy b else tyOfThoseAny w bs
 
 public export
 tyOfVerbed : VerbLabel -> NounWord -> Bindings -> Maybe CardType

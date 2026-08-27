@@ -766,11 +766,11 @@ glacialChasmShield =
 miserysShadow : Ability
 miserysShadow =
   Static (Intercepts (Dies (Macros.a (And [Macros.creature, ControlledBy (Macros.a Opponent)]))) []
-                     (Macros.exile It) Repeatedly)
+                     (Macros.exile It) Repeatedly Nothing)
 
 thoughtReflection : Ability
 thoughtReflection =
-  Static (Intercepts (Draws You) [] (Draw You (Lit 2)) Repeatedly)
+  Static (Intercepts (Draws You) [] (Draw You (Lit 2)) Repeatedly Nothing)
 
 jorKadeen : Ability
 jorKadeen =
@@ -1529,14 +1529,14 @@ theGoldenThrone =
   Static (Intercepts (LosesGame You) []
                      (Sequentially [Macros.exile Macros.thisArtifact,
                                     ChangeLife You (Set (Lit 1))])
-                     Repeatedly)
+                     Repeatedly Nothing)
 
 stunningReversal : Ability
 stunningReversal =
   Spell (Continuously (Intercepts (LosesGame You) []
                                   (Sequentially [Draw You (Lit 7),
                                                  ChangeLife You (Set (Lit 1))])
-                                  NextTimeOnly)
+                                  NextTimeOnly Nothing)
                       (Just Macros.thisTurn))
 
 
@@ -1563,7 +1563,7 @@ exquisiteArchangel =
        , Static (Intercepts (LosesGame You) []
                             (Sequentially [Macros.exile Macros.thisCreature,
                                            ChangeLife You (Set (PlayerStatOf StartingLifeTotal You))])
-                            Repeatedly) ]
+                            Repeatedly Nothing) ]
        (Just (5, 5))
 
 spaceTimeAnomaly : Card
@@ -2643,7 +2643,7 @@ hardenedScales =
                                             (Macros.a Macros.creatureYouControl)) []
                    (PutCounters (Plus ThatMuch (Lit 1))
                                 (PrintedKind Macros.plusOnePlusOne) It)
-                   Repeatedly) ]
+                   Repeatedly Nothing) ]
        Nothing
 
 branchingEvolution : Card
@@ -2656,7 +2656,7 @@ branchingEvolution =
                                             (Macros.a Macros.creatureYouControl)) []
                    (PutCounters (Times 2 ThatMuch)
                                 (PrintedKind Macros.plusOnePlusOne) (That (TypeW Creature)))
-                   Repeatedly) ]
+                   Repeatedly Nothing) ]
        Nothing
 
 ||| Corpsejack Menace — "If one or more +1/+1 counters would be put on a
@@ -2669,7 +2669,7 @@ corpsejackMenace =
             (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
                                      (Macros.a Macros.creatureYouControl)) []
             (PutCounters (Times 2 ThatMuch) (PrintedKind Macros.plusOnePlusOne) It)
-            Repeatedly)
+            Repeatedly Nothing)
 
 ||| Doubling Season, whole: "If an effect would create one or more tokens
 ||| under your control, it creates twice that many of those tokens
@@ -2684,12 +2684,12 @@ doublingSeason =
                    (Macros.tokensCreatedByEffectUnder
                       (CountedGroup (Macros.atLeast 1) IsToken) You) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
-                   Repeatedly)
+                   Repeatedly Nothing)
        , Static (Intercepts
                    (Macros.manyCountersPutByEffect
                       (Macros.a (And [Permanent, ControlledBy You]))) []
                    (PutCountersOfThoseKinds (Times 2 ThatMuch) (That PermanentW))
-                   Repeatedly) ]
+                   Repeatedly Nothing) ]
        Nothing
 
 ||| Doc Samson, Super Psychiatrist — "If you would put one or more counters
@@ -2704,7 +2704,7 @@ docSamsonDistributive =
             (Macros.manyBareCountersPutBy You
                (Macros.a (And [Permanent, ControlledBy You]))) []
             (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1)) (That PermanentW))
-            Repeatedly)
+            Repeatedly Nothing)
 
 ||| Winding Constrictor, whole: the object-side distributive over a
 ||| disjoined holder, and its player-side twin — "If you would get one or
@@ -2721,11 +2721,11 @@ windingConstrictor =
                                       ControlledBy You]))) []
                    (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1))
                                             (That PermanentW))
-                   Repeatedly)
+                   Repeatedly Nothing)
        , Static (Intercepts
                    (Macros.manyBareCounterEvent CounterPut You) []
                    (GetsCountersOfThoseKinds You (Plus ThatMuch (Lit 1)))
-                   Repeatedly) ]
+                   Repeatedly Nothing) ]
        (Just (2, 3))
 
 ||| Aragorn, Company Leader (second line) — "Whenever you put one or more
@@ -2989,7 +2989,7 @@ divineVisitation =
                                            (MkTypeLine [creatureType "Angel"] [Creature])
                                            [Macros.keyword "Flying", Macros.keyword "Vigilance"]
                                              Nothing))
-                   Repeatedly) ]
+                   Repeatedly Nothing) ]
        Nothing
 
 anointedProcession : Card
@@ -3001,7 +3001,7 @@ anointedProcession =
                    (Macros.tokensCreatedByEffectUnder (CountedGroup (Macros.atLeast 1) IsToken)
                                                       You) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
-                   Repeatedly) ]
+                   Repeatedly Nothing) ]
        Nothing
 
 primalVigor : Card
@@ -3012,13 +3012,13 @@ primalVigor =
        [ Static (Intercepts
                    (Macros.tokensCreated (CountedGroup (Macros.atLeast 1) IsToken)) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
-                   Repeatedly)
+                   Repeatedly Nothing)
        , Static (Intercepts
                    (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
                                             (Macros.a Macros.creature)) []
                    (PutCounters (Times 2 ThatMuch)
                                 (PrintedKind Macros.plusOnePlusOne) (That (TypeW Creature)))
-                   Repeatedly) ]
+                   Repeatedly Nothing) ]
        Nothing
 
 adrixAndNev : Card
@@ -3030,7 +3030,7 @@ adrixAndNev =
        , Static (Intercepts
                    (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) IsToken) You) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
-                   Repeatedly) ]
+                   Repeatedly Nothing) ]
        (Just (2, 2))
 
 
@@ -7766,7 +7766,7 @@ clergyOfTheHolyNimbus : Ability
 clergyOfTheHolyNimbus =
   Static (Intercepts (VerbedEvent Nothing "Destroy"
                                   (Just Macros.thisCreature)) []
-                     (Regenerate Macros.thisCreature) Repeatedly)
+                     (Regenerate Macros.thisCreature) Repeatedly Nothing)
 
 ||| Rampant Frogantua's second line: "This creature gets +10/+10 for each
 ||| player who has lost the game." The game-loss look-back [CR#603.10f].
@@ -10315,3 +10315,87 @@ blessedRespiteShuffle : Effect []
 blessedRespiteShuffle =
   Macros.shufflesInto (Macros.target AnyPlayer)
     (AllOf (InZone (Macros.graveyardOf They)))
+
+
+-- ---------------------------------------------------------------------------
+-- The replacement side of a create clause
+-- ---------------------------------------------------------------------------
+
+||| Conqueror's Pledge, whole -- "Kicker {6} / Create six 1/1 white Kor
+||| Soldier creature tokens. If this spell was kicked, create twelve of
+||| those tokens instead." The DEFINITION CHANNEL at its plainest:
+||| [CR#614.6] makes the replaced creation never happen, so the tokens
+||| the first clause would have made are not objects the second clause
+||| can name -- but the characteristics it wrote are still written, and
+||| that definition [CR#111.3] is what "those tokens" reads. `replacedCtx`
+||| threads it: `deedDelta (Create ...)` mints the token-origin binding
+||| `countTokenSpecs` counts.
+public export
+conquerorsPledge : Card
+conquerorsPledge =
+  Macros.card "Conqueror's Pledge"
+       (Just [Macros.generic 2, Macros.pip White, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Macros.keywordCosting "Kicker" (Mana [Macros.generic 6])
+       , Spell (InsteadOf
+                  (Macros.create (Lit 6)
+                     (Macros.creatureTok 1 1 [White]
+                        [creatureType "Kor", creatureType "Soldier"]))
+                  (If (Matches This (PaidCost (ByKeyword "Kicker")))
+                      (Create You (Lit 12) TokenAsThose [])
+                      Nothing)) ]
+       Nothing
+
+||| Prismari Pianist, whole -- "Whenever you cast an instant or sorcery
+||| spell, create a 1/1 blue and red Elemental creature token. If that
+||| spell's mana value is 5 or greater, create three of those tokens
+||| instead." The SINGULAR antecedent: one token was written, and one
+||| token defines characteristics exactly as a batch does, so the anaphor
+||| finds its definition. `countTokenSpecs` used to demand a plural
+||| antecedent and refused this line; Mr. House writes the other half of
+||| the same fact, the singular ANAPHOR ("instead create that token"),
+||| and waits on the coordination of two specifications.
+public export
+prismariPianist : Card
+prismariPianist =
+  Macros.card "Prismari Pianist"
+       (Just [Macros.generic 1, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Djinn", creatureType "Bard"] [Creature])
+       [ Macros.triggered Whenever
+           (Casts You (Macros.a (And [Macros.instantOrSorcery, Macros.spell])))
+           (InsteadOf
+              (Create You (Lit 1)
+                 (TokenWritten (Macros.creatureTok 1 1 [Blue, Red]
+                                  [creatureType "Elemental"])) [])
+              (If (CompareAmt (StatOf ManaValue (That SpellW)) AtLeast (Lit 5))
+                  (Create You (Lit 3) TokenAsThose [])
+                  Nothing)) ]
+       (Just (2, 1))
+
+||| Moonlit Meditation, whole -- "Enchant artifact or creature you control
+||| / The first time you would create one or more tokens each turn, you
+||| may instead create that many tokens that are copies of enchanted
+||| permanent." The CAP on a standing replacement: [CR#614.3] says how
+||| long the effect lasts -- here as long as the Aura is on the
+||| battlefield -- and the rider says how OFTEN it may apply while it
+||| stands, which is the trigger rider's own word (`UsageLimit`) rather
+||| than a third `ReplUse` ending. Esix, Fractal Bloom and Mirrormind
+||| Crown write the same clause behind a chooser and an attachment
+||| condition.
+public export
+moonlitMeditation : Card
+moonlitMeditation =
+  Macros.card "Moonlit Meditation" (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant"
+           (And [Or [Macros.artifact, Macros.creature], ControlledBy You])
+       , Static (Intercepts
+                   (TokensCreated (CountedGroup (Macros.atLeast 1) IsToken)
+                                  Nothing (Just You) Nothing)
+                   []
+                   (May (Just You)
+                        (Create You GroupSize
+                                (TokenCopyOf (AttachHost Enchanted PermanentW) []) [])
+                        Nothing Nothing)
+                   Repeatedly (Just OncePerTurn)) ]
+       Nothing

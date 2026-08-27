@@ -70,6 +70,15 @@ mutual
                    {auto 0 sf : SubtypesFit t} ->
                    {auto 0 ta : TokenAbilities t} ->
                    {auto 0 tc : TokenCanonical t} -> TokenSpec bs
+    ||| The anaphoric specification: the create clause reads back a
+    ||| definition of characteristics an earlier clause wrote [CR#111.3],
+    ||| never the objects that definition made. NOT gated on the
+    ||| antecedent's plurality -- one token carries a definition as a
+    ||| batch does, and English spells the read to agree with what it
+    ||| found ("those tokens" after a batch, "that token" after one),
+    ||| which is spelling and not a second constructor.
+    ||| -- spelling: "[count] of those tokens"; after a singular
+    ||| antecedent, "that token".
     TokenAsThose : {auto 0 ok : countTokenSpecs bs = 1} -> TokenSpec bs
     TokenCopyOf : (src : Noun bs Object) -> (exc : List (CopyExcept bs)) ->
                   {auto 0 pm : PerMember src} -> TokenSpec bs
@@ -77,7 +86,7 @@ mutual
   public export
   specHeadTy : {bs : Bindings} -> TokenSpec bs -> Maybe CardType
   specHeadTy (TokenWritten t) = tokenHeadTy t
-  specHeadTy TokenAsThose = tyOfThose TokenW bs
+  specHeadTy TokenAsThose = tyOfThoseAny TokenW bs
   specHeadTy (TokenCopyOf src _) = nounTy src
 
   ||| What a written token's P/T amounts mention; a copy's source is left
@@ -230,9 +239,20 @@ mutual
                           StaticEffect bs
       GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                      {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
+      ||| The cap slot is the trigger rider's word reused, not a third
+      ||| `ReplUse` ending: [CR#614.3]'s two endings say how long the
+      ||| replacement STANDS, where "the first time ... each turn" says how
+      ||| often it may apply while it stands, and the two are written
+      ||| together ("The first time you would draw a card each turn ... you
+      ||| draw four cards instead"). Redundant beside `NextTimeOnly` rather
+      ||| than meaningless, so it carries no gate, on `CreatedByUnder`'s
+      ||| model. `OncePerGame` is measured at zero here and admitted with
+      ||| the rest of the word.
+      ||| -- spelling: "the first time [ev] each turn, [repl] instead".
       Intercepts : (ev : GameEvent bs) -> (alts : List (GameEvent bs)) ->
                    (repl : Effect (interceptCtx alts ev)) ->
                    (use : ReplUse) ->
+                   (limit : Maybe UsageLimit) ->
                    {auto 0 ok : Interceptable ev} ->
                    {auto 0 oks : InterceptableArms alts} -> StaticEffect bs
       Prevents : (kind : DamageKind) -> (size : Shield bs) ->
@@ -465,7 +485,7 @@ mutual
   staticKind (SetsChosenQuality _ _) = TypeSet
   staticKind (LosesAllAbilities _) = AbilityLoss
   staticKind (GainsControl _ _) = ControlGrant
-  staticKind (Intercepts _ _ _ _) = Replacement
+  staticKind (Intercepts _ _ _ _ _) = Replacement
   staticKind (Prevents _ _ _ _ _) = Prevention
   staticKind (PreventsFrom _ _ _ _ _ _) = Prevention
   staticKind (CantPrevent _ _ _) = Prevention
@@ -515,7 +535,7 @@ mutual
   staticIntro (SetsChosenQuality n _) = selfSubjIntro n
   staticIntro (LosesAllAbilities n) = selfSubjIntro n
   staticIntro (GainsControl who what) = selfSubjIntro what
-  staticIntro (Intercepts ev alts repl use) = interceptCtx alts ev
+  staticIntro (Intercepts ev alts repl use limit) = interceptCtx alts ev
   staticIntro (Prevents kind size scope by also) = byIntro by
   staticIntro (PreventsFrom kind src scope cut use also) = cutIntro cut
   staticIntro (CantPrevent kind scope by) = byIntro by
