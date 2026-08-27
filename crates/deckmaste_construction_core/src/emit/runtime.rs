@@ -438,6 +438,11 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let possessive_ending = plan
             .category_carries_possessive_ending(root.category())
             .then(|| quote! { , _ });
+        let following_onset = super::semantic_types(plan)
+            .into_iter()
+            .find(|item| item.name == root.category())
+            .is_some_and(|item| item.kind != super::SemanticTypeKind::Product)
+            .then(|| quote! { , _ });
         GeneratedItem::new(
             ItemKey::Impl {
                 trait_name: Some("GeneratedRoot".to_owned()),
@@ -451,7 +456,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 
                     fn from_build(value: BuildValue) -> Option<Self> {
                         match value {
-                            BuildValue::#category(value #agreement #cardinality #number #onset #possessive_ending) => Some(value),
+                            BuildValue::#category(value #agreement #cardinality #number #onset #possessive_ending #following_onset) => Some(value),
                             _ => None,
                         }
                     }
@@ -664,7 +669,7 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let possessive_ending = plan
                     .category_carries_possessive_ending(item.name)
                     .then(|| quote! { , PossessiveEnding });
-                quote! { #name(#name #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending) }
+                quote! { #name(#name #agreement #cardinality #number #determiner_number #fused_head_license #nominal_license #onset #possessive_ending, FeatureConstraint<Onset>) }
             }
             super::SemanticTypeKind::Product => {
                 quote! { #name(#name) }
@@ -673,7 +678,7 @@ fn emit_semantic_runtime_types(plan: &SemanticPlan) -> Vec<GeneratedItem> {
                 let agreement = plan
                     .sum_carries_agreement(item.name)
                     .then(|| quote! { , Agreement });
-                quote! { #name(#name #agreement) }
+                quote! { #name(#name #agreement, FeatureConstraint<Onset>) }
             }
         }
     });
@@ -1067,7 +1072,7 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let declaration_determinative_lexical = (!inventory.declaration_determinatives.is_empty()).then(|| quote! { DeclarationDeterminative(usize), });
     let declaration_determinative_leaf = inventory.declaration_determinatives.iter().map(|(_, codec)| {
         let ty = codec.codec_ident();
-        quote! { #ty { value: #ty, onset: Onset, number_license: DeterminerNumber, fused_head_license: FusedHeadLicense, nominal_license: NominalLicense }, }
+        quote! { #ty { value: #ty, onset: Onset, following_onset: FeatureConstraint<Onset>, number_license: DeterminerNumber, fused_head_license: FusedHeadLicense, nominal_license: NominalLicense }, }
     });
     let declaration_determinative_class = (!inventory.declaration_determinatives.is_empty()).then(|| quote! { DeclarationDeterminative(usize), });
 

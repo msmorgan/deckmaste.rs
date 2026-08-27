@@ -394,10 +394,13 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                     ::macro_ron::v2::DeterminativeNumberLicense::Both => quote! { DeterminerNumber::Both },
                 },
             };
-            let following_onset = realization.following_onset().map(|onset| {
-                let onset = crate::emit::onset(onset);
-                quote! { input.following_onset(end) == Some(#onset) }
-            }).unwrap_or_else(|| quote! { true });
+            let following_onset = realization.following_onset().map_or_else(
+                || quote! { FeatureConstraint::Any },
+                |onset| {
+                    let onset = crate::emit::onset(onset);
+                    quote! { FeatureConstraint::Exact(#onset) }
+                },
+            );
             let nominal = match member.nominal_license() {
                 ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => quote! { NominalLicense::CountNominal },
                 ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => quote! { NominalLicense::BareSingularNoun },
@@ -406,10 +409,10 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 ::macro_ron::v2::DeterminativeFusedHeadLicense::NominalOnly => quote! { FusedHeadLicense::NominalOnly },
                 ::macro_ron::v2::DeterminativeFusedHeadLicense::FusedHead => quote! { FusedHeadLicense::FusedHead },
             };
-            quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) && #following_onset { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, number_license: #number, fused_head_license: #fused_head, nominal_license: #nominal }, owner: None }); } }
+            quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, following_onset: #following_onset, number_license: #number, fused_head_license: #fused_head, nominal_license: #nominal }, owner: None }); } }
         }));
         {
-            quote! { Lexical::DeclarationDeterminative(#terminal_index) => { let mut matches = Vec::new(); #(#closed)* for (end, reading) in input.declaration_determinative_readings(terminal.right_boundary) { if reading.following_onset().is_some_and(|wanted| input.following_onset(end) != Some(wanted)) { continue; } let Some(value) = #ty::declared(reading.id().clone()) else { continue; }; let number_license = match reading.phrase_number() { Some(::macro_ron::v2::DeterminativePhraseNumber::Singular) => DeterminerNumber::SingularOnly, Some(::macro_ron::v2::DeterminativePhraseNumber::Plural) => DeterminerNumber::PluralOnly, None => match reading.number_license() { ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => DeterminerNumber::SingularOnly, ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => DeterminerNumber::PluralOnly, ::macro_ron::v2::DeterminativeNumberLicense::Both => DeterminerNumber::Both } }; let fused_head_license = match reading.fused_head_license() { ::macro_ron::v2::DeterminativeFusedHeadLicense::NominalOnly => FusedHeadLicense::NominalOnly, ::macro_ron::v2::DeterminativeFusedHeadLicense::FusedHead => FusedHeadLicense::FusedHead }; let nominal_license = match reading.nominal_license() { ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => NominalLicense::CountNominal, ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => NominalLicense::BareSingularNoun }; matches.push(LexicalMatch { end, value: Leaf::#ty { value, onset: reading.onset(), number_license, fused_head_license, nominal_license }, owner: None }); } matches } }
+            quote! { Lexical::DeclarationDeterminative(#terminal_index) => { let mut matches = Vec::new(); #(#closed)* for (end, reading) in input.declaration_determinative_readings(terminal.right_boundary) { let Some(value) = #ty::declared(reading.id().clone()) else { continue; }; let number_license = match reading.phrase_number() { Some(::macro_ron::v2::DeterminativePhraseNumber::Singular) => DeterminerNumber::SingularOnly, Some(::macro_ron::v2::DeterminativePhraseNumber::Plural) => DeterminerNumber::PluralOnly, None => match reading.number_license() { ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => DeterminerNumber::SingularOnly, ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => DeterminerNumber::PluralOnly, ::macro_ron::v2::DeterminativeNumberLicense::Both => DeterminerNumber::Both } }; let following_onset = reading.following_onset().map_or(FeatureConstraint::Any, FeatureConstraint::Exact); let fused_head_license = match reading.fused_head_license() { ::macro_ron::v2::DeterminativeFusedHeadLicense::NominalOnly => FusedHeadLicense::NominalOnly, ::macro_ron::v2::DeterminativeFusedHeadLicense::FusedHead => FusedHeadLicense::FusedHead }; let nominal_license = match reading.nominal_license() { ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => NominalLicense::CountNominal, ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => NominalLicense::BareSingularNoun }; matches.push(LexicalMatch { end, value: Leaf::#ty { value, onset: reading.onset(), following_onset, number_license, fused_head_license, nominal_license }, owner: None }); } matches } }
         }
     }).collect()
 }
@@ -965,6 +968,59 @@ mod tests {
                 "scanner contains a circumfix-specific branch `{forbidden}`: {source}",
             );
         }
+    }
+
+    #[test]
+    fn conditioned_determinative_scanning_carries_the_condition_without_raw_lookahead() {
+        let expansion = crate::generate(quote::quote! {
+            codec Head {
+                generate declaration_determinative {
+                    closed = [Article {
+                        number_license = SingularOnly;
+                        fused_head_license = NominalOnly;
+                        nominal_license = CountNominal;
+                        realizations = [
+                            { surface = "an"; following_onset = Vowel; },
+                            { surface = "a"; following_onset = Consonant; },
+                        ];
+                    }];
+                }
+            }
+            construction wrapper: Wrapper {
+                element WrapperValue { head: lex Head, }
+                derive number = Values::Singular;
+                derive onset = head.onset;
+                form wrapper = lex(head);
+            }
+            root Wrapper { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("conditioned determinative scanner fixture generates");
+        let source = expansion
+            .items()
+            .iter()
+            .find(|item| {
+                matches!(
+                    &item.key,
+                    crate::ItemKey::Named {
+                        kind: crate::NamedKind::Function,
+                        name,
+                    } if name == "scan_lexical"
+                )
+            })
+            .expect("conditioned determinative fixture emits its scanner")
+            .tokens
+            .to_string();
+
+        assert!(!source.contains("input . following_onset"), "{source}");
+        assert!(
+            source.contains("following_onset : FeatureConstraint :: Exact (Onset :: Vowel)")
+                && source.contains("following_onset : FeatureConstraint :: Exact (Onset :: Consonant)"),
+            "the matched realization carries its erased right-context condition: {source}",
+        );
+        assert!(
+            source.contains("reading . following_onset () . map_or (FeatureConstraint :: Any , FeatureConstraint :: Exact)"),
+            "external readings carry the same declaration-data-driven condition: {source}",
+        );
     }
 
     #[derive(Default)]
