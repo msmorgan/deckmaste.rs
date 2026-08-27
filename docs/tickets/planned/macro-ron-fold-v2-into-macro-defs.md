@@ -9,7 +9,10 @@ parameter on the existing def — `MacroDef<Metadata = ()>` — with the v2
 spelling/grammar payload as the metadata type for v2 sets; existing readers
 keep `()` unchanged, and v1's inline metadata fields (`template`, `plural`)
 are candidates to migrate into their own metadata type later, out of scope
-here.
+here. Corollary pin: `macro_ron` defines no v2 types at all — `Metadata` is
+an opaque generic and the spelling/grammar payload type is declared by the
+v2 consumer that owns those semantics, keeping `macro_ron` a semantics-free
+reader.
 
 End state:
 
