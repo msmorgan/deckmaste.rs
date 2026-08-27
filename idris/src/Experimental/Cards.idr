@@ -4903,11 +4903,10 @@ xenograft =
 
 ||| Convincing Mirage -- "Enchant land / As this Aura enters, choose a
 ||| basic land type. / Enchanted land is the chosen type." The chosen
-||| basic land type SET rather than added, on the attach host: the third
-||| of the five printed basic-type lines, and it needed nothing the
-||| chosen-quality setting row did not already have once the land host
-||| carried the sort. Phantasmal Terrain is the same two rows at a
-||| different cost.
+||| basic land type SET rather than added, on the attach host, and it
+||| needed nothing the chosen-quality setting row did not already have
+||| once the land host carried the sort. Phantasmal Terrain is the same
+||| two rows at a different cost.
 public export
 convincingMirage : Card
 convincingMirage =
