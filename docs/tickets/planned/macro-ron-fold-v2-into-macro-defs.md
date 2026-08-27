@@ -3,8 +3,13 @@ macro-def model. The v2 module reified a design shorthand into a second source
 language — its own `ron_options` dialect, its own `DeclarationKind` enum, and
 a separate reader bypassing `MacroDef` — when the intended change was small:
 `KeywordAction` and friends stay meta-macros in the existing reader, and the
-v2 additions (`spelling`, `grammar`) land as a few new fields or per-def
-custom metadata on the existing declaration model.
+v2 additions (`spelling`, `grammar`) land as per-def metadata on the existing
+declaration model. Default mechanism (user-sketched): a metadata type
+parameter on the existing def — `MacroDef<Metadata = ()>` — with the v2
+spelling/grammar payload as the metadata type for v2 sets; existing readers
+keep `()` unchanged, and v1's inline metadata fields (`template`, `plural`)
+are candidates to migrate into their own metadata type later, out of scope
+here.
 
 End state:
 
