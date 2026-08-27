@@ -854,8 +854,13 @@ mutual
            {auto 0 arr : ArrangementOk (nounPlur what) to} ->
            {auto 0 pl : Placeable (nounTy what) (zoneSort to)} ->
            {auto 0 rf : RidersFit riders (zoneSort to)} -> Effect bs
-    CounterSpell : (what : Noun bs Object) ->
-                   {auto 0 zn : OnStack (nounZone what)} -> Effect bs
+    ||| "Counter target spell", "counter target activated ability",
+    ||| "counter that spell or ability": [CR#701.6a] counters a spell or
+    ||| an ability alike, so the subject is kind-indexed and `Counterable`
+    ||| carries the per-kind demand -- the stack for a spell [CR#112.1],
+    ||| no zone for an ability the kind places nowhere.
+    CounterSpell : {k : Kind} -> (what : Noun bs k) ->
+                   {auto 0 ct : Counterable what} -> Effect bs
     CopyStack : (agent : Noun bs Player) ->
                 (what : Noun (nomIntro agent) Object) ->
                 (times : Amount (nomIntro what)) ->
@@ -1754,7 +1759,8 @@ mutual
   effEq (Concludes _ _) _ = False
   effEq GameDrawn GameDrawn = True
   effEq GameDrawn _ = False
-  effEq (CounterSpell a) (CounterSpell b) = nounEqRef a b
+  -- kind-indexed, so two subjects need not share a kind to compare;
+  -- `Choose`'s row gives up on the same ground.
   effEq (CounterSpell _) _ = False
   effEq (CopyStack _ _ _ _) _ = False
   effEq (ChooseNewTargets a) (ChooseNewTargets b) = nounEqRef a b

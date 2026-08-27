@@ -27,6 +27,24 @@ badUnionAnaphorOnObject : Unspellable (Effect []) (\ok =>
 badUnionAnaphorOnObject Refl impossible
 
 
+||| "This deals 3 damage to any target. Counter that spell or ability."
+||| "Any target" names creatures, players, planeswalkers and battles [CR#115.4] -- the permanents and players [CR#115.2] contrasts with a spell or ability -- so the spell-or-ability word finds no mention of its own sort.
+public export
+badAbilityJoinAnaphorOnPlayerUnion : Unspellable (Effect []) (\ok =>
+  Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
+               , Macros.counterSpell (That AbilityJoinW {ok = ok}) ])
+badAbilityJoinAnaphorOnPlayerUnion Refl impossible
+
+
+||| "Counter target activated ability. Counter that spell or ability."
+||| "Spell or ability" is a PAIR [CR#115.2]; a clause that named only its ability half left one mention, and the word for that half is what reads it back.
+public export
+badAbilityJoinAnaphorOnAbility : Unspellable (Effect []) (\ok =>
+  Sequentially [ Macros.counterSpell (Macros.target (AbilityHead AnyActivated))
+               , Macros.counterSpell (That AbilityJoinW {ok = ok}) ])
+badAbilityJoinAnaphorOnAbility Refl impossible
+
+
 
 ||| "each creature with a poison counter on it"
 ||| [CR#122.1] places a counter on an object or a player, and poison is a player's kind.
@@ -352,8 +370,9 @@ badWarpGrantInGraveyard Oh impossible
 ||| (Bolt Bend.) `Object \/ Ability` is writable, and its payload carries
 ||| each half separately: the spell half is a card on the stack [CR#112.1],
 ||| while `AbilityP` carries no zone field to place the ability half with.
-||| No head spells this join yet
-||| -- `Macros.kindJoin` joins a player -- so the witness is the payload.
+||| `Joined Macros.spell (AbilityHead AnyOnStack)` now spells the head
+||| itself (Diplomatic Escort, Shimmering Glasskite); this stays as the
+||| payload's own witness, one half at a time.
 public export
 spellOrAbilityJoin : Payload (Object \/ Ability)
 spellOrAbilityJoin = JoinP (ObjectP Nothing (Just Stack) Nothing Nothing) AbilityP
@@ -376,12 +395,15 @@ joinedCreatureTy :
   = Just Creature
 joinedCreatureTy = Refl
 
-||| The seven-verb refusal's own fact. A joined phrase places nothing —
+||| The six-verb refusal's own fact. A joined phrase places nothing —
 ||| [CR#400.1] makes a zone a place where objects can be and [CR#109.1]
-||| lists what an object is — so destroy, exile, tap, untap, return,
-||| counter and sacrifice each refuse it at their `Noun bs Object` slot,
-||| with no rule written for the purpose, while the damage clause admits it
-||| because damage asks for no zone [CR#120.1].
+||| lists what an object is — so destroy, exile, tap, untap, return and
+||| sacrifice each refuse it at their `Noun bs Object` slot, with no rule
+||| written for the purpose, while the damage clause admits it because
+||| damage asks for no zone [CR#120.1]. Counter left the family when
+||| [CR#701.6a]'s "spell or ability" gave it a joined subject of its own:
+||| it now asks `counterKind`, which refuses this union on [CR#109.1]
+||| directly rather than through the missing zone.
 public export
 anyTargetIsPlaceless :
   nounZone {bs = []} (Macros.target Macros.anyTarget) = Nothing

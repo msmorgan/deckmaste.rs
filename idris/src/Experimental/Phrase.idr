@@ -2549,6 +2549,42 @@ mutual
                     {auto 0 ok : So (costSubjectOk n)} -> CostSubject n
     AbilityCostSubject : {0 n : Noun bs Ability} -> CostSubject n
 
+  ||| Which kinds a counter instruction can name. [CR#701.6a] counters a
+  ||| spell or an ability by removing it from the stack, so the subject
+  ||| is whatever the stack holds: a spell, which is a card on the stack
+  ||| [CR#112.1], or an ability on the stack, which [CR#109.1] makes an
+  ||| object of its own. "Counter target spell or ability" names the pair
+  ||| at once, so a joined phrase counts when every half does. A player
+  ||| is on neither list [CR#109.1], which is what keeps "counter target
+  ||| creature or player" out with no rule written for the purpose.
+  public export
+  counterKind : Kind -> Bool
+  counterKind Object = True
+  counterKind Ability = True
+  counterKind (a \/ b) = counterKind a && counterKind b
+  counterKind _ = False
+
+  ||| What a counter instruction may name, row by row. The object row
+  ||| asks for the stack, since [CR#112.1] puts a spell there. The
+  ||| ability row asks no zone: the `Ability` kind places nothing,
+  ||| because the same kind writes the abilities a permanent HAS
+  ||| ("activated abilities of artifacts can't be activated"), and it is
+  ||| the head's CLASS and not a zone that says an ability reached the
+  ||| stack. The joined row asks the kind alone: the union family is
+  ||| placeless, so a joined phrase's `nounZone` is `Nothing` whatever
+  ||| its halves said and no half's stack can be re-asked here. A head
+  ||| whose class never
+  ||| uses the stack [CR#113.3d,113.9] passes every row; that is
+  ||| tolerated overgeneration, and no printed line writes one.
+  public export
+  data Counterable : {0 k : Kind} -> Noun bs k -> Type where
+    SpellCountered : {0 n : Noun bs Object} ->
+                     {auto 0 zn : OnStack (nounZone n)} -> Counterable n
+    AbilityCountered : {0 n : Noun bs Ability} -> Counterable n
+    JoinCountered : {0 ka : Kind} -> {0 kb : Kind} ->
+                    {0 n : Noun bs (ka \/ kb)} ->
+                    {auto 0 ck : So (counterKind (ka \/ kb))} -> Counterable n
+
   public export
   selfDefinedOk : {bs : Bindings} -> Noun bs Object -> Bool
   selfDefinedOk This = True

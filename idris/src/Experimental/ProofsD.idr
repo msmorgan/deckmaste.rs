@@ -134,8 +134,16 @@ badGainsSpellAbility Oh impossible
 ||| The countering's complement is a spell [CR#112.1]; a battlefield permanent has already resolved.
 public export
 badCounterPermanent : Unspellable (Effect []) (\ok =>
-  Macros.counterSpell (Macros.target Macros.creature) {zn = ok})
-badCounterPermanent OnTheStack impossible
+  Macros.counterSpell (Macros.target Macros.creature) {ct = ok})
+badCounterPermanent SpellCountered impossible
+
+
+||| "Counter target creature or player."
+||| [CR#701.6a] counters by removing from the stack, and [CR#109.1]'s list of what an object is names no player, so nothing a union reaching a player denotes is ever countered.
+public export
+badCounterJoinedPlayer : Unspellable (Effect []) (\ok =>
+  Macros.counterSpell (Macros.target Macros.anyTarget) {ct = ok})
+badCounterJoinedPlayer JoinCountered impossible
 
 
 ||| "You may play a spell this turn." of an object on the stack

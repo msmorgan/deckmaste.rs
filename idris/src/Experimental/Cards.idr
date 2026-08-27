@@ -9808,6 +9808,63 @@ public export
 fblthpTargetedHeader : GameEvent []
 fblthpTargetedHeader = BecomesTarget This (Macros.a Macros.spell)
 
+||| Squelch, whole card -- "Counter target activated ability. Draw a
+||| card." The ability TARGET: [CR#115.2] admits an object that can't
+||| exist on the battlefield, "such as a spell or ability", and the head
+||| picks WHICH abilities, since [CR#115.1c] gives the word "target" to
+||| an activated ability. The reminder "(Mana abilities can't be
+||| targeted.)" restates [CR#605.3b] -- a mana ability never reaches the
+||| stack -- and is not text the card writes.
+public export
+squelch : Card
+squelch =
+  Macros.card "Squelch" (Just [Macros.generic 1, Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.counterSpell
+                      (Macros.target (AbilityHead AnyActivated))
+                  , Macros.drawACard ]) ]
+       Nothing
+
+||| Diplomatic Escort's line -- "{U}, {T}, Discard a card: Counter target
+||| spell or ability that targets a creature." The joined targeter head
+||| with both halves: the object half is the spell [CR#112.1], the
+||| ability half the bare word [CR#115.2], and the relative clause
+||| describes the pair by what it targets -- [CR#115.9b]'s own "[spell or
+||| ability] that targets [something]", whose `Targeter` gate the join
+||| passes on [CR#115.1a] and [CR#115.1c,115.1d] together.
+public export
+diplomaticEscortLine : Ability
+diplomaticEscortLine =
+  Macros.activated (Compound [ Mana [Macros.pip Blue]
+                             , TapSymbol
+                             , Do (Macros.discardsACard You) ])
+    (Macros.counterSpell
+       (Macros.target
+          (And [ Joined Macros.spell (AbilityHead AnyOnStack)
+               , Targets (Macros.a Macros.creature) SomeTarget ])))
+
+||| Shimmering Glasskite, whole card -- "Whenever this creature becomes
+||| the target of a spell or ability for the first time each turn,
+||| counter that spell or ability." The coordinated anaphor: the header
+||| announces its targeter as ONE union mention [CR#115.1], and the body
+||| reads that mention back whole with the joined demonstrative rather
+||| than naming a half. Countering the read is [CR#701.6a] over both of
+||| the stack's inhabitants at once.
+public export
+shimmeringGlasskite : Card
+shimmeringGlasskite =
+  Macros.card "Shimmering Glasskite"
+       (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Spirit"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggeredOnlyOnce Whenever
+           (BecomesTarget Macros.thisCreature
+              (Macros.a (Joined Macros.spell (AbilityHead AnyOnStack))))
+           OncePerTurn
+           (Macros.counterSpell (That AbilityJoinW)) ]
+       (Just (2, 3))
+
 ||| Fuming Effigy, whole card -- "Whenever one or more cards leave your
 ||| graveyard, this creature deals 1 damage to each opponent." The
 ||| leave-event off the battlefield, which [CR#603.10a] names beside the

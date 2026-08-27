@@ -1604,9 +1604,15 @@ zoneOfThem [] = Nothing
 zoneOfThem (b :: bs) =
   if itReaches ManyOf b then bindingZone b else zoneOfThem bs
 
+||| The head words a demonstrative carries. Two of them read a UNION
+||| mention back WHOLE where the rest name one referent: `JoinW` where
+||| the antecedent reached a player ("that creature or player"),
+||| `AbilityJoinW` where it reached an ability ("that spell or ability",
+||| [CR#115.2]'s own pair). Each asks the antecedent's own kind, so
+||| neither word reads the other's mention.
 public export
 data NounWord = TypeW CardType | CardW | SpellW | PlayerW
-              | PermanentW | TokenW | CopyW | JoinW
+              | PermanentW | TokenW | CopyW | JoinW | AbilityJoinW
 
 public export
 data VerbedMarking = Attributive | ThisWay
@@ -1692,6 +1698,21 @@ halfReaches PermanentW (ObjectP ty _ _ _) = isNothing ty
 halfReaches PlayerW PlayerP = True
 halfReaches _ _ = False
 
+||| Whether a mention is a UNION mention -- the pair a joined
+||| demonstrative reads back whole. WHICH union it is the binding's kind
+||| says; this says only that there is one.
+public export
+joinedPayload : Payload k -> Bool
+joinedPayload (ObjectP _ _ _ _) = False
+joinedPayload PlayerP = False
+joinedPayload QualityP = False
+joinedPayload (OutcomeP _) = False
+joinedPayload GapP = False
+joinedPayload LetterP = False
+joinedPayload TurnRefP = False
+joinedPayload AbilityP = False
+joinedPayload (JoinP _ _) = True
+
 public export
 wordReaches : NounWord -> Binding -> Bool
 wordReaches (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _ _)) = onFieldZone zn && tyIs t ty
@@ -1760,15 +1781,14 @@ wordReaches CopyW (MkBinding _ _ _ LetterP) = False
 wordReaches CopyW (MkBinding _ _ _ TurnRefP) = False
 wordReaches CopyW (MkBinding _ _ _ AbilityP) = False
 wordReaches CopyW (MkBinding _ _ _ (JoinP _ _)) = False
-wordReaches JoinW (MkBinding _ _ _ (JoinP _ _)) = True
-wordReaches JoinW (MkBinding _ _ _ (ObjectP _ _ _ _)) = False
-wordReaches JoinW (MkBinding _ _ _ PlayerP) = False
-wordReaches JoinW (MkBinding _ _ _ QualityP) = False
-wordReaches JoinW (MkBinding _ _ _ (OutcomeP _)) = False
-wordReaches JoinW (MkBinding _ _ _ GapP) = False
-wordReaches JoinW (MkBinding _ _ _ LetterP) = False
-wordReaches JoinW (MkBinding _ _ _ TurnRefP) = False
-wordReaches JoinW (MkBinding _ _ _ AbilityP) = False
+-- The two union words ask the same question of the payload -- was the
+-- mention a pair? -- and part on the antecedent's KIND, which is the
+-- only thing telling "that creature or player" from "that spell or
+-- ability". A bare ability mention is no pair, so neither word reaches
+-- it.
+wordReaches JoinW (MkBinding _ kd _ pl) = joinedPayload pl && kindLte Player kd
+wordReaches AbilityJoinW (MkBinding _ kd _ pl) =
+  joinedPayload pl && kindLte Ability kd
 
 public export
 wordNow : NounWord -> Binding -> Bool
@@ -1789,6 +1809,7 @@ kindOfW PermanentW = Object
 kindOfW TokenW = Object
 kindOfW CopyW = Object
 kindOfW JoinW = Object \/ Player
+kindOfW AbilityJoinW = Object \/ Ability
 
 public export
 stampedBy : VerbLabel -> Stamp -> Bool
@@ -1804,6 +1825,7 @@ verbedWordOk PermanentW (MkStamp _ wasF) ty zn = wasF
 verbedWordOk TokenW st ty zn = False
 verbedWordOk CopyW st ty zn = False
 verbedWordOk JoinW st ty zn = False
+verbedWordOk AbilityJoinW st ty zn = False
 
 ||| Whether a shuffle leaves a mention readable. [CR#701.24b] keeps the
 ||| cards a search FOUND out of the shuffle, so a mention of one survives
@@ -2072,9 +2094,19 @@ public export
 data Targetable : Kind -> Type where
   ObjectTgt : Targetable Object
   PlayerTgt : Targetable Player
-  ||| [CR#115.1] lets a spell or ability target objects and players alike,
-  ||| so a phrase that may denote either is targetable exactly when both
-  ||| halves are.
+  ||| "Counter target activated ability": [CR#115.2] admits as a target
+  ||| an object that can't exist on the battlefield, "such as a spell or
+  ||| ability", and [CR#109.1] makes an ability on the stack such an
+  ||| object. The kind is what this row opens; WHICH abilities may be
+  ||| targeted is the head's class, since [CR#115.1c,115.1d] give the
+  ||| word to activated and triggered abilities alone. A head naming a
+  ||| class outside that pair is tolerated overgeneration -- no printed
+  ||| line writes one, so there is nothing here to refuse.
+  AbilityTgt : Targetable Ability
+  ||| [CR#115.1] lets a spell or ability target objects and players
+  ||| alike, and [CR#115.2] adds the stack's own objects beside them, so
+  ||| a phrase that may denote either half is targetable exactly when
+  ||| both halves are.
   JoinTgt : Targetable a -> Targetable b -> Targetable (a \/ b)
 
 ||| The other side of the same relation: which kind of phrase HAS
@@ -2138,6 +2170,7 @@ public export
 targetablePhrasal : Targetable k -> Phrasal k
 targetablePhrasal ObjectTgt = PhObject
 targetablePhrasal PlayerTgt = PhPlayer
+targetablePhrasal AbilityTgt = PhAbility
 targetablePhrasal (JoinTgt l r) =
   PhJoin (targetablePhrasal l) (targetablePhrasal r)
 
@@ -2377,6 +2410,21 @@ PaidCostNamed n = So (paidCostNamed n)
 
 public export
 data AbilityClass : Type where
+  ||| The bare word "ability", as "target spell or ability" and "counter
+  ||| that spell or ability" write it. What a card names there is the
+  ||| glossary's SECOND sense of the word -- an activated or triggered
+  ||| ability on the stack, which is an object in its own right
+  ||| [CR#109.1] -- and three rules close that set from three sides: only
+  ||| activated and triggered abilities use the stack
+  ||| [CR#113.3b,113.3c], only they can be countered [CR#113.9], and only
+  ||| they are given the word "target" [CR#115.1c,115.1d]. A spell
+  ||| ability is an instruction followed while its spell resolves
+  ||| [CR#113.3a] and a static ability is simply true [CR#113.3d]; no
+  ||| card can name either as a thing. So the arm is not "any ability
+  ||| whatever" but the pair the stack holds, of which `AnyActivated` is
+  ||| the narrower half.
+  ||| -- spelling: "ability".
+  AnyOnStack : AbilityClass
   AnyActivated : AbilityClass
   LoyaltyClass : AbilityClass
   KeywordClass : (k : KeywordLabel) -> {auto 0 kn : KnownKeyword k} ->
@@ -2384,6 +2432,8 @@ data AbilityClass : Type where
 
 public export
 Eq AbilityClass where
+  (==) AnyOnStack AnyOnStack = True
+  (==) AnyOnStack _ = False
   (==) AnyActivated AnyActivated = True
   (==) AnyActivated _ = False
   (==) LoyaltyClass LoyaltyClass = True
@@ -2906,6 +2956,7 @@ attachHeadOk Equipped PermanentW = True
 attachHeadOk Equipped TokenW = False
 attachHeadOk Equipped CopyW = False
 attachHeadOk Equipped JoinW = False
+attachHeadOk Equipped AbilityJoinW = False
 attachHeadOk Fortified (TypeW Creature) = False
 attachHeadOk Fortified (TypeW Artifact) = False
 attachHeadOk Fortified (TypeW Land) = True
@@ -2928,6 +2979,7 @@ attachHeadOk Fortified PermanentW = False
 attachHeadOk Fortified TokenW = False
 attachHeadOk Fortified CopyW = False
 attachHeadOk Fortified JoinW = False
+attachHeadOk Fortified AbilityJoinW = False
 
 public export
 attachedCheckOk : AttachWord -> Bool
@@ -2949,6 +3001,7 @@ attachHostZone PermanentW = Just Battlefield
 attachHostZone TokenW = Just Battlefield
 attachHostZone CopyW = Just Stack
 attachHostZone JoinW = Nothing
+attachHostZone AbilityJoinW = Nothing
 
 public export
 attachHostTy : NounWord -> Maybe CardType
@@ -2960,6 +3013,7 @@ attachHostTy PermanentW = Nothing
 attachHostTy TokenW = Nothing
 attachHostTy CopyW = Nothing
 attachHostTy JoinW = Nothing
+attachHostTy AbilityJoinW = Nothing
 
 public export
 data OutcomeVerb = WinGame | LoseGame

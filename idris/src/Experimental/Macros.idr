@@ -186,9 +186,9 @@ card name cost supers line text stats =
   cardOf name cost supers line text (printedBox stats) {ln} {sp} {tx} {ch} {bx} {mc}
 
 public export
-counterSpell : (n : Noun bs Object) ->
-               {auto 0 zn : OnStack (nounZone n)} -> Effect bs
-counterSpell n = CounterSpell n {zn}
+counterSpell : {k : Kind} -> (n : Noun bs k) ->
+               {auto 0 ct : Counterable n} -> Effect bs
+counterSpell n = CounterSpell n {ct}
 
 public export
 graveyardZ : ZoneExpr bs
