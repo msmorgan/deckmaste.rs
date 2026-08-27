@@ -485,6 +485,14 @@ constructions! {
             feature = Agreement;
         }
     }
+    codec DealAmountDamageVerb { generate declaration_verb { position = Verb; tail = [Amount, "damage", ToPhrase]; feature = Agreement; } }
+    codec DealDistributedDamageVerb { generate declaration_verb { position = Verb; tail = [DistributedDamageAmount, "damage", DamageDistribution, DistributionReplacement?]; feature = Agreement; } }
+    codec DealDamageKindVerb { generate declaration_verb { position = Verb; tail = [DamageKind, ToPhrase?]; feature = Agreement; } }
+    codec DealDamageEqualToVerb { generate declaration_verb { position = Verb; tail = ["damage", ScalarEquality, ToPhrase]; feature = Agreement; } }
+    codec DealDamageToEqualToVerb { generate declaration_verb { position = Verb; tail = ["damage", ToPhrase, ScalarEquality]; feature = Agreement; } }
+    codec LifeAmountVerb { generate declaration_verb { position = Verb; tail = [Amount, "life"]; feature = Agreement; } }
+    codec GainLifeVerb { generate declaration_verb { position = Verb; tail = ["life"]; feature = Agreement; } }
+    codec LifeEqualityVerb { generate declaration_verb { position = Verb; tail = ["life", ScalarEquality]; feature = Agreement; } }
     codec DamageParticipleHead {
         generate declaration_verb {
             closed = DamageParticipleLexeme;
@@ -4085,69 +4093,60 @@ constructions! {
         derive agreement = copula.agreement;
         form copular_subject_gap_relative_clause = "that" lex(copula) complement;
     }
-    construction deal_damage: VerbPhrase {
-        element DealDamage { amount: Amount, recipient: ToPhrase, }
-        derive agreement = verb.agreement;
-        form deal_damage = verb(VerbLexeme::Deal) amount "damage" recipient;
+    construction deal_amount_damage: VerbPhrase {
+        element DealAmountDamage { head: lex DealAmountDamageVerb, amount: Amount, recipient: ToPhrase, }
+        derive agreement = head.agreement;
+        form deal_amount_damage = verb(head) amount "damage" recipient;
     }
     construction deal_distributed_damage: VerbPhrase {
         element DealDistributedDamage {
+            head: lex DealDistributedDamageVerb,
             amount: DistributedDamageAmount,
             distribution: DamageDistribution,
             replacement: opt lex DistributionReplacement,
         }
-        derive agreement = verb.agreement;
+        derive agreement = head.agreement;
         form deal_distributed_damage =
-            verb(VerbLexeme::Deal) amount "damage" distribution lex(replacement);
+            verb(head) amount "damage" distribution lex(replacement);
     }
     construction deal_unspecified_damage: VerbPhrase {
-        element DealUnspecifiedDamage {
+        element DealDamageKind { head: lex DealDamageKindVerb,
             kind: lex DamageKind,
             recipient: opt ToPhrase,
         }
-        derive agreement = verb.agreement;
-        form deal_unspecified_damage = verb(VerbLexeme::Deal) lex(kind) recipient;
+        derive agreement = head.agreement;
+        form deal_unspecified_damage = verb(head) lex(kind) recipient;
     }
-    construction gain_life: VerbPhrase {
-        element GainLife { amount: Amount, }
-        derive agreement = verb.agreement;
-        form gain_life = verb(VerbLexeme::Gain) amount "life";
+    construction life_amount: VerbPhrase {
+        element LifeAmount { head: lex LifeAmountVerb, amount: Amount, }
+        derive agreement = head.agreement;
+        form life_amount = verb(head) amount "life";
     }
     construction gain_unspecified_life: VerbPhrase {
-        element GainUnspecifiedLife {}
-        derive agreement = verb.agreement;
-        form gain_unspecified_life = verb(VerbLexeme::Gain) "life";
+        element GainUnspecifiedLife { head: lex GainLifeVerb, }
+        derive agreement = head.agreement;
+        form gain_unspecified_life = verb(head) "life";
     }
     construction deal_damage_equal_to: VerbPhrase {
-        element DealDamageEqualTo {
+        element DealDamageEqualTo { head: lex DealDamageEqualToVerb,
             equality: ScalarEquality,
             recipient: ToPhrase,
         }
-        derive agreement = verb.agreement;
-        form deal_damage_equal_to = verb(VerbLexeme::Deal) "damage" equality recipient;
+        derive agreement = head.agreement;
+        form deal_damage_equal_to = verb(head) "damage" equality recipient;
     }
     construction deal_damage_to_equal_to: VerbPhrase {
-        element DealDamageToEqualTo {
+        element DealDamageToEqualTo { head: lex DealDamageToEqualToVerb,
             recipient: ToPhrase,
             equality: ScalarEquality,
         }
-        derive agreement = verb.agreement;
-        form deal_damage_to_equal_to = verb(VerbLexeme::Deal) "damage" recipient equality;
+        derive agreement = head.agreement;
+        form deal_damage_to_equal_to = verb(head) "damage" recipient equality;
     }
-    construction gain_life_equal_to: VerbPhrase {
-        element GainLifeEqualTo { equality: ScalarEquality, }
-        derive agreement = verb.agreement;
-        form gain_life_equal_to = verb(VerbLexeme::Gain) "life" equality;
-    }
-    construction lose_life: VerbPhrase {
-        element LoseLife { amount: Amount, }
-        derive agreement = verb.agreement;
-        form lose_life = verb(VerbLexeme::Lose) amount "life";
-    }
-    construction lose_life_equal_to: VerbPhrase {
-        element LoseLifeEqualTo { equality: ScalarEquality, }
-        derive agreement = verb.agreement;
-        form lose_life_equal_to = verb(VerbLexeme::Lose) "life" equality;
+    construction life_equality: VerbPhrase {
+        element LifeEquality { head: lex LifeEqualityVerb, equality: ScalarEquality, }
+        derive agreement = head.agreement;
+        form life_equality = verb(head) "life" equality;
     }
     construction pay_life: VerbPhrase {
         element PayLife { amount: Amount, }
