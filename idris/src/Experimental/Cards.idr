@@ -2843,6 +2843,39 @@ starPupil =
                              (Macros.target Macros.creatureYouControl)) ]
        (Just (0, 0))
 
+||| Bloom Hulk — whole. "When this creature enters, proliferate." The
+||| cheapest whole-card carrier the proliferate corpus offers: a vanilla
+||| body and one entry trigger, so the card pays for the label and the
+||| self-reading counter row and for nothing else.
+bloomHulk : Card
+bloomHulk =
+  Macros.card "Bloom Hulk" (Just [Macros.generic 3, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Plant", creatureType "Elemental"] [Creature])
+       [ Macros.triggered When (Enters Macros.thisCreature) Macros.proliferate ]
+       (Just (4, 4))
+
+||| Tromell, Seymour's Butler — whole. The entry rider is the additional
+||| counter mark; the activated line is a counted iteration of the whole
+||| keyword action -- [CR#701.34a] fixes the per-kind amount at one, so
+||| a written count can only iterate the whole action -- over a letter
+||| the same clause defines.
+tromell : Card
+tromell =
+  Macros.card "Tromell, Seymour's Butler"
+       (Just [Macros.generic 2, Macros.pip Green]) [Legendary]
+       (MkTypeLine [creatureType "Elf", creatureType "Advisor"] [Creature])
+       [ Static (Macros.entersWithAdditionalCounters
+                   (Each (And [Macros.creature, Macros.nontoken, ControlledBy You,
+                               OtherThan Macros.thisCreature]))
+                   (Lit 1) Macros.plusOnePlusOne)
+       , Macros.activated (Compound [Mana [Macros.generic 1], TapSymbol])
+           (Sequentially
+              [ Repeated (LetterVal X) Macros.proliferate
+              , Define X (CountOf (And [Macros.nontoken, Macros.creature,
+                                        ControlledBy You,
+                                        HappenedTo Entry Lookback.ThisTurn Nothing])) ]) ]
+       (Just (2, 3))
+
 ||| Stalwart Successor's header — "Whenever one or more counters are put on
 ||| a creature you control": the kind-blind batch on the trigger side,
 ||| benched at the event level; the

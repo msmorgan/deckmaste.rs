@@ -1054,6 +1054,14 @@ verbFacts =
   -- absent for "put onto the battlefield"'s reason: "cards shuffled into
   -- your library this way" would have to name the destination too.
   , MkVerbFacts "Shuffle"   Nothing        Nothing       Nothing
+  -- [CR#701.34a] has the ACT make its own choice -- "choose any number
+  -- of permanents and/or players that have a counter" -- rather than
+  -- take a patient from the instructing clause, so every printed line
+  -- writes the verb with nothing after it and "whenever you
+  -- proliferate" announces no participant. Nothing moves, so no
+  -- destination either, and no printed line names a proliferated
+  -- permanent by participle.
+  , MkVerbFacts "Proliferate" Nothing      Nothing       Nothing
   ]
 
 public export

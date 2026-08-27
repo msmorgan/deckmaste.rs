@@ -1234,6 +1234,42 @@ playerSurveils agent amt =
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
 
+||| "permanents and/or players that have a counter": the description
+||| [CR#701.34a] has proliferate choose from. The object half asks for a
+||| permanent carrying any counter and the player half for the same read
+||| at the player seat, where `HasCounters` has no cell -- [CR#122.1f]
+||| writes the player-side test in the ranged shape `CounterCompare`
+||| takes. The printed reminder text drops the restriction ("choose any
+||| number of permanents and/or players"); the rule keeps it, and the
+||| two agree on outcome, since a holder with no counters is given none.
+public export
+proliferable : Predicate bs (Object \/ Player)
+proliferable = kindJoin (CounterCompare Nothing AtLeast (Lit 1))
+                        (And [Permanent, HasCounters Nothing])
+
+||| The context proliferate's giving clause reads: the union mention its
+||| choice announced.
+public export
+proliferated : (bs : Bindings) -> Bindings
+proliferated bs = chosenIntro {bs} (CountedGroup Macros.anyNumber Macros.proliferable)
+
+||| "Proliferate" [CR#701.34a] in full: choose any number of permanents
+||| and/or players that have a counter, then give each one additional
+||| counter of each kind that permanent or player already has. The two
+||| clauses are the rule's own, and the second reads the first back as
+||| the union demonstrative -- one choice, then a giving distributed
+||| over its members. "Proliferate twice" and "proliferate X times" are
+||| `Repeated` over this: [CR#701.34a] fixes the per-kind amount at one,
+||| so a written count can only iterate the whole action.
+public export
+proliferate : {bs : Bindings} ->
+              {auto 0 mj : countManyWord JoinW (Macros.proliferated bs) = 1} ->
+              Effect bs
+proliferate =
+  Enact "Proliferate" {kn = Oh}
+        (Sequentially [ Choose (CountedGroup Macros.anyNumber Macros.proliferable) Nothing
+                      , GiveCountersOfOwnKinds (EachOf (Those JoinW {ok = mj})) ])
+
 ||| "<player> loses N <kind> counters": the counted removal beside the
 ||| bare "all" spelling `LosesCounters` writes with the slot unfilled.
 public export

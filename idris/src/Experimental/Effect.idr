@@ -1121,6 +1121,34 @@ mutual
                                (amt : Amount (nomIntro who)) ->
                                {auto 0 ok : countOutcomes CountersPut bs = 1} ->
                                Effect bs
+    ||| The SELF-reading kind-blind distributive: each recipient is given
+    ||| one more counter of every kind it already carries. [CR#701.34a]
+    ||| is the rule -- proliferate gives each chosen permanent or player
+    ||| "one additional counter of each kind that permanent or player
+    ||| already has" -- and it is what tells the kind-blind rows apart:
+    ||| `PutCountersOfThoseKinds` and `GetsCountersOfThoseKinds` range
+    ||| over an ANNOUNCED batch's kinds and presuppose one,
+    ||| `PutSameCounters` reads a DIFFERENT holder's counters, and this
+    ||| row reads its own recipient's with nothing announced anywhere.
+    ||| Amount-fixed, on `PutSameCounters`' model: the rule gives one per
+    ||| kind, and no printed line writes another number -- "proliferate
+    ||| twice" and "proliferate X times" repeat the whole action, which
+    ||| is `Repeated`.
+    ||| Kind-indexed at [CR#122.1]'s own pair, a marker placed on an
+    ||| object or a player, because the choice names both halves at once
+    ||| and the giving clause distributes over the union. An ability on
+    ||| the stack is an object too [CR#109.1] and is excluded anyway:
+    ||| every counter kind `counterScope` names sits on a permanent, a
+    ||| card or a player, and no printed line counters an ability.
+    ||| A recipient holding no counters is given nothing, which is the
+    ||| rule applied rather than a defect -- [CR#701.34a] asks for a
+    ||| counter in the CHOICE, so no gate repeats the demand here.
+    ||| -- spelling: "give each one additional counter of each kind that
+    ||| [n] already has"; the reminder text's "give each another counter
+    ||| of each kind already there" is the same node.
+    GiveCountersOfOwnKinds : {k : Kind} -> (on : Noun bs k) ->
+                             {auto 0 hk : So (kindLte k (Object \/ Player))} ->
+                             {auto 0 pm : PerMember on} -> Effect bs
     ||| Counters leave a player in a stated number as well as all at
     ||| once: [CR#728.1]'s own rules text has a player remove "one rad
     ||| counter from themselves", and printed removal lines count what
@@ -1370,6 +1398,7 @@ mutual
   heldUntilOk (MoveCounters _ _ _ _) = False
   heldUntilOk (PutSameCounters _ _) = False
   heldUntilOk (PutCountersOfThoseKinds _ _) = False
+  heldUntilOk (GiveCountersOfOwnKinds _) = False
   heldUntilOk (Enact _ (Move _ _ _)) = True
   heldUntilOk (Enact _ _) = False
   heldUntilOk (Does _ _ _) = False
@@ -1451,6 +1480,7 @@ mutual
   reflexEncloseUse (MoveCounters _ _ _ _) = EncReflexive
   reflexEncloseUse (PutSameCounters _ _) = EncReflexive
   reflexEncloseUse (PutCountersOfThoseKinds _ _) = EncReflexive
+  reflexEncloseUse (GiveCountersOfOwnKinds _) = EncReflexive
   reflexEncloseUse (Move _ _ _) = EncReflexive       -- 3
   reflexEncloseUse (Expose _ _ _) = EncReflexive   -- 2
   reflexEncloseUse (AddMana _ _ _ _) = EncReflexive
@@ -1566,6 +1596,7 @@ mutual
   thisWayOutcomeOk (MoveCounters _ _ _ _) = True
   thisWayOutcomeOk (PutSameCounters _ _) = True
   thisWayOutcomeOk (PutCountersOfThoseKinds _ _) = True
+  thisWayOutcomeOk (GiveCountersOfOwnKinds _) = True
   thisWayOutcomeOk (Enact _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
   thisWayOutcomeOk (Pay _ _) = True
@@ -1663,6 +1694,7 @@ mutual
   costActionOk (RemoveCounters _ _ from) = costNounOk from
   costActionOk (MoveCounters _ _ src dst) = costNounOk src && costNounOk dst
   costActionOk (PutSameCounters src dst) = costNounOk src && costNounOk dst
+  costActionOk (GiveCountersOfOwnKinds on) = costNounOk on
   -- the distributive kind anaphor reads an announced batch; no cost
   -- announces one, so the clause instructs nothing at payment.
   costActionOk (PutCountersOfThoseKinds _ _) = False
@@ -1800,6 +1832,7 @@ mutual
   effEq (MoveCounters _ _ _ _) _ = False
   effEq (PutSameCounters _ _) _ = False
   effEq (PutCountersOfThoseKinds _ _) _ = False
+  effEq (GiveCountersOfOwnKinds _) _ = False
   effEq (Enact v e) (Enact w f) = v == w && effEq e f
   effEq (Enact _ _) _ = False
   effEq (Does _ _ _) _ = False
@@ -1926,6 +1959,7 @@ mutual
   effIntro (MoveCounters amt kind src dst) = nomIntro dst
   effIntro (PutSameCounters src dst) = nomIntro dst
   effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
+  effIntro (GiveCountersOfOwnKinds on) = nomIntro on
   effIntro (Enact v (Move what to _)) =
     afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
   effIntro (Enact v (SetStatus _ n)) = stampIntro (Just v) n
@@ -2013,6 +2047,7 @@ mutual
   preIntro (MoveCounters amt kind src dst) = nomIntro dst
   preIntro (PutSameCounters src dst) = nomIntro dst
   preIntro (PutCountersOfThoseKinds amt on) = nomIntro on
+  preIntro (GiveCountersOfOwnKinds on) = nomIntro on
   preIntro (Enact v (Move what to _)) = nomIntro what
   preIntro (Enact _ e) = preIntro e
   preIntro (Does s v (Move what to _)) = nomIntro what
@@ -2094,6 +2129,7 @@ mutual
   annIntro (MoveCounters amt kind src dst) = nomIntro dst
   annIntro (PutSameCounters src dst) = nomIntro dst
   annIntro (PutCountersOfThoseKinds amt on) = nomIntro on
+  annIntro (GiveCountersOfOwnKinds on) = nomIntro on
   annIntro (Enact v (Move what to _)) = nomIntro what
   annIntro (Enact _ e) = annIntro e
   annIntro (Does s v (Move what to _)) = nomIntro what
@@ -2220,6 +2256,7 @@ mutual
   deedDelta (MoveCounters amt kind src dst) = []
   deedDelta (PutSameCounters src dst) = []
   deedDelta (PutCountersOfThoseKinds amt on) = []
+  deedDelta (GiveCountersOfOwnKinds on) = []
   deedDelta (Enact v (Move what to _)) = []
   deedDelta (Enact _ e) = deedDelta e
   deedDelta (Does s v (Move what to _)) = []
