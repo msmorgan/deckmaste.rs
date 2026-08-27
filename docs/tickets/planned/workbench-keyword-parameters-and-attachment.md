@@ -369,3 +369,5 @@ stay unwritten; this round does not touch it.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-axis-distributive-reads (close, 2026-08-26):** landwalk is entirely absent from the grammar (Magnigoth Treefolk's "landwalk of that type" is doubly blocked: no landwalk keyword param family, and the land-subtype quality sort routed to workbench-quality-sort-gaps); Sunbird Effigy's domain needs craft machinery. Keyword-parameter families, so they land here.

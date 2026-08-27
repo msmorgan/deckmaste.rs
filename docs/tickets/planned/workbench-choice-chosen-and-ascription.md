@@ -481,3 +481,5 @@ card linkage for choices.
 - **Routed from workbench-amount-ceiling-read (close, 2026-08-26):** Truce / Temporary Truce's tail — "for each card less than two a player draws this way" reads the number NOT chosen against the ceiling; nothing announces it. A chosen-value read, so it lands here.
 
 - **Routed from workbench-chosen-counter-kind (close, 2026-08-26):** the BOARD-READ kind chooser (~13 lines — "choose a kind of counter on target permanent", Bribe Taker's second arm, Crystalline Giant's at-random + exclusion domain) — a chooser POSITION over a counter-kind sort, the biggest thing behind minting one; plus Grimdancer's plural pick with distinctness. Chooser positions are this ticket's, so they land here.
+
+- **Routed from workbench-axis-distributive-reads (close, 2026-08-26):** the numeric-characteristic chosen read — `chosenQualityReadOk Number = False` blocks Celestial Judgment's "a creature with that power" after the `ValueAxis Power` pass binds the value; Hurkyl's "a card of that type" is the card-type twin. Chosen-value reads, so they land here.
