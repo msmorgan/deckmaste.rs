@@ -4815,7 +4815,14 @@ fn number_carry_categories(
     equations: &HashMap<String, Vec<feature::FeatureEquation>>,
     checked_field_category_reads: &HashMap<String, HashSet<Feature>>,
 ) -> HashSet<String> {
-    let mut carried = HashSet::new();
+    let mut carried = checked_field_category_reads
+        .iter()
+        .filter_map(|(category, features)| {
+            features
+                .contains(&Feature::Number)
+                .then_some(category.clone())
+        })
+        .collect::<HashSet<_>>();
     loop {
         let before = carried.len();
         for construction in constructions {
