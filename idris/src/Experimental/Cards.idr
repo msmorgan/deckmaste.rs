@@ -4911,7 +4911,7 @@ xenograft =
 public export
 convincingMirage : Card
 convincingMirage =
-  Macros.card "Convincing Mirage" (Just [Macros.pip Blue]) []
+  Macros.card "Convincing Mirage" (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.land
        , Static (Macros.entersChoosingFrom Macros.thisAura (SubtypeQ Land)
@@ -5145,6 +5145,41 @@ meddlingMage =
        , Static (ObjectCant Cast
                    (AllOf (And [Macros.spell, Named ChosenName]))) ]
        (Just (2, 2))
+
+||| Sanctum Prelate -- "As this creature enters, choose a number. /
+||| Noncreature spells with mana value equal to the chosen number can't
+||| be cast." The chosen-number amount's witness: the number sort had a
+||| chooser and no read at all until the amount seat opened, and this is
+||| the read at its plainest -- one chooser, one comparison bound, no
+||| domain written.
+public export
+sanctumPrelate : Card
+sanctumPrelate =
+  Macros.card "Sanctum Prelate"
+       (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
+       [ Static (Macros.entersChoosing Macros.thisCreature Number)
+       , Static (ObjectCant Cast
+                   (AllOf (And [Macros.spell, Not (HasType Creature),
+                                Compare ManaValue Eq ChosenNumber]))) ]
+       (Just (2, 2))
+
+||| Expel the Interlopers -- "Choose a number between 0 and 10. Destroy
+||| all creatures with power greater than or equal to the chosen
+||| number." The chosen number read as a comparison BOUND, and the
+||| printed range at the number sort's second domain, in one spell.
+public export
+expelTheInterlopers : Card
+expelTheInterlopers =
+  Macros.card "Expel the Interlopers"
+       (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+           [ Macros.choose (Macros.a (Macros.qualityFrom Number
+                                        (NumberBetween 0 10)))
+           , Macros.destroy (AllOf (And [Macros.creature,
+                                         Compare Power AtLeast ChosenNumber])) ]) ]
+       Nothing
 
 public export
 nevermore : Card
@@ -11205,3 +11240,4 @@ noVariableSymbolNoLetter = Refl
 public export
 noCostNoLetter : costLetters Nothing = []
 noCostNoLetter = Refl
+

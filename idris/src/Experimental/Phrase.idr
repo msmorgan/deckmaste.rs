@@ -153,6 +153,14 @@ mutual
     BasicTypesOnly : ChoiceDomain (SubtypeQ Land)
     NonbasicTypesOnly : ChoiceDomain (SubtypeQ Land)
     NumberAbove : (n : Nat) -> ChoiceDomain Number
+    ||| "choose a number between [lo] and [hi]": the number sort's other
+    ||| narrowing, a printed RANGE where `NumberAbove` writes a floor
+    ||| alone. 7 supported lines. The bounds are gated because
+    ||| [CR#608.2d] forbids choosing "an option that's illegal or
+    ||| impossible" and an empty range leaves no option at all; the
+    ||| inclusive reading is English's own and no rule narrows it.
+    NumberBetween : (lo : Nat) -> (hi : Nat) ->
+                    {auto 0 ok : So (lo <= hi)} -> ChoiceDomain Number
 
   ||| Not an `Eq` instance: this equality calls `predEq`, which calls back,
   ||| and an implementation is opaque to the size-change checker, so the
@@ -170,6 +178,7 @@ mutual
   sameChoiceDomain BasicTypesOnly BasicTypesOnly = True
   sameChoiceDomain NonbasicTypesOnly NonbasicTypesOnly = True
   sameChoiceDomain (NumberAbove a) (NumberAbove b) = a == b
+  sameChoiceDomain (NumberBetween a b) (NumberBetween c d) = a == c && b == d
   sameChoiceDomain _ _ = False
 
   public export
@@ -2151,6 +2160,25 @@ mutual
     ||| (`outcomeIsQuantity`) rather than every outcome mention, because a
     ||| coin flip leaves one that carries none [CR#705.2].
     ThatMuch : {auto 0 ok : countQuantOutcomes bs = 1} -> Amount bs
+    ||| "the chosen number", "the last chosen number": a chosen number
+    ||| read where the sentence wants an AMOUNT. It is the read
+    ||| `chosenQualityReadOk Number = False` refuses at the other seat and
+    ||| the reason the two come apart is that rule's own: a number is not
+    ||| one of [CR#109.3]'s characteristics, so nothing on an object
+    ||| matches it, while an amount slot asks for a number and nothing
+    ||| else.
+    ||| ONE row for both spellings, because [CR#607.2d] writes one
+    ||| linkage over "the chosen [value]", "the last chosen [value]," or
+    ||| similar: which word a card prints follows from how many times its
+    ||| chooser may fire, and no rule tells the two readings apart.
+    ||| The gate is `ChoiceStands`' existence rather than uniqueness for
+    ||| that same reason -- Shapeshifter writes two choosers and reads
+    ||| them with one phrase -- and it carries the marked read's recorded
+    ||| repeatability overgeneration unchanged.
+    ||| -- spelling: "the chosen number" behind a single chooser, "the
+    ||| last chosen number" behind a repeatable one.
+    ChosenNumber : {auto 0 ok : ChoiceStands (countQuality Number bs)} ->
+                   Amount bs
     PreventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
                        Amount bs
     ||| "the result": the number on the die a clause rolled. [CR#706.2]
@@ -2341,6 +2369,7 @@ mutual
   amtDelta (Aggregate _ _ p) = predDelta p
   amtDelta (Times _ a) = amtDelta a
   amtDelta ThatMuch = []
+  amtDelta ChosenNumber = []
   amtDelta PreventedThisWay = []
   amtDelta TheResult = []
   amtDelta TheTotal = []
@@ -2373,6 +2402,7 @@ mutual
   amtIntro (Aggregate _ _ p) = predDelta p ++ bs
   amtIntro (Times per a) = amtIntro a
   amtIntro ThatMuch = bs
+  amtIntro ChosenNumber = bs
   amtIntro PreventedThisWay = bs
   amtIntro TheResult = bs
   amtIntro TheTotal = bs
@@ -2413,6 +2443,7 @@ mutual
   amtPlur (Aggregate _ _ _) = ManyOf
   amtPlur (Times _ _) = ManyOf
   amtPlur ThatMuch = ManyOf
+  amtPlur ChosenNumber = ManyOf
   amtPlur PreventedThisWay = ManyOf
   amtPlur TheResult = ManyOf
   amtPlur TheTotal = ManyOf
@@ -2446,6 +2477,7 @@ mutual
   writtenBound (Aggregate _ _ _) = False
   writtenBound (Times _ _) = False
   writtenBound ThatMuch = False
+  writtenBound ChosenNumber = False
   writtenBound PreventedThisWay = False
   writtenBound TheResult = False
   writtenBound TheTotal = False
@@ -2571,6 +2603,8 @@ mutual
   readAmount (Aggregate _ _ _) = True
   readAmount (Times _ _) = False
   readAmount ThatMuch = False
+  -- Announced under [CR#608.2d], as `UpTo` is; no game state carries it.
+  readAmount ChosenNumber = False
   readAmount PreventedThisWay = False
   -- the die's number is a read of the roll, not a re-mention of a
   -- quantity the text already stated, so a comparison may take it as
