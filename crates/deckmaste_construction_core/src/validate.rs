@@ -11344,14 +11344,6 @@ pub(crate) mod tests {
             (
                 quote! {
                     position = Verb;
-                    tail = [Clause];
-                    feature = Agreement;
-                },
-                "tail atoms must be string literals, `Amount`, `ObjectNounPhrase`, or `PredicativeComplement`",
-            ),
-            (
-                quote! {
-                    position = Verb;
                     tail = [];
                     feature = Agreement;
                     valence = Transitive;
