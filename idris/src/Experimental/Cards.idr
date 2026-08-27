@@ -7455,6 +7455,26 @@ martyrsCry =
                 ForEachOf (Macros.thoseVerbed "Exile" (TypeW Creature))
                           (Draw (ControllerOf It) (Lit 1))]
 
+||| Hate Mirage's middle two sentences -- "For each of those creatures,
+||| create a token that's a copy of that creature. Those tokens gain
+||| haste." The loop's union export at work: `ForEachOf` summarises what
+||| its body introduced ONE pass at a time into one plural mention, so
+||| the sentence after the loop names the whole batch of tokens. Twinflame
+||| ("Exile those tokens at the beginning of the next end step") and Smoke
+||| Spirits' Aid ("Those tokens have enchant creature and ...") read the
+||| same export at the same seam.
+||| The printed FOURTH sentence, "Exile them", is not written here and
+||| cannot be: the targeted creatures the loop ran over are still a plural
+||| object mention, so the bare plural pronoun has two candidates where
+||| "those tokens" has one.
+public export
+hateMirageTokens : Effect []
+hateMirageTokens =
+  Sequentially
+    [ ForEachOf (TargetGroup (Macros.upTo 2) Macros.creatureYouDontControl)
+                (Create You (Lit 1) (TokenCopyOf It []) [])
+    , Macros.gains (Those TokenW) (Macros.keyword "Haste") Nothing ]
+
 public export
 descentOfTheDragons : Effect []
 descentOfTheDragons =
@@ -7758,15 +7778,15 @@ blazingArchonCant =
 ||| the verbed event's passive [CR#701.8a] now that `IsDestroyed` has
 ||| retired into it. [CR#701.8b] destroys with no destroyer named -- the
 ||| lethal-damage state-based action [CR#704.5g] -- which is exactly what
-||| the actorless voice says. The self-mention stands in for the printed
-||| "it": a replacement's event mints no subject binding for its own
-||| noun.
+||| the actorless voice says. The replacement arm writes the PRINTED
+||| "it": `eventIntro` announces the replaced event's own subject, and a
+||| deictic subject announces itself, so the pronoun has its antecedent.
 public export
 clergyOfTheHolyNimbus : Ability
 clergyOfTheHolyNimbus =
   Static (Intercepts (VerbedEvent Nothing "Destroy"
                                   (Just Macros.thisCreature)) []
-                     (Regenerate Macros.thisCreature) Repeatedly Nothing)
+                     (Regenerate It) Repeatedly Nothing)
 
 ||| Rampant Frogantua's second line: "This creature gets +10/+10 for each
 ||| player who has lost the game." The game-loss look-back [CR#603.10f].
@@ -9834,10 +9854,10 @@ reciprocate =
 ||| Whirling Dervish -- "Protection from black / At the beginning of each
 ||| end step, if this creature dealt damage to an opponent this turn, put
 ||| a +1/+1 counter on it." The same event in the CONDITION frame, and
-||| the other complement kind. The body writes the self-reference rather
-||| than the printed "it": an intervening condition announces nothing
-||| (`condDelta` is empty at `Happened`), so the mention the printed
-||| anaphor reads back is not there to read.
+||| the other complement kind. The body writes the PRINTED "it": the
+||| intervening condition announces its own subject [CR#603.4], and the
+||| opponent it names is a player, so the pronoun has one object
+||| candidate. Dunerider Outlaw prints the same line word for word.
 public export
 whirlingDervish : Card
 whirlingDervish =
@@ -9848,7 +9868,7 @@ whirlingDervish =
            (BeginningOf EndStep (ByWord EachPlayers))
            (Macros.happenedInvolving DamageDealing Macros.thisCreature
                                      Lookback.ThisTurn Macros.anOpponent)
-           (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature) ]
+           (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) It) ]
        (Just (1, 1))
 
 ||| Military Intelligence -- "Whenever you attack with two or more

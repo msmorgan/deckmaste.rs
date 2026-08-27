@@ -612,7 +612,7 @@ entersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
 entersWithCounters n amt kind = EntersWithCounters n amt (PrintedKind kind) Fresh
 
 public export
-gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
+gets : (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
        (tou : PtShift (shiftIntro pow)) ->
        {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
        (d : Maybe (Duration (staticIntro (Gets n pow tou {ok})))) ->

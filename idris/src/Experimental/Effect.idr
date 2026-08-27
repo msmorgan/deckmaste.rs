@@ -150,12 +150,21 @@ mutual
   namespace Static
     public export
     data StaticEffect : Bindings -> Type where
-      Gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
+      ||| The shift amounts sit at `selfSubjIntro n`, not `nomIntro n`:
+      ||| the subject is written before them and a deictic one announces
+      ||| itself, so "gets +2/+2 for each Aura attached to IT"
+      ||| (Auramancer's Guise) reads the enchanted creature its own
+      ||| statement named. That is the context `staticIntro` has always
+      ||| exported for this row; the slots were the drift.
+      Gets : (n : Noun bs Object) -> (pow : PtShift (selfSubjIntro n)) ->
              (tou : PtShift (shiftIntro pow)) ->
              {auto 0 ok : ZoneFits (nounZone n) (Just Battlefield)} ->
              StaticEffect bs
+      ||| `Gets`' move, at the defining amount: "becomes an artifact
+      ||| creature with power and toughness each equal to ITS mana value"
+      ||| (Titania's Song).
       DefinesPt : (n : Noun bs Object) -> (sl : DefinedSlots) ->
-                  (amt : Amount (nomIntro n)) ->
+                  (amt : Amount (selfSubjIntro n)) ->
                   {auto 0 sd : SelfDefined n} ->
                   StaticEffect bs
       HasBasePt : (n : Noun bs Object) -> (pow : Amount bs) ->
@@ -723,6 +732,18 @@ mutual
     MoreTimes : (n : Amount bs) ->
                 Repetition bs
     AnyNumber : Repetition bs
+    ||| "Repeat this process until [c]": the loop bounded by a TEST
+    ||| rather than by a count. A condition stands where the count
+    ||| stands, so the row sits beside `MoreTimes` rather than wrapping
+    ||| it. The condition is read in the context BEFORE the repetition,
+    ||| like every other `Repetition` slot -- [CR#608.2c] has the
+    ||| instructions followed in the order written, and the process this
+    ||| one repeats was written before it, so the loop states no body of
+    ||| its own and names no context the earlier text had not named.
+    ||| It exports nothing, for `AnyNumber`'s reason: a stopping test is
+    ||| not a bound, so no determinate batch stands after the loop.
+    ||| -- spelling: "repeat this process until [c]".
+    Until : (c : Condition bs) -> Repetition bs
 
   ||| One striation of a results table: the results it covers and the
   ||| effect they bring about. [CR#706.3a] gives the left column three
@@ -2015,8 +2036,18 @@ mutual
   effIntro (If c e oth) = bs
   effIntro (Unless e who c) = bs
   effIntro (Define l amt) = defineLetter l (amtIntro amt)
-  effIntro (ForEachOf _ _) = bs
+  -- a DOMAIN-DRIVEN loop has a determinate iteration count, so the union
+  -- over its passes is well-formed and is exported on `Repeated`'s
+  -- precedent: one summary mention per mention the body introduced, same
+  -- payload and same stamp, differing only in naming many where one pass
+  -- named one. No count rides along -- `Repeated` exports one because the
+  -- text WROTE a number, and here the number is the group's own size,
+  -- which `GroupSize` already reads off the group's mention.
+  effIntro (ForEachOf grp body) = pluralizeDelta (effDelta body) ++ bs
   effIntro (ForEachKindOf _ _ _ _) = bs
+  -- an OPEN-ENDED repetition exports nothing: with no bound there is no
+  -- determinate batch to summarise, and an until-condition supplies a
+  -- stopping test rather than a count.
   effIntro (Repeat _) = bs
   effIntro (Repeated n body) =
     outcomeB RepeatCount :: (pluralizeDelta (effDelta body) ++ amtIntro n)

@@ -555,42 +555,49 @@ mutual
   ||| What an event pattern contributes before it happens — its announced
   ||| subject phrase [CR#601.2c]. Read by an interception's replacement,
   ||| whose replaced event never happens [CR#614.6].
+  ||| The subject is announced at `selfSubjIntro`, exactly as `eventAfter`
+  ||| announces it: a described participant names its referent through its
+  ||| own delta, and a DEICTIC one — the source, an attachment's host —
+  ||| announces itself, which is what lets "If this creature would be
+  ||| destroyed, regenerate IT" (Clergy of the Holy Nimbus) write the
+  ||| printed pronoun. [CR#614.6] keeps the event from happening; it does
+  ||| not unwrite the phrase the event named.
   public export
   eventIntro : {bs : Bindings} -> GameEvent bs -> Bindings
-  eventIntro (Dies n) = nomIntro n
-  eventIntro (Leaves n _) = nomIntro n
-  eventIntro (IsDealtDamage to) = nomIntro to
-  eventIntro (Draws who) = nomIntro who
-  eventIntro (LosesGame who) = nomIntro who
-  eventIntro (Enters n _) = nomIntro n
-  eventIntro (Attacks n NoDefender) = nomIntro n
-  eventIntro (Attacks _ (OneDefender whom)) = nomIntro whom
-  eventIntro (AttacksWith _ attackers) = nomIntro attackers
-  eventIntro (Blocks n Nothing) = nomIntro n
-  eventIntro (Blocks _ (Just what)) = nomIntro what
-  eventIntro (BecomesBlocked n Nothing) = nomIntro n
-  eventIntro (BecomesBlocked _ (Just by)) = nomIntro by
-  eventIntro (DealsCombatDamage n to) = nomIntro to
+  eventIntro (Dies n) = selfSubjIntro n
+  eventIntro (Leaves n _) = selfSubjIntro n
+  eventIntro (IsDealtDamage to) = selfSubjIntro to
+  eventIntro (Draws who) = selfSubjIntro who
+  eventIntro (LosesGame who) = selfSubjIntro who
+  eventIntro (Enters n _) = selfSubjIntro n
+  eventIntro (Attacks n NoDefender) = selfSubjIntro n
+  eventIntro (Attacks _ (OneDefender whom)) = selfSubjIntro whom
+  eventIntro (AttacksWith _ attackers) = selfSubjIntro attackers
+  eventIntro (Blocks n Nothing) = selfSubjIntro n
+  eventIntro (Blocks _ (Just what)) = selfSubjIntro what
+  eventIntro (BecomesBlocked n Nothing) = selfSubjIntro n
+  eventIntro (BecomesBlocked _ (Just by)) = selfSubjIntro by
+  eventIntro (DealsCombatDamage n to) = selfSubjIntro to
   eventIntro (BeginningOf _ _) = bs
-  eventIntro (Casts _ what) = nomIntro what
-  eventIntro (BecomesTarget _ by) = nomIntro by
-  eventIntro (StatusEvent n _) = nomIntro n
+  eventIntro (Casts _ what) = selfSubjIntro what
+  eventIntro (BecomesTarget _ by) = selfSubjIntro by
+  eventIntro (StatusEvent n _) = selfSubjIntro n
   eventIntro DayNightShift = bs
-  eventIntro (LastCounterRemoved _ n _) = nomIntro n
-  eventIntro (PutInto n _ _) = nomIntro n
-  eventIntro (CounterEvent _ _ n OneCounter _ _) = nomIntro n
+  eventIntro (LastCounterRemoved _ n _) = selfSubjIntro n
+  eventIntro (PutInto n _ _) = selfSubjIntro n
+  eventIntro (CounterEvent _ _ n OneCounter _ _) = selfSubjIntro n
   eventIntro (CounterEvent _ _ n ManyCounters _ _) =
-    outcomeB CountersPut :: nomIntro n
-  eventIntro (TokensCreated n _ _ _) = nomIntro n
+    outcomeB CountersPut :: selfSubjIntro n
+  eventIntro (TokensCreated n _ _ _) = selfSubjIntro n
   eventIntro (ChapterMark _) = bs
-  eventIntro (Activates _ what) = nomIntro what
+  eventIntro (Activates _ what) = selfSubjIntro what
   eventIntro (StatBecomes _ _ v) = amtIntro v
-  eventIntro (Regenerates n) = nomIntro n
+  eventIntro (Regenerates n) = selfSubjIntro n
   -- no coin: [CR#614.6] keeps the replaced flip from happening, so the
   -- replacement writes its own count ("instead flip two coins") rather
   -- than reading one back.
-  eventIntro (FlipsCoin who) = nomIntro who
-  eventIntro (FlipEvent who _) = nomIntro who
+  eventIntro (FlipsCoin who) = selfSubjIntro who
+  eventIntro (FlipEvent who _) = selfSubjIntro who
   -- the roll it announces is the roll that WOULD happen: a replacement
   -- reads `eventIntro`, and [CR#614.6] keeps the replaced event from
   -- happening at all, so what stands there is the dice the instruction
@@ -604,12 +611,12 @@ mutual
   -- kind announces it like any other: [CR#706.7] withholds the number
   -- from a planar roll, not the dice the instruction called for, and
   -- Ichor Elixir's "that many planar dice plus one" reads exactly this.
-  eventIntro (RollsDice who OneDie _ _) = nomIntro who
-  eventIntro (RollsDice who ManyDice _ _) = outcomeB DiceRolled :: nomIntro who
-  eventIntro (PaysCost _ _ whose _) = nomIntro whose
-  eventIntro (PaysLife who) = nomIntro who
+  eventIntro (RollsDice who OneDie _ _) = selfSubjIntro who
+  eventIntro (RollsDice who ManyDice _ _) = outcomeB DiceRolled :: selfSubjIntro who
+  eventIntro (PaysCost _ _ whose _) = selfSubjIntro whose
+  eventIntro (PaysLife who) = selfSubjIntro who
   eventIntro (VerbedEvent who _ Nothing) = agentIntro who
-  eventIntro (VerbedEvent _ _ (Just what)) = nomIntro what
+  eventIntro (VerbedEvent _ _ (Just what)) = selfSubjIntro what
   eventIntro (NthOccurrence _ ev) = eventIntro ev
 
   ||| The discourse after the event has happened, read by a trigger's

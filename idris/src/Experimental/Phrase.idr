@@ -3140,16 +3140,17 @@ mutual
   condDelta : {bs : Bindings} -> Condition bs -> List Binding
   condDelta (Exists _) = []
   condDelta (ExistsGroup _) = []
-  condDelta (Happened _ _ _ _) = []
+  -- [CR#603.4] has an intervening "if" clause checked when the ability
+  -- would trigger AND again as it resolves, so the clause it governs
+  -- reads a condition that HELD -- and the subject it held of is a
+  -- referent the body may name. What it announces is the SUBJECT alone,
+  -- on `Matches`' model below: the complement is what the condition
+  -- TESTED the subject against, and announcing it too would leave a
+  -- printed "it" with two candidates (Whirling Dervish).
+  condDelta (Happened _ who _ _) = selfSubjDelta who
   condDelta (GameIs _) = []
   condDelta (NoHolder _) = []
-  condDelta (Matches (AsType t This _) _) =
-    [MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
-  condDelta (Matches (AttachHost _ (TypeW t)) _) =
-    [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
-  condDelta (Matches (AttachHost _ PermanentW) _) =
-    [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing)]
-  condDelta (Matches _ _) = []
+  condDelta (Matches n _) = selfSubjDelta n
   condDelta (CompareAmt subj _ bound) = gapB :: (amtDelta bound ++ amtDelta subj)
   condDelta (DealtThisWay _) = []
   condDelta (FlipCalled _ _) = []
@@ -3226,16 +3227,26 @@ mutual
                {auto 0 ok : So (seedsToken p)} ->
                TokenPhrase (Indefinite m p {ph})
 
+  ||| The announcement a DEICTIC subject makes on its own behalf: the
+  ||| source, or an attachment's host, re-mentioned so a clause reading
+  ||| this one may say "it". A described subject names its referent
+  ||| through its own `nounDelta` and needs no row here; a self-name and
+  ||| an attach word have no delta of their own, which is the whole
+  ||| reason the rows exist.
+  public export
+  selfSubjDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
+  selfSubjDelta (AsType t This _) =
+    [MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
+  selfSubjDelta (AttachHost _ (TypeW t)) =
+    [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
+  selfSubjDelta (AttachHost _ PermanentW) =
+    [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing)]
+  selfSubjDelta (AttachHost _ PlayerW) = [MkBinding TheD Player OneOf PlayerP]
+  selfSubjDelta _ = []
+
   public export
   selfSubjIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
-  selfSubjIntro (AsType t This _) =
-    MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing) :: bs
-  selfSubjIntro (AttachHost _ (TypeW t)) =
-    MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing) :: bs
-  selfSubjIntro (AttachHost _ PermanentW) =
-    MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing) :: bs
-  selfSubjIntro (AttachHost _ PlayerW) = MkBinding TheD Player OneOf PlayerP :: bs
-  selfSubjIntro n = nomIntro n
+  selfSubjIntro n = selfSubjDelta n ++ nomIntro n
 
   public export
   condIntro : {bs : Bindings} -> Condition bs -> Bindings
