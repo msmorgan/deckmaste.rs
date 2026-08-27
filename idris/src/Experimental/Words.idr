@@ -799,6 +799,10 @@ verbFacts =
   -- unremarkable: a label needs no rules entry of its own, because its
   -- body speaks for it [CR#701.1].
   , MkVerbFacts "Put" Nothing
+  -- the stamp a search leaves is read by the shuffle gate, not by a
+  -- participle anaphor: no printed line names a search's patient that
+  -- way, and "the searched card" is not what English would spell.
+  , MkVerbFacts "Search" Nothing
   ]
 
 public export
@@ -1674,6 +1678,27 @@ verbedWordOk PermanentW (MkStamp _ wasF) ty zn = wasF
 verbedWordOk TokenW st ty zn = False
 verbedWordOk CopyW st ty zn = False
 verbedWordOk JoinW st ty zn = False
+
+||| Whether a shuffle leaves a mention readable. [CR#701.24b] keeps the
+||| cards a search FOUND out of the shuffle, so a mention of one survives
+||| it; [CR#701.20d] makes every other reordered library card a new
+||| object, so a mention of one does not. Only a library mention is at
+||| stake: a card an earlier clause moved elsewhere is not in the pile
+||| being randomized. The gate reads the label's own stamp, which is why
+||| "Search" is a catalogued label.
+public export
+survivesShuffle : Binding -> Bool
+survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) (Just st) _)) =
+  stampedBy "Search" st
+survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) Nothing _)) = False
+survivesShuffle _ = True
+
+||| What a shuffle leaves the discourse holding.
+public export
+afterShuffle : Bindings -> Bindings
+afterShuffle [] = []
+afterShuffle (b :: bs) =
+  if survivesShuffle b then b :: afterShuffle bs else afterShuffle bs
 
 public export
 stampWordOk : VerbLabel -> NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool

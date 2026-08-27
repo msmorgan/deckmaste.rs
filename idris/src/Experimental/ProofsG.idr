@@ -827,3 +827,22 @@ badKeywordCostPaymentThatMuch Refl impossible
 public export
 youPaidLifeThisTurn : Condition []
 youPaidLifeThisTurn = Happened LifePayment You Lookback.ThisTurn Nothing
+
+||| The discourse after "Look at the top card of your library. Shuffle."
+public export
+afterShuffledLook : Bindings
+afterShuffledLook =
+  effIntro (the (Effect [])
+    (Sequentially [ Macros.lookAt Macros.topCard, Macros.shuffle ]))
+
+||| "Look at the top card of your library. Shuffle. Put that card into
+||| your hand."
+||| [CR#701.24b] keeps out of a shuffle only the cards a SEARCH found, and
+||| [CR#701.20d] makes every other reordered library card a new object, so
+||| the mention a bare look left does not survive the randomization. The
+||| reading this leaves standing is Mystical Tutor's, where the search's
+||| own stamp is what carries the found card across the shuffle.
+public export
+badReadsShuffledLibraryCard :
+  Unspellable (Noun ProofsG.afterShuffledLook Object) (\ok => That CardW {ok})
+badReadsShuffledLibraryCard Refl impossible

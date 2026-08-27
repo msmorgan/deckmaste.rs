@@ -1100,11 +1100,27 @@ mutual
     ||| label only names it, so a mislabel is a spelling defect and not a
     ||| rules impossibility. The gates a keyword action really imposes
     ||| ride its macro, where the expansion is built.
+    |||
+    ||| **The macro layer is the only sanctioned way to reach `Enact` and
+    ||| `Does`.** Keyword actions stack on top of the core rules without
+    ||| disturbing them: the label exists because the game rules must
+    ||| OBSERVE that a specific keyword action took place -- triggers and
+    ||| replacements watch it -- while every keyword action is a composite
+    ||| of pre-existing building blocks. So the label is the observability
+    ||| hook, the macro is the sanctioned constructor, and the body is the
+    ||| meaning. This is authoring policy, recorded here, not a compiler
+    ||| gate: the carrier would be private if Idris could hide one
+    ||| constructor of a `public export` type, and it cannot. A raw
+    ||| `Enact`/`Does` outside `Macros` therefore still typechecks -- and
+    ||| whatever it says its body already meant, spelled under a label no
+    ||| macro imposed the verb's gates on. Pins do write them raw, on
+    ||| purpose: a pin's business is the term the bench must not have.
     ||| -- spelling: the keyword action's own verb, imperative.
     Enact : (v : VerbLabel) -> (e : Effect bs) ->
             {auto 0 kn : KnownVerb v} -> Effect bs
     ||| `Enact`'s agentive surface: the same labeled action with the
-    ||| player performing it written as its subject.
+    ||| player performing it written as its subject. Macro-only, on
+    ||| `Enact`'s policy and for its reasons.
     ||| -- spelling: "[subj] [verb]s [body]".
     Does : (subj : Noun bs Player) -> (v : VerbLabel) ->
            (e : Effect (nomIntro subj)) ->
@@ -1788,10 +1804,13 @@ mutual
   effIntro (AddMana who amt _ _) = amtIntro amt
   effIntro (Draw who amt) = amtIntro amt
   effIntro (Expose v who what) = exposedIntro what
+  -- the found card is stamped by the label that found it, which is what
+  -- keeps it out of a later shuffle [CR#701.24b].
   effIntro (Search who sc p) =
-    MkBinding AD Object OneOf (ObjectP (seedTy p) (searchZone sc) Nothing Nothing)
+    MkBinding AD Object OneOf
+              (ObjectP (seedTy p) (searchZone sc) (mkStamp (Just "Search") Nothing) Nothing)
       :: (predDelta p ++ searchDelta sc ++ nomIntro who)
-  effIntro (Shuffle whose) = nomIntro whose
+  effIntro (Shuffle whose) = afterShuffle (nomIntro whose)
   effIntro (FlipCoins who count) = outcomeB CoinFlipped :: amtIntro count
   effIntro (RollDice who count _) = outcomeB RollResult :: amtIntro count
   effIntro (ResultsTable rows) = bs
