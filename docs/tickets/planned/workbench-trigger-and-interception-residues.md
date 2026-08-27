@@ -339,3 +339,5 @@ Standard constraints apply.
 - **Routed from workbench-counter-distributive-residues (close, 2026-08-26):** the Ring-tempts trigger header ("Whenever the Ring tempts you" — Aragorn, Company Leader's card-whole blocker) has no event row; and the negated-subtype intervening-if ("if it's not a Kree", Captain Marvel) has no writable form. Both are header/intervening machinery, so they land here.
 
 - **Routed from workbench-randomness-residues (close, 2026-08-26):** the "After [event]" trigger word (Xenosquirrels line 2) — [CR#603.1] gives `TriggerWord` only When/Whenever/At; the corpus prints "After". A header-word question, so it lands here.
+
+- **Routed from workbench-event-disjunction-seat (close, 2026-08-27):** a defender slot on `AttacksWith` ([CR#508.1b] puts one defender per attacking creature; the row's slot currently carries the attackers — Trouble in Pairs needs both); and the ordinal reset window ("each turn" on Nth-occurrence headers). Header machinery, so both land here.

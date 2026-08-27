@@ -28,3 +28,5 @@ Routed from `workbench-event-zone-3-targeting-and-disjunction-arms` (close,
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-event-disjunction-seat (close, 2026-08-27):** the coordinated anaphor "that spell or ability" (Repeated Reverberation's body — the delayed seat's missing witness): a demonstrative over an `Object \/ Ability` union antecedent, which needs this ticket's bare-ability head. It lands here.
