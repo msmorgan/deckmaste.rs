@@ -78,3 +78,12 @@ No Rust crate.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+## Routed ledger items
+
+- **Routed from workbench-anaphora-mentions-and-creation (split into five
+  sub-tickets, 2026-08-27):** the plural read-back mention — "Each player
+  scries N" is unspellable: `Each` mints a plural (`ManyOf`) player binding
+  where the anaphor wants a single `Player` mention. Same per-member
+  binder-read shape as this ticket's own `AggregateOver` item above; land
+  together.
