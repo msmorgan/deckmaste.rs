@@ -29,6 +29,8 @@ struct RecordingVisitor {
     trigger_markers: Vec<TriggerMarker>,
     nouns: Vec<CommonNoun>,
     verbs: Vec<VerbLexeme>,
+    finite_copulas: Vec<FiniteCopula>,
+    core_transitive_verbs: Vec<CoreTransitiveVerb>,
     declarations: Vec<(macro_ron::v2::DeclarationKind, String)>,
     catalog_providers: Vec<CatalogProvider>,
     card_names: Vec<String>,
@@ -62,6 +64,14 @@ impl Visitor for RecordingVisitor {
 
     fn visit_verb_lexeme(&mut self, verb: VerbLexeme) {
         self.verbs.push(verb);
+    }
+
+    fn visit_finite_copula(&mut self, copula: FiniteCopula) {
+        self.finite_copulas.push(copula);
+    }
+
+    fn visit_core_transitive_verb(&mut self, verb: CoreTransitiveVerb) {
+        self.core_transitive_verbs.push(verb);
     }
 
     fn visit_declaration(&mut self, declaration: &macro_ron::v2::DeclarationIdentity) {
@@ -209,9 +219,9 @@ fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
             UnqualifiedNumericStage {
                 reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                     UnqualifiedLocativeStage {
-                        reference: ControllerStage::UnqualifiedControllerStage(
+                        reference: Box::new(ControllerStage::UnqualifiedControllerStage(
                             UnqualifiedControllerStage { reference },
-                        ),
+                        )),
                     },
                 )),
             },
@@ -244,8 +254,8 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
             ScalarQualifiedReference {
                 reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                     UnqualifiedLocativeStage {
-                        reference: ControllerStage::ControllerQualifiedReference(
-                            ControllerQualifiedReference {
+                        reference: Box::new(ControllerStage::RelativeQualifiedReference(
+                            RelativeQualifiedReference {
                                 reference: UnqualifiedReference::OrdinaryPluralReference(
                                     OrdinaryPluralReference::new(
                                         PluralSelector::UnmarkedPluralSelector(
@@ -256,12 +266,18 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                     )
                                     .expect("unmarked plural is valid for an ordinary reference"),
                                 ),
-                                controller_owner: ControllerOwnerQualification::YouControl(
-                                    YouControl::new(SubjectPronoun::You)
-                                        .expect("You is a valid controller"),
-                                ),
+                                clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
+                                    PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
+                                        PositiveObjectGapRelativeClauseValue {
+                                            subject: subject_you(),
+                                            head: TransitiveVerb::Lexeme(
+                                                CoreTransitiveVerb::Control,
+                                            ),
+                                        },
+                                    ),
+                                ))),
                             },
-                        ),
+                        )),
                     },
                 )),
                 scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
@@ -276,6 +292,53 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                 }),
             },
         )),
+    })
+}
+
+fn number_of(counted: Object) -> NounPhrase {
+    let number = UnqualifiedReference::DefiniteSingularReference(DefiniteSingularReference {
+        selector: SingularSelector::UnmarkedSingularSelector(UnmarkedSingularSelector {
+            nominal: singular_nominal(Noun::Lexeme(CommonNoun::Number)),
+        }),
+    });
+    NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+        reference: Box::new(NumericStage::UnqualifiedNumericStage(
+            UnqualifiedNumericStage {
+                reference: Box::new(LocativeStage::OfQualifiedReference(OfQualifiedReference {
+                    reference: Box::new(ControllerStage::UnqualifiedControllerStage(
+                        UnqualifiedControllerStage { reference: number },
+                    )),
+                    complement: Box::new(OfPhrase::OfPhrase(OfPhraseValue {
+                        complement: Box::new(counted),
+                    })),
+                })),
+            },
+        )),
+    })
+}
+
+fn where_number_of(counted: Object) -> WhereClauseCategory {
+    WhereClauseCategory::Where(WhereClause {
+        clause: FiniteClause::PlainFiniteClause(
+            PlainFiniteClause::new(
+                Subject::VariableSubject(VariableSubject {
+                    variable: Variable::X,
+                }),
+                Box::new(Predicate::FiniteCopular(Box::new(
+                    FiniteCopularPredicate::FiniteCopularPredicate(FiniteCopularPredicateValue {
+                        copula: FiniteCopula::Is,
+                        complement: Box::new(PredicativeComplement::Nominal(
+                            PredicativeNominalComplement::PredicativeNominal(
+                                PredicativeNominalValue {
+                                    value: number_of(counted),
+                                },
+                            ),
+                        )),
+                    }),
+                ))),
+            )
+            .expect("X agrees with a third-person singular finite copular predicate"),
+        ),
     })
 }
 
@@ -589,10 +652,9 @@ fn gain_life_with_where() -> Sentence {
                 }),
             }),
         )),
-        clause: WhereClauseCategory::Where(WhereClause {
-            variable: Variable::X,
-            value: nominal_object(creatures_you_control_with_power_at_most_two()),
-        }),
+        clause: where_number_of(nominal_object(
+            creatures_you_control_with_power_at_most_two(),
+        )),
     })
 }
 
@@ -1010,7 +1072,7 @@ fn visitor_reaches_every_vertical_slice_leaf() {
         vec![SelfReferenceSpelling::Abbreviated]
     );
     assert_eq!(visitor.trigger_markers, vec![TriggerMarker::Whenever]);
-    assert_eq!(visitor.nouns, vec![CommonNoun::Player]);
+    assert_eq!(visitor.nouns, vec![CommonNoun::Player, CommonNoun::Number]);
     assert_eq!(
         visitor.declarations,
         vec![
@@ -1026,13 +1088,12 @@ fn visitor_reaches_every_vertical_slice_leaf() {
     );
     assert_eq!(
         visitor.verbs,
-        vec![
-            VerbLexeme::Deal,
-            VerbLexeme::Gain,
-            VerbLexeme::Be,
-            VerbLexeme::Control,
-            VerbLexeme::Deal,
-        ]
+        vec![VerbLexeme::Deal, VerbLexeme::Gain, VerbLexeme::Deal]
+    );
+    assert_eq!(visitor.finite_copulas, vec![FiniteCopula::Is]);
+    assert_eq!(
+        visitor.core_transitive_verbs,
+        vec![CoreTransitiveVerb::Control]
     );
 }
 

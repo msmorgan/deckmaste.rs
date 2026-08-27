@@ -5898,74 +5898,74 @@ fn compound_classifier_nominals_admit_every_positive_modifier_and_reject_negativ
         PositiveWitness {
             text: "Destroy a blue artifact type.",
             modifier_path: "NominalModifierColorModifier",
-            nominal_path: "SingularNominalCompoundModifiedSingularNominal",
-            head_owner: "form:compound_modified_singular_nominal/compound_modified_singular_nominal/2",
+            nominal_path: "SingularNominalModifiedSingularNominal",
+            head_owner: "lexeme:CommonNoun/Type/singular",
         },
         PositiveWitness {
             text: "Destroy all tapped artifact types.",
             modifier_path: "NominalModifierStatusModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all legendary artifact types.",
             modifier_path: "NominalModifierSupertypeModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all spell artifact types.",
             modifier_path: "NominalModifierCommonNounModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all artifact creature types.",
             modifier_path: "NominalModifierTypeModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all Equipment artifact types.",
             modifier_path: "NominalModifierArtifactSubtypeModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all Siege battle types.",
             modifier_path: "NominalModifierBattleSubtypeModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all Human creature types.",
             modifier_path: "NominalModifierCreatureSubtypeModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all Aura enchantment types.",
             modifier_path: "NominalModifierEnchantmentSubtypeModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all Plains land types.",
             modifier_path: "NominalModifierLandSubtypeModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all Jace planeswalker types.",
             modifier_path: "NominalModifierPlaneswalkerSubtypeModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
         PositiveWitness {
             text: "Destroy all Arcane spell types.",
             modifier_path: "NominalModifierSpellSubtypeModifier",
-            nominal_path: "PluralNominalCompoundModifiedPluralNominal",
-            head_owner: "form:compound_modified_plural_nominal/compound_modified_plural_nominal/2",
+            nominal_path: "PluralNominalModifiedPluralNominal",
+            head_owner: "lexeme:CommonNoun/Type/plural",
         },
     ] {
         let analysis = parser.analyze(witness.text, &context);
@@ -5986,10 +5986,7 @@ fn compound_classifier_nominals_admit_every_positive_modifier_and_reject_negativ
         let path = decision.candidates()[0].construction_path();
         assert!(path.iter().any(|item| item == witness.modifier_path));
         assert!(
-            path.iter().any(|item| {
-                item == "PluralNominalModifiedPluralNominal"
-                    || item == "SingularNominalModifiedSingularNominal"
-            }),
+            path.iter().any(|item| item == witness.nominal_path),
             "the ordinary modifier sequence owns {:?}: {path:?}",
             witness.text,
         );
@@ -6012,6 +6009,15 @@ fn compound_classifier_nominals_admit_every_positive_modifier_and_reject_negativ
         assert_eq!(summary.overlap_spans(), 0);
         assert_eq!(summary.synthetic_claims(), 0);
         assert_eq!(summary.provenance_plan_mismatches(), 0);
+        assert!(
+            ownership
+                .parsed_claims()
+                .iter()
+                .any(|claim| claim.stable_owner_id() == witness.head_owner),
+            "the ordinary common-noun head owns its lexeme in {:?}: {:?}",
+            witness.text,
+            ownership.parsed_claims(),
+        );
     }
 
     for text in [

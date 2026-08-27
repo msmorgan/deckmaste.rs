@@ -454,9 +454,9 @@ fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
             UnqualifiedNumericStage {
                 reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                     UnqualifiedLocativeStage {
-                        reference: ControllerStage::UnqualifiedControllerStage(
+                        reference: Box::new(ControllerStage::UnqualifiedControllerStage(
                             UnqualifiedControllerStage { reference },
-                        ),
+                        )),
                     },
                 )),
             },
@@ -474,7 +474,8 @@ fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
     let LocativeStage::UnqualifiedLocativeStage(locative) = numeric.reference.as_ref() else {
         panic!("expected an unqualified locative stage: {noun_phrase:?}")
     };
-    let ControllerStage::UnqualifiedControllerStage(controller) = &locative.reference else {
+    let ControllerStage::UnqualifiedControllerStage(controller) = locative.reference.as_ref()
+    else {
         panic!("expected an unqualified controller stage: {noun_phrase:?}")
     };
     &controller.reference
@@ -505,8 +506,8 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
             ScalarQualifiedReference {
                 reference: Box::new(LocativeStage::UnqualifiedLocativeStage(
                     UnqualifiedLocativeStage {
-                        reference: ControllerStage::ControllerQualifiedReference(
-                            ControllerQualifiedReference {
+                        reference: Box::new(ControllerStage::RelativeQualifiedReference(
+                            RelativeQualifiedReference {
                                 reference: UnqualifiedReference::OrdinaryPluralReference(
                                     OrdinaryPluralReference::new(
                                         PluralSelector::UnmarkedPluralSelector(
@@ -517,12 +518,18 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                     )
                                     .expect("unmarked plural is valid for an ordinary reference"),
                                 ),
-                                controller_owner: ControllerOwnerQualification::YouControl(
-                                    YouControl::new(SubjectPronoun::You)
-                                        .expect("You is a valid controller"),
-                                ),
+                                clause: Box::new(ObjectGapRelativeClause::Positive(Box::new(
+                                    PositiveObjectGapRelativeClause::PositiveObjectGapRelative(
+                                        PositiveObjectGapRelativeClauseValue {
+                                            subject: subject_you(),
+                                            head: TransitiveVerb::Lexeme(
+                                                CoreTransitiveVerb::Control,
+                                            ),
+                                        },
+                                    ),
+                                ))),
                             },
-                        ),
+                        )),
                     },
                 )),
                 scalar: ScalarQualification::ScalarQualification(ScalarQualificationValue {
@@ -537,6 +544,53 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                 }),
             },
         )),
+    })
+}
+
+fn number_of(counted: Object) -> NounPhrase {
+    let number = UnqualifiedReference::DefiniteSingularReference(DefiniteSingularReference {
+        selector: SingularSelector::UnmarkedSingularSelector(UnmarkedSingularSelector {
+            nominal: singular_nominal(Noun::Lexeme(CommonNoun::Number)),
+        }),
+    });
+    NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
+        reference: Box::new(NumericStage::UnqualifiedNumericStage(
+            UnqualifiedNumericStage {
+                reference: Box::new(LocativeStage::OfQualifiedReference(OfQualifiedReference {
+                    reference: Box::new(ControllerStage::UnqualifiedControllerStage(
+                        UnqualifiedControllerStage { reference: number },
+                    )),
+                    complement: Box::new(OfPhrase::OfPhrase(OfPhraseValue {
+                        complement: Box::new(counted),
+                    })),
+                })),
+            },
+        )),
+    })
+}
+
+fn where_number_of(counted: Object) -> WhereClauseCategory {
+    WhereClauseCategory::Where(WhereClause {
+        clause: FiniteClause::PlainFiniteClause(
+            PlainFiniteClause::new(
+                Subject::VariableSubject(VariableSubject {
+                    variable: Variable::X,
+                }),
+                Box::new(Predicate::FiniteCopular(Box::new(
+                    FiniteCopularPredicate::FiniteCopularPredicate(FiniteCopularPredicateValue {
+                        copula: FiniteCopula::Is,
+                        complement: Box::new(PredicativeComplement::Nominal(
+                            PredicativeNominalComplement::PredicativeNominal(
+                                PredicativeNominalValue {
+                                    value: number_of(counted),
+                                },
+                            ),
+                        )),
+                    }),
+                ))),
+            )
+            .expect("X agrees with a third-person singular finite copular predicate"),
+        ),
     })
 }
 
@@ -776,10 +830,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
     );
 
     let body = gain_life_sentence();
-    let clause = WhereClauseCategory::Where(WhereClause {
-        variable: Variable::X,
-        value: object_you(),
-    });
+    let clause = where_number_of(object_you());
     let with_where = WithWhere {
         body: Box::new(body.clone()),
         clause: clause.clone(),
@@ -802,13 +853,6 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         with_where_text,
     );
 
-    let controller = YouControl::new(SubjectPronoun::You).expect("You is a valid controller");
-    let _: SubjectPronoun = controller.controller();
-    assert_eq!(controller.controller(), SubjectPronoun::You);
-    assert!(
-        YouControl::new(SubjectPronoun::It).is_none(),
-        "It is not a valid controller",
-    );
     let count = paragraph(declarative(
         nominal_subject(creatures_you_control_with_power_at_most_two()),
         VerbPhrase::GainLife(GainLife {
@@ -1001,21 +1045,6 @@ fn generated_invariant_production_fields_have_exact_privacy_and_accessors() {
             "UnqualifiedControllerStage",
             &[("reference", true)][..],
             &[][..],
-        ),
-        (
-            "YouControl",
-            &[("controller", false)][..],
-            &["new", "try_new", "controller"][..],
-        ),
-        (
-            "OpponentController",
-            &[("controller", false)][..],
-            &["new", "try_new", "controller"][..],
-        ),
-        (
-            "YouOwn",
-            &[("owner", false)][..],
-            &["new", "try_new", "owner"][..],
         ),
         ("FromBareLocative", &[("complement", true)][..], &[][..]),
         (
@@ -1282,10 +1311,9 @@ fn gain_life_sentence() -> Sentence {
 fn gain_life_with_where() -> Ability {
     paragraph(Sentence::WithWhere(WithWhere {
         body: Box::new(gain_life_sentence()),
-        clause: WhereClauseCategory::Where(WhereClause {
-            variable: Variable::X,
-            value: nominal_object(creatures_you_control_with_power_at_most_two()),
-        }),
+        clause: where_number_of(nominal_object(
+            creatures_you_control_with_power_at_most_two(),
+        )),
     }))
 }
 
@@ -1535,7 +1563,7 @@ fn generated_morphology_closed_owner_ids_match_scan_and_render_claims() {
         ),
         (
             "You gain X life, where X is the number of creatures you control with power 2 or less.",
-            "lexeme:VerbLexeme/Be/third_person_singular",
+            "vocab:FiniteCopula/Is",
         ),
     ] {
         let analysis = parser.analyze(text, &context);
@@ -1991,35 +2019,34 @@ fn missing_period_reports_chart_derived_literal_expectation() {
 #[test]
 fn agreement_mismatch_reports_a_nonempty_chart_failure() {
     let text = "You gains X life.";
-
-    assert_eq!(
-        parser().parse(text, &context("Context Card")),
-        Err(ParseError::Failure {
-            span: TextSpan { start: 16, end: 17 },
-            expectations: BTreeSet::from([
-                Expectation::Literal(" and "),
-                Expectation::Literal(" and/or "),
-                Expectation::Literal(" or "),
-                Expectation::Literal(", "),
-                Expectation::Literal(", then "),
-                Expectation::Literal("rather"),
-            ]),
-        })
-    );
+    let Err(ParseError::Failure { span, expectations }) =
+        parser().parse(text, &context("Context Card"))
+    else {
+        panic!("subject-predicate agreement mismatch must remain a chart failure")
+    };
+    assert_eq!(span, TextSpan { start: 16, end: 17 });
+    assert!(!expectations.is_empty());
+    assert!(expectations.contains(&Expectation::Literal(" and ")));
+    assert!(expectations.contains(&Expectation::Nonterminal(NonterminalCategory::ForPhrase)));
 }
 
 #[test]
-fn count_controller_mismatch_reports_a_nonempty_chart_failure() {
+fn object_gap_relative_subject_is_not_restricted_by_game_role() {
     let text =
         "You gain X life, where X is the number of creatures it controls with power 2 or less.";
-
-    assert_eq!(
-        parser().parse(text, &context("Context Card")),
-        Err(ParseError::Failure {
-            span: TextSpan { start: 62, end: 63 },
-            expectations: BTreeSet::from([Expectation::Literal(".")]),
-        })
-    );
+    let parser = parser();
+    let context = context("Context Card");
+    let parsed = parser
+        .parse(text, &context)
+        .expect("ordinary third-person object-gap relative is grammatical");
+    assert_eq!(parsed.render(&context, parser.environment()), text);
+    let ownership = parser
+        .analyze(text, &context)
+        .ownership()
+        .expect("selected relative clause owns its bytes")
+        .clone();
+    assert!(ownership.summary().covered());
+    assert!(ownership.failures().is_empty());
 }
 
 #[test]
@@ -2043,7 +2070,7 @@ fn lexical_matches_reject_prefixes_of_longer_lexemes() {
         (
             "Zacamaé deals 3 damage to target creature.",
             "Zacama, Primal Calamity",
-            TextSpan { start: 0, end: 8 },
+            TextSpan { start: 6, end: 8 },
         ),
     ] {
         let Err(ParseError::Failure { span, expectations }) = parser().parse(

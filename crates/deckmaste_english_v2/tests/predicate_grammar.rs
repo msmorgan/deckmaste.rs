@@ -479,10 +479,11 @@ fn task10_builds_keep_new_products_in_the_existing_typed_algebra() {
         ClauseAttachment::PreposedAs(_)
     ));
 
-    let coordinated = assert_selected(
+    let coordinated = assert_selected_with_specificity(
         &parser,
         &context,
         "This permanent is all colors and this creature becomes tapped.",
+        true,
     );
     let Ability::Plain(Plain { body }) = coordinated else {
         panic!("clause coordination has an ordinary ability envelope")
@@ -925,7 +926,12 @@ fn task9_closed_information_heads_parse_copy_and_flip_without_action_declaration
             "unattach",
         ),
     ] {
-        let ability = assert_selected(&parser, &context, text);
+        let ability = assert_selected_with_specificity(
+            &parser,
+            &context,
+            text,
+            text == "Copy target instant or sorcery spell.",
+        );
         let predicate = imperative_transitive(&parser, &context, text);
         assert_eq!(
             predicate.head,
@@ -1511,7 +1517,7 @@ fn shared_active_frames_reject_complement_and_agreement_reciprocals() {
             "wrong frame or agreement must reject {text:?}",
         );
     }
-    assert_selected(&parser, &context, "Enter target player.");
+    assert_selected_with_specificity(&parser, &context, "Enter target player.", true);
 }
 
 #[test]
@@ -1541,7 +1547,25 @@ fn copular_change_auxiliary_and_passive_minimal_pairs_select() {
         "It deals damage.",
         "It gains life.",
     ] {
-        assert_selected(&parser, &context, text);
+        assert_selected_with_specificity(
+            &parser,
+            &context,
+            text,
+            matches!(
+                text,
+                "It is legendary."
+                    | "They are white."
+                    | "It was tapped."
+                    | "They were 2/2."
+                    | "It is a creature."
+                    | "It is able to attack."
+                    | "It is dealt damage."
+                    | "It is dealt combat damage."
+                    | "It is put into your graveyard from the battlefield."
+                    | "It is turned face up."
+                    | "A spell was cast."
+            ),
+        );
     }
 }
 
@@ -2217,7 +2241,25 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
 
     macro_rules! assert_frame {
         ($text:literal, [$($visit:literal),+ $(,)?], [$(($surface:literal, $owner:expr)),+ $(,)?]) => {{
-            let ability = assert_selected(&parser, &context, $text);
+            let ability = assert_selected_with_specificity(
+                &parser,
+                &context,
+                $text,
+                matches!(
+                    $text,
+                    "It is legendary."
+                        | "They are white."
+                        | "It was tapped."
+                        | "They were 2/2."
+                        | "It is a creature."
+                        | "It is able to attack."
+                        | "It is dealt damage."
+                        | "It is dealt combat damage."
+                        | "It is put into your graveyard from the battlefield."
+                        | "It is turned face up."
+                        | "A spell was cast."
+                ),
+            );
             let mut visitor = Task7Visitor::default();
             visitor.visit_ability(&ability);
             assert_eq!(visitor.0, [$($visit),+], "exact visitor trace for {:?}", $text);
@@ -4810,10 +4852,11 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
 fn target_and_card_name_boundaries_remain_grammatical_and_metadata_governed() {
     let parser = parser();
     let context = context();
-    assert_selected(
+    assert_selected_with_specificity(
         &parser,
         &context,
         "Put two stun counters on two target creatures.",
+        true,
     );
     for malformed in [
         "Put two stun counters on target creatures.",
@@ -5025,7 +5068,15 @@ fn movement_frames_select_exact_source_destination_state_and_control_roles() {
         "This creature enters legendary.",
         "Search a creature card for your library.",
     ] {
-        assert_selected(&parser, &context, text);
+        assert_selected_with_specificity(
+            &parser,
+            &context,
+            text,
+            matches!(
+                text,
+                "This creature enters a coin." | "Search a creature card for your library."
+            ),
+        );
     }
 }
 
@@ -6819,7 +6870,11 @@ fn task10d_then_sequences_have_exact_ast_build_visit_and_structural_ownership() 
     let context = context();
 
     let auxiliary_text = "When this creature enters, you may search your library for a Goblin card, reveal that card, put it into your hand, then shuffle.";
-    let auxiliary = assert_selected(&parser, &context, auxiliary_text);
+    let auxiliary = assert_selected_with_specificity(&parser, &context, auxiliary_text, true);
+    assert_eq!(
+        auxiliary.render(&context, parser.environment()),
+        auxiliary_text,
+    );
     let analysis = parser.analyze(auxiliary_text, &context);
     let path = analysis.decision().unwrap().candidates()
         [analysis.decision().unwrap().selected().unwrap()]
