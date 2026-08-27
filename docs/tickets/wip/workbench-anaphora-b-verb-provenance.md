@@ -179,3 +179,267 @@ state its own preference behaviour or explicitly inherit A's — do not leave
 the interaction implicit.
 
 Standard constraints apply.
+
+---
+
+## As landed (2026-08-27)
+
+### B1 — the mechanism: verb-scoped counted uniqueness, plus the context that makes it readable
+
+Two pieces, and the second is what made the first useful.
+
+**The read.** `Words.idr`, beside `stampedBy`/`verbedWordOk`:
+
+```idris
+stampIs         : VerbLabel -> Maybe Stamp -> Bool     -- no stamp answers False for every label
+itVerbedReaches : VerbLabel -> Binding -> Bool         -- itReaches OneOf b && stampIs v (payloadProv b.payload)
+countVerbedIt   : VerbLabel -> Bindings -> Nat
+provOfVerbedIt, zoneOfVerbedIt, tyOfVerbedIt : VerbLabel -> Bindings -> ...
+```
+
+`Phrase.idr` (`Noun`, beside `ItAt`; `It`'s and `ItAt`'s own gates UNTOUCHED):
+
+```idris
+ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+           {auto 0 ok : countVerbedIt v bs = 1} -> Noun bs Object
+```
+
+plus `setZoneVerbedIt` and one row per new constructor in `nounEqRef`,
+`nounDelta`, `anchorPhrase`, `choosable`, `groupMention`, `costNounOk`,
+`nounIsYou`, `nounTargeted`, `counterMemoryOk`, `moveDestOk`, `moveIntro`,
+`nounZone`, `nounTy`, `nounPlur`. `Macros.itVerbed` is its carrier.
+
+Two gates, as ratified: one context read (`countVerbedIt v bs = 1`) and one
+obligation that mentions no context at all (`KnownVerb v`) — `TheVerbed`'s
+split exactly, minus the spelling obligation, because the pronoun spells no
+participle.
+
+**Interaction with sub-round A (the sequencing note).** `ItVerbed` states its
+own behaviour and inherits nothing. It narrows on the OPPOSITE side of the
+clause from `ItAt`: `ItAt` narrows by the CONSUMING verb's rule [CR#109.2],
+this by the PRODUCING one's stamp. Neither is a preference — both are counted
+uniqueness over a smaller candidate set, so two mentions the same label
+stamped refuse exactly as two battlefield mentions refuse the carrier-scoped
+read. **They do not compose:** there is no `ItAtVerbed`, and the docstring
+says so. The ADR needs no amendment — clause 3 as A amended it ("counted
+uniqueness … over the narrower set the consuming verb's own rule admits")
+already covers a second narrowing of the same shape, and this one is
+likewise a `countBy` fold.
+
+### The rider context — `riderIntro`, the piece the round turned on
+
+Every one of this round's blocked cells failed for one reason: `CantBe`
+typed its subject at `preIntro e`, which is the host clause's announcement
+*before* the clause acted, so no stamp stands there. `Effect.idr` now has a
+sibling of `preIntro`:
+
+```idris
+riderIntro : {bs : Bindings} -> Effect bs -> Bindings
+riderIntro (Enact v (Move what to _))  = stampIntro (Just v) what
+riderIntro (Does s v (Move what to _)) = stampIntro (Just v) what
+riderIntro e = preIntro e
+```
+
+and `CantBe`'s subject is `Noun (riderIntro e) k`.
+
+**Why this shape and not a re-zoning.** [CR#608.2c] reads a card's later text
+against its earlier text as one statement — and takes *this very sentence*
+("Destroy target creature. It can't be regenerated") as its worked example —
+so the rider's subject names the referent as its own clause left it, carrying
+that clause's label, and not as a following sentence would find it.
+[CR#701.19a] regenerates a PERMANENT, so a subject reachable only in a
+graveyard is the wrong subject: `stampIntro` writes the label with the zone
+left where it was.
+
+**No ADR amendment, and §5 untouched, for the same reason:** this is an
+IN-PLACE RE-MARK, the shape binder-contract clause 2 already licenses
+alongside `settleTargets` and `defineLetter`. Nothing is minted, nothing is
+dropped, the list keeps its length and order — so the bare pronoun counts
+exactly what it counted (`countOnes Object` unchanged at every existing
+carrier), and every gate that was a fold over the prefix still is one.
+
+### Per-family outcomes
+
+| family | outcome |
+|---|---|
+| **the attached rider, bare pronoun (88 occ / 87 cards "it")** | Re-pointed onto the provenance read. **Terror** and **Snuff Out** now write `Macros.itVerbed "Destroy"`, so the fact the rider depends on is stated at the site instead of left to the reader. |
+| **the participle read (10 destroy-hosted occ)** | **WRITES**, and `damnDestroyLine` benches it — Damn's first line, `TheVerbed "Destroy" (TypeW Creature) ThisWay`. New macro `theVerbedThisWay`, `thoseVerbedThisWay`'s twin. **6 of the 10 are singular, 4 plural** (Corrosion's is "Artifacts destroyed this way"). Damn's is the one whose host is a bare labeled move and it is the one benched. Most of the rest host their destroy under a wrapper — `Modal` (Catastrophe), `If` (Breaking Point, Soul Rend, Tsabo's Assassin), `Unless` (Essence Vortex), `ForEachOf` + `Unless` (Giant Albatross), a `Sequentially` (Corrosion), a threshold clause (Kirtar's Wrath) — and every one of those `preIntro` rows exports no stamp (`If`/`ForEachOf` give `bs`, `Modal` gives `quantDelta q ++ bs`, `Sequentially` folds `preIntro`), so `riderIntro` falls through and the participle finds nothing. **The read is unblocked; its other carriers are blocked on wrapper threading, which is not this cell.** Ledgered. |
+| **the demonstrative subject (5–6 occ)** | **The gate was already open** and the round found it: `That (TypeW Creature)` typechecks as `CantBe`'s subject at an empty prefix, both before and after this round. Finding 1009 recorded it blocked *"probed bare, without this row"* — i.e. as a following sentence, where the destroyed target is in a graveyard and `wordReaches (TypeW t)` demands the battlefield. Inside the rider it never was. **All of its printed carriers are blocked elsewhere**: Nekrataal and Stormscape Battlemage on the enters trigger's own announcement (below), Parallax Dementia on `moveIntro p (AttachHost _ _) z = bs` (destroying the enchanted creature mints nothing), Scorching Lava on a damage host plus a kicker conditional, Lim-Dûl's Cohort and Mageta on a coordinated header. Ledgered. |
+| **the marked-read payer rider (finding 1030)** | Recorded on `ChoiceStands`, not gated — the same posture as 1010, which is what "free here" meant. Re-measured: **12 occurrences over 12 cards** (the recorded 14 occurrences does not reproduce; the 12 cards does), every one behind a chooser that can fire more than once. Nothing in the grammar represents a chooser's repeatability, so the row still admits the sentence no line writes. |
+
+**Nekrataal is the round's clearest witness even though its own spelling is
+blocked.** In its trigger's rider context, `countWord (TypeW Creature) = 2`
+and `countOnes Object = 2` — the entering creature and the destroyed target
+both stand — while `countVerbedIt "Destroy" = 1`. All three are recorded as
+`Refl`s (`nekrataalTwoCreatureWords`, `nekrataalTwoObjects`,
+`nekrataalOneDestroyed`), and `CantBe … Regenerated (Macros.itVerbed
+"Destroy")` typechecks there where neither the bare pronoun nor the
+demonstrative does. **The verb-scoped read resolves exactly the ambiguity
+A's policy (b) leaves as same-carrier residue** — both candidates are
+battlefield creatures — because it asks a question the carrier cannot.
+What blocks Nekrataal's own line is that `eventAfter (Enters n _)` announces
+the entering creature under `TheD` (via `moveIntro p (AsType t n _) z`) where
+`selfSubjIntro` and `condDelta` mint `SelfD` for the same phrase, and
+`wordNow` skips `SelfD` alone. **That is an announcement defect, sub-round
+C's.** Ledgered.
+
+### Finding 1010 — disposition: RE-MEASURED and RECORDED, not pinned
+
+Re-measured over `data/derived/cards.jsonl` `select(.supported)` (32,568
+rows), reminder text stripped: **the damage-hosted regeneration denial is 9
+occurrences over 9 cards, not 4** — the recorded Engulfing Flames, Rage of
+Purphoros, Carbonize and Disintegrate plus Flamebreak, Incinerate, Jaya
+Ballard Task Mage, Runesword and Scorching Lava. The 2×2 reproduces exactly
+and is now explained:
+
+| host | attached, no span | spanned, "this turn" |
+|---|---|---|
+| destroy / sacrifice / exile | **138** (134 cards) | **0** |
+| damage | **0** | **9** (9 cards) |
+
+(the remaining 9 spanned occurrences hang off no removal clause at all).
+Perfect covariance, 138/138 and 9/9.
+
+**Not pinned, and the rule says why the corpus writes it the way it does
+rather than why it could not be written.** [CR#704.5g] destroys a lethally
+damaged creature as a state-based action and states outright that
+"regeneration can replace this event"; [CR#701.19c] makes the denial a
+shield-*application* denial, not a deed denial. So a regeneration rider after
+a damage clause is rules-meaningful, and §1.4 forbids pinning it. What the
+corpus's span is doing is timing: the destruction a damage clause causes is
+an SBA taken after the clause finishes, so the denial needs a duration to
+still be there — which is why 9/9 write "this turn" and 138/138 do not.
+The parent's fence on [CR#701.19c] is restated, not re-derived against.
+
+**What the round buys instead of a pin is that the distinction is WRITABLE.**
+`engulfingFlamesRider` records both halves as `Refl`s: `countVerbedIt
+"Destroy" = 0` there (a damage clause leaves no destroy stamp, so the
+provenance read refuses), while `countOnes Object = 1` (the bare pronoun
+still resolves — the overgeneration, at its count, unpinned). A capability,
+not a prohibition.
+
+### Bioplasm — NOT benched whole; the block is two-part and only one part was known
+
+The ticket's conditional ("if your constructor's gates naturally cover the
+exile-stamped read") is **not met**. Recorded with `Refl`s:
+
+- `countVerbed "Exile" CardW bioplasmAfterExile = 1` — "the exiled card"
+  writes (`bioplasmExiledCard`).
+- `countVerbedIt "Exile" bioplasmAfterExile = 1` — the verb-scoped pronoun
+  writes (`bioplasmExiledPronoun`), where the bare `It` is refused at 2
+  (A's `bioplasmTwoCandidates`).
+- `countVerbed "Exile" (TypeW Creature) bioplasmAfterExile = 0` — the card's
+  own spelling, "the exiled creature card", does not.
+
+Sub-round A's close named one cause (`verbedWordOk (TypeW t)` demands
+`wasField`, which a library card lacks). **There is a second and it is the
+harder one:** `tyOfVerbedIt "Exile" bioplasmAfterExile = Nothing` — the
+mention records NO card type, because "the top card of your library" names
+none and the `If it's a creature card` test that follows does not re-mark the
+binding it tested. That is an announcement question, not a provenance one.
+Both recorded; ledgered to C.
+
+### B2 — `afterShuffle`'s owner-blindness: MEASURED AT ZERO and recorded, NOT built
+
+**This is the round's one deviation from a settled pin, and it is a
+measurement result, not a re-opened design.** B2 ruled that the shuffled
+library's possessor be passed to `afterShuffle` rather than an owner field
+added to `ObjectP`. Reading [CR#701.24b]'s own text — "search a library …
+shuffle THAT library … all the cards in that library except those are
+shuffled" — the scoping needs BOTH the shuffled library's owner and the
+MENTION's owner, and the payload records only a zone. A possessor passed in
+has nothing to match against, so the parameter would be read by nothing.
+
+Measured before deciding, over all 32,568 supported rows:
+
+- search-and-shuffle lines whose shuffled possessor differs from the searched
+  one: **0** (three apparent mismatches — Demolition Field, Green Sun's
+  Zenith, Sadistic Sacrament — are two independent sentences, an unrelated
+  "shuffle this card into its owner's library", and a back-reference).
+- paragraphs pairing a library-slice mention with a shuffle: **3**, of which
+  **0** name different possessors.
+
+So the discriminating case is zero, and §1.4 — binding on every sub-round —
+records an overgeneration measured at zero on the cell with its count rather
+than gating it. Landed as exactly that: the record sits on `survivesShuffle`
+with [CR#701.24b] quoted, the owner field named as what the match would cost,
+and the zero stated. **No dead parameter was added.** If a printed line ever
+shuffles a library other than the one its paragraph named, the pin's
+mechanism is what to build; the ledger carries it.
+
+### ProofsAnaphora
+
+§2 — one new fold identity, `countVerbedItIsFold` at `itVerbedReaches v`. An
+ordinary `countBy` fold, which is the point: the verb-scoped read is a count.
+
+§3 — one new pair, `itVerbedReadsOnlyPrefix` / `itVerbedResolvesInPrefix`,
+resolving through the existing `countByWitness`. **No new witness lemma was
+owed**, for A's reason: the gate is still `= 1`.
+
+§1, §4 unchanged. **§5 HELD and re-typechecked as written** — `riderIntro` is
+an in-place re-mark of `preIntro`'s own output, not a delta change, so
+`nomIntroIsDeltaThenPrefix`, `condIntroIsDeltaThenPrefix`,
+`gateSplitsAtNomIntro`, `gateSplitsAtCondIntro` and every telescope equation
+are untouched and unaffected. `It`'s, `ItAt`'s and `TheVerbed`'s own entries
+are untouched. Additive only, as the debt was priced.
+
+### Bench
+
+| card / line | outcome |
+|---|---|
+| **Terror**, whole card | Keeps writing, now on `Macros.itVerbed "Destroy"`. |
+| **Snuff Out**, whole card | Same. |
+| **Wrath of God** / **Damnation** | Keep writing, unchanged, on the bare plural `Them` — the plural twin is not built (ledger 1). |
+| **Damn's first line** (`damnDestroyLine`) | WRITES — the participle read. Overload is the elision; it has no word in this vocabulary. |
+| **Nekrataal** | Trigger-context counts benched (2 / 2 / 1). Whole card blocked on the enters trigger's `TheD` self-announcement → C. |
+| **Engulfing Flames' rider context** | Both halves of finding 1010 benched as `Refl`s. |
+| **Bioplasm** | Two reads benched (`CardW`, `ItVerbed "Exile"`); the typed read and its two causes recorded. Whole card still blocked. |
+| **Phyrexian Rebirth**, **Incinerate**, **Hurr Jackal** | Unchanged across the `CantBe` retype. |
+
+Gates: `idris/scripts/build` 23/23 cold, 0 errors, 0 warnings.
+`cargo xtask cite check --list-noncompliant` empty; `cite check` 18,030
+citations, 0 stale (**0 rules blessed** — every rule cited was already
+registered). `cite audit --diff` 11 sites read against their rule text; one
+[CR#701.1] site was dropped as right-number-wrong-topic (it grounds the
+keyword-action vocabulary, not a claim about stamps) and the sentence
+rewritten without a cite.
+
+### Ledger — needs routing
+
+1. **The plural verb-scoped pronoun (`ThemVerbed`).** "They can't be
+   regenerated" is **39 occurrences / 38 cards** against "it"'s 88/87. One
+   constructor was built, per the priced ProofsAnaphora debt, so Wrath of God
+   and Damnation still write the unscoped `Them`. A second constructor is one
+   more §2 identity and one more §3 pair — the same shape, no new argument.
+2. **`riderIntro` falls through every wrapper.** Nine of the ten participle
+   lines and most of the demonstrative ones host their destroy under a
+   `Modal`, `If`, `Unless`, threshold or delayed trigger, all of which export
+   nothing, so the rider's subject sees no stamp. A modal host also raises a
+   real question the round did not answer — which mode's stamp the rider
+   reads. → **sub-round C** (announcement audit) or its own cell.
+3. **The enters trigger announces its own subject under `TheD`.**
+   `eventAfter (Enters n _) = moveIntro Nothing n (Just Battlefield)` and
+   `moveIntro p (AsType t n _) z` mints `TheD`, while `selfSubjIntro` and
+   `condDelta` mint `SelfD` for the same phrase and `wordNow` skips `SelfD`
+   alone. Costs Nekrataal and Stormscape Battlemage outright and inflates
+   every same-carrier count taken in an ETB context. → **sub-round C**.
+4. **`moveIntro p (AttachHost _ _) z = bs`.** Destroying the enchanted
+   creature mints nothing, so no later clause can name it. Costs Parallax
+   Dementia. → **sub-round C**.
+5. **Bioplasm's untyped exile mention.** "The top card of your library"
+   records no card type and the `If it's a creature card` test does not
+   re-mark the binding it tested, so the typed participle read finds
+   nothing even with the stamp in hand. → **sub-round C**; `verbedWordOk
+   (TypeW t)`'s `wasField` demand is the second half and is a
+   `verbedWordOk` cell decision.
+6. **`afterShuffle`'s owner blindness, measured at zero.** Recorded on
+   `survivesShuffle` (above). Reopens on a printed line that shuffles a
+   library other than the one its own paragraph named.
+7. **Finding 1030's chooser repeatability.** Recorded on `ChoiceStands` at
+   12/12. Closing it wants a fact about the chooser, which is the choice
+   ticket's subsystem, not an anaphor gate.
+8. **`stampMoves` is now over-broad.** Its docstring says "a stamp is
+   written only where a labeled action MOVED its patient", but `stampIntro`
+   writes one for a status change too ("each creature tapped this way"), so
+   `counterMemoryOk` refuses counter memory after a tap that moved nothing.
+   Pre-existing, not this round's; noticed while wiring `ItVerbed`'s row.
