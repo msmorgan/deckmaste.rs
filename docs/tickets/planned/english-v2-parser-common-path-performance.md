@@ -48,7 +48,7 @@ acceptance cost a fully covering grammar over the same 5.16 MB projects to
 about 1,197 s CPU — roughly 75 s wall even at perfect 16-way parallelism, with
 the parallelism headroom already spent. A repair that just clears 16.26 s today
 breaches again by Plan 11, and accepted units are also the short ones (mean
-81.8 B against 177.2 B for failures), so 232 µs/byte is optimistic for the
+82 bytes against 177 for failures), so 232 µs/byte is optimistic for the
 longer text Plans 10+ will admit.
 
 The ceiling should therefore move from wall time per separately launched
