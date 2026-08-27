@@ -1610,7 +1610,19 @@ mutual
     TargetGroup : (q : Quantity bs) -> (p : Predicate bs k) ->
                   {auto tk : Targetable k} -> {auto 0 nz : NonZeroQ q} ->
                   {auto 0 wf : WellFormedQ q} -> Noun bs k
-    CountedGroup : (q : Quantity bs) -> (p : Predicate bs k) ->
+    ||| "[q] [description]", with the way the members are picked written
+    ||| beside the count: "two cards at random", "three creatures of your
+    ||| choice". The mode is `Indefinite`'s, at the counted determiner --
+    ||| [CR#701.9b] marks a random or another-player's pick on the
+    ||| INSTRUCTION, not on the number, so the two are orthogonal and the
+    ||| slot rides the count rather than replacing it. `Nothing` where the
+    ||| clause writes no mode, which is the ordinary case; a plural
+    ||| `Indefinite` is not the alternative, since `nounPlur (Indefinite
+    ||| _ _) = OneOf` is definitional and its delta mints at `AD OneOf`.
+    ||| -- spelling: the count, the description, then the mode's own
+    ||| phrase ("at random", "of your choice").
+    CountedGroup : (q : Quantity bs) -> (mode : Maybe (ChoiceMode bs)) ->
+                   (p : Predicate bs k) ->
                    {auto ph : Phrasal k} -> {auto 0 nz : NonZeroQ q} ->
                    {auto 0 wf : WellFormedQ q} ->
                    Noun bs k
@@ -1641,11 +1653,42 @@ mutual
     ||| -- spelling: the two arms joined by "or".
     EitherOf : (l : Noun bs k) -> (r : Noun bs k) ->
                {auto 0 ag : nounPlur l = nounPlur r} -> Noun bs k
+    ||| "the top [amt] cards of [whose] library": the end-anchored slice
+    ||| [CR#401.2] keeps in order, named by a position and a count over
+    ||| one player's pile. TWO surfaces, one cell, and which word
+    ||| pluralises says which: a plural COUNT pluralises the card word
+    ||| over a single library ("the top three cards of your library"),
+    ||| while a distributive plural POSSESSOR pluralises the zone word
+    ||| over one card apiece ("the top card of their libraries"), because
+    ||| [CR#400.1] gives each player their own library. `outputPlur`
+    ||| takes both, so the mention binds plural under either.
+    ||| -- spelling: "the top/bottom [amt] card(s) of [whose] library",
+    ||| with the zone word plural where the possessor is.
     LibrarySlice : (pos : LibPos) -> (amt : Amount bs) ->
                    (whose : Noun bs Player) ->
                    {auto 0 sp : SlicePossessor whose} ->
                    Noun bs Object
-    SomeOf : (q : Quantity bs) -> (grp : Noun bs Object) ->
+    ||| The partitive: [q] members of a group an earlier phrase named,
+    ||| optionally under a description of their own. TWO surfaces, one
+    ||| cell -- "any number of them" writes the bare slice, and "a
+    ||| creature card from among them" writes the same slice with the
+    ||| members described. The preposition is the only difference: "of"
+    ||| where nothing describes the slice, "from among" where something
+    ||| does, because English needs the fuller phrase once a head noun
+    ||| stands between the count and the pronoun. A second constructor
+    ||| for the second preposition would duplicate this one's
+    ||| `NonZeroQ`/`WellFormedQ`/`GroupMention` plumbing and denote the
+    ||| same thing.
+    ||| The description is a test on ONE member, as every `Predicate`
+    ||| here is, and it names no zone of its own: [CR#109.2a] locates a
+    ||| card-worded description by the zone the phrase STATES, and a
+    ||| partitive states a group in that slot instead. So the slice's
+    ||| zone is the group's whatever the description says, and the head
+    ||| type is the description's where it names one.
+    ||| -- spelling: "[q] of [grp]" bare; "[q] [description] from among
+    ||| [grp]" described.
+    SomeOf : (q : Quantity bs) -> (descr : Maybe (Predicate bs Object)) ->
+             (grp : Noun bs Object) ->
              {auto 0 gm : GroupMention grp} ->
              {auto 0 nz : NonZeroQ q} ->
              {auto 0 wf : WellFormedQ q} -> Noun bs Object
@@ -1753,13 +1796,13 @@ mutual
   nounEqRef (Indefinite _ _) _ = False
   nounEqRef (Definite _) _ = False
   nounEqRef (TargetGroup _ _) _ = False
-  nounEqRef (CountedGroup _ _) _ = False
+  nounEqRef (CountedGroup _ _ _) _ = False
   nounEqRef (AllOf _) _ = False
   nounEqRef (EachOf _) _ = False
   nounEqRef (Both _ _) _ = False
   nounEqRef (EitherOf _ _) _ = False
   nounEqRef (LibrarySlice _ _ _) _ = False
-  nounEqRef (SomeOf _ _) _ = False
+  nounEqRef (SomeOf _ _ _) _ = False
   nounEqRef (NamesAgree _ _) _ = False
   nounEqRef TheRest _ = False
   nounEqRef It It = True
@@ -1804,6 +1847,26 @@ mutual
   ArrangementOk : {0 bs : Bindings} -> Plurality -> ZoneExpr bs -> Type
   ArrangementOk {bs} pl z = So (orderOk pl z)
 
+  ||| The head type a partitive's referent carries. The description
+  ||| names it where the phrase writes one that names a card type ("a
+  ||| creature card from among them" reads back as a creature card); a
+  ||| description that names none ("a nonland card") leaves the group's
+  ||| own, which is what the bare slice reads.
+  public export
+  sliceTy : {bs : Bindings} -> Maybe (Predicate bs Object) -> Noun bs Object ->
+            Maybe CardType
+  sliceTy Nothing grp = nounTy grp
+  sliceTy (Just p) grp = case seedTy p of
+                           Just t => Just t
+                           Nothing => nounTy grp
+
+  ||| What a partitive's description announces. A description is read
+  ||| between the count and the group, so its own bindings thread there.
+  public export
+  sliceDelta : {bs : Bindings} -> Maybe (Predicate bs Object) -> List Binding
+  sliceDelta Nothing = []
+  sliceDelta (Just p) = predDelta p
+
   public export
   nounDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   nounDelta This = []
@@ -1816,7 +1879,7 @@ mutual
   nounDelta (TargetGroup q p {tk}) =
     bindFor TargetD (quantPlur q) (targetablePhrasal tk) p
       :: (quantDelta q ++ predDelta p)
-  nounDelta (CountedGroup q p {ph}) =
+  nounDelta (CountedGroup q _ p {ph}) =
     bindFor CountD (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   nounDelta (EachOf grp) = nounDelta grp
@@ -1829,9 +1892,9 @@ mutual
   -- the constraint is a modifier on the wrapped mention, so the mention
   -- binds once and the phrase reads back as itself.
   nounDelta (NamesAgree _ grp) = nounDelta grp
-  nounDelta (SomeOf q grp) =
-    MkBinding PartD Object (quantPlur q) (ObjectP (nounTy grp) (nounZone grp) Nothing Nothing)
-      :: (quantDelta q ++ nounDelta grp)
+  nounDelta (SomeOf q d grp) =
+    MkBinding PartD Object (quantPlur q) (ObjectP (sliceTy d grp) (nounZone grp) Nothing Nothing)
+      :: (quantDelta q ++ sliceDelta d ++ nounDelta grp)
   nounDelta TheRest = []
   nounDelta It = []
   nounDelta (ItAt _) = []
@@ -1971,7 +2034,7 @@ mutual
   public export
   chosenDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   chosenDelta (Indefinite m p {ph}) = bindFor (chosenDet ph AD) OneOf ph p :: predDelta p
-  chosenDelta (CountedGroup q p {ph}) =
+  chosenDelta (CountedGroup q _ p {ph}) =
     bindFor (chosenDet ph CountD) (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
   chosenDelta (NamesAgree _ grp) = chosenDelta grp
   chosenDelta n = nounDelta n
@@ -2588,13 +2651,13 @@ mutual
   anchorPhrase (Indefinite _ _) = False
   anchorPhrase (Definite _) = False
   anchorPhrase (TargetGroup _ _) = True
-  anchorPhrase (CountedGroup _ _) = False
+  anchorPhrase (CountedGroup _ _ _) = False
   anchorPhrase (AllOf _) = False
   anchorPhrase (EachOf _) = False
   anchorPhrase (Both _ _) = False
   anchorPhrase (EitherOf l r) = anchorPhrase l && anchorPhrase r
   anchorPhrase (LibrarySlice _ _ _) = False
-  anchorPhrase (SomeOf _ _) = False
+  anchorPhrase (SomeOf _ _ _) = False
   anchorPhrase (NamesAgree _ grp) = anchorPhrase grp
   anchorPhrase TheRest = False
   anchorPhrase It = True
@@ -2635,13 +2698,13 @@ mutual
   choosable (Indefinite _ _) = True
   choosable (Definite _) = False
   choosable (TargetGroup _ _) = True
-  choosable (CountedGroup _ _) = True
+  choosable (CountedGroup _ _ _) = True
   choosable (AllOf _) = False
   choosable (EachOf _) = False
   choosable (Both _ _) = False
   choosable (EitherOf _ _) = False
   choosable (LibrarySlice _ _ _) = False
-  choosable (SomeOf _ _) = False
+  choosable (SomeOf _ _ _) = False
   choosable (NamesAgree _ grp) = choosable grp
   choosable TheRest = False
   choosable It = False
@@ -2665,7 +2728,7 @@ mutual
 
   public export
   agentChoosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  agentChoosable (SomeOf _ _) = True
+  agentChoosable (SomeOf _ _ _) = True
   agentChoosable n = choosable n
 
   public export
@@ -2689,13 +2752,13 @@ mutual
   groupMention (Each _) = False
   groupMention (Indefinite _ _) = False
   groupMention (Definite _) = False
-  groupMention (CountedGroup _ _) = False
+  groupMention (CountedGroup _ _ _) = False
   groupMention (AllOf _) = False
   groupMention (EachOf _) = False
   groupMention (Both _ _) = False
   groupMention (EitherOf _ _) = False
   groupMention (LibrarySlice _ _ _) = True
-  groupMention (SomeOf _ _) = False
+  groupMention (SomeOf _ _ _) = False
   groupMention (NamesAgree _ grp) = groupMention grp
   groupMention TheRest = False
   groupMention It = False
@@ -2722,7 +2785,7 @@ mutual
   ||| to attach to.
   public export
   countedMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
-  countedMention (CountedGroup _ _) = True
+  countedMention (CountedGroup _ _ _) = True
   countedMention (TargetGroup _ _) = True
   countedMention _ = False
 
@@ -2799,10 +2862,23 @@ mutual
   SoleHolder : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
   SoleHolder {bs} {k} n = So (soleHolderOk n)
 
+  ||| Whose library a slice may name. [CR#400.1] gives each player their
+  ||| OWN library, so a possessive reaching several players names one
+  ||| library apiece: the slice distributes and the phrase pluralises the
+  ||| ZONE word rather than the card word -- "the top card of their
+  ||| libraries", one card per library, which is the surface
+  ||| `outputPlur` already computes.
+  ||| Which plurals may say that is `soleHolderOk`'s recorded argument,
+  ||| at the possessed zone instead of the possessed object: the
+  ||| distributive words do -- "each player", "each of those opponents",
+  ||| and the bare group words -- and a COUNTED plural does not, since it
+  ||| asks for the one library a named two have between them and
+  ||| [CR#400.1] leaves that empty.
   public export
   slicePossessorOk : {bs : Bindings} -> Noun bs Player -> Bool
   slicePossessorOk (Each _) = True
-  slicePossessorOk (PlayerGroup _) = False
+  slicePossessorOk (EachOf _) = True
+  slicePossessorOk (PlayerGroup _) = True
   slicePossessorOk n = isOne (nounPlur n)
 
   public export
@@ -3139,11 +3215,12 @@ mutual
 
   public export
   data TokenPhrase : {0 bs : Bindings} -> Noun bs Object -> Type where
-    CountedTokens : {0 q : Quantity bs} -> {0 p : Predicate bs Object} ->
+    CountedTokens : {0 q : Quantity bs} -> {0 m : Maybe (ChoiceMode bs)} ->
+                    {0 p : Predicate bs Object} ->
                     {0 ph : Phrasal Object} -> {0 nz : NonZeroQ q} ->
                     {0 wf : WellFormedQ q} ->
                     {auto 0 ok : So (seedsToken p)} ->
-                    TokenPhrase (CountedGroup q p {ph} {nz} {wf})
+                    TokenPhrase (CountedGroup q m p {ph} {nz} {wf})
     OneToken : {0 m : ChoiceMode bs} -> {0 p : Predicate bs Object} ->
                {0 ph : Phrasal Object} ->
                {auto 0 ok : So (seedsToken p)} ->
@@ -3211,14 +3288,14 @@ mutual
   costNounOk (Indefinite _ _) = True
   costNounOk (Definite _) = True
   costNounOk (TargetGroup _ _) = True
-  costNounOk (CountedGroup _ _) = True
+  costNounOk (CountedGroup _ _ _) = True
   costNounOk (AllOf _) = True
   costNounOk (EachOf grp) = costNounOk grp
   costNounOk (NamesAgree _ grp) = costNounOk grp
   costNounOk (Both _ _) = False
   costNounOk (EitherOf l r) = costNounOk l && costNounOk r
   costNounOk (LibrarySlice _ _ _) = True
-  costNounOk (SomeOf _ grp) = costNounOk grp
+  costNounOk (SomeOf _ _ grp) = costNounOk grp
   costNounOk TheRest = True
   costNounOk It = True
   costNounOk (ItAt _) = True
@@ -3245,14 +3322,14 @@ mutual
   nounIsYou (Indefinite _ _) = False
   nounIsYou (Definite _) = False
   nounIsYou (TargetGroup _ _) = False
-  nounIsYou (CountedGroup _ _) = False
+  nounIsYou (CountedGroup _ _ _) = False
   nounIsYou (AllOf _) = False
   nounIsYou (EachOf _) = False
   nounIsYou (NamesAgree _ _) = False
   nounIsYou (Both _ _) = False
   nounIsYou (EitherOf _ _) = False
   nounIsYou (LibrarySlice _ _ _) = False
-  nounIsYou (SomeOf _ _) = False
+  nounIsYou (SomeOf _ _ _) = False
   nounIsYou TheRest = False
   nounIsYou It = False
   nounIsYou (ItAt _) = False
@@ -3272,7 +3349,7 @@ mutual
   public export
   nounTargeted : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   nounTargeted (TargetGroup _ _) = True
-  nounTargeted (CountedGroup _ _) = False
+  nounTargeted (CountedGroup _ _ _) = False
   nounTargeted This = False
   nounTargeted (AsType _ n _) = nounTargeted n
   nounTargeted You = False
@@ -3286,7 +3363,7 @@ mutual
   nounTargeted (Both l r) = nounTargeted l || nounTargeted r
   nounTargeted (EitherOf l r) = nounTargeted l || nounTargeted r
   nounTargeted (LibrarySlice _ _ _) = False
-  nounTargeted (SomeOf _ grp) = nounTargeted grp
+  nounTargeted (SomeOf _ _ grp) = nounTargeted grp
   nounTargeted TheRest = False
   nounTargeted It = False
   nounTargeted (ItAt _) = False
@@ -3497,14 +3574,14 @@ mutual
   moveIntro p nn@(Indefinite m pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(Definite pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(TargetGroup q pr) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(CountedGroup q pr) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(CountedGroup q _ pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(AllOf pr) z = setZoneHead p z (nomIntro nn)
   moveIntro p (EachOf grp) z = moveIntro p grp z
   moveIntro p (NamesAgree _ grp) z = moveIntro p grp z
   moveIntro p nn@(Both _ _) z = nomIntro nn
   moveIntro p nn@(EitherOf _ _) z = nomIntro nn
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
-  moveIntro p nn@(SomeOf _ _) z = setZoneHead p z (nomIntro nn)
+  moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p TheRest z = groupSpent bs
   moveIntro p It z = setZoneIt p z bs
   moveIntro p (ItAt sl) z = setZoneItAt sl p z bs
@@ -3540,14 +3617,14 @@ mutual
   nounZone (Indefinite m p) = phraseZone p
   nounZone (Definite p) = phraseZone p
   nounZone (TargetGroup q p) = phraseZone p
-  nounZone (CountedGroup q p) = phraseZone p
+  nounZone (CountedGroup q _ p) = phraseZone p
   nounZone (AllOf p) = phraseZone p
   nounZone (EachOf grp) = nounZone grp
   nounZone (NamesAgree _ grp) = nounZone grp
   nounZone (Both _ _) = Nothing
   nounZone (EitherOf _ _) = Nothing
   nounZone (LibrarySlice _ _ _) = Just Library
-  nounZone (SomeOf _ grp) = nounZone grp
+  nounZone (SomeOf _ _ grp) = nounZone grp
   nounZone TheRest = zoneOfGroup bs
   nounZone It = zoneOfIt bs
   nounZone (ItAt sl) = zoneOfItAt sl bs
@@ -3576,14 +3653,14 @@ mutual
   nounTy (Indefinite m p) = seedTy p
   nounTy (Definite p) = seedTy p
   nounTy (TargetGroup q p) = seedTy p
-  nounTy (CountedGroup q p) = seedTy p
+  nounTy (CountedGroup q _ p) = seedTy p
   nounTy (AllOf p) = seedTy p
   nounTy (EachOf grp) = nounTy grp
   nounTy (NamesAgree _ grp) = nounTy grp
   nounTy (Both _ _) = Nothing
   nounTy (EitherOf _ _) = Nothing
   nounTy (LibrarySlice _ _ _) = Nothing
-  nounTy (SomeOf _ grp) = nounTy grp
+  nounTy (SomeOf _ d grp) = sliceTy d grp
   nounTy TheRest = tyOfGroup bs
   nounTy It = tyOfIt bs
   nounTy (ItAt sl) = tyOfItAt sl bs
@@ -3611,11 +3688,11 @@ mutual
   nounTys (Indefinite m p) = seedTys p
   nounTys (Definite p) = seedTys p
   nounTys (TargetGroup q p) = seedTys p
-  nounTys (CountedGroup q p) = seedTys p
+  nounTys (CountedGroup q _ p) = seedTys p
   nounTys (AllOf p) = seedTys p
   nounTys (EachOf grp) = nounTys grp
   nounTys (NamesAgree _ grp) = nounTys grp
-  nounTys (SomeOf _ grp) = nounTys grp
+  nounTys (SomeOf _ d grp) = SoleTy (sliceTy d grp)
   nounTys (Both l r) = JoinTy (nounTys l) (nounTys r)
   nounTys n = SoleTy (nounTy n)
 
@@ -3629,14 +3706,14 @@ mutual
   nounPlur (Indefinite m p) = OneOf
   nounPlur (Definite p) = OneOf
   nounPlur (TargetGroup q p) = quantPlur q
-  nounPlur (CountedGroup q p) = quantPlur q
+  nounPlur (CountedGroup q _ p) = quantPlur q
   nounPlur (AllOf p) = ManyOf
   nounPlur (EachOf grp) = ManyOf
   nounPlur (NamesAgree _ grp) = nounPlur grp
   nounPlur (Both _ _) = ManyOf
   nounPlur (EitherOf l r) = nounPlur l
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
-  nounPlur (SomeOf q _) = quantPlur q
+  nounPlur (SomeOf q _ _) = quantPlur q
   nounPlur TheRest = ManyOf
   nounPlur It = OneOf
   nounPlur (ItAt _) = OneOf

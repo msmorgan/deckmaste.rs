@@ -901,7 +901,7 @@ public export
 afterChoiceRestDisposed : Bindings
 afterChoiceRestDisposed =
   effIntro (the (Effect [])
-    (Sequentially [ Macros.choose (CountedGroup (Macros.upTo 1) Macros.creature)
+    (Sequentially [ Macros.choose (CountedGroup (Macros.upTo 1) Nothing Macros.creature)
                   , Macros.destroy TheRest ]))
 
 ||| "Choose up to one creature. Destroy the rest. Destroy the rest."

@@ -2646,7 +2646,7 @@ mutual
   nounRegime (Definite p) = predRegime p
   nounRegime (Each p) = predRegime p
   nounRegime (TargetGroup _ p) = predRegime p
-  nounRegime (CountedGroup _ p) = predRegime p
+  nounRegime (CountedGroup _ _ p) = predRegime p
   nounRegime (NamesAgree _ grp) = nounRegime grp
   nounRegime _ = Nothing
 

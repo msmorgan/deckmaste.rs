@@ -177,3 +177,222 @@ B/D/E parallel-safe with A and with each other, and with the rest of the
 split. This sub-round is fully independent of A–D.
 
 Standard constraints apply.
+
+---
+
+## As-landed
+
+Standard constraints applied. `idris/scripts/build` **23/23 PASS on a clean
+rebuild** (`rm -rf build`). `cargo xtask cite check --list-noncompliant` empty;
+`cargo xtask cite check` 0 stale over 18,063 citations; `cite bless` added no
+rule; `jj diff --git | cargo xtask cite audit --diff` read at 11 sites (one
+citation was **changed** on that read — see below). **One pin retired, one
+minted, net zero; none silently passing** — `badPartitiveOfCountedGroup`,
+`badChooseSomeOf`, `badEachOfCountedGroup`, `badControlledByGroup` and
+`ProofsC`'s partitive-exile pin all re-elaborated against the widened slots and
+still refuse. `Experimental/Cards.idr` binds no implicits; no `{default`.
+**ProofsAnaphora: untouched, and owes nothing** — `SomeOf`, `CountedGroup`,
+`LibrarySlice` and `slicePossessorOk` have zero occurrences in that module
+(no §2 counter, no §3 gate pair), and every §5 `Refl` still holds because all
+three deltas kept the `intro = delta ++ bs` shape. That is exactly the debt the
+split report predicted.
+
+Every count below was re-measured this round from
+`data/derived/cards.jsonl` filtered `jq 'select(.supported)'` (32,568 supported
+cards), on distinct oracle LINES unless stated.
+
+### E1 — "from among" is `SomeOf` under a second preposition: RATIFIED, and the population is much larger than the parent said
+
+**Measurement first, because the ratification turned on it.** The parent's
+"20+ lines across mill, reveal and exile" is a large undercount. "From among"
+occurs on **474 supported lines, 465 distinct, over 469 cards**. Splitting it:
+
+| family | distinct lines | what it is |
+|---|---|---|
+| partitive over an ANAPHORIC batch | **329** | this item — "put a creature card from among them into your hand" |
+| play-permission source | 97 occurrences | "you may cast/play … from among …" — `MayPlay`'s `from` is a `ZoneExpr`, not a mention (Ledger) |
+| partitive over a DESCRIBED group | 42 | "from among creatures you control" (Ledger; 19 of them are Tayam's counter family) |
+
+Within the 329: mill antecedent 49, exile-antecedent 16 (of which 8 are casts),
+reveal 204, look-at 205 (the last two overlap heavily — "look at the top N …
+you may reveal X from among them"). The antecedent is spelled four ways —
+"them" (302), "the milled cards" (14), "the cards milled this way" (9), "those
+cards" (6), plus "the revealed cards" (4) and the exile pair (3).
+
+**The count did not contradict the spelling reading; it sized the slot.** Of
+the 333 anaphoric-partitive occurrences, **all but the 30 "any number of" and
+the bare-`of` forms describe the slice** — "a creature card" (38), "a land
+card" (22), "a permanent card" (20), "an artifact card" (14) and a long tail.
+Beside them the corpus writes the *bare* partitive just as heavily under the
+plain preposition — "one of them" 143, "any number of them" 125, "one of those
+cards" 54. Two surfaces, both attested in bulk, one referent. So the
+description is an **optional** slot on the existing constructor, not a second
+constructor and not a mandatory argument.
+
+**Landed:** `Phrase.Noun.SomeOf` gains a second positional slot —
+
+    SomeOf : (q : Quantity bs) -> (descr : Maybe (Predicate bs Object)) ->
+             (grp : Noun bs Object) -> …
+
+with `Phrase.sliceTy` (the head type: the description's where it names a card
+type, else the group's) and `Phrase.sliceDelta` (the description's own
+bindings, threaded between the count and the group). Zone is unchanged — the
+group locates the members. Macros `Macros.fromAmong` and `Macros.oneFromAmong`;
+`oneOf`/`someOf` keep the bare form.
+
+**Citation changed on the audit read.** The first draft cited [CR#109.2] for
+"the group is what locates them". [CR#109.2] says the opposite of what that
+needed — a zoneless, card-less type description means a battlefield permanent —
+so it would have argued *against* the claim. Replaced with [CR#109.2a] and
+reframed honestly: [CR#109.2a] locates a card-worded description by the zone
+the phrase STATES, and a partitive states a group in that slot instead.
+
+**Witnesses** (all typechecked):
+
+- `collectedCompany` — **whole card**. "Look at the top six cards of your
+  library. Put up to two creature cards with mana value 3 or less from among
+  them onto the battlefield. Put the rest on the bottom of your library in any
+  order." Exercises a non-unit quantity, a compound description and `TheRest`
+  after the partitive.
+- `communeWithTheGods` — **whole card**. The reveal arm, with a disjunctive
+  description (`Or [creature, enchantment]`) and a `may`-wrapped body.
+- `bindToLife` — the mill arm (Vastlands Scavenger's adventure), benched as the
+  line; the whole is an adventure face pair.
+- `millThenPutFromAmongMilled` — the same partitive over the PARTICIPLE
+  spelling of the batch, `thoseVerbedThisWay "Mill" CardW`.
+- `exileTopThenPutFromAmong` — Lord of the Void's body, the exile arm.
+
+**Contract claims** (typechecked `Refl`s, the round's real receipt):
+`describedSliceReadsAsCreature` — the described slice reads back as a creature
+card; `bareSliceReadsUntyped` — the bare partitive over the same batch carries
+NO card type, which is what the description buys, since a library slice
+projects none; `describedSliceKeepsGroupZone` — the description does not
+relocate the slice.
+
+**Tayam does NOT ride it, and the reason is structural.** "Remove three
+counters from among creatures you control" fails `SomeOf` twice over: the slice
+is COUNTERS, and `SomeOf : … -> Noun bs Object`; and "creatures you control" is
+a description, where `grp` demands a `GroupMention`. Its neighbour is
+`Effect.Distribute` over `DividedVerb`, which has a distribution arm
+(`DistributedCounters`) and no removal arm, and whose `among` slot demands the
+same `GroupMention`. **19 distinct supported lines over 20 cards** (Tayam,
+Eventide's Shadow, Retribution of the Ancients, Elspeth Resplendent, and the
+loyalty- and stun-counter variants). Ledgered.
+
+### E2 — the at-random mode as a `Maybe ChoiceMode` on `CountedGroup`: LANDED
+
+**Measured: 24 distinct supported lines** ("two cards at random" ×5 carriers,
+"X cards at random" ×6, "three cards at random", "any number of cards at
+random", "two creature cards at random", …), 25 occurrences.
+
+**Landed** exactly as pinned: `CountedGroup : (q : Quantity bs) -> (mode :
+Maybe (ChoiceMode bs)) -> (p : Predicate bs k) -> …`, mode between the
+determiner and the head, `Indefinite`'s slot order with the quantity in the
+article's place. `Nothing` written at all 40 existing `Cards.idr` sites and the
+five in `Macros`/`Proofs*` — the house idiom for a `Maybe` slot
+(`RemoveCounters _ Nothing _`). New macro `Macros.countedAtRandom`.
+
+**`TokenPhrase.OneToken` checked, as the pin asked.** It pattern-matches
+`Indefinite m p` mode-**polymorphically**, so `CountedTokens` was made
+polymorphic in the new slot the same way rather than pinned at `Nothing`; the
+two token phrases stay symmetric.
+
+**Contract claims:** `atRandomModeIsAnnouncementNeutral` — the counted mention's
+delta is *identical* with the mode written and without, which is why the slot
+rides the count rather than replacing the determiner;
+`countedAtRandomIsPlural` — it stays `ManyOf`, which is what a mode-carrying
+`Indefinite` could not be (`nounPlur (Indefinite _ _) = OneOf` is definitional).
+
+**Tourach benches WHOLE — both of them.**
+`hymnToTourach` ("Target player discards two cards at random", {B}{B} Sorcery)
+and `tourachDreadCantor` ("Kicker {B}{B} / Protection from white / Whenever an
+opponent discards a card, put a +1/+1 counter on Tourach. / When Tourach
+enters, if it was kicked, target opponent discards two cards at random.") —
+kicker, the quality keyword, the existing `tourachDiscardTrigger` and the
+intervening-if all already had rows; the plural at-random determiner was the
+only blocker, exactly as routed. Both carry the bench's standing discard
+caveat (the owned-hand read is spelled `InZone handZ`; an owned-hand expansion
+needs a subject-read noun the vocabulary does not have — pre-existing, noted at
+`discardsACard`).
+
+### E3 — the plural-GROUP library slice: pin retired against its five lines, re-pinned one step over
+
+**Measured: exactly 5 supported carriers, 4 distinct lines** — Field of Dreams,
+Lantern of Insight and **Wizened Snitches** (the fifth carrier the ticket's
+four-name list omits; all three print "Players play with the top card of their
+libraries revealed"), Breeches Brazen Plunderer ("the top card of each of those
+opponents' libraries"), Shared Fate ("the top card of one of their opponents'
+libraries"). This matches the closure table's "5 lines" exactly.
+
+**Landed:** `slicePossessorOk` admits the DISTRIBUTIVE plurals and nothing
+else —
+
+    slicePossessorOk (Each _)        = True
+    slicePossessorOk (EachOf _)      = True   -- new: "each of those opponents"
+    slicePossessorOk (PlayerGroup _) = True   -- new: "their libraries"
+    slicePossessorOk n               = isOne (nounPlur n)
+
+`LibrarySlice` gets the docstring the parent asked for: **two surfaces, one
+cell**, and which word pluralises says which — a plural COUNT pluralises the
+card word over one library, a distributive plural POSSESSOR pluralises the ZONE
+word over one card apiece, because [CR#400.1] gives each player their own
+library. `outputPlur` already computed both; only the gate was refusing.
+
+**Pin retirement and re-pin.** `Proofs.badSliceOfGroupPossessor` is **retired**
+— its term (`lookAt (LibrarySlice OnTop (Lit 1) (PlayerGroup YourOpponents))`)
+now spells. Its [CR#400.1] ground survives one step over and is re-pinned as
+**`Proofs.badSliceOfCountedPossessor`**: "the top card of two target players'
+library". The argument is `soleHolderOk`'s own recorded one, at the possessed
+zone instead of the possessed object — *a counted plural does not distribute;
+it asks for the one library a named two have between them, and [CR#400.1] gives
+each player their own.* That is a rules-impossibility, not a measured zero, so
+§1.4 is satisfied.
+
+**Witnesses:** `playersTopCardSlice` + `playersTopCardIsPlural` (the mention
+Field of Dreams's line names, and the proof that it binds `ManyOf` — the whole
+of what the singular-possessor spelling could not say);
+`eachOfThoseOpponentsTopCard` (Breeches' shape: damage to `Each Opponent`, then
+the slice over `EachOf (Those PlayerW)`).
+
+### RETURN fence — untouched
+
+No `verbFacts` row was added, changed or proposed. The fence stands as written,
+including its narrower open question (a stamp without a tag, decided only
+against a printed witness); no witness for it appeared in this round's
+measurements.
+
+### Ledger — future work, for routing
+
+1. **The counter partitive over a described group** — 19 distinct lines,
+   Tayam's family (Tayam, Eventide's Shadow, Retribution of the Ancients,
+   Hopeful Initiate, Slippery Bogbonder, Elspeth Resplendent, The Filigree
+   Sylex, …). Wants a removal arm on `DividedVerb` (or a counter-side
+   partitive), and a decision about `among` over a description. **Route to a
+   counter-family or distribution ticket, not to this family.**
+2. **The object partitive over a DESCRIBED group** — the other 23 of the 42
+   non-anaphoric "from among" lines ("cards exiled with this creature", "chosen
+   at random from among your opponents"). Blocked by `groupMention`, which
+   admits mentions only. A `groupMention`-widening decision, deliberately not
+   taken here (E1's pin rests on the current gate).
+3. **The play-permission "from among" source** — 97 occurrences. `MayPlay`'s
+   `from` is a `ZoneExpr`; these name a MENTION. Its own cell.
+4. **"all X from among them"** — 8 distinct lines over 9 cards (Animist's
+   Awakening, Beluna Grandsquall, Depala, Nissa Nature's Artisan, Tamiyo
+   Collector of Tales, Tezzeret Master of the Bridge, …). "All" is not a
+   `Quantity`: `Range` cannot say "every member matching the description". A
+   `Quantity`/`AllOf`-partitive question.
+5. **"a permanent card"** — no predicate spells the permanent-card CLASS in a
+   non-battlefield zone (`Permanent` is battlefield-scoped), which is what
+   blocks Wasteful Harvest, Cache Grab, Rapid Rescue and Seed of Hope from
+   benching whole. 20 "a permanent card from among …" occurrences alone.
+6. **Field of Dreams / Lantern of Insight / Wizened Snitches** — the slice now
+   spells; the consuming static does not. "Play with the top card of their
+   libraries revealed" has no row at all ([CR#401.5,401.6] is the pair to read).
+7. **Shared Fate** — needs "their opponents", an opponent-of-a-named-player
+   read; `Predicate.Opponent` is of-`You` only and its docstring already says
+   the team form is deferred.
+8. **Breeches, Brazen Plunderer whole** — needs the "one or more Pirates you
+   control deal damage to your opponents" header plus item 3's play permission.
+9. **The owned-hand discard read** — pre-existing and unchanged: every discard
+   line on the bench writes `InZone handZ` where the printed line means the
+   subject's own hand. Noted at `discardsACard` since before this round.

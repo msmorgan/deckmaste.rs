@@ -237,7 +237,7 @@ badEquipOnSorcery Oh impossible
 ||| The counted untargeted group has not fixed its members, so there is nothing to distribute into.
 public export
 badEachOfCountedGroup : Unspellable (Noun [] Object) (\ok =>
-  EachOf (CountedGroup (Macros.atLeast 1) Macros.creature) {gm = ok})
+  EachOf (CountedGroup (Macros.atLeast 1) Nothing Macros.creature) {gm = ok})
 badEachOfCountedGroup Oh impossible
 
 
@@ -245,7 +245,8 @@ badEachOfCountedGroup Oh impossible
 ||| The same cell at the partitive: the group's members are not yet fixed to pick among.
 public export
 badPartitiveOfCountedGroup : Unspellable (Noun [] Object) (\ok =>
-  SomeOf (Macros.exactly 1) (CountedGroup (Macros.atLeast 1) Macros.creature)
+  SomeOf (Macros.exactly 1) Nothing
+         (CountedGroup (Macros.atLeast 1) Nothing Macros.creature)
          {gm = ok})
 badPartitiveOfCountedGroup Oh impossible
 
@@ -300,7 +301,7 @@ badHeaderBareTurnWindow Oh impossible
 ||| Only a token is ever created [CR#111.1]; the head word may be added to and never replaced.
 public export
 badNonTokenCreationSubject : Unspellable (GameEvent []) (\ok =>
-  TokensCreated (CountedGroup (Macros.atLeast 1) Macros.creature) Nothing Nothing (Just You) {tk = ok})
+  TokensCreated (CountedGroup (Macros.atLeast 1) Nothing Macros.creature) Nothing Nothing (Just You) {tk = ok})
 badNonTokenCreationSubject CountedTokens impossible
 badNonTokenCreationSubject OneToken impossible
 

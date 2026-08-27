@@ -66,12 +66,19 @@ badEachOfSingular : Unspellable (Noun [] Object) (\ok =>
 badEachOfSingular Refl impossible
 
 
-||| "Look at the top card of your opponents' library."
-||| A slice names ONE library [CR#400.1]; a plural group possessor reaches several.
+||| "Look at the top card of two target players' library."
+||| [CR#400.1] gives each player their OWN library, so a possessive over
+||| several players names one library apiece and the phrase pluralises the
+||| zone word -- which is why the distributive group possessor ("the top
+||| card of their libraries") is no longer refused. A COUNTED plural does
+||| not distribute: it names the single library a chosen two have between
+||| them, and no player has that. The rule's ground survives the plural
+||| surface; only its carrier moved.
 public export
-badSliceOfGroupPossessor : Unspellable (Effect []) (\ok =>
-  Macros.lookAt (LibrarySlice OnTop (Lit 1) (PlayerGroup YourOpponents) {sp = ok}))
-badSliceOfGroupPossessor Oh impossible
+badSliceOfCountedPossessor : Unspellable (Effect []) (\ok =>
+  Macros.lookAt (LibrarySlice OnTop (Lit 1)
+                              (TargetGroup (Macros.exactly 2) AnyPlayer) {sp = ok}))
+badSliceOfCountedPossessor Oh impossible
 
 
 ||| "Whenever you cast all spells, draw a card."

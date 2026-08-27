@@ -211,7 +211,7 @@ masterDecoy =
 -- reads an exile's.
 harmonyOfNature : Effect []
 harmonyOfNature =
-  Sequentially [ Macros.tap (CountedGroup Macros.anyNumber
+  Sequentially [ Macros.tap (CountedGroup Macros.anyNumber Nothing
                               (And [Macros.untapped, Macros.creature, ControlledBy You]))
                , ForEachOf (Macros.thoseVerbedThisWay "Tap" (TypeW Creature))
                            (Macros.gainsLife You (Lit 4)) ]
@@ -2311,7 +2311,7 @@ chainsaw =
                           (DealDamage It (Lit 3)
                                (TargetGroup (Macros.upTo 1) Macros.creature))
        , Macros.triggered Whenever
-                          (Dies (CountedGroup (Macros.atLeast 1) Macros.creature))
+                          (Dies (CountedGroup (Macros.atLeast 1) Nothing Macros.creature))
                           (PutCounters (Lit 1) (PrintedKind Rev) Macros.thisEquipment)
        , Static (AndAlso [ Gets (AttachHost Equipped (TypeW Creature))
                                 (PtUp (LetterVal X)) (PtUp (Lit 0))
@@ -2353,7 +2353,7 @@ lightmineField =
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
-                          (Macros.attacks (CountedGroup (Macros.atLeast 1) Macros.creature))
+                          (Macros.attacks (CountedGroup (Macros.atLeast 1) Nothing Macros.creature))
                           (DealDamage Macros.thisEnchantment
                                (CountOf (And [Attacking, Macros.creature]))
                                (EachOf (Those (TypeW Creature)))) ]
@@ -2366,7 +2366,7 @@ misterFantastic =
        (MkTypeLine [creatureType "Human", creatureType "Hero"] [Creature])
        [ Macros.keyword "Reach"
        , Macros.triggered Whenever
-                          (Enters (CountedGroup (Macros.atLeast 1)
+                          (Enters (CountedGroup (Macros.atLeast 1) Nothing
                                          (And [IsToken, ControlledBy You])) Nothing)
                           (May Nothing Macros.drawACard Nothing Nothing) ]
        (Just (2, 4))
@@ -2377,7 +2377,7 @@ woodlandChampion =
   Macros.card "Woodland Champion" (Just [Macros.generic 1, Macros.pip Green]) []
        (MkTypeLine [creatureType "Elf", creatureType "Scout"] [Creature])
        [ Macros.triggered Whenever
-                          (Enters (CountedGroup (Macros.atLeast 1)
+                          (Enters (CountedGroup (Macros.atLeast 1) Nothing
                                          (And [IsToken, ControlledBy You])) Nothing)
                           (PutCounters GroupSize (PrintedKind Macros.plusOnePlusOne)
                                 Macros.thisCreature) ]
@@ -2389,7 +2389,7 @@ ingeniousArtillerist =
        (Just [Macros.generic 2, Macros.pip Red]) []
        (MkTypeLine [creatureType "Human", creatureType "Artificer"] [Creature])
        [ Macros.triggered Whenever
-                          (Enters (CountedGroup (Macros.atLeast 1)
+                          (Enters (CountedGroup (Macros.atLeast 1) Nothing
                                          (And [Macros.artifact, ControlledBy You])) Nothing)
                           (DealDamage Macros.thisCreature GroupSize (Each Opponent)) ]
        (Just (3, 1))
@@ -2410,7 +2410,7 @@ orimsPrayer =
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
-                          (Macros.attacksPlayer (CountedGroup (Macros.atLeast 1) Macros.creature) You)
+                          (Macros.attacksPlayer (CountedGroup (Macros.atLeast 1) Nothing Macros.creature) You)
                           (Macros.gainsLife You
                       (Macros.forEach (And [Attacking, Macros.creature]))) ]
        Nothing
@@ -2465,7 +2465,7 @@ voraciousBrood =
                                          InZone (Macros.graveyardOf You)]))
                    Macros.plusOnePlusOne)
        , Macros.triggered Whenever
-                          (Macros.putIntoFrom (CountedGroup (Macros.atLeast 1) Macros.creature)
+                          (Macros.putIntoFrom (CountedGroup (Macros.atLeast 1) Nothing Macros.creature)
                                        (Macros.graveyardOf You)
                                        FromAnywhere)
                           (PutCounters GroupSize (PrintedKind Macros.plusOnePlusOne)
@@ -2507,7 +2507,7 @@ rakshasaVizier =
               Macros.pip Blue]) []
        (MkTypeLine [creatureType "Demon"] [Creature])
        [ Macros.triggered Whenever
-                          (Macros.putIntoFrom (CountedGroup (Macros.atLeast 1)
+                          (Macros.putIntoFrom (CountedGroup (Macros.atLeast 1) Nothing
                                                      (InZone (Macros.graveyardOf You)))
                                        Macros.exileZ
                                        (FromZone [Macros.graveyardOf You]))
@@ -2522,7 +2522,7 @@ tocasiasWelcome =
        (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggeredOnlyOnce Whenever
-                                  (Enters (CountedGroup (Macros.atLeast 1)
+                                  (Enters (CountedGroup (Macros.atLeast 1) Nothing
                                                         (And [Macros.creature, ControlledBy You,
                                                               Compare ManaValue AtMost (Lit 3)])) Nothing)
                                   OncePerTurn
@@ -2576,7 +2576,7 @@ colossalGraveReaver =
                             [Macros.attacks Macros.thisCreature]
                             (Macros.mills You (Lit 3) You)
        , Macros.triggered Whenever
-                          (Macros.putIntoFrom (CountedGroup (Macros.atLeast 1)
+                          (Macros.putIntoFrom (CountedGroup (Macros.atLeast 1) Nothing
                                                      (And [Macros.creature,
                                                            InZone Macros.yourLibrary]))
                                        (Macros.graveyardOf You)
@@ -2682,7 +2682,7 @@ doublingSeason =
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
                    (Macros.tokensCreatedByEffectUnder
-                      (CountedGroup (Macros.atLeast 1) IsToken) You) []
+                      (CountedGroup (Macros.atLeast 1) Nothing IsToken) You) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly Nothing)
        , Static (Intercepts
@@ -2981,7 +2981,7 @@ divineVisitation =
        (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
-                   (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1)
+                   (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) Nothing
                                                             (And [Macros.creature, IsToken]))
                                               You) []
                    (Macros.create GroupSize
@@ -2998,7 +2998,7 @@ anointedProcession =
        (Just [Macros.generic 3, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
-                   (Macros.tokensCreatedByEffectUnder (CountedGroup (Macros.atLeast 1) IsToken)
+                   (Macros.tokensCreatedByEffectUnder (CountedGroup (Macros.atLeast 1) Nothing IsToken)
                                                       You) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly Nothing) ]
@@ -3010,7 +3010,7 @@ primalVigor =
        (Just [Macros.generic 4, Macros.pip Green]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
-                   (Macros.tokensCreated (CountedGroup (Macros.atLeast 1) IsToken)) []
+                   (Macros.tokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly Nothing)
        , Static (Intercepts
@@ -3028,7 +3028,7 @@ adrixAndNev =
        (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
        [ Macros.keywordCosting "Ward" (Mana [Macros.generic 2])
        , Static (Intercepts
-                   (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) IsToken) You) []
+                   (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) Nothing IsToken) You) []
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly Nothing) ]
        (Just (2, 2))
@@ -3371,7 +3371,7 @@ nefariousImp =
        [ Macros.keyword "Flying"
        , Macros.triggered Whenever
                           (Macros.leavesBattlefield
-                             (CountedGroup (Macros.atLeast 1)
+                             (CountedGroup (Macros.atLeast 1) Nothing
                                      (And [Permanent, ControlledBy You])))
                           (Macros.scryOne) ]
        (Just (2, 1))
@@ -5097,7 +5097,7 @@ eerieUltimatum =
        (MkTypeLine [] [Sorcery])
        [ Spell (Macros.move
                   (Macros.withDifferentNames
-                     (CountedGroup Macros.anyNumber
+                     (CountedGroup Macros.anyNumber Nothing
                                    (And [Permanent,
                                          InZone (Macros.graveyardOf You)])))
                   Macros.battlefieldZ) ]
@@ -5115,7 +5115,7 @@ sphinxOfTheChimes =
        , Macros.activated
            (Do (Macros.discards You
                   (Macros.withTheSameName
-                     (CountedGroup (Macros.exactly 2)
+                     (CountedGroup (Macros.exactly 2) Nothing
                                    (And [Not Macros.land,
                                          InZone Macros.handZ])))))
            (Macros.drawCards 4) ]
@@ -5131,7 +5131,7 @@ chromeReplicator =
        (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
        [ Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
            (ExistsGroup (Macros.withTheSameName
-                           (CountedGroup (Macros.atLeast 2)
+                           (CountedGroup (Macros.atLeast 2) Nothing
                                          (And [Permanent, Not Macros.land,
                                                Not IsToken, ControlledBy You]))))
            (Macros.create (Lit 1)
@@ -5150,7 +5150,7 @@ endlessAtlas =
        [ Macros.activatedOnlyIf (Compound [Mana [Macros.generic 2], TapSymbol])
                                 Macros.drawACard
                                 (ExistsGroup (Macros.withTheSameName
-                                   (CountedGroup (Macros.atLeast 3)
+                                   (CountedGroup (Macros.atLeast 3) Nothing
                                                  (And [Macros.land,
                                                        ControlledBy You])))) ]
        Nothing
@@ -5662,7 +5662,7 @@ timeSieve =
        (MkTypeLine [] [Artifact])
        [Macros.activated (Compound [TapSymbol,
                              Do (Macros.sacrifice You
-                                   (CountedGroup (Macros.exactly 5) Macros.artifact))])
+                                   (CountedGroup (Macros.exactly 5) Nothing Macros.artifact))])
                          (ExtraTurn You (Lit 1))] Nothing
 
 public export
@@ -6180,7 +6180,7 @@ gush =
   Macros.card "Gush" (Just [Macros.generic 4, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Static (AltCost (Just (Do (Macros.move
-                   (CountedGroup (Macros.exactly 2)
+                   (CountedGroup (Macros.exactly 2) Nothing
                                  (And [Macros.land, HasSubtype (landType "Island"),
                                        ControlledBy You]))
                    Macros.handZ))))
@@ -6194,7 +6194,7 @@ sunscour =
        (Just [Macros.generic 5, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Sorcery])
        [ Static (AltCost (Just (Do (Macros.exile
-                   (CountedGroup (Macros.exactly 2)
+                   (CountedGroup (Macros.exactly 2) Nothing
                                  (And [ColorIs White,
                                        InZone (Macros.handOf You)]))))))
        , Spell (Macros.destroy (AllOf Macros.creature)) ]
@@ -6267,7 +6267,7 @@ demonOfDeathsGate =
        [ Static (AltCost (Just (Compound
                    [ Do (ChangeLife You (Down (Lit 6)))
                    , Do (Macros.sacrifice You
-                           (CountedGroup (Macros.exactly 3)
+                           (CountedGroup (Macros.exactly 3) Nothing
                                          (And [Macros.creature, ColorIs Black]))) ])))
        , Macros.keyword "Flying"
        , Macros.keyword "Trample" ]
@@ -6280,7 +6280,7 @@ thwart =
        (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Static (AltCost (Just (Do (Macros.move
-                   (CountedGroup (Macros.exactly 3)
+                   (CountedGroup (Macros.exactly 3) Nothing
                                  (And [Macros.land, HasSubtype (landType "Island"),
                                        ControlledBy You]))
                    Macros.handZ))))
@@ -6291,7 +6291,7 @@ public export
 theLadyOfOtariaLine : StaticEffect []
 theLadyOfOtariaLine =
   AltCost (Just (Do (SetStatus Tapped
-            (CountedGroup (Macros.exactly 3)
+            (CountedGroup (Macros.exactly 3) Nothing
                           (And [Macros.creature, HasSubtype (creatureType "Dwarf"),
                                 ControlledBy You, HasStatus Untapped])))))
 
@@ -7084,7 +7084,7 @@ deepwayNavigator =
            (Macros.happenedInvolving AttackDeclaration
                                      You
                                      Lookback.ThisTurn
-                                     (CountedGroup (Macros.atLeast 3)
+                                     (CountedGroup (Macros.atLeast 3) Nothing
                                         (HasSubtype (creatureType "Merfolk"))))
            (Gets (AllOf (And [HasSubtype (creatureType "Merfolk"), ControlledBy You]))
                  (PtUp (Lit 1)) (PtUp (Lit 0)))) ]
@@ -7547,7 +7547,7 @@ zimoneAndDina =
 public export
 anotherRound : Effect []
 anotherRound =
-  Sequentially [ Macros.exile (CountedGroup Macros.anyNumber
+  Sequentially [ Macros.exile (CountedGroup Macros.anyNumber Nothing
                                  Macros.creatureYouControl)
                , Macros.putOntoBattlefield Them
                , Repeat (MoreTimes (LetterVal X)) ]
@@ -8758,7 +8758,7 @@ public export
 skullsporeNexusTrigger : Ability
 skullsporeNexusTrigger =
   Macros.triggered Whenever
-    (Dies (CountedGroup (Macros.atLeast 1)
+    (Dies (CountedGroup (Macros.atLeast 1) Nothing
                         (And [Macros.nontoken, Macros.creatureYouControl])))
     (Macros.create (Lit 1)
        (Macros.creatureTokOf
@@ -8912,12 +8912,12 @@ runThePlayCounters =
 
 ||| Berserker's Frenzy, the 1—14 striation -- "Choose any number of creatures.
 ||| They block this turn if able." The counted choice the ticket lists as
-||| over-refused; `choosable (CountedGroup _ _)` already admits it.
+||| over-refused; `choosable (CountedGroup _ _ _)` already admits it.
 public export
 berserkersFrenzyLowRoll : Effect []
 berserkersFrenzyLowRoll =
   Sequentially
-    [ Macros.choose (CountedGroup Macros.anyNumber Macros.creature)
+    [ Macros.choose (CountedGroup Macros.anyNumber Nothing Macros.creature)
     , Continuously (Deontic Them Require Block Agent NoDeonticPatient)
                    (Just Macros.thisTurn) ]
 
@@ -9446,7 +9446,7 @@ stormscapeBattlemageFirstKicker =
 public export
 duneblast : Effect []
 duneblast =
-  Sequentially [ Macros.choose (CountedGroup (Macros.upTo 1) Macros.creature)
+  Sequentially [ Macros.choose (CountedGroup (Macros.upTo 1) Nothing Macros.creature)
                , Macros.destroy TheRest ]
 
 public export
@@ -9773,7 +9773,7 @@ mirelurkQueenTrigger : Ability
 mirelurkQueenTrigger =
   Macros.triggeredOnlyOnce Whenever
     (VerbedEvent Nothing "Mill"
-                 (Just (CountedGroup (Macros.atLeast 1)
+                 (Just (CountedGroup (Macros.atLeast 1) Nothing
                                      (And [Not Macros.land,
                                            InZone (ZoneAt Library Bare)]))))
     OncePerTurn
@@ -9862,7 +9862,7 @@ militaryIntelligence =
        (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
-           (AttacksWith You (CountedGroup (Macros.atLeast 2) Macros.creature))
+           (AttacksWith You (CountedGroup (Macros.atLeast 2) Nothing Macros.creature))
            Macros.drawACard ]
        Nothing
 
@@ -9883,11 +9883,11 @@ aureliaTheLawAbove =
        , Macros.keyword "Haste"
        , Macros.triggered Whenever
            (AttacksWith (Macros.a AnyPlayer)
-                        (CountedGroup (Macros.atLeast 3) Macros.creature))
+                        (CountedGroup (Macros.atLeast 3) Nothing Macros.creature))
            Macros.drawACard
        , Macros.triggered Whenever
            (AttacksWith (Macros.a AnyPlayer)
-                        (CountedGroup (Macros.atLeast 5) Macros.creature))
+                        (CountedGroup (Macros.atLeast 5) Nothing Macros.creature))
            (Sequentially [ DealDamage This (Lit 3) (Each Opponent)
                          , Macros.gainsLife You (Lit 3) ]) ]
        (Just (4, 4))
@@ -9904,7 +9904,7 @@ public export
 tahngarthHeader : GameEvent []
 tahngarthHeader =
   AttacksWith Macros.anOpponent
-              (CountedGroup (Macros.atLeast 1) Macros.creature)
+              (CountedGroup (Macros.atLeast 1) Nothing Macros.creature)
 
 ||| Myth Unbound's header -- "Whenever your commander is put into the
 ||| command zone from anywhere, draw a card." The command-zone row's
@@ -10264,7 +10264,7 @@ fumingEffigy =
        (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.triggered Whenever
            (Macros.leavesZone
-              (CountedGroup (Macros.atLeast 1) (InZone (Macros.graveyardOf You)))
+              (CountedGroup (Macros.atLeast 1) Nothing (InZone (Macros.graveyardOf You)))
               (Macros.graveyardOf You))
            (DealDamage This (Lit 1) (Each Opponent)) ]
        (Just (4, 3))
@@ -10390,7 +10390,7 @@ moonlitMeditation =
        [ Macros.keywordSubject "Enchant"
            (And [Or [Macros.artifact, Macros.creature], ControlledBy You])
        , Static (Intercepts
-                   (TokensCreated (CountedGroup (Macros.atLeast 1) IsToken)
+                   (TokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)
                                   Nothing (Just You) Nothing)
                    []
                    (May (Just You)
@@ -10495,3 +10495,205 @@ bioplasmNoTypedRead = Refl
 public export
 bioplasmExiledCardHasNoType : tyOfVerbedIt "Exile" Cards.bioplasmAfterExile = Nothing
 bioplasmExiledCardHasNoType = Refl
+
+--------------------------------------------------------------------------------
+-- The partitive's second surface, the plural at-random determiner, and the
+-- slice over a distributive possessor.
+--------------------------------------------------------------------------------
+
+||| Collected Company -- "Look at the top six cards of your library. Put
+||| up to two creature cards with mana value 3 or less from among them
+||| onto the battlefield. Put the rest on the bottom of your library in
+||| any order." The described partitive whole: a count, a description of
+||| the SLICE, and the group an earlier clause named. The preposition is
+||| the only thing the description changes -- "of them" bare, "from among
+||| them" once a head noun stands between the count and the pronoun.
+public export
+collectedCompany : Card
+collectedCompany =
+  Macros.card "Collected Company" (Just [Macros.generic 3, Macros.pip Green]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+           [ Macros.lookAt (Macros.topCards 6)
+           , Macros.move (Macros.fromAmong (Macros.upTo 2)
+                                           (And [Macros.creature,
+                                                 Compare ManaValue AtMost (Lit 3)])
+                                           Them)
+                         Macros.battlefieldZ
+           , Macros.move TheRest (Macros.onBottomIn AnyOrder) ]) ]
+       Nothing
+
+||| Commune with the Gods -- "Reveal the top five cards of your library.
+||| You may put a creature or enchantment card from among them into your
+||| hand. Put the rest into your graveyard." The reveal arm of the same
+||| family, with a disjunctive description on the slice.
+public export
+communeWithTheGods : Card
+communeWithTheGods =
+  Macros.card "Commune with the Gods" (Just [Macros.generic 1, Macros.pip Green]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+           [ Macros.revealCards (Macros.topCards 5)
+           , Macros.may You
+               (Macros.move (Macros.oneFromAmong (Or [Macros.creature, Macros.enchantment])
+                                                 Them)
+                            Macros.handZ)
+           , Macros.move TheRest Macros.graveyardZ ]) ]
+       Nothing
+
+||| Bind to Life, Vastlands Scavenger's adventure -- "Mill seven cards.
+||| Then put a creature card from among them onto the battlefield." The
+||| mill arm: the batch is the keyword action's own, and the bare group
+||| pronoun reads it. Benched as the line, not the card: the whole is an
+||| adventure face pair.
+public export
+bindToLife : Effect []
+bindToLife =
+  Sequentially [ Macros.mills You (Lit 7) You
+               , Macros.move (Macros.oneFromAmong Macros.creature Them)
+                             Macros.battlefieldZ ]
+
+||| The same partitive over the PARTICIPLE spelling of the same batch --
+||| "You may put an artifact card from among the cards milled this way
+||| into your hand" (Tomakul Scrapsmith). One group mention, three
+||| spellings: "them", "the milled cards", "the cards milled this way".
+public export
+millThenPutFromAmongMilled : Effect []
+millThenPutFromAmongMilled =
+  Sequentially [ Macros.mills You (Lit 3) You
+               , Macros.may You
+                   (Macros.move (Macros.oneFromAmong Macros.artifact
+                                   (Macros.thoseVerbedThisWay "Mill" CardW))
+                                Macros.handZ) ]
+
+||| Hymn to Tourach -- "Target player discards two cards at random."
+||| The plural at-random determiner: the count is the counted mention's
+||| and the mode rides beside it [CR#701.9b]. A plural `Indefinite` is
+||| not the alternative -- that constructor is singular by definition.
+||| Sort-only in the same way every discard line on this bench is: an
+||| owned-hand expansion needs a subject-read noun the vocabulary does
+||| not have yet.
+public export
+hymnToTourach : Card
+hymnToTourach =
+  Macros.card "Hymn to Tourach" (Just [Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Macros.discards (Macros.target AnyPlayer)
+                                (Macros.countedAtRandom (Macros.exactly 2)
+                                                        (InZone Macros.handZ))) ]
+       Nothing
+
+||| Tourach, Dread Cantor, whole -- "Kicker {B}{B} / Protection from
+||| white / Whenever an opponent discards a card, put a +1/+1 counter on
+||| Tourach. / When Tourach enters, if it was kicked, target opponent
+||| discards two cards at random." The card the plural at-random
+||| determiner was blocking: every other row it needs was already here.
+public export
+tourachDreadCantor : Card
+tourachDreadCantor =
+  Macros.card "Tourach, Dread Cantor"
+       (Just [Macros.generic 1, Macros.pip Black]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
+       [ Macros.keywordCosting "Kicker" (Mana [Macros.pip Black, Macros.pip Black])
+       , Macros.keywordQuality "Protection" (ColorIs White)
+       , Cards.tourachDiscardTrigger
+       , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Kicker")))
+           (Macros.discards (Macros.target Opponent)
+                            (Macros.countedAtRandom (Macros.exactly 2)
+                                                    (InZone Macros.handZ))) ]
+       (Just (2, 1))
+
+||| Field of Dreams / Lantern of Insight / Wizened Snitches -- "the top
+||| card of their libraries". The slice over a distributive group
+||| possessor: [CR#400.1] gives each player their own library, so the
+||| phrase names one card in each and the ZONE word is what pluralises.
+||| The static that would consume it ("play with ... revealed") has no
+||| row, so the mention is benched and the cards are not.
+public export
+playersTopCardSlice : Noun [] Object
+playersTopCardSlice = LibrarySlice OnTop (Lit 1) (PlayerGroup AllPlayers)
+
+||| ...and the mention it writes is PLURAL, which is the whole of what
+||| the singular-possessor spelling could not say.
+public export
+playersTopCardIsPlural : nounPlur Cards.playersTopCardSlice = ManyOf
+playersTopCardIsPlural = Refl
+
+||| Breeches, Brazen Plunderer's slice -- "exile the top card of each of
+||| those opponents' libraries", the distributive partitive possessor
+||| over a group the header named.
+public export
+eachOfThoseOpponentsTopCard : Effect []
+eachOfThoseOpponentsTopCard =
+  Sequentially [ DealDamage This (Lit 1) (Each Opponent)
+               , Macros.exile (LibrarySlice OnTop (Lit 1) (EachOf (Those PlayerW))) ]
+
+||| The context Collected Company's second clause reads.
+public export
+companyContext : Bindings
+companyContext = Macros.lookedTop [] (Lit 6)
+
+||| The described slice, and the bare one beside it.
+public export
+companyDescribedSlice : Noun Cards.companyContext Object
+companyDescribedSlice =
+  Macros.fromAmong (Macros.upTo 2)
+                   (And [Macros.creature, Compare ManaValue AtMost (Lit 3)])
+                   Them
+
+public export
+companyBareSlice : Noun Cards.companyContext Object
+companyBareSlice = Macros.someOf 2 Them
+
+||| What the description buys: the slice reads back as a CREATURE card.
+||| "The top six cards of your library" names no card type -- a library
+||| is hidden and a slice projects none -- so the bare partitive over it
+||| carries none either, and every later mention of the chosen cards
+||| would find an untyped batch.
+public export
+describedSliceReadsAsCreature : nounTy Cards.companyDescribedSlice = Just Creature
+describedSliceReadsAsCreature = Refl
+
+public export
+bareSliceReadsUntyped : nounTy Cards.companyBareSlice = Nothing
+bareSliceReadsUntyped = Refl
+
+||| The slice stays where the GROUP is, whatever the description says:
+||| "from among them" fills the slot where [CR#109.2a] would otherwise
+||| read a zone name, and the description only tests the members.
+public export
+describedSliceKeepsGroupZone :
+  nounZone Cards.companyDescribedSlice = nounZone Cards.companyBareSlice
+describedSliceKeepsGroupZone = Refl
+
+||| The at-random mode is orthogonal to the announcement: the counted
+||| mention binds the same way with the mode written and without, which
+||| is why the slot rides `CountedGroup` rather than replacing its
+||| determiner.
+public export
+atRandomModeIsAnnouncementNeutral :
+  nounDelta (Macros.countedAtRandom {bs = []} (Macros.exactly 2) (InZone Macros.handZ))
+    = nounDelta (CountedGroup {bs = []} (Macros.exactly 2) Nothing (InZone Macros.handZ))
+atRandomModeIsAnnouncementNeutral = Refl
+
+||| ...and it stays plural, which is what a mode-carrying `Indefinite`
+||| could not be.
+public export
+countedAtRandomIsPlural :
+  nounPlur (Macros.countedAtRandom {bs = []} (Macros.exactly 2) (InZone Macros.handZ))
+    = ManyOf
+countedAtRandomIsPlural = Refl
+
+||| Lord of the Void's body -- "exile the top seven cards of that
+||| player's library, then put a creature card from among them onto the
+||| battlefield under your control". The exile arm of the same family.
+||| Written here over your own library: the card's possessor read and its
+||| "under your control" rider are separate asks, and neither is what the
+||| partitive was blocking.
+public export
+exileTopThenPutFromAmong : Effect []
+exileTopThenPutFromAmong =
+  Sequentially [ Macros.exile (Macros.topCards 7)
+               , Macros.move (Macros.oneFromAmong Macros.creature Them)
+                             Macros.battlefieldZ ]

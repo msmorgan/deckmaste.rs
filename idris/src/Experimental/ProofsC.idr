@@ -184,7 +184,7 @@ badDistributedMillSingular Refl impossible
 ||| A partitive reaches into a group, not a description: no members exist until a phrase fixes them.
 public export
 badPartitiveOfDescription : Unspellable (Effect []) (\ok =>
-  Macros.exile (SomeOf (Macros.exactly 1) (Macros.a Macros.creature) {gm = ok}))
+  Macros.exile (SomeOf (Macros.exactly 1) Nothing (Macros.a Macros.creature) {gm = ok}))
 badPartitiveOfDescription Oh impossible
 
 

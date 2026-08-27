@@ -335,6 +335,16 @@ aAtRandom : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
             Noun bs k
 aAtRandom p = Indefinite AtRandom p {ph}
 
+||| "[n] [description] at random": the counted determiner with
+||| [CR#701.9b]'s random pick written on it. `aAtRandom`'s plural, and
+||| not a plural `Indefinite`: the count is `CountedGroup`'s and the mode
+||| rides beside it.
+public export
+countedAtRandom : (q : Quantity bs) -> (p : Predicate bs k) ->
+                  {auto ph : Phrasal k} -> {auto 0 nz : NonZeroQ q} ->
+                  {auto 0 wf : WellFormedQ q} -> Noun bs k
+countedAtRandom q p = CountedGroup q (Just AtRandom) p {ph} {nz} {wf}
+
 public export
 anOpponent : Noun bs Player
 anOpponent = a Opponent
@@ -947,13 +957,32 @@ bottomCard = LibrarySlice OnBottom (Lit 1) You
 
 public export
 oneOf : (grp : Noun bs Object) -> {auto 0 gm : GroupMention grp} -> Noun bs Object
-oneOf grp = SomeOf (exactly 1) grp {gm}
+oneOf grp = SomeOf (exactly 1) Nothing grp {gm}
 
 public export
 someOf : (n : Nat) -> (grp : Noun bs Object) -> {auto 0 gm : GroupMention grp} ->
          {auto 0 nz : NonZeroQ (exactly {bs} n)} ->
          {auto 0 wf : WellFormedQ (exactly {bs} n)} -> Noun bs Object
-someOf n grp = SomeOf (exactly n) grp {gm} {nz} {wf}
+someOf n grp = SomeOf (exactly n) Nothing grp {gm} {nz} {wf}
+
+||| "[q] [description] from among [grp]": the DESCRIBED partitive --
+||| "put a creature card from among them into your hand". `someOf`'s
+||| twin with the slice's own head noun written, which is the whole of
+||| what makes the preposition "from among" rather than "of".
+public export
+fromAmong : (q : Quantity bs) -> (p : Predicate bs Object) ->
+            (grp : Noun bs Object) ->
+            {auto 0 gm : GroupMention grp} ->
+            {auto 0 nz : NonZeroQ q} ->
+            {auto 0 wf : WellFormedQ q} -> Noun bs Object
+fromAmong q p grp = SomeOf q (Just p) grp {gm} {nz} {wf}
+
+||| "a [description] from among [grp]": `fromAmong` at the one-member
+||| count, which is what most of the family writes.
+public export
+oneFromAmong : (p : Predicate bs Object) -> (grp : Noun bs Object) ->
+               {auto 0 gm : GroupMention grp} -> Noun bs Object
+oneFromAmong p grp = SomeOf (exactly 1) (Just p) grp {gm}
 
 
 public export
@@ -1156,7 +1185,7 @@ lookedTop bs amt = nomIntro (topSlice {bs} amt)
 public export
 lookedRest : (bs : Bindings) -> (0 mn : countManys Object bs = 1) ->
              (z : Zone) -> Bindings
-lookedRest bs mn z = moveIntro {bs} Nothing (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh}) (Just z)
+lookedRest bs mn z = moveIntro {bs} Nothing (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh}) (Just z)
 
 ||| The look a slice-partitioning keyword action opens with, over the
 ||| player the clause has already named.
@@ -1183,7 +1212,7 @@ scry : {bs : Bindings} -> (amt : Amount bs) ->
 scry amt =
   Does You "Scry" {kn = Oh}
        (Sequentially [ lookAt (topSlice amt)
-                     , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                     , move (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh})
                             (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
@@ -1202,7 +1231,7 @@ surveil : {bs : Bindings} -> (amt : Amount bs) ->
 surveil amt =
   Does You "Surveil" {kn = Oh}
        (Sequentially [ lookAt (topSlice amt)
-                     , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                     , move (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh})
                             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
@@ -1254,7 +1283,7 @@ playerScries : {bs : Bindings} -> (agent : Noun bs Player) ->
 playerScries agent amt =
   Does agent "Scry" {kn = Oh}
        (Sequentially [ theyLookAtTop amt {an}
-                     , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                     , move (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh})
                             (onBottomIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
@@ -1271,7 +1300,7 @@ playerSurveils : {bs : Bindings} -> (agent : Noun bs Player) ->
 playerSurveils agent amt =
   Does agent "Surveil" {kn = Oh}
        (Sequentially [ theyLookAtTop amt {an}
-                     , move (SomeOf anyNumber (Them {ok = mn}) {gm = Oh} {wf = Oh})
+                     , move (SomeOf anyNumber Nothing (Them {ok = mn}) {gm = Oh} {wf = Oh})
                             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
@@ -1293,7 +1322,7 @@ proliferable = kindJoin (CounterCompare Nothing AtLeast (Lit 1))
 ||| choice announced.
 public export
 proliferated : (bs : Bindings) -> Bindings
-proliferated bs = chosenIntro {bs} (CountedGroup Macros.anyNumber Macros.proliferable)
+proliferated bs = chosenIntro {bs} (CountedGroup Macros.anyNumber Nothing Macros.proliferable)
 
 ||| "Proliferate" [CR#701.34a] in full: choose any number of permanents
 ||| and/or players that have a counter, then give each one additional
@@ -1309,7 +1338,7 @@ proliferate : {bs : Bindings} ->
               Effect bs
 proliferate =
   Enact "Proliferate" {kn = Oh}
-        (Sequentially [ Choose (CountedGroup Macros.anyNumber Macros.proliferable) Nothing
+        (Sequentially [ Choose (CountedGroup Macros.anyNumber Nothing Macros.proliferable) Nothing
                       , GiveCountersOfOwnKinds (EachOf (Those JoinW {ok = mj})) ])
 
 ||| "<player> loses N <kind> counters": the counted removal beside the
