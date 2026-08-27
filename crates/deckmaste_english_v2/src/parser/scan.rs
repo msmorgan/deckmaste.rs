@@ -715,11 +715,6 @@ impl ScanInput<'_> {
             .then_some(end)
     }
 
-    pub(crate) fn following_onset(&self, end: usize) -> Option<Onset> {
-        let following = self.text.get(end..)?.trim_start();
-        macro_ron::v2::normalize_surface_onset(following, None)
-    }
-
     pub(crate) fn identity_end(
         &self,
         exact_text: &str,
