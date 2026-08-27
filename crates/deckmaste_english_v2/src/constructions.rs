@@ -541,6 +541,47 @@ constructions! {
             feature = Agreement;
         }
     }
+    codec HaveQuotedAbilityVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [QuotedAbility];
+            feature = Agreement;
+        }
+    }
+    codec HaveBasePowerToughnessVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [
+                "base",
+                "power",
+                "and",
+                "toughness",
+                PredicativePowerToughnessComplement,
+            ];
+            feature = Agreement;
+        }
+    }
+    codec HaveLifeVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [ScalarComparison, "life"];
+            feature = Agreement;
+        }
+    }
+    codec HaveObjectControlVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [Object, VerbPhrase];
+            feature = Agreement;
+        }
+    }
+    codec GetPowerToughnessVerb {
+        generate declaration_verb {
+            position = Verb;
+            tail = [PowerToughnessAdjustment, DurationPhrase?];
+            feature = Agreement;
+        }
+    }
     codec DamageParticipleHead {
         generate declaration_verb {
             position = Verb;
@@ -4346,9 +4387,9 @@ constructions! {
         form quoted_ability = sentence_initial(" \"") suffix(ability, "\"");
     }
     construction quoted_ability_predicate: VerbPhrase {
-        element QuotedAbilityPredicate { ability: QuotedAbility, }
-        derive agreement = verb.agreement;
-        form quoted_ability_predicate = verb(VerbLexeme::Have) ability;
+        element QuotedAbilityPredicate { head: lex HaveQuotedAbilityVerb, ability: QuotedAbility, }
+        derive agreement = head.agreement;
+        form quoted_ability_predicate = verb(head) ability;
     }
     construction quote_terminated_statement: AbilityBody {
         element QuoteTerminatedStatement {
@@ -4361,31 +4402,33 @@ constructions! {
     }
     construction get_power_toughness: VerbPhrase {
         element GetPowerToughness {
+            head: lex GetPowerToughnessVerb,
             adjustment: PowerToughnessAdjustment,
             duration: opt DurationPhrase,
         }
-        derive agreement = verb.agreement;
-        form get_power_toughness = verb(VerbLexeme::Get) adjustment duration;
+        derive agreement = head.agreement;
+        form get_power_toughness = verb(head) adjustment duration;
     }
     construction have_base_power_toughness: VerbPhrase {
-        element HaveBasePowerToughness { value: PredicativePowerToughnessComplement, }
-        derive agreement = verb.agreement;
-        form have_base_power_toughness = verb(VerbLexeme::Have)
+        element HaveBasePowerToughness { head: lex HaveBasePowerToughnessVerb, value: PredicativePowerToughnessComplement, }
+        derive agreement = head.agreement;
+        form have_base_power_toughness = verb(head)
             "base" "power" "and" "toughness" value;
     }
     construction have_life: VerbPhrase {
-        element HaveLife { comparison: ScalarComparison, }
-        derive agreement = verb.agreement;
-        form have_life = verb(VerbLexeme::Have) comparison "life";
+        element HaveLife { head: lex HaveLifeVerb, comparison: ScalarComparison, }
+        derive agreement = head.agreement;
+        form have_life = verb(head) comparison "life";
     }
     construction have_object_control: VerbPhrase {
         element HaveObjectControl {
+            head: lex HaveObjectControlVerb,
             object: Object,
             predicate: VerbPhrase,
         }
-        derive agreement = verb.agreement;
+        derive agreement = head.agreement;
         derive predicate.agreement = Values::Bare;
-        form have_object_control = verb(VerbLexeme::Have) object predicate;
+        form have_object_control = verb(head) object predicate;
     }
     construction mana_amount: ManaAmount {
         element ManaAmountValue { run: ActivationCostComponent, }

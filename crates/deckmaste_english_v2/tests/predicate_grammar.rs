@@ -860,6 +860,10 @@ fn quote_boundary_recurses_only_through_an_ordinary_ability() {
     let VerbPhrase::QuotedAbilityPredicate(predicate) = statement.predicate() else {
         panic!("quote terminator envelope is restricted to the shared quoted predicate")
     };
+    assert!(matches!(
+        predicate.head.reference(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Have)
+    ));
     let QuotedAbility::QuotedAbility(quoted) = predicate.ability.as_ref();
     let Ability::Triggered(_) = quoted.ability.as_ref() else {
         panic!("quoted complement stores the ordinary triggered ability AST")
@@ -1113,7 +1117,8 @@ fn power_toughness_predicates_keep_modifier_and_base_value_frames_distinct() {
             &context,
             "Target creature gets +3/+1 until end of turn."
         ),
-        VerbPhrase::GetPowerToughness(_)
+        VerbPhrase::GetPowerToughness(GetPowerToughness { head, .. })
+            if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Get))
     ));
     assert!(matches!(
         declarative_atomic(
@@ -1121,7 +1126,8 @@ fn power_toughness_predicates_keep_modifier_and_base_value_frames_distinct() {
             &context,
             "This creature has base power and toughness 4/4."
         ),
-        VerbPhrase::HaveBasePowerToughness(_)
+        VerbPhrase::HaveBasePowerToughness(HaveBasePowerToughness { head, .. })
+            if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Have))
     ));
 }
 
@@ -1158,12 +1164,17 @@ fn negative_adjustments_build_render_visit_and_claim_the_typed_sign_product() {
     let text = "Target creature gets -1/-1 until end of turn.";
     let ability = assert_selected(&parser, &context, text);
     let VerbPhrase::GetPowerToughness(GetPowerToughness {
+        head,
         adjustment: PowerToughnessAdjustment::PowerToughnessAdjustment(adjustment),
         duration: Some(duration),
     }) = declarative_atomic(&parser, &context, text)
     else {
         panic!("negative adjustment stays in the ordinary typed gets frame")
     };
+    assert!(matches!(
+        head.reference(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Get)
+    ));
     assert!(matches!(duration, DurationPhrase::Until(_)));
     assert_eq!(
         adjustment.magnitudes(),
@@ -5305,6 +5316,10 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
     else {
         panic!("object control keeps its exact predicate product")
     };
+    assert!(matches!(
+        control.head.reference(),
+        VerbInventoryRef::Core(CoreVerbIdentity::Have)
+    ));
     assert!(matches!(control.object, Object::ObjectPronoun(_)));
     assert!(matches!(
         control.predicate(),
@@ -5373,8 +5388,9 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
     assert!(matches!(
         declarative_atomic(&parser, &context, "You have 10 or less life."),
         VerbPhrase::HaveLife(HaveLife {
+            head,
             comparison: ScalarComparison::ScalarOrLess(_),
-        })
+        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Have))
     ));
     assert_selected_with_specificity(&parser, &context, "You have no maximum hand size.", true);
 }
@@ -5783,7 +5799,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ["product:HaveLife"],
         [
             ("You", "vocab:SubjectPronoun/You"),
-            (" have", "lexeme:VerbLexeme/Have/bare"),
+            (" have", "core-verb:Have"),
             (" 10", "codec:ScalarNumber"),
             (" or", "form:scalar_or_less/scalar_or_less/1"),
             (" less", "form:scalar_or_less/scalar_or_less/2"),
@@ -5810,7 +5826,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         false,
         ["product:HaveObjectControl", "product:ToPhraseValue"],
         [
-            ("Have", "lexeme:VerbLexeme/Have/bare"),
+            ("Have", "core-verb:Have"),
             (" her", "vocab:ObjectPronoun/Her"),
             (" deal", "core-verb:Deal"),
             (" 2", "codec:ScalarNumber"),
