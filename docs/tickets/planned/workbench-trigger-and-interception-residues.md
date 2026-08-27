@@ -341,3 +341,5 @@ Standard constraints apply.
 - **Routed from workbench-randomness-residues (close, 2026-08-26):** the "After [event]" trigger word (Xenosquirrels line 2) — [CR#603.1] gives `TriggerWord` only When/Whenever/At; the corpus prints "After". A header-word question, so it lands here.
 
 - **Routed from workbench-event-disjunction-seat (close, 2026-08-27):** a defender slot on `AttacksWith` ([CR#508.1b] puts one defender per attacking creature; the row's slot currently carries the attackers — Trouble in Pairs needs both); and the ordinal reset window ("each turn" on Nth-occurrence headers). Header machinery, so both land here.
+
+- **Routed from workbench-ability-kind-heads (close, 2026-08-27):** the TRIGGERED-ability head — `AnyTriggered` beside the landed `AnyOnStack`/`AnyActivated` (22 MTGJSON names write "activated or triggered ability", one "target triggered ability"; Stifle, Disallow, Tale's End). One arm + rows; triggered-ability machinery, so it lands here.
