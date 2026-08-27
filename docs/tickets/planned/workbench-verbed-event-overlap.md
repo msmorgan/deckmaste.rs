@@ -24,3 +24,5 @@ spelling boundary told which term each printed form elaborates to.
 - `idris/scripts/build` PASS, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-proliferate-row (close, 2026-08-27):** the proliferate EVENT — "Whenever you proliferate during your turn" (Contagion Dispenser). PROBE FIRST: `VerbedEvent (Just You) "Proliferate" Nothing` may already compose (the `verbFacts` row landed with no patient); if it does, bench it here and record delivered; if not, the gap is this ticket's verbed-event machinery.
