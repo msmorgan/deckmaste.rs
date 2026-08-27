@@ -83,14 +83,17 @@ reserves — hold them until measurement says R1–R4 were not enough. R6 needs 
 check that no iteration-order determinism is relied on. R10 is same-day and
 zero-risk.
 
-Two build-profile items are settled and need no investigation. Adding `sha2`,
-`deckmaste_data` and `deckmaste_catalogs` to the dev opt-level overrides is
-**done** (over half of dev fixed overhead was SHA-256 with un-inlined SIMD
-intrinsics); that alone retires the `expand` and `report` relative-slowdown
-warnings, which were a build-profile artifact and never a grammar regression.
+The dev build-profile item is **done**: `sha2`, `deckmaste_data`,
+`deckmaste_catalogs`, `syn`, `proc-macro2` and `quote` now carry dev
+`opt-level = 2` overrides. Note a corrected attribution while doing it — the
+SHA-256-with-un-inlined-SIMD profile that motivated the first three is the
+*corpus-loading* fixed overhead, and `expand`/`report` do not load the corpus.
+Their cost is `syn` re-parsing the generated grammar, and optimizing the
+proc-macro crates is what roughly halves both, retiring the two
+relative-slowdown warnings as the build-profile artifact they always were.
 Running the corpus gates from a release or dedicated profile remains available
-(`parse` 75.8→65.8, and 5.4x on `expand`/`report`) but slows gate turnaround,
-so it is a fallback rather than a first move.
+(`parse` 75.8→65.8) but slows gate turnaround, so it is a fallback rather than
+a first move.
 
 ## Sub-item: failure diagnostics are a second, separate regression
 

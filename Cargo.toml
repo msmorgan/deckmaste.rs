@@ -73,7 +73,10 @@ slotmap = { version = "1.1.1", features = ["serde"] }
 # units, so its parser package is optimized while the orchestration crate stays
 # cheap to rebuild. The regex crates carry `resolve`'s per-line parser registry
 # and `extract`'s per-card matching; left unoptimized they were the dominant
-# dev-only penalty (dev `resolve` ran ~5x slower than release). Profile
+# dev-only penalty (dev `resolve` ran ~5x slower than release). `sha2` and the
+# snapshot/catalog crates carry corpus loading and identity hashing, the fixed
+# overhead of every English-v2 gate; `syn`/`proc-macro2`/`quote` carry
+# `english_v2 expand`, which re-parses the generated grammar. Profile
 # overrides only take effect from the workspace root manifest, which is why
 # they live here.
 [profile.dev.package.deckmaste_migrations]
@@ -107,4 +110,22 @@ opt-level = 2
 opt-level = 2
 
 [profile.dev.package.memchr]
+opt-level = 2
+
+[profile.dev.package.sha2]
+opt-level = 2
+
+[profile.dev.package.deckmaste_data]
+opt-level = 2
+
+[profile.dev.package.deckmaste_catalogs]
+opt-level = 2
+
+[profile.dev.package.syn]
+opt-level = 2
+
+[profile.dev.package.proc-macro2]
+opt-level = 2
+
+[profile.dev.package.quote]
 opt-level = 2
