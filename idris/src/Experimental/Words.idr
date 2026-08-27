@@ -981,7 +981,7 @@ VerbLabel : Type
 VerbLabel = String
 
 ||| What a keyword action's label records beyond its expansion. The first
-||| two fields are SPELLING. The last two are the action's own rule
+||| two fields are SPELLING. The last three are the action's own rule
 ||| speaking, on `KeywordFacts`' model, for the one reader that meets a
 ||| label with no expansion written: the EVENT reading, whose tables are
 ||| keyed by the event's name and have nothing but this data to ask.
@@ -1006,6 +1006,15 @@ record VerbFacts where
   ||| after the verb is a zone, which is no `Kind` here. It is what a
   ||| verbed event announces and what a participial lookback names.
   actPatient : Maybe Kind
+  ||| where the action's own rule FINDS that patient: [CR#701.9a]
+  ||| discards from a hand, [CR#701.17a] mills from the top of a library,
+  ||| [CR#701.8a] and [CR#701.21a] each take a permanent off the
+  ||| battlefield. `Nothing` where the rule names no zone to take it from
+  ||| ([CR#701.13a] exiles an object from wherever it is) or where the
+  ||| clause that instructs the act names the zone itself ("Put"). It is
+  ||| the verbed event's zone gate, which is why that reading needs no
+  ||| zone table of its own.
+  actZone : Maybe Zone
   ||| where the action's own rule leaves that patient: a graveyard for
   ||| [CR#701.9a] and [CR#701.17a], the exile zone for [CR#701.13a].
   ||| `Nothing` where the rule moves nothing ([CR#701.26a] turns a
@@ -1019,41 +1028,52 @@ record VerbFacts where
 public export
 verbFacts : List VerbFacts
 verbFacts =
-  --                                       patient       destination
-  [ MkVerbFacts "Destroy"   (Just "destroyed")
-                                           (Just Object) (Just Graveyard)
-  , MkVerbFacts "Sacrifice" (Just "sacrificed")
-                                           (Just Object) (Just Graveyard)
-  , MkVerbFacts "Exile"     (Just "exiled")
-                                           (Just Object) (Just Exile)
-  , MkVerbFacts "Discard"   (Just "discarded")
-                                           (Just Object) (Just Graveyard)
-  , MkVerbFacts "Mill"      (Just "milled")
-                                           (Just Object) (Just Graveyard)
+  --                            participle       patient
+  --                            zone             destination
+  [ MkVerbFacts "Destroy"     (Just "destroyed") (Just Object)
+                              (Just Battlefield) (Just Graveyard)
+  , MkVerbFacts "Sacrifice"   (Just "sacrificed") (Just Object)
+                              (Just Battlefield) (Just Graveyard)
+  -- [CR#701.13a] exiles an object from wherever it is, so the act names
+  -- no zone to take it from.
+  , MkVerbFacts "Exile"       (Just "exiled")    (Just Object)
+                              Nothing            (Just Exile)
+  , MkVerbFacts "Discard"     (Just "discarded") (Just Object)
+                              (Just Hand)        (Just Graveyard)
+  , MkVerbFacts "Mill"        (Just "milled")    (Just Object)
+                              (Just Library)     (Just Graveyard)
   -- [CR#701.22b] and [CR#701.25c] both name a trigger on the act, and
   -- both rules write a NUMBER of cards looked at rather than a patient
   -- the act carries off, so the event announces no such thing.
-  , MkVerbFacts "Scry"      Nothing        Nothing       Nothing
-  , MkVerbFacts "Surveil"   Nothing        Nothing       Nothing
-  , MkVerbFacts "Tap"       (Just "tapped")
-                                           (Just Object) Nothing
+  , MkVerbFacts "Scry"        Nothing            Nothing
+                              Nothing            Nothing
+  , MkVerbFacts "Surveil"     Nothing            Nothing
+                              Nothing            Nothing
+  -- [CR#701.26a] turns a PERMANENT sideways and leaves it where it is:
+  -- a zone to find the patient in, and no destination.
+  , MkVerbFacts "Tap"         (Just "tapped")    (Just Object)
+                              (Just Battlefield) Nothing
   -- "Put" is no [CR#701] keyword action, and under labels that is
   -- unremarkable: a label needs no rules entry of its own, because its
-  -- body speaks for it [CR#701.1]. Its destination is the clause's, so
-  -- the label states none.
-  , MkVerbFacts "Put"       Nothing        (Just Object) Nothing
+  -- body speaks for it [CR#701.1]. Both ends are the clause's, so the
+  -- label states neither -- which is why the EVENT reading of this label
+  -- is the poorer term beside `PutInto` and is left at its printed zero.
+  , MkVerbFacts "Put"         Nothing            (Just Object)
+                              Nothing            Nothing
   -- the stamp a search leaves is read by the shuffle gate, not by a
   -- participle anaphor: no printed line names a search's patient that
   -- way, and "the searched card" is not what English would spell. What a
   -- printed line writes after the verb is the ZONE [CR#701.23a] has the
   -- act look in; the card it finds is named by the instructing clause.
-  , MkVerbFacts "Search"    Nothing        Nothing       Nothing
+  , MkVerbFacts "Search"      Nothing            Nothing
+                              Nothing            Nothing
   -- [CR#701.24a] shuffles a LIBRARY, and what a printed line writes
   -- after the verb is that pile or the cards the instructing clause
   -- names -- no patient the act itself carries off. The participle is
   -- absent for "put onto the battlefield"'s reason: "cards shuffled into
   -- your library this way" would have to name the destination too.
-  , MkVerbFacts "Shuffle"   Nothing        Nothing       Nothing
+  , MkVerbFacts "Shuffle"     Nothing            Nothing
+                              Nothing            Nothing
   -- [CR#701.34a] has the ACT make its own choice -- "choose any number
   -- of permanents and/or players that have a counter" -- rather than
   -- take a patient from the instructing clause, so every printed line
@@ -1061,9 +1081,9 @@ verbFacts =
   -- proliferate" announces no participant. Nothing moves, so no
   -- destination either, and no printed line names a proliferated
   -- permanent by participle.
-  , MkVerbFacts "Proliferate" Nothing      Nothing       Nothing
+  , MkVerbFacts "Proliferate" Nothing            Nothing
+                              Nothing            Nothing
   ]
-
 public export
 factsIn : VerbLabel -> List VerbFacts -> Maybe VerbFacts
 factsIn v [] = Nothing
@@ -1099,6 +1119,11 @@ actPatientOf v = verbFactsFor v >>= actPatient
 public export
 actNamesPatient : VerbLabel -> Bool
 actNamesPatient v = isJust (actPatientOf v)
+
+||| Where the action's own rule FINDS its patient, when it names a zone.
+public export
+actZoneOf : VerbLabel -> Maybe Zone
+actZoneOf v = verbFactsFor v >>= actZone
 
 ||| Where the action's own rule leaves its patient, when it moves it.
 public export

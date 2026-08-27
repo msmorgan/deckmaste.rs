@@ -151,6 +151,14 @@ mutual
   agentIntro Nothing = bs
   agentIntro (Just who) = nomIntro who
 
+  ||| The zone a written patient names, or none where the act writes no
+  ||| patient at all. `zoneFits` passes an unwritten zone on either side,
+  ||| so the patientless acts and the nouns that name no zone are ungated.
+  public export
+  patientZone : {bs : Bindings} -> Maybe (Noun bs Object) -> Maybe Zone
+  patientZone Nothing = Nothing
+  patientZone (Just n) = nounZone n
+
   ||| The patient a verbed event names, decided by the keyword action's
   ||| own rule: written exactly where that rule performs the act on
   ||| something [CR#701.9a], and left out where it does not
@@ -214,8 +222,6 @@ mutual
     ||| -- spelling: "[n] leave(s) [from]"
     Leaves : (n : Noun bs Object) -> (from : Maybe (EventSource bs)) ->
              {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} -> GameEvent bs
-    IsDestroyed : (n : Noun bs Object) ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     IsDealtDamage : {k : Kind} -> (to : Noun bs k) ->
                     {auto 0 rk : DamageRecipient to} -> GameEvent bs
     Draws : (who : Noun bs Player) -> GameEvent bs
@@ -431,17 +437,30 @@ mutual
     ||| milled") and discard actively ("you discard a card"), and no rule
     ||| ties either act to either voice, so both take both. What the
     ||| passive costs is the announcement of who acted.
-    ||| Its generality overlaps the rows that already spell one act --
-    ||| `IsDestroyed` [CR#701.8a], `StatusEvent` on a tap [CR#701.26a],
-    ||| `PutInto`. Two terms for one event, refused by no rule and left
-    ||| standing: which of the pair a card writes is a spelling question,
-    ||| and the dedicated rows carry gates this one does not.
+    ||| The patient is gated to the zone the act's own rule finds it in
+    ||| (`actZone`): [CR#701.9a] discards from a hand, [CR#701.8a] and
+    ||| [CR#701.21a] take a permanent off the battlefield. That gate is
+    ||| what lets this row spell the destruction event outright, so
+    ||| DESTROY has no dedicated row beside it: the retired `IsDestroyed`
+    ||| said less -- it stamped no participle, and its `Destruction`
+    ||| classifier closed the "was destroyed this turn" lookback the
+    ||| corpus writes.
+    ||| The other two overlaps stand, deliberately. A TAP is two events
+    ||| the rules keep apart: [CR#508.1f] has attacking make a creature
+    ||| become tapped with no effect performing the act, so `StatusEvent`
+    ||| on `Tapped` watches the status [CR#110.5c] and this row watches a
+    ||| player's act ("Whenever you tap a land for mana"). A PUT is one
+    ||| event two terms reach unequally: `PutInto` writes both ends and
+    ||| this row writes neither, since "Put" states no zone of its own --
+    ||| so the placement is `PutInto`'s to spell and the verbed reading of
+    ||| "Put" is tolerated overgeneration at its printed zero.
     ||| -- spelling: voiced, "[who] [verb](s) [what]"; unvoiced,
     ||| "[what] is/are [participle]".
     VerbedEvent : (who : Maybe (Noun bs Player)) -> (v : VerbLabel) ->
                   (what : Maybe (Noun (agentIntro who) Object)) ->
                   {auto 0 kv : KnownVerb v} ->
                   {auto 0 pt : VerbPatient v what} ->
+                  {auto 0 zn : ZoneFits (patientZone what) (actZoneOf v)} ->
                   {auto 0 vc : VerbedVoice who what} -> GameEvent bs
     ||| The ordinal occurrence of an event: "When the fourth plan counter
     ||| is put on this enchantment", "Whenever you cast your first spell
@@ -461,7 +480,6 @@ mutual
   eventName : {0 bs : Bindings} -> GameEvent bs -> EventName
   eventName (Dies _) = Death
   eventName (Leaves _ _) = Departure
-  eventName (IsDestroyed _) = Destruction
   eventName (IsDealtDamage _) = DamageTaken
   eventName (Draws _) = CardDrawn
   eventName (LosesGame _) = GameLoss
@@ -498,7 +516,6 @@ mutual
   eventIntro : {bs : Bindings} -> GameEvent bs -> Bindings
   eventIntro (Dies n) = nomIntro n
   eventIntro (Leaves n _) = nomIntro n
-  eventIntro (IsDestroyed n) = nomIntro n
   eventIntro (IsDealtDamage to) = nomIntro to
   eventIntro (Draws who) = nomIntro who
   eventIntro (LosesGame who) = nomIntro who
@@ -552,7 +569,6 @@ mutual
   eventAfter : {bs : Bindings} -> GameEvent bs -> Bindings
   eventAfter (Dies n) = moveIntro Nothing n (Just Graveyard)
   eventAfter (Leaves n _) = moveIntro Nothing n Nothing
-  eventAfter (IsDestroyed n) = moveIntro Nothing n (Just Graveyard)
   eventAfter (IsDealtDamage {k = Object} to) =
     outcomeB DamageDealt :: selfSubjIntro to
   eventAfter (IsDealtDamage to) = outcomeB DamageDealt :: nomIntro to
@@ -606,7 +622,6 @@ mutual
   eventSubjectPlur : {bs : Bindings} -> GameEvent bs -> Plurality
   eventSubjectPlur (Dies n) = nounPlur n
   eventSubjectPlur (Leaves n _) = nounPlur n
-  eventSubjectPlur (IsDestroyed n) = nounPlur n
   eventSubjectPlur (IsDealtDamage to) = nounPlur to
   eventSubjectPlur (Draws who) = nounPlur who
   eventSubjectPlur (LosesGame who) = nounPlur who

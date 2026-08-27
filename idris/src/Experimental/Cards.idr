@@ -7764,13 +7764,18 @@ blazingArchonCant =
   Static (Deontic (AllOf Macros.creature) Forbid Attack Agent (DefendingPlayer You))
 
 ||| Clergy of the Holy Nimbus: "If this creature would be destroyed,
-||| regenerate it." A replacement effect over a destruction. The
-||| self-mention stands in for the printed "it": a replacement's event
-||| mints no subject binding for its own noun.
+||| regenerate it." A replacement effect over a destruction, written as
+||| the verbed event's passive [CR#701.8a] now that `IsDestroyed` has
+||| retired into it. [CR#701.8b] destroys with no destroyer named -- the
+||| lethal-damage state-based action [CR#704.5g] -- which is exactly what
+||| the actorless voice says. The self-mention stands in for the printed
+||| "it": a replacement's event mints no subject binding for its own
+||| noun.
 public export
 clergyOfTheHolyNimbus : Ability
 clergyOfTheHolyNimbus =
-  Static (Intercepts (IsDestroyed Macros.thisCreature) []
+  Static (Intercepts (VerbedEvent Nothing "Destroy"
+                                  (Just Macros.thisCreature)) []
                      (Regenerate Macros.thisCreature) Repeatedly)
 
 ||| Rampant Frogantua's second line: "This creature gets +10/+10 for each
@@ -9696,6 +9701,24 @@ lilianasCaress =
                         (Just (Macros.a (InZone Macros.handZ))))
            (ChangeLife They (Down (Lit 2))) ]
        Nothing
+
+||| Scheming Aspirant -- "Whenever you proliferate, each opponent loses 2
+||| life and you gain 2 life." The verbed event over a PATIENTLESS act,
+||| and a whole card: [CR#701.34a] has proliferating choose its own
+||| permanents and players rather than take a patient from the clause
+||| that instructed it, so the header is the actor alone.
+public export
+schemingAspirant : Card
+schemingAspirant =
+  Macros.card "Scheming Aspirant"
+       (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Phyrexian", creatureType "Advisor"]
+                   [Creature])
+       [ Macros.triggered Whenever
+           (VerbedEvent (Just You) "Proliferate" Nothing)
+           (Sequentially [ Macros.losesLife (Each Opponent) (Lit 2)
+                         , Macros.gainsLife You (Lit 2) ]) ]
+       (Just (1, 3))
 
 ||| Reciprocate -- "Exile target creature that dealt damage to you this
 ||| turn." The dealer-side damage read at its plainest, and the whole

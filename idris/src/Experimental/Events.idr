@@ -18,7 +18,7 @@ import Experimental.Words
 ||| table it lifts through `eventName` (`Interceptable`, `durationOk`) —
 ||| the recorded pattern for any future widening.
 public export
-data EventName = Death | Departure | Destruction | DamageTaken
+data EventName = Death | Departure | DamageTaken
                | CardDrawn | Entry | AttackDeclaration | BlockDeclaration
                | CombatDamage | PartBeginning | SpellCast | StatusChange
                | TurnedFaceUp | PhasingChange | BlockedDeclaration
@@ -54,7 +54,8 @@ data EventName = Death | Departure | Destruction | DamageTaken
                -- standard English definition, so the vocabulary is open,
                -- and a lift would need a gate closing part of it again.
                -- The tables below that must tell one act from another
-               -- read `verbFacts` instead.
+               -- read `verbFacts` instead. `Destruction` retired into
+               -- this arm as `VerbedAct "Destroy"` [CR#701.8a].
                | VerbedAct VerbLabel
 
 public export
@@ -121,8 +122,6 @@ sameEventName Death Death = True
 sameEventName Death _ = False
 sameEventName Departure Departure = True
 sameEventName Departure _ = False
-sameEventName Destruction Destruction = True
-sameEventName Destruction _ = False
 sameEventName DamageTaken DamageTaken = True
 sameEventName DamageTaken _ = False
 sameEventName CardDrawn CardDrawn = True
@@ -266,7 +265,6 @@ eventHasMagnitude LifeGain = True
 eventHasMagnitude LifeLoss = True
 eventHasMagnitude Death = False
 eventHasMagnitude Departure = False
-eventHasMagnitude Destruction = False
 eventHasMagnitude CardDrawn = False
 eventHasMagnitude Entry = False
 eventHasMagnitude AttackDeclaration = False
@@ -330,8 +328,6 @@ lookbackSubjectOk Death Object = True
 lookbackSubjectOk Death Player = False
 lookbackSubjectOk Departure Object = True
 lookbackSubjectOk Departure Player = False
-lookbackSubjectOk Destruction Object = False
-lookbackSubjectOk Destruction Player = False
 lookbackSubjectOk DamageTaken Object = True
 lookbackSubjectOk DamageTaken Player = True
 lookbackSubjectOk CardDrawn Object = False

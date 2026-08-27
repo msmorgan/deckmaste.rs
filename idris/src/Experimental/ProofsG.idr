@@ -1121,6 +1121,24 @@ badVoicelessAct ActiveAct impossible
 badVoicelessAct PassiveAct impossible
 
 
+||| "Whenever a card in a graveyard is destroyed, …"
+||| [CR#701.8a] moves a permanent from the BATTLEFIELD, and [CR#701.8b] says a permanent put into a graveyard any other way hasn't been destroyed.
+public export
+badDestroyInGraveyard : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent Nothing "Destroy"
+              (Just (Macros.a (InZone Macros.graveyardZ))) {zn = ok})
+badDestroyInGraveyard Oh impossible
+
+
+||| "Whenever you discard a permanent you control, …"
+||| [CR#701.9a] discards a card from its owner's HAND; a permanent on the battlefield is in no one's hand to discard.
+public export
+badDiscardFromBattlefield : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent (Just You) "Discard"
+              (Just (Macros.a (InZone Macros.battlefieldZ))) {zn = ok})
+badDiscardFromBattlefield Oh impossible
+
+
 ||| "if you dealt damage to an opponent this turn"
 ||| [CR#120.1] gives the dealing to an object and makes that object the damage's source; a player is never what dealt damage.
 public export
