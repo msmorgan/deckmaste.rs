@@ -111,7 +111,7 @@ mutual
   public export
   data NameSource : Bindings -> Type where
     PrintedName : (name : String) -> NameSource bs
-    ChosenName : {auto 0 ok : countQuality CardName bs = 1} -> NameSource bs
+    ChosenName : {auto 0 ok : countChoice (QSort CardName) bs = 1} -> NameSource bs
     ||| "… with the same name as that creature", "… as those creatures".
     ||| The relatum is ungated in number: [CR#201.2c] states the comparison
     ||| against "a second object or group of objects" outright, and
@@ -139,20 +139,26 @@ mutual
   ||| card description [CR#201.4a], a color/creature-type by exclusion, a
   ||| number by a floor — and the index refuses every crossing for free.
   public export
-  data ChoiceDomain : QualitySort -> Type where
-    NameOfCard : (p : Predicate [] Object) -> ChoiceDomain CardName
-    ColorOtherThan : (c : Chroma.Color) -> ChoiceDomain Color
+  data ChoiceDomain : ChoiceSort -> Type where
+    NameOfCard : (p : Predicate [] Object) -> ChoiceDomain (QSort CardName)
+    ColorOtherThan : (c : Chroma.Color) -> ChoiceDomain (QSort Color)
     TypeOtherThan : (s : Subtype) ->
                     {auto 0 ct : subtypeType s = Creature} ->
-                    ChoiceDomain (SubtypeQ Creature)
+                    ChoiceDomain (QSort (SubtypeQ Creature))
     ||| "choose a basic land type", "choose a nonbasic land type": the
     ||| land type's own split, and the index fixes the host because
     ||| [CR#305.6] gives the split to that host alone -- the same ground
     ||| `subtypeScopeOk` states for `SubtypeAxis`. An unnarrowed "choose
     ||| a land type" writes no domain at all.
-    BasicTypesOnly : ChoiceDomain (SubtypeQ Land)
-    NonbasicTypesOnly : ChoiceDomain (SubtypeQ Land)
-    NumberAbove : (n : Nat) -> ChoiceDomain Number
+    BasicTypesOnly : ChoiceDomain (QSort (SubtypeQ Land))
+    NonbasicTypesOnly : ChoiceDomain (QSort (SubtypeQ Land))
+    NumberAbove : (n : Nat) -> ChoiceDomain (QSort Number)
+    ||| "choose an opponent", where a bare "choose a player" writes no
+    ||| domain. [CR#102.1] makes every player in the game a player and
+    ||| [CR#102.3] names the opponents as the proper subset of them, so
+    ||| the narrowing is the rules' own and not a second sort. 20 of the
+    ||| 28 supported player choosers write it.
+    OpponentsOnly : ChoiceDomain PlayerC
     ||| "choose a number between [lo] and [hi]": the number sort's other
     ||| narrowing, a printed RANGE where `NumberAbove` writes a floor
     ||| alone. 7 supported lines. The bounds are gated because
@@ -160,7 +166,7 @@ mutual
     ||| impossible" and an empty range leaves no option at all; the
     ||| inclusive reading is English's own and no rule narrows it.
     NumberBetween : (lo : Nat) -> (hi : Nat) ->
-                    {auto 0 ok : So (lo <= hi)} -> ChoiceDomain Number
+                    {auto 0 ok : So (lo <= hi)} -> ChoiceDomain (QSort Number)
 
   ||| Not an `Eq` instance: this equality calls `predEq`, which calls back,
   ||| and an implementation is opaque to the size-change checker, so the
@@ -170,7 +176,7 @@ mutual
   ||| comparison need not be at one sort, and a crossing pair answers
   ||| False here exactly as the index refuses it where the sorts do match.
   public export
-  sameChoiceDomain : {0 a, b : QualitySort} ->
+  sameChoiceDomain : {0 a, b : ChoiceSort} ->
                      ChoiceDomain a -> ChoiceDomain b -> Bool
   sameChoiceDomain (NameOfCard a) (NameOfCard b) = predEq a b
   sameChoiceDomain (ColorOtherThan a) (ColorOtherThan b) = a == b
@@ -179,10 +185,11 @@ mutual
   sameChoiceDomain NonbasicTypesOnly NonbasicTypesOnly = True
   sameChoiceDomain (NumberAbove a) (NumberAbove b) = a == b
   sameChoiceDomain (NumberBetween a b) (NumberBetween c d) = a == c && b == d
+  sameChoiceDomain OpponentsOnly OpponentsOnly = True
   sameChoiceDomain _ _ = False
 
   public export
-  sameDomainOpt : {0 a, b : QualitySort} ->
+  sameDomainOpt : {0 a, b : ChoiceSort} ->
                   Maybe (ChoiceDomain a) -> Maybe (ChoiceDomain b) -> Bool
   sameDomainOpt Nothing Nothing = True
   sameDomainOpt (Just a) (Just b) = sameChoiceDomain a b
@@ -337,17 +344,36 @@ mutual
     HasSubtype : Subtype -> Predicate bs Object
     AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
     Opponent : Predicate bs Player                       -- head noun "opponent" (of You — team form [CR#102.3] deferred)
+    ||| "the chosen player", "the last chosen player": the read of a
+    ||| player an earlier chooser bound [CR#607.2d]. At this kind the
+    ||| read IS the head noun, where the object-side `OfChosen` is a
+    ||| description matching a chosen value against a characteristic --
+    ||| a player is no characteristic of anything [CR#109.3], so there is
+    ||| nothing for that shape to match and the phrase names the referent
+    ||| outright.
+    ||| ONE row for both spellings, on `ChosenNumber`'s ground:
+    ||| [CR#607.2d] writes one linkage over "the chosen [value]", "the
+    ||| last chosen [value]," or similar. The gate is existence rather
+    ||| than `OfChosen`'s uniqueness because the marked spelling is
+    ||| printed behind a repeatable chooser, and the two gates agree
+    ||| over the whole corpus: no supported card writes two singular
+    ||| player choosers (measured zero), so nothing here weakens what
+    ||| `badTwoChoosersOneSortRead` pins at the quality sorts.
+    ||| -- spelling: "the chosen player" behind a single chooser, "the
+    ||| last chosen player" behind a repeatable one.
+    ChosenPlayer : {auto 0 ok : ChoiceStands (countChoice PlayerC bs)} ->
+                   Predicate bs Player
     QualityNoun : (q : QualitySort) ->
-                  (dom : Maybe (ChoiceDomain q)) ->
+                  (dom : Maybe (ChoiceDomain (QSort q))) ->
                   Predicate bs (Quality q)
     -- reads the unique chosen quality; the choice was made at
     -- resolution by another clause [CR#608.2d].
-    OfChosen : (q : QualitySort) -> {auto 0 ok : countQuality q bs = 1} ->
+    OfChosen : (q : QualitySort) -> {auto 0 ok : countChoice (QSort q) bs = 1} ->
                {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     -- the marked read: existence rather than `OfChosen`'s uniqueness
     -- [CR#607.2d]; bindings are nearest-first, so the latest choice is
     -- what "the last chosen" reads.
-    OfLastChosenColor : {auto 0 ok : ChoiceStands (countQuality Color bs)} ->
+    OfLastChosenColor : {auto 0 ok : ChoiceStands (countChoice (QSort Color) bs)} ->
                         Predicate bs Object
     -- the determiner that chooses in its own phrase, where `OfChosen`
     -- reads a choice made by some other clause [CR#607.2d] — there is
@@ -356,7 +382,7 @@ mutual
     ||| chooses in its own phrase: "the BASIC land type of your choice"
     ||| narrows the same sort the same way [CR#305.6] narrows it for a
     ||| separate chooser, and the index refuses every crossing for free.
-    OfYourChoice : (q : QualitySort) -> (dom : Maybe (ChoiceDomain q)) ->
+    OfYourChoice : (q : QualitySort) -> (dom : Maybe (ChoiceDomain (QSort q))) ->
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     HasKeyword : (k : KeywordLabel) -> {auto 0 kn : KnownKeyword k} ->
                  Predicate bs Object
@@ -807,6 +833,7 @@ mutual
   hasHead (HasSubtype _) = True
   hasHead AnyPlayer = True
   hasHead Opponent = True
+  hasHead ChosenPlayer = True
   hasHead (QualityNoun _ _) = True
   hasHead (OfChosen _) = False
   hasHead OfLastChosenColor = False
@@ -903,6 +930,8 @@ mutual
 
   public export
   uniquifies : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
+  -- [CR#607.2d]'s linkage makes the phrase name exactly one player.
+  uniquifies ChosenPlayer = True
   uniquifies (Superlative _ _ _) = True
   uniquifies (And ps) = uniquifiesAny ps
   uniquifies _ = False
@@ -969,6 +998,8 @@ mutual
   predEq (HasType _) _ = False
   predEq (HasSubtype a) (HasSubtype b) = a == b
   predEq (HasSubtype _) _ = False
+  predEq ChosenPlayer ChosenPlayer = True
+  predEq ChosenPlayer _ = False
   predEq AnyPlayer AnyPlayer = True
   predEq AnyPlayer _ = False
   predEq Opponent Opponent = True
@@ -1440,6 +1471,7 @@ mutual
   public export
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable AnyPlayer = False
+  negatable ChosenPlayer = False
   negatable (QualityNoun _ _) = False
   negatable IsSource = False
   negatable _ = True
@@ -1453,6 +1485,7 @@ mutual
   predSays (HasType _) = True
   predSays (HasSubtype _) = True
   predSays AnyPlayer = True
+  predSays ChosenPlayer = True
   predSays Opponent = True
   predSays (QualityNoun _ _) = True
   predSays (OfChosen _) = True
@@ -1517,6 +1550,7 @@ mutual
   predNegFree (HasType _) = True
   predNegFree (HasSubtype _) = True
   predNegFree AnyPlayer = True
+  predNegFree ChosenPlayer = True
   predNegFree Opponent = True
   predNegFree (QualityNoun _ _) = True
   predNegFree (OfChosen _) = True
@@ -2177,7 +2211,7 @@ mutual
     ||| repeatability overgeneration unchanged.
     ||| -- spelling: "the chosen number" behind a single chooser, "the
     ||| last chosen number" behind a repeatable one.
-    ChosenNumber : {auto 0 ok : ChoiceStands (countQuality Number bs)} ->
+    ChosenNumber : {auto 0 ok : ChoiceStands (countChoice (QSort Number) bs)} ->
                    Amount bs
     PreventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
                        Amount bs
@@ -3688,6 +3722,8 @@ mutual
   setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og)) =
     MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn (not (oldZn == z))) og)
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
+  setZone p z (MkBinding det Player plur ChosenPlayerP) =
+    MkBinding det Player plur ChosenPlayerP
   setZone p z (MkBinding det (Quality q) plur QualityP) =
     MkBinding det (Quality q) plur QualityP
   setZone p z (MkBinding det Outcome plur (OutcomeP s)) =

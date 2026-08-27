@@ -5164,6 +5164,44 @@ sanctumPrelate =
                                 Compare ManaValue Eq ChosenNumber]))) ]
        (Just (2, 2))
 
+||| Nyxathid -- "As this creature enters, choose an opponent. / This
+||| creature gets -1/-1 for each card in the chosen player's hand."
+||| The player sort's chooser and read in one card: the as-enters row
+||| carried the choice all along, and what was missing was a sort that
+||| reached the player kind and a phrase to read it back with.
+public export
+nyxathid : Card
+nyxathid =
+  Macros.card "Nyxathid"
+       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Elemental"] [Creature])
+       [ Static (Macros.entersChoosingPlayer Macros.thisCreature
+                                             (Just OpponentsOnly))
+       , Static (Gets Macros.thisCreature
+                      (PtDown (CountOf (InZone (Macros.handOf
+                                 (Definite ChosenPlayer)))))
+                      (PtDown (CountOf (InZone (Macros.handOf
+                                 (Definite ChosenPlayer)))))) ]
+       (Just (7, 7))
+
+||| Stuffy Doll -- the bare "choose a player" beside Nyxathid's narrowed
+||| "choose an opponent", with Spitemare's damage-back trigger aimed at
+||| the chosen player instead of at a target.
+public export
+stuffyDoll : Card
+stuffyDoll =
+  Macros.card "Stuffy Doll" (Just [Macros.generic 5]) []
+       (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
+       [ Macros.keyword "Indestructible"
+       , Static (Macros.entersChoosingPlayer Macros.thisCreature Nothing)
+       , Macros.triggered Whenever
+                          (IsDealtDamage Macros.thisCreature)
+                          (DealDamage It ThatMuch (Definite ChosenPlayer))
+       , Macros.activated TapSymbol
+                          (DealDamage Macros.thisCreature (Lit 1)
+                                      Macros.thisCreature) ]
+       (Just (0, 1))
+
 ||| Expel the Interlopers -- "Choose a number between 0 and 10. Destroy
 ||| all creatures with power greater than or equal to the chosen
 ||| number." The chosen number read as a comparison BOUND, and the

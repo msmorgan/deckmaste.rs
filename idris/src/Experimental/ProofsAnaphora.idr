@@ -196,7 +196,7 @@ countQuantOutcomesIsFold (MkBinding d (a \/ b) p pay :: bs) = countQuantOutcomes
 ||| gates and the wildcard pronoun read the context the same way.
 public export
 countQualityIsCountOnes : (q : QualitySort) -> (bs : Bindings) ->
-                          countQuality q bs = countOnes (Quality q) bs
+                          countChoice (QSort q) bs = countOnes (Quality q) bs
 countQualityIsCountOnes q [] = Refl
 countQualityIsCountOnes q (MkBinding d j OneOf p :: bs) with (kindLte (Quality q) j)
   _ | True = cong S (countQualityIsCountOnes q bs)
@@ -205,7 +205,7 @@ countQualityIsCountOnes q (MkBinding d j ManyOf p :: bs) = countQualityIsCountOn
 
 public export
 countQualityIsFold : (q : QualitySort) -> (bs : Bindings) ->
-                     countQuality q bs = countBy (oneOfKind (Quality q)) bs
+                     countChoice (QSort q) bs = countBy (oneOfKind (Quality q)) bs
 countQualityIsFold q bs =
   trans (countQualityIsCountOnes q bs) (countOnesIsFold (Quality q) bs)
 
@@ -798,13 +798,13 @@ costXStaysOpen = Oh
 
 public export
 ofChosenReadsOnlyPrefix : (bs : Bindings) -> (q : QualitySort) ->
-                          countQuality q bs = 1 -> ChosenQualityRead q ->
+                          countChoice (QSort q) bs = 1 -> ChosenQualityRead q ->
                           Predicate bs Object
 ofChosenReadsOnlyPrefix bs q ok read = OfChosen q {bs} {ok} {read}
 
 public export
 ofChosenResolvesInPrefix : (bs : Bindings) -> (q : QualitySort) ->
-                           countQuality q bs = 1 ->
+                           countChoice (QSort q) bs = 1 ->
                            (b : Binding ** (Elem b bs,
                                             So (oneOfKind (Quality q) b)))
 ofChosenResolvesInPrefix bs q ok =
@@ -825,16 +825,16 @@ choiceStandsSucc (S k) ChoiceMade = (k ** Refl)
 ||| existence is still a fact about the prefix alone.
 public export
 ofLastChosenColorReadsOnlyPrefix : (bs : Bindings) ->
-                                   ChoiceStands (countQuality Color bs) ->
+                                   ChoiceStands (countChoice (QSort Color) bs) ->
                                    Predicate bs Object
 ofLastChosenColorReadsOnlyPrefix bs ok = OfLastChosenColor {bs} {ok}
 
 public export
 ofLastChosenColorResolvesInPrefix :
-  (bs : Bindings) -> ChoiceStands (countQuality Color bs) ->
+  (bs : Bindings) -> ChoiceStands (countChoice (QSort Color) bs) ->
   (b : Binding ** (Elem b bs, So (oneOfKind (Quality Color) b)))
 ofLastChosenColorResolvesInPrefix bs ok =
-  let (k ** eq) = choiceStandsSucc (countQuality Color bs) ok
+  let (k ** eq) = choiceStandsSucc (countChoice (QSort Color) bs) ok
    in countByWitness (oneOfKind (Quality Color)) bs k
                      (trans (sym (countQualityIsFold Color bs)) eq)
 
@@ -842,12 +842,12 @@ ofLastChosenColorResolvesInPrefix bs ok =
 -- "the chosen name": the same read on the name slot.
 
 public export
-chosenNameReadsOnlyPrefix : (bs : Bindings) -> countQuality CardName bs = 1 ->
+chosenNameReadsOnlyPrefix : (bs : Bindings) -> countChoice (QSort CardName) bs = 1 ->
                             NameSource bs
 chosenNameReadsOnlyPrefix bs ok = ChosenName {bs} {ok}
 
 public export
-chosenNameResolvesInPrefix : (bs : Bindings) -> countQuality CardName bs = 1 ->
+chosenNameResolvesInPrefix : (bs : Bindings) -> countChoice (QSort CardName) bs = 1 ->
                              (b : Binding ** (Elem b bs,
                                               So (oneOfKind (Quality CardName) b)))
 chosenNameResolvesInPrefix bs ok = ofChosenResolvesInPrefix bs CardName ok
@@ -857,13 +857,13 @@ chosenNameResolvesInPrefix bs ok = ofChosenResolvesInPrefix bs CardName ok
 
 public export
 ofChosenColorReadsOnlyPrefix : (bs : Bindings) -> (alt : Maybe ProducedRun) ->
-                               AltRunWritten alt -> countQuality Color bs = 1 ->
+                               AltRunWritten alt -> countChoice (QSort Color) bs = 1 ->
                                ChosenQualityRead Color -> ProducedMana bs
 ofChosenColorReadsOnlyPrefix bs alt ar cq rd =
   OfChosenColor alt {bs} {ar} {cq} {rd}
 
 public export
-ofChosenColorResolvesInPrefix : (bs : Bindings) -> countQuality Color bs = 1 ->
+ofChosenColorResolvesInPrefix : (bs : Bindings) -> countChoice (QSort Color) bs = 1 ->
                                 (b : Binding ** (Elem b bs,
                                                  So (oneOfKind (Quality Color) b)))
 ofChosenColorResolvesInPrefix bs ok = ofChosenResolvesInPrefix bs Color ok
@@ -1038,6 +1038,7 @@ markTyKeepsOnes j ty (MkBinding det Object OneOf (ObjectP Nothing zn st og)) = R
 markTyKeepsOnes j ty (MkBinding det Object ManyOf (ObjectP Nothing zn st og)) = Refl
 markTyKeepsOnes j ty (MkBinding det Object plur (ObjectP (Just t) zn st og)) = Refl
 markTyKeepsOnes j ty (MkBinding det Player plur PlayerP) = Refl
+markTyKeepsOnes j ty (MkBinding det Player plur ChosenPlayerP) = Refl
 markTyKeepsOnes j ty (MkBinding det (Quality q) plur QualityP) = Refl
 markTyKeepsOnes j ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
 markTyKeepsOnes j ty (MkBinding det Gap plur GapP) = Refl
@@ -1054,6 +1055,7 @@ markTyKeepsAt : (sl : SlotCarrier) -> (ty : Maybe CardType) -> (b : Binding) ->
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP Nothing zn st og)) = Refl
 markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP (Just t) zn st og)) = Refl
 markTyKeepsAt sl ty (MkBinding det Player plur PlayerP) = Refl
+markTyKeepsAt sl ty (MkBinding det Player plur ChosenPlayerP) = Refl
 markTyKeepsAt sl ty (MkBinding det (Quality q) plur QualityP) = Refl
 markTyKeepsAt sl ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
 markTyKeepsAt sl ty (MkBinding det Gap plur GapP) = Refl

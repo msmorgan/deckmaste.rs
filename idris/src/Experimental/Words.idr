@@ -1162,6 +1162,15 @@ data Payload : Kind -> Type where
   ObjectP : (ty : Maybe CardType) -> (zone : Maybe Zone) ->
             (prov : Maybe Stamp) -> (orig : Maybe Origin) -> Payload Object
   PlayerP : Payload Player
+  ||| A player a CHOICE bound, where `PlayerP` is any other player
+  ||| mention. [CR#607.2d] links "choose a [value]" to the later "the
+  ||| chosen [value]" and the counting that finds the link has to tell a
+  ||| chosen player from "you" or "each opponent"; nothing else about the
+  ||| mention differs, so it echoes and describes exactly as `PlayerP`
+  ||| does. The quality sorts need no such mark -- their kind already
+  ||| says a choice made them -- which is why this is the one payload
+  ||| the choice vocabulary adds.
+  ChosenPlayerP : Payload Player
   QualityP : Payload (Quality q)
   OutcomeP : (sort : OutcomeSort) -> Payload Outcome
   GapP : Payload Gap
@@ -1193,6 +1202,7 @@ public export
 payloadZone : Payload k -> Maybe Zone
 payloadZone (ObjectP _ zn _ _) = zn
 payloadZone PlayerP = Nothing
+payloadZone ChosenPlayerP = Nothing
 payloadZone QualityP = Nothing
 payloadZone (OutcomeP _) = Nothing
 payloadZone GapP = Nothing
@@ -1220,6 +1230,7 @@ public export
 payloadTy : Payload k -> Maybe CardType
 payloadTy (ObjectP ty _ _ _) = ty
 payloadTy PlayerP = Nothing
+payloadTy ChosenPlayerP = Nothing
 payloadTy QualityP = Nothing
 payloadTy (OutcomeP _) = Nothing
 payloadTy GapP = Nothing
@@ -1297,6 +1308,43 @@ letterB l = MkBinding AD (LetterK l) OneOf LetterP
 public export
 qualityB : QualitySort -> Binding
 qualityB q = MkBinding AD (Quality q) OneOf QualityP
+
+||| What a CHOICE may bind. Every quality sort, and the player.
+||| A player is deliberately NOT a `QualitySort`: that catalog ranges
+||| over [CR#109.3]'s characteristics, which is why `chosenQualityReadOk`
+||| can ask whether an object matches a chosen value, and a player is no
+||| characteristic of anything. What the two share is [CR#607.2d], which
+||| links "choose a [value]" to "the chosen [value]" over a VALUE of any
+||| kind, so the counting that finds the link is one function over both.
+public export
+data ChoiceSort : Type where
+  QSort : QualitySort -> ChoiceSort
+  ||| "choose a player", "choose an opponent" [CR#607.2d].
+  PlayerC : ChoiceSort
+
+public export
+Eq ChoiceSort where
+  (==) (QSort a) (QSort b) = a == b
+  (==) (QSort _) PlayerC = False
+  (==) PlayerC (QSort _) = False
+  (==) PlayerC PlayerC = True
+
+||| The mention a chooser leaves. Indefinite at both sorts: the choice
+||| INTRODUCES its value, and the definite word waits for the read.
+public export
+choiceB : ChoiceSort -> Binding
+choiceB (QSort q) = qualityB q
+choiceB PlayerC = MkBinding AD Player OneOf ChosenPlayerP
+
+||| Whether one binding is a mention of the sort a choice bound. At a
+||| quality sort the KIND says it, under `kindLte` exactly as
+||| `countOnes` reads it; at the player sort the kind is shared with
+||| every other player mention, so the payload's mark says it instead.
+public export
+choiceBinds : ChoiceSort -> (k : Kind) -> Payload k -> Bool
+choiceBinds (QSort q) k _ = kindLte (Quality q) k
+choiceBinds PlayerC _ ChosenPlayerP = True
+choiceBinds PlayerC _ _ = False
 
 public export
 countOnes : Kind -> Bindings -> Nat
@@ -1417,12 +1465,17 @@ countQuantOutcomes (MkBinding _ Outcome OneOf (OutcomeP s) :: bs) =
   if outcomeIsQuantity s then S (countQuantOutcomes bs) else countQuantOutcomes bs
 countQuantOutcomes (_ :: bs) = countQuantOutcomes bs
 
+||| The singular mentions a choice at sort `s` left. `countOnes`
+||| generalized to the choice vocabulary rather than duplicated for it:
+||| at a quality sort the two agree definitionally (`countQualityIsCountOnes`),
+||| and the player sort is the arm `countOnes` cannot serve, because
+||| "you" is a singular `Player` mention and no choice made it.
 public export
-countQuality : QualitySort -> Bindings -> Nat
-countQuality q [] = Z
-countQuality q (MkBinding _ k OneOf _ :: bs) =
-  if kindLte (Quality q) k then S (countQuality q bs) else countQuality q bs
-countQuality q (_ :: bs) = countQuality q bs
+countChoice : ChoiceSort -> Bindings -> Nat
+countChoice s [] = Z
+countChoice s (MkBinding _ k OneOf p :: bs) =
+  if choiceBinds s k p then S (countChoice s bs) else countChoice s bs
+countChoice s (_ :: bs) = countChoice s bs
 
 ||| The marked read demands that a choice STAND, which is existence and
 ||| not uniqueness [CR#607.2d]: "the last chosen color" names the latest
@@ -1654,6 +1707,8 @@ samePayload (ObjectP ty zn pv og) (ObjectP ty' zn' pv' og') =
   sameMaybeBy sameStamp pv pv' && sameMaybeBy sameOrigin og og'
 samePayload (ObjectP _ _ _ _) _ = False
 samePayload PlayerP PlayerP = True
+samePayload ChosenPlayerP ChosenPlayerP = True
+samePayload ChosenPlayerP _ = False
 samePayload PlayerP _ = False
 samePayload QualityP QualityP = True
 samePayload QualityP _ = False
@@ -1735,6 +1790,7 @@ pubB : Binding -> Bool
 pubB (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = publicZone z
 pubB (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
 pubB (MkBinding _ _ _ PlayerP) = True
+pubB (MkBinding _ _ _ ChosenPlayerP) = True
 pubB (MkBinding _ _ _ QualityP) = True
 pubB (MkBinding _ _ _ (OutcomeP _)) = True  -- what happened is a public fact
 pubB (MkBinding _ _ _ GapP) = True          -- so is a comparison's margin
@@ -1803,6 +1859,7 @@ public export
 payloadProv : Payload k -> Maybe Stamp
 payloadProv (ObjectP _ _ pv _) = pv
 payloadProv PlayerP = Nothing
+payloadProv ChosenPlayerP = Nothing
 payloadProv QualityP = Nothing
 payloadProv (OutcomeP _) = Nothing
 payloadProv GapP = Nothing
@@ -1995,6 +2052,7 @@ halfReaches w (JoinP l r) = halfReaches w l || halfReaches w r
 halfReaches (TypeW t) (ObjectP ty _ _ _) = tyIs t ty
 halfReaches PermanentW (ObjectP ty _ _ _) = isNothing ty
 halfReaches PlayerW PlayerP = True
+halfReaches PlayerW ChosenPlayerP = True
 halfReaches _ _ = False
 
 ||| Whether a mention is a UNION mention -- the pair a joined
@@ -2004,6 +2062,7 @@ public export
 joinedPayload : Payload k -> Bool
 joinedPayload (ObjectP _ _ _ _) = False
 joinedPayload PlayerP = False
+joinedPayload ChosenPlayerP = False
 joinedPayload QualityP = False
 joinedPayload (OutcomeP _) = False
 joinedPayload GapP = False
@@ -2016,6 +2075,7 @@ public export
 wordReaches : NounWord -> Binding -> Bool
 wordReaches (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _ _)) = onFieldZone zn && tyIs t ty
 wordReaches (TypeW t) (MkBinding _ _ _ PlayerP) = False
+wordReaches (TypeW t) (MkBinding _ _ _ ChosenPlayerP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ QualityP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches (TypeW t) (MkBinding _ _ _ GapP) = False
@@ -2025,6 +2085,7 @@ wordReaches (TypeW t) (MkBinding _ _ _ AbilityP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches (TypeW t) pl
 wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _)) = isCardZone zn
 wordReaches CardW (MkBinding _ _ _ PlayerP) = False
+wordReaches CardW (MkBinding _ _ _ ChosenPlayerP) = False
 wordReaches CardW (MkBinding _ _ _ QualityP) = False
 wordReaches CardW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches CardW (MkBinding _ _ _ GapP) = False
@@ -2035,6 +2096,7 @@ wordReaches CardW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
   onStackZone zn && not (isCopyOrigin og)
 wordReaches SpellW (MkBinding _ _ _ PlayerP) = False
+wordReaches SpellW (MkBinding _ _ _ ChosenPlayerP) = False
 wordReaches SpellW (MkBinding _ _ _ QualityP) = False
 wordReaches SpellW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches SpellW (MkBinding _ _ _ GapP) = False
@@ -2044,6 +2106,7 @@ wordReaches SpellW (MkBinding _ _ _ AbilityP) = False
 wordReaches SpellW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ (ObjectP _ _ _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ PlayerP) = True
+wordReaches PlayerW (MkBinding _ _ _ ChosenPlayerP) = True
 wordReaches PlayerW (MkBinding _ _ _ QualityP) = False
 wordReaches PlayerW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches PlayerW (MkBinding _ _ _ GapP) = False
@@ -2058,6 +2121,7 @@ wordReaches PlayerW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PlayerW pl
 wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn pv _)) =
   onFieldZone zn || stampWasField pv
 wordReaches PermanentW (MkBinding _ _ _ PlayerP) = False
+wordReaches PermanentW (MkBinding _ _ _ ChosenPlayerP) = False
 wordReaches PermanentW (MkBinding _ _ _ QualityP) = False
 wordReaches PermanentW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches PermanentW (MkBinding _ _ _ GapP) = False
@@ -2068,6 +2132,7 @@ wordReaches PermanentW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PermanentW
 wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
   onFieldZone zn && isTokenOrigin og
 wordReaches TokenW (MkBinding _ _ _ PlayerP) = False
+wordReaches TokenW (MkBinding _ _ _ ChosenPlayerP) = False
 wordReaches TokenW (MkBinding _ _ _ QualityP) = False
 wordReaches TokenW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches TokenW (MkBinding _ _ _ GapP) = False
@@ -2078,6 +2143,7 @@ wordReaches TokenW (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches CopyW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
   onStackZone zn && isCopyOrigin og
 wordReaches CopyW (MkBinding _ _ _ PlayerP) = False
+wordReaches CopyW (MkBinding _ _ _ ChosenPlayerP) = False
 wordReaches CopyW (MkBinding _ _ _ QualityP) = False
 wordReaches CopyW (MkBinding _ _ _ (OutcomeP _)) = False
 wordReaches CopyW (MkBinding _ _ _ GapP) = False
@@ -2299,6 +2365,7 @@ verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just st) _)) = stampWordOk 
 verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing _)) = False
 verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _ _)) = False
 verbedMatch v w (MkBinding _ _ _ PlayerP) = False
+verbedMatch v w (MkBinding _ _ _ ChosenPlayerP) = False
 verbedMatch v w (MkBinding _ _ _ QualityP) = False
 verbedMatch v w (MkBinding _ _ _ (OutcomeP _)) = False
 verbedMatch v w (MkBinding _ _ _ GapP) = False
@@ -2313,6 +2380,7 @@ verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st) _)) = stampWo
 verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing _)) = False
 verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _ _)) = False
 verbedMatchMany v w (MkBinding _ _ _ PlayerP) = False
+verbedMatchMany v w (MkBinding _ _ _ ChosenPlayerP) = False
 verbedMatchMany v w (MkBinding _ _ _ QualityP) = False
 verbedMatchMany v w (MkBinding _ _ _ (OutcomeP _)) = False
 verbedMatchMany v w (MkBinding _ _ _ GapP) = False

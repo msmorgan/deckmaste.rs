@@ -1827,7 +1827,7 @@ quality q = QualityNoun q Nothing
 
 ||| "a creature type other than Wall": a quality noun with a choice domain.
 public export
-qualityFrom : (q : QualitySort) -> (d : ChoiceDomain q) -> Predicate bs (Quality q)
+qualityFrom : (q : QualitySort) -> (d : ChoiceDomain (QSort q)) -> Predicate bs (Quality q)
 qualityFrom q d = QualityNoun q (Just d)
 
 ||| "As … enters, choose a color."
@@ -1835,15 +1835,23 @@ public export
 entersChoosing : (n : Noun bs Object) -> (q : QualitySort) ->
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                  StaticEffect bs
-entersChoosing n q = EntersChoice n q Nothing {zn}
+entersChoosing n q = EntersChoice n (QSort q) Nothing {zn}
 
 ||| "As … enters, choose a color other than red."
 public export
 entersChoosingFrom : (n : Noun bs Object) -> (q : QualitySort) ->
-                     (d : ChoiceDomain q) ->
+                     (d : ChoiceDomain (QSort q)) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                      StaticEffect bs
-entersChoosingFrom n q d = EntersChoice n q (Just d) {zn}
+entersChoosingFrom n q d = EntersChoice n (QSort q) (Just d) {zn}
+
+||| "As … enters, choose a player." / "… choose an opponent."
+public export
+entersChoosingPlayer : (n : Noun bs Object) ->
+                       (d : Maybe (ChoiceDomain PlayerC)) ->
+                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                       StaticEffect bs
+entersChoosingPlayer n d = EntersChoice n PlayerC d {zn}
 
 ||| "this Siege": the self-reference read at a subtype.
 public export

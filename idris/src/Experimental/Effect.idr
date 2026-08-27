@@ -346,7 +346,7 @@ mutual
                            (kind : CounterKindSource) ->
                            (mark : EntryCounterMark) ->
                            StaticEffect bs
-      EntersChoice : (n : Noun bs Object) -> (q : QualitySort) ->
+      EntersChoice : (n : Noun bs Object) -> (q : ChoiceSort) ->
                      (dom : Maybe (ChoiceDomain q)) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                      StaticEffect bs
@@ -561,7 +561,7 @@ mutual
 
   public export
   staticChoiceIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
-  staticChoiceIntro (EntersChoice _ q _) = qualityB q :: bs
+  staticChoiceIntro (EntersChoice _ q _) = choiceB q :: bs
   staticChoiceIntro _ = bs
 
   public export
@@ -685,7 +685,7 @@ mutual
     AnyColor : ColorFreedom -> ProducedMana bs
     OfChosenColor : (alt : Maybe ProducedRun) ->
                     {auto 0 ar : AltRunWritten alt} ->
-                    {auto 0 cq : countQuality Color bs = 1} ->
+                    {auto 0 cq : countChoice (QSort Color) bs = 1} ->
                     {auto 0 rd : ChosenQualityRead Color} -> ProducedMana bs
 
   public export
