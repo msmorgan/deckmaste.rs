@@ -2071,24 +2071,27 @@ fn ast_keeps_each_linguistic_product_typed() {
 
     let Sentence::Declarative(declarative) = parser
         .parse_sentence("It becomes blocked by target creature.", &context)
-        .expect("change-state predicate parses")
+        .expect("predicative-complement frame parses")
     else {
-        panic!("change-state predicate keeps its ordinary finite envelope")
+        panic!("predicative-complement frame keeps its ordinary finite envelope")
     };
     let Clause::Finite(finite) = declarative.clause.as_ref() else {
-        panic!("change-state predicate keeps its ordinary finite envelope")
+        panic!("predicative-complement frame keeps its ordinary finite envelope")
     };
     let FiniteClause::PlainFiniteClause(change) = finite.as_ref() else {
-        panic!("change-state predicate keeps its ordinary finite envelope")
+        panic!("predicative-complement frame keeps its ordinary finite envelope")
     };
-    let Predicate::ChangeState(predicate) = change.predicate() else {
-        panic!("become has its distinct predicate sum branch")
+    let Predicate::Atomic(predicate) = change.predicate() else {
+        panic!("become uses the shared atomic verb-frame branch")
     };
-    let ChangeStatePredicate::ChangeStatePredicate(ChangeStatePredicateValue {
+    let VerbPhrase::PredicativeComplementPredicate(PredicativeComplementPredicate {
         complement,
         ..
     }) =
-        predicate.as_ref();
+        predicate.as_ref()
+    else {
+        panic!("become uses the shared predicative-complement frame")
+    };
     assert!(matches!(
         complement.as_ref(),
         PredicativeComplement::Status(PredicativeStatus::BlockedBy(_))
@@ -2205,10 +2208,10 @@ impl Visitor for TypedProductVisitor {
         "BareCopularPredicateValue"
     );
     typed_product!(
-        visit_change_state_predicate_value,
-        ChangeStatePredicateValue,
-        walk_change_state_predicate_value,
-        "ChangeStatePredicateValue"
+        visit_predicative_complement_predicate,
+        PredicativeComplementPredicate,
+        walk_predicative_complement_predicate,
+        "PredicativeComplementPredicate"
     );
     typed_product!(
         visit_auxiliary_predicate_value,
@@ -2409,7 +2412,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
     assert_frame!(
         "Become tapped.",
         [
-            "product:ChangeStatePredicateValue",
+            "product:PredicativeComplementPredicate",
             "product:PredicativeStatusValue"
         ],
         [
@@ -2421,7 +2424,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
     assert_frame!(
         "It becomes blocked by target creature.",
         [
-            "product:ChangeStatePredicateValue",
+            "product:PredicativeComplementPredicate",
             "product:BlockedByStatusValue"
         ],
         [
@@ -4297,10 +4300,10 @@ impl Visitor for MovementVisitor {
     trace_product!(visit_put_to, PutTo, walk_put_to, "PutTo");
     trace_product!(visit_return_to, ReturnTo, walk_return_to, "ReturnTo");
     trace_product!(
-        visit_enter_resultative,
-        EnterResultative,
-        walk_enter_resultative,
-        "EnterResultative"
+        visit_predicative_complement_predicate,
+        PredicativeComplementPredicate,
+        walk_predicative_complement_predicate,
+        "PredicativeComplementPredicate"
     );
     trace_product!(
         visit_enter_location,
@@ -5334,9 +5337,9 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
 
     assert!(matches!(
         declarative_atomic(&parser, &context, "This creature enters tapped."),
-        VerbPhrase::EnterResultative(EnterResultative { head, result })
+        VerbPhrase::PredicativeComplementPredicate(PredicativeComplementPredicate { head, complement })
             if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Enter))
-                && matches!(result.as_ref(), PredicativeComplement::Status(_))
+                && matches!(complement.as_ref(), PredicativeComplement::Status(_))
     ));
     assert!(matches!(
         declarative_atomic(
@@ -5628,7 +5631,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         "This creature enters tapped.",
         false,
         [
-            "product:EnterResultative",
+            "product:PredicativeComplementPredicate",
             "verb:Core(Enter)",
             "product:PredicativeStatusValue"
         ],

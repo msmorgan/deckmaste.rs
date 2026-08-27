@@ -982,7 +982,6 @@ enum NonterminalKind {
     PredicativePowerToughnessComplement,
     PredicativeScalarComplement,
     BareCopularPredicate,
-    ChangeStatePredicate,
     PassiveDamagePredicate,
     PassiveMovementPredicate,
     PassiveOrientationPredicate,
@@ -1668,7 +1667,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::PredicativeScalarComplement
         }
         NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,
-        NonterminalCategory::ChangeStatePredicate => NonterminalKind::ChangeStatePredicate,
         NonterminalCategory::PassiveDamagePredicate => NonterminalKind::PassiveDamagePredicate,
         NonterminalCategory::PassiveMovementPredicate => NonterminalKind::PassiveMovementPredicate,
         NonterminalCategory::PassiveOrientationPredicate => {

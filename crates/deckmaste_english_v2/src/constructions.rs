@@ -921,7 +921,6 @@ constructions! {
         Atomic: VerbPhrase,
         BareCopular: BareCopularPredicate,
         FiniteCopular: FiniteCopularPredicate,
-        ChangeState: ChangeStatePredicate,
         BarePassive: BarePassivePredicate,
         FinitePassive: FinitePassivePredicate,
         Auxiliary: AuxiliaryPredicate,
@@ -945,7 +944,6 @@ constructions! {
     abstract sum BareCoordinatedPredicate {
         Atomic: VerbPhrase,
         BareCopular: BareCopularPredicate,
-        ChangeState: ChangeStatePredicate,
         BarePassive: BarePassivePredicate,
         ForAdjunct: ForAdjunctPredicate,
         DuringAdjunct: DuringAdjunctPredicate,
@@ -969,7 +967,6 @@ constructions! {
         Coordination: BarePredicateCoordination,
         ThenSequence: BareThenPredicateSequence,
         BareCopular: BareCopularPredicate,
-        ChangeState: ChangeStatePredicate,
         BarePassive: BarePassivePredicate,
         ForAdjunct: ForAdjunctPredicate,
         DuringAdjunct: DuringAdjunctPredicate,
@@ -994,7 +991,6 @@ constructions! {
         ThenSequence: ThenPredicateSequence,
         BareCopular: BareCopularPredicate,
         FiniteCopular: FiniteCopularPredicate,
-        ChangeState: ChangeStatePredicate,
         BarePassive: BarePassivePredicate,
         FinitePassive: FinitePassivePredicate,
         Auxiliary: AuxiliaryPredicate,
@@ -1634,14 +1630,6 @@ constructions! {
         }
         derive agreement = Values::Bare;
         form bare_copular_predicate = lex(copula) complement;
-    }
-    construction change_state_predicate: ChangeStatePredicate {
-        element ChangeStatePredicateValue {
-            head: lex PredicativeComplementVerb,
-            complement: PredicativeComplement,
-        }
-        derive agreement = head.agreement;
-        form change_state_predicate = verb(head) complement;
     }
     construction passive_damage_predicate: PassiveDamagePredicate {
         element PassiveDamagePredicateValue {
@@ -4346,10 +4334,10 @@ constructions! {
         derive agreement = head.agreement;
         form return_to = verb(head) object source destination result control;
     }
-    construction enter_resultative: VerbPhrase {
-        element EnterResultative { head: lex PredicativeComplementVerb, result: PredicativeComplement, }
+    construction predicative_complement_predicate: VerbPhrase {
+        element PredicativeComplementPredicate { head: lex PredicativeComplementVerb, complement: PredicativeComplement, }
         derive agreement = head.agreement;
-        form enter_resultative = verb(head) result;
+        form predicative_complement_predicate = verb(head) complement;
     }
     construction enter_with_counters: VerbPhrase {
         element EnterWithCounters {
