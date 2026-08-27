@@ -10699,6 +10699,96 @@ public export
 bioplasmExiledCardHasNoType : tyOfVerbedIt "Exile" Cards.bioplasmAfterExile = Nothing
 bioplasmExiledCardHasNoType = Refl
 
+||| ...until the test itself is read. "If it's a creature card" is a fact
+||| about the mention the clause before it exiled, and the consequent is
+||| typed at the prefix the test left MARKED, so the type the card had no
+||| word for stands there [CR#608.2c].
+public export
+bioplasmAfterTest : Bindings
+bioplasmAfterTest = condIntro Cards.bioplasmCardTest
+
+public export
+bioplasmTestRemarksType :
+  tyOfVerbedIt "Exile" Cards.bioplasmAfterTest = Just Creature
+bioplasmTestRemarksType = Refl
+
+||| ...and it re-marks and does not announce: the count the test's own
+||| subject read is the count the consequent reads.
+public export
+bioplasmTestMintsNothing : countOnes Object Cards.bioplasmAfterTest = 2
+bioplasmTestMintsNothing = Refl
+
+public export
+bioplasmTestKeepsCardSlot : countOnesAt CardSlot Cards.bioplasmAfterTest = 1
+bioplasmTestKeepsCardSlot = Refl
+
+||| The participle read at a TYPE word is still refused, and the re-mark
+||| is not what refuses it: `verbedWordOk (TypeW t)` asks the stamp for
+||| `wasField`, and a card taken off a library carries none. Bioplasm's
+||| own "the exiled creature card's power" wants that read, so the whole
+||| card waits on the battlefield gate and on a head word for "creature
+||| card" -- neither of which is the knowledge a test leaves behind.
+public export
+bioplasmTypedReadStillRefused :
+  countVerbed "Exile" (TypeW Creature) Cards.bioplasmAfterTest = 0
+bioplasmTypedReadStillRefused = Refl
+
+||| Scapeshift's prefix after its first sentence -- "Sacrifice any number
+||| of lands." One group mention stands there, which is what lets the
+||| next sentence write "that many".
+public export
+scapeshiftSacrificed : Bindings
+scapeshiftSacrificed =
+  effIntro {bs = []}
+           (Macros.sacrifice You (CountedGroup Macros.anyNumber Nothing Macros.land))
+
+||| ...and after the search clause, where the pronoun is written. TWO
+||| group mentions stand: the lands the first sentence sacrificed and the
+||| cards the search found.
+public export
+scapeshiftAfterSearch : Bindings
+scapeshiftAfterSearch =
+  effIntro {bs = Cards.scapeshiftSacrificed}
+           (Macros.searchLibraryForCount (UpToOf GroupSize) Macros.land)
+
+||| ...so the bare plural pronoun is refused there.
+public export
+scapeshiftTwoGroups : countManys Object Cards.scapeshiftAfterSearch = 2
+scapeshiftTwoGroups = Refl
+
+||| ...and the label the search left is what picks one of them: the found
+||| cards carry the "Search" stamp [CR#701.23a] and the sacrificed lands
+||| carry "Sacrifice", so the verb-scoped group pronoun resolves where
+||| the bare one cannot.
+public export
+scapeshiftOneSearchedGroup : countVerbedThem "Search" Cards.scapeshiftAfterSearch = 1
+scapeshiftOneSearchedGroup = Refl
+
+public export
+scapeshiftOneSacrificedGroup :
+  countVerbedThem "Sacrifice" Cards.scapeshiftAfterSearch = 1
+scapeshiftOneSacrificedGroup = Refl
+
+||| Scapeshift, whole -- "Sacrifice any number of lands. Search your
+||| library for up to that many land cards, put them onto the battlefield
+||| tapped, then shuffle." The plural twin of the verb-scoped pronoun,
+||| written where `Them` counts two groups. The search's own stamp is
+||| also what keeps the found cards readable across the shuffle that
+||| follows [CR#701.24b].
+public export
+scapeshift : Card
+scapeshift =
+  Macros.card "Scapeshift"
+       (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ Macros.sacrifice You (CountedGroup Macros.anyNumber Nothing
+                                                       Macros.land)
+                  , Macros.searchLibraryForCount (UpToOf GroupSize) Macros.land
+                  , Macros.putOntoBattlefieldTapped (Macros.themVerbed "Search")
+                  , Macros.shuffle ]) ]
+       Nothing
+
 --------------------------------------------------------------------------------
 -- The partitive's second surface, the plural at-random determiner, and the
 -- slice over a distributive possessor.

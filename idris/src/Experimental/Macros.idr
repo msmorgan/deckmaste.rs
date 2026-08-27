@@ -1748,6 +1748,15 @@ itVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
            {auto 0 ok : countVerbedIt v bs = 1} -> Noun bs Object
 itVerbed v = ItVerbed v {kn} {ok}
 
+||| "them", read at the label that stamped its referents: `itVerbed`'s
+||| plural twin. A clause naming the batch its own labelled action made
+||| writes this where a second batch stands announced, and the label it
+||| names is the clause's own.
+public export
+themVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+             {auto 0 ok : countVerbedThem v bs = 1} -> Noun bs Object
+themVerbed v = ThemVerbed v {kn} {ok}
+
 ||| "the exiled card": the attributive singular participle anaphor.
 public export
 theVerbed : (v : VerbLabel) -> (w : NounWord) ->

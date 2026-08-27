@@ -287,6 +287,15 @@ countVerbedItIsFold v (b :: bs) with (itVerbedReaches v b)
   _ | True = cong S (countVerbedItIsFold v bs)
   _ | False = countVerbedItIsFold v bs
 
+||| ...and the plural twin, at the plural reach test.
+public export
+countVerbedThemIsFold : (v : VerbLabel) -> (bs : Bindings) ->
+                        countVerbedThem v bs = countBy (themVerbedReaches v) bs
+countVerbedThemIsFold v [] = Refl
+countVerbedThemIsFold v (b :: bs) with (themVerbedReaches v b)
+  _ | True = cong S (countVerbedThemIsFold v bs)
+  _ | False = countVerbedThemIsFold v bs
+
 ||| What `countUnionHalf` folds: a singular UNION mention one half of
 ||| which the split arm's word names.
 public export
@@ -507,6 +516,29 @@ public export
 themResolvesInPrefix : (bs : Bindings) -> countManys Object bs = 1 ->
                        (b : Binding ** (Elem b bs, So (manyOfKind Object b)))
 themResolvesInPrefix bs ok = resolveManys Object bs ok
+
+
+-- "them" again, read at the label that stamped its referents.
+
+||| The verb-scoped GROUP pronoun asks the prefix the singular row's
+||| question at the plural reach test -- how many of its group mentions
+||| that label stamped -- and carries the same context-free second
+||| obligation, that the label is a real one.
+public export
+themVerbedReadsOnlyPrefix : (bs : Bindings) -> (v : VerbLabel) ->
+                            KnownVerb v -> countVerbedThem v bs = 1 ->
+                            Noun bs Object
+themVerbedReadsOnlyPrefix bs v kn ok = ThemVerbed v {bs} {kn} {ok}
+
+||| ...and it resolves to a mention IN the prefix, by the witness lemma
+||| every one of these reads uses.
+public export
+themVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) ->
+                             countVerbedThem v bs = 1 ->
+                             (b : Binding ** (Elem b bs, So (themVerbedReaches v b)))
+themVerbedResolvesInPrefix bs v ok =
+  countByWitness (themVerbedReaches v) bs Z
+                 (trans (sym (countVerbedThemIsFold v bs)) ok)
 
 
 -- "that <noun word>": the sorted singular demonstrative.
@@ -996,11 +1028,127 @@ nomIntroIsDeltaThenPrefix : (bs : Bindings) -> (k : Kind) -> (n : Noun bs k) ->
                             nomIntro n = nounDelta n ++ bs
 nomIntroIsDeltaThenPrefix bs k n = Refl
 
-||| The same for a condition, which is what `If`'s consequent is typed in.
+||| A type-naming test writes a card type and nothing a counted gate
+||| reads: determiner, kind and plurality are the fields `oneOfKind`
+||| asks about, and the re-mark touches none of them.
 public export
-condIntroIsDeltaThenPrefix : (bs : Bindings) -> (c : Condition bs) ->
-                             condIntro c = condDelta c ++ bs
-condIntroIsDeltaThenPrefix bs c = Refl
+markTyKeepsOnes : (j : Kind) -> (ty : Maybe CardType) -> (b : Binding) ->
+                  oneOfKind j (markTy ty b) = oneOfKind j b
+markTyKeepsOnes j ty (MkBinding det Object OneOf (ObjectP Nothing zn st og)) = Refl
+markTyKeepsOnes j ty (MkBinding det Object ManyOf (ObjectP Nothing zn st og)) = Refl
+markTyKeepsOnes j ty (MkBinding det Object plur (ObjectP (Just t) zn st og)) = Refl
+markTyKeepsOnes j ty (MkBinding det Player plur PlayerP) = Refl
+markTyKeepsOnes j ty (MkBinding det (Quality q) plur QualityP) = Refl
+markTyKeepsOnes j ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
+markTyKeepsOnes j ty (MkBinding det Gap plur GapP) = Refl
+markTyKeepsOnes j ty (MkBinding det (LetterK l) plur LetterP) = Refl
+markTyKeepsOnes j ty (MkBinding det TurnRef plur TurnRefP) = Refl
+markTyKeepsOnes j ty (MkBinding det Ability plur AbilityP) = Refl
+markTyKeepsOnes j ty (MkBinding det (a \/ b) plur (JoinP l r)) = Refl
+
+||| ...and the SCOPED gate likewise: a slot's carrier is read off the
+||| zone [CR#109.2], which the re-mark leaves where it was.
+public export
+markTyKeepsAt : (sl : SlotCarrier) -> (ty : Maybe CardType) -> (b : Binding) ->
+                itAtReaches sl (markTy ty b) = itAtReaches sl b
+markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP Nothing zn st og)) = Refl
+markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP (Just t) zn st og)) = Refl
+markTyKeepsAt sl ty (MkBinding det Player plur PlayerP) = Refl
+markTyKeepsAt sl ty (MkBinding det (Quality q) plur QualityP) = Refl
+markTyKeepsAt sl ty (MkBinding det Outcome plur (OutcomeP s)) = Refl
+markTyKeepsAt sl ty (MkBinding det Gap plur GapP) = Refl
+markTyKeepsAt sl ty (MkBinding det (LetterK l) plur LetterP) = Refl
+markTyKeepsAt sl ty (MkBinding det TurnRef plur TurnRefP) = Refl
+markTyKeepsAt sl ty (MkBinding det Ability plur AbilityP) = Refl
+markTyKeepsAt sl ty (MkBinding det (a \/ b) plur (JoinP l r)) = Refl
+
+||| The re-mark drops nothing and inserts nothing: it is the list it was
+||| given, one binding of it rewritten where it stood. This is the
+||| licensed in-place form, stated as the property rather than assumed
+||| from the shape of the definition.
+public export
+markFirstKeepsLength : (q : Binding -> Bool) -> (ty : Maybe CardType) ->
+                       (bs : Bindings) -> length (markFirst q ty bs) = length bs
+markFirstKeepsLength q ty [] = Refl
+markFirstKeepsLength q ty (b :: bs) with (q b)
+  _ | True = Refl
+  _ | False = cong S (markFirstKeepsLength q ty bs)
+
+||| What one binding contributes to a fold: the whole of its
+||| contribution, and a function of its test's answer alone.
+public export
+keptBy : Bool -> Nat -> Nat
+keptBy True n = S n
+keptBy False n = n
+
+public export
+countByCons : (r : Binding -> Bool) -> (x : Binding) -> (bs : Bindings) ->
+              countBy r (x :: bs) = keptBy (r x) (countBy r bs)
+countByCons r x bs with (r x)
+  _ | True = Refl
+  _ | False = Refl
+
+||| ...so swapping a head binding for one the gate answers the same way
+||| leaves the fold where it was.
+public export
+countByHeadCong : (r : Binding -> Bool) -> (x, y : Binding) -> r x = r y ->
+                  (bs : Bindings) -> countBy r (x :: bs) = countBy r (y :: bs)
+countByHeadCong r x y prf bs =
+  trans (countByCons r x bs)
+        (trans (cong (\v => keptBy v (countBy r bs)) prf)
+               (sym (countByCons r y bs)))
+
+||| ...and any gate that does not read what the re-mark writes counts the
+||| re-marked prefix exactly as it counts the prefix.
+public export
+markFirstKeeps : (r : Binding -> Bool) -> (q : Binding -> Bool) ->
+                 (ty : Maybe CardType) ->
+                 ((b : Binding) -> r (markTy ty b) = r b) ->
+                 (bs : Bindings) -> countBy r (markFirst q ty bs) = countBy r bs
+markFirstKeeps r q ty pres [] = Refl
+markFirstKeeps r q ty pres (b :: bs) with (q b)
+  _ | True = countByHeadCong r (markTy ty b) b (pres b) bs
+  _ | False with (r b)
+    _ | True = cong S (markFirstKeeps r q ty pres bs)
+    _ | False = markFirstKeeps r q ty pres bs
+
+||| ...so a condition's re-mark leaves every counted gate reading the
+||| prefix it always read. This is what buys the re-mark its place in the
+||| binder contract: the knowledge a test leaves behind changes what a
+||| later read FINDS on a mention, never how many mentions there are.
+||| One case split does both, because a condition licenses at most one
+||| re-mark and `condRemarkAt` is what says which.
+public export
+condRemarkKeepsOnes : (bs : Bindings) -> (c : Condition bs) -> (j : Kind) ->
+                      countOnes j (condRemark c) = countOnes j bs
+condRemarkKeepsOnes bs c j with (condRemarkAt c)
+  _ | Nothing = Refl
+  _ | Just (q, ty) =
+    trans (countOnesIsFold j (markFirst q ty bs))
+          (trans (markFirstKeeps (oneOfKind j) q ty (markTyKeepsOnes j ty) bs)
+                 (sym (countOnesIsFold j bs)))
+
+public export
+condRemarkKeepsAt : (bs : Bindings) -> (c : Condition bs) -> (sl : SlotCarrier) ->
+                    countOnesAt sl (condRemark c) = countOnesAt sl bs
+condRemarkKeepsAt bs c sl with (condRemarkAt c)
+  _ | Nothing = Refl
+  _ | Just (q, ty) =
+    trans (countOnesAtIsFold sl (markFirst q ty bs))
+          (trans (markFirstKeeps (itAtReaches sl) q ty (markTyKeepsAt sl ty) bs)
+                 (sym (countOnesAtIsFold sl bs)))
+
+||| The same for a condition, which is what `If`'s consequent is typed
+||| in -- with the prefix term now the prefix AS THE CONDITION LEFT IT
+||| MARKED. The clause is still forward: `condRemark` reads the prefix
+||| and rewrites one of its own bindings in place, exactly as
+||| `settleTargets` and `defineLetter` do, and inserts nothing minted
+||| later. The two lemmas above are what keeps the second clause of the
+||| contract honest, and `markFirstKeepsLength` is the first.
+public export
+condIntroIsDeltaThenRemark : (bs : Bindings) -> (c : Condition bs) ->
+                             condIntro c = condDelta c ++ condRemark c
+condIntroIsDeltaThenRemark bs c = Refl
 
 ||| The `otherwise` arm is typed in the phrases the then-branch announced
 ||| plus the quantity it wrote — both facts about a clause written BEFORE
@@ -1035,10 +1183,11 @@ gateSplitsAtCondIntro : (bs : Bindings) -> (c : Condition bs) -> (j : Kind) ->
                         countOnes j (condIntro c) =
                           countOnes j (condDelta c) + countOnes j bs
 gateSplitsAtCondIntro bs c j =
-  trans (countOnesIsFold j (condDelta c ++ bs))
-        (trans (countBySplit (oneOfKind j) (condDelta c) bs)
+  trans (countOnesIsFold j (condDelta c ++ condRemark c))
+        (trans (countBySplit (oneOfKind j) (condDelta c) (condRemark c))
                (cong2 (+) (sym (countOnesIsFold j (condDelta c)))
-                          (sym (countOnesIsFold j bs))))
+                          (trans (sym (countOnesIsFold j (condRemark c)))
+                                 (condRemarkKeepsOnes bs c j))))
 
 ||| The SCOPED gate splits the same way. Narrowing which mentions are
 ||| candidates does not change that a threaded context is `delta ++ bs`
@@ -1065,10 +1214,11 @@ slotGateSplitsAtCondIntro : (bs : Bindings) -> (c : Condition bs) ->
                             countOnesAt sl (condIntro c) =
                               countOnesAt sl (condDelta c) + countOnesAt sl bs
 slotGateSplitsAtCondIntro bs c sl =
-  trans (countOnesAtIsFold sl (condDelta c ++ bs))
-        (trans (countBySplit (itAtReaches sl) (condDelta c) bs)
+  trans (countOnesAtIsFold sl (condDelta c ++ condRemark c))
+        (trans (countBySplit (itAtReaches sl) (condDelta c) (condRemark c))
                (cong2 (+) (sym (countOnesAtIsFold sl (condDelta c)))
-                          (sym (countOnesAtIsFold sl bs))))
+                          (trans (sym (countOnesAtIsFold sl (condRemark c)))
+                                 (condRemarkKeepsAt bs c sl))))
 
 ||| The split arm's gate, likewise.
 public export

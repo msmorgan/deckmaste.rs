@@ -1746,6 +1746,23 @@ mutual
                {auto 0 ok : countVerbedIt v bs = 1} -> Noun bs Object
     They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
     Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
+    ||| "them", read at the verb that STAMPED its referents rather than
+    ||| across every group mention: `ItVerbed`'s plural twin, and the
+    ||| same fact spelled at the same place in the sentence. A clause
+    ||| that names the batch its OWN keyword action made ("Sacrifice any
+    ||| number of lands. Search your library for up to that many land
+    ||| cards, put THEM onto the battlefield tapped") writes this, and
+    ||| the bare `Them` beside it would count two groups and refuse.
+    ||| The gate is `Them`'s, narrowed exactly as the singular row
+    ||| narrows `It`'s: counted uniqueness over the mentions one label
+    ||| stamped, so two groups the same label stamped still refuse. The
+    ||| second obligation is the singular row's too -- that the label is
+    ||| a real one -- and no participle is owed, because the pronoun
+    ||| spells none. It does not compose with a carrier narrowing: no
+    ||| printed line wants both, and there is no constructor for it.
+    ||| -- spelling: "them", exactly as `Them` spells.
+    ThemVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
+                 {auto 0 ok : countVerbedThem v bs = 1} -> Noun bs Object
     Those : (w : NounWord) -> {auto 0 ok : countManyWord w bs = 1} -> Noun bs (kindOfW w)
     That : (w : NounWord) -> {auto 0 ok : countWord w bs = 1} -> Noun bs (kindOfW w)
     ||| One ARM of the split read of a union mention: "that player" in
@@ -1812,6 +1829,7 @@ mutual
   nounEqRef They They = True
   nounEqRef They _ = False
   nounEqRef Them _ = False
+  nounEqRef (ThemVerbed _) _ = False
   nounEqRef (Those _) _ = False
   nounEqRef (That _) _ = False
   nounEqRef (ThatHalf _) _ = False
@@ -1901,6 +1919,7 @@ mutual
   nounDelta (ItVerbed _) = []
   nounDelta They = []
   nounDelta Them = []
+  nounDelta (ThemVerbed _) = []
   nounDelta (That w) = []
   nounDelta (ThatHalf w) = []
   nounDelta (AttachHost _ _) = []
@@ -2691,6 +2710,7 @@ mutual
   anchorPhrase (ItVerbed _) = True
   anchorPhrase They = True
   anchorPhrase Them = True
+  anchorPhrase (ThemVerbed _) = True
   anchorPhrase (Those _) = True
   anchorPhrase (That _) = True
   anchorPhrase (ThatHalf _) = True
@@ -2738,6 +2758,7 @@ mutual
   choosable (ItVerbed _) = False
   choosable They = False
   choosable Them = False
+  choosable (ThemVerbed _) = False
   choosable (Those _) = False
   choosable (That _) = False
   choosable (ThatHalf _) = False
@@ -2770,6 +2791,7 @@ mutual
   groupMention : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   groupMention (TargetGroup _ _) = True
   groupMention Them = True
+  groupMention (ThemVerbed _) = True
   groupMention (Those _) = True
   groupMention This = False
   groupMention (AsType _ _ _) = False
@@ -3301,9 +3323,66 @@ mutual
   selfSubjIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
   selfSubjIntro n = selfSubjDelta n ++ nomIntro n
 
+  ||| Which of the prefix's mentions a test's SUBJECT names, where the
+  ||| grammar can say it without a word. The three type-less singular
+  ||| object reads are exactly the ones that can be answered: `It` and
+  ||| its two narrowings name a referent by counted uniqueness and carry
+  ||| no head word of their own, so what they resolved to is what the
+  ||| test was about. Every other subject either names its own type
+  ||| already -- a demonstrative and a participle read both write a noun
+  ||| word -- or is a description rather than a read, and a test on it
+  ||| tells the clauses after it nothing they could not already write.
+  public export
+  remarkTest : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k ->
+               Maybe (Binding -> Bool)
+  remarkTest It = Just (itReaches OneOf)
+  remarkTest (ItAt sl) = Just (itAtReaches sl)
+  remarkTest (ItVerbed v) = Just (itVerbedReaches v)
+  remarkTest _ = Nothing
+
+  ||| ...and which re-mark a whole condition licenses: the test its
+  ||| subject supplies, paired with the type its complement names.
+  ||| `Nothing` where the condition licenses none, which is every
+  ||| condition but the positive copula and every copula whose subject
+  ||| names its own word.
+  public export
+  condRemarkAt : {0 bs : Bindings} -> Condition bs ->
+                 Maybe (Binding -> Bool, Maybe CardType)
+  condRemarkAt (Matches n p) =
+    case remarkTest n of
+      Nothing => Nothing
+      Just q => Just (q, seedTy p)
+  condRemarkAt _ = Nothing
+
+  ||| What a condition leaves MARKED on the prefix, as against what it
+  ||| ANNOUNCES (`condDelta`). A copula test naming a card type is the
+  ||| one condition that leaves knowledge behind about a mention that
+  ||| already stood -- "If it's a creature card, …" is true of the card
+  ||| the clause before it exiled -- and the honest place to put that
+  ||| knowledge is on the binding, in place. Announcing it instead would
+  ||| mint a second mention of one referent and leave the pronoun after
+  ||| it with two candidates.
+  |||
+  ||| Only the POSITIVE, un-coordinated copula re-marks. A negated test
+  ||| says which type the mention is not, and one type slot cannot hold
+  ||| that; a coordination's arms would each have to be walked, and no
+  ||| supported line writes "if it's a creature card and …" over a
+  ||| type-less mention. Both are left at the identity, and both are
+  ||| re-openable by a row here rather than by a change of shape.
+  public export
+  condRemark : {bs : Bindings} -> Condition bs -> Bindings
+  condRemark c = maybe bs (\qt => markFirst (fst qt) (snd qt) bs) (condRemarkAt c)
+
+  ||| A condition hands its consequent what it announced, in front of the
+  ||| prefix AS THE CONDITION LEFT IT MARKED. The second term is an
+  ||| in-place re-mark of the prefix and never an insertion from
+  ||| elsewhere, which is the form `settleTargets` and `defineLetter`
+  ||| already have; §5 of `Experimental.ProofsAnaphora` states it and
+  ||| proves that every counted gate reads the re-marked prefix exactly
+  ||| as it read the prefix.
   public export
   condIntro : {bs : Bindings} -> Condition bs -> Bindings
-  condIntro c = condDelta c ++ bs
+  condIntro c = condDelta c ++ condRemark c
 
   public export
   interveningIntro : {bs : Bindings} -> Maybe (Condition bs) -> Bindings
@@ -3366,6 +3445,7 @@ mutual
   costNounOk (ItVerbed _) = True
   costNounOk They = True
   costNounOk Them = True
+  costNounOk (ThemVerbed _) = True
   costNounOk (Those _) = True
   costNounOk (That _) = True
   costNounOk (ThatHalf _) = True
@@ -3400,6 +3480,7 @@ mutual
   nounIsYou (ItVerbed _) = False
   nounIsYou They = False
   nounIsYou Them = False
+  nounIsYou (ThemVerbed _) = False
   nounIsYou (Those _) = False
   nounIsYou (That _) = False
   nounIsYou (ThatHalf _) = False
@@ -3434,6 +3515,7 @@ mutual
   nounTargeted (ItVerbed _) = False
   nounTargeted They = False
   nounTargeted Them = False
+  nounTargeted (ThemVerbed _) = False
   nounTargeted (Those _) = False
   nounTargeted (That _) = False
   nounTargeted (ThatHalf _) = False
@@ -3459,6 +3541,7 @@ mutual
   counterMemoryOk (ItAt sl) = not (stampMoves (provOfItAt sl bs))
   counterMemoryOk (ItVerbed v) = not (stampMoves (provOfVerbedIt v bs))
   counterMemoryOk Them = not (stampMoves (provOfThem bs))
+  counterMemoryOk (ThemVerbed v) = not (stampMoves (provOfVerbedThem v bs))
   -- a participle read names a referent some labeled action MOVED, so
   -- the counters it had are gone by the same rules.
   counterMemoryOk (TheVerbed _ _ _) = False
@@ -3479,6 +3562,7 @@ mutual
   moveDestOk (ItAt _) = False
   moveDestOk (ItVerbed _) = False
   moveDestOk Them = False
+  moveDestOk (ThemVerbed _) = False
   moveDestOk _ = True
 
   public export
@@ -3592,6 +3676,13 @@ mutual
     if itReaches ManyOf b then setZone p z b :: bs else b :: setZoneThem p z bs
 
   public export
+  setZoneVerbedThem : VerbLabel -> Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
+  setZoneVerbedThem v p z [] = []
+  setZoneVerbedThem v p z (b :: bs) =
+    if themVerbedReaches v b then setZone p z b :: bs
+                             else b :: setZoneVerbedThem v p z bs
+
+  public export
   setZoneThose : Maybe VerbLabel -> NounWord -> Maybe Zone -> Bindings -> Bindings
   setZoneThose p w z [] = []
   setZoneThose p w z (b :: bs) =
@@ -3651,6 +3742,7 @@ mutual
   moveIntro p (ItAt sl) z = setZoneItAt sl p z bs
   moveIntro p (ItVerbed v) z = setZoneVerbedIt v p z bs
   moveIntro p Them z = setZoneThem p z bs
+  moveIntro p (ThemVerbed v) z = setZoneVerbedThem v p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
   moveIntro p (ThatHalf w) z = setZoneUnionHalf p w z bs
   moveIntro p (Those w) z = setZoneThose p w z bs
@@ -3709,6 +3801,7 @@ mutual
   nounProv (ItAt sl) = provOfItAt sl bs
   nounProv (ItVerbed v) = provOfVerbedIt v bs
   nounProv Them = provOfThem bs
+  nounProv (ThemVerbed v) = provOfVerbedThem v bs
   nounProv (That w) = provOfThat w bs
   nounProv (ThatHalf w) = provOfUnionHalf w bs
   nounProv (Those w) = provOfThose w bs
@@ -3743,6 +3836,7 @@ mutual
   nounZone (ItVerbed v) = zoneOfVerbedIt v bs
   nounZone They = Nothing
   nounZone Them = zoneOfThem bs
+  nounZone (ThemVerbed v) = zoneOfVerbedThem v bs
   nounZone (That w) = zoneOfThat w bs
   nounZone (ThatHalf w) = zoneOfUnionHalf w bs
   nounZone (AttachHost _ h) = attachHostZone h
@@ -3779,6 +3873,7 @@ mutual
   nounTy (ItVerbed v) = tyOfVerbedIt v bs
   nounTy They = Nothing
   nounTy Them = tyOfThem bs
+  nounTy (ThemVerbed v) = tyOfVerbedThem v bs
   nounTy (That w) = tyOfThat w bs
   nounTy (ThatHalf w) = tyOfUnionHalf w bs
   nounTy (AttachHost _ h) = attachHostTy h
@@ -3832,6 +3927,7 @@ mutual
   nounPlur (ItVerbed _) = OneOf
   nounPlur They = OneOf
   nounPlur Them = ManyOf
+  nounPlur (ThemVerbed _) = ManyOf
   nounPlur (That w) = OneOf
   nounPlur (ThatHalf w) = OneOf
   nounPlur (AttachHost _ _) = OneOf

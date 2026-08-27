@@ -2185,6 +2185,77 @@ tyOfVerbedIt v [] = Nothing
 tyOfVerbedIt v (b :: bs) =
   if itVerbedReaches v b then bindingTy b else tyOfVerbedIt v bs
 
+||| `itVerbedReaches`' PLURAL twin: the group pronoun read at the label
+||| that stamped its referent. `Them` asks the prefix for its one group
+||| mention; this asks for the one that a named keyword action left its
+||| mark on, so a sentence naming a batch its own clause made stands
+||| where a second batch was announced earlier. The narrowing is the
+||| singular row's exactly -- counted uniqueness over a smaller candidate
+||| set, never a preference among a larger one -- and the only difference
+||| is which plurality `itReaches` is asked about.
+public export
+themVerbedReaches : VerbLabel -> Binding -> Bool
+themVerbedReaches v b = itReaches ManyOf b && stampIs v (payloadProv b.payload)
+
+||| `countManys Object` over the candidates one label stamped.
+public export
+countVerbedThem : VerbLabel -> Bindings -> Nat
+countVerbedThem v [] = Z
+countVerbedThem v (b :: bs) =
+  if themVerbedReaches v b then S (countVerbedThem v bs) else countVerbedThem v bs
+
+public export
+provOfVerbedThem : VerbLabel -> Bindings -> Maybe Stamp
+provOfVerbedThem v [] = Nothing
+provOfVerbedThem v (b :: bs) =
+  if themVerbedReaches v b then payloadProv b.payload else provOfVerbedThem v bs
+
+public export
+zoneOfVerbedThem : VerbLabel -> Bindings -> Maybe Zone
+zoneOfVerbedThem v [] = Nothing
+zoneOfVerbedThem v (b :: bs) =
+  if themVerbedReaches v b then bindingZone b else zoneOfVerbedThem v bs
+
+public export
+tyOfVerbedThem : VerbLabel -> Bindings -> Maybe CardType
+tyOfVerbedThem v [] = Nothing
+tyOfVerbedThem v (b :: bs) =
+  if themVerbedReaches v b then bindingTy b else tyOfVerbedThem v bs
+
+||| What a type-naming TEST leaves on the mention it tested. [CR#608.2c]
+||| has an effect's instructions followed in order, so a test the text
+||| already made is knowledge every clause after it reads: "exile the top
+||| card of your library. If it's a creature card, …" has established, by
+||| the time the consequent is read, that the exiled card is a creature
+||| card, and the mention that recorded no type when it was announced
+||| ("the top card of your library" names none) is the thing that fact is
+||| about.
+|||
+||| It writes the type and NOTHING else: determiner, kind, plurality,
+||| zone and the stamp a labeled action left all stand, which is what
+||| makes this a re-mark and not an announcement. It writes only where
+||| the mention recorded no type. A mention that already carries one has
+||| the slot filled, and a test naming a second type is telling the
+||| clause something the one slot cannot hold; over-writing it would lose
+||| the announced word to a tested one, which no printed line asks for.
+public export
+markTy : Maybe CardType -> Binding -> Binding
+markTy ty (MkBinding det Object plur (ObjectP Nothing zn st og)) =
+  MkBinding det Object plur (ObjectP ty zn st og)
+markTy ty b = b
+
+||| The re-mark itself: the FIRST binding the read's own test admits is
+||| re-marked where it stands, and the list is otherwise the list it was.
+||| Same shape as `setZone`'s folds, which re-zone the referent a clause
+||| moved -- and the same shape `settleTargets` and `defineLetter` have,
+||| the licensed in-place form: nothing is inserted, nothing is dropped,
+||| and no binding changes position.
+public export
+markFirst : (Binding -> Bool) -> Maybe CardType -> Bindings -> Bindings
+markFirst q ty [] = []
+markFirst q ty (b :: bs) =
+  if q b then markTy ty b :: bs else b :: markFirst q ty bs
+
 ||| Whether a shuffle leaves a mention readable. [CR#701.24b] keeps the
 ||| cards a search FOUND out of the shuffle, so a mention of one survives
 ||| it. Every other card in the pile is randomized where no player knows
