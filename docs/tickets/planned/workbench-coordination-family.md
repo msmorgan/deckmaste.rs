@@ -43,6 +43,14 @@ the row. A row minted against the 11 alone is sized against a lower bound.
   your graveyard and you control a Giant" is an OR of an AND, so the answer is
   probably yes — and `FlatConjuncts` would then need a COMPANION rather than a
   copy.
+
+  **RULED (user, 2026-08-27): yes.** A disjunct may be a conjunction — the
+  shape is `or [on the bf, and [in your gy, you have a giant]]` (the user's
+  tree), i.e. disjunction over arms that are atoms or flat conjunctions, one
+  level, nothing deeper. The printed scope marker is the reduplicated "if":
+  each "if" opens a disjunct, so the AND binds inside its own disjunct.
+  `FlatConjuncts` gets a companion predicate for the OR row (arms atomic or
+  flat-conjunction), not a copy.
 - The ACTIVATION GUARD is this family's biggest carrier (6 of the 11) where it
   was the conjunction's empty one.
 
