@@ -311,7 +311,7 @@ badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
   Intercepts (CounterEvent CounterPut (Just Macros.plusOnePlusOne)
                            (Macros.a Macros.creatureYouControl) OneCounter Nothing Nothing)
              (PutCounters (Plus (ThatMuch {ok}) (Lit 1))
-                          Macros.plusOnePlusOne It)
+                          (PrintedKind Macros.plusOnePlusOne) It)
              Repeatedly)
 badSingularCounterBatchSize Refl impossible
 

@@ -565,7 +565,7 @@ entersTapped n = EntersRider n EntersTapped {zn}
 public export
 entersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
                      (kind : CounterKind) -> StaticEffect bs
-entersWithCounters n amt kind = EntersWithCounters n amt kind Fresh
+entersWithCounters n amt kind = EntersWithCounters n amt (PrintedKind kind) Fresh
 
 public export
 gets : (n : Noun bs Object) -> (pow : PtShift (nomIntro n)) ->
@@ -1427,13 +1427,13 @@ public export
 entersWithAdditionalCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
                                (kind : CounterKind) -> StaticEffect bs
 entersWithAdditionalCounters n amt kind =
-  EntersWithCounters n amt kind Additional
+  EntersWithCounters n amt (PrintedKind kind) Additional
 
 ||| "… enters with N fewer <kind> counters on it": compleated's reminder.
 public export
 entersWithFewerCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
                           (kind : CounterKind) -> StaticEffect bs
-entersWithFewerCounters n amt kind = EntersWithCounters n amt kind Fewer
+entersWithFewerCounters n amt kind = EntersWithCounters n amt (PrintedKind kind) Fewer
 
 ||| "Whenever <creature> attacks": no defender written.
 public export
@@ -1739,7 +1739,7 @@ monstrosity amt =
   -- [CR#701.37a] reads the gate over "this permanent", so the bare self
   -- mention is the condition's subject; the counters go on the creature.
   If (notSo (Matches This (HasDesignation Monstrous)))
-     (Sequentially [ PutCounters amt plusOnePlusOne thisCreature
+     (Sequentially [ PutCounters amt (PrintedKind plusOnePlusOne) thisCreature
                    , GainsDesignation thisCreature Monstrous
                                       (InExpansionOf MonstrosityW) Nothing ])
      Nothing

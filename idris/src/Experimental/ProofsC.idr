@@ -16,7 +16,7 @@ public export
 badDistributedCreationIt : Unspellable (Effect []) (\ok =>
   Sequentially [Create (Each AnyPlayer) (Lit 1)
                        (TokenWritten (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])) [],
-                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
 badDistributedCreationIt Refl impossible
 
 
@@ -48,7 +48,7 @@ badNestedEachOf Oh impossible
 ||| A clause writing one per-member amount refuses a bare plural recipient; "each of" is the word.
 public export
 badBarePluralCounterRecipient : Unspellable (Effect []) (\ok =>
-  PutCounters (Lit 1) Macros.plusOnePlusOne (TargetGroup (Macros.upTo 2) Macros.creature) {pm = ok})
+  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (TargetGroup (Macros.upTo 2) Macros.creature) {pm = ok})
 badBarePluralCounterRecipient Oh impossible
 
 
@@ -65,7 +65,7 @@ badBarePluralDamageRecipient Oh impossible
 public export
 badThemCounterRecipient : Unspellable (Effect []) (\ok =>
   Sequentially [Choose (TargetGroup Macros.anyNumber Macros.creature) Nothing,
-                PutCounters (Lit 1) Macros.plusOnePlusOne Them {pm = ok}])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Them {pm = ok}])
 badThemCounterRecipient Oh impossible
 
 

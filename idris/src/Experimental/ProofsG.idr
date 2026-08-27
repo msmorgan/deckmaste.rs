@@ -858,3 +858,25 @@ public export
 badCompareCeilingSubject : Unspellable (Condition []) (\ok =>
   CompareAmt (UpTo (Lit 3)) AtLeast (Lit 4) {rd = ok})
 badCompareCeilingSubject Oh impossible
+
+||| "This creature enters with your choice of a counter on it."
+||| A menu is the range the clause's "you" picks an arm from, and at zero
+||| arms there is nothing to pick: [CR#122.1] places a counter of some
+||| name, and an empty list names none.
+public export
+badEmptyCounterMenu : Unspellable (StaticEffect []) (\ok =>
+  EntersWithCounters Macros.thisCreature (Lit 1) (ChosenKind [] {ne = ok}) Fresh)
+badEmptyCounterMenu IsNonEmpty impossible
+
+||| "Put your choice of a +1/+1 counter or a poison counter on target
+||| creature."
+||| The menu case of `badPutPoisonOnCreature`: [CR#122.1] places a
+||| counter on an object OR a player and poison is a player's
+||| [CR#122.1f], so an arm at the other scope is an arm no one could
+||| pick. The kind slot widens to a menu; what may hold the counter does
+||| not.
+public export
+badMixedScopeCounterMenu : Unspellable (Effect []) (\ok =>
+  PutCounters (Lit 1) (ChosenKind [Macros.plusOnePlusOne, Poison])
+              (Macros.target Macros.creature) {sc = ok})
+badMixedScopeCounterMenu Oh impossible

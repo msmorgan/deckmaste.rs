@@ -275,8 +275,8 @@ badUntapCapGraveyardSet Oh impossible
 ||| [CR#122.1] puts a counter on an object or a player and the two never cross; poison is a player's.
 public export
 badPutPoisonOnCreature : Unspellable (Effect []) (\ok =>
-  PutCounters (Lit 1) Poison (Macros.target Macros.creature) {sc = ok})
-badPutPoisonOnCreature Refl impossible
+  PutCounters (Lit 1) (PrintedKind Poison) (Macros.target Macros.creature) {sc = ok})
+badPutPoisonOnCreature Oh impossible
 
 
 ||| "You get a +1/+1 counter."

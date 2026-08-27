@@ -305,8 +305,15 @@ mutual
       EntersRider : (n : Noun bs Object) -> (rider : TokenRider) ->
                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                     StaticEffect bs
+      ||| "[n] enters with [amt] [kind] counter(s) on it". The kind slot
+      ||| takes a printed word or a printed menu alike: [CR#614.12a] has
+      ||| the pick made before the permanent enters, so a menu here is
+      ||| the same replacement effect [CR#614.1c] spelled with its range
+      ||| instead of its word.
+      ||| -- spelling: "enters with your choice of a [k1], [k2], or [k3]
+      ||| counter on it" (Denry Klin).
       EntersWithCounters : (n : Noun bs Object) -> (amt : Amount bs) ->
-                           (kind : CounterKind) ->
+                           (kind : CounterKindSource) ->
                            (mark : EntryCounterMark) ->
                            StaticEffect bs
       EntersChoice : (n : Noun bs Object) -> (q : QualitySort) ->
@@ -999,10 +1006,18 @@ mutual
              Effect bs
     GetsEmblem : (who : Noun bs Player) -> (abl : List (AbilityAt [])) ->
                  {auto 0 ea : EmblemAbilities abl} -> Effect bs
-    PutCounters : (amt : Amount bs) -> (kind : CounterKind) ->
+    ||| "Put [amt] [kind] counter(s) on [on]". The kind slot says how the
+    ||| clause gives the kind -- the printed word, or a printed menu its
+    ||| own "you" [CR#109.5] picks an arm of. Same verb and same gates
+    ||| either way, so the menu widens the slot rather than doubling the
+    ||| row; `PutCountersOfThoseKinds` is the contrast, where no kind is
+    ||| given at all.
+    ||| -- spelling: "put your choice of a [k1], [k2], or [k3] counter on
+    ||| [on]" (Me, the Immortal).
+    PutCounters : (amt : Amount bs) -> (kind : CounterKindSource) ->
                   (on : Noun (amtIntro amt) Object) ->
                   {auto 0 pm : PerMember on} ->
-                  {auto 0 sc : counterScope kind = Object} -> Effect bs
+                  {auto 0 sc : CounterSourceScope kind Object} -> Effect bs
     Distribute : {k : Kind} -> (v : DividedVerb bs) ->
                  (amt : Amount (divIntro v)) ->
                  (among : Noun (amtIntro amt) k) ->

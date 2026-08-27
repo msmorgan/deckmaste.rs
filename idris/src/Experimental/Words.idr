@@ -2921,6 +2921,45 @@ data CounterKindNamed : Kind -> Maybe CounterKind -> Type where
               {auto 0 sc : counterScope c = k} ->
               CounterKindNamed k (Just c)
 
+||| How a giving clause says which kind of counter: the printed word, or
+||| a printed menu one arm of which the clause's own "you" [CR#109.5]
+||| picks. The menu is the kind slot's content, not another operation --
+||| same verb, same amount, same recipient -- against
+||| `PutCountersOfThoseKinds`, where no kind is given at all.
+|||
+||| The pick needs no chooser slot and announces no mention: [CR#109.5]
+||| fixes who picks where the clause writes "your", [CR#608.2c] where it
+||| writes no one, [CR#614.12a] fixes when for the entry side, and no
+||| line in the family reads the picked kind back.
+||| -- spelling: "your choice of a [k1], [k2], or [k3] counter" (Denry
+||| Klin); with the determiner repeated per arm, "your choice of a [k1]
+||| counter or a [k2] counter" (Helica Glider); with the list postposed,
+||| "your choice of a counter from among [k1], [k2], and [k3]" (Aragorn);
+||| and with the chooser unwritten, "a [k1] counter or a [k2] counter"
+||| (Dwarven Armorer).
+public export
+data CounterKindSource : Type where
+  PrintedKind : CounterKind -> CounterKindSource
+  ||| The menu has to have an arm: [CR#122.1] places a counter of some
+  ||| name, and an empty list names none. A ONE-arm menu and a repeated
+  ||| arm are both tolerated and both unwritten -- each is performable,
+  ||| and each says what `PrintedKind` says, since [CR#122.1] makes
+  ||| counters with the same name interchangeable.
+  ChosenKind : (menu : List CounterKind) ->
+               {auto 0 ne : NonEmpty menu} -> CounterKindSource
+
+||| Every arm has to name a counter the recipient can hold: [CR#122.1]
+||| puts a counter on an object or a player, so an arm at the other
+||| scope is an arm no one could pick.
+public export
+counterSourceScope : CounterKindSource -> Kind -> Bool
+counterSourceScope (PrintedKind c) k = counterScope c == k
+counterSourceScope (ChosenKind menu) k = all (\c => counterScope c == k) menu
+
+public export
+CounterSourceScope : CounterKindSource -> Kind -> Type
+CounterSourceScope s k = So (counterSourceScope s k)
+
 public export
 data ChapterNumber = ChapterI | ChapterII | ChapterIII
                    | ChapterIV | ChapterV | ChapterVI

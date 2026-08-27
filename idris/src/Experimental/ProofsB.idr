@@ -447,7 +447,7 @@ badConditionalArmAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [OnlyIf (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
                    (Exists Macros.creatureYouControl)
                    Nothing,
-                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
 badConditionalArmAntecedent Refl impossible
 
 
@@ -458,7 +458,7 @@ badBothArmsAntecedent : Unspellable (Effect []) (\ok =>
   Sequentially [May (Just You) (Macros.gainsLife You (Lit 1))
                      (Just (Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])))
                      (Just (Macros.create (Lit 2) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))),
-                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
 badBothArmsAntecedent Refl impossible
 
 
@@ -544,7 +544,7 @@ badSimultaneousReadsOutcome Refl impossible
 public export
 badSimultaneousReadsMayDeed : Unspellable (Effect []) (\ok =>
   Simultaneously [Macros.may You (Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"])),
-                  PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+                  PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
 badSimultaneousReadsMayDeed Refl impossible
 
 
@@ -563,7 +563,7 @@ public export
 badBatchTwoCreatesThenIt : Unspellable (Effect []) (\ok =>
   Sequentially [Simultaneously [Macros.create (Lit 1) (Macros.creatureTok 1 1 [Green] [creatureType "Plant"]),
                                Macros.create (Lit 1) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"])],
-                PutCounters (Lit 1) Macros.plusOnePlusOne (It {ok})])
+                PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (It {ok})])
 badBatchTwoCreatesThenIt Refl impossible
 
 
