@@ -141,7 +141,7 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         assert!(ownership.summary().covered());
         assert!(
             ownership.parsed_claims().iter().any(|claim| {
-                claim.kind() == LexicalProvenanceKind::Vocab
+                claim.kind() == LexicalProvenanceKind::Codec
                     && text[claim.span().start..claim.span().end].trim()
                         == if text.contains(" an ") { "an" } else { "a" }
             }),
@@ -464,17 +464,16 @@ fn plural_nominal_value(noun: Noun) -> Nominal {
     })
 }
 
-fn singular_simple_determinative(head: SimpleDeterminative) -> Determinative {
-    Determinative::SingularSimpleDeterminative(
-        SingularSimpleDeterminative::new(head)
-            .expect("test determiner licenses a singular nominal"),
-    )
+fn singular_simple_determinative(head: DeterminativeHeadLemma) -> Determinative {
+    Determinative::SingularSimpleDeterminative(SingularSimpleDeterminative {
+        head: DeterminativeHead::Closed(head),
+    })
 }
 
-fn plural_simple_determinative(head: SimpleDeterminative) -> Determinative {
-    Determinative::PluralSimpleDeterminative(
-        PluralSimpleDeterminative::new(head).expect("test determiner licenses a plural nominal"),
-    )
+fn plural_simple_determinative(head: DeterminativeHeadLemma) -> Determinative {
+    Determinative::PluralSimpleDeterminative(PluralSimpleDeterminative {
+        head: DeterminativeHead::Closed(head),
+    })
 }
 
 fn determined_nominal(det: Determinative, nominal: Nominal) -> UnqualifiedReference {
@@ -519,14 +518,14 @@ fn unqualified_reference(noun_phrase: &NounPhrase) -> &UnqualifiedReference {
 
 fn indefinite(noun: Noun) -> NounPhrase {
     noun_phrase(determined_nominal(
-        singular_simple_determinative(SimpleDeterminative::A),
+        singular_simple_determinative(DeterminativeHeadLemma::IndefiniteArticle),
         singular_nominal_value(noun),
     ))
 }
 
 fn target_noun(noun: Noun) -> NounPhrase {
     noun_phrase(determined_nominal(
-        singular_simple_determinative(SimpleDeterminative::Target),
+        singular_simple_determinative(DeterminativeHeadLemma::Target),
         singular_nominal_value(noun),
     ))
 }
@@ -577,7 +576,7 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
 
 fn number_of(counted: Object) -> NounPhrase {
     let number = determined_nominal(
-        singular_simple_determinative(SimpleDeterminative::The),
+        singular_simple_determinative(DeterminativeHeadLemma::DefiniteArticle),
         singular_nominal_value(Noun::Lexeme(CommonNoun::Number)),
     );
     NounPhrase::QualifiedNounPhrase(QualifiedNounPhrase {
@@ -623,14 +622,14 @@ fn where_number_of(counted: Object) -> WhereClauseCategory {
 
 fn that_noun(noun: Noun) -> NounPhrase {
     noun_phrase(determined_nominal(
-        singular_simple_determinative(SimpleDeterminative::That),
+        singular_simple_determinative(DeterminativeHeadLemma::DistalDemonstrative),
         singular_nominal_value(noun),
     ))
 }
 
 fn those_noun(noun: Noun) -> NounPhrase {
     noun_phrase(determined_nominal(
-        plural_simple_determinative(SimpleDeterminative::Those),
+        plural_simple_determinative(DeterminativeHeadLemma::DistalDemonstrative),
         plural_nominal_value(noun),
     ))
 }
@@ -947,7 +946,23 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
     assert!(trace.accepted_roots().items().is_empty());
     assert!(trace.materialized_candidates().items().is_empty());
     assert!(trace.build_rejection().is_none());
-    assert!(trace.checked_completion_rejections().items().is_empty());
+    assert_eq!(
+        trace
+            .checked_completion_rejections()
+            .items()
+            .iter()
+            .map(|rejection| (
+                rejection.rule_name_v1(),
+                rejection.start(),
+                rejection.end(),
+            ))
+            .collect::<Vec<_>>(),
+        [
+            ("DeterminativePluralSimpleDeterminative", 17, 18),
+            ("NounPhraseFusedDeterminativeReference", 17, 18),
+        ],
+        "the rejected determiner contributes only its expected plural and fused-head guards"
+    );
 
     let allowed =
         "You gain X life, where X is the number of creatures you control with power 2 or less.";
@@ -982,12 +997,12 @@ fn demonstrative_references_select_the_unified_determined_nominal_construction()
         (
             "That creature deals 3 damage to it.",
             that_noun(creature()),
-            "UnqualifiedReferenceDeterminedNominal",
+            "UnqualifiedReferenceDeterminedNominalDetPresent",
         ),
         (
             "Those creatures deal 3 damage to it.",
             those_noun(creatures()),
-            "UnqualifiedReferenceDeterminedNominal",
+            "UnqualifiedReferenceDeterminedNominalDetPresent",
         ),
     ] {
         let expected = declarative(
@@ -1402,8 +1417,8 @@ fn parser_analysis_retains_complete_lexical_ownership() {
         (1, 1)
     );
     assert_eq!((summary.lexeme_claims(), summary.lexeme_bytes()), (2, 16));
-    assert_eq!((summary.vocab_claims(), summary.vocab_bytes()), (1, 7));
-    assert_eq!(summary.codec_claims(), 0);
+    assert_eq!((summary.vocab_claims(), summary.vocab_bytes()), (0, 0));
+    assert_eq!((summary.codec_claims(), summary.codec_bytes()), (1, 7));
     assert_eq!(summary.identity_claims(), 0);
     assert_eq!(summary.gap_spans(), 0);
     assert_eq!(summary.overlap_spans(), 0);
@@ -1925,9 +1940,9 @@ fn object_gap_relative_subject_is_not_restricted_by_game_role() {
 fn lexical_matches_reject_prefixes_of_longer_lexemes() {
     for (text, card_name, expected_span) in [
         (
-            "Destroyed target creature.",
+            "Destroyx target creature.",
             "Context Card",
-            TextSpan { start: 10, end: 16 },
+            TextSpan { start: 0, end: 8 },
         ),
         (
             "Zacama deals 3x damage to target creature.",

@@ -172,6 +172,24 @@ impl Visitor for SubjectStructureVisitor {
         deckmaste_english_v2::visit::walk_nominal(self, value);
     }
 
+    fn visit_singular_nominal_coordination(&mut self, value: &SingularNominalCoordination) {
+        self.0.push("SingularNominalCoordination");
+        deckmaste_english_v2::visit::walk_singular_nominal_coordination(self, value);
+    }
+
+    fn visit_singular_or_nominal_coordination(&mut self, value: &SingularOrNominalCoordination) {
+        self.0.push("SingularOrNominalCoordination");
+        deckmaste_english_v2::visit::walk_singular_or_nominal_coordination(self, value);
+    }
+
+    fn visit_singular_and_or_nominal_coordination(
+        &mut self,
+        value: &SingularAndOrNominalCoordination,
+    ) {
+        self.0.push("SingularAndOrNominalCoordination");
+        deckmaste_english_v2::visit::walk_singular_and_or_nominal_coordination(self, value);
+    }
+
     fn visit_full_or_noun_phrase_coordination(&mut self, value: &FullOrNounPhraseCoordination) {
         self.0.push("FullOrNounPhraseCoordination");
         deckmaste_english_v2::visit::walk_full_or_noun_phrase_coordination(self, value);
@@ -207,7 +225,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "SingularOrNominalCoordination",
             ][..],
             &[
-                "vocab:SimpleDeterminative/A",
+                "determinative:DeterminativeHead/IndefiniteArticle",
                 "structural:SingularOrNominalCoordination/members/separator/pair/0",
             ][..],
         ),
@@ -225,8 +243,8 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             ][..],
             &[
                 "structural:FullOrNounPhraseCoordination/members/separator/pair/0",
-                "vocab:SimpleDeterminative/This",
-                "vocab:SimpleDeterminative/Another",
+                "determinative:DeterminativeHead/ProximalDemonstrative",
+                "determinative:DeterminativeHead/Another",
             ][..],
         ),
         (
@@ -240,7 +258,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "SingularOrNominalCoordination",
             ][..],
             &[
-                "vocab:SimpleDeterminative/An",
+                "determinative:DeterminativeHead/IndefiniteArticle",
                 "structural:SingularOrNominalCoordination/members/separator/pair/0",
             ][..],
         ),
@@ -283,7 +301,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
                 "SingularAndOrNominalCoordination",
             ][..],
             &[
-                "vocab:SimpleDeterminative/Another",
+                "determinative:DeterminativeHead/Another",
                 "structural:SingularAndOrNominalCoordination/members/separator/pair/0",
             ][..],
         ),
@@ -292,6 +310,9 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             "ControllerStageOtherThanQualifiedReference",
             &[
                 "OtherThanQualifiedReference",
+                "DeterminedNominal",
+                "Determinative",
+                "Nominal",
                 "DemonstrativePossessiveReference",
             ][..],
             &[
@@ -452,7 +473,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
     for required in [
         "FiniteConditionFiniteCondition",
         "FiniteClauseExistentialFiniteClause",
-        "UnqualifiedReferenceCountComparisonReference",
+        "UnqualifiedReferenceDeterminedNominal",
         "PluralNominalModifiedPluralNominal",
         "NominalModifierSupertypeModifier",
         "NominalModifierTypeModifier",
@@ -496,7 +517,7 @@ fn existential_there_preserves_its_pivot_before_the_predicate_boundary() {
                 start: 96,
                 end: 101,
             },
-            "vocab:SimpleDeterminative/That",
+            "determinative:DeterminativeHead/DistalDemonstrative",
         ),
         (
             TextSpan {
@@ -666,12 +687,17 @@ fn existential_there_derives_be_agreement_and_visits_the_complete_structure() {
         [
             "ConditionClause",
             "ExistentialFiniteClause",
+            "DeterminedNominal",
+            "Determinative",
+            "Nominal",
             "ModifiedPluralNominal",
             "SupertypeModifier",
             "TypeModifier",
             "AmongPhrase",
             "AmongPhraseValue",
             "RelativeQualifiedReference",
+            "DeterminedNominal",
+            "Nominal",
             "PositiveObjectGapRelative",
             "DeterminedNominal",
             "Determinative",
@@ -973,7 +999,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             .collect::<Vec<_>>(),
         [
             (0, 8, "vocab:TriggerMarker/Whenever"),
-            (8, 10, "vocab:SimpleDeterminative/A"),
+            (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
             (10, 17, "lexeme:CommonNoun/Player/singular"),
             (
                 17,
@@ -988,7 +1014,7 @@ fn finite_trigger_boundaries_preserve_case_ownership_and_structural_visit_order(
             (43, 44, "structural:Sentences/sentences/terminator/0"),
             (44, 45, "structural:Sentences/sentences/separator/uniform/0"),
             (45, 52, "lexeme:keyword_action/Destroy/bare"),
-            (52, 59, "vocab:SimpleDeterminative/Target"),
+            (52, 59, "determinative:DeterminativeHead/Target"),
             (59, 68, "lexeme:type/Creature/singular"),
             (68, 69, "structural:Sentences/sentences/terminator/0"),
         ]
@@ -1535,7 +1561,7 @@ fn temporal_and_intervening_boundaries_own_exact_bytes_and_visit_structure() {
             .collect::<Vec<_>>(),
         [
             (0, 8, "vocab:TriggerMarker/Whenever"),
-            (8, 10, "vocab:SimpleDeterminative/A"),
+            (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
             (10, 17, "lexeme:CommonNoun/Player/singular"),
             (
                 17,
@@ -2113,7 +2139,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (18, 19, "form:loyalty/loyalty/0/suffix"),
             (19, 21, "structural:Activated/costs/separator/last/0"),
             (21, 28, "lexeme:keyword_action/Destroy/bare"),
-            (28, 35, "vocab:SimpleDeterminative/Target"),
+            (28, 35, "determinative:DeterminativeHead/Target"),
             (35, 44, "lexeme:type/Creature/singular"),
             (44, 46, "form:activated/activated/1"),
             (46, 49, "vocab:SubjectPronoun/You"),
@@ -2123,7 +2149,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
             (61, 62, "structural:Sentences/sentences/terminator/0"),
             (62, 63, "structural:Sentences/sentences/separator/uniform/0"),
             (63, 70, "lexeme:keyword_action/Destroy/bare"),
-            (70, 77, "vocab:SimpleDeterminative/Target"),
+            (70, 77, "determinative:DeterminativeHead/Target"),
             (77, 86, "lexeme:type/Creature/singular"),
             (86, 87, "structural:Sentences/sentences/terminator/0"),
         ],
@@ -2313,7 +2339,7 @@ fn is_indefinite_player(reference: &UnqualifiedReference) -> bool {
     else {
         return false;
     };
-    det.head() == SimpleDeterminative::A
+    det.head == DeterminativeHead::Closed(DeterminativeHeadLemma::IndefiniteArticle)
         && matches!(
             &determined.nominal,
             Nominal::SingularNominalValue(SingularNominalValue {
@@ -2327,10 +2353,9 @@ fn is_indefinite_player(reference: &UnqualifiedReference) -> bool {
 }
 
 fn indefinite_player_reference() -> UnqualifiedReference {
-    let det = Determinative::SingularSimpleDeterminative(
-        SingularSimpleDeterminative::new(SimpleDeterminative::A)
-            .expect("a licenses a singular nominal"),
-    );
+    let det = Determinative::SingularSimpleDeterminative(SingularSimpleDeterminative {
+        head: DeterminativeHead::Closed(DeterminativeHeadLemma::IndefiniteArticle),
+    });
     let nominal = Nominal::SingularNominalValue(SingularNominalValue {
         nominal: SingularNominal::BareSingularNominal(BareSingularNominal {
             head: SingularHead::CommonSingularHead(CommonSingularHead {
@@ -4477,7 +4502,7 @@ const ROOT_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "vocab:SimpleDeterminative/A"),
+    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4509,7 +4534,7 @@ const TRIGGER_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "vocab:SimpleDeterminative/A"),
+    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4541,7 +4566,7 @@ const TRIGGER_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "vocab:SimpleDeterminative/A"),
+    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4573,7 +4598,7 @@ const TRIGGER_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "vocab:SimpleDeterminative/A"),
+    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4605,7 +4630,7 @@ const TRIGGER_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "vocab:SimpleDeterminative/A"),
+    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
@@ -4637,7 +4662,7 @@ const TRIGGER_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
 
 const TRIGGER_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
     (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "vocab:SimpleDeterminative/A"),
+    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
     (10, 17, "lexeme:CommonNoun/Player/singular"),
     (
         17,
