@@ -197,3 +197,208 @@ B/D/E parallel-safe with A and with each other. D0's probe is this round's
 own first act, ahead of everything else in D.
 
 Standard constraints apply.
+
+---
+
+## As landed (2026-08-27)
+
+### D0's probe — RUN FIRST, GREEN. The definition-channel item is DELIVERED.
+
+The probe was the round's first act, exactly as the settled ruling directs.
+`InsteadOf (Create six 1/1 white Kor Soldier tokens) (If <kicked> (Create
+twelve TokenAsThose) Nothing)` **typechecks against `idris/scripts/build`
+unchanged**. `replacedCtx e = deedDelta e ++ annIntro e` threads the
+token-origin binding `deedDelta (Create …)` mints, and `countTokenSpecs`
+counts it: the parent's "`InsteadOf`'s replacement arm cannot see the batch
+the replaced clause made" premise is dead, as §0 said.
+
+Not vacuous — two controls were run:
+
+| control | result |
+|---|---|
+| `InsteadOf (Draw You (Lit 2)) (Create You (Lit 3) TokenAsThose [])` | **refused** — "Can't find an implementation for `countTokenSpecs [] = 1`" |
+| `InsteadOf (create six kor) (destroy Them)` | **accepted** — see the ledger; the object mention is readable in the replacement arm |
+
+So the parent's five acceptance bullets for *"the definition channel — what
+`InsteadOf` withholds, 16 lines"* move to **delivered**: `annIntro`'s
+withholding of the object mention is untouched (`annIntro (Create …) =
+specDelta spec ++ amtIntro count`, no object binding), and the definition
+travels on `deedDelta`/`replacedCtx` instead. `Payload`'s object arm grew no
+definition flag and the announcement channel gained no second row — neither
+was needed. **Nothing was built for this item**; two card witnesses were
+written to hold the fact down (below).
+
+The consequence for the round: D shrank exactly as D0 said it would, and the
+round's remaining budget went to D1, D2, and the re-measurement that showed
+the last two items are blocked at their root.
+
+### Per-item dispositions
+
+| item | disposition |
+|---|---|
+| definition channel (16 lines) | **DELIVERED before the round** — probe green; witnessed by `conquerorsPledge`, `prismariPianist` |
+| D2 — `TokenAsThose`'s plural demand | **LANDED** — gate widened, ProofsAnaphora §3 debt paid, witnessed by `prismariPianist` |
+| D1 — "first time … each turn" cap | **LANDED** — `Intercepts` grew `(limit : Maybe UsageLimit)`, witnessed by `moonlitMeditation` |
+| described-ability causer (3 lines) | **NAMED, not landed** — blocked at its root, three ways; ledgered below |
+| `TokenPhrase` relative-clause determiner (1 line) | **NAMED at its one-line size** — blocked on a construction that does not exist; ledgered below |
+
+### D2 — the singular admission
+
+`countTokenSpecs` (`Words.idr`) dropped `ManyOf` from its object clause: the
+gate counts a DEFINITION [CR#111.3], and plurality is not one of the fields a
+definition has. Two clauses moved, as the settled ruling predicted — the gate
+and its head-type reader:
+
+- `countTokenSpecs (MkBinding _ _ ManyOf (ObjectP _ _ _ og) :: bs)` →
+  `(MkBinding _ _ _ (ObjectP _ _ _ og) :: bs)`.
+- `specHeadTy TokenAsThose` moved from `tyOfThose TokenW bs` (plural-only) to
+  a new plurality-blind twin `tyOfThoseAny` beside `tyOfThat`/`tyOfThose`.
+  Without this the anaphor would have satisfied the gate on a singular
+  antecedent and then read back no head type.
+
+**The attestation is stronger than the ticket recorded.** Mr. House is the
+singular ANAPHOR ("instead create that token") and stays blocked on the
+coordination of two specifications and [CR#111.10]'s predefined name, exactly
+as the vocabulary-only fence says. But **Prismari Pianist is a singular
+ANTECEDENT** — "create a 1/1 blue and red Elemental creature token. If that
+spell's mana value is 5 or greater, create three of THOSE TOKENS instead" —
+and it was *unwritable* before this change and is written on the bench now.
+Dropping the plural demand therefore pays a printed line immediately, not
+only a fenced one. The one constructor spells both agreements ("those tokens"
+after a batch, "that token" after one); that is spelling, not a second word.
+
+ProofsAnaphora §3 debt paid. `tokenAsThoseReadsOnlyPrefix` and
+`noTokenAsThoseWithoutAntecedent` keep their types (the gate's *shape* did not
+change, only which bindings it counts), their prose is corrected from "three
+fields" to "two", and three new checked witnesses record what moved:
+
+- `oneTokenIsOneSpec` — a singular token binding satisfies the gate. **This is
+  the line that would not have compiled before the change.**
+- `manyTokensAreOneSpec` — the plural half still does.
+- `oneNonTokenIsNoSpec` — a non-token object still leaves no definition,
+  whatever its plurality, which is the fact the live pin
+  `badAnaphoricTokenAfterNonToken` (`ProofsE.idr`) spells as a card. **That
+  pin still refuses**, verified on a from-scratch build.
+
+### D1 — the once-per-turn replacement cap
+
+`UsageLimit` reused, per the settled ruling; no third `ReplUse` ending was
+minted. `Intercepts` grew a fifth explicit slot:
+
+```idris
+Intercepts : (ev : GameEvent bs) -> (alts : List (GameEvent bs)) ->
+             (repl : Effect (interceptCtx alts ev)) ->
+             (use : ReplUse) ->
+             (limit : Maybe UsageLimit) ->
+             {auto 0 ok : Interceptable ev} ->
+             {auto 0 oks : InterceptableArms alts} -> StaticEffect bs
+```
+
+placed after `use` on `Triggered`/`Activated`'s own model, which both carry
+`(limit : Maybe UsageLimit)` in the same position. The two words say different
+things and are written together: [CR#614.3] governs how long the replacement
+STANDS, the rider governs how OFTEN it may apply while it stands — Reed
+Richards writes both at once ("The first time you would draw a card each
+turn … you draw four cards instead").
+
+**No gate.** `NextTimeOnly` beside a per-turn cap says one thing twice, which
+is redundant and not meaningless, so it is admitted on `CreatedByUnder`'s
+model rather than pinned (§1.4).
+
+**Re-measured from `data/derived/cards.jsonl` (§1.5), and the ticket's count
+was low.** The family is **5 supported lines**, not 3: the three creation
+lines the ticket names (Esix Fractal Bloom, Mirrormind Crown, Moonlit
+Meditation) plus **two draw-event lines** — Reed Richards, Smartest Man and
+Scion of Halaster. That matters, because two event families crossing the cell
+is what shows the cap is a rider on `Intercepts` rather than a token-creation
+spelling. `OncePerGame` on a replacement is **0 lines** — recorded here with
+its count, not pinned, and admitted with the rest of the reused word.
+
+24 `Intercepts` call sites updated (19 `Cards.idr`, 2 `Macros.idr`, 1
+`ProofsE.idr`, 1 `ProofsF.idr`, plus `staticKind`/`staticIntro`).
+
+### Witnesses written
+
+| card | what it holds down |
+|---|---|
+| `conquerorsPledge` | D0: the definition channel across `InsteadOf`, plural antecedent |
+| `prismariPianist` | D2: the singular antecedent, unwritable before this round |
+| `moonlitMeditation` | D1: the cap, `Repeatedly (Just OncePerTurn)` |
+
+### Why the last two items were named rather than landed
+
+Both were re-probed against the tree before the decision, and both turn out to
+be blocked *below* the vocabulary the ticket names — the item is not the
+missing word, the missing word is the visible end of something bigger. The
+vocabulary-only fence applies to both.
+
+**The described-ability causer.** `Causer = AnEffect` is nullary and
+context-free, so widening it to carry an `AbilityClass` looks like one line.
+It buys nothing, three ways:
+
+1. **Zabaz needs a keyword-catalog row.** "a modular triggered ability" would
+   be `KeywordClass "Modular"`, and `KnownKeyword "Modular"` is **false** —
+   Modular is absent from `verbFacts`' keyword table. Adding it is a
+   keyword-catalog change with its own facts columns (`docs/keyword-policy.md`
+   territory), not anaphora vocabulary. `AbilityClass` also has no *triggered*
+   row: its four are `AnyOnStack`/`AnyActivated`/`LoyaltyClass`/`KeywordClass`
+   (the closure table's "3 rows" is stale).
+2. **Zabaz needs the voice slot at the same time.** Its body is passive
+   ("that many plus one +1/+1 counters ARE PUT on it instead") while its
+   header names an ability agent — the 1-of-60 crossing of the voice
+   covariance. So landing the causer alone yields a writable HEADER and an
+   unwritable BODY: still zero cards. The two changes are coupled, and
+   together they are two vocabulary changes for exactly one line.
+3. **The other two lines need a verb that does not exist.** Rain of Gore and
+   Unpredictable Cyclone both write the periphrastic "would CAUSE its
+   controller to gain life" / "would CAUSE you to draw a card" rather than the
+   event's own verb, and neither the life-gain nor the draw event carries a
+   causer slot at all (`CausedBy` sits on `CounterEvent`, `CreationVoice` on
+   `TokensCreated`; that is all). A third line, **Silhouette**, writes the
+   same periphrasis into the `Prevents` family — so the periphrastic verb is a
+   4-line construction of its own, and it, not `Causer`'s arity, is what those
+   lines are waiting for.
+
+**The `TokenPhrase` relative-clause determiner.** `TokenPhrase (Each p)` is
+three lines of Idris and has **no writable witness**. Crafty Cutpurse is the
+only line in the corpus writing "each token …" (re-measured: every other
+token-creation header writes "one or more tokens" or "a token"), and what
+makes its line real is the relative clause — "each token THAT WOULD BE CREATED
+under an opponent's control this turn". No prospective predicate exists:
+`HappenedTo` is retrospective, over a `Lookback`. Strip the relative clause
+and the remainder is a different card ("each token is created under your
+control instead" would take your own tokens too), so there is no reduced form
+to write. Landing the determiner arm would add a constructor no card can
+reach; naming it at its one-line size is what the ticket authorises.
+
+### Ledger — route these
+
+1. **`replacedCtx` re-admits the object mention that `otherwiseCtx`
+   deliberately strips.** Measured, green, and the sharpest thing this round
+   turned up. `otherwiseCtx e = outcomesOnly (deedDelta e) ++ annIntro e`,
+   whose docstring says outright that "a token it would have created names
+   nothing here"; `replacedCtx e = deedDelta e ++ annIntro e` does **not**
+   filter, and `itReaches` is determiner-blind, so `InsteadOf (create six kor)
+   (destroy Them)` **compiles today** — "they" resolving to a batch [CR#614.6]
+   says never existed. Both contexts sit under the same rule, and they answer
+   it differently. This is the real form of the parent's definition-channel
+   question: `TokenAsThose` and `They` read the same binding, so the
+   definition channel and the object channel are not separated, and
+   `replacedCtx` cannot be tightened to match `otherwiseCtx` without taking
+   `TokenAsThose` down with it. Separating them (a definition flag on
+   `Payload`'s object arm, or a second announcement row) is the parent's own
+   phrasing of the fix, and it is a real ticket. **Out of scope here: D0 is
+   settled do-not-reopen, and the fence is vocabulary-only.**
+2. **The periphrastic "would cause X to Y" verb** — 4 supported lines (Rain of
+   Gore, Unpredictable Cyclone, Silhouette, and the causer slot Zabaz needs
+   beside it). Blocks the described-ability causer; wants its own round with
+   the life-gain and draw events' causer slots.
+3. **`Intercepts`' body voice as a slot** — finding 582's 1-of-60 crossing,
+   Zabaz. Coupled to (2); neither is writable alone.
+4. **"Modular" as a keyword-catalog row** — `KnownKeyword "Modular"` is false;
+   `AbilityClass` has no triggered row. Keyword-policy territory.
+5. **The prospective "that would be created" predicate** — Crafty Cutpurse.
+   Unblocks `TokenPhrase (Each p)`, which should land in the same change as
+   the predicate rather than ahead of it.
+6. **`OncePerGame` on a replacement: 0 lines** — recorded with its count per
+   §1.4, admitted with the reused word, not pinned.
