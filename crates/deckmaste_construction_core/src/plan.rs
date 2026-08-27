@@ -1060,6 +1060,36 @@ mod tests {
                 })
         );
 
+        let optional_predicative_plan = plan_for(quote::quote! { PredicativeComplement? });
+        let (_, optional_predicative) = optional_predicative_plan
+            .runtime_declaration_verbs()
+            .next()
+            .expect("optional compiler-side role remains one recipe");
+        assert_eq!(
+            optional_predicative.frame_key().atoms(),
+            [crate::semantic::VerbFrameAtom::OptionalRole(
+                "PredicativeComplement".to_owned(),
+            )]
+        );
+        assert!(!optional_predicative
+            .frame_key()
+            .matches_valence(&VerbValence::Custom {
+                shapes: vec![vec![CustomTailAtom::PredicativeComplement]],
+            }));
+
+        let rich_role_plan = plan_for(quote::quote! { ToDestination, PostState? });
+        let (_, rich_role) = rich_role_plan
+            .runtime_declaration_verbs()
+            .next()
+            .expect("rich compiler-side roles remain one recipe");
+        assert_eq!(
+            rich_role.frame_key().atoms(),
+            [
+                crate::semantic::VerbFrameAtom::Role("ToDestination".to_owned()),
+                crate::semantic::VerbFrameAtom::OptionalRole("PostState".to_owned()),
+            ]
+        );
+
         let search_plan = plan_for(quote::quote! {
             location: ObjectNounPhrase,
             "for",

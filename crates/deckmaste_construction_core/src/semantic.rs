@@ -6251,14 +6251,26 @@ impl DeclarationVerbPlan {
                     crate::model::DeclarationVerbTailAtomKindSource::Literal(literal) => {
                         VerbFrameAtom::Literal(literal.value())
                     }
-                    crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => {
-                        VerbFrameAtom::Amount
+                    crate::model::DeclarationVerbTailAtomKindSource::Amount(ident) => {
+                        if atom.optional {
+                            VerbFrameAtom::OptionalRole(identifier_key(ident))
+                        } else {
+                            VerbFrameAtom::Amount
+                        }
                     }
-                    crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
-                        VerbFrameAtom::ObjectNounPhrase
+                    crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(ident) => {
+                        if atom.optional {
+                            VerbFrameAtom::OptionalRole(identifier_key(ident))
+                        } else {
+                            VerbFrameAtom::ObjectNounPhrase
+                        }
                     }
-                    crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(_) => {
-                        VerbFrameAtom::PredicativeComplement
+                    crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(ident) => {
+                        if atom.optional {
+                            VerbFrameAtom::OptionalRole(identifier_key(ident))
+                        } else {
+                            VerbFrameAtom::PredicativeComplement
+                        }
                     }
                     crate::model::DeclarationVerbTailAtomKindSource::Role(role) => {
                         if atom.optional {
