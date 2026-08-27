@@ -203,3 +203,5 @@ a second `OneOf Object` binding that A's sort-scoping cannot disambiguate).
 State explicitly, per item, that this check was made.
 
 Standard constraints apply.
+
+- **Routed from workbench-anaphora-a-bare-it (close, 2026-08-27):** `elemIntro` drops the stamp — a loop member of a moved group loses `wasField`, costing per-member participle reads inside `ForEachOf`. An intro/delta cell, so it lands here. Also: "for each of those X, its Y" reads against the trigger's own self mention (Soul of Emancipation's remaining block — loop member + `SelfD` both battlefield-carrier); fix at the announcement side here if a principled cell exists, else it rests with the recency reserve.
