@@ -58,6 +58,27 @@ ruling before this ticket closes.** Until the ruling is made, acceptance stays
 the 16.26-second ceiling and this ticket additionally records per-byte
 acceptance cost at every measurement.
 
+## R0 — per-construction metrics in the generated grammar, feature-gated (user-pinned shape; do this first)
+
+Before any repair lands, the declaration compiler emits aggregated metrics
+into the generated grammar functions behind a cargo feature (off by default,
+zero-cost when disabled): per-construction counters for predictions,
+completions, materializations, memo misses, and clone-heavy paths, with
+optional attributed time. Corpus commands compiled with the feature print a
+ranked top-N thrashing-constructions table beside the totals. Emission lives
+in the compiler so the instrumentation is generated alongside each
+construction — no hand-maintained mirror, and it grows with the grammar
+automatically. This is how R1–R9's impact hypotheses get falsified per
+construction rather than per profile, and how future frontier rounds see
+which construction is thrashing from now on.
+
+Fold the runtime-observability requirement back in here: the plan-gate
+timing harness was excised with the Plan 09 fossils, so corpus commands
+currently print elapsed time with no regression warning. Every corpus
+command prints elapsed wall time and per-byte acceptance cost
+unconditionally; the loud named regression warning against a recorded
+baseline returns with whatever criterion the pending ceiling ruling sets.
+
 ## Ranked repairs
 
 Every missing optimization already has a working implementation in v1 in this
