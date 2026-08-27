@@ -3,6 +3,16 @@ needs: []
 ---
 # Write the chooser positions, the chosen-value reads, and the ascription rows' last payloads
 
+**SPLIT 2026-08-27 into five sub-tickets — claim those, not this.** This file
+is the umbrella and stays authoritative for section content, measurements,
+pins and acceptance: [A obligation face law](workbench-choice-a-obligation-face-law.md),
+[B sorts and reads](workbench-choice-b-sorts-and-reads.md),
+[C chooser positions](workbench-choice-c-chooser-positions.md),
+[D ascription payloads](workbench-choice-d-ascription-payloads.md),
+[E subtype words and linkage](workbench-choice-e-subtype-words-and-linkage.md).
+Order: A first (architectural); B before C's counter-kind chooser reads; D and
+E free after A.
+
 One family across the choice container, the chosen-value read side, and the
 ascription rows that consume those reads. The chooser positions decide what a
 choice may bind; the read sorts decide what may be read back; and the
