@@ -262,3 +262,163 @@ lines, the largest single unblock in the bundle.
 Standard constraints apply.
 
 - **Routed from workbench-event-zone-2-event-subjects (close, 2026-08-26):** `DamageTaken` with a JOINED-kind subject — The Fallen's "each opponent and planeswalker it has dealt damage to this game" is a victim-side relative clause at `Player \/ Object`; same joined-complement machinery this round measures. It lands here.
+
+## As landed (2026-08-26)
+
+Full `idris/scripts/build` PASS, 0 errors / 0 warnings.
+`cargo xtask cite check --list-noncompliant` empty; `cite check` 0 stale over
+17578 citations; `cite bless` added no rules (every rule cited was already
+registered); `cite audit --diff` read against 51 sites, two comments tightened
+after the read (`eventHasMagnitude BecomesTarget`'s [CR#115.1] claim, and
+`Targets`'s [CR#115.3]/[CR#115.9c] pair). Diffstat 8 files, +294/-15.
+
+### Signatures
+
+The relation is decided once, as two type families beside `Targetable`
+(`Words.idr`), and both voices share them:
+
+```idris
+data Targeter : Kind -> Type where          -- which kind HAS targets
+  SpellTargets : Targeter Object
+  AbilityTargets : Targeter Ability
+  EitherTargets : Targeter a -> Targeter b -> Targeter (a \/ b)
+
+data TargetExtent = SomeTarget | SoleTarget -- [CR#115.9b] vs [CR#115.9c]
+```
+
+The targeted side is **not** a new table: it is `Targetable`, which
+[CR#115.1] already closes to objects and players, joins included.
+
+```idris
+-- Triggers.idr, the event voice
+BecomesTarget : {k : Kind} -> {kb : Kind} -> (n : Noun bs k) ->
+                (by : Noun (nomIntro n) kb) ->
+                {auto 0 tk : Targetable k} ->
+                {auto 0 tr : Targeter kb} -> GameEvent bs
+
+-- Phrase.idr, the description voice
+Targets : {kt : Kind} -> (m : Noun bs kt) -> (extent : TargetExtent) ->
+          {auto 0 tk : Targetable kt} ->
+          {auto 0 tr : Targeter k} -> Predicate bs k
+
+-- Triggers.idr, Leaves un-gated (pin 3)
+Leaves : (n : Noun bs Object) -> (from : Maybe (EventSource bs)) ->
+         {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} -> GameEvent bs
+```
+
+`Leaves` takes **no zone table of its own** — [CR#400.1] makes every zone a
+place objects can be, so there is no zone nothing can leave and nothing to
+refuse. A new `Zone` row therefore still costs eleven tables, not twelve.
+`Macros.leavesBattlefield` / `Macros.leavesZone` wrap the slot; the eight
+existing `Leaves` sites moved to `leavesBattlefield`, which reduces to the old
+`Just Battlefield` gate exactly.
+
+Tables filled: `EventName.BecomesTarget` in all seven (`sameEventName`,
+`interceptOk`, `spanEventOk`, `eventHasMagnitude`, `lookbackSubjectOk`,
+`lookbackComplementOk`, `bareLookbackOk`); `GameEvent.BecomesTarget` in all
+four (`eventName`, `eventIntro`, `eventAfter`, `eventSubjectPlur`);
+`Predicate.Targets` in all seven (`seedZone` = `Just Stack`, `seedType`,
+`hasHead`, `predEq`, `predSays`, `predNegFree`, `predDelta`). `negatable`'s
+`CastBy` cell was not touched, nor was `negatable` at all; `zoneAdmit`
+untouched.
+
+### Corpus, re-measured (supported filter, 60488 lines)
+
+| family | ticket said | measured |
+|---|---|---|
+| "becomes the target" bare trigger header | 98 | **98** (plus ~104 more inside ward reminder text, ability-word-prefixed headers and granted abilities) |
+| targeting relative clause | 19 | **166** matches of `that targets?` (161 relative-clause uses; 5 are "if that target is …"), 131 singular / 35 plural |
+| `Leaves` off the battlefield | 34 of 251 | **38 of 84** supported header lines (46 are "leaves the battlefield"); every one of the 38 is a graveyard |
+
+Targeter complement, over all 205 "becomes the target of …" occurrences:
+"a spell or ability (…)" **171**, "a spell (…)" 23, an ability alone
+(bare / activated / backup) 4, "an Aura spell" 3, "an instant or sorcery
+spell" 2. Described side of the relative clause: spell 143, ability 18,
+"spell or ability" 7. Targeted side written as a join ("you or a permanent
+you control", "a player or permanent") **7** header lines.
+
+Extent: **23** lines write "targets only [something]", which is why the
+extent is a slot and not left out — [CR#115.9c] states that reading as its
+own check. This dimension was unpinned; it is the one design choice made
+here beyond the pins, and is cheap to revert (a slot, no table).
+
+### The joined-complement cell, measured live (pin 2)
+
+- **Prospective** (the `by` slot): the join is what the corpus writes, 171
+  times. The KIND `Object \/ Ability` is reachable and the slot admits it —
+  `Targeter`'s `EitherTargets` is the arm.
+- **Retrospective** (`lookbackComplementOk`): **0 supported lines**. No card
+  writes "became the target … this turn" and none writes a participial
+  "targeted" reading — the whole retrospective family measures zero, not just
+  its joined arm. Per pin 1 the cells still land open (refusals need a rule
+  and there is none), including a join recursion mirroring
+  `lookbackSubjectOk`'s: this name does **not** inherit the table's standing
+  refusal of a joined complement, which `DamageDealing` took on a measurement
+  that does not hold here.
+
+### Routed item — The Fallen (landed, it was cheap)
+
+`lookbackComplementOk DamageTaken (a \/ b) kc` distributes over the halves
+(3 lines, [CR#120.1]); the subject side already distributed. `theFallenUpkeep`
+benches the whole line — "At the beginning of your upkeep, this creature deals
+1 damage to each opponent and planeswalker it has dealt damage to this game" —
+at `Object \/ Player` (house order is object-arm-left, so the routed item's
+`Player \/ Object` is the same phrase).
+
+### Witnesses benched
+
+- `gnarlbackRhino : Card` — whole card. "Trample / Whenever you cast a spell
+  that targets this creature, draw a card." The description voice on a card
+  that writes no ability word.
+- `forsakenWastesTargeted : Ability` — "Whenever this enchantment becomes the
+  target of a spell, that spell's controller loses 5 life." The event voice
+  with the targeter read back by its demonstrative.
+- `fblthpTargetedHeader : GameEvent []` — the pinned witness, **header only**
+  (see blockers).
+- `fumingEffigy : Card` — whole card. "Whenever one or more cards leave your
+  graveyard, this creature deals 1 damage to each opponent." `Leaves` off the
+  battlefield.
+- `theFallenUpkeep : Ability` — the routed item.
+- Pins (`ProofsG.idr`): `badPlayerTargeter` (no player is what targets, at the
+  description seat) and `badPlayerTargetingEvent` (the same rule at the event
+  seat). Both refuse on [CR#115.1] with [CR#115.1a,115.1c,115.1d] — a
+  rules-impossibility, not a count.
+
+### Recorded, not built
+
+Pin 4 holds: the n-ary event-disjunction **seat slot** is untouched. No
+`AltEvent` list widening, no `headerCtx` fold generalisation, no
+`Delayed`/`Intercepts` slots. Its recorded shape stays in the `GameEvent` and
+`AltEvent` docstrings, which this round left as it found them. The arms it
+waits on are now both minted.
+
+### Blockers found — need routing
+
+1. **No `AbilityClass` arm denotes a bare "ability".** `AbilityClass` is
+   `AnyActivated | LoyaltyClass | KeywordClass`, so the joined head for "a
+   spell or ability" — the 171-line family — has no ability half to build
+   from, even though the kind, the `Targeter` gate and `Joined`/`PhJoin` all
+   admit `Object \/ Ability` (and "a spell or activated ability", "a backup
+   ability", "an Aura spell" all write today). What a bare "ability" denotes
+   is a real design question ([CR#113.3] lists four ability kinds; only
+   activated and triggered use the stack and can target
+   [CR#115.1c,115.1d]), so it was ledgered rather than invented under the
+   vocabulary-only fence. Cost when decided: one constructor plus two `Eq`
+   lines.
+2. **Bare "it" after a becomes-target header is refused.** `eventAfter`
+   announces both participants (`nounDelta by ++ selfSubjIntro n`, on
+   `Attacks`'s model), so `It`'s `countOnes Object bs = 1` gate fails whenever
+   the targeter is object-kinded. That costs "…, sacrifice it" (18 lines, the
+   single largest body family) and "it gets +2/+2"; the demonstrative bodies
+   ("that spell's controller …", "that spell or ability's controller …", 8+
+   lines) work. Announcing only the subject would flip the loss, and
+   announcing only the targeter would make "it" silently mean the spell — the
+   worst of the three. The real fix is an anaphora decision: let `It` prefer
+   the `SelfD` mention over a co-present ordinary one. Out of scope here.
+3. **Fblthp's second ability does not bench whole** — a correction to §3 of
+   this ticket, which called it "a complete, simple ability". Its header
+   lands; "shuffle Fblthp into its owner's library" is a move into a library
+   with a randomizing arrangement [CR#701.24a] and no move verb spells that.
+4. **`Targetable` still has no `Ability` arm**, so "counter target activated
+   ability" stays unwritable even though [CR#115.2] admits an ability as a
+   target. Pre-existing, untouched, and not this round's to widen.

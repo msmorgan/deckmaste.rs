@@ -1012,3 +1012,23 @@ public export
 badPlayerDamageDealer : Unspellable (Condition []) (\ok =>
   Happened DamageDealing You Lookback.ThisTurn Nothing {sb = ok})
 badPlayerDamageDealer MkLookbackSubject impossible
+
+
+||| "player that targets this creature"
+||| [CR#115.1] has a player CHOOSE the targets of a spell or ability, and [CR#115.1a,115.1c,115.1d] give the word "target" to the spell or the ability alone, so no player is ever what targets.
+public export
+badPlayerTargeter : Unspellable (Predicate [] Player) (\ok =>
+  Targets Macros.thisCreature SomeTarget {tr = ok})
+badPlayerTargeter SpellTargets impossible
+badPlayerTargeter AbilityTargets impossible
+badPlayerTargeter (EitherTargets _ _) impossible
+
+
+||| "Whenever you become the target of a player, …"
+||| The same rule at the other seat, where the relation is one: [CR#115.1] has the player do the choosing, so the thing that targeted is the spell or the ability it chose for [CR#115.1a,115.1c,115.1d].
+public export
+badPlayerTargetingEvent : Unspellable (GameEvent []) (\ok =>
+  BecomesTarget You (Macros.a AnyPlayer) {tr = ok})
+badPlayerTargetingEvent SpellTargets impossible
+badPlayerTargetingEvent AbilityTargets impossible
+badPlayerTargetingEvent (EitherTargets _ _) impossible

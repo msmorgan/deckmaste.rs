@@ -391,6 +391,33 @@ mutual
     ActivatedBy : (who : Noun bs Player) ->
                   {auto 0 ps : SoleHolder who} -> Predicate bs Ability
     IsManaAbility : Predicate bs Ability
+    ||| "spell that targets this creature", "spells your opponents cast
+    ||| that target this creature", "abilities you activate that target
+    ||| this creature": a spell or an ability described by what it
+    ||| targets. [CR#115.9b] states this reading in the rules' own words
+    ||| -- "an object that looks for a '[spell or ability] that targets
+    ||| [something]'" -- so the relation is the rules' own and not a
+    ||| paraphrase.
+    ||| The other voice of `GameEvent`'s `BecomesTarget`, sharing its two
+    ||| gates: the described side is a `Targeter`
+    ||| [CR#115.1a,115.1c,115.1d] and the side it names is `Targetable`'s
+    ||| own set, which [CR#115.1] closes to objects and players. Deciding
+    ||| the relation once and spelling it at both seats is
+    ||| `BlockerOf`/`BlockedBy`'s economy across two vocabularies.
+    ||| The described side is kind-indexed and not object-kinded because
+    ||| [CR#115.1c,115.1d] give the word to an ability as readily as
+    ||| [CR#115.1a] gives it to a spell, and the corpus describes both.
+    ||| The extent is a slot for [CR#115.9c]'s reason: "targets only
+    ||| [something]" is a second check the rules state on the same
+    ||| relation, over how many different things were chosen.
+    ||| It does NOT name WHICH instance of the word: [CR#115.3] lets one
+    ||| spell choose the same thing once per instance of "target", and
+    ||| [CR#115.9c] reads such a spell as targeting it once all the same.
+    ||| -- spelling: "[n] that target(s) [m]"; with `SoleTarget`, "[n]
+    ||| that target(s) only [m]".
+    Targets : {kt : Kind} -> (m : Noun bs kt) -> (extent : TargetExtent) ->
+              {auto 0 tk : Targetable kt} ->
+              {auto 0 tr : Targeter k} -> Predicate bs k
 
   ||| The head type a predicate projects onto its referent — what an
   ||| anaphor remembers across a zone change.
@@ -492,6 +519,11 @@ mutual
   -- ability reference the spell it was cast as, and [CR#702.40a] counts
   -- spells cast earlier this turn that have long left the stack.
   seedZone (CastBy _) = Nothing
+  -- a spell or ability has its targets while it is on the stack:
+  -- [CR#115.1] declares them as it is put there, and [CR#115.9b] reads
+  -- the current ones back. The ability side carries no zone of its own
+  -- and ignores this.
+  seedZone (Targets _ _) = Just Stack
   seedZone (ExiledWith _) = Just Exile
   seedZone (CompareOver dom _ _ _) = seedZone dom
   seedZone (And ps) = seedZoneAll ps
@@ -563,6 +595,9 @@ mutual
   seedType (Named _) = Nothing
   seedType (HasDesignation d) = designationSeedType d
   seedType (IsAttached _) = Nothing
+  -- [CR#115.1a,115.1c,115.1d] give the word to a spell and to an
+  -- ability, neither of which is a card type the described thing has.
+  seedType (Targets _ _) = Nothing
   seedType (Compare c _ _) = comparedType c
   seedType (Superlative _ (CharAxis c) _) = comparedType c
   seedType (Superlative _ (PlayerStatAxis _) _) = Nothing
@@ -617,6 +652,9 @@ mutual
   hasHead (AbilityOf _) = False
   hasHead (ActivatedBy _) = False
   hasHead IsManaAbility = False
+  -- a relative clause, never the head noun: the head is the "spell" or
+  -- "ability" the clause hangs off [CR#115.9b].
+  hasHead (Targets _ _) = False
   hasHead IsSource = True
   hasHead (HasKeyword _) = False
   hasHead (ControlledBy _) = False
@@ -777,6 +815,9 @@ mutual
   predEq (ActivatedBy _) _ = False
   predEq IsManaAbility IsManaAbility = True
   predEq IsManaAbility _ = False
+  -- the targeted side is described at its OWN kind, so two of these
+  -- carry no comparable mention; `OtherThan`'s ground.
+  predEq (Targets _ _) _ = False
   predEq IsSource IsSource = True
   predEq IsSource _ = False
   predEq (HasKeyword a) (HasKeyword b) = a == b
@@ -1247,6 +1288,7 @@ mutual
   predSays (AbilityOf _) = True
   predSays (ActivatedBy _) = True
   predSays IsManaAbility = True
+  predSays (Targets _ _) = True
   predSays IsSource = True
   predSays (HasKeyword _) = True
   predSays (ControlledBy _) = True
@@ -1310,6 +1352,7 @@ mutual
   predNegFree (AbilityOf _) = True
   predNegFree (ActivatedBy _) = True
   predNegFree IsManaAbility = True
+  predNegFree (Targets _ _) = True
   predNegFree IsSource = True
   predNegFree (HasKeyword _) = True
   predNegFree (ControlledBy _) = True
@@ -1623,6 +1666,7 @@ mutual
   predDelta : {bs : Bindings} -> {k : Kind} -> Predicate bs k -> List Binding
   predDelta (AbilityOf n) = nounDelta n
   predDelta (ActivatedBy n) = nounDelta n
+  predDelta (Targets m _) = nounDelta m
   predDelta (ControlledBy n) = nounDelta n
   predDelta (CastBy n) = nounDelta n
   predDelta (BlockerOf m) = nounDelta m

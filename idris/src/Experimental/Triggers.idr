@@ -226,8 +226,23 @@ mutual
   data GameEvent : Bindings -> Type where
     Dies : (n : Noun bs Object) ->
            {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
-    Leaves : (n : Noun bs Object) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
+    ||| "Whenever this creature leaves the battlefield", "Whenever one or
+    ||| more cards leave your graveyard": the zone left is a SLOT, not the
+    ||| battlefield. [CR#603.10a] names the leaves-the-battlefield ability
+    ||| and the abilities that trigger when a card leaves a graveyard side
+    ||| by side, so the graveyard reading is the rules' own.
+    ||| It mirrors `PutInto`'s `from` and takes no zone table of its own:
+    ||| [CR#400.1] makes every zone a place objects can be, so there is no
+    ||| zone nothing can leave, and the only gate left is that the
+    ||| subject's own zone agree with the one written.
+    ||| The destination was already unwritten (`eventAfter` moves the
+    ||| object nowhere named), so the row now pins neither end.
+    ||| The unwritten source is tolerated at its zero: every printed
+    ||| header names the zone, and [CR#400.7] makes an object that changed
+    ||| zones one that left one.
+    ||| -- spelling: "[n] leave(s) [from]"
+    Leaves : (n : Noun bs Object) -> (from : Maybe (EventSource bs)) ->
+             {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} -> GameEvent bs
     IsDestroyed : (n : Noun bs Object) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} -> GameEvent bs
     IsDealtDamage : {k : Kind} -> (to : Noun bs k) ->
@@ -279,6 +294,28 @@ mutual
             {auto 0 zn : OnStack (nounZone what)} ->
             {auto 0 one : nounPlur what = OneOf} ->
             {auto 0 nt : Nontarget what} -> GameEvent bs
+    ||| "When Fblthp becomes the target of a spell", "Whenever this
+    ||| permanent becomes the target of a spell or ability an opponent
+    ||| controls": the targeting relation read from the TARGETED side.
+    ||| [CR#702.21a] writes this header in the rules' own words as what
+    ||| ward means, and [CR#603.2e] makes it a becomes-event -- it happens
+    ||| as the target is chosen [CR#115.1] and not while the choice
+    ||| stands.
+    ||| Same relation as `Predicate`'s `Targets`, spelled from the other
+    ||| side, on `BlockerOf`/`BlockedBy`'s model: one pair of gates serves
+    ||| both seats, `Targetable` on the side that was targeted [CR#115.1]
+    ||| and `Targeter` on the side that did it [CR#115.1a,115.1c,115.1d].
+    ||| The subject is kind-polymorphic rather than object-kinded because
+    ||| the same rule opens it: the printed headers write "you", "a
+    ||| creature you control" and "you or a permanent you control" alike.
+    ||| The targeter is announced as well as the subject -- the body reads
+    ||| back "that spell's controller" and "put a bounty counter on that
+    ||| creature" both -- so the row announces the pair.
+    ||| -- spelling: "[n] become(s) the target of [by]"
+    BecomesTarget : {k : Kind} -> {kb : Kind} -> (n : Noun bs k) ->
+                    (by : Noun (nomIntro n) kb) ->
+                    {auto 0 tk : Targetable k} ->
+                    {auto 0 tr : Targeter kb} -> GameEvent bs
     StatusEvent : {c : StatusCat} -> (n : Noun bs Object) ->
                   (v : StatusVal c) ->
                   {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -441,7 +478,7 @@ mutual
   public export
   eventName : {0 bs : Bindings} -> GameEvent bs -> EventName
   eventName (Dies _) = Death
-  eventName (Leaves _) = Departure
+  eventName (Leaves _ _) = Departure
   eventName (IsDestroyed _) = Destruction
   eventName (IsDealtDamage _) = DamageTaken
   eventName (Draws _) = CardDrawn
@@ -454,6 +491,7 @@ mutual
   eventName (DealsCombatDamage _ _) = CombatDamage
   eventName (BeginningOf _ _) = PartBeginning
   eventName (Casts _ _) = SpellCast
+  eventName (BecomesTarget _ _) = BecomesTarget
   eventName (StatusEvent {c} _ _) = statusEventName c
   eventName DayNightShift = TimeShift
   eventName (LastCounterRemoved _ _ _) = LastCounterRemoval
@@ -477,7 +515,7 @@ mutual
   public export
   eventIntro : {bs : Bindings} -> GameEvent bs -> Bindings
   eventIntro (Dies n) = nomIntro n
-  eventIntro (Leaves n) = nomIntro n
+  eventIntro (Leaves n _) = nomIntro n
   eventIntro (IsDestroyed n) = nomIntro n
   eventIntro (IsDealtDamage to) = nomIntro to
   eventIntro (Draws who) = nomIntro who
@@ -493,6 +531,7 @@ mutual
   eventIntro (DealsCombatDamage n to) = nomIntro to
   eventIntro (BeginningOf _ _) = bs
   eventIntro (Casts _ what) = nomIntro what
+  eventIntro (BecomesTarget _ by) = nomIntro by
   eventIntro (StatusEvent n _) = nomIntro n
   eventIntro DayNightShift = bs
   eventIntro (LastCounterRemoved _ n _) = nomIntro n
@@ -530,7 +569,7 @@ mutual
   public export
   eventAfter : {bs : Bindings} -> GameEvent bs -> Bindings
   eventAfter (Dies n) = moveIntro Nothing n (Just Graveyard)
-  eventAfter (Leaves n) = moveIntro Nothing n Nothing
+  eventAfter (Leaves n _) = moveIntro Nothing n Nothing
   eventAfter (IsDestroyed n) = moveIntro Nothing n (Just Graveyard)
   eventAfter (IsDealtDamage {k = Object} to) =
     outcomeB DamageDealt :: selfSubjIntro to
@@ -547,6 +586,10 @@ mutual
   eventAfter (BecomesBlocked _ (Just by)) = nomIntro by
   eventAfter (DealsCombatDamage n to) = outcomeB DamageDealt :: nomIntro to
   eventAfter (Casts _ what) = nomIntro what
+  -- both participants stand after it, on `Attacks`'s model: the tail
+  -- reads back the targeter ("that spell's controller loses 5 life") and
+  -- the thing targeted ("it phases out") alike.
+  eventAfter (BecomesTarget n by) = nounDelta by ++ selfSubjIntro n
   eventAfter (BeginningOf _ whose) = possessorIntro whose
   eventAfter (StatusEvent n _) = selfSubjIntro n
   eventAfter DayNightShift = bs
@@ -580,7 +623,7 @@ mutual
   public export
   eventSubjectPlur : {bs : Bindings} -> GameEvent bs -> Plurality
   eventSubjectPlur (Dies n) = nounPlur n
-  eventSubjectPlur (Leaves n) = nounPlur n
+  eventSubjectPlur (Leaves n _) = nounPlur n
   eventSubjectPlur (IsDestroyed n) = nounPlur n
   eventSubjectPlur (IsDealtDamage to) = nounPlur to
   eventSubjectPlur (Draws who) = nounPlur who
@@ -593,6 +636,7 @@ mutual
   eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
   eventSubjectPlur (BeginningOf _ _) = OneOf
   eventSubjectPlur (Casts _ what) = nounPlur what
+  eventSubjectPlur (BecomesTarget n _) = nounPlur n
   eventSubjectPlur (StatusEvent n _) = nounPlur n
   eventSubjectPlur DayNightShift = OneOf
   eventSubjectPlur (LastCounterRemoved _ n _) = nounPlur n

@@ -34,6 +34,12 @@ data EventName = Death | Departure | Destruction | DamageTaken
                | DiceRoll
                | CostPayment | CostNonpayment
                | LifePayment
+               -- a thing being chosen as a target [CR#115.1]. Its own
+               -- name and not a reading of `SpellCast`: [CR#115.1d]
+               -- targets a triggered ability too, and [CR#702.21a]
+               -- writes the header of the object that was targeted,
+               -- which no casting event names.
+               | BecomesTarget
                -- the DEALER's side of damage in general, which neither
                -- `DamageTaken` (the victim's side) nor `CombatDamage`
                -- (the combat dealer's) names. [CR#120.1] makes the object
@@ -181,6 +187,8 @@ sameEventName CostNonpayment CostNonpayment = True
 sameEventName CostNonpayment _ = False
 sameEventName LifePayment LifePayment = True
 sameEventName LifePayment _ = False
+sameEventName BecomesTarget BecomesTarget = True
+sameEventName BecomesTarget _ = False
 -- two verbed acts are the same event exactly when they name the same
 -- act, and the label is what names it: [CR#701.1] makes the keyword the
 -- game term for the verb.
@@ -216,6 +224,10 @@ interceptOk (VerbedAct _) = True
 -- would deal is that event. No prospective row spells the dealer's side
 -- today, so the cell is stated rather than reached.
 interceptOk DamageDealing = True
+-- targets are chosen as the spell or ability is put on the stack
+-- [CR#115.1], so becoming one is a thing that would happen; no printed
+-- line replaces it, and no rule refuses the reading.
+interceptOk BecomesTarget = True
 interceptOk _ = True
 
 ||| One phrase, one slot: `Until (StartOf …)` already spells a turn
@@ -229,6 +241,9 @@ spanEventOk (VerbedAct _) = True
 -- "until [source] deals damage" is an endpoint no turn-part phrase
 -- already spells.
 spanEventOk DamageDealing = True
+-- "until [n] becomes the target of a spell" is a moment no turn-part
+-- phrase already spells [CR#603.2e].
+spanEventOk BecomesTarget = True
 spanEventOk _ = True
 
 ||| Which events HAPPEN in an amount, for the summed lookback to read:
@@ -296,6 +311,11 @@ eventHasMagnitude LifePayment = True
 -- occurrences. Occurrences are counted, so "the number of cards
 -- discarded this turn" is `EventCount`'s reading and no act of this
 -- vocabulary happens in an amount to sum.
+-- a target is DECLARED as the spell or ability goes on the stack
+-- [CR#115.1]; the declaring carries no number of its own. What is
+-- countable is how many times something was chosen [CR#115.9a], and a
+-- count is `EventCount`'s reading.
+eventHasMagnitude BecomesTarget = False
 eventHasMagnitude (VerbedAct _) = False
 
 public export
@@ -398,6 +418,13 @@ lookbackSubjectOk LifePayment Player = True
 -- milled card"), so the object side is open exactly where the act has a
 -- patient. The player side is open everywhere: each act's own rule
 -- states it of the player performing it [CR#701.17a,701.22a].
+-- "creature that became the target of a spell this turn": [CR#115.1]
+-- makes the targets objects and/or players, so either side is what was
+-- targeted. Unwritten in the corpus -- no supported line spells any
+-- retrospective reading of this event (0 of 98 headers) -- and refused
+-- by no rule, so both cells stand open at their zero.
+lookbackSubjectOk BecomesTarget Object = True
+lookbackSubjectOk BecomesTarget Player = True
 lookbackSubjectOk (VerbedAct v) Object = actPatientOf v == Just Object
 lookbackSubjectOk (VerbedAct _) Player = True
 lookbackSubjectOk _ (Quality _) = False
@@ -421,6 +448,12 @@ lookbackComplementOk SpellCast Player Object = True
 lookbackComplementOk SpellCast _ _ = False
 lookbackComplementOk DamageTaken Object Object = True
 lookbackComplementOk DamageTaken Player Object = True
+-- "each opponent and planeswalker it has dealt damage to this game" (The
+-- Fallen): [CR#120.1] deals damage to a player, battle, creature or
+-- planeswalker alike, so a phrase that may denote either side of that
+-- list took it, and the dealer it names is the same one either way.
+lookbackComplementOk DamageTaken (a \/ b) kc =
+  lookbackComplementOk DamageTaken a kc && lookbackComplementOk DamageTaken b kc
 lookbackComplementOk DamageTaken _ _ = False
 lookbackComplementOk CombatDamage Object Player = True
 lookbackComplementOk CombatDamage _ _ = False
@@ -465,6 +498,21 @@ lookbackComplementOk LifePayment _ _ = False
 -- "you discarded a card this turn": the actor's complement is the act's
 -- own patient and nothing else. Read from the patient's side the act is
 -- already whole, so no second participant is named there.
+-- the complement names what did the targeting, which [CR#115.1a,115.1c]
+-- and [CR#115.1d] close to a spell or an ability; a player never
+-- targets, since [CR#115.1] has a player choose the targets OF the
+-- spell or ability. The joined complement is [CR#115.9b]'s own "spell or
+-- ability" and rides the join the same way the subject side does -- this
+-- name does not take the table's standing refusal of one, which no rule
+-- backs here. All of it at its zero: the prospective header writes the
+-- join 171 times and the retrospective reading not at all.
+lookbackComplementOk BecomesTarget Object Object = True
+lookbackComplementOk BecomesTarget Object Ability = True
+lookbackComplementOk BecomesTarget Player Object = True
+lookbackComplementOk BecomesTarget Player Ability = True
+lookbackComplementOk BecomesTarget ks (a \/ b) =
+  lookbackComplementOk BecomesTarget ks a && lookbackComplementOk BecomesTarget ks b
+lookbackComplementOk BecomesTarget _ _ = False
 lookbackComplementOk (VerbedAct v) Player kc = actPatientOf v == Just kc
 lookbackComplementOk (VerbedAct _) _ _ = False
 lookbackComplementOk _ _ _ = False
@@ -489,6 +537,11 @@ bareLookbackOk (VerbedAct _) Object = True
 -- dropped, still names the event: [CR#120.1] makes every deal a deal to
 -- something, so nothing is left indeterminate by leaving it out.
 bareLookbackOk DamageDealing Object = True
+-- "creature that became a target this turn", with the targeter dropped:
+-- [CR#115.1] makes every target the target of some spell or ability, so
+-- leaving it out leaves nothing indeterminate.
+bareLookbackOk BecomesTarget Object = True
+bareLookbackOk BecomesTarget Player = True
 bareLookbackOk _ _ = True
 
 public export

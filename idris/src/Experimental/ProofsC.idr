@@ -232,7 +232,7 @@ badInterceptReplacementAntecedent (Refl, _) impossible
 ||| The undo is scheduled on an event that has not happened, so the clause contributes no retag.
 public export
 badHeldUntilExileRetag : Unspellable (Effect []) (\ok =>
-  Sequentially [ Macros.exileUntil (Macros.target Macros.creature) (Leaves Macros.thisCreature)
+  Sequentially [ Macros.exileUntil (Macros.target Macros.creature) (Macros.leavesBattlefield Macros.thisCreature)
                , Move (That CardW {ok}) Macros.handZ (MkMoveRiders [] Nothing Nothing)
                ])
 badHeldUntilExileRetag Refl impossible
@@ -474,7 +474,7 @@ badTriggerTapsDeadCreature OnField impossible
 ||| [CR#603.6c] checks the object only in the first zone it went to, which the sentence never names.
 public export
 badLeavesThenTap : Unspellable Ability (\ok =>
-  Triggered Whenever (Leaves (Macros.a Macros.creature)) Nothing Nothing Nothing Nothing (SetStatus Tapped It {ok}))
+  Triggered Whenever (Macros.leavesBattlefield (Macros.a Macros.creature)) Nothing Nothing Nothing Nothing (SetStatus Tapped It {ok}))
 badLeavesThenTap OnField impossible
 
 

@@ -635,7 +635,7 @@ shieldmatesBlessing =
 
 banisherPriest : Effect []
 banisherPriest = Macros.exileUntil (Macros.target (And [Macros.creature, ControlledBy Macros.anOpponent]))
-                            (Leaves Macros.thisCreature)
+                            (Macros.leavesBattlefield Macros.thisCreature)
 
 ||| Tezzeret, Artifice Master
 tezzeretDrawTwo : Effect []
@@ -1117,7 +1117,7 @@ oubliette : Ability
 oubliette =
   Macros.triggered When (Enters Macros.thisEnchantment)
                    (Macros.phasesOutUntil (Macros.target Macros.creature)
-                                   (Leaves Macros.thisEnchantment))
+                                   (Macros.leavesBattlefield Macros.thisEnchantment))
 
 shimmeringEfreet : Ability
 shimmeringEfreet =
@@ -1483,7 +1483,7 @@ lichsMasteryGate = Static (OutcomeGate CantLose You)
 ||| When Lich's Mastery
 lichsMasteryLoss : Ability
 lichsMasteryLoss =
-  Macros.triggered When (Leaves Macros.thisEnchantment) (Concludes LoseGame You)
+  Macros.triggered When (Macros.leavesBattlefield Macros.thisEnchantment) (Concludes LoseGame You)
 
 phageTheUntouchable : Ability
 phageTheUntouchable =
@@ -3331,8 +3331,9 @@ nefariousImp =
        (MkTypeLine [creatureType "Imp"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.triggered Whenever
-                          (Leaves (CountedGroup (Macros.atLeast 1)
-                                         (And [Permanent, ControlledBy You])))
+                          (Macros.leavesBattlefield
+                             (CountedGroup (Macros.atLeast 1)
+                                     (And [Permanent, ControlledBy You])))
                           (Macros.scryOne) ]
        (Just (2, 1))
 
@@ -5683,7 +5684,7 @@ wormfangManta =
        (MkTypeLine [creatureType "Nightmare", creatureType "Fish", creatureType "Beast"] [Creature])
        [ Macros.keyword "Flying"
        , Macros.triggered When (Enters Macros.thisCreature) (SkipsNext You Turn (Lit 1))
-       , Macros.triggered When (Leaves Macros.thisCreature) (ExtraTurn You (Lit 1)) ]
+       , Macros.triggered When (Macros.leavesBattlefield Macros.thisCreature) (ExtraTurn You (Lit 1)) ]
        (Just (6, 6))
 
 public export
@@ -9344,7 +9345,7 @@ sandstoneOracle =
 public export
 slithermuseTrigger : Ability
 slithermuseTrigger =
-  Macros.triggered When (Leaves Macros.thisCreature)
+  Macros.triggered When (Macros.leavesBattlefield Macros.thisCreature)
     (Sequentially
        [ Macros.choose Macros.anOpponent
        , If (CompareAmt (CountOf (InZone (Macros.handOf (That PlayerW))))
@@ -9750,3 +9751,73 @@ jemLightfooteSkyExplorer =
                        (Macros.a Macros.spell) [Macros.handOf You]))
            Macros.drawACard ]
        (Just (3, 3))
+
+-- ---------------------------------------------------------------------------
+-- The targeting relation, in both voices
+-- ---------------------------------------------------------------------------
+
+||| Gnarlback Rhino, whole card -- "Whenever you cast a spell that targets
+||| this creature, draw a card." The targeting relative clause described
+||| side is the spell, and the card writes no ability word to get in the
+||| way of it.
+public export
+gnarlbackRhino : Card
+gnarlbackRhino =
+  Macros.card "Gnarlback Rhino"
+       (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Rhino"] [Creature])
+       [ Macros.keyword "Trample"
+       , Macros.triggered Whenever
+           (Casts You (Macros.a (And [Macros.spell,
+                                      Targets Macros.thisCreature SomeTarget])))
+           Macros.drawACard ]
+       (Just (4, 4))
+
+||| Forsaken Wastes's third ability -- "Whenever this enchantment becomes
+||| the target of a spell, that spell's controller loses 5 life." The
+||| event voice, with the targeter read back by its demonstrative.
+public export
+forsakenWastesTargeted : Ability
+forsakenWastesTargeted =
+  Macros.triggered Whenever
+    (BecomesTarget Macros.thisEnchantment (Macros.a Macros.spell))
+    (Macros.losesLife (ControllerOf (That SpellW)) (Lit 5))
+
+||| Fblthp, the Lost's second header alone -- "When Fblthp becomes the
+||| target of a spell". Its TAIL does not write: "shuffle Fblthp into its
+||| owner's library" is a move into a library that randomizes it
+||| [CR#701.24a], and no move verb spells that arrangement. The card's
+||| blocker, not the row's.
+public export
+fblthpTargetedHeader : GameEvent []
+fblthpTargetedHeader = BecomesTarget This (Macros.a Macros.spell)
+
+||| Fuming Effigy, whole card -- "Whenever one or more cards leave your
+||| graveyard, this creature deals 1 damage to each opponent." The
+||| leave-event off the battlefield, which [CR#603.10a] names beside the
+||| leaves-the-battlefield ability.
+public export
+fumingEffigy : Card
+fumingEffigy =
+  Macros.card "Fuming Effigy"
+       (Just [Macros.generic 3, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Spirit"] [Creature])
+       [ Macros.triggered Whenever
+           (Macros.leavesZone
+              (CountedGroup (Macros.atLeast 1) (InZone (Macros.graveyardOf You)))
+              (Macros.graveyardOf You))
+           (DealDamage This (Lit 1) (Each Opponent)) ]
+       (Just (4, 3))
+
+||| The Fallen's whole line -- "At the beginning of your upkeep, this
+||| creature deals 1 damage to each opponent and planeswalker it has
+||| dealt damage to this game." The victim-side lookback described at a
+||| JOINED kind: [CR#120.1] gives the damage to a player or a
+||| planeswalker alike, and one clause names both halves at once.
+public export
+theFallenUpkeep : Ability
+theFallenUpkeep =
+  Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+    (DealDamage This (Lit 1)
+       (Each (And [ Joined (HasType Planeswalker) Opponent
+                  , HappenedTo DamageTaken ThisGame (Just (Involving This)) ])))

@@ -2077,6 +2077,30 @@ data Targetable : Kind -> Type where
   ||| halves are.
   JoinTgt : Targetable a -> Targetable b -> Targetable (a \/ b)
 
+||| The other side of the same relation: which kind of phrase HAS
+||| targets. [CR#115.1a], [CR#115.1c] and [CR#115.1d] give the word
+||| "target" to an instant or sorcery spell, to an activated ability and
+||| to a triggered ability, and to nothing else; a player never targets,
+||| since [CR#115.1] has a player CHOOSE the targets of the spell or
+||| ability, which is what has them. The joined arm is [CR#115.9b]'s own
+||| phrase, "[spell or ability] that targets [something]", and
+||| [CR#702.21a] writes the same pair into ward.
+public export
+data Targeter : Kind -> Type where
+  SpellTargets : Targeter Object
+  AbilityTargets : Targeter Ability
+  EitherTargets : Targeter a -> Targeter b -> Targeter (a \/ b)
+
+||| How much of a targeter's targeting a description reads. [CR#115.9b]
+||| checks the current state of the targets a phrase names; [CR#115.9c]
+||| states the "only" reading as its own check -- how many DIFFERENT
+||| things were chosen as targets, which must be one. Two readings of one
+||| relation, so an extent slot and not a second row.
+||| -- spelling: `SomeTarget`, "that targets [m]"; `SoleTarget`, "that
+||| targets only [m]".
+public export
+data TargetExtent = SomeTarget | SoleTarget
+
 ||| [CR#120.1a]: damage can be dealt to a battle, a creature or a
 ||| planeswalker and to nothing else. [CR#115.4] names the same three
 ||| object types beside players.

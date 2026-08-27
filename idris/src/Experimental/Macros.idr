@@ -1420,6 +1420,22 @@ mayCastAsThough : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) 
 mayCastAsThough who what asThough =
   MayPlay who what Cast Nothing (Just asThough) Nothing Nothing {pz} {cv}
 
+||| "[n] leaves the battlefield": the zone the leaves-the-battlefield
+||| ability names [CR#603.10a], written into the row's source slot.
+public export
+leavesBattlefield : {0 bs : Bindings} -> (n : Noun bs Object) ->
+                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                    GameEvent bs
+leavesBattlefield n = Leaves n (Just (FromZone battlefieldZ)) {zn}
+
+||| "[n] leaves [z]": any other zone a header watches an object leave --
+||| "one or more cards leave your graveyard" [CR#603.10a].
+public export
+leavesZone : {0 bs : Bindings} -> (n : Noun bs Object) -> (z : ZoneExpr bs) ->
+             {auto 0 zn : ZoneFits (nounZone n) (Just (zoneSort z))} ->
+             GameEvent bs
+leavesZone n z = Leaves n (Just (FromZone z)) {zn}
+
 ||| "… is put into <zone> from <source>."
 public export
 putIntoFrom : (n : Noun bs Object) -> (to : ZoneExpr bs) -> (src : EventSource bs) ->
