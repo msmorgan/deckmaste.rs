@@ -289,3 +289,5 @@ Standard constraints apply.
 - **Carrier from workbench-randomness-residues (close, 2026-08-26):** Mana Clash — "You and target opponent each flip a coin" — is the player-plus-player coordination this ticket already owns, now with a distributive verb over the pair; add it to the witness set.
 
 - **Cross-check from the workbench-event-zone-and-cast-provenance split (2026-08-26):** Doc Aurlock's zone DISJUNCTION on a cast's origin ("from your graveyard or from exile") is this ticket's CROSS-ZONE disjunction gap, already named above. If `workbench-event-zone-4-zone-catalog-and-reader-payload`'s zone-coordination pin (ordinary coordination at the zone sort) lands, Doc Aurlock may fall out for free — in which case tell this ticket so its cross-zone disjunction section is re-checked against the landed mechanism before this ticket's own round mints a second one.
+
+- **Routed from workbench-chosen-counter-kind (close, 2026-08-26):** Inspirit — menu arms carrying DIFFERENT amounts ("two +1/+1 counters or four +1/+0 counters") is a coordination of counter clauses, not a kind menu; it lands here.
