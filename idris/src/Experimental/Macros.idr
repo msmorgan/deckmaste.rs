@@ -569,6 +569,61 @@ tap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
       Effect bs
 tap n = Enact "Tap" (SetStatus Tapped n)
 
+||| "Untap [n]": `tap`'s twin at [CR#701.26b], which rotates the
+||| permanent back upright and likewise moves nothing. The label is what
+||| "Untap target creature. It gains haste until end of turn" reads back
+||| (99 supported faces, re-measured 2026-08-27, every one of them naming
+||| the permanent the untap acted on) even where the enclosing ability
+||| announced a permanent of its own.
+public export
+untap : (n : Noun bs Object) -> {auto 0 ok : OnBattlefield (nounZone n)} ->
+        Effect bs
+untap n = Enact "Untap" (SetStatus Untapped n)
+
+||| "Return [n] to [to]": the labeled zone change. "Return" is no
+||| [CR#701] keyword action -- [CR#701.1] leaves it its standard English
+||| meaning -- and the label states nothing the body does not; what it
+||| buys is the stamp, which "Return target creature card from your
+||| graveyard to the battlefield. It gains haste" reads back (93
+||| supported faces, re-measured 2026-08-27).
+public export
+returnTo : (n : Noun bs Object) -> (to : ZoneExpr (nomIntro n)) ->
+           {auto 0 ok : DestOk to} ->
+           {auto 0 arr : ArrangementOk (nounPlur n) to} ->
+           {auto 0 pl : Placeable (nounTy n) (zoneSort to)} ->
+           Effect bs
+returnTo n to = Enact "Return" (Move n to noRiders {ok} {arr} {pl})
+
+||| `returnTo` at the battlefield, the destination 93 of the family's
+||| lines write.
+public export
+returnToBattlefield : (n : Noun bs Object) ->
+                      {auto 0 arr : ArrangementOk (nounPlur n) (battlefieldZ {bs = nomIntro n})} ->
+                      {auto 0 pl : Placeable (nounTy n) Battlefield} ->
+                      Effect bs
+returnToBattlefield n = returnTo n battlefieldZ {arr} {pl}
+
+||| The bare pronoun read at the CREATE clause that made its referent:
+||| the token side of `itAsPermanent`'s discipline, and the one narrowing
+||| whose fact is an origin rather than a carrier or a label. "Create a
+||| Clue token. It's an artifact with …" -- 170 supported faces,
+||| re-measured 2026-08-27, all of them token-bound.
+public export
+itAsToken : {auto 0 ok : countItToken bs = 1} -> Noun bs Object
+itAsToken = ItToken {ok}
+
+||| "[n] [vp1] and [vp2] [until …]": the shared-subject coordination as a
+||| clause. The subject is written once and the parts are predicated of
+||| it, so nothing here is a pronoun and nothing is counted.
+public export
+sharedSubject : {0 k : Nat} -> (n : Noun bs Object) ->
+                (vps : SubjectVPs k (selfSubjIntro n)) ->
+                {auto 0 ne : IsSucc k} ->
+                {auto 0 ok : So (vpsOk (nounZone n) (nounRegime n) vps)} ->
+                (d : Maybe (Duration (vpsIntro vps))) ->
+                {auto 0 sp : SpanOk Coordination d} -> Effect bs
+sharedSubject n vps d = Continuously (OfSubject n vps {ne} {ok}) d {sp}
+
 
 public export
 dealsDivided : {k : Kind} -> (src : Noun bs Object) -> (amt : Amount (nomIntro src)) ->
@@ -693,15 +748,16 @@ cantBeBlocked n span = Continuously (Deontic n Forbid Block Patient NoDeonticPat
 
 
 public export
-gainControl : (n : Noun bs Object) -> (d : Maybe (Duration (selfSubjIntro n))) ->
+gainControl : (n : Noun bs Object) ->
               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+              (d : Maybe (Duration (staticIntro (GainsControl You n {zn})))) ->
               {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
 gainControl n d = Continuously (GainsControl You n {zn}) d {sp}
 
 public export
 gainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-               (d : Maybe (Duration (selfSubjIntro what))) ->
                {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} ->
+               (d : Maybe (Duration (staticIntro (GainsControl who what {zn})))) ->
                {auto 0 sp : SpanOk ControlGrant d} -> Effect bs
 gainsControl who what d = Continuously (GainsControl who what {zn}) d {sp}
 

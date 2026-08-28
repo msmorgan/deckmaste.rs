@@ -296,6 +296,21 @@ countVerbedThemIsFold v (b :: bs) with (themVerbedReaches v b)
   _ | True = cong S (countVerbedThemIsFold v bs)
   _ | False = countVerbedThemIsFold v bs
 
+||| What `countItToken` folds: `countOnes Object`'s own test narrowed a
+||| THIRD way -- to the mentions a create clause made [CR#111.1], read
+||| off the origin that clause already wrote onto its own mention. Same
+||| shape as the carrier and the label narrowings: a per-binding test, so
+||| the origin-scoped read is a `countBy` fold and inherits the split and
+||| witness lemmas unchanged. Three narrowings of one gate, none of them
+||| a preference.
+public export
+countItTokenIsFold : (bs : Bindings) ->
+                     countItToken bs = countBy itTokenReaches bs
+countItTokenIsFold [] = Refl
+countItTokenIsFold (b :: bs) with (itTokenReaches b)
+  _ | True = cong S (countItTokenIsFold bs)
+  _ | False = countItTokenIsFold bs
+
 ||| What `countUnionHalf` folds: a singular UNION mention one half of
 ||| which the split arm's word names.
 public export
@@ -492,6 +507,29 @@ itVerbedResolvesInPrefix : (bs : Bindings) -> (v : VerbLabel) ->
                            (b : Binding ** (Elem b bs, So (itVerbedReaches v b)))
 itVerbedResolvesInPrefix bs v ok =
   countByWitness (itVerbedReaches v) bs Z (trans (sym (countVerbedItIsFold v bs)) ok)
+
+
+-- "it" again, read at the clause that MADE its referent.
+
+||| The origin-scoped pronoun asks the prefix ONE question -- how many of
+||| its mentions a create clause made -- and carries no second obligation
+||| at all: unlike the label-scoped read it names no vocabulary entry,
+||| because a create clause names no keyword action. So the whole of its
+||| gate is a read of `bs`.
+public export
+itTokenReadsOnlyPrefix : (bs : Bindings) -> countItToken bs = 1 -> Noun bs Object
+itTokenReadsOnlyPrefix bs ok = ItToken {bs} {ok}
+
+||| ...and it resolves to a mention IN the prefix, by the same witness
+||| lemma the unscoped, the carrier-scoped and the label-scoped reads
+||| use. An origin is a mark the create clause wrote on the binding it
+||| minted, so narrowing on it changed which binding comes back and never
+||| where it comes from.
+public export
+itTokenResolvesInPrefix : (bs : Bindings) -> countItToken bs = 1 ->
+                          (b : Binding ** (Elem b bs, So (itTokenReaches b)))
+itTokenResolvesInPrefix bs ok =
+  countByWitness itTokenReaches bs Z (trans (sym (countItTokenIsFold bs)) ok)
 
 
 -- "they": the player pronoun.
@@ -1015,6 +1053,44 @@ letterValIntroducesAtEmptyPrefix : (l : Letter) -> Amount []
 letterValIntroducesAtEmptyPrefix l = LetterVal l
 
 
+-- The de-pronominalization templates, which are not reads either. Where
+-- a deictic reads no context because it names the source, these read
+-- none because the referent the printed pronoun spells is the
+-- CONSTRUCTION'S OWN EARLIER ARGUMENT -- the forward binder contract's
+-- clause 4 rather than its clause 3. Each is witnessed as writable
+-- whatever else the prefix holds, which is the operational difference
+-- between a template and an anaphor: an anaphor's gate can fail on a
+-- crowded prefix, and none of these has a gate to fail.
+
+||| "[n]'s controller sacrifices it" [CR#701.21a]: one noun slot, and no
+||| count anywhere. Its two obligations are facts about that noun alone.
+public export
+controllerSacrificesReadsNoPrefix : (bs : Bindings) -> (n : Noun bs Object) ->
+                                    nounPlur n = OneOf ->
+                                    OnBattlefield (nounZone n) -> Effect bs
+controllerSacrificesReadsNoPrefix bs n one zn = ControllerSacrifices n {one} {zn}
+
+||| "[src] deals damage equal to its [c] to [to]" [CR#120.1]: the
+||| possessor is the source slot, so the characteristic slot is a word
+||| and not a phrase, and nothing is counted.
+public export
+dealDamageOwnReadsNoPrefix : (bs : Bindings) -> (k : Kind) ->
+                             (src : Noun bs Object) -> (c : Characteristic) ->
+                             (to : Noun (nomIntro src) k) ->
+                             PerMember to -> DamageRecipient to -> Effect bs
+dealDamageOwnReadsNoPrefix bs k src c to pm rk = DealDamageOwn src c to {pm} {rk}
+
+||| "[n] [vp1] and [vp2]": the shared subject is written once, and the
+||| parts hold no subject slot to read it back with. The obligation is a
+||| fold over the parts asking about that one subject.
+public export
+ofSubjectReadsNoPrefix : (bs : Bindings) -> (k : Nat) -> (n : Noun bs Object) ->
+                         (vps : SubjectVPs k (selfSubjIntro n)) -> IsSucc k ->
+                         So (vpsOk (nounZone n) (nounRegime n) vps) ->
+                         StaticEffect bs
+ofSubjectReadsNoPrefix bs k n vps ne ok = OfSubject n vps {ne} {ok}
+
+
 --------------------------------------------------------------------------------
 -- 5. Why `bs` is the reading-order prefix: the threading audit as types
 --------------------------------------------------------------------------------
@@ -1261,6 +1337,30 @@ staticPartsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (se : StaticEffect bs)
                           NotCoord se -> StaticParts n (staticIntro se) ->
                           StaticParts (S n) bs
 staticPartsThreadPrefix bs n se nc rest = (::) se {nc} rest
+
+||| The SHARED-SUBJECT coordination telescope, at `vpIntro`. Same shape
+||| as the statement coordination above and threaded the same way; what
+||| differs is only that the subject sits outside the list, so every part
+||| is typed in a context the subject's own announcement already opened.
+public export
+subjectVPsThreadPrefix : (bs : Bindings) -> (n : Nat) -> (vp : SubjectVP bs) ->
+                         SubjectVPs n (vpIntro vp) -> SubjectVPs (S n) bs
+subjectVPsThreadPrefix bs n vp rest = (::) vp rest
+
+||| ...and each part's own output is its delta in front of the context it
+||| was given: `VPGains` mints nothing, `VPGets` mints its two amounts'
+||| phrases and nothing else.
+public export
+vpIntroIsDeltaThenPrefix : (bs : Bindings) -> (pow : PtShift bs) ->
+                           (tou : PtShift (shiftIntro pow)) ->
+                           vpIntro (VPGets pow tou)
+                             = shiftDelta tou ++ shiftDelta pow ++ bs
+vpIntroIsDeltaThenPrefix bs pow tou = Refl
+
+public export
+vpGainsMintsNothing : (bs : Bindings) -> (ab : AbilityAt bs) ->
+                      vpIntro (VPGains ab) = bs
+vpGainsMintsNothing bs ab = Refl
 
 ||| An arithmetic amount reads its left operand's output, not the other
 ||| way round: "X plus Y" types Y in X's context.

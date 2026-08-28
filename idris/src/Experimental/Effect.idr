@@ -474,6 +474,39 @@ mutual
                      StaticEffect bs
       AndAlso : {0 n : Nat} -> StaticParts n bs ->
                 {auto 0 ne : IsSucc n} -> StaticEffect bs
+      ||| "[n] gets +4/+4 and gains trample", "equipped creature gets
+      ||| +1/+1 and has flying": VERB PHRASE coordination over ONE
+      ||| subject, which English writes by eliding the second verb
+      ||| phrase's subject rather than by pronominalising it. The subject
+      ||| is written once and every part is predicated of it, so the
+      ||| printed line contains no pronoun and this row's slots contain
+      ||| no anaphor -- where `AndAlso` coordinates whole STATEMENTS,
+      ||| each naming its own subject, and a second statement wanting the
+      ||| first one's subject has to read it back.
+      |||
+      ||| That read is what this row retires. It is not a widening of any
+      ||| gate: the shared subject is this construction's own earlier
+      ||| argument, which is the forward binder contract's clause 4
+      ||| rather than clause 3, and nothing here counts anything
+      ||| (`docs/decisions/oracle-text-is-forward-anaphoric.md`).
+      ||| 922 supported faces write the two-part form measured
+      ||| 2026-08-27 -- 435 "gets [pt] and gains [ab]", 487 "gets [pt]
+      ||| and has [ab]" -- and the two spellings are one row, since
+      ||| `Gains` already spells both.
+      |||
+      ||| The parts thread left to right on `StaticParts`' model
+      ||| [CR#608.2c], each typed in the previous part's output, and the
+      ||| subject's own announcement is made once at the head. The
+      ||| per-part obligations are the rows' own, asked of the shared
+      ||| subject: a P/T shift wants a battlefield subject, a grant wants
+      ||| a subject the ability may be granted to [CR#113.6e].
+      ||| -- spelling: "[n] [vp1] and [vp2]", the second verb phrase
+      ||| written without a subject.
+      OfSubject : {0 k : Nat} -> (n : Noun bs Object) ->
+                  (vps : SubjectVPs k (selfSubjIntro n)) ->
+                  {auto 0 ne : IsSucc k} ->
+                  {auto 0 ok : So (vpsOk (nounZone n) (nounRegime n) vps)} ->
+                  StaticEffect bs
 
   public export
   data Compulsion : Bindings -> Type where
@@ -583,6 +616,7 @@ mutual
   public export
   isCoord : {0 bs : Bindings} -> StaticEffect bs -> Bool
   isCoord (AndAlso _) = True
+  isCoord (OfSubject _ _) = True
   isCoord _ = False
 
   public export
@@ -647,6 +681,7 @@ mutual
   staticKind (EntersChoice _ _ _) = EntryRider
   staticKind (AttachChoice _ _ _) = Replacement
   staticKind (AndAlso _) = Coordination
+  staticKind (OfSubject _ _) = Coordination
 
 
   public export
@@ -680,7 +715,15 @@ mutual
   staticIntro (AddsChosenQuality n _) = selfSubjIntro n
   staticIntro (SetsChosenQuality n _) = selfSubjIntro n
   staticIntro (LosesAllAbilities n) = selfSubjIntro n
-  staticIntro (GainsControl who what) = selfSubjIntro what
+  -- the control change is a labeled act of its own: [CR#613.1b]
+  -- applies it in layer 2 and [CR#110.2] makes the controller a
+  -- property of the permanent, which stays where it stands. So the row
+  -- stamps in place rather than moving, on `Search`'s model of a
+  -- constructor that names its own label, and "Gain control of target
+  -- creature until end of turn. Untap it" reads the stamped mention
+  -- back through `ItVerbed "GainControl"` even where the ability's
+  -- header announced a permanent of its own.
+  staticIntro (GainsControl who what) = stampIntro (Just "GainControl") what
   staticIntro (Intercepts ev alts repl use limit) = interceptCtx alts ev
   staticIntro (Prevents kind size scope by also) = byIntro by
   staticIntro (PreventsFrom kind src scope cut use also) = cutIntro cut
@@ -699,6 +742,7 @@ mutual
   staticIntro (EntersChoice n _ _) = selfSubjIntro n
   staticIntro (AttachChoice n _ _) = selfSubjIntro n
   staticIntro (AndAlso parts) = partsIntro parts
+  staticIntro (OfSubject n vps) = vpsIntro vps
 
   ||| The choice a STATEMENT binds, for the abilities after it to read
   ||| [CR#607.2d]. A delta rather than a context because a coordination
@@ -940,6 +984,29 @@ mutual
                  (to : Noun (amtIntro amt) k) ->
                  {auto 0 pm : PerMember to} ->
                  {auto 0 rk : DamageRecipient to} -> Effect bs
+    ||| "[src] deals damage equal to its [c] to [to]": `DealDamage` with
+    ||| the amount the SOURCE'S OWN characteristic, written as a slot
+    ||| rather than as an amount that names a possessor. [CR#120.1] makes
+    ||| the object that deals damage the source of it, and the printed
+    ||| "its" is that source -- the clause's own subject, which this row
+    ||| supplies from its own earlier argument. So no pronoun is read
+    ||| here and no candidate is counted: it is the forward binder
+    ||| contract's clause 4, not clause 3.
+    ||| Measured 2026-08-27: 275 supported faces write "deals damage …
+    ||| equal to its [c]", every one of them source-bound, the 15 that
+    ||| write the recipient first ("deals damage to itself equal to its
+    ||| power") included -- the word order is spelling and the possessor
+    ||| is the subject in all 275. 270 write power, 3 mana value, 2
+    ||| toughness, so the characteristic is a slot and not a fixed word.
+    ||| It does NOT subsume `DealDamage`: a written amount, an anaphoric
+    ||| one and a characteristic of something OTHER than the source all
+    ||| stay there, and this row is only the reading whose possessor the
+    ||| construction already holds.
+    ||| -- spelling: "[src] deals damage equal to its [c] to [to]".
+    DealDamageOwn : {k : Kind} -> (src : Noun bs Object) -> (c : Characteristic) ->
+                    (to : Noun (nomIntro src) k) ->
+                    {auto 0 pm : PerMember to} ->
+                    {auto 0 rk : DamageRecipient to} -> Effect bs
     Fights : (a : Noun bs Object) ->
              {auto 0 za : OnBattlefield (nounZone a)} ->
              {auto 0 ta : FightParticipant (nounTy a)} ->
@@ -1452,6 +1519,29 @@ mutual
     Does : (subj : Noun bs Player) -> (v : VerbLabel) ->
            (e : Effect (nomIntro subj)) ->
            {auto 0 kn : KnownVerb v} -> Effect bs
+    ||| "[n]'s controller sacrifices it": the sacrifice written with its
+    ||| agent, where the agent is DERIVED from the patient and the
+    ||| printed pronoun is this row's own single noun slot. [CR#701.21a]
+    ||| makes that derivation the rule's -- "to sacrifice a permanent,
+    ||| ITS CONTROLLER moves it from the battlefield directly to its
+    ||| owner's graveyard" -- so the possessive subject and the object
+    ||| are one referent by the act's own definition, and neither the
+    ||| possessive nor the pronoun is a read.
+    ||| That is the whole of what this row adds over `Does (ControllerOf
+    ||| n) "Sacrifice" (Move …)`, which has to write a second mention in
+    ||| the object slot and so gates a pronoun that refuses wherever the
+    ||| enclosing ability announced a permanent of its own (Basalt
+    ||| Golem's blocked-by trigger, Goblin Ski Patrol's pump). Measured
+    ||| 2026-08-27: 16 supported faces write "[possessor]'s controller
+    ||| sacrifices it", and in all 16 the pronoun is the possessor.
+    ||| It announces the controller, because the lines that follow read
+    ||| that player back ("… sacrifices it. That player may search …",
+    ||| Arcum Dagsson), and it stamps and re-zones the patient exactly as
+    ||| the labeled move does.
+    ||| -- spelling: "[n]'s controller sacrifices it".
+    ControllerSacrifices : (n : Noun bs Object) ->
+                           {auto 0 one : nounPlur n = OneOf} ->
+                           {auto 0 zn : OnBattlefield (nounZone n)} -> Effect bs
     Pay : (who : Noun bs Player) -> (c : Cost (nomIntro who)) ->
           {auto 0 pb : Payable c} ->
           {auto 0 ag : PayAgrees who c} -> Effect bs
@@ -1616,6 +1706,8 @@ mutual
   public export
   heldUntilOk : {0 bs : Bindings} -> Effect bs -> Bool
   heldUntilOk (DealDamage _ _ _) = False
+  heldUntilOk (DealDamageOwn _ _ _) = False
+  heldUntilOk (ControllerSacrifices _) = False
   heldUntilOk (DoesntUntapNext _ _) = False
   heldUntilOk (SkipsNext _ _ _) = False
   heldUntilOk (ExtraTurn _ _) = False
@@ -1711,6 +1803,8 @@ mutual
   public export
   reflexEncloseUse : {0 bs : Bindings} -> Effect bs -> EncloseUse
   reflexEncloseUse (DealDamage _ _ _) = EncAgentless
+  reflexEncloseUse (DealDamageOwn _ _ _) = EncAgentless
+  reflexEncloseUse (ControllerSacrifices _) = EncReflexive
   reflexEncloseUse (DoesntUntapNext _ _) = EncAgentless
   reflexEncloseUse (SkipsNext _ _ _) = EncNotYetTaken
   reflexEncloseUse (ExtraTurn _ _) = EncNotYetTaken
@@ -1826,6 +1920,8 @@ mutual
   thisWayOutcomeOk (Distribute _ _ _) = True
   thisWayOutcomeOk (Fights _ _) = True
   thisWayOutcomeOk (SetStatus _ _) = True
+  thisWayOutcomeOk (DealDamageOwn _ _ _) = True
+  thisWayOutcomeOk (ControllerSacrifices _) = True
   thisWayOutcomeOk (GetsCounters _ _ _) = True
   thisWayOutcomeOk (GetsCountersOfThoseKinds _ _) = True
   thisWayOutcomeOk (LosesCounters _ _ _) = True
@@ -1917,6 +2013,8 @@ mutual
   public export
   costActionOk : {0 bs : Bindings} -> Effect bs -> Bool
   costActionOk (DealDamage src _ _) = costNounOk src
+  costActionOk (DealDamageOwn src _ _) = costNounOk src
+  costActionOk (ControllerSacrifices n) = costNounOk n
   costActionOk (DoesntUntapNext n _) = costNounOk n
   costActionOk (SkipsNext _ _ _) = False
   costActionOk (ExtraTurn who _) = costNounOk who
@@ -2032,6 +2130,8 @@ mutual
   public export
   effEq : {0 bs : Bindings} -> Effect bs -> Effect bs -> Bool
   effEq (DealDamage _ _ _) _ = False
+  effEq (DealDamageOwn _ _ _) _ = False
+  effEq (ControllerSacrifices _) _ = False
   effEq (DoesntUntapNext n s) (DoesntUntapNext m t) = nounEqRef n m && boundEq s t
   effEq (DoesntUntapNext _ _) _ = False
   effEq (SkipsNext w p c) (SkipsNext x q d) =
@@ -2166,6 +2266,13 @@ mutual
   public export
   effIntro : {bs : Bindings} -> Effect bs -> Bindings
   effIntro (DealDamage src amt to) = outcomeB DamageDealt :: nomIntro to
+  effIntro (DealDamageOwn src c to) = outcomeB DamageDealt :: nomIntro to
+  -- the controller is announced, and the patient is stamped and re-zoned
+  -- by the act that took it [CR#701.21a] -- the labeled move's own
+  -- answer, written out because the agent is derived rather than given.
+  effIntro (ControllerSacrifices n) =
+    MkBinding TheD Player OneOf PlayerP
+      :: moveIntro (Just "Sacrifice") n (Just Graveyard)
   effIntro (Fights a b) = nomIntro b
   effIntro (SetStatus _ n) = nomIntro n
   effIntro (DoesntUntapNext n steps) = amtDelta steps ++ nomIntro n
@@ -2292,6 +2399,8 @@ mutual
   public export
   preIntro : {bs : Bindings} -> Effect bs -> Bindings
   preIntro (DealDamage src amt to) = nomIntro to
+  preIntro (DealDamageOwn src c to) = nomIntro to
+  preIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
   preIntro (Distribute v amt among) = nomIntro among
   preIntro (Fights a b) = nomIntro b
   preIntro (SetStatus _ n) = nomIntro n
@@ -2426,6 +2535,8 @@ mutual
   public export
   annIntro : {bs : Bindings} -> Effect bs -> Bindings
   annIntro (DealDamage src amt to) = nomIntro to
+  annIntro (DealDamageOwn src c to) = nomIntro to
+  annIntro (ControllerSacrifices n) = MkBinding TheD Player OneOf PlayerP :: selfSubjIntro n
   annIntro (Distribute v amt among) = nomIntro among
   annIntro (Fights a b) = nomIntro b
   annIntro (SetStatus _ n) = nomIntro n
@@ -2562,6 +2673,8 @@ mutual
   public export
   deedDelta : {bs : Bindings} -> Effect bs -> List Binding
   deedDelta (DealDamage src amt to) = [outcomeB DamageDealt]
+  deedDelta (DealDamageOwn src c to) = [outcomeB DamageDealt]
+  deedDelta (ControllerSacrifices _) = []
   deedDelta (Distribute (DividedDamage _) amt among) = [outcomeB DamageDealt]
   deedDelta (Distribute (DistributedCounters _) amt among) = []
   deedDelta (Fights a b) = []
@@ -2981,9 +3094,17 @@ mutual
   ||| granting an object another ability that modifies how that object is
   ||| played or cast functions only on the stack.
   grantSubjectOk : {bs : Bindings} -> AbilityAt bs -> Noun bs Object -> Bool
-  grantSubjectOk ab n =
-    if onStackZone (nounZone n)
-      then regimeMatches (abRegime ab) (nounRegime n)
+  grantSubjectOk ab n = grantSubjectFits (nounZone n) (nounRegime n) ab
+
+  ||| `grantSubjectOk` asked of the two facts it reads off the subject,
+  ||| so a coordination whose parts are typed in a LATER context than
+  ||| its subject can still ask it. Same rule, same two lines.
+  public export
+  grantSubjectFits : {0 bs : Bindings} -> Maybe Zone -> Maybe StackRegime ->
+                     AbilityAt bs -> Bool
+  grantSubjectFits zn reg ab =
+    if onStackZone zn
+      then regimeMatches (abRegime ab) reg
       else not (castingOnly (abRegime ab))
 
   public export
@@ -3043,6 +3164,65 @@ mutual
       Nil : StaticParts Z bs
       (::) : (se : StaticEffect bs) -> {auto 0 nc : NotCoord se} ->
              StaticParts n (staticIntro se) -> StaticParts (S n) bs
+
+  namespace Shared
+    ||| One statement's VERB PHRASE with its subject left out: what a
+    ||| shared-subject coordination coordinates. Each arm is the slot
+    ||| list of the `StaticEffect` row that spells it, minus the subject
+    ||| the coordination writes once -- so no arm names a referent, and
+    ||| the elided subject of English's second conjunct is elided here
+    ||| too rather than pronominalised.
+    ||| Two arms, which are the two the corpus coordinates: the P/T
+    ||| shift (`Gets`) and the ability grant (`Gains`, which spells both
+    ||| "gains" and "has"). The vocabulary is OPEN in the same sense
+    ||| `VerbLabel` is -- an arm is a row here and a clause in `vpOk`,
+    ||| and adding one obliges nothing else -- and the statements the
+    ||| corpus coordinates by writing the subject twice, or by reading it
+    ||| back, keep writing `AndAlso`.
+    public export
+    data SubjectVP : Bindings -> Type where
+      ||| `Gets`' slots: "… gets +4/+4 …".
+      VPGets : (pow : PtShift bs) -> (tou : PtShift (shiftIntro pow)) ->
+               SubjectVP bs
+      ||| `Gains`' slot: "… and gains trample", "… and has flying".
+      VPGains : (ab : AbilityAt bs) -> SubjectVP bs
+
+    ||| The parts, threaded left to right [CR#608.2c] on `StaticParts`'
+    ||| model: each typed in the previous one's output.
+    public export
+    data SubjectVPs : Nat -> Bindings -> Type where
+      Nil : SubjectVPs Z bs
+      (::) : (vp : SubjectVP bs) -> SubjectVPs n (vpIntro vp) ->
+             SubjectVPs (S n) bs
+
+  ||| What one verb phrase announces: its own amounts, and nothing about
+  ||| the subject -- which the coordination announced once, before any
+  ||| part was typed.
+  public export
+  vpIntro : {bs : Bindings} -> SubjectVP bs -> Bindings
+  vpIntro (VPGets pow tou) = shiftDelta tou ++ shiftDelta pow ++ bs
+  vpIntro (VPGains _) = bs
+
+  public export
+  vpsIntro : {0 k : Nat} -> {bs : Bindings} -> SubjectVPs k bs -> Bindings
+  vpsIntro [] = bs
+  vpsIntro (vp :: rest) = vpsIntro rest
+
+  ||| One part's own obligation, asked of the SHARED subject's two
+  ||| facts: `Gets` wants a battlefield subject, `Gains` wants a subject
+  ||| the ability may be granted to [CR#113.6e] and an ability that may
+  ||| be granted at all.
+  public export
+  vpOk : {0 bs : Bindings} -> Maybe Zone -> Maybe StackRegime ->
+         SubjectVP bs -> Bool
+  vpOk zn reg (VPGets _ _) = zoneFits zn (Just Battlefield)
+  vpOk zn reg (VPGains ab) = grantSubjectFits zn reg ab && grantableAb ab
+
+  public export
+  vpsOk : {0 k : Nat} -> {0 bs : Bindings} -> Maybe Zone ->
+          Maybe StackRegime -> SubjectVPs k bs -> Bool
+  vpsOk zn reg [] = True
+  vpsOk zn reg (vp :: rest) = vpOk zn reg vp && vpsOk zn reg rest
 
   namespace Paid
     public export

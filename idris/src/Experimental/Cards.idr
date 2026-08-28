@@ -119,9 +119,14 @@ gabrielAngelfire : Effect []
 gabrielAngelfire =
   Macros.gains Macros.thisCreature (Macros.keyword "Flying") (Just Macros.untilYourNextUpkeep)
 
+||| Bond of Revival -- "Return target creature card from your graveyard to
+||| the battlefield. It gains haste until your next turn." The move is
+||| LABELED, so the pronoun the second sentence writes is read at the
+||| clause that produced its referent rather than across every singular
+||| object mention.
 bondOfRevival : Effect []
-bondOfRevival = Sequentially [Macros.move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])) Macros.battlefieldZ,
-                              Macros.gainsHaste It (Just Macros.untilYourNextTurn)]
+bondOfRevival = Sequentially [Macros.returnToBattlefield (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)])),
+                              Macros.gainsHaste (ItVerbed "Return") (Just Macros.untilYourNextTurn)]
 
 gracefulReprieve : Effect []
 gracefulReprieve = Macros.delayedWithin (Dies (Macros.target Macros.creature))
@@ -8766,16 +8771,19 @@ ghorClanRampager =
   AbilityWord Bloodrush
     (Macros.activated (Compound [Mana [Macros.pip Red, Macros.pip Green],
                           Do (Macros.discards You This)])
-                      (Sequentially
-                  [Macros.gets (Macros.target (And [Macros.creature, Attacking]))
-                               (PtUp (Lit 4)) (PtUp (Lit 4)) (Just Macros.untilEndOfTurn),
-                   -- the elided coordinated subject, read at the permanent
-                   -- carrier: trample modifies an attacking creature's combat
-                   -- damage [CR#702.19a] and only a creature attacks
-                   -- [CR#506.3], so the card the discard cost put in the
-                   -- graveyard is not a candidate.
-                   Macros.gains Macros.itAsPermanent
-                                (Macros.keyword "Trample") (Just Macros.untilEndOfTurn)]))
+                      -- the second verb phrase's subject is ELIDED, not
+                      -- pronominalised: "gets +4/+4 and gains trample" is one
+                      -- statement of one subject, so the coordination writes
+                      -- that subject once and nothing here reads anything.
+                      -- The carrier-scoped pronoun this line used to write
+                      -- (`itAsPermanent`, to keep the card the discard cost
+                      -- put in the graveyard out of the count) was working
+                      -- around the missing form.
+                      (Macros.sharedSubject
+                         (Macros.target (And [Macros.creature, Attacking]))
+                         [ VPGets (PtUp (Lit 4)) (PtUp (Lit 4))
+                         , VPGains (Macros.keyword "Trample") ]
+                         (Just Macros.untilEndOfTurn)))
 
 
 ||| Twinshot Sniper, whole card -- "Reach / When this creature enters, it
@@ -12320,3 +12328,88 @@ nongreenSpellsOrAbilities =
   Joined (And [Macros.spell, Not (ColorIs Green)])
          (And [ AbilityHead AnyOnStack
               , AbilityOf (Macros.a (And [Macros.source, Not (ColorIs Green)])) ])
+
+
+-- ---------------------------------------------------------------------
+-- Counted anaphora narrowings, round 1: the de-pronominalization
+-- templates and the producer-label extensions.
+-- ---------------------------------------------------------------------
+
+||| Aim High, whole card -- "Untap target creature. It gets +2/+2 and gains
+||| reach until end of turn." Two of the round's rows on one card: the
+||| untap is a LABELED action, so the pronoun that follows it is read at
+||| the label rather than across every singular object mention
+||| [CR#701.26b], and the sentence it heads is a shared-subject
+||| coordination whose second verb phrase writes no subject at all.
+public export
+aimHigh : Card
+aimHigh =
+  Macros.card "Aim High" (Just [Macros.generic 1, Macros.pip Green]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.untap (Macros.target Macros.creature)
+                  , Macros.sharedSubject (ItVerbed "Untap")
+                      [ VPGets (PtUp (Lit 2)) (PtUp (Lit 2))
+                      , VPGains (Macros.keyword "Reach") ]
+                      (Just Macros.untilEndOfTurn) ]) ]
+       Nothing
+
+||| Hijack, whole card -- "Gain control of target artifact or creature
+||| until end of turn. Untap it. It gains haste until end of turn." The
+||| control change stamps its own patient, so "untap it" is read at the
+||| clause that gained control of it; the untap then re-stamps the same
+||| mention, and the third sentence reads it at THAT label. 19 supported
+||| faces write the pair (re-measured 2026-08-27).
+public export
+hijack : Card
+hijack =
+  Macros.card "Hijack" (Just [Macros.generic 1, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ Macros.gainControl (Macros.target (Or [Macros.artifact, Macros.creature]))
+                                       (Just Macros.untilEndOfTurn)
+                  , Macros.untap (ItVerbed "GainControl")
+                  , Macros.gainsHaste (ItVerbed "Untap") (Just Macros.untilEndOfTurn) ]) ]
+       Nothing
+
+||| Aggressive Instinct, whole card -- "Target creature you control deals
+||| damage equal to its power to target creature you don't control." The
+||| "its" is the DAMAGE SOURCE [CR#120.1], which is the clause's own
+||| subject, so the row supplies it from its own earlier argument and no
+||| pronoun is read. 275 supported faces write the family, all of them
+||| source-bound.
+public export
+aggressiveInstinct : Card
+aggressiveInstinct =
+  Macros.card "Aggressive Instinct" (Just [Macros.generic 1, Macros.pip Green]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (DealDamageOwn (Macros.target Macros.creatureYouControl) Power
+                              (Macros.target Macros.creatureYouDontControl)) ]
+       Nothing
+
+||| Arcum Dagsson's sacrifice sentence -- "Target artifact creature's
+||| controller sacrifices it." The possessive subject and the pronoun are
+||| ONE referent by [CR#701.21a]'s own definition of the act, so the
+||| template writes the permanent once and neither is a read. The
+||| ability's second sentence ("That player may search their library for a
+||| noncreature artifact card, put it onto the battlefield, then shuffle")
+||| wants a library search whose searcher is a mention rather than "you",
+||| which `searchLibraryFor` does not spell.
+public export
+arcumDagssonSacrifice : Effect []
+arcumDagssonSacrifice =
+  ControllerSacrifices (Macros.target (And [Macros.artifact, Macros.creature]))
+
+||| Harried Dronesmith's token line -- "create a 1/1 colorless Thopter
+||| artifact creature token with flying. It gains haste until end of
+||| turn." The pronoun is read at the ORIGIN the create clause wrote onto
+||| its own mention [CR#111.1], not across every singular object. The
+||| card's third sentence schedules a sacrifice at a named future step.
+public export
+harriedDronesmithToken : Effect []
+harriedDronesmithToken =
+  Sequentially [ Macros.create (Lit 1)
+                   (MkToken (Just (Lit 1 ** Lit 1)) []
+                            (MkTypeLine [creatureType "Thopter"] [Artifact, Creature])
+                            [Macros.keyword "Flying"] Nothing)
+               , Macros.gainsHaste Macros.itAsToken (Just Macros.untilEndOfTurn) ]

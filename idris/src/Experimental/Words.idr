@@ -1052,6 +1052,33 @@ verbFacts =
   -- a zone to find the patient in, and no destination.
   , MkVerbFacts "Tap"         (Just "tapped")    (Just Object)
                               (Just Battlefield) Nothing
+  -- [CR#701.26b] rotates a PERMANENT back upright and leaves it where
+  -- it is: `Tap`'s row read the other way, and the participle is that
+  -- row's too. It is what "Untap target creature. It gains haste until
+  -- end of turn" reads back -- 99 supported faces, every one of them
+  -- naming the permanent the untap acted on.
+  , MkVerbFacts "Untap"       (Just "untapped")  (Just Object)
+                              (Just Battlefield) Nothing
+  -- "Return" is no [CR#701] keyword action, and stands here on "Put"'s
+  -- ground: [CR#701.1] leaves an unkeyworded verb its standard English
+  -- meaning and the body says the rest. Both ends are the clause's --
+  -- [CR#400.1]'s zones are what a return line names on either side --
+  -- so the row states neither, and the participle is absent for "Put"'s
+  -- reason: "the returned card" would have to name the destination too.
+  -- What the label buys is the stamp, which "Return target creature card
+  -- from your graveyard to the battlefield. It gains haste" reads back
+  -- (93 supported faces, all producer-bound).
+  , MkVerbFacts "Return"      Nothing            (Just Object)
+                              Nothing            Nothing
+  -- "Gain control" is no keyword action either, and moves nothing:
+  -- [CR#613.1b] applies a control change in layer 2 and [CR#110.2] makes
+  -- the controller a property of the permanent, which stays on the
+  -- battlefield throughout. So the patient is found there and left
+  -- there, and no participle: "the controlled creature" is what no
+  -- printed line spells. The stamp is read by "Gain control of target
+  -- creature until end of turn. Untap it" (19 supported faces).
+  , MkVerbFacts "GainControl" Nothing            (Just Object)
+                              (Just Battlefield) Nothing
   -- "Put" is no [CR#701] keyword action, and under labels that is
   -- unremarkable: a label needs no rules entry of its own, because its
   -- body speaks for it [CR#701.1]. Both ends are the clause's, so the
@@ -1888,6 +1915,24 @@ payloadProv TurnRefP = Nothing
 payloadProv AbilityP = Nothing
 payloadProv (JoinP l r) = maybe (payloadProv r) Just (payloadProv l)
 
+||| The ORIGIN a payload records -- what made the referent -- read like
+||| `payloadProv`. Only an object mention carries one, and only the two
+||| clauses that make an object write it: a create clause [CR#111.1] and
+||| a copy clause. A join reports its object half's, on `payloadZone`'s
+||| model.
+public export
+payloadOrig : Payload k -> Maybe Origin
+payloadOrig (ObjectP _ _ _ og) = og
+payloadOrig PlayerP = Nothing
+payloadOrig ChosenPlayerP = Nothing
+payloadOrig QualityP = Nothing
+payloadOrig (OutcomeP _) = Nothing
+payloadOrig GapP = Nothing
+payloadOrig LetterP = Nothing
+payloadOrig TurnRefP = Nothing
+payloadOrig AbilityP = Nothing
+payloadOrig (JoinP l r) = maybe (payloadOrig r) Just (payloadOrig l)
+
 ||| An `It`/`Them` anaphor is of kind `Object`, and `kindLte` is what
 ||| lets it land on a JOINED antecedent: "any target ... that permanent
 ||| or player" resolves `Object` against `Object \/ Player`.
@@ -2307,6 +2352,50 @@ tyOfVerbedThem : VerbLabel -> Bindings -> Maybe CardType
 tyOfVerbedThem v [] = Nothing
 tyOfVerbedThem v (b :: bs) =
   if themVerbedReaches v b then bindingTy b else tyOfVerbedThem v bs
+
+||| `itReaches` narrowed to the mentions a CREATE clause MADE. Where
+||| `itVerbedReaches` narrows by the label a keyword action left, this
+||| narrows by the origin the create clause already wrote onto its own
+||| mention: [CR#111.1] has an effect put a token onto the battlefield
+||| and [CR#111.2] makes the creating player its controller, so "create
+||| a Clue token. It's an artifact with …" names the thing that clause
+||| made and not the permanent the sentence before it named.
+|||
+||| It is the object-side twin of `countTokenSpecs`, and the pair is the
+||| two readings of one clause: that counter runs over the DEFINITION of
+||| characteristics [CR#111.3] a create clause wrote, for "those tokens"
+||| to name, where this runs over the singular OBJECT it made. The
+||| plurality is why they part -- a definition is one whether it made one
+||| token or six -- so this asks `itReaches OneOf` as every singular
+||| pronoun does.
+public export
+itTokenReaches : Binding -> Bool
+itTokenReaches b = itReaches OneOf b && isTokenOrigin (payloadOrig b.payload)
+
+||| `countOnes Object` over the mentions a create clause made.
+public export
+countItToken : Bindings -> Nat
+countItToken [] = Z
+countItToken (b :: bs) =
+  if itTokenReaches b then S (countItToken bs) else countItToken bs
+
+public export
+provOfItToken : Bindings -> Maybe Stamp
+provOfItToken [] = Nothing
+provOfItToken (b :: bs) =
+  if itTokenReaches b then payloadProv b.payload else provOfItToken bs
+
+public export
+zoneOfItToken : Bindings -> Maybe Zone
+zoneOfItToken [] = Nothing
+zoneOfItToken (b :: bs) =
+  if itTokenReaches b then bindingZone b else zoneOfItToken bs
+
+public export
+tyOfItToken : Bindings -> Maybe CardType
+tyOfItToken [] = Nothing
+tyOfItToken (b :: bs) =
+  if itTokenReaches b then bindingTy b else tyOfItToken bs
 
 ||| What a type-naming TEST leaves on the mention it tested. [CR#608.2c]
 ||| has an effect's instructions followed in order, so a test the text

@@ -1911,6 +1911,27 @@ mutual
     ||| -- spelling: "it", exactly as `It` spells.
     ItVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
                {auto 0 ok : countVerbedIt v bs = 1} -> Noun bs Object
+    ||| "it", read at the clause that MADE its referent. `ItVerbed`
+    ||| narrows by the label a keyword action left on something the text
+    ||| already had; this narrows by the ORIGIN a create clause wrote on
+    ||| the mention it minted, which is a fact about where the referent
+    ||| came from rather than about what was done to it. "Create a Clue
+    ||| token. It's an artifact with '{2}, Sacrifice this token: Draw a
+    ||| card.'" reads the token and not the permanent whose ability
+    ||| created it.
+    ||| No label is owed, because a create clause names no keyword
+    ||| action: [CR#111.1] has the effect put a token onto the
+    ||| battlefield and [CR#111.2] makes the creating player its
+    ||| controller, and the create clause already records that origin on
+    ||| its own mention.
+    ||| The gate is `It`'s, narrowed: counted uniqueness over a smaller
+    ||| candidate set, never a preference among a larger one, so two
+    ||| tokens two clauses made still refuse. It is the OBJECT reading of
+    ||| a create clause, where `TokenAsThose` is the reading of the
+    ||| DEFINITION [CR#111.3] the same clause wrote; the two are gated on
+    ||| different counts for that reason and do not compose.
+    ||| -- spelling: "it", exactly as `It` spells.
+    ItToken : {auto 0 ok : countItToken bs = 1} -> Noun bs Object
     They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
     Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
     ||| "them", read at the verb that STAMPED its referents rather than
@@ -1995,6 +2016,7 @@ mutual
   nounEqRef It _ = False
   nounEqRef (ItAt _) _ = False
   nounEqRef (ItVerbed _) _ = False
+  nounEqRef (ItToken) _ = False
   nounEqRef They They = True
   nounEqRef They _ = False
   nounEqRef Them _ = False
@@ -2088,6 +2110,7 @@ mutual
   nounDelta It = []
   nounDelta (ItAt _) = []
   nounDelta (ItVerbed _) = []
+  nounDelta ItToken = []
   nounDelta They = []
   nounDelta Them = []
   nounDelta (ThemVerbed _) = []
@@ -2989,6 +3012,7 @@ mutual
   anchorPhrase It = True
   anchorPhrase (ItAt _) = True
   anchorPhrase (ItVerbed _) = True
+  anchorPhrase ItToken = True
   anchorPhrase They = True
   anchorPhrase Them = True
   anchorPhrase (ThemVerbed _) = True
@@ -3045,6 +3069,7 @@ mutual
   choosable It = False
   choosable (ItAt _) = False
   choosable (ItVerbed _) = False
+  choosable ItToken = False
   choosable They = False
   choosable Them = False
   choosable (ThemVerbed _) = False
@@ -3103,6 +3128,7 @@ mutual
   groupMention It = False
   groupMention (ItAt _) = False
   groupMention (ItVerbed _) = False
+  groupMention ItToken = False
   groupMention They = False
   groupMention (That _) = False
   groupMention (ThatHalf _) = False
@@ -3731,6 +3757,7 @@ mutual
   remarkTest It = Just (itReaches OneOf)
   remarkTest (ItAt sl) = Just (itAtReaches sl)
   remarkTest (ItVerbed v) = Just (itVerbedReaches v)
+  remarkTest ItToken = Just itTokenReaches
   remarkTest _ = Nothing
 
   ||| ...and which re-mark a whole condition licenses: the test its
@@ -3838,6 +3865,7 @@ mutual
   costNounOk It = True
   costNounOk (ItAt _) = True
   costNounOk (ItVerbed _) = True
+  costNounOk ItToken = True
   costNounOk They = True
   costNounOk Them = True
   costNounOk (ThemVerbed _) = True
@@ -3875,6 +3903,7 @@ mutual
   nounIsYou It = False
   nounIsYou (ItAt _) = False
   nounIsYou (ItVerbed _) = False
+  nounIsYou ItToken = False
   nounIsYou They = False
   nounIsYou Them = False
   nounIsYou (ThemVerbed _) = False
@@ -3912,6 +3941,7 @@ mutual
   nounTargeted It = False
   nounTargeted (ItAt _) = False
   nounTargeted (ItVerbed _) = False
+  nounTargeted ItToken = False
   nounTargeted They = False
   nounTargeted Them = False
   nounTargeted (ThemVerbed _) = False
@@ -3939,6 +3969,7 @@ mutual
   counterMemoryOk It = not (stampMoves (provOfIt bs))
   counterMemoryOk (ItAt sl) = not (stampMoves (provOfItAt sl bs))
   counterMemoryOk (ItVerbed v) = not (stampMoves (provOfVerbedIt v bs))
+  counterMemoryOk ItToken = not (stampMoves (provOfItToken bs))
   counterMemoryOk Them = not (stampMoves (provOfThem bs))
   counterMemoryOk (ThemVerbed v) = not (stampMoves (provOfVerbedThem v bs))
   -- a participle read names a referent some labeled action MOVED, so
@@ -3960,6 +3991,7 @@ mutual
   moveDestOk It = False
   moveDestOk (ItAt _) = False
   moveDestOk (ItVerbed _) = False
+  moveDestOk ItToken = False
   moveDestOk Them = False
   moveDestOk (ThemVerbed _) = False
   moveDestOk _ = True
@@ -4060,6 +4092,13 @@ mutual
     if itVerbedReaches v b then setZone p z b :: bs
                            else b :: setZoneVerbedIt v p z bs
 
+  public export
+  setZoneItToken : Maybe VerbLabel -> Maybe Zone -> Bindings -> Bindings
+  setZoneItToken p z [] = []
+  setZoneItToken p z (b :: bs) =
+    if itTokenReaches b then setZone p z b :: bs
+                        else b :: setZoneItToken p z bs
+
   ||| A union half is re-zoned as the whole mention is: the pair is one
   ||| binding, and moving what one arm names moves the mention.
   public export
@@ -4144,6 +4183,7 @@ mutual
   moveIntro p It z = setZoneIt p z bs
   moveIntro p (ItAt sl) z = setZoneItAt sl p z bs
   moveIntro p (ItVerbed v) z = setZoneVerbedIt v p z bs
+  moveIntro p ItToken z = setZoneItToken p z bs
   moveIntro p Them z = setZoneThem p z bs
   moveIntro p (ThemVerbed v) z = setZoneVerbedThem v p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
@@ -4203,6 +4243,7 @@ mutual
   nounProv It = provOfIt bs
   nounProv (ItAt sl) = provOfItAt sl bs
   nounProv (ItVerbed v) = provOfVerbedIt v bs
+  nounProv ItToken = provOfItToken bs
   nounProv Them = provOfThem bs
   nounProv (ThemVerbed v) = provOfVerbedThem v bs
   nounProv (That w) = provOfThat w bs
@@ -4241,6 +4282,7 @@ mutual
   nounZone It = zoneOfIt bs
   nounZone (ItAt sl) = zoneOfItAt sl bs
   nounZone (ItVerbed v) = zoneOfVerbedIt v bs
+  nounZone ItToken = zoneOfItToken bs
   nounZone They = Nothing
   nounZone Them = zoneOfThem bs
   nounZone (ThemVerbed v) = zoneOfVerbedThem v bs
@@ -4280,6 +4322,7 @@ mutual
   nounTy It = tyOfIt bs
   nounTy (ItAt sl) = tyOfItAt sl bs
   nounTy (ItVerbed v) = tyOfVerbedIt v bs
+  nounTy ItToken = tyOfItToken bs
   nounTy They = Nothing
   nounTy Them = tyOfThem bs
   nounTy (ThemVerbed v) = tyOfVerbedThem v bs
@@ -4340,6 +4383,7 @@ mutual
   nounPlur It = OneOf
   nounPlur (ItAt _) = OneOf
   nounPlur (ItVerbed _) = OneOf
+  nounPlur ItToken = OneOf
   nounPlur They = OneOf
   nounPlur Them = ManyOf
   nounPlur (ThemVerbed _) = ManyOf
