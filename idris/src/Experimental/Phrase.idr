@@ -514,6 +514,21 @@ mutual
                      Predicate bs k
     IsAttached : (w : AttachWord) ->
                  {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
+    ||| "enchanted by two or more Auras", "enchanted by an Aura you
+    ||| control", "enchanted by other Auras": the attachment with its
+    ||| ATTACHERS described, where `IsAttached` asks only whether the
+    ||| permanent is attached to anything. [CR#303.4] writes the phrase in
+    ||| the rules' own words -- "other effects can limit what a permanent
+    ||| can be enchanted by" -- and [CR#701.3a] puts each attachment onto
+    ||| the permanent one at a time with no rule capping how many, so how
+    ||| MANY are attached is a real question the bare word cannot put.
+    ||| The count and every other narrowing ride the attachers' own
+    ||| determiner rather than a slot here, on `HappenedTo`'s policy: the
+    ||| complement is one noun and any richer narrowing is that noun's
+    ||| predicate.
+    ||| -- spelling: "[n] is enchanted by [by]".
+    AttachedBy : (w : AttachWord) -> (by : Noun bs Object) ->
+                 {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
     Permanent : Predicate bs Object
     ||| "a card", "one or more cards": the bare card head -- the word with
     ||| no zone written beside it. [CR#109.2] names "card" among the four
@@ -775,6 +790,7 @@ mutual
   seedZone (HasDesignation d) = designationSeedZone d
   seedZone (CoinCameUp _) = Nothing
   seedZone (IsAttached _) = Just Battlefield
+  seedZone (AttachedBy _ _) = Just Battlefield
   seedZone IsToken = Just Battlefield
   seedZone (HasStatus _) = Just Battlefield
   seedZone (HasCounters _) = Nothing
@@ -863,6 +879,7 @@ mutual
   seedType (Named _) = Nothing
   seedType (HasDesignation d) = designationSeedType d
   seedType (IsAttached _) = Nothing
+  seedType (AttachedBy _ _) = Nothing
   -- [CR#115.1a,115.1c,115.1d] give the word to a spell and to an
   -- ability, neither of which is a card type the described thing has.
   seedType (Targets _ _) = Nothing
@@ -949,6 +966,7 @@ mutual
   hasHead (HasDesignation _) = False
   hasHead (CoinCameUp _) = False
   hasHead (IsAttached _) = False
+  hasHead (AttachedBy _ _) = False
   hasHead Permanent = True
   hasHead IsCard = True
   hasHead IsToken = True
@@ -1159,6 +1177,8 @@ mutual
   predEq (CoinCameUp _) _ = False
   predEq (IsAttached a) (IsAttached b) = a == b
   predEq (IsAttached _) _ = False
+  predEq (AttachedBy a x) (AttachedBy b y) = a == b && nounEqRef x y
+  predEq (AttachedBy _ _) _ = False
   predEq Permanent Permanent = True
   predEq Permanent _ = False
   predEq IsCard IsCard = True
@@ -1675,6 +1695,7 @@ mutual
   predSays (HasDesignation _) = True
   predSays (CoinCameUp _) = True
   predSays (IsAttached _) = True
+  predSays (AttachedBy _ _) = True
   predSays Permanent = True
   predSays IsCard = True
   predSays IsToken = True
@@ -1744,6 +1765,7 @@ mutual
   predNegFree (HasDesignation _) = True
   predNegFree (CoinCameUp _) = True
   predNegFree (IsAttached _) = True
+  predNegFree (AttachedBy _ _) = True
   predNegFree Permanent = True
   predNegFree IsCard = True
   predNegFree IsToken = True
@@ -2340,6 +2362,7 @@ mutual
   predDelta (HasDesignation _) = []
   predDelta (CoinCameUp _) = []
   predDelta (IsAttached _) = []
+  predDelta (AttachedBy _ by) = nounDelta by
   predDelta (InZone z) = zoneDelta z
   predDelta (And ps) = predDeltaAll ps
   predDelta (Not p) = []

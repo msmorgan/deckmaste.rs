@@ -44,6 +44,20 @@ mutual
                   {auto 0 sg : nounPlur m = OneOf} ->
                   {auto 0 at : Attackable m} -> AttackDefender bs
 
+  ||| Whom a damage-DEALING event names, if it names anyone. The header
+  ||| may stop at the dealing ("Whenever a creature deals damage") or go
+  ||| on to say what took it ("... to an opponent", "... to a creature").
+  ||| `AttackDefender`'s shape at the damage seat, and for its reason:
+  ||| [CR#120.1] has objects deal damage to battles, creatures,
+  ||| planeswalkers and players alike, so a written patient is
+  ||| kind-polymorphic under `DamageRecipient`, and an unwritten one
+  ||| carries no kind at all.
+  public export
+  data DamagePatient : Bindings -> Type where
+    NoPatient : DamagePatient bs
+    OnePatient : {k : Kind} -> (m : Noun bs k) ->
+                 {auto 0 rk : DamageRecipient m} -> DamagePatient bs
+
   public export
   data BlockPartner : {0 bs : Bindings} -> Maybe (Noun bs Object) -> Type where
     NoPartner : BlockPartner Nothing
@@ -166,6 +180,14 @@ mutual
   defenderIntro : {bs : Bindings} -> AttackDefender bs -> Bindings
   defenderIntro NoDefender = bs
   defenderIntro (OneDefender m) = nomIntro m
+
+  ||| `defenderIntro`'s shape at the damage patient's seat: the patient is
+  ||| written after the source, so what it has announced when the clause
+  ||| ends is its own mention, and an unwritten one announces nothing.
+  public export
+  patientIntro : {bs : Bindings} -> DamagePatient bs -> Bindings
+  patientIntro NoPatient = bs
+  patientIntro (OnePatient m) = nomIntro m
 
   ||| What an event has announced by the time its second slot is named:
   ||| the acting player when the clause writes one, and nothing when the
@@ -309,6 +331,25 @@ mutual
                         (to : Noun (nomIntro n) k) ->
                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                         {auto 0 rk : DamageRecipient to} -> GameEvent bs
+    ||| "Whenever this creature deals damage to an opponent", "Whenever a
+    ||| source you control deals damage to you", "Whenever a creature
+    ||| deals damage": the damage read from the SOURCE's side, in combat
+    ||| or out of it. [CR#120.1] makes the object that dealt damage the
+    ||| SOURCE of that damage, which is why the dealer's side and the
+    ||| victim's side are two events rather than one under a role slot --
+    ||| the same reading that already put `DamageDealing` beside
+    ||| `DamageTaken` in the event names. This row is the prospective
+    ||| producer that name had none of.
+    ||| NOT a flag on `DealsCombatDamage`: that row's subject carries a
+    ||| battlefield gate because [CR#510.1] assigns combat damage from
+    ||| attacking and blocking creatures, while a source of damage in
+    ||| general need not be a permanent at all -- [CR#609.7a] counts a
+    ||| spell on the stack and a face-up object in the command zone among
+    ||| the things a player may choose as one. So the two differ in the
+    ||| subject's own gate.
+    ||| -- spelling: "[n] deals damage [to]".
+    DealsDamage : (n : Noun bs Object) ->
+                  (to : DamagePatient (nomIntro n)) -> GameEvent bs
     BeginningOf : (part : TurnPart) -> (whose : HeaderPossessor bs) ->
                   {auto 0 pu : PartTriggerable part whose} ->
                   {auto 0 td : TurnDeixis (possessorWord whose) bs} -> GameEvent bs
@@ -569,6 +610,7 @@ mutual
   eventName (Blocks _ _) = BlockDeclaration
   eventName (BecomesBlocked _ _) = BlockedDeclaration
   eventName (DealsCombatDamage _ _) = CombatDamage
+  eventName (DealsDamage _ _) = DamageDealing
   eventName (BeginningOf _ _) = PartBeginning
   eventName (Casts _ _) = SpellCast
   eventName (BecomesTarget _ _) = BecomesTarget
@@ -616,6 +658,8 @@ mutual
   eventIntro (BecomesBlocked n Nothing) = selfSubjIntro n
   eventIntro (BecomesBlocked _ (Just by)) = selfSubjIntro by
   eventIntro (DealsCombatDamage n to) = selfSubjIntro to
+  eventIntro (DealsDamage n NoPatient) = selfSubjIntro n
+  eventIntro (DealsDamage _ (OnePatient m)) = selfSubjIntro m
   eventIntro (BeginningOf _ _) = bs
   eventIntro (Casts _ what) = selfSubjIntro what
   eventIntro (BecomesTarget _ by) = selfSubjIntro by
@@ -682,6 +726,8 @@ mutual
   eventAfter (BecomesBlocked n Nothing) = selfSubjIntro n
   eventAfter (BecomesBlocked _ (Just by)) = nomIntro by
   eventAfter (DealsCombatDamage n to) = outcomeB DamageDealt :: nomIntro to
+  eventAfter (DealsDamage n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
+  eventAfter (DealsDamage _ (OnePatient m)) = outcomeB DamageDealt :: nomIntro m
   eventAfter (Casts _ what) = nomIntro what
   -- both participants stand after it, on `Attacks`'s model: the tail
   -- reads back the targeter ("that spell's controller loses 5 life") and
@@ -738,6 +784,7 @@ mutual
   eventSubjectPlur (Blocks n _) = nounPlur n
   eventSubjectPlur (BecomesBlocked n _) = nounPlur n
   eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
+  eventSubjectPlur (DealsDamage n _) = nounPlur n
   eventSubjectPlur (BeginningOf _ _) = OneOf
   eventSubjectPlur (Casts _ what) = nounPlur what
   eventSubjectPlur (BecomesTarget n _) = nounPlur n

@@ -13024,3 +13024,97 @@ veilingOddityLine =
 public export
 whileScrying : Concurrent []
 whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing)
+
+||| Akki Lavarunner // Tok-Tok, Volcano Born, a flip card [CR#710.1],
+||| whole -- "Haste / Whenever this creature deals damage to an opponent,
+||| flip it." // "Protection from red / If a red source would deal damage
+||| to a player, it deals that much damage plus 1 to that player instead."
+||| The flip verb's SOURCE-SIDE event: the header watches damage this
+||| creature deals outside combat as well as in it, which `IsDealtDamage`
+||| reads from the wrong end and `DealsCombatDamage` narrows to
+||| [CR#510.1]'s assignment.
+public export
+akkiLavarunner : Card
+akkiLavarunner =
+  FlipCard
+    (MkFace "Akki Lavarunner" (Just [Macros.generic 3, Macros.pip Red]) []
+            (MkTypeLine [creatureType "Goblin", creatureType "Warrior"] [Creature])
+            [ Macros.keyword "Haste"
+            , Macros.triggered Whenever
+                (DealsDamage Macros.thisCreature (OnePatient Macros.anOpponent))
+                (SetStatus Flipped Macros.thisCreature) ]
+            (Macros.printedBox (Just (1, 1))))
+    (MkAltFace "Tok-Tok, Volcano Born" [Legendary]
+               (MkTypeLine [creatureType "Goblin", creatureType "Shaman"] [Creature])
+               [ Macros.keywordQuality "Protection" (ColorIs Red)
+               , Static (Scales AnyDamage
+                           (Macros.a (And [Macros.source, ColorIs Red]))
+                           (Macros.shieldingIt (Macros.a AnyPlayer))
+                           (Shifted ShiftUp (Lit 1)) Repeatedly) ]
+               (Macros.printedBox (Just (2, 2))))
+
+||| Bushi Tenderfoot // Kenzo the Hardhearted, a flip card [CR#710.1],
+||| whole -- "When a creature dealt damage by this creature this turn
+||| dies, flip this creature." // "Double strike; bushido 2."
+||| The flip verb's BY-SOURCE lookback: the header's subject is described
+||| by what happened TO it and by whom, which is the participial lookback
+||| with its agent in the complement -- the umbrella recorded this as a
+||| blocker and it writes as it stands.
+public export
+bushiTenderfoot : Card
+bushiTenderfoot =
+  FlipCard
+    (MkFace "Bushi Tenderfoot" (Just [Macros.pip White]) []
+            (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+            [ Macros.triggered When
+                (Dies (Macros.a (And [ Macros.creature
+                                     , HappenedTo DamageTaken ThisTurn
+                                         (Just (Involving Macros.thisCreature)) ])))
+                (SetStatus Flipped Macros.thisCreature) ]
+            (Macros.printedBox (Just (1, 1))))
+    (MkAltFace "Kenzo the Hardhearted" [Legendary]
+               (MkTypeLine [creatureType "Human", creatureType "Samurai"] [Creature])
+               [ Macros.keyword "DoubleStrike"
+               , Macros.keywordNumber "Bushido" (Lit 2) ]
+               (Macros.printedBox (Just (3, 4))))
+
+||| Frostwielder, whole -- "If a creature dealt damage by this creature
+||| this turn would die, exile it instead. / {T}: This creature deals 1
+||| damage to any target." The same participial subject on the
+||| INTERCEPTION side, which is why it rides here: one phrase, both
+||| frames.
+public export
+frostwielder : Card
+frostwielder =
+  Macros.card "Frostwielder"
+       (Just [Macros.generic 2, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Human", creatureType "Shaman"] [Creature])
+       [ Static (Intercepts
+                   (Dies (Macros.a (And [ Macros.creature
+                                        , HappenedTo DamageTaken ThisTurn
+                                            (Just (Involving Macros.thisCreature)) ])))
+                   [] (Macros.exile It) Repeatedly Nothing)
+       , Macros.activated TapSymbol
+           (DealDamage Macros.thisCreature (Lit 1) (Macros.target Macros.anyTarget)) ]
+       (Just (1, 2))
+
+||| Kitsune Mystic's flip trigger -- "At the beginning of the end step, if
+||| this creature is enchanted by two or more Auras, flip it." The COUNTED
+||| attachment: `IsAttached` asks only whether the permanent is attached,
+||| and this line asks by how many, which `AttachedBy` puts to the
+||| attachers' own determiner.
+||| The card is not whole: its alternative half is "{1}: Attach target
+||| Aura attached to a creature to another creature", whose target is
+||| described by what it is attached TO -- the reverse of every
+||| attachment phrase this vocabulary writes, which reads from the
+||| attachment's own side (`AttachHost`, `IsAttached`, `AttachedBy`).
+public export
+kitsuneMysticFlip : Ability
+kitsuneMysticFlip =
+  Macros.triggeredIf At
+    (BeginningOf EndStep NoPossessor)
+    (Matches Macros.thisCreature
+       (AttachedBy Enchanted
+          (CountedGroup (Macros.atLeast 2) Nothing
+             (HasSubtype (enchantmentType "Aura")))))
+    (SetStatus Flipped Macros.thisCreature)

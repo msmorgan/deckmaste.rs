@@ -267,8 +267,8 @@ interceptOk ChapterArrival = False
 -- opponent would mill one or more cards".
 interceptOk (VerbedAct _) = True
 -- [CR#614.1] replaces an event that WOULD happen, and damage a source
--- would deal is that event. No prospective row spells the dealer's side
--- today, so the cell is stated rather than reached.
+-- would deal is that event. `DealsDamage` is the prospective row that
+-- reaches this cell.
 interceptOk DamageDealing = True
 -- targets are chosen as the spell or ability is put on the stack
 -- [CR#115.1], so becoming one is a thing that would happen; no printed
