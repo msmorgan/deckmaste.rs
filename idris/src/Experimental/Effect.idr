@@ -353,7 +353,17 @@ mutual
       ||| model. `OncePerGame` is measured at zero here and admitted with
       ||| the rest of the word.
       ||| -- spelling: "the first time [ev] each turn, [repl] instead".
+      ||| The WINDOW slot: "If this creature would untap DURING YOUR UNTAP
+      ||| STEP, remove a +1/+1 counter from it instead" (Bewitching
+      ||| Leechcraft). [CR#614.1] has a replacement watch for a particular
+      ||| event that would happen, and a printed window narrows WHICH
+      ||| occurrences of it are watched -- the same narrowing a trigger
+      ||| header writes with the same words, so the seat takes
+      ||| `TriggerWindow` itself rather than a second window vocabulary,
+      ||| and `windowOk`'s refusals carry over unchanged (the bare turn
+      ||| included).
       Intercepts : (ev : GameEvent bs) -> (alts : List (GameEvent bs)) ->
+                   (window : Maybe TriggerWindow) ->
                    (repl : Effect (interceptCtx alts ev)) ->
                    (use : ReplUse) ->
                    (limit : Maybe UsageLimit) ->
@@ -689,7 +699,7 @@ mutual
   staticKind (SetsChosenQuality _ _) = TypeSet
   staticKind (LosesAllAbilities _) = AbilityLoss
   staticKind (GainsControl _ _) = ControlGrant
-  staticKind (Intercepts _ _ _ _ _) = Replacement
+  staticKind (Intercepts _ _ _ _ _ _) = Replacement
   staticKind (Prevents _ _ _ _ _) = Prevention
   staticKind (PreventsFrom _ _ _ _ _ _) = Prevention
   staticKind (CantPrevent _ _ _) = Prevention
@@ -751,7 +761,7 @@ mutual
   -- back through `ItVerbed "GainControl"` even where the ability's
   -- header announced a permanent of its own.
   staticIntro (GainsControl who what) = stampIntro (Just "GainControl") what
-  staticIntro (Intercepts ev alts repl use limit) = interceptCtx alts ev
+  staticIntro (Intercepts ev alts window repl use limit) = interceptCtx alts ev
   staticIntro (Prevents kind size scope by also) = byIntro by
   staticIntro (PreventsFrom kind src scope cut use also) = cutIntro cut
   staticIntro (CantPrevent kind scope by) = byIntro by
@@ -1897,7 +1907,13 @@ mutual
   -- do, so a declined arm leaves one offered action to inflect.
   reflexEncloseUse (May _ body Nothing _) = reflexEncloseUse body
   reflexEncloseUse (May _ _ _ _) = EncNotOneAction
-  reflexEncloseUse (OnlyIf _ _ _) = EncNotOneAction
+  -- [CR#603.12] asks whether the player took the action, and a postposed
+  -- condition gates whether the enclosure's ONE action happens rather
+  -- than adding a second one to abbreviate: "Then sacrifice it if it has
+  -- five or more bloodstain counters on it. When you do, ..." (Blood
+  -- Spatter Analysis) leaves exactly the question the pro-verb puts.
+  -- `May`'s unbranched offer passes through for the same reason.
+  reflexEncloseUse (OnlyIf e _ _) = reflexEncloseUse e
   reflexEncloseUse (If _ _ _) = EncNotOneAction
   reflexEncloseUse (Unless _ _ _) = EncNotOneAction
   reflexEncloseUse (Define _ _) = EncAgentless

@@ -3922,6 +3922,9 @@ data CounterKind : Type where
   ||| Font of Agonies' tally of life paid: the same ordinary marker
   ||| [CR#122.1].
   Blood : CounterKind
+  ||| Blood Spatter Analysis' tally of creatures that have died: the same
+  ||| ordinary marker [CR#122.1], counted by the ability that reads it.
+  Bloodstain : CounterKind
 
 public export
 counterScope : CounterKind -> Kind
@@ -3946,6 +3949,7 @@ counterScope Hour = Object
 counterScope Suspect = Object
 counterScope Luck = Object
 counterScope Blood = Object
+counterScope Bloodstain = Object
 
 public export
 Eq CounterKind where
@@ -3992,6 +3996,8 @@ Eq CounterKind where
   (==) Luck _ = False
   (==) Blood Blood = True
   (==) Blood _ = False
+  (==) Bloodstain Bloodstain = True
+  (==) Bloodstain _ = False
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where

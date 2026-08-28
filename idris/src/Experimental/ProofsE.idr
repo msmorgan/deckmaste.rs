@@ -311,7 +311,7 @@ badNonTokenCreationSubject OneToken impossible
 public export
 badSingularCounterBatchSize : Unspellable (StaticEffect []) (\ok =>
   Intercepts (CounterEvent CounterPut (Just Macros.plusOnePlusOne)
-                           (Macros.a Macros.creatureYouControl) OneCounter Nothing Nothing) []
+                           (Macros.a Macros.creatureYouControl) OneCounter Nothing Nothing) [] Nothing
              (PutCounters (Plus (ThatMuch {ok}) (Lit 1))
                           (PrintedKind Macros.plusOnePlusOne) It)
              Repeatedly Nothing)

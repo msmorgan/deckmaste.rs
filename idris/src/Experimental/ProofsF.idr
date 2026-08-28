@@ -393,7 +393,7 @@ badChapterJoin Oh impossible
 ||| the lore counter's placement [CR#714.2b].
 public export
 badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
-  Intercepts (ChapterMark [ChapterI]) [] Macros.drawACard Repeatedly Nothing {ok})
+  Intercepts (ChapterMark [ChapterI]) [] Nothing Macros.drawACard Repeatedly Nothing {ok})
 badChapterReplacement Oh impossible
 
 

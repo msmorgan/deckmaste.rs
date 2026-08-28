@@ -783,12 +783,12 @@ glacialChasmShield =
 
 miserysShadow : Ability
 miserysShadow =
-  Static (Intercepts (Dies (Macros.a (And [Macros.creature, ControlledBy (Macros.a Opponent)]))) []
+  Static (Intercepts (Dies (Macros.a (And [Macros.creature, ControlledBy (Macros.a Opponent)]))) [] Nothing
                      (Macros.exile It) Repeatedly Nothing)
 
 thoughtReflection : Ability
 thoughtReflection =
-  Static (Intercepts (Draws You) [] (Draw You (Lit 2)) Repeatedly Nothing)
+  Static (Intercepts (Draws You) [] Nothing (Draw You (Lit 2)) Repeatedly Nothing)
 
 jorKadeen : Ability
 jorKadeen =
@@ -1544,14 +1544,14 @@ bloodTyrant =
 
 theGoldenThrone : Ability
 theGoldenThrone =
-  Static (Intercepts (LosesGame You) []
+  Static (Intercepts (LosesGame You) [] Nothing
                      (Sequentially [Macros.exile Macros.thisArtifact,
                                     ChangeLife You (Set (Lit 1))])
                      Repeatedly Nothing)
 
 stunningReversal : Ability
 stunningReversal =
-  Spell (Continuously (Intercepts (LosesGame You) []
+  Spell (Continuously (Intercepts (LosesGame You) [] Nothing
                                   (Sequentially [Draw You (Lit 7),
                                                  ChangeLife You (Set (Lit 1))])
                                   NextTimeOnly Nothing)
@@ -1578,7 +1578,7 @@ exquisiteArchangel =
        (Just [Macros.generic 5, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [creatureType "Angel"] [Creature])
        [ Macros.keyword "Flying"
-       , Static (Intercepts (LosesGame You) []
+       , Static (Intercepts (LosesGame You) [] Nothing
                             (Sequentially [Macros.exile Macros.thisCreature,
                                            ChangeLife You (Set (PlayerStatOf StartingLifeTotal You))])
                             Repeatedly Nothing) ]
@@ -2718,7 +2718,7 @@ hardenedScales =
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
                    (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
-                                            (Macros.a Macros.creatureYouControl)) []
+                                            (Macros.a Macros.creatureYouControl)) [] Nothing
                    (PutCounters (Plus ThatMuch (Lit 1))
                                 (PrintedKind Macros.plusOnePlusOne) It)
                    Repeatedly Nothing) ]
@@ -2731,7 +2731,7 @@ branchingEvolution =
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
                    (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
-                                            (Macros.a Macros.creatureYouControl)) []
+                                            (Macros.a Macros.creatureYouControl)) [] Nothing
                    (PutCounters (Times 2 ThatMuch)
                                 (PrintedKind Macros.plusOnePlusOne) (That (TypeW Creature)))
                    Repeatedly Nothing) ]
@@ -2745,7 +2745,7 @@ corpsejackMenace : Ability
 corpsejackMenace =
   Static (Intercepts
             (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
-                                     (Macros.a Macros.creatureYouControl)) []
+                                     (Macros.a Macros.creatureYouControl)) [] Nothing
             (PutCounters (Times 2 ThatMuch) (PrintedKind Macros.plusOnePlusOne) It)
             Repeatedly Nothing)
 
@@ -2760,12 +2760,12 @@ doublingSeason =
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
                    (Macros.tokensCreatedByEffectUnder
-                      (CountedGroup (Macros.atLeast 1) Nothing IsToken) You) []
+                      (CountedGroup (Macros.atLeast 1) Nothing IsToken) You) [] Nothing
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly Nothing)
        , Static (Intercepts
                    (Macros.manyCountersPutByEffect
-                      (Macros.a (And [Permanent, ControlledBy You]))) []
+                      (Macros.a (And [Permanent, ControlledBy You]))) [] Nothing
                    (PutCountersOfThoseKinds (Times 2 ThatMuch) (That PermanentW))
                    Repeatedly Nothing) ]
        Nothing
@@ -2780,7 +2780,7 @@ docSamsonDistributive : Ability
 docSamsonDistributive =
   Static (Intercepts
             (Macros.manyBareCountersPutBy You
-               (Macros.a (And [Permanent, ControlledBy You]))) []
+               (Macros.a (And [Permanent, ControlledBy You]))) [] Nothing
             (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1)) (That PermanentW))
             Repeatedly Nothing)
 
@@ -2796,12 +2796,12 @@ windingConstrictor =
        [ Static (Intercepts
                    (Macros.manyBareCounterEvent CounterPut
                       (Macros.a (And [Or [Macros.artifact, Macros.creature],
-                                      ControlledBy You]))) []
+                                      ControlledBy You]))) [] Nothing
                    (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1))
                                             (That PermanentW))
                    Repeatedly Nothing)
        , Static (Intercepts
-                   (Macros.manyBareCounterEvent CounterPut You) []
+                   (Macros.manyBareCounterEvent CounterPut You) [] Nothing
                    (GetsCountersOfThoseKinds You (Plus ThatMuch (Lit 1)))
                    Repeatedly Nothing) ]
        (Just (2, 3))
@@ -3078,7 +3078,7 @@ divineVisitation =
        [ Static (Intercepts
                    (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) Nothing
                                                             (And [Macros.creature, IsToken]))
-                                              You) []
+                                              You) [] Nothing
                    (Macros.create GroupSize
                                   (MkToken (Just (Lit 4 ** Lit 4)) [White]
                                            (MkTypeLine [creatureType "Angel"] [Creature])
@@ -3094,7 +3094,7 @@ anointedProcession =
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
                    (Macros.tokensCreatedByEffectUnder (CountedGroup (Macros.atLeast 1) Nothing IsToken)
-                                                      You) []
+                                                      You) [] Nothing
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly Nothing) ]
        Nothing
@@ -3105,12 +3105,12 @@ primalVigor =
        (Just [Macros.generic 4, Macros.pip Green]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Intercepts
-                   (Macros.tokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)) []
+                   (Macros.tokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)) [] Nothing
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly Nothing)
        , Static (Intercepts
                    (Macros.manyCounterEvent CounterPut Macros.plusOnePlusOne
-                                            (Macros.a Macros.creature)) []
+                                            (Macros.a Macros.creature)) [] Nothing
                    (PutCounters (Times 2 ThatMuch)
                                 (PrintedKind Macros.plusOnePlusOne) (That (TypeW Creature)))
                    Repeatedly Nothing) ]
@@ -3123,7 +3123,7 @@ adrixAndNev =
        (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
        [ Macros.keywordCosting "Ward" (Mana [Macros.generic 2])
        , Static (Intercepts
-                   (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) Nothing IsToken) You) []
+                   (Macros.tokensCreatedUnder (CountedGroup (Macros.atLeast 1) Nothing IsToken) You) [] Nothing
                    (Create You (Times 2 GroupSize) TokenAsThose [])
                    Repeatedly Nothing) ]
        (Just (2, 2))
@@ -8459,7 +8459,7 @@ public export
 clergyOfTheHolyNimbus : Ability
 clergyOfTheHolyNimbus =
   Static (Intercepts (VerbedEvent Nothing "Destroy"
-                                  (Just Macros.thisCreature)) []
+                                  (Just Macros.thisCreature)) [] Nothing
                      (Regenerate It) Repeatedly Nothing)
 
 ||| Rampant Frogantua's second line: "This creature gets +10/+10 for each
@@ -11269,7 +11269,7 @@ moonlitMeditation =
        , Static (Intercepts
                    (TokensCreated (CountedGroup (Macros.atLeast 1) Nothing IsToken)
                                   Nothing (Just You) Nothing)
-                   []
+                   [] Nothing
                    (May (Just You)
                         (Create You GroupSize
                                 (TokenCopyOf (AttachHost Enchanted PermanentW) []) [])
@@ -12802,7 +12802,7 @@ containmentPriest =
        , Static (Intercepts
                    (Enters (Macros.a (And [Macros.creature, Not IsToken,
                                            Not WasCast])) Nothing)
-                   [] (Macros.exile It) Repeatedly Nothing) ]
+                   [] Nothing (Macros.exile It) Repeatedly Nothing) ]
        (Just (2, 2))
 
 
@@ -12833,7 +12833,7 @@ public export
 heartOfYavimaya : Card
 heartOfYavimaya =
   Macros.card "Heart of Yavimaya" Nothing [] (MkTypeLine [] [Land])
-       [ Static (Intercepts (Enters This Nothing) []
+       [ Static (Intercepts (Enters This Nothing) [] Nothing
                    (May Nothing
                         (Macros.sacrifice You
                            (Macros.a (And [Macros.land,
@@ -12860,7 +12860,7 @@ public export
 moxDiamond : Card
 moxDiamond =
   Macros.card "Mox Diamond" Nothing [] (MkTypeLine [] [Artifact])
-       [ Static (Intercepts (Enters This Nothing) []
+       [ Static (Intercepts (Enters This Nothing) [] Nothing
                    (May (Just You)
                         (Macros.discard
                            (Macros.a (And [Macros.land, InZone Macros.handZ])))
@@ -12912,7 +12912,7 @@ dontBlinkReplacement =
                      (Just (FromZone [Macros.exileZ])))
              [ Enters (CountedGroup (Macros.atLeast 1) Nothing
                          (And [Macros.creature, CastFrom Macros.exileZ]))
-                      Nothing ]
+                      Nothing ] Nothing
              (Macros.shuffleInto Them)
              Repeatedly Nothing
 
@@ -13093,7 +13093,7 @@ frostwielder =
                    (Dies (Macros.a (And [ Macros.creature
                                         , HappenedTo DamageTaken ThisTurn
                                             (Just (Involving Macros.thisCreature)) ])))
-                   [] (Macros.exile It) Repeatedly Nothing)
+                   [] Nothing (Macros.exile It) Repeatedly Nothing)
        , Macros.activated TapSymbol
            (DealDamage Macros.thisCreature (Lit 1) (Macros.target Macros.anyTarget)) ]
        (Just (1, 2))
@@ -13118,3 +13118,73 @@ kitsuneMysticFlip =
           (CountedGroup (Macros.atLeast 2) Nothing
              (HasSubtype (enchantmentType "Aura")))))
     (SetStatus Flipped Macros.thisCreature)
+
+
+||| Blood Spatter Analysis, whole -- "When this enchantment enters, it
+||| deals 3 damage to target creature an opponent controls. / Whenever one
+||| or more creatures die, mill a card and put a bloodstain counter on
+||| this enchantment. Then sacrifice it if it has five or more bloodstain
+||| counters on it. When you do, return target creature card from your
+||| graveyard to your hand."
+||| Two things: the bloodstain counter is a FLAT kind -- [CR#122.1]'s
+||| ordinary marker, whose whole meaning is the ability that counts it,
+||| exactly as Font of Agonies' blood counter is -- and the reflexive
+||| trigger hangs off a conditioned sacrifice, which is still one action
+||| for [CR#603.12]'s pro-verb to abbreviate.
+public export
+bloodSpatterAnalysis : Card
+bloodSpatterAnalysis =
+  Macros.card "Blood Spatter Analysis"
+       (Just [Macros.pip Black, Macros.pip Red]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered When (Enters Macros.thisEnchantment Nothing)
+           (DealDamage Macros.thisEnchantment (Lit 3)
+              (Macros.target (And [Macros.creature,
+                                   ControlledBy Macros.anOpponent])))
+       , Macros.triggered Whenever
+           (Dies (CountedGroup (Macros.atLeast 1) Nothing Macros.creature))
+           (Sequentially
+              [ Macros.mills You (Lit 1) You
+              , PutCounters (Lit 1) (PrintedKind Bloodstain) Macros.thisEnchantment
+              , Reflexively
+                  (OnlyIf (Macros.sacrifice You Macros.thisEnchantment)
+                          (CompareAmt (CountersOn Bloodstain Macros.thisEnchantment)
+                                      AtLeast (Lit 5))
+                          Nothing)
+                  (Macros.move
+                     (Macros.target (And [Macros.creature, IsCard,
+                                          InZone (Macros.graveyardOf You)]))
+                     Macros.handZ) ]) ]
+       Nothing
+
+||| Bewitching Leechcraft, whole -- "Enchant creature / When this Aura
+||| enters, tap enchanted creature. / Enchanted creature has 'If this
+||| creature would untap during your untap step, remove a +1/+1 counter
+||| from it instead. If you do, untap it.'"
+||| The granted QUOTED replacement, and the two things it wanted: the
+||| status change is admitted as a replacement's antecedent -- [CR#614.1]
+||| replaces an event that would happen and [CR#701.26b] makes untapping
+||| one, so nothing about the cell was trigger-only -- and "during your
+||| untap step" sits in `Intercepts`' own window slot rather than in a
+||| second copy of the header's window words. The reminder "(Otherwise, it
+||| doesn't untap.)" restates [CR#614.1a] and is not carried.
+public export
+bewitchingLeechcraft : Card
+bewitchingLeechcraft =
+  Macros.card "Bewitching Leechcraft"
+       (Just [Macros.generic 1, Macros.pip Blue]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Macros.triggered When (Enters Macros.thisAura Nothing)
+           (Macros.tap (AttachHost Enchanted (TypeW Creature)))
+       , Static (Gains (AttachHost Enchanted (TypeW Creature))
+                   (Static (Intercepts
+                              (StatusEvent Macros.thisCreature Untapped) []
+                              (Just (DuringWindow UntapStep (Just Yours)))
+                              (Macros.doThen
+                                 (RemoveCounters (Lit 1)
+                                    (Just Macros.plusOnePlusOne)
+                                    Macros.thisCreature)
+                                 (Macros.untap Macros.thisCreature))
+                              Repeatedly Nothing))) ]
+       Nothing
