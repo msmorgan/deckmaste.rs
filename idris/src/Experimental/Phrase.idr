@@ -618,6 +618,46 @@ mutual
     ||| -- spelling: "[n] is enchanted by [by]".
     AttachedBy : (w : AttachWord) -> (by : Noun bs Object) ->
                  {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
+    ||| "an Aura attached to a creature", "all Equipment attached to that
+    ||| creature", "as long as this Equipment is attached to a creature":
+    ||| the relation named from the ATTACHMENT'S OWN SIDE, with the host
+    ||| described.
+    ||| The THIRD direction over one relation and not a re-spelling of
+    ||| either of the other two. [CR#303.4b] states all three in one
+    ||| sentence -- "the object or player an Aura is attached to is
+    ||| called enchanted. The Aura is attached to, or 'enchants,' that
+    ||| object or player" -- and [CR#301.5a] says the same of an
+    ||| Equipment. `AttachHost` is the first clause of that sentence, a
+    ||| NOUN naming the host from the attachment; `IsAttached` and
+    ||| `AttachedBy` are the host's own predicates, asking whether and by
+    ||| what it is attached; this is the second clause, a predicate of
+    ||| the ATTACHMENT whose complement is the host. No spelling of one
+    ||| writes another: "enchanted creature" names one referent,
+    ||| "enchanted by an Aura" describes a creature, and "attached to a
+    ||| creature" describes an Aura.
+    ||| No `AttachWord` slot, and that is the direction's own fact rather
+    ||| than an economy: [CR#303.4b] and [CR#301.5a] each give the
+    ||| attachment-side verb a word of its own ("enchants", "equips")
+    ||| but write the PARTICIPLE with one word for all three, and the
+    ||| corpus writes "attached to" and nothing else at this seat
+    ||| (measured 2026-08-28: 127 supported faces -- 104 with the phrase
+    ||| attributive, 23 with it after a copula -- and 0 anywhere write
+    ||| "enchanted to", "equipped to" or "fortified to").
+    ||| The attributive and predicative writings are ONE row for finding
+    ||| 275's reason: the two positions covary with nothing, taking the
+    ||| same host in the same kinds, so the position is spelling.
+    ||| The host is kind-indexed on [CR#701.3a]'s own statement -- an
+    ||| attachment is put "onto that object or player" -- and the corpus
+    ||| writes both seats ("a Curse attached to you").
+    ||| It does NOT presuppose an attachment subtype: [CR#301.5f] and
+    ||| [CR#303.4m] both read the relation off a permanent "even if the
+    ||| permanent with the ability isn't an Equipment"/"isn't an Aura",
+    ||| so what is attached is the describing phrase's business.
+    ||| -- spelling: "[n] attached to [host]"; after the copula, "[n]
+    ||| is attached to [host]"; in an unattach clause, "from [host]".
+    AttachedTo : {k : Kind} -> (host : Noun bs k) ->
+                 {auto 0 hk : So (kindLte k (Object \/ Player))} ->
+                 Predicate bs Object
     Permanent : Predicate bs Object
     ||| "a card", "one or more cards": the bare card head -- the word with
     ||| no zone written beside it. [CR#109.2] names "card" among the four
@@ -942,6 +982,7 @@ mutual
   seedZone (CoinCameUp _) = Nothing
   seedZone (IsAttached _) = Just Battlefield
   seedZone (AttachedBy _ _) = Just Battlefield
+  seedZone (AttachedTo _) = Just Battlefield
   seedZone IsToken = Just Battlefield
   seedZone (HasStatus _) = Just Battlefield
   seedZone (HasCounters _) = Nothing
@@ -1031,6 +1072,7 @@ mutual
   seedType (HasDesignation d) = designationSeedType d
   seedType (IsAttached _) = Nothing
   seedType (AttachedBy _ _) = Nothing
+  seedType (AttachedTo _) = Nothing
   -- [CR#115.1a,115.1c,115.1d] give the word to a spell and to an
   -- ability, neither of which is a card type the described thing has.
   seedType (Targets _ _) = Nothing
@@ -1122,6 +1164,7 @@ mutual
   hasHead (CoinCameUp _) = False
   hasHead (IsAttached _) = False
   hasHead (AttachedBy _ _) = False
+  hasHead (AttachedTo _) = False
   hasHead Permanent = True
   hasHead IsCard = True
   hasHead IsToken = True
@@ -1344,6 +1387,9 @@ mutual
   predEq (IsAttached _) _ = False
   predEq (AttachedBy a x) (AttachedBy b y) = a == b && nounEqRef x y
   predEq (AttachedBy _ _) _ = False
+  -- the host is described at its OWN kind, so two of these carry no
+  -- comparable mention; `Targets`' ground.
+  predEq (AttachedTo _) _ = False
   predEq Permanent Permanent = True
   predEq Permanent _ = False
   predEq IsCard IsCard = True
@@ -1876,6 +1922,7 @@ mutual
   predSays (CoinCameUp _) = True
   predSays (IsAttached _) = True
   predSays (AttachedBy _ _) = True
+  predSays (AttachedTo _) = True
   predSays Permanent = True
   predSays IsCard = True
   predSays IsToken = True
@@ -1950,6 +1997,7 @@ mutual
   predNegFree (CoinCameUp _) = True
   predNegFree (IsAttached _) = True
   predNegFree (AttachedBy _ _) = True
+  predNegFree (AttachedTo _) = True
   predNegFree Permanent = True
   predNegFree IsCard = True
   predNegFree IsToken = True
@@ -2647,6 +2695,7 @@ mutual
   predDelta (CoinCameUp _) = []
   predDelta (IsAttached _) = []
   predDelta (AttachedBy _ by) = nounDelta by
+  predDelta (AttachedTo host) = nounDelta host
   predDelta (InZone z) = zoneDelta z
   predDelta (And ps) = predDeltaAll ps
   predDelta (Not p) = []

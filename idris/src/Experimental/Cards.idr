@@ -14857,3 +14857,178 @@ escapedShapeshifter =
            [ TheKeyword "FirstStrike", TheKeyword "Trample"
            , protectionFromAnyColor ] ]
        (Just (3, 4))
+
+||| Ancestral Blade, whole -- "When this Equipment enters, create a 1/1
+||| white Soldier creature token, then attach this Equipment to it. /
+||| Equipped creature gets +1/+1. / Equip {1}". THE ATTACH EFFECT's first
+||| witness, and the one that spends `ItToken`: the host pronoun names the
+||| token the same clause minted [CR#111.1], which is the origin narrowing
+||| and not a count over the whole prefix.
+public export
+ancestralBlade : Card
+ancestralBlade =
+  Macros.card "Ancestral Blade" (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Macros.triggered When (Enters Macros.thisEquipment Nothing)
+           (Sequentially
+              [ Macros.create (Lit 1)
+                  (MkToken (Just (Lit 1 ** Lit 1)) [White]
+                           (MkTypeLine [creatureType "Soldier"] [Creature])
+                           [] Nothing)
+              , AttachTo Macros.thisEquipment Macros.itAsToken ])
+       , Static (Gets (AttachHost Equipped (TypeW Creature))
+                      (PtUp (Lit 1)) (PtUp (Lit 1)))
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
+       Nothing
+
+||| Disarm, whole -- "Unattach all Equipment from target creature."
+||| [CR#701.3d]'s act with its "from" phrase, which is the described
+||| object's own predicate rather than a second slot: what the phrase
+||| does here is pick out WHICH Equipment, against every Equipment on the
+||| battlefield, and `AttachedTo` is the phrase that says so.
+public export
+disarm : Card
+disarm =
+  Macros.card "Disarm" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Instant])
+       [ Spell (Unattach
+                  (AllOf (And [ HasSubtype (artifactType "Equipment")
+                              , AttachedTo (Macros.target Macros.creature) ]))) ]
+       Nothing
+
+||| Embercleave, whole -- "Flash / This spell costs {1} less to cast for
+||| each attacking creature you control. / When Embercleave enters, attach
+||| it to target creature you control. / Equipped creature gets +1/+1 and
+||| has double strike and trample. / Equip {3}". The attach clause at its
+||| commonest shape (29 of the 233 supported faces write exactly this
+||| sentence), with the ATTACHED object as the pronoun and the host
+||| described.
+public export
+embercleave : Card
+embercleave =
+  Macros.card "Embercleave"
+       (Just [Macros.generic 4, Macros.pip Red, Macros.pip Red]) [Legendary]
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Macros.keyword "Flash"
+       , Static (CostsToCast This
+                   (CostLess (Macros.forEach
+                                (And [Macros.creature, Attacking, ControlledBy You]))
+                             Nothing))
+       , Macros.triggered When (Enters Macros.thisEquipment Nothing)
+           (AttachTo It (Macros.target Macros.creatureYouControl))
+       , Static (AndAlso [ Gets (AttachHost Equipped (TypeW Creature))
+                                (PtUp (Lit 1)) (PtUp (Lit 1))
+                         , Gains (AttachHost Equipped (TypeW Creature))
+                                 (Macros.keyword "DoubleStrike")
+                         , Gains (AttachHost Equipped (TypeW Creature))
+                                 (Macros.keyword "Trample") ])
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
+       Nothing
+
+||| Stone Haven Outfitter, whole -- "Equipped creatures you control get
+||| +1/+1. / Whenever an equipped creature you control dies, draw a card."
+||| THE PRENOMINAL PARTICIPLE, and it needed no row. Finding 369 recorded
+||| that the corpus writes the attachment participle "predicatively after
+||| the copula and never prenominally"; the second half of that is wrong
+||| and is corrected here and at `IsAttached`. Both writings are
+||| `IsAttached` inside a described noun, and the position is spelling:
+||| "creatures you control that are equipped" (Bruna's family, 10
+||| supported lines) and "equipped creatures you control" (18 occurrences
+||| over 18 cards, re-measured 2026-08-28) take the same word with the
+||| same absent slots, so nothing covaries with the position.
+||| What the participle is NOT here is `AttachHost`: that names the ONE
+||| host of this permanent's own attachment [CR#301.5f], where these
+||| lines describe every equipped creature their controller has.
+public export
+stoneHavenOutfitter : Card
+stoneHavenOutfitter =
+  Macros.card "Stone Haven Outfitter" (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [creatureType "Kor", creatureType "Artificer",
+                    creatureType "Ally"] [Creature])
+       [ Static (Gets (AllOf (And [Macros.creatureYouControl, IsAttached Equipped]))
+                      (PtUp (Lit 1)) (PtUp (Lit 1)))
+       , Macros.triggered Whenever
+           (Dies (Macros.a (And [Macros.creatureYouControl, IsAttached Equipped])))
+           (Macros.drawsACard You) ]
+       (Just (2, 2))
+
+||| Cloud, Ex-SOLDIER's entry trigger -- "When Cloud enters, attach up to
+||| one target Equipment you control to it." THE CO-ARGUMENT NARROWING's
+||| witness on the family it was built for: the host pronoun is read over
+||| the prefix the ATTACHED object did not mint, and the bare `It` here
+||| counts the target Equipment as well as Cloud and refuses. The
+||| exclusion is the act's own rule -- [CR#301.5c] says an Equipment
+||| "can't equip itself" -- and not a preference among candidates.
+||| A FRAGMENT: the card's second line reads "draw a card for each
+||| equipped attacking creature you control", whose amount is a count
+||| over a described class rather than the per-member `forEach` this
+||| grammar spells at a draw.
+public export
+cloudExSoldierAttach : Ability
+cloudExSoldierAttach =
+  Macros.triggered When (Enters Macros.thisCreature Nothing)
+    (Macros.attachToIt
+       (TargetGroup (Macros.upTo 1)
+          (And [HasSubtype (artifactType "Equipment"), ControlledBy You])))
+
+||| Kitsune Mystic // Autumn-Tail, Kitsune Sage, a flip card [CR#710.1],
+||| WHOLE -- "At the beginning of the end step, if this creature is
+||| enchanted by two or more Auras, flip it." // "{1}: Attach target Aura
+||| attached to a creature to another creature."
+||| The reverse attachment phrase's witness. The alternative face's target
+||| is described by what it is attached TO, which is the relation read
+||| from the attachment's own side [CR#303.4b] -- the direction the
+||| umbrella recorded as this card's last blocker -- and the ability's
+||| body is [CR#701.3a]'s act with a written host.
+||| `kitsuneMysticFlip` above stays as the normal face's own witness.
+public export
+kitsuneMystic : Card
+kitsuneMystic =
+  FlipCard
+    (MkFace "Kitsune Mystic" (Just [Macros.generic 3, Macros.pip White]) []
+            (MkTypeLine [creatureType "Fox", creatureType "Wizard"] [Creature])
+            [ kitsuneMysticFlip ]
+            (Macros.printedBox (Just (2, 3))))
+    (MkAltFace "Autumn-Tail, Kitsune Sage" [Legendary]
+               (MkTypeLine [creatureType "Fox", creatureType "Wizard"] [Creature])
+               [ Macros.activated (Mana [Macros.generic 1])
+                   (AttachTo
+                      (Macros.target
+                         (And [ HasSubtype (enchantmentType "Aura")
+                              , AttachedTo (Macros.a Macros.creature) ]))
+                      (Macros.a (And [Macros.creature, Other]))) ]
+               (Macros.printedBox (Just (4, 5))))
+
+||| Akiri, Fearless Voyager's two lines -- "Whenever you attack a player
+||| with one or more equipped creatures, draw a card. / {W}: You may
+||| unattach an Equipment from a creature you control. If you do, tap that
+||| creature and it gains indestructible until end of turn."
+||| [CR#701.3d]'s act at its offered form, with the "from" phrase carried
+||| by the object's own `AttachedTo` description -- and the readback that
+||| description leaves is what "that creature" then reads. The header
+||| beside it is the prenominal participle inside an attack event.
+||| A FRAGMENT by one pronoun: the printed line ends "and it gains
+||| indestructible until end of turn", whose "it" names the creature the
+||| TAP clause just spoke of. `ItPrior` is the reading for that, and its
+||| segment is the preceding member's own delta -- which here is empty,
+||| the tap clause's subject being itself a readback rather than a fresh
+||| mention. A residue of the anaphora family and not of the attachment;
+||| nothing in this round's rows moves it.
+public export
+akiriEquippedAttackers : Ability
+akiriEquippedAttackers =
+  Macros.triggered Whenever
+    (AttacksWith You (OneDefender (Macros.a AnyPlayer))
+       (CountedGroup (Macros.atLeast 1) Nothing
+          (And [Macros.creatureYouControl, IsAttached Equipped])))
+    (Macros.drawsACard You)
+
+public export
+akiriUnattachOffer : Ability
+akiriUnattachOffer =
+  Macros.activated (Mana [Macros.pip White])
+    (May (Just You)
+       (Unattach
+          (Macros.a (And [ HasSubtype (artifactType "Equipment")
+                         , AttachedTo (Macros.a Macros.creatureYouControl) ])))
+       (Just (SetStatus Tapped (That (TypeW Creature))))
+       Nothing)

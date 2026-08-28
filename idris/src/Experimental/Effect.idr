@@ -1419,6 +1419,71 @@ mutual
                 {auto 0 at : StatusEffectVal v} -> Effect bs
     RemoveFromCombat : (n : Noun bs Object) ->
                        {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
+    ||| "attach it to target creature you control", "attach this
+    ||| Equipment to that creature", "attach any number of Equipment you
+    ||| control to it": [CR#701.3]'s keyword action, written as an
+    ||| instruction. 233 supported faces write the clause outside
+    ||| reminder text (measured 2026-08-28); 297 further lines write it
+    ||| inside reminder text, all of them the equip and reconfigure
+    ||| expansions.
+    ||| THE relation change and not a move: [CR#701.3a] has the act
+    ||| "take it from where it currently is and put it onto that object
+    ||| or player", and every zone the permanent could be in it stays
+    ||| in, so nothing below this row composes it. That is why it is a
+    ||| row rather than an `Enact` label over an expansion -- there is
+    ||| no expansion to name -- and why no `verbFacts` row is bought
+    ||| here: the label buys a stamp for a participial readback, and the
+    ||| corpus reads an attachment back by DESCRIPTION ("an Equipment
+    ||| that was attached to Zack Fair", `AttachedTo`) at every one of
+    ||| its sites and by a stamp at none.
+    ||| The host is written at every occurrence -- 0 of the 233 elide it
+    ||| -- so it is an argument and not a slot, and it is kind-indexed
+    ||| on the rule's own words ("onto that object or player"), which
+    ||| the corpus writes at both seats ("attach this Aura to that
+    ||| player", Curse of Leeches).
+    ||| NO gate demands that the attached object be an Aura, Equipment
+    ||| or Fortification. [CR#701.3b] answers a clause that names
+    ||| something else -- "the effect does nothing and the first object
+    ||| doesn't move" -- which makes it an instruction that accomplishes
+    ||| nothing, never an unwritable sentence; and [CR#301.5f] and
+    ||| [CR#303.4m] both read the relation off a permanent that "isn't
+    ||| an Equipment"/"isn't an Aura". Nor does one demand that the HOST
+    ||| be legal: [CR#701.3b] and [CR#303.4j] answer that too, and
+    ||| [CR#702.6e] is a printed ability that attaches an Equipment to a
+    ||| planeswalker "as though that planeswalker were a creature".
+    ||| -- spelling: "attach [what] to [host]".
+    AttachTo : {k : Kind} -> (what : Noun bs Object) ->
+               {auto 0 zw : OnBattlefield (nounZone what)} ->
+               (host : Noun (nomIntro what) k) ->
+               {auto 0 hk : So (kindLte k (Object \/ Player))} -> Effect bs
+    ||| "unattach it", "Unattach all Equipment from target creature",
+    ||| "unattach enchanted Equipment": [CR#701.3d]'s act, which the
+    ||| rules quote as a word of its own -- "to 'unattach' an Equipment
+    ||| from a creature means to move it away from that creature so the
+    ||| Equipment is on the battlefield but is not equipping anything".
+    ||| Its own row and not `AttachTo` with the host left out. The two
+    ||| are different words the corpus writes side by side in one
+    ||| sentence (reconfigure's "Attach to target creature you control;
+    ||| or unattach from a creature"), and an optional host would leave
+    ||| a hole where this act's own meaning is complete: [CR#701.3d]
+    ||| states an end position, not an attachment to nothing.
+    ||| Measured 2026-08-28: 18 imperative occurrences over 18 supported
+    ||| faces -- 9 as an effect and 9 as an activation cost, which
+    ||| `costActionOk` admits on [CR#118.1]'s ground. The 4 "becomes
+    ||| unattached from a permanent" lines beside them are the EVENT
+    ||| [CR#701.3d] names in its last sentence and no part of this row.
+    ||| ONE slot. 4 of the 9 effect lines write a "from [host]" phrase,
+    ||| and what it does there is narrow WHICH attachment -- "all
+    ||| Equipment from target creature" against every Equipment on the
+    ||| battlefield -- which is the described object's own business and
+    ||| `AttachedTo`'s phrase. A second slot would spell the same
+    ||| relation twice with nothing to agree them, on `HappenedTo`'s
+    ||| policy that the complement is one noun and any richer narrowing
+    ||| is that noun's predicate.
+    ||| -- spelling: "unattach [what]"; with the host described, "unattach
+    ||| [what] from [host]".
+    Unattach : (what : Noun bs Object) ->
+               {auto 0 zw : OnBattlefield (nounZone what)} -> Effect bs
     ||| "[n] blocks [what]" as an instruction: the write that puts a
     ||| creature already on the battlefield into a blocking assignment.
     ||| [CR#506.3g] is the rule that knows the write -- it speaks of "a
@@ -2163,6 +2228,8 @@ mutual
   heldUntilOk (GetsCountersOfThoseKinds _ _) = False
   heldUntilOk (LosesCounters _ _ _) = False
   heldUntilOk (RemoveFromCombat _) = False
+  heldUntilOk (AttachTo _ _) = False
+  heldUntilOk (Unattach _) = False
   heldUntilOk (BecomesBlocking _ _) = False
   heldUntilOk (StopsBlocking _ _) = False
   heldUntilOk (BecomesAttacking _ _) = False
@@ -2269,6 +2336,8 @@ mutual
   reflexEncloseUse (GetsCountersOfThoseKinds _ _) = EncAgentless
   reflexEncloseUse (LosesCounters _ _ _) = EncAgentless
   reflexEncloseUse (RemoveFromCombat _) = EncAgentless
+  reflexEncloseUse (AttachTo _ _) = EncAgentless
+  reflexEncloseUse (Unattach _) = EncAgentless
   reflexEncloseUse (BecomesBlocking _ _) = EncAgentless
   reflexEncloseUse (StopsBlocking _ _) = EncAgentless
   reflexEncloseUse (BecomesAttacking _ _) = EncAgentless
@@ -2375,6 +2444,8 @@ mutual
   thisWayOutcomeOk (GetsCountersOfThoseKinds _ _) = True
   thisWayOutcomeOk (LosesCounters _ _ _) = True
   thisWayOutcomeOk (RemoveFromCombat _) = True
+  thisWayOutcomeOk (AttachTo _ _) = True
+  thisWayOutcomeOk (Unattach _) = True
   thisWayOutcomeOk (BecomesBlocking _ _) = True
   thisWayOutcomeOk (StopsBlocking _ _) = True
   thisWayOutcomeOk (BecomesAttacking _ _) = True
@@ -2477,6 +2548,8 @@ mutual
   costActionOk (GetsCountersOfThoseKinds _ _) = False
   costActionOk (LosesCounters who _ _) = costNounOk who
   costActionOk (RemoveFromCombat n) = costNounOk n
+  costActionOk (AttachTo what _) = costNounOk what
+  costActionOk (Unattach what) = costNounOk what
   costActionOk (BecomesBlocking n _) = costNounOk n
   costActionOk (StopsBlocking n _) = costNounOk n
   costActionOk (BecomesAttacking n _) = costNounOk n
@@ -2610,6 +2683,13 @@ mutual
   effEq (LosesCounters _ _ _) _ = False
   effEq (RemoveFromCombat a) (RemoveFromCombat b) = nounEqRef a b
   effEq (RemoveFromCombat _) _ = False
+  -- the host is described at its OWN kind, so two attach clauses carry
+  -- no comparable host mention; the attached object is what they are
+  -- compared on.
+  effEq (AttachTo a _) (AttachTo b _) = nounEqRef a b
+  effEq (AttachTo _ _) _ = False
+  effEq (Unattach a) (Unattach b) = nounEqRef a b
+  effEq (Unattach _) _ = False
   effEq (BecomesBlocking _ _) _ = False
   effEq (StopsBlocking _ _) _ = False
   effEq (BecomesAttacking _ _) _ = False
@@ -2736,6 +2816,8 @@ mutual
   effIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   effIntro (LosesCounters who _ amt) = optAmtIntro amt
   effIntro (RemoveFromCombat n) = nomIntro n
+  effIntro (AttachTo _ host) = nomIntro host
+  effIntro (Unattach what) = nomIntro what
   effIntro (BecomesBlocking _ what) = nomIntro what
   effIntro (StopsBlocking _ what) = nomIntro what
   effIntro (BecomesAttacking n NoDefender) = nomIntro n
@@ -2867,6 +2949,8 @@ mutual
   preIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   preIntro (LosesCounters who _ amt) = optAmtIntro amt
   preIntro (RemoveFromCombat n) = nomIntro n
+  preIntro (AttachTo _ host) = nomIntro host
+  preIntro (Unattach what) = nomIntro what
   preIntro (BecomesBlocking _ what) = nomIntro what
   preIntro (StopsBlocking _ what) = nomIntro what
   preIntro (BecomesAttacking n NoDefender) = nomIntro n
@@ -3004,6 +3088,8 @@ mutual
   annIntro (GetsCountersOfThoseKinds who amt) = amtIntro amt
   annIntro (LosesCounters who _ amt) = optAmtIntro amt
   annIntro (RemoveFromCombat n) = nomIntro n
+  annIntro (AttachTo _ host) = nomIntro host
+  annIntro (Unattach what) = nomIntro what
   annIntro (BecomesBlocking _ what) = nomIntro what
   annIntro (StopsBlocking _ what) = nomIntro what
   annIntro (BecomesAttacking n NoDefender) = nomIntro n
@@ -3144,6 +3230,8 @@ mutual
   deedDelta (GetsCountersOfThoseKinds _ _) = []
   deedDelta (LosesCounters _ _ _) = []
   deedDelta (RemoveFromCombat _) = []
+  deedDelta (AttachTo _ _) = []
+  deedDelta (Unattach _) = []
   deedDelta (BecomesBlocking _ _) = []
   deedDelta (StopsBlocking _ _) = []
   deedDelta (BecomesAttacking _ _) = []

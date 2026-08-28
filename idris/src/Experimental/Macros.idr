@@ -943,6 +943,28 @@ mustBlockIt n span =
                span {sp}
 
 
+||| "attach this Equipment to it", "attach it to target creature you
+||| control": the attach clause whose HOST is the pronoun, read over the
+||| prefix the ATTACHED OBJECT'S own mention did not mint.
+||| The exclusion is the act's own rule and not a preference among
+||| candidates: [CR#303.4d] says an Aura "can't enchant itself" and
+||| [CR#301.5c] says an Equipment "can't equip itself", so the one
+||| referent the host pronoun never names is the thing being attached.
+||| That is what the co-argument narrowing was built for, and this is
+||| the family it was built for: 66 of the 233 supported attach clauses
+||| write the host as a bare pronoun (measured 2026-08-28), and every
+||| one of the 66 names the attached object in the same clause -- 40 of
+||| them "this Equipment".
+||| The macro owns the segment, as `mustBlockIt` owns its own:
+||| `nounDelta what` is what the attached object announced, and no
+||| author writes it by hand.
+public export
+attachToIt : {bs : Bindings} -> (what : Noun bs Object) ->
+             {auto 0 zw : OnBattlefield (nounZone what)} ->
+             {auto 0 ok : countOnes Object bs = 1} -> Effect bs
+attachToIt what = AttachTo what (ItOtherThan (nounDelta what) bs {ok}) {zw}
+
+
 public export
 gainControl : (n : Noun bs Object) ->
               {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
