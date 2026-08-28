@@ -273,6 +273,40 @@ mutual
       CostsToCast : {k : Kind} -> (n : Noun bs k) -> (sh : CostShift bs) ->
                     {auto 0 cs : CostSubject n} ->
                     StaticEffect bs
+      ||| "[c] rather than pay this spell's mana cost" [CR#118.9], with
+      ||| `Nothing` for the whole substitution ("without paying its mana
+      ||| cost"). 107 supported self lines; 16 of them write the second
+      ||| phrasing.
+      |||
+      ||| THREE COUNTED POPULATIONS STAY OUTSIDE IT, each refused by a
+      ||| different slot, re-measured 2026-08-28 (the alternative-cost
+      ||| round's own counts are corrected where they differ):
+      |||
+      ||| * 13 GENERIC GRANTS -- "rather than pay the mana cost FOR
+      |||   [spells you cast]" (As Foretold, Fist of Suns, Dream Halls,
+      |||   Jodah, Rooftop Storm, ...). They price a described CLASS of
+      |||   spells, which is a subject slot this row has none of and
+      |||   `CostsToCast` has. Counted 14 before; 13 on the re-measure.
+      ||| * 11 NON-MANA DECLINED COSTS -- "you may pay {0} rather than
+      |||   pay the equip cost" (Bruenor Battlehammer, Forge Anew), the
+      |||   cycling, echo, power-up and crew ones, and K'rrik's per-pip
+      |||   life swap. What they decline is a COST NAMED BY A KEYWORD or
+      |||   a pip inside one, not the mana cost, so the declined side
+      |||   wants to be a value -- `Pay`'s standing decline.
+      ||| * 23 PRONOUN-TAIL LINES -- "you may cast this card from your
+      |||   graveyard BY PAYING [c] rather than paying its mana cost"
+      |||   (Worldheart Phoenix, Squee, Raffine's Guidance, Bolas's
+      |||   Citadel). Those are play permissions with an alternative-cost
+      |||   rider, so they are `MayPlay`'s: `PlayPayment`'s third,
+      |||   cost-carrying arm and not this row's.
+      |||
+      ||| The other two the round left refused have since written with
+      ||| nothing minted here, and are benched rather than counted:
+      ||| Invigorate (`costActionOk` already admits the life gain) and
+      ||| the 5 commander-gated free spells (`HasCardDesignation`
+      ||| [CR#903.3] reads `CommanderD`'s card-held scope).
+      ||| -- spelling: the cost, then "rather than pay this spell's mana
+      ||| cost"; at `Nothing`, "without paying its mana cost".
       AltCost : (c : Maybe (Cost bs)) ->
                 {auto 0 ap : AltPayment c} -> StaticEffect bs
       ||| "As an additional cost to cast this spell, [c]" [CR#118.8] --

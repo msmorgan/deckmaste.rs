@@ -10718,6 +10718,46 @@ stormscapeBattlemageFirstKicker =
     (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker")))
     (Macros.gainsLife You (Lit 3))
 
+||| Invigorate, whole -- "If you control a Forest, rather than pay this
+||| spell's mana cost, you may have an opponent gain 3 life. / Target
+||| creature gets +4/+4 until end of turn." The one card whose declined
+||| cost is a life GAIN. It was recorded as blocked on `costActionOk`
+||| admitting only the loss; re-probed 2026-08-28, the cell reads
+||| `costActionOk (ChangeLife _ _) = True` and the card writes with
+||| nothing minted, so that record was stale.
+public export
+invigorate : Card
+invigorate =
+  Macros.card "Invigorate"
+       (Just [Macros.generic 2, Macros.pip Green]) []
+       (MkTypeLine [] [Instant])
+       [ Static (Macros.asLongAs
+                   (Exists (And [Macros.land, HasSubtype (landType "Forest"),
+                                 ControlledBy You]))
+                   (AltCost (Just (Do (ChangeLife Macros.anOpponent
+                                                  (Up (Lit 3)))))))
+       , Spell (Continuously
+                  (Gets (Macros.target Macros.creature)
+                        (PtUp (Lit 4)) (PtUp (Lit 4)))
+                  (Just Macros.untilEndOfTurn)) ]
+       Nothing
+
+||| Deflecting Swat's first line -- "If you control a commander, you may
+||| cast this spell without paying its mana cost." One of the five
+||| commander-gated free spells the alternative-cost round left refused
+||| (with Fierce Guardianship, Deadly Rollick, Flawless Maneuver and
+||| Obscuring Haze). The blocker was never this row: it was that
+||| `CommanderD`'s scope is `HeldByCard` and no predicate read that
+||| scope. `HasCardDesignation` [CR#903.3] is that predicate, and with it
+||| the five write with nothing minted here. Their SECOND lines are
+||| separate business apiece.
+public export
+deflectingSwatCommanderAltCost : Ability
+deflectingSwatCommanderAltCost =
+  Static (Macros.asLongAs
+            (Exists (And [HasCardDesignation CommanderD, ControlledBy You]))
+            (AltCost Nothing))
+
 -- THE FREE CAST OF ANOTHER CARD, 296 supported lines. [CR#118.9] lets an
 -- effect license a cast "without paying its mana cost"; where the 16
 -- self lines say it of the object the line is printed on -- which is
