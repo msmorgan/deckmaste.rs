@@ -3,6 +3,14 @@ needs: []
 ---
 # Close the trigger header's holes and pay the interception's owed bench
 
+**SPLIT 2026-08-27 into three sub-tickets — claim those, not this.** This
+file is the umbrella and stays authoritative:
+[1 heads and windows](workbench-trigger-1-heads-and-windows.md),
+[2 while, join, readback](workbench-trigger-2-while-join-readback.md),
+[3 flip, interception, replacement](workbench-trigger-3-flip-interception-replacement.md).
+Order: 1 first (its AnyTriggered head feeds 3's causer complex); 2 and 3 may
+run in parallel after it.
+
 One unit covering everything the trigger header and the replacement/interception
 side still owe: the header's missing heads, windows and defenders; the
 header-internal "while", the two-header join and the coordinated readback; the
