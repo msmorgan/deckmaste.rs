@@ -33,3 +33,13 @@ Re-measure everything at claim; the counts are the close-outs'.
   AS-YOU-ACTIVATE targeting restriction (Keeper of the Flame / Keeper of the
   Light — a restriction on legal targets stated at activation) — deontic
   region machinery.
+
+- **Correction from keyword-1 (close, 2026-08-28): the Crew/Saddle deed-row
+  routing premise was wrong.** The 18 as-though lines (count confirmed) need
+  a COUNTERFACTUAL-VALUE premise ("as though its power were 2 greater") —
+  `AsThoughOf`'s `Predicate bs Object` cannot state a value shift, so the
+  as-though slot needs a second premise SORT (consistent with the ruling:
+  premise sort depends on the deed). And Revoke Privileges / Bound in Gold /
+  Intercessor's Arrest need a PER-DEED complement — `deonticPatientOk` checks
+  one shared patient against every coordinated deed, and [CR#506.3] admits no
+  artifact at attack's patient. Two named blockers; neither is a deed row.
