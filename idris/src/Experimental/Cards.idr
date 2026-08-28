@@ -8877,6 +8877,68 @@ panglacialWurmCast =
   Static (Macros.mayCastFromWhileSearching You This Macros.yourLibrary)
 
 
+||| Quakebringer's damage trigger: "At the beginning of your upkeep,
+||| Quakebringer deals 2 damage to each opponent. This ability triggers
+||| only if Quakebringer is on the battlefield or if Quakebringer is in
+||| your graveyard and you control a Giant." The condition disjunction
+||| whole, with a conjunction inside its second arm: the reduplicated "if"
+||| is what scopes the "and", so the conjunction binds inside the disjunct
+||| its own "if" opened.
+public export
+quakebringerDamage : Ability
+quakebringerDamage =
+  Macros.triggeredIf At (BeginningOf Upkeep (ByWord Yours))
+    (OrCond [ Matches This (InZone Macros.battlefieldZ)
+            , AndCond [ Matches This (InZone (Macros.graveyardOf You))
+                      , Exists (And [Macros.creature,
+                                     HasSubtype (creatureType "Giant"),
+                                     ControlledBy You]) ] ])
+    (DealDamage This (Lit 2) (Each Opponent))
+
+||| Dark Fortress's mana ability: "{T}: Add {B} or {R}. Activate only if
+||| this land entered this turn or if you control a basic land." The
+||| doubly-marked disjunction on the ACTIVATION GUARD, which is this
+||| family's biggest carrier; Gathering Place, Gleaming Bastion, Hidden
+||| Lair and Training Compound are the same line.
+public export
+darkFortressMana : Ability
+darkFortressMana =
+  Macros.activatedOnlyIf TapSymbol
+    (AddMana You (Lit 1) (Runs [[OfColor Black], [OfColor Red]]) [])
+    (OrCond [ Macros.happened Entry Macros.thisLand Lookback.ThisTurn
+            , Exists (And [Macros.land, HasSupertype Basic, ControlledBy You]) ])
+
+||| Sand Strangler's trigger: "When this creature enters, if you control a
+||| Desert or there is a Desert card in your graveyard, you may have this
+||| creature deal 3 damage to target creature." The SINGLY marked
+||| disjunction, whose two arms are independent clauses; Desert's Hold,
+||| Gilded Cerodon, Unquenchable Thirst, Wall of Forgotten Pharaohs and
+||| Wretched Camel write the same condition.
+public export
+sandStranglerDamage : Ability
+sandStranglerDamage =
+  Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
+    (OrCond [ Exists (And [Macros.land, HasSubtype (landType "Desert"),
+                           ControlledBy You])
+            , Exists (And [Macros.land, HasSubtype (landType "Desert"),
+                           InZone (Macros.graveyardOf You)]) ])
+    (Macros.may You (DealDamage This (Lit 3) (Macros.target Macros.creature)))
+
+||| Skyblade's Boon's return ability: "{2}{W}: Return Skyblade's Boon to
+||| its owner's hand. Activate only if Skyblade's Boon is on the
+||| battlefield or in your graveyard." The singly-marked ZONE disjunction
+||| on an activation guard -- one subject, two zones, no reduplicated
+||| marking -- which Arahbo, Edgar Markov, Firemane Angel, Inalla and
+||| Sidar Jabari of Zhalfir all write.
+public export
+skybladesBoonReturn : Ability
+skybladesBoonReturn =
+  Macros.activatedOnlyIf (Mana [Macros.generic 2, Macros.pip White])
+    (Macros.move This Macros.handZ)
+    (OrCond [ Matches This (InZone Macros.battlefieldZ)
+            , Matches This (InZone (Macros.graveyardOf You)) ])
+
+
 ||| Goblin Archaeologist
 ||| "{R}, {T}: Flip a coin. If you win the flip, destroy target artifact and
 ||| untap this creature. If you lose the flip, sacrifice this creature."

@@ -3311,6 +3311,31 @@ mutual
     AndCond : (cs : List (Condition bs)) ->
               {auto 0 tw : TwoConjuncts cs} ->
               {auto 0 fl : FlatConjuncts cs} -> Condition bs
+    ||| "if X or if Y": the condition disjunction, `AndCond`'s twin.
+    ||| [CR#603.4] is the one rule that gives "if" a meaning of its own,
+    ||| and it declines this one outright -- the word "has only its normal
+    ||| English meaning anywhere else in the text of a card" -- so a
+    ||| coordination of two conditions is ordinary English disjunction and
+    ||| carries no rules content past the arms it joins.
+    |||
+    ||| An arm is an ATOM or a FLAT CONJUNCTION, one level and nothing
+    ||| deeper. The printed scope marker is the reduplicated "if": each
+    ||| "if" opens a disjunct, so a conjunction binds inside the disjunct
+    ||| its own "if" opened, which is what Quakebringer writes whole
+    ||| ("only if Quakebringer is on the battlefield or if Quakebringer is
+    ||| in your graveyard and you control a Giant"). `FlatDisjuncts` is
+    ||| `FlatConjuncts`' COMPANION and not a copy: it admits the
+    ||| conjunction its twin refuses and refuses only a nested
+    ||| disjunction.
+    ||| The mirror nesting stays where `flatConjuncts` already leaves it --
+    ||| a conjunction may take a disjunct arm ("If this creature would
+    ||| enter and it wasn't cast or no mana was spent to cast it",
+    ||| Primeval Spawn, the one supported line) -- because no marking
+    ||| disambiguates that one in print and this row does not narrow it.
+    ||| -- spelling: "if [c] or if [c]"; singly marked, "if [c] or [c]".
+    OrCond : (cs : List (Condition bs)) ->
+             {auto 0 tw : TwoDisjuncts cs} ->
+             {auto 0 fd : FlatDisjuncts cs} -> Condition bs
 
   public export
   atLeastTwoCs : {0 bs : Bindings} -> List (Condition bs) -> Bool
@@ -3322,19 +3347,45 @@ mutual
   TwoConjuncts : List (Condition bs) -> Type
   TwoConjuncts {bs} cs = So (atLeastTwoCs cs)
 
+  ||| The same arity demand for the OR row: `atLeastTwoCs` counts arms and
+  ||| does not care which word joins them, so the measurement is shared and
+  ||| only the name is new.
   public export
-  isCondCoord : {0 bs : Bindings} -> Condition bs -> Bool
-  isCondCoord (AndCond _) = True
-  isCondCoord _ = False
+  TwoDisjuncts : List (Condition bs) -> Type
+  TwoDisjuncts {bs} cs = So (atLeastTwoCs cs)
+
+  public export
+  isAndCond : {0 bs : Bindings} -> Condition bs -> Bool
+  isAndCond (AndCond _) = True
+  isAndCond _ = False
+
+  public export
+  isOrCond : {0 bs : Bindings} -> Condition bs -> Bool
+  isOrCond (OrCond _) = True
+  isOrCond _ = False
 
   public export
   flatConjuncts : {0 bs : Bindings} -> List (Condition bs) -> Bool
   flatConjuncts [] = True
-  flatConjuncts (c :: cs) = not (isCondCoord c) && flatConjuncts cs
+  flatConjuncts (c :: cs) = not (isAndCond c) && flatConjuncts cs
 
   public export
   FlatConjuncts : List (Condition bs) -> Type
   FlatConjuncts {bs} cs = So (flatConjuncts cs)
+
+  ||| `flatConjuncts`' companion, and deliberately not its copy: a
+  ||| disjunct may BE a conjunction -- the reduplicated "if" is what binds
+  ||| the conjunction inside its own arm -- so the only arm this refuses is
+  ||| a second disjunction, where the conjunct gate refuses a second
+  ||| conjunction.
+  public export
+  flatDisjuncts : {0 bs : Bindings} -> List (Condition bs) -> Bool
+  flatDisjuncts [] = True
+  flatDisjuncts (c :: cs) = not (isOrCond c) && flatDisjuncts cs
+
+  public export
+  FlatDisjuncts : List (Condition bs) -> Type
+  FlatDisjuncts {bs} cs = So (flatDisjuncts cs)
 
   public export
   condNegated : {0 bs : Bindings} -> Condition bs -> Bool
@@ -3354,6 +3405,7 @@ mutual
   condNegated RolledDoubles = False
   condNegated (NotCond _) = True
   condNegated (AndCond _) = False
+  condNegated (OrCond _) = False
 
   public export
   markingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Bool
@@ -3369,9 +3421,21 @@ mutual
   ||| statement's own subject re-mentioned, so the body may say "it"
   ||| (Adanto Vanguard); a comparison's margin, "the difference"; and the
   ||| phrases a comparison's two amounts name — a target inside a
-  ||| condition is announced at casting like any other [CR#601.2c]. A
-  ||| described set, a lookback, a designation check and a negation
-  ||| introduce nothing: they test, and name no referent.
+  ||| condition is announced at casting like any other [CR#601.2c].
+  |||
+  ||| That last principle reaches exactly the rows that can CARRY a
+  ||| mention, which is why the table looks partial and is not. A target
+  ||| rides a determiner on a mention, and `CompareAmt`'s two amounts are
+  ||| the only place a condition writes one: `Exists` and `DealtThisWay`
+  ||| take a `Predicate`, which describes and mentions nothing;
+  ||| `ExistsGroup` is gated to a counted described group
+  ||| (`CountedExistential`) and `Matches` to a `Bindingless` subject. The
+  ||| two rows that re-mention a SUBJECT (`Happened`, `Matches`) announce
+  ||| that and nothing else, for the reasons written at each. A
+  ||| designation check, a flip or roll read and a disjunction announce
+  ||| nothing at all: they test, and name no referent. A negation keeps
+  ||| what its condition announced, less the margin a failed comparison
+  ||| never left.
   public export
   condDelta : {bs : Bindings} -> Condition bs -> List Binding
   condDelta (Exists _) = []
@@ -3402,6 +3466,11 @@ mutual
   condDelta (NotCond (CompareAmt subj _ bound)) = amtDelta bound ++ amtDelta subj
   condDelta (NotCond c) = dropGaps (condDelta c)
   condDelta (AndCond cs) = condDeltaAll cs
+  -- a disjunction cannot say WHICH arm held, so it announces nothing:
+  -- summing the arms would hand the consequent a phrase from an arm that
+  -- may have been false. No supported line reads back from a disjunct,
+  -- and a conjunction still sums, since every conjunct held.
+  condDelta (OrCond _) = []
 
   ||| The group a counted comparison over a UNIQUIFYING description
   ||| names: "If two or more creatures are tied for greatest power, you
