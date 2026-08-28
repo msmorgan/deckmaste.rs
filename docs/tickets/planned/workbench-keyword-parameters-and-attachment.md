@@ -3,6 +3,13 @@ needs: []
 ---
 # Finish the keyword row's parameters, its grants and the attachment relation
 
+**SPLIT 2026-08-28 into two sub-tickets — claim those, not this.** This file
+is the umbrella and stays authoritative:
+[1 catalog and parameters](workbench-keyword-1-catalog-and-parameters.md),
+[2 attachment and equip](workbench-keyword-2-attachment-and-equip.md).
+The two may run in parallel — 1 owns the keyword catalog tables, 2 the
+attachment/equip machinery.
+
 Everything the keyword row still owes: the typed parameter slot and its
 remaining payload sorts, the keyword-CLASS quantifier the extension anaphor
 needs, the grant residues, the Aura carve-out rider, the equip line's compound
