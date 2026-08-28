@@ -3,6 +3,12 @@ needs: []
 ---
 # Give the description frame its relations and its player-sorted reads
 
+**SPLIT 2026-08-28 into two sub-tickets — claim those, not this.** This file
+is the umbrella and stays authoritative:
+[1 relations and otherness](workbench-description-1-relations-and-otherness.md),
+[2 player-sorted reads](workbench-description-2-player-sorted-reads.md).
+Order: 1 then 2 (they share the possessor neighbourhood).
+
 One region: the relations a description can carry (otherness, control, ownership)
 and the reads whose subject is a player rather than an object. They share the
 condition and modifier rows, the possessor vocabulary, the demonstrative that
