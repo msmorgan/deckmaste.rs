@@ -6,6 +6,73 @@ import public Experimental.Triggers
 
 %default total
 
+||| What a spend restriction [CR#106.6] lets its mana be spent on. The
+||| list `SpendOnly` carries is the DISJUNCTION printed lines write
+||| ("to cast an artifact spell or activate an ability of an artifact"),
+||| so an arm is one way of naming a purpose and not one whole line.
+|||
+||| Two of the three name an OBJECT -- the spell being cast, the source
+||| whose ability is activated -- because [CR#106.1] names casting and
+||| activating as the usual occasions for spending mana. The third
+||| names the COST, which is what that same rule says mana is actually
+||| spent to pay, and what the object-taking arms cannot reach: a cost
+||| is not an object and no predicate describes one.
+|||
+||| The zone-qualified lines are NOT a fourth arm and need nothing
+||| here. "Spend this mana only to cast spells from your graveyard"
+||| (Rootcoil Creeper, Lord of the Forsaken), "only to cast spells from
+||| exile" (Interdimensional Web Watch), "only to cast a spell from
+||| anywhere other than your hand" (Mm'menon, the Right Hand) and the
+||| two negative hand lines (Karolina Dean, Vhal) -- 7 supported lines,
+||| measured 2026-08-28 -- describe the SPELL by where it was cast
+||| from, which `CastFrom` already says of an object: [CR#601.2a] moves
+||| the card to the stack before [CR#601.2h] takes the payment, so the
+||| provenance is fixed by the time the restriction is tested.
+public export
+data SpendPurpose : Bindings -> Type where
+  ToCast : (p : Predicate bs Object) ->
+           SpendPurpose bs
+  ToActivate : (src : Maybe (Predicate bs Object)) ->
+               SpendPurpose bs
+  ||| "Spend this mana only on costs that contain {X}" (Rosheen
+  ||| Meanderer), "only to pay cumulative upkeep costs" (Adarkar
+  ||| Unicorn), "only to turn permanents face up" (Overgrown Zealot):
+  ||| the purpose that names a COST rather than the object whose cost
+  ||| it is. 15 supported lines of 204, measured 2026-08-28;
+  ||| `CostNamed` carries the three ways they pick a cost out and the
+  ||| count of each.
+  |||
+  ||| The landed `Keyword.CumulativeUpkeep` row does not unblock
+  ||| Adarkar Unicorn on its own: that row is what a permanent PRINTS,
+  ||| where this names the cost such a permanent's ability charges.
+  ||| -- spelling: "to pay [c]", "on costs that contain [c]".
+  ToPay : (c : CostNamed) -> {auto 0 nm : CostNameable c} ->
+          SpendPurpose bs
+
+||| The mana a persistence or pool sentence is ABOUT. Not a `Noun`, and
+||| the omission is deliberate: [CR#106.1] makes mana "the primary
+||| resource in the game" and no rule makes it an object or a player, so
+||| no `Kind` names it and none should. What the two arms have in common
+||| is that each picks out mana in a pool [CR#106.4] -- one by pointing
+||| back at the clause that put it there, one by describing it.
+public export
+data ManaHeld : Bindings -> Type where
+  ||| "this mana": the mana a preceding sentence added. Gated on exactly
+  ||| one `ManaAdded` mention standing in the prefix, which is the
+  ||| `TheTotal`/`CoinsShowing` idiom and not a new one -- an outcome a
+  ||| clause left, read by the sentence after it. All 25 supported
+  ||| persistence lines that write it sit after an add in the same
+  ||| ability (measured 2026-08-28).
+  ThisMana : {auto 0 ok : countOutcomes ManaAdded bs = 1} -> ManaHeld bs
+  ||| "unspent mana", "unspent red mana": mana in a pool, described
+  ||| rather than pointed at, and ungated because the description needs
+  ||| no antecedent. [CR#106.4] is the phrase's own rule and names the
+  ||| ERRATA that produced it -- "cards with abilities that produce mana
+  ||| or refer to unspent mana have received errata ... to no longer
+  ||| explicitly refer to the mana pool" -- which is why 0 supported
+  ||| lines write "mana pool" and this row spells no pool either.
+  UnspentMana : (ty : Maybe ColorOrColorless) -> ManaHeld bs
+
 ||| [CR#609.4]'s counterfactual, the premise a permission is scoped by:
 ||| "treat the game exactly as if the stated condition were true. For
 ||| all other purposes, treat the game normally." It is a SLOT on the
@@ -27,15 +94,68 @@ import public Experimental.Triggers
 ||| condition, so a closed payload would refuse rules-meaningful
 ||| sentences and pin nothing.
 |||
-||| ONE arm, for now, and the seam is named: [CR#609.4b] gives spending
-||| mana "as though it were mana of any [type or color]" its own rule
-||| and its own payload -- a mana-symbol matcher, not a predicate over
-||| an object -- and that arm belongs to the spend deed, which is the
-||| mana family's round.
-||| -- spelling: "as though [p]".
+||| TWO arms, one per premise SORT, and which sort a deed admits is the
+||| deed's own fact (`deedPremiseSort`) rather than a free choice here:
+||| [CR#609.4b] gives spending mana "as though it were mana of any [type
+||| or color]" its own rule and its own payload -- a mana matcher, not a
+||| predicate over an object -- so a permission of the spend deed reads
+||| the second arm and every other deed reads the first. Admitting either
+||| payload at either deed would make "this creature can attack as though
+||| it were mana of any color" spellable and pin nothing.
+||| -- spelling: "as though [p]"; at the spend deed, "as though it were
+||| [as]".
 public export
 data AsThough : Bindings -> Type where
   AsThoughOf : (p : Predicate bs Object) -> AsThough bs
+  ||| "You may spend mana as though it were mana of any color to cast
+  ||| that spell": [CR#609.4b]'s PAYMENT permission, and the whole of
+  ||| what widens what already-made mana may pay for. 83 supported
+  ||| sentences over two spellings (measured 2026-08-28) -- 50 write the
+  ||| counterfactual outright and 33 write [CR#118.14]'s passive, "mana
+  ||| of any type can be spent to cast that spell".
+  |||
+  ||| ONE row for both spellings, because the rules make them one thing
+  ||| and say so: [CR#118.14] glosses "mana of any type can be spent" as
+  ||| "players may spend mana as though it were colorless mana or mana of
+  ||| any color to pay that cost", and [CR#609.4b] closes with "the same
+  ||| is true for effects that say 'mana of any type can be spent'". The
+  ||| passive is this counterfactual with its agent unwritten, which is
+  ||| spelling -- exactly as the tapped-for-mana header's two voices are.
+  |||
+  ||| IT IS NOT `ManaRider`/`SpendOnly`, and the distinction is
+  ||| [CR#106.6]'s against [CR#609.4b]'s. A spend restriction is attached
+  ||| to mana AS IT IS PRODUCED and narrows what that mana may do; this is
+  ||| a permission over mana already made, by whatever produced it, and it
+  ||| widens. They differ in what they hang on as well as in direction:
+  ||| the restriction rides the production, this rides a permission with a
+  ||| subject of its own.
+  |||
+  ||| `what` is the mana the permission reaches -- `Nothing` where the
+  ||| line leaves it at all mana (46 of 50) and a type where it names one
+  ||| ("you may spend WHITE mana as though it were mana of any color", 4
+  ||| lines). It is not a `DeonticCounterpart`: no `Kind` names mana, and
+  ||| what it names is the deed's own object rather than a second
+  ||| participant.
+  |||
+  ||| `purpose` is what the widened mana may be spent ON, and it is
+  ||| `SpendPurpose` -- the same vocabulary the restriction names its
+  ||| purposes with, which is what the two families share even though they
+  ||| share no carrier. 46 of the 50 write one ("to cast that spell" and
+  ||| its kin 39, "to activate" 7) and 4 write none. [CR#609.4b] is why it
+  ||| rides the premise rather than the carrier: the permission "affects
+  ||| only how the player may pay A COST", so the cost it is scoped to is
+  ||| part of what the counterfactual says and not a separate statement.
+  ||| -- spelling: "[who] may spend [what] mana as though it were [as]
+  ||| [purpose]"; in the passive, "[as] can be spent [purpose]".
+  AsThoughMana : (what : Maybe ColorOrColorless) ->
+                 (as : ManaMatch) ->
+                 (purpose : Maybe (SpendPurpose bs)) -> AsThough bs
+
+||| The premise's own sort, which the deed's rule must admit.
+public export
+asThoughSort : {0 bs : Bindings} -> AsThough bs -> PremiseSort
+asThoughSort (AsThoughOf _) = ObjectPremise
+asThoughSort (AsThoughMana _ _ _) = ManaPremise
 
 
 ||| The pair an exchange runs between. [CR#701.12c] gives the effect
@@ -415,6 +535,37 @@ mutual
                 {auto 0 pt : So (deonticPatientOk n deeds role patient)} ->
                 {auto 0 at : So (asThoughOk c deeds asThough)} ->
                 StaticEffect bs
+      ||| "Until end of turn, you don't lose this mana as steps and
+      ||| phases end" (Tundra Fumarole, Kruphix's kin), "You don't lose
+      ||| unspent green mana as steps and phases end" (Omnath, Locus of
+      ||| Mana), "Players don't lose unspent mana as steps and phases
+      ||| end" (Upwelling): the sentence that overrides [CR#106.4]'s
+      ||| emptying. 32 supported lines (measured 2026-08-28), 25 of them
+      ||| pointing back at an add with "this mana" and 7 describing a
+      ||| player's unspent mana.
+      |||
+      ||| ITS OWN SENTENCE, never a rider on the production, and the
+      ||| corpus settles it rather than taste. [CR#106.6] lists what a
+      ||| production may say about its mana and this is not on the list;
+      ||| 6 of the 7 description lines are static abilities of permanents
+      ||| that add no mana at all, so no attachment could have carried
+      ||| them; and all 25 mention lines write a duration that
+      ||| `Continuously` already spells, which a rider slot would have had
+      ||| to invent a second time. The two spellings are one row because
+      ||| they differ only in how the mana is picked out, which is
+      ||| `ManaHeld`'s axis.
+      |||
+      ||| The SUBJECT is written and never "you" by default: Upwelling
+      ||| says it of every player at once, and the 1 line that writes
+      ||| "they" says it of a player an earlier clause named.
+      ||| It states no period of its own -- [CR#106.4] gives the loss its
+      ||| occasion ("at the end of each step and phase") and the sentence
+      ||| names that occasion rather than choosing one, so "as steps and
+      ||| phases end" is spelling. What a line may still write is a SPAN,
+      ||| and that is `Continuously`'s.
+      ||| -- spelling: "[who] don't lose [what] as steps and phases end".
+      KeepsUnspentMana : (who : Noun bs Player) ->
+                         (what : ManaHeld (nomIntro who)) -> StaticEffect bs
       MayDeclineUntap : (n : Noun bs Object) ->
                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                         StaticEffect bs
@@ -1123,7 +1274,7 @@ mutual
   asThoughOk : {0 bs : Bindings} -> {0 cs : Bindings} ->
                Compulsion bs -> Deeds -> Maybe (AsThough cs) -> Bool
   asThoughOk _ ds Nothing = True
-  asThoughOk Permit ds (Just _) = all deedCounterfactualOk ds
+  asThoughOk Permit ds (Just a) = all (deedPremiseOk (asThoughSort a)) ds
   asThoughOk _ _ (Just _) = False
 
   ||| The gate on both static conditionals: a conditioned statement is not
@@ -1271,6 +1422,10 @@ mutual
   staticKind (DoesntUntap _) = DeedRestriction
   staticKind (CantMoreThan _ _ _ _) = DeedRestriction
   staticKind (Skips _ _) = TurnSkip
+  -- [CR#106.4]'s emptying is a rule of the game rather than an act any
+  -- object performs, so the sentence that overrides it restricts no
+  -- deed and modifies no cost.
+  staticKind (KeepsUnspentMana _ _) = ManaPersistence
   staticKind (MayDeclineUntap _) = DeedRestriction
   staticKind (BecomesAlso _ _) = TypeAddition
   staticKind (AddsEveryType _ _) = TypeAddition
@@ -1338,6 +1493,7 @@ mutual
   staticIntro (DoesntUntap n) = selfSubjIntro n
   staticIntro (CantMoreThan _ _ _ _) = bs
   staticIntro (Skips _ _) = bs
+  staticIntro (KeepsUnspentMana who _) = nomIntro who
   staticIntro (MayDeclineUntap n) = selfSubjIntro n
   staticIntro (BecomesAlso n _) = selfSubjIntro n
   staticIntro (AddsEveryType n _) = selfSubjIntro n
@@ -1640,53 +1796,122 @@ mutual
     AsPrintedCost : (n : Noun bs Object) ->
                     {auto 0 one : nounPlur n = OneOf} -> ProducedMana bs
 
-  ||| What a spend restriction [CR#106.6] lets its mana be spent on. The
-  ||| list `SpendOnly` carries is the DISJUNCTION printed lines write
-  ||| ("to cast an artifact spell or activate an ability of an artifact"),
-  ||| so an arm is one way of naming a purpose and not one whole line.
-  |||
-  ||| Two of the three name an OBJECT -- the spell being cast, the source
-  ||| whose ability is activated -- because [CR#106.1] names casting and
-  ||| activating as the usual occasions for spending mana. The third
-  ||| names the COST, which is what that same rule says mana is actually
-  ||| spent to pay, and what the object-taking arms cannot reach: a cost
-  ||| is not an object and no predicate describes one.
-  |||
-  ||| The zone-qualified lines are NOT a fourth arm and need nothing
-  ||| here. "Spend this mana only to cast spells from your graveyard"
-  ||| (Rootcoil Creeper, Lord of the Forsaken), "only to cast spells from
-  ||| exile" (Interdimensional Web Watch), "only to cast a spell from
-  ||| anywhere other than your hand" (Mm'menon, the Right Hand) and the
-  ||| two negative hand lines (Karolina Dean, Vhal) -- 7 supported lines,
-  ||| measured 2026-08-28 -- describe the SPELL by where it was cast
-  ||| from, which `CastFrom` already says of an object: [CR#601.2a] moves
-  ||| the card to the stack before [CR#601.2h] takes the payment, so the
-  ||| provenance is fixed by the time the restriction is tested.
+  ||| Which of [CR#106.6]'s two EFFECT-BEARING riders a clause writes.
+  ||| The rule lists them separately -- a production may "have an
+  ||| additional effect that affects the spell or ability that mana is
+  ||| spent on, or create a delayed triggered ability (see rule 603.7a)
+  ||| that triggers when that mana is spent" -- and the difference is
+  ||| real rather than editorial: a delayed trigger uses the stack and
+  ||| can be responded to where an additional effect cannot, and
+  ||| [CR#106.6a] doubles them differently when a replacement increases
+  ||| the mana ("a separate delayed triggered ability is created for each
+  ||| mana produced", against one effect "once for each mana produced").
+  ||| The corpus writes the difference too: "IF that mana is spent on a
+  ||| creature spell, it gains haste" against "WHEN that mana is spent to
+  ||| cast a creature spell, scry 1".
   public export
-  data SpendPurpose : Bindings -> Type where
-    ToCast : (p : Predicate bs Object) ->
-             SpendPurpose bs
-    ToActivate : (src : Maybe (Predicate bs Object)) ->
-                 SpendPurpose bs
-    ||| "Spend this mana only on costs that contain {X}" (Rosheen
-    ||| Meanderer), "only to pay cumulative upkeep costs" (Adarkar
-    ||| Unicorn), "only to turn permanents face up" (Overgrown Zealot):
-    ||| the purpose that names a COST rather than the object whose cost
-    ||| it is. 15 supported lines of 204, measured 2026-08-28;
-    ||| `CostNamed` carries the three ways they pick a cost out and the
-    ||| count of each.
-    |||
-    ||| The landed `Keyword.CumulativeUpkeep` row does not unblock
-    ||| Adarkar Unicorn on its own: that row is what a permanent PRINTS,
-    ||| where this names the cost such a permanent's ability charges.
-    ||| -- spelling: "to pay [c]", "on costs that contain [c]".
-    ToPay : (c : CostNamed) -> {auto 0 nm : CostNameable c} ->
-            SpendPurpose bs
+  data SpentMode = AffectsIt | TriggersThen
 
+  ||| A per-mana string attached to produced mana. [CR#106.6] enumerates
+  ||| exactly what one may say -- a production "restricts how that mana
+  ||| can be spent, [has] an additional effect that affects the spell or
+  ||| ability that mana is spent on, or create[s] a delayed triggered
+  ||| ability ... that triggers when that mana is spent" -- so the rows
+  ||| here are that list and nothing else.
+  |||
+  ||| WHAT IS NOT A RIDER, and the omission is the rule's: the mana's
+  ||| PERSISTENCE. [CR#106.4] empties every pool at the end of each step
+  ||| and phase, and "you don't lose this mana as steps and phases end"
+  ||| overrides that -- but it is not on [CR#106.6]'s list, and the
+  ||| corpus writes it as its own sentence with its own subject and its
+  ||| own duration. 32 supported lines carry the body (measured
+  ||| 2026-08-28): 25 say it of mana a preceding sentence added ("this
+  ||| mana", all 25 under a written span) and 7 say it of a player's
+  ||| unspent mana generally, of which 6 write no span at all and belong
+  ||| to permanents that add no mana anywhere (Omnath Locus of Mana,
+  ||| Leyline Tyrant, Upwelling). A rider slot could not have been
+  ||| written by those 6, and a rider would have had to invent the span
+  ||| the other 25 already spell with `Continuously`. So persistence is
+  ||| `KeepsUnspentMana` under the ordinary duration envelope, and the
+  ||| mana it names is read through the `ManaAdded` mention rather than
+  ||| held by an attachment.
+  |||
+  ||| Snow is not a rider either: a snow source is a SUPERTYPE on the
+  ||| permanent [CR#205.4a] and says nothing about the mana it makes.
   public export
   data ManaRider : Bindings -> Type where
+    ||| "Spend this mana only to cast a creature spell": [CR#106.6]'s
+    ||| restriction, in the positive. 164 supported sentences.
     SpendOnly : (ps : List (SpendPurpose bs)) ->
                 {auto 0 ne : SpendPurposes ps} -> ManaRider bs
+    ||| "This mana can't be spent to cast a nonartifact spell": the SAME
+    ||| restriction stated by what it excludes. 9 supported lines
+    ||| (measured 2026-08-28) -- Battery Bearer, Hydraulic Helper,
+    ||| Jegantha, Jetfire, Karn Legacy Reforged, Karolina Dean, The
+    ||| Mightstone and Weakstone, Thran Turbine, Vhal. A naive count
+    ||| returns 40; 31 of those are the Powerstone token's REMINDER text
+    ||| inside parentheses on cards that make one, and reminder text is
+    ||| not a line this grammar writes.
+    |||
+    ||| Its own row beside `SpendOnly` rather than a polarity flag on it,
+    ||| because the two say different things about the mana's OTHER
+    ||| purposes: "only to cast a creature spell" forbids every purpose
+    ||| but one, where "can't be spent to cast a nonartifact spell"
+    ||| leaves every purpose but one open. A flag would make the pair
+    ||| look like one statement read two ways, which they are not.
+    |||
+    ||| It is NOT a `Deontic`: no `Kind` names mana, so the subject the
+    ||| carrier demands does not exist, and the restriction is a fact
+    ||| about mana AS IT IS PRODUCED [CR#106.6] rather than a standing
+    ||| prohibition on a permanent. It names its complement through
+    ||| `SpendPurpose` and not through a noun, which is what the deontic
+    ||| complement would have given it: Jegantha's "can't be spent to pay
+    ||| generic mana costs" names a COST and no noun describes one, and
+    ||| [CR#107.4b] is why -- numerical symbols "represent generic mana in
+    ||| costs", a component of a cost rather than an object.
+    SpendNotOn : (ps : List (SpendPurpose bs)) ->
+                 {auto 0 ne : SpendPurposes ps} -> ManaRider bs
+    ||| "If that mana is spent on a creature spell, it gains haste until
+    ||| end of turn" and "When that mana is spent to cast a creature
+    ||| spell that shares a creature type with your commander, scry 1":
+    ||| [CR#106.6]'s two effect-bearing riders, sharing one row because
+    ||| they share the only thing this grammar was missing -- a mention of
+    ||| the OBJECT the mana was spent on. 14 supported cells (measured
+    ||| 2026-08-28): 11 additional effects and 3 delayed triggers
+    ||| ([CR#603.7a] -- Path of Ancestry, Primal Amulet, Pyromancer's
+    ||| Goggles).
+    |||
+    ||| THE PAID-FOR OBJECT IS BOUND ONCE, by `what`, and every reading
+    ||| of it comes off that one mention: "IT gains haste" (Arena of
+    ||| Glory), "THAT SPELL can't be countered" (Boseiju), "THAT CREATURE
+    ||| enters with an additional +1/+1 counter" (Animal Attendant),
+    ||| "copy THAT SPELL" (Primal Amulet). It is a `Noun` and not a
+    ||| `Predicate` for exactly that reason: a predicate describes and
+    ||| announces nothing, and these bodies all read back.
+    |||
+    ||| `only` is the difference between the two spellings the corpus
+    ||| writes, and it is why the restriction is not a second rider here:
+    ||| Cavern of Souls and Delighted Halfling write "Spend this mana
+    ||| ONLY to cast a creature spell of the chosen type, AND THAT SPELL
+    ||| can't be countered" -- one sentence, one mention of the spell,
+    ||| doing [CR#106.6]'s first and second things at once. Two riders
+    ||| could not have said it: the rider list is a `List` and its
+    ||| members announce nothing to one another, so a `SpendOnly` beside
+    ||| an effect rider would leave the effect with no mention to read.
+    ||| The other 9 write "IF that mana is spent on ..." and restrict
+    ||| nothing.
+    |||
+    ||| The mention is on the STACK: [CR#601.2a] moves the card there
+    ||| before [CR#601.2h] takes the payment, so whatever the mana pays
+    ||| for is a spell by the time this rider can speak of it.
+    ||| -- spelling: with `only`, "Spend this mana only to cast [what],
+    ||| and [says]"; otherwise "If that mana is spent on [what], [says]"
+    ||| at `AffectsIt` and "When that mana is spent to cast [what],
+    ||| [says]" at `TriggersThen`.
+    OnSpent : (mode : SpentMode) -> (only : Bool) ->
+              (what : Noun bs Object) ->
+              (says : Effect (nomIntro what)) ->
+              {auto 0 zn : OnStack (nounZone what)} -> ManaRider bs
 
   public export
   data SpendPurposes : {0 bs : Bindings} -> List (SpendPurpose bs) -> Type where
@@ -3285,7 +3510,13 @@ mutual
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
   effIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
-  effIntro (AddMana who amt _ _) = amtIntro amt
+  -- [CR#106.4] sends the mana to a pool, where it "can stay ... as
+  -- unspent mana" -- so the clause leaves a mention the next sentence
+  -- reads as "this mana". On `DealDamage`'s channels exactly: the
+  -- outcome is in `effIntro` and `deedDelta` and in neither of the two
+  -- pre-resolution channels, because nothing is in a pool until the
+  -- clause resolves.
+  effIntro (AddMana who amt _ _) = outcomeB ManaAdded :: amtIntro amt
   effIntro (Draw who amt) = amtIntro amt
   effIntro (Expose v who what) = exposedIntro what
   -- the found card is stamped by the label that found it, which is what
@@ -3701,7 +3932,7 @@ mutual
   deedDelta (ChangeLife who (Up a)) = [outcomeB LifeGained]
   deedDelta (ChangeLife who (Down a)) = [outcomeB LifeLost]
   deedDelta (ChangeLife who (Set a)) = []
-  deedDelta (AddMana _ _ _ _) = []
+  deedDelta (AddMana _ _ _ _) = [outcomeB ManaAdded]
   deedDelta (Draw who amt) = []
   deedDelta (Expose v who what) = []
   deedDelta (Search who sc q p) =

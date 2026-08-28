@@ -889,6 +889,29 @@ data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  -- change are "not 'removed'" -- so the word names an
                  -- action and not any loss of counters.
                  | CountersRemoved
+                 -- the mana a clause PUT INTO A POOL: [CR#106.4] has an
+                 -- add instruction send its mana to a player's mana pool,
+                 -- where it stays as unspent mana, and that is what the
+                 -- next sentence's "this mana" points at ("Until end of
+                 -- turn, you don't lose this mana as steps and phases
+                 -- end", Tundra Fumarole). An OUTCOME and not an object:
+                 -- mana is a resource a pool holds, no `Kind` names it,
+                 -- and `itReaches` demands an object, so "it" can never
+                 -- reach this mention -- which is right, since no line
+                 -- writes "it" for mana.
+                 | ManaAdded
+                 -- a MANA ABILITY resolved and produced mana here.
+                 -- [CR#106.12a] fires the tapped-for-mana trigger
+                 -- "whenever such a mana ability resolves and produces
+                 -- mana", so the header's own event is a production and
+                 -- not merely an act, and that is what "one mana of any
+                 -- type that land produced" reads back off.
+                 -- Its own sort beside `ManaAdded`: the two answer
+                 -- different questions -- what went into a pool, against
+                 -- what an ability in scope was able to make -- and one
+                 -- sort would let "that land produced" be written after a
+                 -- bare add, where no land was tapped at all.
+                 | ManaProduced
 
 ||| Which reading of a flipped coin a clause takes. [CR#705.2] gives a
 ||| flip two and only two: the face it came up, and -- when the flipper
@@ -1463,6 +1486,10 @@ Eq OutcomeSort where
   (==) RepeatCount _ = False
   (==) CountersRemoved CountersRemoved = True
   (==) CountersRemoved _ = False
+  (==) ManaAdded ManaAdded = True
+  (==) ManaAdded _ = False
+  (==) ManaProduced ManaProduced = True
+  (==) ManaProduced _ = False
 
 public export
 outcomeB : OutcomeSort -> Binding
@@ -1659,6 +1686,15 @@ outcomeIsQuantity NamedNumber = True
 outcomeIsQuantity RepeatCount = True
 -- and a removal leaves the number of counters taken off.
 outcomeIsQuantity CountersRemoved = True
+-- mana leaves no number for "that much" to name. [CR#106.1b] makes mana
+-- typed rather than counted, and what a later sentence reads back is the
+-- mana itself ("you don't lose THIS MANA", "add the mana lost this way")
+-- and never an amount of it: 0 supported lines read a quantity off an add
+-- (measured 2026-08-28). A production in scope leaves no number either --
+-- what [CR#106.12a]'s trigger makes readable is the TYPE its source
+-- produced, which `ProducedByEvent` names and no quantity read reaches.
+outcomeIsQuantity ManaAdded = False
+outcomeIsQuantity ManaProduced = False
 
 ||| What "that much" folds: the outcome mentions that carry a number.
 public export
@@ -4178,8 +4214,45 @@ public export
 AltRunWritten : Maybe ProducedRun -> Type
 AltRunWritten alt = So (altRunWritten alt)
 
+||| How free the colours of a produced run are of one another.
+||| [CR#106.1a] fixes the five colours, so the axis is over that set and
+||| never over a written one -- a run whose colours the LINE writes is
+||| `AmongWritten`, which states its own set.
+|||
+||| Three values, one per way a line leaves the choice: "add one mana of
+||| any color" fixes one colour for every unit (`SameColor`), "add three
+||| mana in any combination of colors" leaves each unit free of the rest
+||| (`EachColor`, 34 supported lines, measured 2026-08-28), and "add two
+||| mana of different colors" frees each unit but forbids a repeat
+||| (`DistinctColors`, 4 lines).
+|||
+||| `DistinctColors` is a value on this axis and not a rider: what it
+||| constrains is exactly what the other two constrain, the relation
+||| between one unit's colour and the next, and a rider would let it be
+||| written beside `SameColor` -- "two mana of the same color, of
+||| different colors" -- which is a contradiction no rule could resolve.
 public export
-data ColorFreedom = SameColor | EachColor
+data ColorFreedom = SameColor | EachColor | DistinctColors
+
+||| What [CR#609.4b]'s spend permission lets mana COUNT AS. The rule
+||| writes the payload as "mana of any [type or color]", and
+||| [CR#118.14]'s sibling phrasing spells the same widening as "mana of
+||| any type can be spent" -- so the two words the rules use are the two
+||| this type carries, plus the one colour a single line names outright.
+|||
+||| It is a MATCHER and not a `ProducedRun`: a run says what mana was
+||| made [CR#106.1b], where this says what already-made mana may be
+||| treated as while a cost is paid. [CR#609.4b] keeps them apart in as
+||| many words -- the permission "doesn't change what mana was actually
+||| spent to pay that cost" -- so a payload that spelled a production
+||| would say the mana had changed type, which is what the rule denies.
+|||
+||| `AnyType` is not `AnyColor` plus colorless spelled twice:
+||| [CR#106.1a] has five colours and [CR#106.1b] six types, so the two
+||| words admit different sets and 1 supported line writes the wider one
+||| where 49 write the narrower (measured 2026-08-28).
+public export
+data ManaMatch = MatchAnyColor | MatchAnyType | MatchOf ColorOrColorless
 
 public export
 data LoyaltyCost : Type where

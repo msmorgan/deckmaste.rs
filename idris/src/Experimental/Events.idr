@@ -737,6 +737,30 @@ counterRole Patient = Agent
 ||| or a targeter rides, whether a counterfactual may) are different
 ||| questions with no field in common.
 
+||| The SORT of premise [CR#609.4]'s counterfactual carries at a deed.
+||| The rule states no single payload: its own body is about an object or
+||| a player being treated as something it is not, and [CR#609.4b] gives
+||| spending mana its own sentence and its own payload -- "as though it
+||| were mana of any [type or color]", which affects "only how the player
+||| may pay a cost" and is a matcher over mana rather than a description
+||| of an object.
+|||
+||| So the sort is a DEED FACT and not a free choice at the carrier: what
+||| a permission may counterfactualise is fixed by the deed's own rule,
+||| and a premise of the wrong sort is a sentence the rules cannot read
+||| ("this creature can attack as though it were mana of any color").
+||| The alternative -- one payload union admitted everywhere -- would
+||| make every such pairing spellable and pin nothing.
+public export
+data PremiseSort = ObjectPremise | ManaPremise
+
+public export
+Eq PremiseSort where
+  (==) ObjectPremise ObjectPremise = True
+  (==) ObjectPremise _ = False
+  (==) ManaPremise ManaPremise = True
+  (==) ManaPremise _ = False
+
 ||| One ROLE's facts. [CR#506.3] states attacking's and blocking's
 ||| outright -- "Only a creature can attack or block. Only a player, a
 ||| planeswalker, or a battle can be attacked" -- and every other deed's
@@ -792,11 +816,14 @@ record DeedFacts where
   ||| [CR#115.1a] or an ability [CR#115.1c,115.1d] -- rather than a
   ||| participant of the deed's own kind.
   deedTargeted : Bool
-  ||| whether [CR#609.4]'s counterfactual may ride a permission of this
-  ||| deed. The rule's own bipartition is "a player may do something
-  ||| 'as though' ... or a creature can do something 'as though' ...",
-  ||| so the flag records which deeds the corpus writes one for.
-  deedCounterfactual : Bool
+  ||| which SORT of [CR#609.4] counterfactual may ride a permission of
+  ||| this deed, and `Nothing` where none may. The rule's own bipartition
+  ||| is "a player may do something 'as though' ... or a creature can do
+  ||| something 'as though' ...", so the field records which deeds the
+  ||| corpus writes one for; the SORT is [CR#609.4b]'s addition, which
+  ||| gives the spend deed a mana matcher where the rest take a
+  ||| description of an object.
+  deedCounterfactual : Maybe PremiseSort
   ||| whether the deed spells the EFFECT-SCOPED rider (`CantBe`), which
   ||| is a different construction from a standing prohibition: the rider
   ||| denies one resolution's own consequence ("destroy it. It can't be
@@ -815,11 +842,11 @@ deedFacts =
   [ MkDeedFacts "Attack"
       (MkDeedRole [Object] [Creature] False (Just Battlefield))
       (MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield))
-      True False True False
+      True False (Just ObjectPremise) False
   , MkDeedFacts "Block"
       (MkDeedRole [Object] [Creature] False (Just Battlefield))
       (MkDeedRole [Object] [Creature] False (Just Battlefield))
-      False False True False
+      False False (Just ObjectPremise) False
   -- [CR#115.1] makes the targets "object(s) and/or player(s) the spell
   -- or ability will affect", and they are chosen wherever they are, so
   -- the patient's zone is unstated and its type is whatever the printed
@@ -829,7 +856,7 @@ deedFacts =
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True Nothing)
-      False True True False
+      False True (Just ObjectPremise) False
   -- [CR#601.2] takes the spell from where it is and puts it on the
   -- stack; [CR#305.1] keeps a land off it -- "Since the land doesn't go
   -- on the stack, it is never a spell". The agent is the player who
@@ -838,27 +865,27 @@ deedFacts =
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False True True
+      False False (Just ObjectPremise) True
   -- [CR#701.18a]: "To play a land means to put it onto the battlefield
   -- from the zone it's in" -- a special action, never on the stack, so
   -- the patient's zone is the one the clause names and not this rule's.
   , MkDeedFacts "Play"
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Land] True Nothing)
-      False False True True
+      False False (Just ObjectPremise) True
   -- [CR#701.6a] cancels a spell or ability and removes it from the
   -- stack, so both ends of the deed are stack objects.
   , MkDeedFacts "Counter"
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False False True
+      False False Nothing True
   -- [CR#707.10] puts a copy of a spell or ability onto the stack.
   , MkDeedFacts "Copy"
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True (Just Stack))
-      False False False False
+      False False Nothing False
   -- [CR#602.2] puts an ability on the stack and pays its costs; only
   -- the object's controller activates it. [CR#109.1] makes the ability
   -- an object with no card type, which is why the patient is bare with
@@ -866,19 +893,19 @@ deedFacts =
   , MkDeedFacts "Activate"
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Ability] [] True Nothing)
-      False False False False
+      False False Nothing False
   -- [CR#614.8] makes regeneration a destruction-replacement on a
   -- permanent, so the patient is on the battlefield.
   , MkDeedFacts "Regenerate"
       (MkDeedRole [] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False False True
+      False False Nothing True
   -- [CR#119.3] adjusts a PLAYER's life total; nothing is done to a
   -- second participant.
   , MkDeedFacts "GainLife"
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False False False
+      False False Nothing False
   -- [CR#121.1] has a player put the top card of their library into
   -- their hand, so the deed's patient is that card, read where the rule
   -- finds it. The patient row exists for the COUNT CAP -- "can't draw
@@ -887,7 +914,7 @@ deedFacts =
   , MkDeedFacts "DrawCard"
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [] True (Just Library))
-      False False False False
+      False False Nothing False
   -- [CR#502.3] has the active player untap the PERMANENTS THEY CONTROL
   -- as a turn-based action, so both ends of the deed are named by that
   -- one sentence: a player at the agent, a battlefield permanent at the
@@ -901,7 +928,7 @@ deedFacts =
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False False False
+      False False Nothing False
   -- [CR#603.2] has the ability itself trigger -- "that ability
   -- automatically triggers" -- and nothing is done to a second
   -- participant. [CR#603.2a] says outright that triggering is neither
@@ -910,18 +937,18 @@ deedFacts =
   -- don't trigger" is a statement no activation prohibition reaches.
   , MkDeedFacts "Trigger"
       (MkDeedRole [Ability] [] True Nothing) noRole
-      False False False False
+      False False Nothing False
   , MkDeedFacts "Untap"
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
                             Planeswalker, Battle] True (Just Battlefield))
-      False False False False
+      False False Nothing False
   -- [CR#701.23a] looks at all cards in a zone and finds one; what a
   -- printed line writes after the verb is the zone, which is no `Kind`
   -- here, so the deed states only its agent.
   , MkDeedFacts "SearchLibrary"
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False False False
+      False False Nothing False
   -- [CR#104.3] and [CR#104.2] name the ways a player loses and wins;
   -- the deed's agent is the player the outcome befalls and there is no
   -- second participant. Two labels rather than one signed row, because
@@ -930,10 +957,23 @@ deedFacts =
   -- what that coordination is.
   , MkDeedFacts "LoseGame"
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False False False
+      False False Nothing False
   , MkDeedFacts "WinGame"
       (MkDeedRole [Player] [] True Nothing) noRole
-      False False False False
+      False False Nothing False
+  -- [CR#106.1]: "Players spend mana to pay costs." The agent is that
+  -- player, in no zone [CR#400.1]. The patient is `noRole` and the
+  -- omission is the rules': what is spent is MANA, and mana is a
+  -- resource a pool holds rather than an object or a player, so no
+  -- `Kind` here names it and none should -- the deed's other end is
+  -- named by what the mana is spent ON, which is `SpendPurpose`'s
+  -- business and rides the premise.
+  -- The counterfactual sort is [CR#609.4b]'s: a permission of this deed
+  -- says what already-made mana may COUNT AS while a cost is paid, which
+  -- is a mana matcher and not a description of an object.
+  , MkDeedFacts "Spend"
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False (Just ManaPremise) False
   ]
 
 public export
@@ -993,9 +1033,23 @@ public export
 deedTargetedOk : VerbLabel -> Bool
 deedTargetedOk v = maybe False deedTargeted (deedFactsFor v)
 
+||| Which premise sort the deed admits, and `Nothing` where it admits
+||| none -- the fail-closed answer for a label with no row.
+public export
+deedPremiseSort : VerbLabel -> Maybe PremiseSort
+deedPremiseSort v = deedFactsFor v >>= deedCounterfactual
+
+||| Whether a counterfactual may ride at all, at any sort.
 public export
 deedCounterfactualOk : VerbLabel -> Bool
-deedCounterfactualOk v = maybe False deedCounterfactual (deedFactsFor v)
+deedCounterfactualOk v = isJust (deedPremiseSort v)
+
+||| Whether the deed admits a counterfactual of THIS sort. A coordination
+||| is asked of every deed in it, which is what keeps a premise from
+||| riding a list one of whose deeds reads a different payload.
+public export
+deedPremiseOk : PremiseSort -> VerbLabel -> Bool
+deedPremiseOk s v = deedPremiseSort v == Just s
 
 public export
 deedRidesOk : VerbLabel -> Bool
@@ -1058,6 +1112,12 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | ControlGrant | Replacement | Prevention
                 | Conditional | PlayPermission | EntryRider
                 | CostModification
+                -- the statement that keeps mana in a pool past the
+                -- emptying [CR#106.4] names as the end of each step and
+                -- phase. Its own kind: it restricts no deed, grants
+                -- nothing to an object, and replaces no event -- what it
+                -- overrides is a rule of the game.
+                | ManaPersistence
                 | PtDefinition | BasePtSet | PtSwitch
                 | TypeSet | TypeLoss | ColorSet | AbilityLoss | Coordination
                 | CopyEffect
