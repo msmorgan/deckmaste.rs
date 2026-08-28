@@ -5688,6 +5688,82 @@ nevermore =
                    (AllOf (And [Macros.spell, Named ChosenName]))) ]
        Nothing
 
+||| Council of the Absolute, whole -- "As this creature enters, choose a
+||| noncreature, nonland card name. / Your opponents can't cast spells
+||| with the chosen name. / Spells with the chosen name you cast cost {2}
+||| less to cast." The QUALIFIED cast prohibition in the PLAYER voice, one
+||| card away from Meddling Mage's object voice of the same sentence. The
+||| complement is `DeonticCounterpart`, read through `counterRole` --
+||| [CR#601.2] seats a cast spell on the stack, which is where the deed's
+||| own row already puts a `Cast` patient, so the description the printed
+||| line carries needed no slot of its own.
+public export
+councilOfTheAbsolute : Card
+councilOfTheAbsolute =
+  Macros.card "Council of the Absolute"
+       (Just [Macros.generic 2, Macros.pip White, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Human", creatureType "Advisor"] [Creature])
+       [ Static (Macros.entersChoosingFrom Macros.thisCreature
+                                           CardName
+                                           (NameOfCard (Not (Or [HasType Creature,
+                                                                 HasType Land]))))
+       , Static (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
+                   (AllOf (And [Macros.spell, Named ChosenName])))
+       , Static (CostsToCast (AllOf (And [Macros.spell, Named ChosenName,
+                                          CastBy You]))
+                             (CostLess (Lit 2))) ]
+       (Just (2, 3))
+
+||| Failure // Comply's second face -- "Choose a card name. Until your
+||| next turn, your opponents can't cast spells with the chosen name."
+||| Conjurer's Ban's sentence in the other voice, and the pair is the
+||| argument for one deed at two roles: the choice announces the name
+||| once and each voice reads it from the same binding.
+public export
+complyNameLock : Effect []
+complyNameLock =
+  Sequentially
+    [ Macros.choose (Macros.a (Macros.quality CardName))
+    , Continuously
+        (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
+           (AllOf (And [Macros.spell, Named ChosenName])))
+        (Just Macros.untilYourNextTurn) ]
+
+||| Gideon's Intervention, whole -- the qualified cast prohibition with
+||| the chosen name read a second time by a damage prevention, which is
+||| what makes the card one card and not two lines that happen to share a
+||| word: [CR#109.2c] reads "sources with the chosen name" as the objects
+||| themselves, so both readers take the same binding.
+public export
+gideonsIntervention : Card
+gideonsIntervention =
+  Macros.card "Gideon's Intervention"
+       (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (Macros.entersChoosing Macros.thisEnchantment CardName)
+       , Static (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
+                   (AllOf (And [Macros.spell, Named ChosenName])))
+       , Static (Prevents AnyDamage AllOfIt
+                   (ToRecipient (Macros.youAnd
+                      (AllOf (And [Permanent, ControlledBy You]))))
+                   (Just (AllOf (And [IsSource, Named ChosenName])))
+                   Nothing) ]
+       Nothing
+
+||| Academic Probation's first mode -- "Choose a nonland card name.
+||| Opponents can't cast spells with the chosen name until your next
+||| turn." The same sentence as Comply's with the domain written out.
+public export
+academicProbationNameMode : Effect []
+academicProbationNameMode =
+  Sequentially
+    [ Macros.choose (Macros.a (Macros.qualityFrom CardName
+                                 (NameOfCard (Not (HasType Land)))))
+    , Continuously
+        (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
+           (AllOf (And [Macros.spell, Named ChosenName])))
+        (Just Macros.untilYourNextTurn) ]
+
 ||| "Choose a card name other than a basic land card name." The postnominal
 ||| exception, written as the negated conjunction the phrase states.
 public export

@@ -703,8 +703,24 @@ mutual
     DefendingPlayer : {k : Kind} -> (m : Noun bs k) ->
                       {auto 0 at : Attackable m} ->
                       DeonticPatient {bs} ds r
-    ||| The deed's own counterpart: a blocker's attacker, an attacker's
-    ||| blocker [CR#506.3].
+    ||| The deed's OTHER participant, described -- and which end that is
+    ||| follows from the ROLE the subject fills. With the subject at
+    ||| `Patient` it is the deed's own counterpart, a blocker's attacker
+    ||| or an attacker's blocker [CR#506.3]. With the subject at `Agent`
+    ||| it is what the deed is done TO, which is the COMPLEMENT the
+    ||| qualified acts carry: "your opponents can't cast spells with the
+    ||| chosen name", "you can't cast noncreature spells", "this ability
+    ||| can't be activated" in its other voice.
+    |||
+    ||| One arm serves both because `counterpartFits` asks its question
+    ||| against `counterRole r` and the deed's own rule answers it:
+    ||| [CR#601.2] takes a cast spell from where it is and puts it on the
+    ||| stack, which is exactly where `deedFacts` seats a `Cast` patient,
+    ||| and [CR#602.2] does the same for an activated ability. So the
+    ||| qualified complement needed no slot of its own -- unifying the
+    ||| carrier paid for it, and the five qualifier families that name an
+    ||| object (a spell TYPE, a NAME, a colour, a chosen type) are one
+    ||| noun here rather than five members of an act vocabulary.
     DeonticCounterpart : (m : Noun bs Object) ->
                          DeonticPatient {bs} ds r
     ||| WHAT may not target the subject: "spells or abilities your

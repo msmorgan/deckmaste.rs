@@ -823,6 +823,37 @@ objectCant : {k : Kind} -> (deed : VerbLabel) -> (what : Noun bs k) ->
 objectCant deed what =
   Deontic what Forbid [deed] Patient NoDeonticPatient Nothing {kd} {zn} {dp}
 
+||| "[who] can't [deed] [what]": the prohibition whose act carries an
+||| OBJECT DESCRIPTION rather than naming the act bare. 101 supported
+||| lines write a cast prohibition (measured 2026-08-28; a naive sweep
+||| returns 130 and 29 of those are the reminder text printed under
+||| split second and epic), and the qualified ones spread over five
+||| families -- a spell TYPE ("noncreature spells", "creature spells"),
+||| a NAME ("with the chosen name", "with the same name as the exiled
+||| card"), a chosen TYPE or COLOUR, a mana-value comparison, and the
+||| count cap that `cantMoreThan` owns.
+|||
+||| The complement is `DeonticCounterpart`: the deed's other end read
+||| through `counterRole`, which is the same slot the blocked creature
+||| fills at the other role. Nothing new was needed for it, which is the
+||| unification's second payoff -- the corpus writes "Your opponents
+||| can't cast spells with the chosen name" and "Spells with the chosen
+||| name can't be cast" one card apart, and they are now ONE deed with
+||| ONE description at two roles rather than a member in each of two
+||| act vocabularies.
+public export
+cantDoTo : {k : Kind} -> (deed : VerbLabel) -> (who : Noun bs k) ->
+           (what : Noun (nomIntro who) Object) ->
+           {auto 0 kd : KnownDeeds [deed]} ->
+           {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
+           {auto 0 dp : DeedParticipant [deed] Agent k (nounTy who)} ->
+           {auto 0 pt : So (deonticPatientOk who [deed] Agent
+                              (DeonticCounterpart what))} ->
+           StaticEffect bs
+cantDoTo deed who what =
+  Deontic who Forbid [deed] Agent (DeonticCounterpart what) Nothing
+          {kd} {zn} {dp} {pt}
+
 ||| "[what] can't be the target of [by]": the targeting prohibition, 30
 ||| real supported sentences (measured 2026-08-28; a naive sweep returns
 ||| 216, of which 186 are the reminder text printed under hexproof and
