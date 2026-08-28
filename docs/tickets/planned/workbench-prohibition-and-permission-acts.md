@@ -3,6 +3,14 @@ needs: []
 ---
 # Pay what the prohibition, permission and outcome-gate acts still owe
 
+**SPLIT 2026-08-28 into three sub-tickets — claim those, not this.** This
+file is the umbrella and stays authoritative:
+[1 unified carrier](workbench-prohibition-1-unified-carrier.md),
+[2 qualified acts](workbench-prohibition-2-qualified-acts.md),
+[3 permissions and gates](workbench-prohibition-3-permissions-and-gates.md).
+Order: 1 first (the carrier both rulings define); 2 and 3 after it, in
+parallel if their regions stay disjoint.
+
 One region: the acts a subject may not do, the acts a subject may do, and the
 gates that end the game. They share carriers (`StaticEffect.PlayerCant`,
 `StaticEffect.ObjectCant`, `Compulsion`), they share the spanless-clause and
