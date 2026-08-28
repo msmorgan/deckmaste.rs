@@ -424,6 +424,22 @@ mutual
                {auto 0 pf : So (playableFrom (Just (zoneSort z)))} ->
                Predicate bs Object
     Attacking : Predicate bs Object
+    ||| "[n] is being declared as an attacker": the attack declaration IN
+    ||| PROGRESS, which is not the same question as attacking.
+    ||| [CR#508.1a] has the active player choose which creatures will
+    ||| attack; [CR#508.1f] taps those chosen creatures, stating that
+    ||| "attacking simply causes creatures to become tapped"; and
+    ||| [CR#508.1k] makes each of them an attacking creature only after
+    ||| that. So at the moment of the tap the creature is not yet
+    ||| attacking, and `Attacking` answers the wrong question -- which is
+    ||| why the two printed lines that watch the tap (Verity Circle,
+    ||| Rhoda, Geist Avenger) need this word to exclude the declaration's
+    ||| own tap and cannot say "isn't attacking".
+    ||| It seeds the battlefield and the creature type for `Attacking`'s
+    ||| reason: [CR#508.1a] chooses from the creatures the active player
+    ||| controls.
+    ||| -- spelling: "[n] is being declared as an attacker".
+    BeingDeclaredAttacker : Predicate bs Object
     Blocking : Predicate bs Object
     BlockerOf : (m : Noun bs Object) ->
                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
@@ -728,6 +744,7 @@ mutual
   seedZone : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe Zone
   seedZone (InZone z) = Just (zoneSort z)
   seedZone Attacking = Just Battlefield
+  seedZone BeingDeclaredAttacker = Just Battlefield
   seedZone Blocking = Just Battlefield
   seedZone (BlockerOf _) = Just Battlefield
   seedZone (BlockedBy _) = Just Battlefield
@@ -816,6 +833,7 @@ mutual
   public export
   seedType : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
   seedType Attacking = Just Creature
+  seedType BeingDeclaredAttacker = Just Creature
   seedType Blocking = Just Creature
   seedType (BlockerOf _) = Just Creature
   seedType (BlockedBy _) = Just Creature
@@ -898,6 +916,7 @@ mutual
   hasHead (ControlledBy _) = False
   hasHead (CastBy _) = False
   hasHead Attacking = False
+  hasHead BeingDeclaredAttacker = False
   hasHead Blocking = False
   hasHead (BlockerOf _) = False
   hasHead (BlockedBy _) = False
@@ -1087,6 +1106,8 @@ mutual
   predEq (ExiledWith _) _ = False
   predEq Attacking Attacking = True
   predEq Attacking _ = False
+  predEq BeingDeclaredAttacker BeingDeclaredAttacker = True
+  predEq BeingDeclaredAttacker _ = False
   predEq Blocking Blocking = True
   predEq Blocking _ = False
   predEq (BlockerOf a) (BlockerOf b) = nounEqRef a b
@@ -1610,6 +1631,7 @@ mutual
   predSays (CastBy _) = True
   predSays (ExiledWith _) = True
   predSays Attacking = True
+  predSays BeingDeclaredAttacker = True
   predSays Blocking = True
   predSays (BlockerOf _) = True
   predSays (BlockedBy _) = True
@@ -1677,6 +1699,7 @@ mutual
   predNegFree (CastBy _) = True
   predNegFree (ExiledWith _) = True
   predNegFree Attacking = True
+  predNegFree BeingDeclaredAttacker = True
   predNegFree Blocking = True
   predNegFree (BlockerOf _) = True
   predNegFree (BlockedBy _) = True

@@ -368,6 +368,26 @@ eventHasMagnitude (VerbedAct _) = False
 public export
 data ReplUse = Repeatedly | NextTimeOnly
 
+||| The three words a triggered ability may begin with. The list is
+||| CLOSED by the rules and not by measurement: [CR#603.1] writes the
+||| shape outright as "[When/Whenever/At] [trigger condition or event],
+||| [effect]", and [CR#113.3c] repeats it -- a triggered ability
+||| "include[s] (and usually begins with) the word 'when,' 'whenever,' or
+||| 'at.'"
+||| The corpus prints a fourth word, "After", and it is not a fourth row
+||| and not a spelling of one of these three, because the lines that
+||| write it are not triggered abilities at all. "After you roll a die,
+||| you may pay 1 life. If you do, increase or decrease the result by 1"
+||| (Xenosquirrels, Night Shift of the Living Dead) is a roll MODIFIER:
+||| [CR#706.2] has the final result reached only "after considering all
+||| applicable modifiers", and [CR#706.2b] names this very shape among
+||| them -- "effects that modify the result of a die roll by increasing
+||| or decreasing that result by a specified amount". The word marks
+||| where in that sequence the modifier applies, not a trigger event.
+||| The other two printed "After"s -- "After this main phase, there are
+||| two additional combat phases" (Full Throttle, World at War) -- are
+||| the added-phase statement, which is `AdditionalPart` and likewise no
+||| header.
 public export
 data TriggerWord = When | Whenever | At
 

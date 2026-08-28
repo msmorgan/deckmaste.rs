@@ -12687,3 +12687,25 @@ captainMarvelApexAvenger =
            (Matches It (Not (HasSubtype (creatureType "Kree"))))
            (Macros.may You (PutCountersOfThoseKinds ThatMuch This)) ]
        (Just (4, 4))
+
+||| Verity Circle, whole -- "Whenever a creature an opponent controls
+||| becomes tapped, if it isn't being declared as an attacker, you may
+||| draw a card. / {4}{U}: Tap target creature without flying." The
+||| attack declaration IN PROGRESS as an intervening condition: the tap
+||| [CR#508.1f] performs during the declaration is the one the card
+||| excludes, and [CR#508.1k] is why "isn't attacking" would not say it.
+public export
+verityCircle : Card
+verityCircle =
+  Macros.card "Verity Circle"
+       (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggeredIf Whenever
+           (StatusEvent (Macros.a (And [Macros.creature,
+                                        ControlledBy Macros.anOpponent])) Tapped)
+           (Matches It (Not BeingDeclaredAttacker))
+           (Macros.may You Macros.drawACard)
+       , Macros.activated (Mana [Macros.generic 4, Macros.pip Blue])
+           (Macros.tap (Macros.target
+                          (And [Macros.creature, Not (HasKeyword "Flying")]))) ]
+       Nothing
