@@ -558,6 +558,25 @@ mutual
                      {auto 0 sc : designationScope d = HeldBy k} ->
                      {auto 0 at : So (designationChecked d)} ->
                      Predicate bs k
+    ||| "Commander creatures you own", "a commander creature you
+    ||| control": the CARD-scoped designation as a description. 37
+    ||| supported lines head a phrase with it (measured 2026-08-28).
+    ||| Its own row and not a widening of `HasDesignation`, because
+    ||| [CR#903.3] says outright what the two rows differ over: the
+    ||| commander designation "is not a characteristic of the object
+    ||| represented by the card; rather, it is an attribute of the card
+    ||| itself", and "the card retains this designation even when it
+    ||| changes zones". `HasDesignation` reads a designation the KIND
+    ||| holds, which is why its gate is `designationScope d = HeldBy k`
+    ||| and why it cannot reach this one; this row reads the card's own
+    ||| attribute, and the scope gate is what parts them.
+    ||| It presupposes no card type and seeds no zone, for the same
+    ||| sentence of [CR#903.3]: an attribute that survives every zone
+    ||| change locates nothing.
+    ||| -- spelling: "commander [n]".
+    HasCardDesignation : (d : Designation) ->
+                         {auto 0 sc : designationScope d = HeldByCard} ->
+                         Predicate bs Object
     IsAttached : (w : AttachWord) ->
                  {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
     ||| "enchanted by two or more Auras", "enchanted by an Aura you
@@ -1053,6 +1072,7 @@ mutual
   hasHead (HasSupertype _) = False
   hasHead (Named _) = False
   hasHead (HasDesignation _) = False
+  hasHead (HasCardDesignation _) = True
   hasHead (CoinCameUp _) = False
   hasHead (IsAttached _) = False
   hasHead (AttachedBy _ _) = False
@@ -1269,6 +1289,8 @@ mutual
   predEq (Named _) _ = False
   predEq (HasDesignation a) (HasDesignation b) = a == b
   predEq (HasDesignation _) _ = False
+  predEq (HasCardDesignation a) (HasCardDesignation b) = a == b
+  predEq (HasCardDesignation _) _ = False
   predEq (CoinCameUp Heads) (CoinCameUp Heads) = True
   predEq (CoinCameUp Tails) (CoinCameUp Tails) = True
   predEq (CoinCameUp _) _ = False
@@ -1804,6 +1826,7 @@ mutual
   predSays (HasSupertype _) = True
   predSays (Named _) = True
   predSays (HasDesignation _) = True
+  predSays (HasCardDesignation _) = True
   predSays (CoinCameUp _) = True
   predSays (IsAttached _) = True
   predSays (AttachedBy _ _) = True
@@ -1877,6 +1900,7 @@ mutual
   predNegFree (HasSupertype _) = True
   predNegFree (Named _) = True
   predNegFree (HasDesignation _) = True
+  predNegFree (HasCardDesignation _) = True
   predNegFree (CoinCameUp _) = True
   predNegFree (IsAttached _) = True
   predNegFree (AttachedBy _ _) = True
@@ -2082,9 +2106,28 @@ mutual
     ||| type is the description's where it names one.
     ||| -- spelling: "[q] of [grp]" bare; "[q] [description] from among
     ||| [grp]" described.
+    ||| The base is a `PartitiveBase` and not a `GroupMention`, and the
+    ||| split is this round's answer to a widening deliberately deferred
+    ||| before. The two readers were sharing one gate and want different
+    ||| bases. "Each of" fills a DETERMINER position, so its base must
+    ||| leave that position open -- which is why "each of all creatures"
+    ||| and "each of each creature" are not English and stay refused.
+    ||| "From among" fills no determiner position; it names the set the
+    ||| pick is made out of, and the corpus writes a DESCRIBED set there
+    ||| in 86 supported lines (measured 2026-08-28): "from among the
+    ||| nonland permanents they control", "from among cards exiled with
+    ||| this artifact", "from among creatures you control".
+    ||| What the split does NOT admit is what the pins already refuse and
+    ||| still do: an indefinite ("one of a creature you control" -- no
+    ||| members until a phrase fixes them), a counted untargeted group
+    ||| ("one of one or more creatures" -- members not yet fixed), and
+    ||| another partitive ("two of one of them" -- a part is not a group).
+    ||| The universal is admitted because it is the one description that
+    ||| fixes its members outright: every object answering it, at the
+    ||| moment the clause is applied.
     SomeOf : (q : Quantity bs) -> (descr : Maybe (Predicate bs Object)) ->
              (grp : Noun bs Object) ->
-             {auto 0 gm : GroupMention grp} ->
+             {auto 0 gm : PartitiveBase grp} ->
              {auto 0 nz : NonZeroQ q} ->
              {auto 0 wf : WellFormedQ q} -> Noun bs Object
     ||| "three artifact cards with different names", "two or more
@@ -2554,6 +2597,7 @@ mutual
   predDelta (HasSupertype _) = []
   predDelta (Named src) = nameSrcDelta src
   predDelta (HasDesignation _) = []
+  predDelta (HasCardDesignation _) = []
   predDelta (CoinCameUp _) = []
   predDelta (IsAttached _) = []
   predDelta (AttachedBy _ by) = nounDelta by
@@ -3570,6 +3614,26 @@ mutual
   public export
   GroupMention : Noun bs k -> Type
   GroupMention {bs} {k} n = So (groupMention n)
+
+  ||| What a PARTITIVE may reach into: every group mention, and the
+  ||| universal besides. `groupMention` answers the determiner question
+  ||| ("each of [X]" needs [X]'s determiner slot free) and is right to
+  ||| refuse the universal there; the partitive asks a different one --
+  ||| are this phrase's members fixed, so that a pick can be made out of
+  ||| them? -- and the universal's are: [CR#608.2] applies the
+  ||| instruction as the spell or ability resolves, and at that moment
+  ||| "creatures you control" names exactly the creatures you control.
+  ||| Every other description leaves them open, which is what the three
+  ||| standing pins say and what this still says.
+  public export
+  partitiveBase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  partitiveBase (AllOf _) = True
+  partitiveBase (NamesAgree _ grp) = partitiveBase grp
+  partitiveBase n = groupMention n
+
+  public export
+  PartitiveBase : Noun bs k -> Type
+  PartitiveBase {bs} {k} n = So (partitiveBase n)
 
   ||| What the trailing "each" may distribute over: a coordinated pair
   ||| and nothing else. The distributive reads the ARMS, so there has to

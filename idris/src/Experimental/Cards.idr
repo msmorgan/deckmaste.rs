@@ -14259,3 +14259,43 @@ cavalcadeOfCalamity =
     (DealDamage Macros.thisEnchantment (Lit 1)
        (Definite (And [Joined AnyPlayer (HasType Planeswalker),
                        AttackedBy (That (TypeW Creature))])))
+
+||| Bastion Protector's first clause -- "Commander creatures you control
+||| get +2/+2". The COMMANDER description, routed here with the ownership
+||| row it shares a phrase with. 37 supported lines head a phrase with the
+||| word (measured 2026-08-28), split between "you control" and "you own".
+public export
+bastionProtectorPump : Ability
+bastionProtectorPump =
+  Static (Gets (AllOf (And [Macros.creature, HasCardDesignation CommanderD,
+                            ControlledBy You]))
+               (PtUp (Lit 2)) (PtUp (Lit 2)))
+
+||| "Commander creatures you own" -- the owned half of the same phrase,
+||| which needed BOTH of this round's description rows: the card-scoped
+||| designation [CR#903.3] and the ownership predicate [CR#108.3]. Master
+||| Chef, Acolyte of Bahamut, Candlekeep Sage and their kin head their
+||| granted abilities with it; what those cards still wait on is the
+||| QUOTED ability they grant, not the description.
+public export
+commanderCreaturesYouOwn : Predicate [] Object
+commanderCreaturesYouOwn =
+  And [Macros.creature, HasCardDesignation CommanderD, OwnedBy You]
+
+||| "a creature spell from among cards exiled with this artifact" (Idol
+||| of Endurance) -- the OBJECT PARTITIVE over a DESCRIBED group, and the
+||| decision this round owed. The base of a partitive is not the base of
+||| "each of", so the two stopped sharing a gate: "each of" fills a
+||| determiner position and its base must leave one open, while "from
+||| among" names the set the pick comes out of. 86 supported lines write
+||| "from among [a description]" (measured 2026-08-28) -- exiled-with
+||| sets, "the nonland permanents they control", "creatures you control".
+||| The three pins that refuse an indefinite base, a counted untargeted
+||| group and a partitive of a partitive are untouched, "each of all
+||| creatures" still refuses, and `groupMention (PlayerGroup _)` is
+||| unchanged.
+public export
+creatureSpellFromAmongExiled : Noun [] Object
+creatureSpellFromAmongExiled =
+  Macros.oneFromAmong (And [Macros.creature, Macros.spell])
+                      (AllOf (And [IsCard, Macros.exiledWithThisArtifact]))

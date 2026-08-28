@@ -1216,11 +1216,11 @@ bottomCard : Noun bs Object
 bottomCard = LibrarySlice OnBottom (Lit 1) You
 
 public export
-oneOf : (grp : Noun bs Object) -> {auto 0 gm : GroupMention grp} -> Noun bs Object
+oneOf : (grp : Noun bs Object) -> {auto 0 gm : PartitiveBase grp} -> Noun bs Object
 oneOf grp = SomeOf (exactly 1) Nothing grp {gm}
 
 public export
-someOf : (n : Nat) -> (grp : Noun bs Object) -> {auto 0 gm : GroupMention grp} ->
+someOf : (n : Nat) -> (grp : Noun bs Object) -> {auto 0 gm : PartitiveBase grp} ->
          {auto 0 nz : NonZeroQ (exactly {bs} n)} ->
          {auto 0 wf : WellFormedQ (exactly {bs} n)} -> Noun bs Object
 someOf n grp = SomeOf (exactly n) Nothing grp {gm} {nz} {wf}
@@ -1232,7 +1232,7 @@ someOf n grp = SomeOf (exactly n) Nothing grp {gm} {nz} {wf}
 public export
 fromAmong : (q : Quantity bs) -> (p : Predicate bs Object) ->
             (grp : Noun bs Object) ->
-            {auto 0 gm : GroupMention grp} ->
+            {auto 0 gm : PartitiveBase grp} ->
             {auto 0 nz : NonZeroQ q} ->
             {auto 0 wf : WellFormedQ q} -> Noun bs Object
 fromAmong q p grp = SomeOf q (Just p) grp {gm} {nz} {wf}
@@ -1241,7 +1241,7 @@ fromAmong q p grp = SomeOf q (Just p) grp {gm} {nz} {wf}
 ||| count, which is what most of the family writes.
 public export
 oneFromAmong : (p : Predicate bs Object) -> (grp : Noun bs Object) ->
-               {auto 0 gm : GroupMention grp} -> Noun bs Object
+               {auto 0 gm : PartitiveBase grp} -> Noun bs Object
 oneFromAmong p grp = SomeOf (exactly 1) (Just p) grp {gm}
 
 
