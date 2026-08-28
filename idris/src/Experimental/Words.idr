@@ -3846,6 +3846,33 @@ manaHasX (_ :: ms) = manaHasX ms
 ||| [CR#107.3j] does the same for a gained ability. Both are facts about
 ||| where an ability's cost gets its value, which is the ability's own
 ||| telescope and not the face's.
+||| What a play permission says about paying for the cast it licenses.
+||| [CR#118.9] lets an effect license a cast "without paying its mana
+||| cost", which is an alternative cost of nothing, and 296 supported
+||| lines write that of a card the clause has NAMED -- Omniscience,
+||| Aetherworks Marvel, Memory Plunder -- as against the 16 that write it
+||| of the spell being cast, which is `AltCost Nothing`'s row and not
+||| this one. The two are different sentences: [CR#118.9]'s self line
+||| modifies what THIS object costs, where the permission prices a
+||| different or later card the licence has picked out.
+|||
+||| Two arms, and the third the corpus wants is recorded rather than
+||| minted: 23 supported lines write a play permission with a WRITTEN
+||| alternative cost after it ("by paying [c] ... rather than paying its
+||| mana cost", Worldheart Phoenix). That is a `Cost`-carrying arm here,
+||| and it waits on its own round.
+||| -- spelling: nothing at `ItsOwnCost`; ", without paying its mana
+||| cost" / "... their mana costs" after the permission otherwise.
+public export
+data PlayPayment = ItsOwnCost | WithoutPaying
+
+public export
+Eq PlayPayment where
+  (==) ItsOwnCost ItsOwnCost = True
+  (==) ItsOwnCost _ = False
+  (==) WithoutPaying WithoutPaying = True
+  (==) WithoutPaying _ = False
+
 ||| How many times ONE offer to pay a cost may be taken. [CR#702.56a]
 ||| writes the unbounded form in rules language -- replicate means "As an
 ||| additional cost to cast this spell, you may pay [cost] any number of

@@ -709,6 +709,7 @@ mutual
                 (limit : Maybe PlayLimit) ->
                 (window : Maybe PlayWindow) ->
                 (exclusive : Bool) ->
+                (payment : PlayPayment) ->
                 {auto 0 pz : PlaySource (nounZone what) from (isJust asThough)} ->
                 {auto 0 cv : CastableTy verb (nounTy what)} ->
                 {auto 0 pw : PlayWindowOk limit window} ->
@@ -1170,7 +1171,7 @@ mutual
   staticKind (OnlyWhile _ _ _) = Conditional
   staticKind (AlsoOffBattlefield se) = staticKind se
   staticKind (DoesntRemove se _) = staticKind se
-  staticKind (MayPlay _ _ _ _ _ _ _ _) = PlayPermission
+  staticKind (MayPlay _ _ _ _ _ _ _ _ _) = PlayPermission
   staticKind (NoLossFrom _ _) = OutcomeImmunity
   staticKind (Visibility _ _ _) = VisibilityRider
   staticKind (MayPlayAdditionalLands _ _) = LandAllowance
@@ -1245,7 +1246,7 @@ mutual
   staticIntro (OnlyWhile se c _) = staticIntro se
   staticIntro (AlsoOffBattlefield se) = staticIntro se
   staticIntro (DoesntRemove _ n) = nomIntro n
-  staticIntro (MayPlay who what _ _ _ _ _ _) = selfSubjIntro what
+  staticIntro (MayPlay who what _ _ _ _ _ _ _) = selfSubjIntro what
   staticIntro (NoLossFrom who _) = nomIntro who
   staticIntro (Visibility _ who what) = visibleIntro what
   staticIntro (MayPlayAdditionalLands who _) = nomIntro who

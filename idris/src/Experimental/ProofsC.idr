@@ -490,7 +490,7 @@ badStaticTargets Oh impossible
 ||| A battlefield permanent has already been played [CR#604.6].
 public export
 badPlayFromBattlefield : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a Macros.creature) Play Nothing Nothing Nothing Nothing False {pz = ok}) (Just Macros.thisTurn))
+  Continuously (MayPlay You (Macros.a Macros.creature) Play Nothing Nothing Nothing Nothing False ItsOwnCost {pz = ok}) (Just Macros.thisTurn))
 badPlayFromBattlefield MkPlaySource impossible
 
 

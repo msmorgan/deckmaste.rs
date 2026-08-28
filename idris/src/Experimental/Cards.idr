@@ -10718,6 +10718,41 @@ stormscapeBattlemageFirstKicker =
     (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker")))
     (Macros.gainsLife You (Lit 3))
 
+-- THE FREE CAST OF ANOTHER CARD, 296 supported lines. [CR#118.9] lets an
+-- effect license a cast "without paying its mana cost"; where the 16
+-- self lines say it of the object the line is printed on -- which is
+-- `AltCost Nothing`, landed -- these say it of a card the clause has
+-- picked out, so the licence and the spell being cast are two different
+-- objects and the rider belongs on the permission.
+
+||| Memory Plunder, whole -- "You may cast target instant or sorcery card
+||| from an opponent's graveyard without paying its mana cost."
+public export
+memoryPlunder : Card
+memoryPlunder =
+  Macros.card "Memory Plunder"
+       (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Black]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Continuously
+                  (Macros.mayCastFromFree You
+                     (Macros.target (And [Macros.instantOrSorcery, IsCard]))
+                     (Macros.graveyardOf Macros.anOpponent))
+                  Nothing) ]
+       Nothing
+
+||| Omniscience, whole -- "You may cast spells from your hand without
+||| paying their mana costs." The same rider on a STANDING permission
+||| rather than a resolving one, at the plural the card writes.
+public export
+omniscience : Card
+omniscience =
+  Macros.card "Omniscience"
+       (Just [Macros.generic 7, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (Macros.mayCastFromFree You (AllOf Macros.spell)
+                                        (Macros.handOf You)) ]
+       Nothing
+
 ||| Tranquil Frillback's offer -- "you may pay {G} up to three times."
 ||| The capped half of `PayTimes`, and the family's one card that writes
 ||| a bound; the reflexive trigger it seats chooses up to that many modes
@@ -12654,7 +12689,7 @@ public export
 summonEsperValigarmandaCast : StaticEffect []
 summonEsperValigarmandaCast =
   MayPlay You (Macros.a (And [Macros.instantOrSorcery, ExiledWith Macros.thisSaga]))
-          Cast Nothing Nothing Nothing Nothing False
+          Cast Nothing Nothing Nothing Nothing False ItsOwnCost
 
 ||| Rogue Class's level-3 body -- "You may play cards exiled with this
 ||| Class." The `Class` word and the single line that writes its linkage,
@@ -14156,7 +14191,7 @@ apexOfPowerCast =
     [ Macros.exile (LibrarySlice OnTop (Lit 7) You)
     , Continuously
         (MayPlay You (Macros.fromAmong Macros.anyNumber Macros.spell Them)
-                 Cast Nothing Nothing Nothing Nothing False)
+                 Cast Nothing Nothing Nothing Nothing False ItsOwnCost)
         (Just ThisTurn) ]
 
 ||| Umbris, Fear Manifest's first line -- "Umbris gets +1/+1 for each card
