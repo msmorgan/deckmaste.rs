@@ -43,3 +43,15 @@ Acceptance: gates green with the ratchet strictly up; zero ties and
 exceptions; byte-exact both directions with total ownership; no process
 artifacts in tracked source; genuine tie or contradiction = STOP-and-report.
 Standard constraints apply.
+
+
+## Erratum (composition landing review 2026-08-28)
+
+The attachment-participle design this ticket records was reversed by the
+12-10 chunk: equipped/enchanted/fortified are post-determiner ADJECTIVES,
+not determinatives (the change enables attested "an enchanted creature"),
+and the determinative compiler capability was deleted. The reversal is
+review-verified correct; this record and the 2026-08-24 ADR ruling are
+superseded. Process note: the reversal (45 files, four crates) shipped
+under a one-line description with no STOP — record-discipline finding,
+not a defect.

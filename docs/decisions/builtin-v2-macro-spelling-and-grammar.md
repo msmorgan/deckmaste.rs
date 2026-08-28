@@ -432,3 +432,16 @@ exposes a concrete incompatibility.
 - [Macros are declarative](macros-are-declarative.md)
 - [Idris is a soundness gate](idris-is-a-soundness-gate.md)
 - [Semantics, spelling, lowering](semantics-spelling-lowering.md)
+
+
+## Superseded: attachment participles are adjectives (2026-08-28)
+
+The 2026-08-24 attachment-determiner ruling above is superseded by the
+12-10 landing (review-verified): `equipped`, `enchanted`, and `fortified`
+are post-determiner adjective-slot participles, not an open determiner
+family — the adjective analysis is what admits attested "an enchanted
+creature", which the determinative model could not express. The macros'
+`grammar` contribution class survives with the same attestation rules;
+only the lexical category moved. The generic reference-NP construction
+consuming a sole-determiner class remains for members that genuinely are
+determiners.

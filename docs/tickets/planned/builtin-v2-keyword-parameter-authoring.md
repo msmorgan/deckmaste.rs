@@ -8,4 +8,10 @@ yet. Extend the parameter schema for multi-parameter and em-dash-cost
 forms (minding the pending macro-ron fold-back — payload shape, not more
 standalone dialect), then author parameters across the stub inventory
 from attested keyword lines. Undeclared forms keep failing silently.
+Also carried: KeywordSubject enumerates two shapes instead of taking the
+general reference-phrase category — "Enchant creature or Vehicle" fails
+(43 of 45 attested units). Un-narrow it as part of this work. This ticket
+now sits on the largest measured single-boundary bucket (~2,700 units one
+byte after a complete keyword line).
+
 Standard constraints apply.
