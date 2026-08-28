@@ -43,3 +43,8 @@ Re-measure everything at claim; the counts are the close-outs'.
   Intercessor's Arrest need a PER-DEED complement — `deonticPatientOk` checks
   one shared patient against every coordinated deed, and [CR#506.3] admits no
   artifact at attack's patient. Two named blockers; neither is a deed row.
+
+- **Routed from workbench-keyword-2 (close, 2026-08-28):** Conqueror's Flail
+  wants a TEMPORAL WINDOW on a prohibition ("during your turn, opponents
+  can't cast spells" — note prohibition-2's `OnlyDuring` may already carry
+  it; probe first).

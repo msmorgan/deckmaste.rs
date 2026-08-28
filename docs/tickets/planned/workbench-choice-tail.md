@@ -19,3 +19,9 @@ done/workbench-choice-{a,b,c,d,e}-*.md As-landed sections):
   the AMOUNT-PER-MENU-ARM — Inspirit / Flagship Vessel write menu arms
   carrying different counter amounts; a coordination of counter clauses on
   the menu shape, which is choice machinery.
+
+- **Routed from workbench-keyword-2 (close, 2026-08-28):** the RETAIN-ALL arm
+  on `SetsType` — "is a [type] in addition to its other types" as a
+  type-SETTING that keeps everything (268-face family, never asked of the
+  row); Luxior's `LosesType` landed the loss side. Ascription payload, so it
+  lands here.

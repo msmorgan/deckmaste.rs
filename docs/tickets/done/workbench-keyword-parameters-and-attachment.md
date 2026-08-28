@@ -3,7 +3,7 @@ needs: []
 ---
 # Finish the keyword row's parameters, its grants and the attachment relation
 
-**SPLIT 2026-08-28 into two sub-tickets — claim those, not this.** This file
+**CLOSED 2026-08-28: BOTH SUB-ROUNDS DONE.** Survivors in workbench-keyword-tail (the compound parameter with both payers, the becomes-attached events, the fence-deferred sub-machinery); the retain-all arm routed to choice-tail; Conqueror's Flail to prohibition-tail. Originally split as: This file
 is the umbrella and stays authoritative:
 [1 catalog and parameters](workbench-keyword-1-catalog-and-parameters.md),
 [2 attachment and equip](workbench-keyword-2-attachment-and-equip.md).
