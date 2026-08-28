@@ -15,6 +15,12 @@ union questions) stands.
 
 ## The condition disjunction "if X or if Y"
 
+**LANDED 2026-08-27** as `Condition.OrCond` — see sub-ticket 1's As-landed
+section for the hand count (386 occurrences / 259 texts / 461 cards sorted into
+four buckets; TRUE count 109 occurrences over 123 supported cards, against the
+11 doubly-marked lower bound), the row, the four benches and the ledger
+decisions. The section below is the pre-round record.
+
 The condition CONJUNCTION landed and this was deliberately left beside it because
 the number is not known. The round that takes it owes a hand count before a row:
 the doubly-marked lines are a lower bound and the sweep cannot separate the rest
@@ -245,6 +251,10 @@ not counted here (the docstring-audit ticket was deleted 2026-08-21).
   joint reading and a distributive reading are not one row).
 
 ## Ledger from round 1 review
+
+**DISCHARGED 2026-08-27** by sub-ticket 1; every item decided there, two of the
+consumerless-macro premises found wrong (`ifThen` has ten consumers;
+`whereLetterStatic` does not exist in the tree). Do not re-buy.
 
 - `otherwiseCtx` is orientation-asymmetric: under leading `If` the otherwise arm
   can read a target written inside the condition; under `OnlyIf` it cannot
