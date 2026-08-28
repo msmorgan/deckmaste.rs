@@ -996,7 +996,7 @@ aerialVolley =
   Macros.card "Aerial Volley" (Just [Macros.pip Green]) [] (MkTypeLine [] [Instant])
        [Spell (Macros.dealsDivided This (Lit 3)
                             (TargetGroup (Macros.oneThrough 3)
-                              (And [Macros.creature, HasKeyword "Flying"])))] Nothing
+                              (And [Macros.creature, HasKeyword (TheKeyword "Flying")])))] Nothing
 
 yotianSoldier : Card
 yotianSoldier =
@@ -1048,7 +1048,7 @@ avianOddity = PutCounters (Lit 1) (PrintedKind Macros.flyingCounter) (Macros.tar
 songOfEarendil : Effect []
 songOfEarendil =
   PutCounters (Lit 1) (PrintedKind Macros.flyingCounter)
-              (Each (And [Macros.creature, ControlledBy You, Not (HasKeyword "Flying")]))
+              (Each (And [Macros.creature, ControlledBy You, Not (HasKeyword (TheKeyword "Flying"))]))
 
 
 deathByDragons : Effect []
@@ -1161,7 +1161,7 @@ netcasterSpider : Ability
 netcasterSpider =
   Macros.triggered Whenever
                    (Blocks Macros.thisCreature
-                    (Just (Macros.a (And [Macros.creature, HasKeyword "Flying"]))))
+                    (Just (Macros.a (And [Macros.creature, HasKeyword (TheKeyword "Flying")]))))
                    (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn))
 
 viashinoWeaponsmith : Ability
@@ -1507,7 +1507,7 @@ bristlepackSentry =
                    (Exists (And [Macros.creature, ControlledBy You,
                                  Compare [CharAxis Power] AtLeast (Lit 4)]))
                    (Macros.canDoAsThough Macros.thisCreature "Attack"
-                                         (Not (HasKeyword "Defender")))) ]
+                                         (Not (HasKeyword (TheKeyword "Defender"))))) ]
        (Just (3, 3))
 
 ||| Pacifism, whole card -- "Enchant creature / Enchanted creature can't
@@ -1576,7 +1576,7 @@ nowhereToRunTargetLine : StaticEffect []
 nowhereToRunTargetLine =
   Macros.canBeTargetedAsThough (AllOf Macros.creatureYourOpponentsControl)
     (AllOf (Joined Macros.spell (AbilityHead AnyOnStack)))
-    (Not (HasKeyword "Hexproof"))
+    (Not (HasKeyword (TheKeyword "Hexproof")))
 
 ||| Nowhere to Run's second sentence -- "Ward abilities of those
 ||| creatures don't trigger." The TRIGGERED-ABILITY subject, and the deed
@@ -1694,7 +1694,7 @@ smogElemental =
        (Just [Macros.generic 4, Macros.pip Black, Macros.pip Black]) []
        (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.keyword "Flying"
-       , Static (Gets (AllOf (And [Macros.creature, HasKeyword "Flying",
+       , Static (Gets (AllOf (And [Macros.creature, HasKeyword (TheKeyword "Flying"),
                                    ControlledBy (PlayerGroup YourOpponents)]))
                       (PtDown (Lit 1)) (PtDown (Lit 1))) ]
        (Just (3, 3))
@@ -2943,9 +2943,8 @@ doublingSeason =
 ||| with its agent voiced. Pir, Imaginative Rascal writes the same clause
 ||| over "a permanent your team controls"; the team form landed
 ||| ([CR#102.4], `PlayerGroup YourTeam`) and Pir's own clause is benched
-||| at `pirDistributive`, but the card is not whole -- it also prints
-||| "Partner with Toothy, Imaginary Friend", which no keyword row
-||| carries.
+||| at `pirDistributive`, and the card is whole at `pirImaginativeRascal`
+||| now that [CR#702.124j]'s "Partner with [name]" has a row.
 docSamsonDistributive : Ability
 docSamsonDistributive =
   Static (Intercepts
@@ -8111,13 +8110,14 @@ odricLunarchMarshal =
            (Macros.triggeredIf At
                                (BeginningOf Combat (ByWord EachPlayers))
                                (Exists (And [Macros.creature, ControlledBy You,
-                                             HasKeyword "FirstStrike"]))
+                                             HasKeyword (TheKeyword "FirstStrike")]))
                                (Continuously
                                   (Gains (AllOf Macros.creatureYouControl)
                                          (Macros.keyword "FirstStrike"))
                                   (Just Macros.untilEndOfTurn)))
-           ["Flying", "Deathtouch", "DoubleStrike", "Haste", "Hexproof", "Indestructible",
-            "Lifelink", "Menace", "Reach", "Skulk", "Trample", "Vigilance"] ]
+           (map TheKeyword
+              ["Flying", "Deathtouch", "DoubleStrike", "Haste", "Hexproof", "Indestructible",
+               "Lifelink", "Menace", "Reach", "Skulk", "Trample", "Vigilance"]) ]
        (Just (3, 3))
 
 public export
@@ -8131,13 +8131,14 @@ bleedingEffect =
                                (BeginningOf Combat (ByWord Yours))
                                (Exists (And [Macros.creature,
                                              InZone (Macros.graveyardOf You),
-                                             HasKeyword "Flying"]))
+                                             HasKeyword (TheKeyword "Flying")]))
                                (Continuously
                                   (Gains (AllOf Macros.creatureYouControl)
                                          (Macros.keyword "Flying"))
                                   (Just Macros.untilEndOfTurn)))
-           ["FirstStrike", "DoubleStrike", "Deathtouch", "Hexproof", "Indestructible",
-            "Lifelink", "Menace", "Reach", "Trample", "Vigilance"] ]
+           (map TheKeyword
+              ["FirstStrike", "DoubleStrike", "Deathtouch", "Hexproof", "Indestructible",
+               "Lifelink", "Menace", "Reach", "Trample", "Vigilance"]) ]
        Nothing
 
 public export
@@ -8154,10 +8155,11 @@ urborgScavengers =
                                , PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature ])
        , AlsoForKeywords
            (Static (Macros.asLongAs
-                      (Exists (And [ExiledWith Macros.thisCreature, HasKeyword "Flying"]))
+                      (Exists (And [ExiledWith Macros.thisCreature, HasKeyword (TheKeyword "Flying")]))
                       (Gains Macros.thisCreature (Macros.keyword "Flying"))))
-           ["FirstStrike", "DoubleStrike", "Deathtouch", "Haste", "Hexproof", "Indestructible",
-            "Lifelink", "Menace", "Reach", "Trample", "Vigilance"] ]
+           (map TheKeyword
+              ["FirstStrike", "DoubleStrike", "Deathtouch", "Haste", "Hexproof", "Indestructible",
+               "Lifelink", "Menace", "Reach", "Trample", "Vigilance"]) ]
        (Just (2, 2))
 
 
@@ -8653,7 +8655,7 @@ tidalFlats =
        (MkTypeLine [] [Enchantment])
        [ Macros.activated (Mana [Macros.pip Blue, Macros.pip Blue])
            (ForEachOf (Each (And [Macros.creature, Attacking,
-                                  Not (HasKeyword "Flying")]))
+                                  Not (HasKeyword (TheKeyword "Flying"))]))
                       (Macros.mayElse (ControllerOf It)
                                       (Pay They (Mana [Macros.generic 1]))
                                       (Macros.gains
@@ -9317,22 +9319,12 @@ vraskaBetrayalsStingUltimate =
      (GetsCounters They TheDifference Poison)
      Nothing
 
-||| Iymrith, Desert Doom's draw line: "Draw a card. Then if you have fewer
-||| than three cards in hand, draw cards equal to the difference."
-public export
-iymrithGapDraw : Effect []
-iymrithGapDraw =
-  Sequentially [ Macros.drawACard
-               , If (CompareAmt (CountOf (InZone (Macros.handOf You)))
-                                Less (Lit 3))
-                    (Draw You TheDifference)
-                    Nothing ]
-
-||| Iymrith, Desert Doom's static: "Iymrith has ward {4} as long as it's
-||| untapped." Benched at Dragonlord Ojutai's simpler spelling of the same
-||| shape, "has hexproof as long as it's untapped": the condition is written
-||| after the statement and pronominalises the statement's own subject, which
-||| only the postposed orientation can read.
+||| Dragonlord Ojutai's static: "Dragonlord Ojutai has hexproof as long as
+||| it's untapped." The postposed orientation: the condition is written
+||| after the statement and pronominalises the statement's own subject,
+||| which only that orientation can read. Iymrith, Desert Doom writes the
+||| same shape with a PARAMETER ("has ward {4} as long as it's untapped")
+||| and is now benched whole at `iymrithDesertDoom`, its draw line with it.
 public export
 dragonlordOjutaiHexproof : Ability
 dragonlordOjutaiHexproof =
@@ -13234,7 +13226,7 @@ verityCircle =
            (Macros.may You Macros.drawACard)
        , Macros.activated (Mana [Macros.generic 4, Macros.pip Blue])
            (Macros.tap (Macros.target
-                          (And [Macros.creature, Not (HasKeyword "Flying")]))) ]
+                          (And [Macros.creature, Not (HasKeyword (TheKeyword "Flying"))]))) ]
        Nothing
 
 ||| Archfiend's Vessel, whole -- "Lifelink / When this creature enters, if
@@ -13487,8 +13479,9 @@ upTheBeanstalk =
 ||| creature token." The join and the concurrent clause in one header:
 ||| the "while saddled" qualifies the ATTACK alone, which is why the
 ||| joined half is a whole header and not one more `AltEvent` arm.
-||| The card is not whole: its second line is "Saddle 5", and no
-||| `keywordFacts` row writes the word [CR#702.171a].
+||| The card is whole at `autarchMammoth` now that [CR#702.171a]'s
+||| "Saddle N" has a row; this name stays because the header is what the
+||| trigger round bought.
 public export
 autarchMammothLine : Ability
 autarchMammothLine =
@@ -13507,8 +13500,14 @@ autarchMammothLine =
 ||| reached it is the concurrent clause: the zone is named INSIDE the
 ||| trigger condition, unmarked by a comma, so it is part of what
 ||| triggered [CR#603.1,603.2] rather than [CR#603.4]'s intervening "if".
-||| The card is not whole: its other line is "Suspend 4—{1}{U}", which no
-||| `keywordFacts` row writes.
+||| The card is still not whole, and its blocker moved rather than
+||| cleared: "Suspend 4—{1}{U}" has no `keywordFacts` row because
+||| [CR#702.62a]'s "Suspend N—[cost]" writes a COMPOUND parameter -- a
+||| count of time counters beside a cost, and a counter count is no
+||| component of one -- where craft's two printed slots are two
+||| components of the one activation cost [CR#702.167a] writes out.
+||| `KeywordParamShape` has no compound arm, and minting one is the
+||| restricted equip line's decision [CR#702.6c], not this row's.
 public export
 veilingOddityLine : Ability
 veilingOddityLine =
@@ -13523,12 +13522,13 @@ veilingOddityLine =
 ||| vocabulary already names: "while scrying" (The Temporal Anchor).
 ||| [CR#701.22a] looks at the top N cards and THEN puts them, so the act
 ||| has a moment inside it, which is what `eventUnderwayOk` reads off
-||| `actStepwise`. The other two printed act shapes wait on the KEYWORD
-||| vocabulary and not on this arm: "while casting a spell with emerge"
-||| (Foul Emissary) needs an "Emerge" `keywordFacts` row for `HasKeyword`,
-||| and "while you're activating a craft ability" (Market Gnome) needs a
-||| "Craft" row and an ability described by it, which `AbilityClass` does
-||| not spell.
+||| `actStepwise`. The other two printed act shapes have landed
+||| with the keyword rows they wanted: "while casting a spell with
+||| emerge" (Foul Emissary, `foulEmissaryLine`) reads an "Emerge" row
+||| through `HasKeyword`, and "while you're activating a craft ability"
+||| (Market Gnome, whole) reads a "Craft" row through `AbilityClass`'
+||| `KeywordClass`, which already spelled an ability described by a
+||| keyword.
 ||| The Temporal Anchor is not on the bench for its own reason: its
 ||| trigger event is "you choose to put one or more cards on the bottom
 ||| of your library", a step inside the scry that no event row names.
@@ -14524,9 +14524,10 @@ eachPlayerShufflesTheirHandAndGraveyard =
 ||| wherever the game has teams [CR#102.3] -- and collapses it to "you"
 ||| only in a game that is not between teams. 15 supported lines write
 ||| the phrase (measured 2026-08-28).
-||| A FRAGMENT: the card also has "Partner with Toothy, Imaginary
-||| Friend", and no keyword row carries a partner. Doc Samson's note that
-||| Pir waited on the team form ALONE is corrected by this.
+||| Doc Samson's note that Pir waited on the team form ALONE was
+||| corrected here; the second blocker was "Partner with Toothy,
+||| Imaginary Friend", and with [CR#702.124j]'s row the card is whole at
+||| `pirImaginativeRascal`.
 public export
 pirDistributive : Ability
 pirDistributive =
@@ -14537,3 +14538,322 @@ pirDistributive =
             (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1)) (That PermanentW))
             Repeatedly Nothing)
 
+
+-- ===================================================================
+-- The keyword row's parameters, its class term and the catalog rows
+-- ===================================================================
+
+||| Frogmite, whole -- "Affinity for artifacts". AFFINITY's witness: the
+||| parameter is a described CLASS [CR#702.41a] ("this spell costs {1}
+||| less to cast for each [text] you control"), which is the quality
+||| payload and not a number, so the row needed no new shape.
+||| 30 distinct printed spellings over 74 supported cards write the line;
+||| Frogmite is the shortest of them.
+public export
+frogmite : Card
+frogmite =
+  Macros.card "Frogmite" (Just [Macros.generic 4]) []
+       (MkTypeLine [creatureType "Frog"] [Artifact, Creature])
+       [ Macros.keywordQuality "Affinity" Macros.artifact ]
+       (Just (2, 2))
+
+||| Ulamog's Crusher, whole -- "Annihilator 2" and "This creature attacks
+||| each combat if able." ANNIHILATOR's cheapest consumer: 21 supported
+||| lines write the word, 13 of them as a printed keyword line, and this
+||| is the only one whose other line was already written
+||| (`berserkersOfBloodRidge`'s deontic, verbatim).
+public export
+ulamogsCrusher : Card
+ulamogsCrusher =
+  Macros.card "Ulamog's Crusher" (Just [Macros.generic 8]) []
+       (MkTypeLine [creatureType "Eldrazi"] [Creature])
+       [ Macros.keywordNumber "Annihilator" (Lit 2)
+       , Static (Macros.deontic Macros.thisCreature Require ["Attack"] Agent
+                                NoDeonticPatient) ]
+       (Just (8, 8))
+
+||| Iymrith, Desert Doom, whole -- the PARAMETERISED ward line the row
+||| was minted for and had no witness at: "Iymrith has ward {4} as long
+||| as it's untapped" [CR#702.21a]. Benched at Dragonlord Ojutai's
+||| cost-free spelling of the same postposed static, whose fragment
+||| `dragonlordOjutaiHexproof` is this one with the parameter dropped.
+public export
+iymrithDesertDoom : Card
+iymrithDesertDoom =
+  Macros.card "Iymrith, Desert Doom"
+       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [creatureType "Dragon"] [Creature])
+       [ Macros.keyword "Flying"
+       , Static (Macros.onlyWhile
+                   (Gains Macros.thisCreature
+                          (Macros.keywordCosting "Ward" (Mana [Macros.generic 4])))
+                   (Matches It (HasStatus Untapped)))
+       , Macros.triggered Whenever
+                          (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
+                          (Sequentially
+                             [ Macros.drawACard
+                             , If (CompareAmt (CountOf (InZone (Macros.handOf You)))
+                                              Less (Lit 3))
+                                  (Draw You TheDifference)
+                                  Nothing ]) ]
+       (Just (5, 5))
+
+||| True-Name Nemesis, whole -- "As this creature enters, choose a
+||| player." and "This creature has protection from the chosen player."
+||| The PLAYER payload: [CR#702.16k] makes "protection from [a player]"
+||| a variant of the ability whose slot names a player outright, and
+||| [CR#109.3] makes a player no characteristic of anything, so the
+||| phrase names its referent instead of matching one -- `ChosenPlayer`,
+||| the head-noun read, at the quality payload's kind-indexed slot.
+||| Two supported cards write the phrase; Guardian Archon is the other
+||| and stays off the bench on its own line ("You and target permanent
+||| you control each gain ...", a mixed-group subject).
+public export
+trueNameNemesis : Card
+trueNameNemesis =
+  Macros.card "True-Name Nemesis"
+       (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Merfolk", creatureType "Rogue"] [Creature])
+       [ Static (Macros.entersChoosingPlayer Macros.thisCreature Nothing)
+       , Macros.keywordQuality "Protection" ChosenPlayer ]
+       (Just (3, 1))
+
+||| The two keyword CLASSES the seven blocked extension lists name, as
+||| terms: [CR#702.16a] writes every protection ability as "Protection
+||| from [quality]", so "protection" with nothing after it is that word
+||| with its quality left open; [CR#702.14a] makes landwalk "a generic
+||| term that appears within an object's rules text as '[type]walk'",
+||| which is that word with its land type left open.
+public export
+protectionAbilities : KeywordTerm
+protectionAbilities = AnyKeywordIn (MkKeywordFamily "Protection" Nothing)
+
+public export
+landwalkAbilities : KeywordTerm
+landwalkAbilities = AnyKeywordIn (MkKeywordFamily "Landwalk" Nothing)
+
+||| "protection from any color": the same word with its quality NARROWED
+||| to a sort rather than left open -- [CR#105.1]'s five colors, not
+||| [CR#702.16a]'s whole "any characteristic value or information".
+||| Escaped Shapeshifter is its only supported carrier.
+public export
+protectionFromAnyColor : KeywordTerm
+protectionFromAnyColor = AnyKeywordIn (MkKeywordFamily "Protection" (Just Color))
+
+||| Cairn Wanderer, whole -- "Changeling" and "As long as a creature card
+||| with flying is in a graveyard, this creature has flying. The same is
+||| true for fear, first strike, double strike, deathtouch, haste,
+||| landwalk, lifelink, protection, reach, trample, shroud, and
+||| vigilance."
+||| The keyword-list extension's longest list and the one that buys the
+||| most: both class terms, both paramless words whose only carriers were
+||| the class-blocked seven (`fear`, 3 lines; `shroud`, 1), and the
+||| changeling row. Seven of the family's fifteen lists name a class;
+||| this is the first of them to write.
+public export
+cairnWanderer : Card
+cairnWanderer =
+  Macros.card "Cairn Wanderer" (Just [Macros.generic 4, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
+       [ Macros.keyword "Changeling"
+       , AlsoForKeywords
+           (Static (Macros.asLongAs
+                      (Exists (And [Macros.creature, InZone Macros.graveyardZ,
+                                    HasKeyword (TheKeyword "Flying")]))
+                      (Gains Macros.thisCreature (Macros.keyword "Flying"))))
+           [ TheKeyword "Fear", TheKeyword "FirstStrike"
+           , TheKeyword "DoubleStrike", TheKeyword "Deathtouch"
+           , TheKeyword "Haste", landwalkAbilities, TheKeyword "Lifelink"
+           , protectionAbilities, TheKeyword "Reach", TheKeyword "Trample"
+           , TheKeyword "Shroud", TheKeyword "Vigilance" ] ]
+       (Just (4, 4))
+
+||| Concerted Effort, whole -- "At the beginning of each upkeep,
+||| creatures you control gain flying until end of turn if a creature you
+||| control has flying. The same is true for fear, first strike, double
+||| strike, landwalk, protection, trample, and vigilance." Odric's
+||| triggered shape at the upkeep, with two class terms in the list.
+public export
+concertedEffort : Card
+concertedEffort =
+  Macros.card "Concerted Effort"
+       (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ AlsoForKeywords
+           (Macros.triggeredIf At
+                               (BeginningOf Upkeep (ByWord EachPlayers))
+                               (Exists (And [Macros.creature, ControlledBy You,
+                                             HasKeyword (TheKeyword "Flying")]))
+                               (Continuously
+                                  (Gains (AllOf Macros.creatureYouControl)
+                                         (Macros.keyword "Flying"))
+                                  (Just Macros.untilEndOfTurn)))
+           [ TheKeyword "Fear", TheKeyword "FirstStrike"
+           , TheKeyword "DoubleStrike", landwalkAbilities, protectionAbilities
+           , TheKeyword "Trample", TheKeyword "Vigilance" ] ]
+       Nothing
+
+||| Death-Mask Duplicant, whole -- "Imprint — {1}: Exile target creature
+||| card from your graveyard." and "As long as a card exiled with this
+||| creature has flying, this creature has flying. The same is true for
+||| fear, first strike, double strike, haste, landwalk, protection, and
+||| trample." Urborg Scavengers' base sentence under an ability word,
+||| with the two class terms in the trailer.
+public export
+deathMaskDuplicant : Card
+deathMaskDuplicant =
+  Macros.card "Death-Mask Duplicant" (Just [Macros.generic 7]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Artifact, Creature])
+       [ AbilityWord Imprint
+           (Macros.activated (Mana [Macros.generic 1])
+                             (Macros.exile
+                                (Macros.target
+                                   (And [Macros.creature,
+                                         InZone (Macros.graveyardOf You)]))))
+       , AlsoForKeywords
+           (Static (Macros.asLongAs
+                      (Exists (And [ExiledWith Macros.thisCreature,
+                                    HasKeyword (TheKeyword "Flying")]))
+                      (Gains Macros.thisCreature (Macros.keyword "Flying"))))
+           [ TheKeyword "Fear", TheKeyword "FirstStrike"
+           , TheKeyword "DoubleStrike", TheKeyword "Haste"
+           , landwalkAbilities, protectionAbilities, TheKeyword "Trample" ] ]
+       (Just (5, 5))
+
+||| Autarch Mammoth, whole -- its header line plus "Saddle 5". The
+||| DESIGNATION half was already there (`Saddled`, `Macros.becomesSaddled`);
+||| what was missing was the word, and [CR#702.171a]'s "Saddle N" writes a
+||| number after it exactly as [CR#702.122a]'s "Crew N" does.
+public export
+autarchMammoth : Card
+autarchMammoth =
+  Macros.card "Autarch Mammoth"
+       (Just [Macros.generic 4, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Elephant", creatureType "Mount"] [Creature])
+       [ autarchMammothLine
+       , Macros.keywordNumber "Saddle" (Lit 5) ]
+       (Just (5, 5))
+
+||| Debris Beetle, whole -- "Trample", the enters drain, and "Crew 2".
+||| CREW-THE-WORD, which is all this round buys of crew: [CR#702.122a]
+||| writes "Crew N" with a number after the word, and the crewing itself
+||| -- the tap-a-set-of-creatures-by-total-power cost -- is the keyword's
+||| own expansion and not a construction this grammar writes.
+public export
+debrisBeetle : Card
+debrisBeetle =
+  Macros.card "Debris Beetle"
+       (Just [Macros.generic 2, Macros.pip Black, Macros.pip Green]) []
+       (MkTypeLine [artifactType "Vehicle"] [Artifact])
+       [ Macros.keyword "Trample"
+       , Macros.triggered When (Enters Macros.thisVehicle Nothing)
+           (Sequentially [ Macros.losesLife (Each Opponent) (Lit 3)
+                         , Macros.gainsLife You (Lit 3) ])
+       , Macros.keywordNumber "Crew" (Lit 2) ]
+       (Just (6, 6))
+
+||| Pir, Imaginative Rascal, whole -- "Partner with Toothy, Imaginary
+||| Friend" and the team distributive `pirDistributive` already carried.
+||| [CR#702.124j]'s slot is a card NAME; [CR#109.3] lists name among an
+||| object's characteristics and [CR#702.16a] takes a quality to be "any
+||| characteristic value or information", so the payload is `Named`'s
+||| printed-name predicate at the quality slot. The reminder text is the
+||| second ability [CR#702.124j] gives the word and not a printed line.
+public export
+pirImaginativeRascal : Card
+pirImaginativeRascal =
+  Macros.card "Pir, Imaginative Rascal"
+       (Just [Macros.generic 2, Macros.pip Green]) [Legendary]
+       (MkTypeLine [creatureType "Human"] [Creature])
+       [ Macros.keywordQuality "PartnerWith"
+                               (Named (PrintedName "Toothy, Imaginary Friend"))
+       , pirDistributive ]
+       (Just (1, 1))
+
+||| Bloodline Pretender, whole -- "Changeling", "As this creature enters,
+||| choose a creature type." and "Whenever another creature you control of
+||| the chosen type enters, put a +1/+1 counter on this creature." Prism
+||| Ring's chooser-then-reader shape on a creature, with the changeling
+||| row as its last blocker.
+public export
+bloodlinePretender : Card
+bloodlinePretender =
+  Macros.card "Bloodline Pretender" (Just [Macros.generic 3]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Artifact, Creature])
+       [ Macros.keyword "Changeling"
+       , Static (Macros.entersChoosing Macros.thisCreature (SubtypeQ Creature))
+       , Macros.triggered Whenever
+           (Enters (Macros.a (And [Macros.creature, ControlledBy You,
+                                   OtherThan Macros.thisCreature,
+                                   OfChosen (SubtypeQ Creature)]))
+                   Nothing)
+           (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                        Macros.thisCreature) ]
+       (Just (2, 2))
+
+||| Foul Emissary's second line -- "When you sacrifice this creature
+||| while casting a spell with emerge, create a 3/2 colorless Eldrazi
+||| Horror creature token." The concurrent clause's ACT arm at its
+||| second printed shape, and what it wanted was the keyword: [CR#702.119a]
+||| writes "Emerge [cost]" as an alternative cost, so the row is a cost
+||| row, and `HasKeyword` reads it off the spell being cast.
+||| The card is not whole: its other line looks at the top four cards,
+||| reveals one from among them and bottoms the rest.
+public export
+foulEmissaryLine : Ability
+foulEmissaryLine =
+  Macros.triggeredWhile When
+    (VerbedEvent (Just You) "Sacrifice" (Just Macros.thisCreature))
+    (WhileDoing (Casts You
+                   (Macros.a (And [Macros.spell,
+                                   HasKeyword (TheKeyword "Emerge")]))
+                   Nothing))
+    (Macros.create (Lit 1)
+       (Macros.creatureTok 3 2 []
+          [creatureType "Eldrazi", creatureType "Horror"]))
+
+||| Market Gnome, whole -- "When this creature dies, you gain 1 life and
+||| draw a card." and "When this creature is exiled from the battlefield
+||| while you're activating a craft ability, you gain 1 life and draw a
+||| card." The concurrent clause's ACT arm at its third and last printed
+||| shape. It needed a "Craft" row and an ability DESCRIBED by a keyword;
+||| the description was already there (`AbilityClass`' `KeywordClass`),
+||| and [CR#702.167a]'s "Craft with [materials] [cost]" is one activation
+||| cost written in two printed pieces, so the row needed no compound
+||| parameter shape.
+public export
+marketGnome : Card
+marketGnome =
+  Macros.card "Market Gnome" (Just [Macros.pip White]) []
+       (MkTypeLine [creatureType "Gnome"] [Artifact, Creature])
+       [ Macros.triggered When (Dies Macros.thisCreature)
+           (Sequentially [ Macros.gainsLife You (Lit 1), Macros.drawACard ])
+       , Macros.triggeredWhile When
+           (VerbedEvent Nothing "Exile" (Just Macros.thisCreature))
+           (WhileDoing (Activates You
+                          (Macros.a (AbilityHead (KeywordClass "Craft")))))
+           (Sequentially [ Macros.gainsLife You (Lit 1), Macros.drawACard ]) ]
+       (Just (0, 3))
+
+||| Escaped Shapeshifter, whole -- "As long as an opponent controls a
+||| creature with flying not named Escaped Shapeshifter, this creature
+||| has flying. The same is true for first strike, trample, and
+||| protection from any color." The NARROWED class term's only supported
+||| carrier: [CR#105.1]'s five colors, not [CR#702.16a]'s whole quality
+||| range.
+public export
+escapedShapeshifter : Card
+escapedShapeshifter =
+  Macros.card "Escaped Shapeshifter"
+       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
+       [ AlsoForKeywords
+           (Static (Macros.asLongAs
+                      (Exists (And [Macros.creature,
+                                    ControlledBy Macros.anOpponent,
+                                    HasKeyword (TheKeyword "Flying"),
+                                    Not (Named (PrintedName "Escaped Shapeshifter"))]))
+                      (Gains Macros.thisCreature (Macros.keyword "Flying"))))
+           [ TheKeyword "FirstStrike", TheKeyword "Trample"
+           , protectionFromAnyColor ] ]
+       (Just (3, 4))

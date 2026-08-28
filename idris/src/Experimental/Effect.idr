@@ -3297,7 +3297,15 @@ mutual
   public export
   data KeywordParam : Bindings -> Type where
     ParamCost : Cost [] -> KeywordParam bs
-    ParamQuality : Predicate bs Object -> KeywordParam bs
+    ||| "protection from red", "affinity for artifacts", "partner with
+    ||| [name]" -- and "protection from the chosen player", which is why
+    ||| the payload is kind-indexed rather than fixed at `Object`. See
+    ||| `qualityParamKind`: [CR#702.16a]'s quality describes an object,
+    ||| [CR#702.16k]'s variant names a player, and no printed slot names
+    ||| both.
+    ParamQuality : {k : Kind} -> (p : Predicate bs k) ->
+                   {auto 0 pk : So (qualityParamKind k)} ->
+                   KeywordParam bs
     ParamSubject : {k : Kind} -> (p : Predicate [] k) -> KeywordParam bs
     ParamNumber : (amt : Amount []) -> 
                   KeywordParam bs
@@ -3366,7 +3374,7 @@ mutual
     Static : (se : StaticEffect bs) ->
              {auto 0 ut : Untargeting se} -> AbilityAt bs
     Spell : (eff : Effect bs) -> AbilityAt bs
-    AlsoForKeywords : (ab : AbilityAt bs) -> (ks : List KeywordLabel) ->
+    AlsoForKeywords : (ab : AbilityAt bs) -> (ks : List KeywordTerm) ->
                       {auto 0 ex : KeywordExtendable ab} ->
                       {auto 0 lk : KeywordListOk ab ks} -> AbilityAt bs
     ||| [CR#207.2c]: an ability word prefixes an ability of any kind and has
@@ -3431,30 +3439,36 @@ mutual
     Nothing => False
     Just _ => True
 
+  ||| The list's four demands, unchanged in content and re-read at the
+  ||| TERM: nonempty, every element writable bare, no element repeated,
+  ||| and none of them the base word the line already carries. The class
+  ||| term did not arrive by relaxing any of them -- `keywordTermBare`
+  ||| still asks `keywordParamless` of a WORD, so "ward" is refused in a
+  ||| list exactly as before, and a class is admitted by its own rule.
   public export
-  keywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List KeywordLabel -> Bool
+  keywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List KeywordTerm -> Bool
   keywordListOk ab ks = case lineKeyword ab of
     Nothing => False
-    Just base => not (isNil ks) && allParamless ks && distinctKeywords ks &&
-                 not (elem base ks)
+    Just base => not (isNil ks) && allTermsBare ks && distinctTerms ks &&
+                 not (elem (TheKeyword base) ks)
 
 
   public export
-  allParamless : List KeywordLabel -> Bool
-  allParamless [] = True
-  allParamless (k :: ks) = keywordParamless k && allParamless ks
+  allTermsBare : List KeywordTerm -> Bool
+  allTermsBare [] = True
+  allTermsBare (k :: ks) = keywordTermBare k && allTermsBare ks
 
   public export
-  distinctKeywords : List KeywordLabel -> Bool
-  distinctKeywords [] = True
-  distinctKeywords (k :: ks) = not (elem k ks) && distinctKeywords ks
+  distinctTerms : List KeywordTerm -> Bool
+  distinctTerms [] = True
+  distinctTerms (k :: ks) = not (elem k ks) && distinctTerms ks
 
   public export
   KeywordExtendable : {0 bs : Bindings} -> AbilityAt bs -> Type
   KeywordExtendable {bs} ab = So (keywordExtendableOk ab)
 
   public export
-  KeywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List KeywordLabel -> Type
+  KeywordListOk : {0 bs : Bindings} -> AbilityAt bs -> List KeywordTerm -> Type
   KeywordListOk {bs} ab ks = So (keywordListOk ab ks)
 
   ||| [CR#613.1f] applies ability-adding effects over abilities as such,

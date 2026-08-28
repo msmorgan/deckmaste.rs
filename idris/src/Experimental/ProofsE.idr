@@ -202,7 +202,7 @@ badUnknownKeywordLabel Oh impossible
 ||| directly instead of through a parameter fit.
 public export
 badUnknownKeywordPredicate : Unspellable (Predicate [] Object) (\ok =>
-  HasKeyword "Flyign" {kn = ok})
+  HasKeyword (TheKeyword "Flyign") {kn = ok})
 badUnknownKeywordPredicate Oh impossible
 
 

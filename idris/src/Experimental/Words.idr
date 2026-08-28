@@ -3168,6 +3168,37 @@ Eq KeywordParamShape where
   (==) AbilityParam AbilityParam = True
   (==) AbilityParam _ = False
 
+||| Which KINDS a quality parameter may describe. [CR#702.16a] writes
+||| the quality as "any characteristic value or information", which
+||| describes an OBJECT, and that is what affinity's [CR#702.41a] "[text]"
+||| and partner's [CR#702.124j] "[name]" are too. [CR#702.16k] is the
+||| second kind: "Protection from [a player]" is a variant whose slot
+||| names a PLAYER outright, and [CR#109.3] makes a player no
+||| characteristic of anything, so the phrase names its referent rather
+||| than matching one -- the same reason `ChosenPlayer` is a head noun
+||| where `OfChosen` is a description.
+|||
+||| TWO kinds and not a join: [CR#702.16g] makes "protection from
+||| [quality A] and from [quality B]" shorthand for two separate
+||| abilities, so no printed slot names an object and a player at once
+||| and there is no union site here to mark. Nothing writes a keyword
+||| parameter describing a quality, an outcome, a turn or an ability.
+|||
+||| The two cards this does NOT unblock, so the next round does not
+||| re-derive them. SERRA'S EMISSARY writes "protection from the chosen
+||| card type", and the payload was never the blocker -- `CardTypeQ`
+||| [CR#205.2a] landed with the card-type chooser and `OfChosen` reads
+||| it -- its subject is "You and creatures you control", a mixed group
+||| this grammar has no term for. RUNED HALO is the same blocker at the
+||| other end: its parameter writes (the chosen card name, [CR#702.16a]'s
+||| name-as-quality), and what refuses the line is that its SUBJECT is a
+||| player where `Gains` takes an object. One line each.
+public export
+qualityParamKind : Kind -> Bool
+qualityParamKind Object = True
+qualityParamKind Player = True
+qualityParamKind _ = False
+
 ||| When a keyword's ability acts, for the keywords that act before the
 ||| object carrying them has resolved.
 public export
@@ -3220,6 +3251,33 @@ record KeywordFacts where
 
 ||| The keyword vocabulary, open by construction: a row is a word and
 ||| what its rule says about it.
+|||
+||| WORDS DELIBERATELY ABSENT, and why -- so the next round does not
+||| re-derive the reasons:
+|||
+||| * EIGHT words the layer below cannot resolve -- cascade, replicate,
+|||   conspire, rebound, prowl, freerunning, demonstrate and sticker
+|||   kicker. No macro under `plugins/builtin/macros/keyword/` and no
+|||   built-card use, so a row would name a word nothing beneath this
+|||   grammar has anything for; The First Sliver, Cast Through Time and
+|||   Flamekin Herald are unbuildable whatever a row here said. This was
+|||   NINE: emerge left the list with a row above, bought by a describing
+|||   read (`HasKeyword "Emerge"`, Foul Emissary) rather than by a
+|||   keyword line, which is a use the count had not seen.
+||| * SUSPEND, whose parameter is COMPOUND. [CR#702.62a] writes
+|||   "Suspend N--[cost]" and expands it to an exile "with N time
+|||   counters on it" after paying [cost]: a counter count beside a cost,
+|||   and a counter count is no component of one. `KeywordParamShape` has
+|||   no compound arm, and minting one is the same decision the
+|||   restricted equip line's "[quality] [cost]" [CR#702.6c] asks -- one
+|||   decision for both, taken with a witness or not at all.
+||| * STATION. [CR#702.184a]'s "Station" takes no parameter and would be
+|||   a bare row, but every printed station card also writes the station
+|||   SYMBOLS [CR#702.184b] -- themselves keyword abilities, on a
+|||   nonstandard layout -- so no card comes whole with the word alone,
+|||   and a row with no consumer is what the open-catalog ruling refuses.
+|||   The symbol ladder is this grammar's `ChapterMark` question asked
+|||   again, and it is sub-machinery, not a catalog row.
 |||
 ||| The last group's abilities function away from the battlefield, each
 ||| rule naming its own zone [CR#113.6b]: a graveyard for unearth
@@ -3291,6 +3349,84 @@ keywordFacts =
   , MkKeywordFacts "Boast"            AbilityParam False Nothing             True  False False
   , MkKeywordFacts "Exhaust"          AbilityParam False Nothing             True  False False
   , MkKeywordFacts "PowerUp"          AbilityParam False Nothing             True  False False
+  -- The two parameterised words the slot was minted for and had no
+  -- consumer at. [CR#702.41a] makes affinity "a static ability that
+  -- functions while the spell with affinity is on the stack" and writes
+  -- "Affinity for [text]", where [text] describes the permanents the
+  -- reduction counts -- a described CLASS, which is the quality payload
+  -- and not a number. The rule names no card type, so any castable card
+  -- may print it, and a card that stays in the command zone is never a
+  -- spell.
+  -- [CR#702.86a] writes "Annihilator N" and expands it to "Whenever
+  -- this creature attacks, defending player sacrifices N permanents", a
+  -- triggered ability of a creature: a number after the word, no stack
+  -- question, and a permanent card alone.
+  , MkKeywordFacts "Affinity"         QualityParam False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Annihilator"      NumberParam  False Nothing             True  False False
+  -- The two paramless evasion/protection words the keyword-CLASS
+  -- carriers buy. [CR#702.36a,702.36b]: fear is an evasion ability and
+  -- "a creature with fear can't be blocked except by artifact creatures
+  -- and/or black creatures". [CR#702.18a]: "Shroud" means "This
+  -- permanent or player can't be the target of spells or abilities".
+  -- Neither is named by [CR#122.1b]'s keyword-counter list, and each
+  -- rule speaks of a permanent.
+  , MkKeywordFacts "Fear"             NoParam      False Nothing             True  False False
+  , MkKeywordFacts "Shroud"           NoParam      False Nothing             True  False False
+  -- [CR#702.14a] makes landwalk "a generic term that appears within an
+  -- object's rules text as '[type]walk'", and [CR#702.14c] reads the
+  -- ability off "the specified land type". So the LAND TYPE is the
+  -- word's parameter and "islandwalk" is the spelling that writes the
+  -- two as one word -- the same relationship every other row has to its
+  -- printed form, and the reading core's own `Landwalk` macro takes
+  -- (a quality parameter defaulting to Land). [CR#702.14b,702.14c] make
+  -- it a blocking restriction on a creature.
+  -- The row buys the CLASS term alone. An individual landwalk still does
+  -- not write: the parameter is a land type, and the land-subtype
+  -- quality sort is not minted. Magnigoth Treefolk stays doubly blocked
+  -- past it -- "Domain — For each basic land type among lands you
+  -- control, this creature has landwalk of that type" also wants the
+  -- distributive over a counted type axis.
+  , MkKeywordFacts "Landwalk"         QualityParam False Nothing             True  False False
+  -- [CR#702.73a]: "Changeling" means "This object is every creature
+  -- type", a characteristic-defining ability that "works everywhere,
+  -- even outside the game" [CR#604.3]. The rule names no bearer and no
+  -- zone, so all three card classes stand open -- the corpus writes it
+  -- on permanents and on Kindred instants and sorceries alike, and no
+  -- rule refuses the command zone the way [CR#702.34a] refuses a
+  -- permanent card flashback.
+  , MkKeywordFacts "Changeling"       NoParam      False Nothing             True  True  True
+  -- The two tap-a-creature activated abilities, one number apiece:
+  -- [CR#702.122a] "Crew N" and [CR#702.171a] "Saddle N" each mean "Tap
+  -- any number of other untapped creatures you control with total power
+  -- N or greater: ...". Both act on a permanent already on the
+  -- battlefield, so no stack question arises.
+  , MkKeywordFacts "Crew"             NumberParam  False Nothing             True  False False
+  , MkKeywordFacts "Saddle"           NumberParam  False Nothing             True  False False
+  -- [CR#702.124j]: "Partner with [name]" -- the slot is a card NAME.
+  -- [CR#109.3] lists name among an object's characteristics and
+  -- [CR#702.16a] takes a quality to be "any characteristic value or
+  -- information", so a name is a quality and the payload is `Named`'s
+  -- predicate. [CR#702.124a] has partner abilities "function
+  -- before the game begins", which is no stack regime; the second half
+  -- of [CR#702.124j] is a triggered ability of a permanent.
+  , MkKeywordFacts "PartnerWith"      QualityParam False Nothing             True  False False
+  -- Two words whose rule writes ONE cost after them, however many
+  -- printed slots the notation splits it into.
+  -- [CR#702.119a]: "Emerge [cost]" means "You may cast this spell by
+  -- paying [cost] and sacrificing a creature rather than paying its mana
+  -- cost" -- an alternative cost, so the ability acts while the spell is
+  -- being cast, and the rule restricts the word to no card type.
+  -- [CR#702.167a]: "Craft with [materials] [cost]" means "[Cost], Exile
+  -- this permanent, Exile [materials] ...: Return this card to the
+  -- battlefield transformed". The two printed slots are two COMPONENTS
+  -- of the one activation cost the rule writes out [CR#118.1], not two
+  -- parameters of different sorts, which is why craft needs no compound
+  -- shape and suspend does: [CR#702.62a]'s "Suspend N--[cost]" writes a
+  -- number of TIME COUNTERS beside its cost, and a counter count is no
+  -- cost component. Suspend therefore has no row here; see the note on
+  -- `keywordFacts` above.
+  , MkKeywordFacts "Emerge"           CostParam    False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Craft"            CostParam    False Nothing             True  False False
   ]
 
 public export
@@ -3330,6 +3466,93 @@ public export
 keywordParamless : KeywordLabel -> Bool
 keywordParamless k =
   maybe False (\f => paramShape f == NoParam) (keywordFactsFor k)
+
+||| A CLASS of keyword abilities, named as ONE term where a
+||| `KeywordLabel` names one ability: "protection", "landwalk",
+||| "protection from any color". A quantifier over words, and the three
+||| printed spellings are one shape.
+|||
+||| The quantification runs over the word's PARAMETER, and the rules are
+||| what put it there. [CR#702.16a] writes every protection ability as
+||| "Protection from [quality]", so a card that says "protection" with
+||| nothing after it has named the word and left the quality open --
+||| every protection ability, not one of them. [CR#702.14a] says the
+||| same one level down: landwalk "is a generic term that appears within
+||| an object's rules text as '[type]walk'", which is that word with its
+||| land type left open. A word whose rule writes no parameter
+||| quantifies over nothing and is no class; it is just the word.
+|||
+||| `familySort` NARROWS the open parameter to one sort instead of
+||| leaving it open: "protection from any color" ranges over
+||| [CR#105.1]'s colors and not over [CR#702.16a]'s whole quality range
+||| ("any characteristic value or information"). Only a quality
+||| parameter has sorts to narrow.
+public export
+record KeywordFamily where
+  constructor MkKeywordFamily
+  ||| the word whose parameter the term quantifies
+  familyWord : KeywordLabel
+  ||| the sort quantified over, or the word's whole parameter range
+  familySort : Maybe QualitySort
+
+public export
+Eq KeywordFamily where
+  (==) a b = familyWord a == familyWord b && familySort a == familySort b
+
+||| Known word, parameterised word, and a sort named only where the
+||| parameter is a quality. Fail-closed on an unknown word for
+||| `knownKeyword`'s reason.
+public export
+keywordFamilyOk : KeywordFamily -> Bool
+keywordFamilyOk c = case keywordFactsFor (familyWord c) of
+  Nothing => False
+  Just f => case familySort c of
+    Nothing => not (paramShape f == NoParam)
+    Just _ => paramShape f == QualityParam
+
+public export
+KeywordFamilyOk : KeywordFamily -> Type
+KeywordFamilyOk c = So (keywordFamilyOk c)
+
+||| What a position naming a keyword may name: one word, or a class of
+||| them. ONE type for both seats that ask the question -- the read
+||| ("a creature card with flying", "a creature card with protection")
+||| and the keyword-list extension's element -- because the seven cards
+||| that write a class write it in exactly those two places, and a term
+||| admitted at one and refused at the other would say the trailer means
+||| something the base sentence cannot.
+public export
+data KeywordTerm : Type where
+  TheKeyword : (k : KeywordLabel) -> KeywordTerm
+  AnyKeywordIn : (c : KeywordFamily) -> KeywordTerm
+
+public export
+Eq KeywordTerm where
+  (==) (TheKeyword a) (TheKeyword b) = a == b
+  (==) (TheKeyword _) _ = False
+  (==) (AnyKeywordIn a) (AnyKeywordIn b) = a == b
+  (==) (AnyKeywordIn _) _ = False
+
+||| The membership gate at the term, fail-closed on both arms.
+public export
+knownKeywordTerm : KeywordTerm -> Bool
+knownKeywordTerm (TheKeyword k) = knownKeyword k
+knownKeywordTerm (AnyKeywordIn c) = keywordFamilyOk c
+
+public export
+KnownKeywordTerm : KeywordTerm -> Type
+KnownKeywordTerm t = So (knownKeywordTerm t)
+
+||| Whether a term may stand where each element is written BARE, which
+||| is the keyword list's demand. The word arm's demand is unchanged --
+||| `keywordParamless`, so "ward" is refused there exactly as it was --
+||| and the class arm is admitted by its own rule rather than by
+||| weakening that one: a class term is written bare because it names no
+||| value, not because its word takes none.
+public export
+keywordTermBare : KeywordTerm -> Bool
+keywordTermBare (TheKeyword k) = keywordParamless k
+keywordTermBare (AnyKeywordIn c) = keywordFamilyOk c
 
 public export
 keywordCounterOk : KeywordLabel -> Bool

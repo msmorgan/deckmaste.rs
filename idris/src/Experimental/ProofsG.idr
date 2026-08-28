@@ -85,7 +85,7 @@ public export
 badKeywordListOnPlainLine : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Gets (AllOf Macros.creatureYouControl)
                                 (PtUp (Lit 1)) (PtUp (Lit 1))))
-                  ["Menace", "Trample"]
+                  [TheKeyword "Menace", TheKeyword "Trample"]
                   {ex = Builtin.fst ok, lk = Builtin.snd ok})
 badKeywordListOnPlainLine (Oh, _) impossible
 
@@ -96,7 +96,7 @@ public export
 badEmptyKeywordList : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
-                                           HasKeyword "Flying"]))
+                                           HasKeyword (TheKeyword "Flying")]))
                              (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing)) AsLongAs))
                   [] {lk = ok})
 badEmptyKeywordList Oh impossible
@@ -108,10 +108,45 @@ public export
 badKeywordListRepeatingBase : Unspellable Ability (\ok =>
   AlsoForKeywords (Static (Conditionally
                              (Exists (And [ExiledWith Macros.thisCreature,
-                                           HasKeyword "Flying"]))
+                                           HasKeyword (TheKeyword "Flying")]))
                              (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing)) AsLongAs))
-                  ["Menace", "Flying", "Trample"] {lk = ok})
+                  [TheKeyword "Menace", TheKeyword "Flying",
+                   TheKeyword "Trample"] {lk = ok})
 badKeywordListRepeatingBase Oh impossible
+
+
+||| "This creature has flying as long as a card exiled with it has flying. The same is true for ward."
+||| Every element of the trailer is written BARE, and ward is not: [CR#702.21a]
+||| writes a cost after the word. The class term did not relax this -- a WORD
+||| arm still faces `keywordParamless`, exactly as before.
+public export
+badParameterisedKeywordInList : Unspellable Ability (\ok =>
+  AlsoForKeywords (Static (Conditionally
+                             (Exists (And [ExiledWith Macros.thisCreature,
+                                           HasKeyword (TheKeyword "Flying")]))
+                             (Gains Macros.thisCreature (KeywordAbility "Flying" Nothing)) AsLongAs))
+                  [TheKeyword "Ward"] {lk = ok})
+badParameterisedKeywordInList Oh impossible
+
+
+||| "a creature with flyings"
+||| A keyword CLASS quantifies over its word's parameter, and [CR#702.9a]
+||| writes no parameter after flying, so there is nothing for the term to
+||| quantify: the class of flying abilities is the one ability, which the
+||| word already names.
+public export
+badClassOfParamlessKeyword : Unspellable (Predicate [] Object) (\ok =>
+  HasKeyword (AnyKeywordIn (MkKeywordFamily "Flying" Nothing)) {kn = ok})
+badClassOfParamlessKeyword Oh impossible
+
+
+||| "a creature with renown of any color"
+||| The class term's SORT narrows a quality [CR#105.1]; [CR#702.112a] writes a
+||| number after renown, and a number has no sorts to range over.
+public export
+badSortedClassOnNumberKeyword : Unspellable (Predicate [] Object) (\ok =>
+  HasKeyword (AnyKeywordIn (MkKeywordFamily "Renown" (Just Color))) {kn = ok})
+badSortedClassOnNumberKeyword Oh impossible
 
 
 ||| "{T}: Draw a card. Activate only if you created this turn."

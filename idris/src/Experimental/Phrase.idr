@@ -435,7 +435,17 @@ mutual
     ||| separate chooser, and the index refuses every crossing for free.
     OfYourChoice : (q : QualitySort) -> (dom : Maybe (ChoiceDomain (QSort q))) ->
                    {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
-    HasKeyword : (k : KeywordLabel) -> {auto 0 kn : KnownKeyword k} ->
+    ||| "a creature card with flying", "a creature with protection",
+    ||| "a spell with emerge": the object described BY a keyword it has.
+    ||| The slot is a `KeywordTerm` and not a bare label because the
+    ||| corpus writes a CLASS of keywords here as readily as one word --
+    ||| Cairn Wanderer and its six kin say the same sentence of
+    ||| "protection" and of "landwalk", which [CR#702.16a] and
+    ||| [CR#702.14a] each make a quantifier over words rather than a
+    ||| word. The keyword-list extension names its elements in the same
+    ||| type, so the trailer never names something the base sentence
+    ||| could not.
+    HasKeyword : (k : KeywordTerm) -> {auto 0 kn : KnownKeywordTerm k} ->
                  Predicate bs Object
     ControlledBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
     ||| "cards your opponents own", "target permanent you both own and

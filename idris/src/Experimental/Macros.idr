@@ -810,7 +810,7 @@ canDo n deed = Deontic n Permit [deed] Agent NoDeonticPatient Nothing {kd} {zn} 
 
 ||| "[n] can [deed] as though [p]": the permission with [CR#609.4]'s
 ||| premise riding it. "This creature can attack as though it didn't have
-||| defender" is `canDoAsThough n "Attack" (Not (HasKeyword "Defender"))`
+||| defender" is `canDoAsThough n "Attack" (Not (HasKeyword (TheKeyword "Defender")))`
 ||| -- 52 supported lines, the largest cell of the permission family.
 public export
 canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
@@ -1683,12 +1683,15 @@ keywordCosting : {0 bs : Bindings} -> (kw : KeywordLabel) -> (c : Cost []) ->
                  AbilityAt bs
 keywordCosting kw c = KeywordAbility kw (Just (ParamCost c)) {pf}
 
-||| "Protection from red": a keyword whose parameter is a quality.
+||| "Protection from red", "affinity for artifacts", "protection from
+||| the chosen player": a keyword whose parameter is a quality, at
+||| either kind `qualityParamKind` admits.
 public export
-keywordQuality : (kw : KeywordLabel) -> (q : Predicate bs Object) ->
-                 {auto 0 pf : KeywordParamFits kw (Just (ParamQuality q))} ->
+keywordQuality : {k : Kind} -> (kw : KeywordLabel) -> (q : Predicate bs k) ->
+                 {auto 0 pk : So (qualityParamKind k)} ->
+                 {auto 0 pf : KeywordParamFits kw (Just (ParamQuality q {pk}))} ->
                  AbilityAt bs
-keywordQuality kw q = KeywordAbility kw (Just (ParamQuality q)) {pf}
+keywordQuality kw q = KeywordAbility kw (Just (ParamQuality q {pk})) {pf}
 
 ||| "Renown 1": a keyword whose parameter is a written number.
 public export
@@ -1945,7 +1948,7 @@ mayCastFromEachYourTurn who what from =
 
 ||| "You may cast <what> as though it had flash." The hardcoded
 ||| `PlayAsThough = HadFlash` retired: the premise is the carrier's
-||| general [CR#609.4] one, and flash is `HasKeyword "Flash"` like any
+||| general [CR#609.4] one, and flash is `HasKeyword (TheKeyword "Flash")` like any
 ||| other counterfactual payload. 89 supported lines write it.
 public export
 mayCastAsThough : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
@@ -1954,7 +1957,7 @@ mayCastAsThough : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) 
                                           True} ->
                   {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
 mayCastAsThough who what =
-  MayPlay who what Cast Nothing (Just (AsThoughOf (HasKeyword "Flash"))) Nothing Nothing
+  MayPlay who what Cast Nothing (Just (AsThoughOf (HasKeyword (TheKeyword "Flash")))) Nothing Nothing
           False {pz} {cv}
 
 ||| "[n] leaves the battlefield": the zone the leaves-the-battlefield
