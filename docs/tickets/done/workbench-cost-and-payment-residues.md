@@ -3,7 +3,7 @@ needs: []
 ---
 # Close the cost and payment vocabulary's counted residues
 
-**SPLIT 2026-08-28 into three sub-tickets — claim those, not this.** This
+**CLOSED 2026-08-28: ALL THREE SUB-ROUNDS DONE.** Survivors in workbench-cost-tail; Ice Cauldron's note to mana-family; remove-all to counter-partitive. One semantic merge conflict (ScaledMana's unit vs cost-2's gate benches) was repaired at integration. Originally split as: This
 file is the umbrella and stays authoritative:
 [1 alternative and catalog](workbench-cost-1-alternative-and-catalog.md),
 [2 statements, upkeep, gates](workbench-cost-2-statements-upkeep-gates.md),

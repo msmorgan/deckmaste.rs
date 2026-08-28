@@ -231,3 +231,9 @@ premise sort against it.
   the restriction rides the mana-adding effect and reads
   `DeonticCounterpart`'s noun. Note the umbrella's quoted example ("mana
   value 3 or greater") is 0 supported lines — build against the real 9.
+
+- **Routed from workbench-cost-3 (close, 2026-08-28):** Ice Cauldron's NOTED
+  mana — "add this artifact's last noted type and amount of mana" names a
+  note of mana SPENT (not a printed cost; `AsPrintedCost` landed the other
+  line). A mana note channel, this region's machinery (state-for-notes per
+  the named-memory ruling).

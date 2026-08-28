@@ -10,3 +10,7 @@ a new slice over the group, a round of its own.
 
 Re-verify the family with `jq 'select(.supported)'` over
 `data/derived/cards.jsonl` at claim; the count is the close-out's, not a spec.
+
+- **Routed from workbench-cost-3 (close, 2026-08-28):** "remove ALL counters
+  from [X]" (25 lines) — the universal removal quantity; counter-removal
+  machinery, so it lands here (`RemoveCounters` now takes a `Quantity`).
