@@ -155,3 +155,15 @@ function, snapshot, successor ticket, or plan-specific verifier may enter
 tracked source. Any genuine selection tie or contradiction is a
 STOP-and-report design boundary. Integrate when this scope is green; claim the
 next coordinator-authored chunk fresh afterward.
+
+
+## Erratum (landing review 2026-08-27)
+
+Accounting corrections from contract-landing-review.md: 15 of the 17
+frames this ticket lists as dissolved still exist (VerbPhrase 41 -> 36);
+the target determinative licenses CountNominal, not BareSingularNoun (the
+code is correct; this ticket's text was wrong). The successor chain
+baselines on the review's numbers, not this ticket's. The acceptance line
+"every DeclarationKind variant has a construction consumer" was not met
+for CounterKind/Designation (typed loaders, no construction slot) — that
+work is folded into 11-10.
