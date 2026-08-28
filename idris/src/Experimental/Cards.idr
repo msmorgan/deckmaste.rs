@@ -10718,6 +10718,70 @@ stormscapeBattlemageFirstKicker =
     (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker")))
     (Macros.gainsLife You (Lit 3))
 
+-- THE UN-KEYWORDED ADDITIONAL COST [CR#118.8], the row the 12 measured
+-- "if this spell's additional cost was paid" lines were waiting on. 315
+-- supported lines write the frame; 308 write it of THIS spell (260
+-- mandatory, 48 under "you may"), and the other 7 name a class of
+-- spells, which is the subject slot this row has none of.
+
+||| Voltage Surge's declaration -- "As an additional cost to cast this
+||| spell, you may sacrifice an artifact." The OFFERED half of the row
+||| [CR#118.8b], and the plainest cost in the family: 260 of the 308 self
+||| lines are mandatory and this is one of the 48 written with "you may".
+public export
+voltageSurgeAddedCost : Ability
+voltageSurgeAddedCost =
+  Static (AddedCost (Do (Macros.sacrifice You (Macros.a Macros.artifact))) True)
+
+||| Requiting Hex's read -- "If this spell's additional cost was paid,
+||| you gain 2 life." The fourth `PaidCostName` arm's witness: the read
+||| has no word to name, so it sorts by "the additional cost" exactly as
+||| Baleful Mastery's sorts by "the alternative" one. 12 supported lines
+||| write it. (The card's own additional cost is "you may blight 1", a
+||| keyword action this grammar has no word for; the two halves are
+||| benched apart for that reason and Voltage Surge above supplies the
+||| declaration.)
+public export
+requitingHexAdditionalRead : Ability
+requitingHexAdditionalRead =
+  Spell (If (Matches This (PaidCost TheAdditional))
+            (Macros.gainsLife You (Lit 2)) Nothing)
+
+||| Burn at the Stake's additional cost -- "As an additional cost to cast
+||| this spell, tap any number of untapped creatures you control." The
+||| mandatory half of the row, at the any-number quantity. What the card
+||| still waits on is its damage line: "three times the number of
+||| creatures tapped this way" reads the stamp the COST's action left,
+||| and `staticChoiceDelta` exports a chooser across the ability
+||| boundary and not a whole delta.
+public export
+burnAtTheStakeAddedCost : Ability
+burnAtTheStakeAddedCost =
+  Static (AddedCost (Do (SetStatus Tapped
+                           (CountedGroup Macros.anyNumber Nothing
+                              (And [Macros.creature, ControlledBy You,
+                                    HasStatus Untapped])))) False)
+
+||| Caller of the Hunt, whole -- "As an additional cost to cast this
+||| spell, choose a creature type. / Caller of the Hunt's power and
+||| toughness are each equal to the number of creatures of the chosen
+||| type on the battlefield." THE additional-cost chooser position: the
+||| choice is announced as the cost is paid [CR#118.8a,601.2b] and the
+||| defining ability reads it as [CR#607.2d]'s linked ability.
+public export
+callerOfTheHunt : Card
+callerOfTheHunt =
+  Macros.cardOf "Caller of the Hunt"
+       (Just [Macros.generic 2, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Human"] [Creature])
+       [ Static (AddedCost
+                   (Do (Macros.choose (Macros.a (Macros.quality (SubtypeQ Creature)))))
+                   False)
+       , Static (DefinesPt Macros.thisCreature BothEach
+                   (CountOf (And [Macros.creature,
+                                  OfChosen (SubtypeQ Creature)]))) ]
+       (Just (PtBox PrintedStar PrintedStar))
+
 -- The ALTERNATIVE-cost words read back the same way the additional-cost
 -- ones do: [CR#607.2i] links the offering ability to the reading one and
 -- the read names WHICH cost, so nothing about `PaidCost` changes when

@@ -275,6 +275,27 @@ mutual
                     StaticEffect bs
       AltCost : (c : Maybe (Cost bs)) ->
                 {auto 0 ap : AltPayment c} -> StaticEffect bs
+      ||| "As an additional cost to cast this spell, [c]" [CR#118.8] --
+      ||| 308 supported lines, 260 of them mandatory and 48 written with
+      ||| "you may", which is what `offered` marks [CR#118.8b]. Beside
+      ||| `AltCost` and not a mode of it: [CR#118.8] makes this a cost
+      ||| paid "at the same time they pay the spell's mana cost" where
+      ||| [CR#118.9] replaces that cost, and [CR#118.8d] keeps the mana
+      ||| cost itself untouched, so the two rows say opposite things
+      ||| about the same payment and a card may print both.
+      ||| The offer is a slot rather than a `May` around the cost because
+      ||| [CR#118.8a] announces the intention to pay at [CR#601.2b],
+      ||| before any effect runs -- there is no clause here to wrap.
+      ||| It names no object for the same reason `AltCost` does not: the
+      ||| 7 lines whose subject is a CLASS of spells ("As an additional
+      ||| cost to cast creature spells", Chorus of the Conclave and the
+      ||| five Defilers; Molten Exhale writes the phrase as a postposed
+      ||| rider) want the subject slot `CostsToCast` has and this row has
+      ||| none of, which is the generic grants' gap and not this one's.
+      ||| -- spelling: "As an additional cost to cast this spell, [c]";
+      ||| under `offered`, "..., you may [c]".
+      AddedCost : (c : Cost bs) -> (offered : Bool) ->
+                  {auto 0 ap : AddedPayment c} -> StaticEffect bs
       ||| The static twin of the clause-level `Define`: "[se], where [l] is
       ||| [amt]" as one member of an `AndAlso` after the statement that used
       ||| the letter.
@@ -1118,6 +1139,7 @@ mutual
   staticKind (SwitchesPt _) = PtSwitch
   staticKind (CostsToCast _ _) = CostModification
   staticKind (AltCost _) = CostModification
+  staticKind (AddedCost _ _) = CostModification
   staticKind (Gains _ _) = KeywordGrant
   staticKind (Deontic _ _ _ _ _ _) = DeedRestriction
   staticKind (DoesntUntap _) = DeedRestriction
@@ -1173,6 +1195,10 @@ mutual
   staticIntro (SwitchesPt n) = selfSubjIntro n
   staticIntro (CostsToCast n sh) = amtDelta (costAmount sh) ++ selfSubjIntro n
   staticIntro (AltCost _) = bs
+  -- The cost is a statement about the payment, not a clause that
+  -- announces anything: the additional cost is paid at [CR#601.2f-h],
+  -- long before any line of the card reads a mention.
+  staticIntro (AddedCost _ _) = bs
   staticIntro (Gains n _) = selfSubjIntro n
   staticIntro (Deontic n _ _ _ _ _) = selfSubjIntro n
   staticIntro (DoesntUntap n) = selfSubjIntro n
@@ -1234,6 +1260,18 @@ mutual
   staticChoiceDelta (EntersChoice _ q _) = [choiceB q]
   staticChoiceDelta (AttachChoice _ q _) = [choiceB q]
   staticChoiceDelta (AndAlso parts) = partsChoiceDelta parts
+  -- The chooser position an additional cost announces from: 6 supported
+  -- lines write "As an additional cost to cast this spell, choose ..."
+  -- (Caller of the Hunt, Close Encounter, Liquid Fire, and three under a
+  -- "you may"), and the line that reads "the chosen [value]" is
+  -- [CR#607.2d]'s linked ability -- the same link the as-enters rider
+  -- and the ability bodies export across, at the position the cost
+  -- occupies. Only the choice crosses: what a cost's ACTION stamped
+  -- ("the number of creatures tapped this way", Burn at the Stake) is
+  -- the effect's whole delta, and `effDelta` needs `bs` un-erased where
+  -- this function has it at multiplicity 0, so that read is the row's
+  -- one recorded remainder.
+  staticChoiceDelta (AddedCost c _) = costChoiceDelta c
   staticChoiceDelta _ = []
 
   public export
@@ -3920,6 +3958,21 @@ mutual
   costsIntro [] = bs
   costsIntro (c :: cs) = costsIntro cs
 
+  ||| The choice a COST binds, for the ability after it to read --
+  ||| `effChoiceDelta` reached through the cost's action, and nothing
+  ||| else: a mana or symbol cost announces no value.
+  public export
+  costChoiceDelta : {0 bs : Bindings} -> Cost bs -> List Binding
+  costChoiceDelta (Do e) = effChoiceDelta e
+  costChoiceDelta (Compound cs) = costsChoiceDelta cs
+  costChoiceDelta _ = []
+
+  public export
+  costsChoiceDelta : {0 n : Nat} -> {0 bs : Bindings} ->
+                     CostSeq n bs -> List Binding
+  costsChoiceDelta [] = []
+  costsChoiceDelta (c :: cs) = costsChoiceDelta cs ++ costChoiceDelta c
+
   public export
   partsIntro : {0 n : Nat} -> {bs : Bindings} -> StaticParts n bs -> Bindings
   partsIntro [] = bs
@@ -4046,6 +4099,18 @@ mutual
     AltPaymentWritten : {0 c : Cost bs} ->
                         {auto 0 ok : So (costOffBattlefield c)} ->
                         AltPayment (Just c)
+
+  ||| The same demand at `AddedCost`, minus the unwritten arm.
+  ||| [CR#118.9]'s alternative cost may be nothing at all -- "without
+  ||| paying its mana cost" is the whole substitution -- but [CR#118.8]
+  ||| makes an additional cost one "listed in a spell's rules text", and
+  ||| a listed cost of nothing is no cost. So this row's cost is always
+  ||| written, and it is paid while casting, off the battlefield.
+  public export
+  data AddedPayment : {0 bs : Bindings} -> Cost bs -> Type where
+    AddedPaymentWritten : {0 c : Cost bs} ->
+                          {auto 0 ok : So (costOffBattlefield c)} ->
+                          AddedPayment c
 
 public export
 Ability : Type

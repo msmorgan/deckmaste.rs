@@ -3653,11 +3653,20 @@ keywordStackRegime k = keywordFactsFor k >>= regime
 ||| cost was paid" -- has no name to give, so the card's own alternative
 ||| cost [CR#118.9] is the third arm and the printed symbols are
 ||| spelling.
+||| The un-keyworded ADDITIONAL cost [CR#118.8] is the fourth arm for the
+||| same reason at the other kind of cost: 308 supported lines write "As
+||| an additional cost to cast this spell, ..." with no word to name it,
+||| and 12 read it back as "if this spell's additional cost was paid".
+||| It sorts beside `TheAlternative` and not under it -- [CR#118.8d]
+||| makes an additional cost something the controller pays ON TOP of the
+||| mana cost, where [CR#118.9] replaces it -- and a card writing both
+||| gives the two reads two different answers.
 public export
 data PaidCostName : Type where
   ByKeyword : (kw : KeywordLabel) -> PaidCostName
   ByNthKeyword : (ord : Ordinal) -> (kw : KeywordLabel) -> PaidCostName
   TheAlternative : PaidCostName
+  TheAdditional : PaidCostName
 
 public export
 Eq PaidCostName where
@@ -3667,6 +3676,8 @@ Eq PaidCostName where
   (==) (ByNthKeyword _ _) _ = False
   (==) TheAlternative TheAlternative = True
   (==) TheAlternative _ = False
+  (==) TheAdditional TheAdditional = True
+  (==) TheAdditional _ = False
 
 ||| A named cost has to be one there is: a keyword arm needs a word whose
 ||| rule writes a cost, and the written alternative needs nothing.
@@ -3675,6 +3686,7 @@ paidCostNamed : PaidCostName -> Bool
 paidCostNamed (ByKeyword kw) = keywordCosts kw
 paidCostNamed (ByNthKeyword _ kw) = keywordCosts kw
 paidCostNamed TheAlternative = True
+paidCostNamed TheAdditional = True
 
 public export
 PaidCostNamed : PaidCostName -> Type
