@@ -28,3 +28,8 @@ done/workbench-prohibition-{1,2,3}-*.md As-landed sections):
   recorded here so the decision isn't re-derived.
 
 Re-measure everything at claim; the counts are the close-outs'.
+
+- **Routed from workbench-description-2 (close, 2026-08-28):** the
+  AS-YOU-ACTIVATE targeting restriction (Keeper of the Flame / Keeper of the
+  Light — a restriction on legal targets stated at activation) — deontic
+  region machinery.

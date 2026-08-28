@@ -9,3 +9,7 @@ Beckoning Will-o'-Wisp and Triarch Stalker (whose choosers landed in
 choice-C), and a dependency of many combat bundles. Re-verify the count with
 `jq 'select(.supported)'` at claim; design before building — this is not a
 one-cell round.
+
+Routed from description-2 (close, 2026-08-28): the ATTACKER-voice predicate
+("the player who attacked that player" shape — Namor's 4 lines) joins this
+family's design; `AttackedBy` (description-1) covers the attacked side.

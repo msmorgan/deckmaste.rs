@@ -25,3 +25,9 @@ independent dormant line.
 Eager Construct: a binder over "each player" whose body reads a SINGULAR member
 choice. Measured at 1; blocker pinned as `eachPlayerBindsNoSingular`. Open only
 if a second witness appears or the ordinal work makes it free.
+
+- **Routed from workbench-description-2 (close, 2026-08-28):** the loop over a
+  PLAYER group — `ForEachOf` takes an object group, so "for each opponent,
+  goad target creature that player controls" (Frenzied Gorespawn's real last
+  blocker) has no binder. And Oath of Mages' ordinal player read joins the
+  ordinal family here.

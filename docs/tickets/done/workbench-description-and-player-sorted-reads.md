@@ -3,7 +3,7 @@ needs: []
 ---
 # Give the description frame its relations and its player-sorted reads
 
-**SPLIT 2026-08-28 into two sub-tickets — claim those, not this.** This file
+**CLOSED 2026-08-28: BOTH SUB-ROUNDS DONE.** Survivors routed at close (element-binder, attacking-defender, prohibition-tail, keyword-parameters, transform-verb, cost-and-payment, structure-phrase); Gollum stays on EventSum and the Transfusions on their named amount blockers, recorded in the sub-rounds' As-landed sections. Originally split as: This file
 is the umbrella and stays authoritative:
 [1 relations and otherness](workbench-description-1-relations-and-otherness.md),
 [2 player-sorted reads](workbench-description-2-player-sorted-reads.md).

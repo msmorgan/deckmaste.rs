@@ -91,3 +91,9 @@ Standard constraints apply.
 - **Routed from workbench-verb-label-residues (close, 2026-08-26):** manifest [CR#701.40a] — no face-down `TokenRider` arm, and nothing lists a face-down permanent's characteristics [CR#708.2]. A face/permanent-characteristics gap; manifest dread's STRUCTURE already composes from the landed look-partition, so this is its single blocker (Curator Beastie the carrier).
 
 - **Routed from workbench-event-disjunction-seat (close, 2026-08-27):** "the creature that spell becomes as it resolves" (Illusionary Mask's subject) — the face-down/permanent-spell becoming read; a face question, so it lands here.
+
+- **Routed from workbench-description-1 (close, 2026-08-28):** the MELD
+  EFFECT vocabulary — "exile them, then meld them into [Z]" has no rows;
+  seven ownership-condition cards (the umbrella's five plus Mishra and Urza)
+  land nothing until it exists. The Meld representation is RULED (duplicated
+  reverse face + identity lint, 2026-08-27); this is the verb/effect side.

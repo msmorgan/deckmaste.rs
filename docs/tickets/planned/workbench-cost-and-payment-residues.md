@@ -428,3 +428,9 @@ Standard constraints apply.
   from a spell's additional cost, one of the two positions the umbrella never
   named (10 cards over 7 positions, recounted from 5). Cost machinery, so it
   lands here.
+
+- **Routed from the description split (close, 2026-08-28):** the Grandeur
+  discard-cost shape ("another card named [X]" as a cost, 7 lines re-measured)
+  and Yidaro's cycling count ("you've cycled … four or more times this game" —
+  cycling is NOT a keyword action [CR#702.29c], so it is a cost-payment count
+  through `PaysCost`).

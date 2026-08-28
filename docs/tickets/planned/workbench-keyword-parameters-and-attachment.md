@@ -412,3 +412,7 @@ Standard constraints apply.
   `"Saddle"` DEED rows for the unified deontic carrier ride with this
   ticket's Crew/Saddle keyword vocabularies — the crew/saddle-at-greater-power
   as-though cell (18 lines) waits on them.
+
+- **Routed from workbench-description-2 (close, 2026-08-28):** the "Partner
+  with" keyword row — no `keywordFacts` row exists; Pir, Imaginative Rascal's
+  last blocker.

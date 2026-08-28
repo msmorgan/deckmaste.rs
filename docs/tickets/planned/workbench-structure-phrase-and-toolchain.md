@@ -251,3 +251,7 @@ Standard constraints apply.
   FLAVOR WORDS — the italicized non-ability word before an ability (Beckoning
   Will-o'-Wisp's carrier among them); no structure carries them. Surface
   structure, so it lands here.
+
+- **Routed from workbench-description-1 (close, 2026-08-28):** "all X from
+  among them" (10 lines re-measured) — a partitive whose count position is
+  the universal; NOT a `Quantity` value. Surface-shape work, so it lands here.
