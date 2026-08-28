@@ -3,6 +3,14 @@ needs: []
 ---
 # Close the cost and payment vocabulary's counted residues
 
+**SPLIT 2026-08-28 into three sub-tickets — claim those, not this.** This
+file is the umbrella and stays authoritative:
+[1 alternative and catalog](workbench-cost-1-alternative-and-catalog.md),
+[2 statements, upkeep, gates](workbench-cost-2-statements-upkeep-gates.md),
+[3 spend shapes and scaled](workbench-cost-3-spend-shapes-and-scaled.md).
+Order: 1 first (the catalog and payment channel the others read); 2 and 3
+after it, in parallel.
+
 Everything the cost region still refuses, taken as one claimable unit: the five
 populations the alternative-cost static leaves outside it, the two large
 alternative-cast surfaces (free cast and keyword cost catalog), the four pieces
