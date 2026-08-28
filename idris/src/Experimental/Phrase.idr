@@ -485,6 +485,28 @@ mutual
     BlockedBy : (m : Noun bs Object) ->
                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
                 Predicate bs Object
+    ||| "the player or planeswalker that creature is attacking": the
+    ||| DEFENDER described by the creature attacking it. `BlockedBy`'s
+    ||| shape one step earlier in combat, and the only combat predicate
+    ||| that is kind-INDEXED rather than object-kinded: [CR#506.3] closes
+    ||| the attacked side to a player, a planeswalker or a battle, one of
+    ||| which is a player and two of which are objects, so the phrase the
+    ||| corpus writes is a joined kind and the row indexes it rather than
+    ||| minting a marked player twin.
+    ||| It presupposes no card type. The attacked side may be a player,
+    ||| and where it is an object the head beside the clause writes the
+    ||| type ("the player or PLANESWALKER that creature is attacking").
+    ||| It uniquifies: [CR#508.1b] has the active player announce which
+    ||| player, planeswalker or battle EACH chosen creature is attacking,
+    ||| so one attacker names exactly one defender and the definite
+    ||| determiner the corpus prints is earned.
+    ||| Tahngarth, First Mate's "that opponent is attacking" is the other
+    ||| voice -- a PLAYER-relatum reading, additionally blocked on the
+    ||| player-subject attack event -- and is not this row.
+    ||| -- spelling: "[n] that [m] is attacking".
+    AttackedBy : {k : Kind} -> (m : Noun bs Object) ->
+                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
+                 Predicate bs k
     ||| "creature that could block [m]" -- the hypothetical block, asked of
     ||| a block that has not been declared. [CR#509.1a] and [CR#509.1b] are
     ||| the whole of what it reads: the prospective blocker must be
@@ -601,8 +623,26 @@ mutual
                {auto 0 nc : PaidCostNamed which} -> Predicate bs Object
     -- the bound slot is open to any amount at every relation; see
     -- `CompareAmt`'s docstring for the recorded verdict.
-    Compare : (c : Characteristic) -> (r : Comparator) -> (bound : Amount bs) ->
-              Predicate bs Object
+    ||| The characteristic slot is a LIST, read disjunctively: "a spell
+    ||| with mana value, power, or toughness equal to the chosen number"
+    ||| (Talion, the Kindly Lord) puts ONE bound to three characteristics
+    ||| and asks whether any of them meets it.
+    ||| It is a list here rather than an `Or` of three comparisons
+    ||| because the disjunction the card writes is over CHARACTERISTICS
+    ||| and not over descriptions: [CR#109.3] lists them as properties of
+    ||| one object, and `seedsUniform` is right to refuse arms that
+    ||| presuppose different card types -- power and toughness presuppose
+    ||| a creature [CR#208.1] where mana value presupposes nothing, and
+    ||| an `Or` of the three would be three heads rather than one.
+    ||| Folding them into one row says what the card says: one referent,
+    ||| one bound, several places to look. The presupposition is the
+    ||| list's own (`comparedTypes`): a list holds a type only when EVERY
+    ||| member presupposes it, so mixing mana value in leaves none.
+    ||| -- spelling: "[n] with [c1], [c2], or [c3] [r] [bound]"; with one
+    ||| characteristic, the ordinary "[n] with [c] [r] [bound]".
+    Compare : (cs : List Characteristic) -> (r : Comparator) ->
+              (bound : Amount bs) ->
+              {auto 0 ne : NonEmpty cs} -> Predicate bs Object
     ||| The bound read of a counter-bearing description: the referent's own
     ||| count of [kind] counters on a comparison's left. At the kind index —
     ||| the poison lines are the player cells ([CR#122.1f] states the
@@ -929,7 +969,7 @@ mutual
   -- [CR#115.1a,115.1c,115.1d] give the word to a spell and to an
   -- ability, neither of which is a card type the described thing has.
   seedType (Targets _ _) = Nothing
-  seedType (Compare c _ _) = comparedType c
+  seedType (Compare cs _ _) = comparedTypes cs
   seedType (Superlative _ (CharAxis c) _) = comparedType c
   seedType (Superlative _ (PlayerStatAxis _) _) = Nothing
   seedType (CompareOver dom _ _ _) = seedType dom
@@ -999,6 +1039,7 @@ mutual
   hasHead Blocking = False
   hasHead (BlockerOf _) = False
   hasHead (BlockedBy _) = False
+  hasHead (AttackedBy _) = False
   hasHead (CouldBlock _) = False
   hasHead (CouldBeBlockedBy _) = False
   hasHead (HappenedTo _ _ _) = False
@@ -1083,6 +1124,8 @@ mutual
   -- [CR#607.2d]'s linkage makes the phrase name exactly one player.
   uniquifies ChosenPlayer = True
   uniquifies (Superlative _ _ _) = True
+  -- [CR#508.1b]: one attacker names exactly one defender.
+  uniquifies (AttackedBy _) = True
   uniquifies (And ps) = uniquifiesAny ps
   uniquifies _ = False
 
@@ -1199,6 +1242,8 @@ mutual
   predEq (BlockerOf _) _ = False
   predEq (BlockedBy a) (BlockedBy b) = nounEqRef a b
   predEq (BlockedBy _) _ = False
+  predEq (AttackedBy a) (AttackedBy b) = nounEqRef a b
+  predEq (AttackedBy _) _ = False
   predEq (CouldBlock a) (CouldBlock b) = nounEqRef a b
   predEq (CouldBlock _) _ = False
   predEq (CouldBeBlockedBy a) (CouldBeBlockedBy b) = nounEqRef a b
@@ -1244,7 +1289,7 @@ mutual
   predEq (HasCounters _) _ = False
   predEq (PaidCost a) (PaidCost b) = a == b
   predEq (PaidCost _) _ = False
-  predEq (Compare c r b) (Compare d s e) = c == d && r == s &&
+  predEq (Compare cs r b) (Compare ds s e) = sameChars cs ds && r == s &&
                                            boundEq b e
   predEq (Compare _ _ _) _ = False
   predEq (CounterCompare Nothing r b) (CounterCompare Nothing s e) =
@@ -1745,6 +1790,7 @@ mutual
   predSays Blocking = True
   predSays (BlockerOf _) = True
   predSays (BlockedBy _) = True
+  predSays (AttackedBy _) = True
   predSays (CouldBlock _) = True
   predSays (CouldBeBlockedBy _) = True
   predSays (HappenedTo _ _ _) = True
@@ -1817,6 +1863,7 @@ mutual
   predNegFree Blocking = True
   predNegFree (BlockerOf _) = True
   predNegFree (BlockedBy _) = True
+  predNegFree (AttackedBy _) = True
   predNegFree (CouldBlock _) = True
   predNegFree (CouldBeBlockedBy _) = True
   predNegFree (HappenedTo _ _ _) = True
@@ -2494,6 +2541,7 @@ mutual
   predDelta (BlockerOf m) = nounDelta m
   predDelta (CounterKindOn n) = nounDelta n
   predDelta (BlockedBy m) = nounDelta m
+  predDelta (AttackedBy m) = nounDelta m
   predDelta (CouldBlock m) = nounDelta m
   predDelta (CouldBeBlockedBy m) = nounDelta m
   predDelta (HappenedTo _ _ what) = complementDelta what

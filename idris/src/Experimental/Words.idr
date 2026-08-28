@@ -187,6 +187,33 @@ comparedType ManaValue = Nothing
 -- [CR#306.5]: loyalty is a characteristic only planeswalkers have.
 comparedType Loyalty = Just Planeswalker
 
+||| The type a LIST of characteristics presupposes, read disjunctively.
+||| A list holds a type only when every member presupposes that same one:
+||| "power or toughness" is still a creature's [CR#208.1], while "mana
+||| value, power, or toughness" may be asked of any object, since mana
+||| value presupposes nothing. A `joinSeed`-style collapse would answer
+||| the second wrongly, so the silent member is what empties the answer
+||| rather than what defers to its neighbours.
+public export
+allComparedType : CardType -> List Characteristic -> Bool
+allComparedType t [] = True
+allComparedType t (c :: cs) = case comparedType c of
+  Nothing => False
+  Just u => t == u && allComparedType t cs
+
+public export
+comparedTypes : List Characteristic -> Maybe CardType
+comparedTypes [] = Nothing
+comparedTypes (c :: cs) = case comparedType c of
+  Nothing => Nothing
+  Just t => if allComparedType t cs then Just t else Nothing
+
+public export
+sameChars : List Characteristic -> List Characteristic -> Bool
+sameChars [] [] = True
+sameChars (a :: as) (b :: bs) = a == b && sameChars as bs
+sameChars _ _ = False
+
 ||| The sorts a chosen or bound quality may take. A `Q` suffix marks the
 ||| three whose bare name is already the type of value they range over --
 ||| `Subtype`, `CardType` and `CounterKind` are all data here.

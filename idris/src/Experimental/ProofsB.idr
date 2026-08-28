@@ -239,7 +239,7 @@ badCantInGraveyard Oh impossible
 ||| Only a creature has power [CR#208.3], so bounding power while denying the type describes nothing.
 public export
 badNoncreaturePower : Unspellable (Predicate [] Object) (\ok =>
-  And [Compare Power AtMost (Lit 2), Not Macros.creature] {cf = ok})
+  And [Compare [Power] AtMost (Lit 2), Not Macros.creature] {cf = ok})
 badNoncreaturePower Oh impossible
 
 
@@ -247,8 +247,8 @@ badNoncreaturePower Oh impossible
 ||| An alternative repeated word for word is no alternative.
 public export
 badRepeatedComparisonDisjunct : Unspellable (Predicate [] Object) (\ok =>
-  Or [Compare Power AtMost (Lit 2),
-      Compare Power AtMost (Lit 2)] {dd = ok})
+  Or [Compare [Power] AtMost (Lit 2),
+      Compare [Power] AtMost (Lit 2)] {dd = ok})
 badRepeatedComparisonDisjunct Oh impossible
 
 
@@ -256,8 +256,8 @@ badRepeatedComparisonDisjunct Oh impossible
 ||| Alternatives must presuppose alike: a power bound demands a creature, a mana value bound none.
 public export
 badMixedCharacteristicDisjunct : Unspellable (Predicate [] Object) (\ok =>
-  Or [Compare Power AtMost (Lit 2),
-      Compare ManaValue AtMost (Lit 3)] {pd = ok})
+  Or [Compare [Power] AtMost (Lit 2),
+      Compare [ManaValue] AtMost (Lit 3)] {pd = ok})
 badMixedCharacteristicDisjunct Oh impossible
 
 
