@@ -976,6 +976,14 @@ mutual
 
   ||| A resolving clause's duration slot: [CR#611.2a] gives a stated
   ||| duration its meaning and gives an unstated one the end of the game.
+  ||| It is indexed by the statement's kind and asks the kind nothing:
+  ||| [CR#611.2a] gives a clause ANY stated duration, so which static a
+  ||| span governs is not a fact the rule turns on. The per-kind table
+  ||| this row once carried is gone with it, and with the table went the
+  ||| refusal of a durational COST MODIFICATION -- Cheering Fanatic's
+  ||| "spells with the chosen name cost {1} less to cast this turn",
+  ||| which is the corpus's one such line (re-measured 2026-08-28) and
+  ||| benches at `Continuously`.
   public export
   data SpanOk : StaticKind -> Maybe (Duration bs) -> Type where
     SpanUnstated : SpanOk k Nothing

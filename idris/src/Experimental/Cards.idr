@@ -15606,3 +15606,280 @@ vesuvanShapeshifterCopySpan =
           (Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
              (Macros.may You (SetStatus FaceDown Macros.thisCreature)))])
     (Just (UntilEvent (StatusEvent Macros.thisCreature FaceDown)))
+
+||| Academy Journeymage, whole -- "This spell costs {1} less to cast if
+||| you control a Wizard. / When this creature enters, return target
+||| creature an opponent controls to its owner's hand."
+||| THE CONDITIONAL COST STATEMENT at the "if" marking, `CondMarking`'s
+||| third word. It is the same construction the closed pair was, settled
+||| on [CR#601.2f] and [CR#611.3a] at `CondMarking`'s own declaration:
+||| the lock-in [CR#601.2f] describes belongs to the TOTAL COST, and
+||| [CR#611.3a] denies this static's continuous effect any of its own, so
+||| the condition is read once at the determination step whichever word
+||| marks it. 145 supported lines write it over a cost modification.
+public export
+academyJourneymage : Card
+academyJourneymage =
+  Macros.card "Academy Journeymage" (Just [Macros.generic 4, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
+       [ Static (Macros.onlyIfSo (CostsToCast This (CostLess (Lit 1) Nothing))
+                   (Exists (And [HasSubtype (creatureType "Wizard"), ControlledBy You])))
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Macros.move (Macros.target (And [Macros.creature,
+                                             ControlledBy Macros.anOpponent]))
+                        Macros.handZ) ]
+       (Just (3, 2))
+
+||| Alabaster Leech, whole -- "White spells you cast cost {W} more to
+||| cast." THE COLOURED PAYLOAD, `CostShiftRun` beside the `Amount` arms
+||| rather than in place of them: Ghalta and Cavern-Hoard Dragon still
+||| write a letter at the same slot. Derelor and Jade Leech print the
+||| same line at {B} and {G}.
+public export
+alabasterLeech : Card
+alabasterLeech =
+  Macros.card "Alabaster Leech" (Just [Macros.pip White]) []
+       (MkTypeLine [creatureType "Leech"] [Creature])
+       [ Static (CostsToCast (AllOf (And [Macros.spell, ColorIs White, CastBy You]))
+                             (CostShiftRun [Macros.pip White] True)) ]
+       (Just (1, 3))
+
+||| Cavern-Hoard Dragon's cost rider, written -- "This spell costs {X}
+||| less to cast, where X is the greatest number of artifacts an opponent
+||| controls." Ghalta's telescope over the narrowed domain the amount
+||| beside it already spelled.
+||| A FRAGMENT: the card's combat-damage trigger creates a Treasure for
+||| each artifact the damaged player controls, which is the for-each over
+||| a damaged player's permanents.
+public export
+cavernHoardDragonRider : Ability
+cavernHoardDragonRider =
+  Static (AndAlso [ CostsToCast This (CostLess (LetterVal X) Nothing)
+                  , Define X (AggregateOver MaxOf Opponent
+                                (CountOf (And [Macros.artifact, ControlledBy They]))) ])
+
+||| Propaganda, whole -- "Creatures can't attack you unless their
+||| controller pays {2} for each creature they control that's attacking
+||| you." THE GATE READING ITS OWN SUBJECT AND ITS DERIVED PAYER: the
+||| carrier types a `Compulsion` at `selfSubjIntro n` and `GatedBy` adds
+||| the payer [CR#508.1h] derives, so "they control" is a read rather
+||| than an unwritable pronoun, and `AttackerOf` spells "that's
+||| attacking you". Ghostly Prison prints the same sentence.
+public export
+propaganda : Card
+propaganda =
+  Macros.card "Propaganda" (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (Macros.deontic (AllOf Macros.creature)
+                   (GatedBy (ScaledMana (Times 2
+                      (CountOf (And [Macros.creature, ControlledBy They,
+                                     AttackerOf You])))))
+                   ["Attack"] Agent (DefendingPlayer You)) ]
+       Nothing
+
+||| Ghostly Prison, whole -- Propaganda's sentence at the other colour.
+||| Windborn Muse and Koskun Falls print it too; Elephant Grass narrows
+||| the subject to nonblack creatures and Onakke Oathkeeper reads the
+||| defender at a planeswalker, which is the kind index `AttackerOf`
+||| carries.
+public export
+ghostlyPrisonWhole : Card
+ghostlyPrisonWhole =
+  Macros.card "Ghostly Prison" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (Macros.deontic (AllOf Macros.creature)
+                   (GatedBy (ScaledMana (Times 2
+                      (CountOf (And [Macros.creature, ControlledBy They,
+                                     AttackerOf You])))))
+                   ["Attack"] Agent (DefendingPlayer You)) ]
+       Nothing
+
+||| Archangel of Tithes' block line -- "As long as this creature is
+||| attacking, creatures can't block unless their controller pays {1} for
+||| each of those creatures." THE ANAPHORIC COUNT: "those creatures" is
+||| the subject's own plural mention and `GroupSize` is the read of it,
+||| which the gate's cost could not reach while the cost sat before the
+||| subject. 9 supported lines write the phrase; the other eight name
+||| "you or planeswalkers you control" as the defender, which is a
+||| DISJOINED patient this line does not need and no noun in the grammar
+||| yet spells.
+public export
+archangelOfTithesBlockToll : Ability
+archangelOfTithesBlockToll =
+  Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
+            (Macros.deontic (AllOf Macros.creature)
+               (GatedBy (ScaledMana (Times 1 GroupSize)))
+               ["Block"] Agent NoDeonticPatient))
+
+||| Myr Prototype, whole -- "At the beginning of your upkeep, put a
+||| +1/+1 counter on this creature. / This creature can't attack or block
+||| unless you pay {1} for each +1/+1 counter on it."
+||| THE COORDINATED DEED under a gate, which the carrier's deed LIST
+||| already was, plus the gate cost reading the subject's own counters.
+||| Cowed by Wisdom and Whipgrass Entangler are the family's other two.
+||| Phyrexian Marauder writes the same counter-scaled toll at one deed.
+public export
+myrPrototype : Card
+myrPrototype =
+  Macros.card "Myr Prototype" (Just [Macros.generic 5]) []
+       (MkTypeLine [creatureType "Myr"] [Artifact, Creature])
+       [ Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+           (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
+       , Static (Macros.deontic Macros.thisCreature
+                   (GatedBy (ScaledMana (Times 1
+                      (CountersOn Macros.plusOnePlusOne It))))
+                   ["Attack", "Block"] Agent NoDeonticPatient) ]
+       (Just (3, 3))
+
+||| Heat Wave, whole -- "Cumulative upkeep {R} / Blue creatures can't
+||| block creatures you control. / Nonblue creatures can't block
+||| creatures you control unless their controller pays 1 life for each
+||| blocking creature they control."
+||| THE PAYER NOUN INSIDE AN ACTION COST: a life payment is a clause that
+||| writes its own payer, and the payer the gate derives [CR#509.1d] is
+||| the noun it writes. Sivitri, Dragon Master's "pays 2 life for each of
+||| those creatures" is the family's other line.
+public export
+heatWave : Card
+heatWave =
+  Macros.card "Heat Wave" (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.keywordCosting "CumulativeUpkeep" (Mana [Macros.pip Red])
+       , Static (Macros.deontic (AllOf (And [Macros.creature, ColorIs Blue]))
+                   Forbid ["Block"] Agent
+                   (DeonticCounterpart (AllOf Macros.creatureYouControl)))
+       , Static (Macros.deontic (AllOf (And [Macros.creature, Not (ColorIs Blue)]))
+                   (GatedBy (Do (Macros.losesLife They
+                                   (Times 1 (CountOf (And [Macros.creature, Blocking,
+                                                           ControlledBy They]))))))
+                   ["Block"] Agent
+                   (DeonticCounterpart (AllOf Macros.creatureYouControl))) ]
+       Nothing
+
+||| Braid of Fire, whole -- "Cumulative upkeep-Add {R}."
+||| The first of the four cumulative upkeeps whose cost ACTION the
+||| keyword's cell was recorded as disagreeing with. It needed nothing
+||| minted: [CR#118.1] makes a cost an action a player carries out and
+||| `costActionOk` already admits the mana ability, the draw, the token
+||| creation and the life gain.
+public export
+braidOfFire : Card
+braidOfFire =
+  Macros.card "Braid of Fire" (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.keywordCosting "CumulativeUpkeep"
+           (Do (AddMana You (Lit 1) (Runs [[OfColor Red]]) [])) ]
+       Nothing
+
+||| Psychic Vortex's upkeep line -- "Cumulative upkeep-Draw a card."
+||| A FRAGMENT: the card's end-step trigger discards a whole hand, which
+||| no clause spells.
+public export
+psychicVortexUpkeep : Ability
+psychicVortexUpkeep =
+  Macros.keywordCosting "CumulativeUpkeep" (Do Macros.drawACard)
+
+||| Varchild's War-Riders' upkeep line -- "Cumulative upkeep-Have an
+||| opponent create a 1/1 red Survivor creature token."
+||| -- spelling: the causative "have [who] [verb]" is this row's own
+||| agent slot, as Grismold's "each player creates" is.
+||| A FRAGMENT: the card's second line is "Trample; rampage 1", and
+||| rampage is not a catalog row.
+public export
+varchildsWarRidersUpkeep : Ability
+varchildsWarRidersUpkeep =
+  Macros.keywordCosting "CumulativeUpkeep"
+    (Do (Create Macros.anOpponent (Lit 1)
+           (TokenWritten (Macros.creatureTok 1 1 [Red] [creatureType "Survivor"])) []))
+
+||| Wall of Shards, whole -- "Defender, flying / Cumulative upkeep-An
+||| opponent gains 1 life."
+public export
+wallOfShards : Card
+wallOfShards =
+  Macros.card "Wall of Shards" (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [creatureType "Wall"] [Creature])
+       [ Macros.keyword "Defender"
+       , Macros.keyword "Flying"
+       , Macros.keywordCosting "CumulativeUpkeep"
+           (Do (Macros.gainsLife Macros.anOpponent (Lit 1))) ]
+       (Just (3, 6))
+
+||| Earthen Goo, whole -- "Trample / Cumulative upkeep {R} or {G} / This
+||| creature gets +1/+1 for each age counter on it."
+||| THE MANA-OR-MANA COST, `EitherCost` on `Cost` and not a widened
+||| `ManaCost`. Arctic Nishoba ({G} or {W}), Jotun Owl Keeper ({W} or
+||| {U}) and Krovikan Whispers ({U} or {B}) are the other three, and
+||| [CR#702.24a] is what says the choice is answered once per age
+||| counter.
+public export
+earthenGoo : Card
+earthenGoo =
+  Macros.card "Earthen Goo" (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Ooze"] [Creature])
+       [ Macros.keyword "Trample"
+       , Macros.keywordCosting "CumulativeUpkeep"
+           (EitherCost (Mana [Macros.pip Red]) (Mana [Macros.pip Green]))
+       , Static (Gets Macros.thisCreature
+                   (PtUp (Times 1 (CountersOn Age It)))
+                   (PtUp (Times 1 (CountersOn Age It)))) ]
+       (Just (2, 2))
+
+||| Chamber Sentry's damage ability -- "{X}, {T}, Remove X +1/+1 counters
+||| from this creature: It deals X damage to any target."
+||| THE [CR#107.3k] BOUNDARY, benched: the card's printed cost is {X} and
+||| this ability's is another, so the ability's telescope drops the
+||| object's letter and its own cost opens the one the body reads.
+||| Defenders of Humanity is the other supported card writing both at
+||| once; Riptide Replicator writes an X in a body whose cost has none
+||| and defines it with a where-clause of its own.
+||| A FRAGMENT: the card's entry rider counts the colours of mana spent
+||| to cast it, which no phrase reads.
+public export
+chamberSentryDamage : Ability
+chamberSentryDamage =
+  Macros.activated (Compound [Mana [Variable], TapSymbol,
+                       Do (RemoveCounters (LetterVal X)
+                             (Just Macros.plusOnePlusOne) Macros.thisCreature)])
+                   (DealDamage This (LetterVal X) (Macros.target Macros.anyTarget))
+
+||| Awesome Presence, whole -- "Enchant creature / Enchanted creature
+||| can't be blocked unless defending player pays {3} for each creature
+||| they control that's blocking it."
+||| THE AURA CARRIER of the gate family, and the printed "defending
+||| player" read at the BLOCK role: the payer [CR#509.1d] derives is the
+||| one the cost writes, and "that's blocking it" is `BlockerOf` over
+||| the enchanted creature the statement's own subject named. Brainwash,
+||| Oppressive Rays and Cowed by Wisdom are the family's other three.
+public export
+awesomePresence : Card
+awesomePresence =
+  Macros.card "Awesome Presence" (Just [Macros.pip Blue]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
+                   (GatedBy (ScaledMana (Times 3
+                      (CountOf (And [Macros.creature, ControlledBy They,
+                                     BlockerOf It])))))
+                   ["Block"] Patient NoDeonticPatient) ]
+       Nothing
+
+||| Oppressive Rays, whole -- "Enchant creature / Enchanted creature
+||| can't attack or block unless its controller pays {3}. / Activated
+||| abilities of enchanted creature cost {3} more to activate."
+||| The coordinated deed under a flat gate beside the activation
+||| variant, on one card.
+public export
+oppressiveRays : Card
+oppressiveRays =
+  Macros.card "Oppressive Rays" (Just [Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
+                   (GatedBy (Mana [Macros.generic 3]))
+                   ["Attack", "Block"] Agent NoDeonticPatient)
+       , Static (CostsToCast
+                   (AllOf (And [ AbilityHead AnyActivated
+                               , AbilityOf (AttachHost Enchanted (TypeW Creature)) ]))
+                   (CostMore (Lit 3))) ]
+       Nothing

@@ -1067,8 +1067,42 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | TurnSkip
                 | LetterDefinition
 
+||| Which WORD marks a static conditional: "as long as", "unless", or
+||| "if". The word is carried and not derived, because the same
+||| construction writes two of them one card apart -- Gwaihir the
+||| Windlord's "this spell costs {2} less to cast AS LONG AS you've drawn
+||| two or more cards this turn" beside Avenge's "this spell costs {2}
+||| less to cast IF a player attacked you during their last turn".
+|||
+||| `IfSo` IS THE SAME CONSTRUCTION AS `AsLongAs`, settled on the two
+||| rules that could have made it a one-time test and do not.
+||| [CR#601.2f] determines a total cost once and then locks it in ("if
+||| effects would change the total cost after this time, they have no
+||| effect"), which is the lock-in the "if" reading would need; but the
+||| lock-in there is the TOTAL COST's, not the ability's, and
+||| [CR#611.3a] denies a static ability's continuous effect any of its
+||| own -- it "isn't 'locked in'; it applies at any given moment to
+||| whatever its text indicates". A cost-modification static is
+||| therefore read exactly once, at [CR#601.2f]'s determination step,
+||| whichever word marks it, and the two words say the same thing about
+||| the same statement. So the third arm is a marking WORD and not a
+||| row: 145 supported lines write it over a cost modification
+||| (139 postposed, 6 leading, measured 2026-08-28), of which 48 write
+||| the "if it targets ..." restrictor that is the described subject's
+||| own predicate (Ghostfire Blade's idiom) and 97 write a game-state
+||| condition this marking is for.
+|||
+||| MEASURED ZERO, not a refusal: no supported line conditions a
+||| non-cost static on a GAME STATE with "if". The 6 that write "if"
+||| beside another static kind describe the SUBJECT ("if it's white",
+||| "if it has flying", "if it devoured a creature"), which is a
+||| predicate and not a condition. `markingOk` gates nothing here for
+||| that reason -- [CR#611.3a] would read such a line as a standing
+||| condition, so the sentence is rules-meaningful and the zero is a
+||| count.
+||| -- spelling: "as long as [c]", "unless [c]", "if [c]".
 public export
-data CondMarking = AsLongAs | Unless
+data CondMarking = AsLongAs | Unless | IfSo
 
 public export
 data PlayVerb = Play | Cast

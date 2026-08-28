@@ -1690,6 +1690,21 @@ countLetter l (MkBinding _ k OneOf _ :: bs) =
   if kindLte (LetterK l) k then S (countLetter l bs) else countLetter l bs
 countLetter l (_ :: bs) = countLetter l bs
 
+||| A context with every mention of one letter taken out of it.
+||| [CR#107.3k] is what asks for it: "if an object's activated ability
+||| has an {X}, [-X], or X in its activation cost, the value of X for
+||| that ability is INDEPENDENT of any other values of X chosen for that
+||| object or for other instances of abilities of that object", an
+||| explicit exception to [CR#107.3i]. So an activated ability is
+||| written in a context where the object's other X is not there to be
+||| read, and the ability's own cost opens its own.
+public export
+dropLetter : Letter -> Bindings -> Bindings
+dropLetter l [] = []
+dropLetter l (MkBinding d k pl pd :: bs) =
+  if kindLte (LetterK l) k then dropLetter l bs
+                           else MkBinding d k pl pd :: dropLetter l bs
+
 ||| An introduced letter still awaiting its definition. The determiner is
 ||| matched first so the table reduces under an abstract plurality.
 public export
@@ -3333,6 +3348,29 @@ keywordFacts =
   , MkKeywordFacts "Flash"            NoParam      False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Kicker"           CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Multikicker"      CostParam    False (Just AtCasting)    True  True  False
+  -- [CR#702.24a] writes the word as "Cumulative upkeep [cost]", so the
+  -- parameter is a cost and never absent. What the cost may BE is
+  -- [CR#118.1]'s question and `costActionOk` answers it for every
+  -- carrier at once: the four cards whose upkeep is an action rather
+  -- than mana (Braid of Fire, Psychic Vortex, Varchild's War-Riders,
+  -- Wall of Shards) bench with nothing minted, and the four that write
+  -- "{a} or {b}" (Arctic Nishoba, Earthen Goo, Jotun Owl Keeper,
+  -- Krovikan Whispers) spend `EitherCost`.
+  -- 80 supported cards print the line and 5 grant it in a quotation
+  -- (re-measured 2026-08-28). SIX CARRIERS STAY BLOCKED, each on its
+  -- own gap and none of them this row's: Karplusan Minotaur (no
+  -- coin-flip verb), Herald of Leshrac (a one-shot control change where
+  -- `GainsControl` is a static), Jotun Grunt ("a single graveyard", a
+  -- uniqueness phrase over a zone's possessor), Balduvian Shaman (a
+  -- permanent described by NOT having a keyword, where `HasKeyword`
+  -- demands `KeywordParamless`), Phyrexian Soulgorger (the `Phyrexian`
+  -- name-straddle in its type line) and Cover of Winter (a prevention
+  -- size read off the age tally).
+  -- OUT OF SCOPE and recorded so it is not folded in: the longhand
+  -- mirror without the keyword -- Cyclone and Phantasmal Sphere write
+  -- the whole escalating procedure out, and Myr Prototype, Primordial
+  -- Ooze and Rogue Skycaptain share the escalation while swapping the
+  -- consequence.
   , MkKeywordFacts "CumulativeUpkeep" CostParam    False Nothing             True  False False
   , MkKeywordFacts "Echo"             CostParam    False Nothing             True  False False
   , MkKeywordFacts "Hexproof"         NoParam      True  Nothing             True  False False

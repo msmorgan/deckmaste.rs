@@ -701,6 +701,12 @@ unlessSo : (c : Condition bs) -> (se : StaticEffect (condIntro (NotCond c))) ->
            {auto 0 nn : NotConditional se} -> StaticEffect bs
 unlessSo c se = Conditionally (NotCond c) se Unless {nn}
 
+||| "If [c], [se]." -- the leading conditional at the "if" marking.
+public export
+ifSo : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
+       {auto 0 nn : NotConditional se} -> StaticEffect bs
+ifSo c se = Conditionally c se IfSo {nn}
+
 public export
 entersTapped : (n : Noun bs Object) ->
                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -755,7 +761,7 @@ flyingCounter = KeywordCounter "Flying"
 ||| though" sentences, ZERO write one under a can't, a must or a gate
 ||| (measured 2026-08-28), and the carrier refuses the pairing anyway.
 public export
-deontic : {k : Kind} -> (n : Noun bs k) -> (c : Compulsion bs) ->
+deontic : {k : Kind} -> (n : Noun bs k) -> (c : Compulsion (selfSubjIntro n)) ->
           (deeds : Deeds) -> (role : Role) ->
           (patient : DeonticPatient {bs = nomIntro n} deeds role) ->
           {auto 0 ne : NonEmpty deeds} ->
@@ -818,7 +824,7 @@ canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
                 {auto 0 kd : KnownDeeds [deed]} ->
                 {auto 0 zn : ZoneFits (nounZone n) (deedsZone [deed] Agent)} ->
                 {auto 0 dp : DeedParticipant [deed] Agent k (nounTy n)} ->
-                {auto 0 at : So (asThoughOk (Permit {bs}) [deed] (Just (AsThoughOf p)))} ->
+                {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro n}) [deed] (Just (AsThoughOf p)))} ->
                 StaticEffect bs
 canDoAsThough n deed p =
   Deontic n Permit [deed] Agent NoDeonticPatient (Just (AsThoughOf p)) {kd} {zn} {dp} {at}
@@ -1848,7 +1854,7 @@ triggeredOnlyOnce word ev lim eff =
 ||| "<cost>: <effect>": the bare activated ability — no window, usage limit
 ||| or activation condition written.
 public export
-activated : (cost : Cost bs) ->
+activated : (cost : Cost (dropLetter X bs)) ->
             (eff : Effect (publicOnly (costIntro cost))) ->
             {auto 0 tp : CostTapOnce cost} ->
             {auto 0 py : CostPaidByYou cost} -> AbilityAt bs
@@ -1860,7 +1866,7 @@ activated cost eff = Activated cost eff Nothing Nothing Nothing Nothing {tp} {py
 ||| "unless the object specifically says otherwise", and this is that
 ||| sentence.
 public export
-activatedBy : (cost : Cost bs) ->
+activatedBy : (cost : Cost (dropLetter X bs)) ->
               (eff : Effect (publicOnly (costIntro cost))) ->
               (who : Noun bs Player) ->
               {auto 0 tp : CostTapOnce cost} ->
@@ -1870,7 +1876,7 @@ activatedBy cost eff who =
 
 ||| "Activate only as a sorcery" / "only during your upkeep".
 public export
-activatedOnlyDuring : (cost : Cost bs) ->
+activatedOnlyDuring : (cost : Cost (dropLetter X bs)) ->
                       (eff : Effect (publicOnly (costIntro cost))) ->
                       (w : Timing) ->
                       {auto 0 tp : CostTapOnce cost} ->
@@ -1880,7 +1886,7 @@ activatedOnlyDuring cost eff w = Activated cost eff (Just w) Nothing Nothing Not
 
 ||| "Activate only once each turn" (or once each game).
 public export
-activatedOnlyOnce : (cost : Cost bs) ->
+activatedOnlyOnce : (cost : Cost (dropLetter X bs)) ->
                     (eff : Effect (publicOnly (costIntro cost))) ->
                     (lim : UsageLimit) ->
                     {auto 0 tp : CostTapOnce cost} ->
@@ -1890,7 +1896,7 @@ activatedOnlyOnce cost eff lim = Activated cost eff Nothing (Just lim) Nothing N
 
 ||| "Activate only if <condition>."
 public export
-activatedOnlyIf : (cost : Cost bs) ->
+activatedOnlyIf : (cost : Cost (dropLetter X bs)) ->
                   (eff : Effect (publicOnly (costIntro cost))) ->
                   (g : Condition bs) ->
                   {auto 0 tp : CostTapOnce cost} ->
@@ -1900,7 +1906,7 @@ activatedOnlyIf cost eff g = Activated cost eff Nothing Nothing (Just g) Nothing
 
 ||| "Activate only once each turn and only if <condition>."
 public export
-activatedOnlyOnceIf : (cost : Cost bs) ->
+activatedOnlyOnceIf : (cost : Cost (dropLetter X bs)) ->
                       (eff : Effect (publicOnly (costIntro cost))) ->
                       (lim : UsageLimit) -> (g : Condition bs) ->
                       {auto 0 tp : CostTapOnce cost} ->
@@ -2495,6 +2501,13 @@ public export
 onlyUnless : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
              {auto 0 nn : NotConditional se} -> StaticEffect bs
 onlyUnless se c = OnlyWhile se (NotCond c) Unless {nn}
+
+||| "[se] if [c]." -- the postposed conditional at the "if" marking,
+||| which is how 139 of the 145 cost-modification lines write it.
+public export
+onlyIfSo : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
+           {auto 0 nn : NotConditional se} -> StaticEffect bs
+onlyIfSo se c = OnlyWhile se c IfSo {nn}
 
 ||| "While you're searching your library, you may cast <what> from <zone>."
 public export

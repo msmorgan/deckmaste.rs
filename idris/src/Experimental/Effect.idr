@@ -239,11 +239,41 @@ mutual
     ||| mana in that cost to less than [floor]."
     CostLess : (amt : Amount bs) -> (floor : Maybe (Amount bs)) -> CostShift bs
     CostMore : (amt : Amount bs) -> CostShift bs
+    ||| "[n] cost {2}{R} more to cast" / "cost {W}{B} less to cast": the
+    ||| shift written as a MANA RUN rather than as a number. A SECOND
+    ||| payload beside `Amount`, never a widening of it: the letter has
+    ||| to stay readable at the amount arms, where "this spell costs {X}
+    ||| less to cast" (Ghalta, Cavern-Hoard Dragon) puts a `LetterVal`
+    ||| and a `Define` reads it back, and a run holds no letter for
+    ||| `amtDelta` to open.
+    |||
+    ||| It is the shift's payload and not a `Cost`, on [CR#601.2f]'s
+    ||| ground: what a reduction subtracts from is the total cost, so
+    ||| the sentence states an amount of mana and never an action a
+    ||| player takes, which is what `Cost` is [CR#118.1].
+    ||| 46 supported lines write a run with at least one non-generic
+    ||| symbol (measured 2026-08-28): 25 of them are strive's "costs
+    ||| [run] more to cast for each target beyond the first", the rest
+    ||| ordinary shifts (Alabaster Leech, Derelor, Jade Leech, the five
+    ||| Defilers, Edgewalker, Bard Class, Avatar Aang).
+    ||| NO FLOOR ARM: no supported line pairs a run payload with the
+    ||| "can't reduce ... to less than" rider, so the floor stays where
+    ||| its ten cards write it.
+    ||| WHAT A RUN PAYLOAD STILL MAY NOT SAY: Bard Class and Edgewalker
+    ||| print "This effect reduces only the amount of colored mana you
+    ||| pay" beside the run -- 2 lines, a rider on the reduction and not
+    ||| a floor, recorded here and not minted.
+    ||| -- spelling: "[n] cost[s] [run] more/less to cast".
+    CostShiftRun : (run : ManaCost) -> (rises : Bool) ->
+                   {auto 0 wr : ManaRun run} -> CostShift bs
 
+  ||| The letters a shift's payload opens. A run opens none: a mana run
+  ||| is written symbols and holds no `Amount` for `amtDelta` to read.
   public export
-  costAmount : {0 bs : Bindings} -> CostShift bs -> Amount bs
-  costAmount (CostLess a _) = a
-  costAmount (CostMore a) = a
+  costShiftDelta : {bs : Bindings} -> CostShift bs -> List Binding
+  costShiftDelta (CostLess a _) = amtDelta a
+  costShiftDelta (CostMore a) = amtDelta a
+  costShiftDelta (CostShiftRun _ _) = []
 
   namespace Static
     public export
@@ -373,7 +403,8 @@ mutual
       ||| -- spelling: "[n] can't/must/may [deed]", the deeds coordinated
       ||| with "or"; under `GatedBy`, "unless [cost]"; with a premise,
       ||| "as though [premise]".
-      Deontic : {k : Kind} -> (n : Noun bs k) -> (c : Compulsion bs) ->
+      Deontic : {k : Kind} -> (n : Noun bs k) ->
+                (c : Compulsion (selfSubjIntro n)) ->
                 (deeds : Deeds) -> (role : Role) ->
                 (patient : DeonticPatient {bs = nomIntro n} deeds role) ->
                 (asThough : Maybe (AsThough (nomIntro n))) ->
@@ -682,6 +713,11 @@ mutual
                            {auto 0 ps : SoleHolder who} -> StaticEffect bs
       CantPrevent : (kind : DamageKind) -> (scope : DamageScope bs) ->
                     (by : Maybe (Noun (scopeIntro scope) Object)) -> StaticEffect bs
+      ||| The leading static conditional, "as long as [c], [se]" / "if
+      ||| [c], [se]": the condition is written first and the statement
+      ||| reads what it announced. `OnlyWhile` is the postposed twin.
+      ||| -- spelling: "as long as [c], [se]"; under `IfSo`, "if [c],
+      ||| [se]"; under `NotCond` with `Unless`, "unless [c], [se]".
       Conditionally : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
                       (marking : CondMarking) ->
                       {auto 0 nn : NotConditional se} ->
@@ -692,8 +728,8 @@ mutual
       ||| untapped"), so it sits at `staticIntro se`. `Conditionally` is the
       ||| leading twin, whose statement reads the condition; neither is a
       ||| macro over the other and neither reads forward.
-      ||| -- spelling: "[se] as long as [c]"; under `NotCond` with `Unless`,
-      ||| "[se] unless [c]".
+      ||| -- spelling: "[se] as long as [c]"; under `IfSo`, "[se] if [c]";
+      ||| under `NotCond` with `Unless`, "[se] unless [c]".
       OnlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
                   (marking : CondMarking) ->
                   {auto 0 nn : NotConditional se} ->
@@ -886,14 +922,51 @@ mutual
   ||| the closed enum lacked: "this creature can attack" was unwritable
   ||| before any counterfactual was reached, which is what blocked the
   ||| whole permission family.
+  ||| The mention a gate's derived payer leaves for its cost to read:
+  ||| one definite player, "their controller".
+  public export
+  gatePayer : Binding
+  gatePayer = MkBinding TheD Player OneOf PlayerP
+
   public export
   data Compulsion : Bindings -> Type where
     ||| "[n] can't [deed]"
     Forbid : Compulsion bs
     ||| "[n] [deed]s if able"
     Require : Compulsion bs
-    ||| "[n] can't [deed] unless [c]"
-    GatedBy : (c : Cost bs) -> Compulsion bs
+    ||| "[n] can't [deed] unless [c]" -- the gate, whose cost is typed
+    ||| one step further along than the other three modalities: it reads
+    ||| the restriction's own SUBJECT (the carrier types every
+    ||| `Compulsion` at `selfSubjIntro n`, `Gets`' seat and for `Gets`'
+    ||| reason -- the subject is written before the cost and a deictic
+    ||| one announces itself, so "unless you pay {1} for each +1/+1
+    ||| counter on IT" reads the creature its own statement named) and,
+    ||| on top of that, the PAYER the gate derives.
+    |||
+    ||| THE PAYER IS DERIVED AND SPELLED, never written as a slot.
+    ||| [CR#508.1h] has the ACTIVE PLAYER determine the total cost to
+    ||| attack and [CR#509.1d] has the DEFENDING PLAYER determine the
+    ||| total cost to block, so who pays follows from whose creature is
+    ||| doing the deed and is never a slot; the printed "their
+    ||| controller" / "its controller" / "you" is that derivation
+    ||| spelling itself.
+    ||| Announcing it here is what lets the COST read it back, which
+    ||| three printed shapes need: "for each creature THEY control
+    ||| that's attacking you" (Propaganda, Ghostly Prison, Windborn
+    ||| Muse, Koskun Falls, Elephant Grass, Collective Restraint, Onakke
+    ||| Oathkeeper), "pays 1 life for each blocking creature THEY
+    ||| control" (Heat Wave) and Sivitri, Dragon Master's life payment,
+    ||| whose own payer noun the action cost writes.
+    ||| The subject's mention serves the other anaphor: "unless their
+    ||| controller pays {1} for each of THOSE creatures" is `GroupSize`
+    ||| over the plural the subject announced -- 9 supported lines
+    ||| (Archangel of Tithes twice, Archon of Absolution, Baird, Dain,
+    ||| Norn's Annex, Sphere of Safety, Summon: Yojimbo, Forbidding
+    ||| Spirit; Sivitri's is the tenth at a life payment) -- and "unless
+    ||| you pay {1} for each +1/+1 counter on IT" is `CountersOn` over
+    ||| the singular one (Myr Prototype, Phyrexian Marauder).
+    ||| -- spelling: "unless [c]", the payer spelled from the subject.
+    GatedBy : (c : Cost (Effect.gatePayer :: bs)) -> Compulsion bs
     ||| "[n] can [deed]", "you may have [n] [deed]". The optionality is
     ||| this row's own and needs no second carrier: a permission a player
     ||| declines is a permission unused.
@@ -929,6 +1002,16 @@ mutual
     ||| The one place a deontic's other participant may be a PLAYER,
     ||| which is why the deed's row carries `deedDefends` beside its
     ||| patient types.
+    ||| Re-measured 2026-08-28: 17 supported gate lines name a defender
+    ||| and a cost at once ("creatures can't attack you unless their
+    ||| controller pays ..."), and this arm serves them all at Attack /
+    ||| `Agent` -- the case the row was recorded as refusing, which it
+    ||| has not refused since the carrier unified.
+    ||| WHAT IS STILL REFUSED HERE: a DISJOINED defender. 8 of those 17
+    ||| write "you or planeswalkers you control", which is one mention
+    ||| at a joined kind and wants a noun-level disjunction the grammar
+    ||| does not spell; `Attackable` would admit it the moment one
+    ||| exists.
     DefendingPlayer : {k : Kind} -> (m : Noun bs k) ->
                       {auto 0 at : Attackable m} ->
                       DeonticPatient {bs} ds r
@@ -1236,7 +1319,7 @@ mutual
     outcomeB NamedNumber :: (amtDelta amt ++ selfSubjIntro n)
   staticIntro (HasBasePt n pow tou) = amtDelta tou ++ amtDelta pow ++ selfSubjIntro n
   staticIntro (SwitchesPt n) = selfSubjIntro n
-  staticIntro (CostsToCast n sh) = amtDelta (costAmount sh) ++ selfSubjIntro n
+  staticIntro (CostsToCast n sh) = costShiftDelta sh ++ selfSubjIntro n
   staticIntro (AltCost _) = bs
   -- The cost is a statement about the payment, not a clause that
   -- announces anything: the additional cost is paid at [CR#601.2f..601.2h],
@@ -1418,6 +1501,41 @@ mutual
     Do : (e : Effect bs) -> {auto 0 ok : CostAction e} -> Cost bs
     Compound : {0 n : Nat} -> CostSeq n bs ->
                {auto 0 ne : IsSucc n} -> Cost bs
+    ||| "[l] or [r]": a payer's CHOICE between two costs. "Cumulative
+    ||| upkeep {G} or {W}" (Arctic Nishoba, Earthen Goo {R} or {G},
+    ||| Jotun Owl Keeper {W} or {U}, Krovikan Whispers {U} or {B} -- 4
+    ||| supported cards, measured 2026-08-28).
+    |||
+    ||| ON `Cost` AND NOT ON `ManaCost`. The English "or" joins two
+    ||| RUNS, and `ManaCost` is a list of symbols with no room for a
+    ||| choice between two of them: widening it would make every mana
+    ||| cost in the grammar a potential disjunction to serve four cards,
+    ||| and would still say nothing for a carrier whose arms are not
+    ||| mana. Sitting here it serves every cost carrier at once, which
+    ||| is the same reason `Compound` sits here -- that row is the
+    ||| AND-join [CR#601.2h] and this is the OR.
+    ||| Nor is it a hybrid symbol: [CR#107.4e] makes a hybrid symbol one
+    ||| symbol of the cost, where these cards print two runs and the
+    ||| word "or".
+    ||| WHAT THE CHOICE MEANS is the keyword's own rule where a keyword
+    ||| carries it: [CR#702.24a] says "if [cost] has choices associated
+    ||| with it, each choice is made separately for each age counter,
+    ||| then either the entire set of costs is paid, or none of them is
+    ||| paid", so cumulative upkeep's disjunction is answered once per
+    ||| age counter and not once for the whole payment.
+    ||| IT ANNOUNCES NOTHING: `costIntro` is `bs`, because the payment
+    ||| does not record which arm was taken and no later clause can read
+    ||| one. An arm that would announce (a `Do` cost) therefore loses
+    ||| what it announced, which is the construction's content rather
+    ||| than an omission.
+    ||| The arms are flat for `CostSeq`'s reason and not a new one: that
+    ||| list refuses a nested `Compound` at its own cons, so a join
+    ||| inside a join is spelled by neither row. A narrowing, asserted
+    ||| by nothing, and no supported line pays for it.
+    ||| -- spelling: "[l] or [r]".
+    EitherCost : (l : Cost bs) -> (r : Cost bs) ->
+                 {auto 0 nl : NotCompound l} ->
+                 {auto 0 nr : NotCompound r} -> Cost bs
     ||| "its mana cost": the bearer's own printed cost [CR#202.1a], the
     ||| cost a sentence fixing a granted keyword's parameter names.
     ItsManaCost : Cost bs
@@ -1441,6 +1559,8 @@ mutual
   costIntro (LoyaltySymbol _) = bs
   costIntro (Do e) = effIntro e
   costIntro (Compound cs) = costsIntro cs
+  -- the payment does not record which arm was taken.
+  costIntro (EitherCost _ _) = bs
   costIntro ItsManaCost = bs
 
   public export
@@ -2719,6 +2839,7 @@ mutual
   payableOk (LoyaltySymbol _) = False
   payableOk (Do _) = True
   payableOk (Compound _) = True
+  payableOk (EitherCost l r) = payableOk l && payableOk r
   payableOk ItsManaCost = True
 
   public export
@@ -2732,6 +2853,18 @@ mutual
   ||| or reflexive trigger, a skip [CR#614.10]) and the coordinations,
   ||| which claim an order [CR#601.2h] pays in any — `Compound` is the
   ||| cost-side telescope.
+  |||
+  ||| ATTESTATION, re-measured 2026-08-28. 78 rows, of which 20 refuse,
+  ||| and every refusal is the sentence's own -- no row is refused for
+  ||| want of a witness any more. The four cumulative upkeeps recorded
+  ||| as disagreeing with this table are attested by benches and needed
+  ||| nothing minted: Braid of Fire's `AddMana`, Psychic Vortex's
+  ||| `Draw`, Varchild's War-Riders' `Create` and Wall of Shards'
+  ||| `ChangeLife Up` all read `True` here. NO SECOND TABLE keyed by the
+  ||| `Cost` carrier is owed -- [CR#118.1] answers for every carrier at
+  ||| once -- and the colon-measured zeros of the activation cost are
+  ||| untouched by that, the widening having admitted no new action
+  ||| there.
   public export
   costActionOk : {0 bs : Bindings} -> Effect bs -> Bool
   costActionOk (DealDamage src _ _) = costNounOk src
@@ -3628,7 +3761,26 @@ mutual
     KeywordAbility : (k : KeywordLabel) ->
                      (param : Maybe (KeywordParam bs)) ->
                      {auto 0 pf : KeywordParamFits k param} -> AbilityAt bs
-    Activated : (cost : Cost bs) ->
+    ||| The activation cost is written at `dropLetter X bs`, not at
+    ||| `bs`: [CR#107.3k] makes an activated ability's activation-cost X
+    ||| "independent of any other values of X chosen for that object or
+    ||| for other instances of abilities of that object", an explicit
+    ||| exception to [CR#107.3i]'s one-value-per-object rule. A card
+    ||| face's telescope opens the letter its PRINTED cost announced
+    ||| [CR#107.3a], and leaving that letter in scope here would let an
+    ||| activated ability's body read the value the CASTER announced
+    ||| where the rules give it the ACTIVATOR's. So the object's letter
+    ||| is taken out and the ability's own cost opens its own; 2
+    ||| supported cards write both at once (Chamber Sentry's "{X}, {T},
+    ||| Remove X +1/+1 counters from this creature: It deals X damage to
+    ||| any target" and Defenders of Humanity), and Riptide Replicator's
+    ||| "where X is the number of charge counters on this artifact"
+    ||| defines its own inside a body whose cost has none.
+    ||| The letter is dropped for the COST and everything downstream of
+    ||| it; the guard and the activator stay at `bs`, being the object's
+    ||| own statement about when and by whom rather than part of the
+    ||| cost the rule exempts.
+    Activated : (cost : Cost (dropLetter X bs)) ->
                 (eff : Effect (publicOnly (costIntro cost))) ->
                 {auto 0 tp : CostTapOnce cost} ->
                 {auto 0 py : CostPaidByYou cost} ->
@@ -4112,6 +4264,7 @@ mutual
   selfTapPayment (LoyaltySymbol _) = False
   selfTapPayment (Do _) = False
   selfTapPayment (Compound _) = False
+  selfTapPayment (EitherCost l r) = selfTapPayment l || selfTapPayment r
   selfTapPayment ItsManaCost = False
 
   public export
@@ -4133,6 +4286,7 @@ mutual
   costTapOnce (LoyaltySymbol _) = True
   costTapOnce (Do _) = True
   costTapOnce (Compound cs) = selfTapOnce cs
+  costTapOnce (EitherCost l r) = costTapOnce l && costTapOnce r
   costTapOnce ItsManaCost = True
 
   public export
@@ -4150,6 +4304,7 @@ mutual
   costPaidByYou (Do (Does subj _ _)) = nounIsYou subj
   costPaidByYou (Do _) = True
   costPaidByYou (Compound cs) = costsPaidByYou cs
+  costPaidByYou (EitherCost l r) = costPaidByYou l && costPaidByYou r
   costPaidByYou ItsManaCost = True
 
   public export
@@ -4179,6 +4334,7 @@ mutual
   costOffBattlefield (LoyaltySymbol _) = False
   costOffBattlefield (Do _) = True
   costOffBattlefield (Compound cs) = costsOffBattlefield cs
+  costOffBattlefield (EitherCost l r) = costOffBattlefield l && costOffBattlefield r
   costOffBattlefield ItsManaCost = True
 
   public export

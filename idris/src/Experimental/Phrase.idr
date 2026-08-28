@@ -531,6 +531,31 @@ mutual
     AttackedBy : {k : Kind} -> (m : Noun bs Object) ->
                  {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
                  Predicate bs k
+    ||| "creature that's attacking [m]": the ATTACKER described by what
+    ||| it is attacking, which is `AttackedBy`'s other voice and
+    ||| `BlockerOf`'s shape one step earlier in combat. The described
+    ||| side is the creature, so this row is object-kinded and the
+    ||| RELATUM carries [CR#506.3]'s kind index -- a player, a
+    ||| planeswalker or a battle -- gated by `Attackable`, exactly as
+    ||| the deontic carrier's own defender slot is.
+    ||| It seeds the battlefield and the creature type for `Attacking`'s
+    ||| reason: [CR#508.1a] chooses the attackers from among the
+    ||| creatures the active player controls, and [CR#508.1k] makes each
+    ||| of them an attacking creature.
+    ||| It does NOT uniquify where `AttackedBy` does: [CR#508.1b] gives
+    ||| each attacker exactly one defender, which is what earns that
+    ||| row's definite determiner, but a defender may be attacked by any
+    ||| number of creatures, so the phrase this row spells is a plural
+    ||| description.
+    ||| 7 supported gate lines write it inside a cost -- "for each
+    ||| creature they control that's attacking you" (Propaganda, Ghostly
+    ||| Prison, Windborn Muse, Koskun Falls, Elephant Grass, Collective
+    ||| Restraint) and Onakke Oathkeeper's "attacking a planeswalker you
+    ||| control", the one that spends the kind index.
+    ||| -- spelling: "[n] that's attacking [m]".
+    AttackerOf : {k : Kind} -> (m : Noun bs k) ->
+                 {auto 0 at : Attackable m} ->
+                 Predicate bs Object
     ||| "creature that could block [m]" -- the hypothetical block, asked of
     ||| a block that has not been declared. [CR#509.1a] and [CR#509.1b] are
     ||| the whole of what it reads: the prospective blocker must be
@@ -1000,6 +1025,7 @@ mutual
   seedZone Attacking = Just Battlefield
   seedZone BeingDeclaredAttacker = Just Battlefield
   seedZone Blocking = Just Battlefield
+  seedZone (AttackerOf _) = Just Battlefield
   seedZone (BlockerOf _) = Just Battlefield
   seedZone (BlockedBy _) = Just Battlefield
   seedZone (CouldBlock _) = Just Battlefield
@@ -1091,6 +1117,7 @@ mutual
   seedType Attacking = Just Creature
   seedType BeingDeclaredAttacker = Just Creature
   seedType Blocking = Just Creature
+  seedType (AttackerOf _) = Just Creature
   seedType (BlockerOf _) = Just Creature
   seedType (BlockedBy _) = Just Creature
   seedType (CouldBlock _) = Just Creature
@@ -1178,6 +1205,7 @@ mutual
   hasHead Attacking = False
   hasHead BeingDeclaredAttacker = False
   hasHead Blocking = False
+  hasHead (AttackerOf _) = False
   hasHead (BlockerOf _) = False
   hasHead (BlockedBy _) = False
   hasHead (AttackedBy _) = False
@@ -1381,6 +1409,10 @@ mutual
   predEq BeingDeclaredAttacker _ = False
   predEq Blocking Blocking = True
   predEq Blocking _ = False
+  -- the relatum carries [CR#506.3]'s kind index, so two of these
+  -- compare at possibly different kinds; `AttachedTo`, `OtherThan` and
+  -- `Targets` answer the same way for the same reason.
+  predEq (AttackerOf _) _ = False
   predEq (BlockerOf a) (BlockerOf b) = nounEqRef a b
   predEq (BlockerOf _) _ = False
   predEq (BlockedBy a) (BlockedBy b) = nounEqRef a b
@@ -1936,6 +1968,7 @@ mutual
   predSays Attacking = True
   predSays BeingDeclaredAttacker = True
   predSays Blocking = True
+  predSays (AttackerOf _) = True
   predSays (BlockerOf _) = True
   predSays (BlockedBy _) = True
   predSays (AttackedBy _) = True
@@ -2011,6 +2044,7 @@ mutual
   predNegFree Attacking = True
   predNegFree BeingDeclaredAttacker = True
   predNegFree Blocking = True
+  predNegFree (AttackerOf _) = True
   predNegFree (BlockerOf _) = True
   predNegFree (BlockedBy _) = True
   predNegFree (AttackedBy _) = True
@@ -2709,6 +2743,7 @@ mutual
   predDelta (ControlledBy n) = nounDelta n
   predDelta (OwnedBy n) = nounDelta n
   predDelta (CastBy n) = nounDelta n
+  predDelta (AttackerOf m) = nounDelta m
   predDelta (BlockerOf m) = nounDelta m
   predDelta (CounterKindOn n) = nounDelta n
   predDelta (BlockedBy m) = nounDelta m
@@ -3919,6 +3954,22 @@ mutual
   costSubjectOk This = True
   costSubjectOk n = onStackZone (nounZone n)
 
+  ||| Which subject a cost-modification statement may name. The object
+  ||| arm asks for the stack, where [CR#601.2a] puts a spell before
+  ||| [CR#601.2f] determines its total cost; the ABILITY arm asks
+  ||| nothing, an ability on the stack being an object of its own
+  ||| [CR#109.1] that no zone word describes.
+  ||| THE ACTIVATION VARIANT IS THIS ARM AND IS ALREADY SPENT.
+  ||| [CR#602.2b] extends the whole cost machine to activation costs in
+  ||| one sentence, so the row that was missing was the SUBJECT, and it
+  ||| is `AbilityCostSubject`. Re-measured 2026-08-28: 89 supported
+  ||| lines write "cost [amount] less/more to activate", 49 of them
+  ||| about the object's own ability ("This ability costs {2} less to
+  ||| activate") and 12 about a keyword-named class (the equip
+  ||| discounts); Training Grounds, Power Artifact, Suppression Field,
+  ||| Gloom, Bureau Headmaster, Fervent Champion and Ghostfire Blade
+  ||| bench the range, and Agatha of the Vile Cauldron's floor rider is
+  ||| `CostLess`' own slot.
   public export
   data CostSubject : {0 k : Kind} -> Noun bs k -> Type where
     MkCostSubject : {0 n : Noun bs Object} ->
@@ -4214,8 +4265,15 @@ mutual
   condNegated (OrCond _) = False
 
   public export
+  ||| "Unless" is the marking that negates: a positive condition under
+  ||| the word would negate twice. "As long as" and "if" ask nothing --
+  ||| both mark a standing condition and neither reverses it, and 3
+  ||| supported cost lines write a negated condition under "if"
+  ||| (Avatar of Will, Hagra Mauling, Hunter's Mark), so a positivity
+  ||| gate there would refuse printed text.
   markingOk : {0 bs : Bindings} -> CondMarking -> Condition bs -> Bool
   markingOk AsLongAs _ = True
+  markingOk IfSo _ = True
   markingOk Unless c = condNegated c
 
   public export

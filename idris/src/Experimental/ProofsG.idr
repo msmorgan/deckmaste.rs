@@ -1291,3 +1291,12 @@ public export
 badMixedAxisComparison : Unspellable (Predicate [] Object) (\ok =>
   Compare [CharAxis Power, PlayerStatAxis LifeTotal] Greater (Lit 1) {at = ok})
 badMixedAxisComparison (NextAxis _ (LastAxis _)) impossible
+
+
+||| "{T}: … , where X is 3" printed on a card whose own mana cost is {X}.
+||| [CR#107.3k] makes an activated ability's activation-cost X independent of every other X on the object, an explicit exception to [CR#107.3i], so the letter the printed cost announced [CR#107.3a] is not the ability's to read or to close.
+public export
+badActivatedClosesCardLetter :
+  Unspellable (AbilityAt (costLetters (Just [Variable]))) (\ok =>
+    Macros.activated TapSymbol (Define X (Lit 3) {ok = ok}))
+badActivatedClosesCardLetter Oh impossible
