@@ -1795,12 +1795,121 @@ mutual
     ||| -- spelling: "mana equal to [n]'s mana cost".
     AsPrintedCost : (n : Noun bs Object) ->
                     {auto 0 one : nounPlur n = OneOf} -> ProducedMana bs
+    ||| "Add one mana of any type that land produced" (Mana Flare,
+    ||| Vorinclex, Zendikar Resurgent): the type the AMBIENT mana
+    ||| production actually made. 17 supported sentences over 17 cards
+    ||| (measured 2026-08-28).
+    |||
+    ||| Gated on a production being in scope, and the gate is the whole
+    ||| point: [CR#106.12a] fires the tapped-for-mana trigger "whenever
+    ||| such a mana ability resolves and produces mana", so there is a
+    ||| type to read only inside such a header. All 17 sentences sit
+    ||| inside one -- a total covariance, and the warrant for gating here
+    ||| rather than trusting the noun to be a land that was tapped.
+    |||
+    ||| `n` is the source whose production is read, named by the sentence
+    ||| ("that land", "that permanent", "that artifact token") and not
+    ||| assumed to be the header's subject: Extraplanar Lens writes the
+    ||| controller's add of a land the header already picked out, and
+    ||| Kinnan reads a nonland permanent.
+    |||
+    ||| It is NOT `CouldProduce`, and the two must not be measured
+    ||| together: this row reads what an ability DID produce, where
+    ||| [CR#106.7] defines a hypothetical over what a permanent "would
+    ||| produce if the ability were to resolve at that time". They share
+    ||| the phrase "mana of any type that", which is how a regex over it
+    ||| once returned 24 for this row alone.
+    ||| -- spelling: "one mana of any type that [n] produced".
+    ProducedByEvent : (n : Noun bs Object) ->
+                      {auto 0 one : nounPlur n = OneOf} ->
+                      {auto 0 pm : countOutcomes ManaProduced bs = 1} ->
+                      ProducedMana bs
+    ||| "Add one mana of any color that a land an opponent controls could
+    ||| produce" (Exotic Orchard, Fellwar Stone, Reflecting Pool): the
+    ||| HYPOTHETICAL read. [CR#106.7] defines it -- the types a permanent
+    ||| could produce "include[] any type of mana that an ability of that
+    ||| permanent would produce if the ability were to resolve at that
+    ||| time, taking into account any applicable replacement effects in
+    ||| any possible order", ignoring whether the ability's costs could be
+    ||| paid. 18 supported lines over 18 cards, of which 15 are add
+    ||| payloads (measured 2026-08-28).
+    |||
+    ||| Ungated, where `ProducedByEvent` is gated, and the difference is
+    ||| the rules': a hypothetical needs no event to have happened, only a
+    ||| permanent to ask about, and [CR#106.7] answers "there's no type of
+    ||| mana it could produce" where the question comes back empty rather
+    ||| than leaving the sentence undefined.
+    |||
+    ||| The subject is PLURAL where the line writes one -- "a land you
+    ||| control could produce" ranges over every such land -- so no
+    ||| singular gate rides it.
+    ||| -- spelling: "one mana of any [color/type] that [n] could
+    ||| produce".
+    CouldProduce : (n : Noun bs Object) -> ProducedMana bs
+    ||| "Add one mana of any of the exiled card's colors" (Chrome Mox),
+    ||| "of the exiled cards' colors" (Pit of Offerings), "X mana in any
+    ||| combination of its colors" (Omnath, Locus of All): the colour SET
+    ||| read off a mentioned object. 3 supported lines (measured
+    ||| 2026-08-28).
+    |||
+    ||| Its own row and not a `ProducedRun`: a run is a list of types the
+    ||| LINE writes [CR#106.1b], where this names a set the card does not
+    ||| know until the object is there to read. [CR#105.2] is what makes
+    ||| the read well formed -- an object "can be one or more of the five
+    ||| colors, or it can be no color at all" -- so a colorless card
+    ||| answers the empty set, which the row inherits rather than a gap.
+    ||| It is not `OfChosenColor` either: no choice was made, and nothing
+    ||| here reads back a chooser's answer.
+    ||| -- spelling: "one mana of any of [n]'s colors".
+    AmongColorsOf : (n : Noun bs Object) -> ProducedMana bs
+    ||| "Add two mana in any combination of {R} and/or {G}": the
+    ||| combination over a WRITTEN colour set, where `AnyColor EachColor`
+    ||| ranges over all five. 12 supported sentences (measured
+    ||| 2026-08-28), against 34 that write "in any combination of colors".
+    |||
+    ||| A written SET and not a run: `Runs` is what the line spends, one
+    ||| symbol after another, where this leaves every unit free within a
+    ||| set the line names. Two or more members, because a one-member
+    ||| combination is that member repeated and `Runs` already says it.
+    ||| Colours and not types: no supported line writes {C} into one of
+    ||| these sets, and [CR#106.1a]'s five are what the printed sets draw
+    ||| from.
+    ||| -- spelling: "[amt] mana in any combination of [cs]".
+    AmongWritten : (cs : List Color) ->
+                   {auto 0 tw : So (colorCountOk (length cs))} ->
+                   ProducedMana bs
+    ||| "Add this artifact's last noted type and amount of mana" (Ice
+    ||| Cauldron): the production a NOTE names. 1 supported line.
+    |||
+    ||| An anchored ungated read, on `GreatestStoredMatch`'s model and by
+    ||| the same ruling: the note is STATE on the holder, not a value in a
+    ||| name-keyed channel, and it is read off the permanent that holds it
+    ||| rather than off an identifier the author invents. [CR#607.2e] is
+    ||| what makes the pair one statement -- "if an object has an ability
+    ||| printed on it that allows some information to be noted and another
+    ||| ability which refers to information noted for that object, those
+    ||| abilities are linked", and "the second ability refers only to
+    ||| information noted as a result of the first". So the link is the
+    ||| card's, exactly as [CR#607.2d]'s chosen-value link is, and no gate
+    ||| here asks whether anything was noted: a permanent whose text never
+    ||| noted is that link's business.
+    |||
+    ||| What is noted is mana that was SPENT, which is why this is not
+    ||| `AsPrintedCost`: Ice Cauldron's first ability notes "the type and
+    ||| amount of mana spent to pay this activation cost", a payment that
+    ||| happened, where `AsPrintedCost` names a cost printed on a card.
+    ||| The NOTING side is not built and is this row's remaining gap: no
+    ||| effect here records state on a permanent, and minting one is the
+    ||| stored-result family's shape rather than this row's.
+    ||| -- spelling: "[n]'s last noted type and amount of mana".
+    LastNotedMana : (n : Noun bs Object) ->
+                    {auto 0 one : nounPlur n = OneOf} -> ProducedMana bs
 
   ||| Which of [CR#106.6]'s two EFFECT-BEARING riders a clause writes.
   ||| The rule lists them separately -- a production may "have an
   ||| additional effect that affects the spell or ability that mana is
-  ||| spent on, or create a delayed triggered ability (see rule 603.7a)
-  ||| that triggers when that mana is spent" -- and the difference is
+  ||| spent on, or create a delayed triggered ability ... that triggers
+  ||| when that mana is spent" [CR#603.7a] -- and the difference is
   ||| real rather than editorial: a delayed trigger uses the stack and
   ||| can be responded to where an additional effect cannot, and
   ||| [CR#106.6a] doubles them differently when a replacement increases
@@ -1836,8 +1945,11 @@ mutual
   ||| mana it names is read through the `ManaAdded` mention rather than
   ||| held by an attachment.
   |||
-  ||| Snow is not a rider either: a snow source is a SUPERTYPE on the
-  ||| permanent [CR#205.4a] and says nothing about the mana it makes.
+  ||| Snow is not a rider either, and the rules put it somewhere else
+  ||| outright: [CR#106.3] makes the SOURCE of an ability's mana the
+  ||| source of that ability, and [CR#205.4a] makes snow a supertype of
+  ||| that permanent -- so [CR#107.4h]'s "{S}" is answered by reading the
+  ||| producer's type line, never by a string carried on the mana.
   public export
   data ManaRider : Bindings -> Type where
     ||| "Spend this mana only to cast a creature spell": [CR#106.6]'s

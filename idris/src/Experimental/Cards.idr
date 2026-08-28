@@ -9098,7 +9098,7 @@ public export
 clergyOfTheHolyNimbus : Ability
 clergyOfTheHolyNimbus =
   Static (Intercepts (VerbedEvent Nothing "Destroy"
-                                  (Just Macros.thisCreature)) [] Nothing
+                                  (Just Macros.thisCreature) False) [] Nothing
                      (Regenerate It) Repeatedly Nothing)
 
 ||| Rampant Frogantua's second line: "This creature gets +10/+10 for each
@@ -11591,7 +11591,7 @@ tourachDiscardTrigger : Ability
 tourachDiscardTrigger =
   Macros.triggered Whenever
     (VerbedEvent (Just Macros.anOpponent) "Discard"
-                 (Just (Macros.a (InZone Macros.handZ))))
+                 (Just (Macros.a (InZone Macros.handZ))) False)
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
 
 ||| All-Seeing Arbiter's header -- "Whenever you discard a card, …", the
@@ -11603,7 +11603,7 @@ tourachDiscardTrigger =
 public export
 allSeeingArbiterHeader : GameEvent []
 allSeeingArbiterHeader =
-  VerbedEvent (Just You) "Discard" (Just (Macros.a (InZone Macros.handZ)))
+  VerbedEvent (Just You) "Discard" (Just (Macros.a (InZone Macros.handZ))) False
 
 ||| Mirelurk Queen's mill trigger -- "Whenever one or more nonland cards
 ||| are milled, draw a card, then put a +1/+1 counter on this creature.
@@ -11617,7 +11617,8 @@ mirelurkQueenTrigger =
     (VerbedEvent Nothing "Mill"
                  (Just (CountedGroup (Macros.atLeast 1) Nothing
                                      (And [Not Macros.land,
-                                           InZone (ZoneAt Library Bare)]))))
+                                           InZone (ZoneAt Library Bare)])))
+                 False)
     OncePerTurn
     (Sequentially [ Macros.drawCards 1
                   , PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
@@ -11634,7 +11635,7 @@ lilianasCaress =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
            (VerbedEvent (Just Macros.anOpponent) "Discard"
-                        (Just (Macros.a (InZone Macros.handZ))))
+                        (Just (Macros.a (InZone Macros.handZ))) False)
            (ChangeLife They (Down (Lit 2))) ]
        Nothing
 
@@ -11651,7 +11652,7 @@ schemingAspirant =
        (MkTypeLine [creatureType "Phyrexian", creatureType "Advisor"]
                    [Creature])
        [ Macros.triggered Whenever
-           (VerbedEvent (Just You) "Proliferate" Nothing)
+           (VerbedEvent (Just You) "Proliferate" Nothing False)
            (Sequentially [ Macros.losesLife (Each Opponent) (Lit 2)
                          , Macros.gainsLife You (Lit 2) ]) ]
        (Just (1, 3))
@@ -12947,28 +12948,44 @@ nautiloidShipTrigger =
           (Macros.a (And [Macros.creature, ExiledWith Macros.thisVehicle]))))
 
 ||| Summon: Esper Valigarmanda's II/III/IV body, in part -- "You may cast
-||| an instant or sorcery card exiled with this Saga." The Saga word was
-||| already rowed; only the linkage cell was shut, and this is the first
-||| of the six supported lines it was shutting. The clause beside it
-||| ("mana of any type can be spent to cast that spell") has no carrier
-||| in this vocabulary, and neither has the possessed-hand destination
-||| Roads Go Ever, Ever On's chapter wants: `DestOk` admits bare zones
-||| only, which is a move-destination gap and not a linkage one.
+||| an instant or sorcery card exiled with this Saga, and mana of any
+||| type can be spent to cast that spell." The Saga word was already
+||| rowed; only the linkage cell was shut, and this is the first of the
+||| six supported lines it was shutting. The clause beside it now writes
+||| too, at the SPEND deed: [CR#118.14] makes "mana of any type can be
+||| spent" the same permission as "you may spend mana as though it were",
+||| so the passive is spelling and this is the same row Rogue Class
+||| writes actively. What the card still waits on is the possessed-hand
+||| destination Roads Go Ever, Ever On's chapter wants: `DestOk` admits
+||| bare zones only, which is a move-destination gap and not a linkage
+||| one.
 public export
 summonEsperValigarmandaCast : StaticEffect []
 summonEsperValigarmandaCast =
-  MayPlay You (Macros.a (And [Macros.instantOrSorcery, ExiledWith Macros.thisSaga]))
-          Cast Nothing Nothing Nothing Nothing False ItsOwnCost
+  AndAlso [ MayPlay You (Macros.a (And [Macros.instantOrSorcery,
+                                        ExiledWith Macros.thisSaga]))
+                    Cast Nothing Nothing Nothing Nothing False ItsOwnCost
+          , Macros.maySpendAsThough You Nothing MatchAnyType
+              (Just (ToCast (And [Macros.instantOrSorcery,
+                                  ExiledWith Macros.thisSaga]))) ]
 
 ||| Rogue Class's level-3 body -- "You may play cards exiled with this
-||| Class." The `Class` word and the single line that writes its linkage,
-||| together. The clause after it ("you may spend mana as though it were
-||| mana of any color") has no carrier in this vocabulary; the level
-||| machinery is what the whole card waits on.
+||| Class, and you may spend mana as though it were mana of any color to
+||| cast those spells." Both conjuncts now: the play permission and
+||| [CR#609.4b]'s payment permission beside it. The level machinery is
+||| what the whole card still waits on.
+|||
+||| The purpose is written as the description rather than as "those
+||| spells": `SpendPurpose.ToCast` takes a `Predicate`, which describes
+||| and points at nothing, so an anaphoric purpose has no spelling here.
+||| It names the same set, and the anaphor is this round's recorded gap
+||| on the slot -- most of the 83 sentences write one.
 public export
 rogueClassLevelThree : StaticEffect []
 rogueClassLevelThree =
-  Macros.mayPlay You (AllOf (ExiledWith Macros.thisClass))
+  AndAlso [ Macros.mayPlay You (AllOf (ExiledWith Macros.thisClass))
+          , Macros.maySpendAsThough You Nothing MatchAnyColor
+              (Just (ToCast (ExiledWith Macros.thisClass))) ]
 
 ||| Wurmwall Sweeper's enters trigger -- "When this Spacecraft enters,
 ||| surveil 2." The `Spacecraft` word's witness; the whole card waits on
@@ -13676,7 +13693,7 @@ public export
 nazgulRingTrigger : Ability
 nazgulRingTrigger =
   Macros.triggered Whenever
-    (VerbedEvent (Just You) "The Ring Tempts You" Nothing)
+    (VerbedEvent (Just You) "The Ring Tempts You" Nothing False)
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                  (Each (And [HasSubtype (creatureType "Wraith"),
                              ControlledBy You])))
@@ -13772,7 +13789,7 @@ hostileInvestigatorHeader : GameEvent []
 hostileInvestigatorHeader =
   VerbedEvent (Just (CountedGroup (Macros.atLeast 1) Nothing AnyPlayer))
               "Discard"
-              (Just (CountedGroup (Macros.atLeast 1) Nothing IsCard))
+              (Just (CountedGroup (Macros.atLeast 1) Nothing IsCard)) False
 
 ||| Hallowed Moonlight, whole -- "Until end of turn, if a creature would
 ||| enter and it wasn't cast, exile it instead. / Draw a card." The
@@ -14036,7 +14053,7 @@ veilingOddityLine =
 ||| of your library", a step inside the scry that no event row names.
 public export
 whileScrying : Concurrent []
-whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing)
+whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing False)
 
 ||| Akki Lavarunner // Tok-Tok, Volcano Born, a flip card [CR#710.1],
 ||| whole -- "Haste / Whenever this creature deals damage to an opponent,
@@ -15305,7 +15322,7 @@ public export
 foulEmissaryLine : Ability
 foulEmissaryLine =
   Macros.triggeredWhile When
-    (VerbedEvent (Just You) "Sacrifice" (Just Macros.thisCreature))
+    (VerbedEvent (Just You) "Sacrifice" (Just Macros.thisCreature) False)
     (WhileDoing (Casts You
                    (Macros.a (And [Macros.spell,
                                    HasKeyword (TheKeyword "Emerge")]))
@@ -15331,7 +15348,7 @@ marketGnome =
        [ Macros.triggered When (Dies Macros.thisCreature)
            (Sequentially [ Macros.gainsLife You (Lit 1), Macros.drawACard ])
        , Macros.triggeredWhile When
-           (VerbedEvent Nothing "Exile" (Just Macros.thisCreature))
+           (VerbedEvent Nothing "Exile" (Just Macros.thisCreature) False)
            (WhileDoing (Activates You
                           (Macros.a (AbilityHead (KeywordClass "Craft")))))
            (Sequentially [ Macros.gainsLife You (Lit 1), Macros.drawACard ]) ]
@@ -16033,4 +16050,257 @@ oppressiveRays =
                    (AllOf (And [ AbilityHead AnyActivated
                                , AbilityOf (AttachHost Enchanted (TypeW Creature)) ]))
                    (CostMore (Lit 3))) ]
+       Nothing
+
+-- ==== The mana region: the mention, the riders, the productions ====
+
+||| Delighted Halfling's second ability -- "{T}: Add one mana of any
+||| color. Spend this mana only to cast a legendary spell, and that spell
+||| can't be countered." The ONE-SENTENCE form, where [CR#106.6]'s
+||| restriction and its additional effect share a single mention of the
+||| spell. Cavern of Souls is its twin and writes the chosen creature
+||| type where this writes a supertype.
+public export
+delightedHalflingMana : Ability
+delightedHalflingMana =
+  Macros.activated TapSymbol
+    (AddMana You (Lit 1) (AnyColor SameColor)
+      [ OnSpent AffectsIt True
+                (Macros.a (And [HasSupertype Legendary, Macros.spell]))
+                (Continuously (Macros.objectCant "Counter" (That SpellW)) Nothing) ])
+
+||| Boseiju, Who Shelters All's mana ability -- "{T}, Pay 2 life: Add
+||| {C}. If that mana is spent on an instant or sorcery spell, that spell
+||| can't be countered." [CR#106.6]'s ADDITIONAL EFFECT in the
+||| CONDITIONAL spelling, against Delighted Halfling's restrictive one.
+||| The paid-for spell is bound by the rider's own mention and read back
+||| as "that spell".
+|||
+||| It is the cell whose body speaks of the SPELL. The other 9 of the 11
+||| speak of the permanent the spell becomes -- "it gains haste until end
+||| of turn" (Arena of Glory, Generator Servant, Hall of the Bandit Lord),
+||| "that creature enters with an additional +1/+1 counter on it" (Animal
+||| Attendant, Biophagus, Guildmages' Forum) -- and that read is this
+||| round's remaining gap, not this row's: the mention is a spell on the
+||| stack [CR#601.2a] and the grant lands on what it resolves into, a
+||| transition no noun here spells. `OnSpent` carries all 11 either way;
+||| what the 9 wait on is a spell-to-permanent read.
+public export
+boseijuMana : Ability
+boseijuMana =
+  Macros.activated (Compound [TapSymbol, Do (Macros.losesLife You (Lit 2))])
+    (AddMana You (Lit 1) (Runs [[Colorless]])
+      [ OnSpent AffectsIt False
+                (Macros.a (And [Macros.instantOrSorcery, Macros.spell]))
+                (Continuously (Macros.objectCant "Counter" (That SpellW))
+                              Nothing) ])
+
+||| Pyromancer's Goggles' mana ability -- "{T}: Add {R}. When that mana
+||| is spent to cast a red instant or sorcery spell, copy that spell and
+||| you may choose new targets for the copy." [CR#106.6]'s third rider,
+||| the DELAYED TRIGGER [CR#603.7a]. One of three; Path of Ancestry and
+||| Primal Amulet are the others.
+public export
+pyromancersGogglesMana : Ability
+pyromancersGogglesMana =
+  Macros.activated TapSymbol
+    (AddMana You (Lit 1) (Runs [[OfColor Red]])
+      [ OnSpent TriggersThen False
+                (Macros.a (And [ColorIs Red, Macros.instantOrSorcery, Macros.spell]))
+                (CopyStack You (That SpellW) (Lit 1) []) ])
+
+||| Thran Turbine's upkeep trigger -- "At the beginning of your upkeep,
+||| you may add {C}{C}. This mana can't be spent to cast spells." The
+||| restriction stated by what it EXCLUDES, 1 of 9 real lines. The other
+||| 31 that a naive sweep returns are the Powerstone token's reminder
+||| text on cards that make one.
+public export
+thranTurbineMana : Effect []
+thranTurbineMana =
+  AddMana You (Lit 1) (Runs [[Colorless, Colorless]])
+          [SpendNotOn [ToCast Macros.spell]]
+
+||| Su-Chi Cave Guard's death trigger -- "When this creature dies, add
+||| eight {C}. Until end of turn, you don't lose this mana as steps and
+||| phases end." The MENTION at work: the add leaves a `ManaAdded`
+||| outcome and the next sentence reads it as "this mana". 25 supported
+||| lines write this shape.
+public export
+suChiCaveGuardDies : Ability
+suChiCaveGuardDies =
+  Macros.triggered When (Dies Macros.thisCreature)
+    (Sequentially
+       [ AddMana You (Lit 1)
+                 (Runs [[Colorless, Colorless, Colorless, Colorless,
+                         Colorless, Colorless, Colorless, Colorless]]) []
+       , Continuously (KeepsUnspentMana You ThisMana)
+                      (Just Macros.untilEndOfTurn) ])
+
+||| Omnath, Locus of Mana's first line -- "You don't lose unspent green
+||| mana as steps and phases end." The persistence sentence with no add
+||| anywhere on the card and no span written, which is why the family is
+||| not a rider on the production: 6 of the 7 description lines are
+||| static abilities of permanents that add no mana at all.
+public export
+omnathLocusOfManaPersistence : StaticEffect []
+omnathLocusOfManaPersistence =
+  KeepsUnspentMana You (UnspentMana (Just (OfColor Green)))
+
+||| Upwelling, whole card -- "Players don't lose unspent mana as steps
+||| and phases end." The same row with an untyped read and a plural
+||| subject.
+public export
+upwelling : Card
+upwelling =
+  Macros.card "Upwelling" (Just [Macros.generic 4, Macros.pip Green]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (KeepsUnspentMana (Each AnyPlayer) (UnspentMana Nothing)) ]
+       Nothing
+
+||| Mana Flare, whole card -- "Whenever a player taps a land for mana,
+||| that player adds one mana of any type that land produced." The
+||| tapped-for-mana header in the ACTIVE voice, and `ProducedByEvent`
+||| under it. All 17 sentences that read a production sit inside one of
+||| these headers.
+public export
+manaFlare : Card
+manaFlare =
+  Macros.card "Mana Flare" (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered Whenever
+           (VerbedEvent (Just (Macros.a AnyPlayer)) "Tap"
+                        (Just (Macros.a Macros.land)) True)
+           (AddMana (That PlayerW) (Lit 1)
+                    (ProducedByEvent (That (TypeW Land))) []) ]
+       Nothing
+
+||| Shimmerwilds Growth, whole card -- "Enchant land / As this Aura
+||| enters, choose a color. / Enchanted land is the chosen color. /
+||| Whenever enchanted land is tapped for mana, its controller adds an
+||| additional one mana of the chosen color." The tapped-for-mana header
+||| in the PASSIVE voice, against Mana Flare's active -- one row and one
+||| header, with `VerbedVoice` making the voice a spelling. It is also
+||| one of the four OTHER-OBJECT readers of the chosen colour: the adder
+||| is the host's controller, not the ability's own "you".
+public export
+shimmerwildsGrowth : Card
+shimmerwildsGrowth =
+  Macros.card "Shimmerwilds Growth" (Just [Macros.pip Green]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.land
+       , Static (Macros.entersChoosing Macros.thisAura Color)
+       , Static (SetsChosenQuality (AttachHost Enchanted (TypeW Land))
+                                   (OfChosen Color))
+       , Macros.triggered Whenever
+           (VerbedEvent Nothing "Tap"
+                        (Just (AttachHost Enchanted (TypeW Land))) True)
+           (AddMana (ControllerOf (That (TypeW Land))) (Lit 1)
+                    (OfChosenColor Nothing) []) ]
+       Nothing
+
+||| Chrome Mox's mana ability -- "{T}: Add one mana of any of the exiled
+||| card's colors." The colour SET read off a mentioned object. Pit of
+||| Offerings writes it plural and Omnath, Locus of All writes it as a
+||| combination over the same set.
+public export
+chromeMoxMana : Ability
+chromeMoxMana =
+  Macros.activated TapSymbol
+    (AddMana You (Lit 1)
+             (AmongColorsOf (Macros.a (ExiledWith Macros.thisArtifact))) [])
+
+||| Fellwar Stone, whole card -- "{T}: Add one mana of any color that a
+||| land an opponent controls could produce." [CR#106.7]'s HYPOTHETICAL
+||| read, measured apart from `ProducedByEvent`: 18 lines over 18 cards,
+||| 15 of them add payloads. Exotic Orchard writes the same sentence and
+||| Reflecting Pool writes it of a land its own controller has.
+public export
+fellwarStone : Card
+fellwarStone =
+  Macros.card "Fellwar Stone" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.activated TapSymbol
+           (AddMana You (Lit 1)
+                    (CouldProduce (Macros.a (And [Macros.land,
+                                                  ControlledBy Macros.anOpponent])))
+                    []) ]
+       Nothing
+
+||| Ice Cauldron's second ability -- "{T}, Remove a charge counter from
+||| this artifact: Add this artifact's last noted type and amount of
+||| mana. Spend this mana only to cast the last card exiled with this
+||| artifact." The NOTE read, anchored to its holder and ungated, on
+||| `GreatestStoredMatch`'s model. Its first ability -- which does the
+||| noting -- is the remaining gap: no effect here records state on a
+||| permanent, and [CR#607.2e] is the link that would make the pair one
+||| statement once one exists.
+public export
+iceCauldronNotedMana : Ability
+iceCauldronNotedMana =
+  Macros.activated
+    (Compound [TapSymbol,
+               Do (RemoveCounters (Macros.exactly 1) (Just Charge)
+                                  Macros.thisArtifact)])
+    (AddMana You (Lit 1) (LastNotedMana Macros.thisArtifact)
+             [SpendOnly [ToCast (ExiledWith Macros.thisArtifact)]])
+
+||| Firemind Vessel's mana ability -- "{T}: Add two mana of different
+||| colors." The third value on the colour-freedom axis: each unit free
+||| of the rest, as `EachColor` has it, but no repeat. 4 supported lines
+||| (Component Pouch, Guild Globe, Interplanar Beacon are the others).
+public export
+firemindVesselMana : Ability
+firemindVesselMana =
+  Macros.activated TapSymbol
+    (AddMana You (Lit 2) (AnyColor DistinctColors) [])
+
+||| Goblin Clearcutter's mana ability -- "{T}, Sacrifice a Forest: Add
+||| three mana in any combination of {R} and/or {G}." The combination
+||| over a WRITTEN colour set, 12 supported sentences, against the 34
+||| that leave the set at all five.
+public export
+goblinClearcutterMana : Ability
+goblinClearcutterMana =
+  Macros.activated
+    (Compound [TapSymbol,
+               Do (Macros.sacrifice You (Macros.a (HasSubtype (landType "Forest"))))])
+    (AddMana You (Lit 3) (AmongWritten [Red, Green]) [])
+
+||| Vizier of the Menagerie's third line -- "You can spend mana of any
+||| type to cast creature spells." [CR#118.14]'s permission with the
+||| matcher in SUBJECT position, which is the third way the corpus writes
+||| one sentence: the rule glosses all of them as spending mana as though
+||| it were mana of any type. Its first two lines already wrote.
+public export
+vizierOfTheMenagerieSpend : StaticEffect []
+vizierOfTheMenagerieSpend =
+  Macros.maySpendAsThough You Nothing MatchAnyType
+    (Just (ToCast (And [Macros.creature, Macros.spell])))
+
+||| Vexing Bauble's second ability -- "Whenever a player casts a spell,
+||| if no mana was spent to cast it, counter that spell." The
+||| MANA-SPENT-TO-CAST test, negated by the ordinary `NotCond`. Boromir,
+||| Lavinia and Roiling Vortex write the same intervening condition;
+||| Nix writes it as a trailing one.
+public export
+vexingBaubleTrigger : Ability
+vexingBaubleTrigger =
+  Macros.triggeredIf Whenever
+    (Casts (Macros.a AnyPlayer) (Macros.a Macros.spell) Nothing)
+    (NotCond (ManaSpentToCast It Nothing))
+    (CounterSpell (That SpellW))
+
+||| Void Mirror, whole card -- "Whenever a player casts a spell, if no
+||| colored mana was spent to cast it, counter that spell." The one line
+||| that narrows which mana counts, at [CR#106.1a]'s five colours against
+||| [CR#106.1b]'s six types.
+public export
+voidMirror : Card
+voidMirror =
+  Macros.card "Void Mirror" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.triggeredIf Whenever
+           (Casts (Macros.a AnyPlayer) (Macros.a Macros.spell) Nothing)
+           (NotCond (ManaSpentToCast It (Just MatchAnyColor)))
+           (CounterSpell (That SpellW)) ]
        Nothing

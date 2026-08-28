@@ -4213,6 +4213,33 @@ mutual
     ||| -- spelling: "if you rolled doubles".
     RolledDoubles : {auto 0 ok : countOutcomes RollResult bs = 1} ->
                     Condition bs
+    ||| "if no mana was spent to cast it" (Boromir, Lavinia, Nix, Roiling
+    ||| Vortex, Vexing Bauble), "if no colored mana was spent to cast it"
+    ||| (Void Mirror): whether the spell was paid for with mana at all. 8
+    ||| supported lines over 8 cards (measured 2026-08-28) -- the six
+    ||| above plus the two that coordinate it with a cast test (Primeval
+    ||| Spawn, Freestrider Commando).
+    |||
+    ||| An EXISTENCE test and no amount, which is what separates it from
+    ||| the large family it looks like. "If at least three green mana was
+    ||| spent to cast this spell" and "for each color of mana spent to
+    ||| cast it" read a NUMBER off the payment and are the amount
+    ||| vocabulary's; this asks whether the payment happened, which
+    ||| [CR#601.2h] makes a fact about the cast rather than a quantity --
+    ||| a spell cast for an alternative cost of nothing [CR#118.9] pays
+    ||| no mana at all, and that is the state every one of these lines is
+    ||| written against.
+    |||
+    ||| The POLARITY is `NotCond`'s and not a slot: all 8 lines write the
+    ||| negative, and "if mana was spent" is the same test unnegated.
+    ||| `of_` narrows which mana counts -- `Nothing` for mana of any type
+    ||| and `Just MatchAnyColor` for Void Mirror's "colored mana", which
+    ||| [CR#106.1a] fixes at five against [CR#106.1b]'s six.
+    ||| -- spelling: "[of_] mana was spent to cast [what]"; under
+    ||| `NotCond`, "no [of_] mana was spent to cast [what]".
+    ManaSpentToCast : (what : Noun bs Object) -> (of_ : Maybe ManaMatch) ->
+                      {auto 0 zn : ZoneFits (nounZone what) (Just Stack)} ->
+                      Condition bs
     NotCond : (c : Condition bs) -> Condition bs
     AndCond : (cs : List (Condition bs)) ->
               {auto 0 tw : TwoConjuncts cs} ->
@@ -4302,6 +4329,7 @@ mutual
   -- atomic: the absence is the condition's own content, not a marked
   -- negation of one.
   condNegated (NoHolder _) = False
+  condNegated (ManaSpentToCast _ _) = False
   condNegated (Matches _ _) = False
   condNegated (CompareAmt _ _ _) = False
   condNegated (DealtThisWay _) = False
@@ -4367,6 +4395,7 @@ mutual
   -- bindingless subject announces nothing and this reduces to the
   -- self-mention it always was, while a definite one carries its
   -- referent into the governed clause instead of losing it.
+  condDelta (ManaSpentToCast what _) = nounDelta what
   condDelta (Matches n _) = nounDelta n ++ selfSubjDelta n
   condDelta (CompareAmt subj _ bound) =
     gapB :: (tiedDelta subj ++ amtDelta bound ++ amtDelta subj)

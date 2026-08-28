@@ -1210,7 +1210,7 @@ badTimesPaidUnknownKeyword Oh impossible
 public export
 badScryPatient : Unspellable (GameEvent []) (\ok =>
   VerbedEvent (Just You) "Scry"
-              (Just (Macros.a (InZone (ZoneAt Library Bare)))) {pt = ok})
+              (Just (Macros.a (InZone (ZoneAt Library Bare)))) False {pt = ok})
 badScryPatient ActOn impossible
 
 
@@ -1218,7 +1218,7 @@ badScryPatient ActOn impossible
 ||| An act announced of no one: the active names its actor and the passive its patient, and this writes neither.
 public export
 badVoicelessAct : Unspellable (GameEvent []) (\ok =>
-  VerbedEvent Nothing "Scry" Nothing {vc = ok})
+  VerbedEvent Nothing "Scry" Nothing False {vc = ok})
 badVoicelessAct ActiveAct impossible
 badVoicelessAct PassiveAct impossible
 
@@ -1228,7 +1228,7 @@ badVoicelessAct PassiveAct impossible
 public export
 badDestroyInGraveyard : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Destroy"
-              (Just (Macros.a (InZone Macros.graveyardZ))) {zn = ok})
+              (Just (Macros.a (InZone Macros.graveyardZ))) False {zn = ok})
 badDestroyInGraveyard Oh impossible
 
 
@@ -1237,7 +1237,7 @@ badDestroyInGraveyard Oh impossible
 public export
 badDiscardFromBattlefield : Unspellable (GameEvent []) (\ok =>
   VerbedEvent (Just You) "Discard"
-              (Just (Macros.a (InZone Macros.battlefieldZ))) {zn = ok})
+              (Just (Macros.a (InZone Macros.battlefieldZ))) False {zn = ok})
 badDiscardFromBattlefield Oh impossible
 
 
@@ -1300,3 +1300,46 @@ badActivatedClosesCardLetter :
   Unspellable (AbilityAt (costLetters (Just [Variable]))) (\ok =>
     Macros.activated TapSymbol (Define X (Lit 3) {ok = ok}))
 badActivatedClosesCardLetter Oh impossible
+
+
+||| "This creature can attack as though it were mana of any color."
+||| [CR#609.4b] gives the mana matcher to spending and to nothing else -- it says what already-made mana may count as while a cost is paid -- so a premise of that sort under any other deed states a condition the rules cannot read.
+public export
+badManaPremiseAtAttack : Unspellable (StaticEffect []) (\ok =>
+  Deontic Macros.thisCreature Permit ["Attack"] Agent NoDeonticPatient
+          (Just (AsThoughMana Nothing MatchAnyColor Nothing)) {at = ok})
+badManaPremiseAtAttack Oh impossible
+
+
+||| "You may spend mana as though it weren't a creature."
+||| [CR#609.4b] makes the spend permission's premise a statement about mana, and no description of an OBJECT is one; the premise would say the mana counts as something no cost is paid with.
+public export
+badObjectPremiseAtSpend : Unspellable (StaticEffect []) (\ok =>
+  Deontic You Permit ["Spend"] Agent NoDeonticPatient
+          (Just (AsThoughOf (Not Macros.creature))) {at = ok})
+badObjectPremiseAtSpend Oh impossible
+
+
+||| "Whenever you sacrifice a creature for mana, …"
+||| [CR#106.12] defines "for mana" for ONE act and defines it as a second act -- activating a mana ability that includes the {T} symbol -- so the adjunct is a rule attached to tapping and not an adverb any verb may take.
+public export
+badForManaOnNontap : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent (Just You) "Sacrifice" (Just (Macros.a Macros.creature)) True
+              {fm = ok})
+badForManaOnNontap Oh impossible
+
+
+||| "Add one mana of any type that land produced", with no production in scope.
+||| [CR#106.12a] gives the trigger its mana by having a mana ability "resolve[] and produce[] mana", so outside such a header there is no production whose type the phrase could name.
+public export
+badProducedByEventWithoutEvent : Unspellable (ProducedMana []) (\ok =>
+  ProducedByEvent (Macros.a Macros.land) {pm = ok})
+badProducedByEventWithoutEvent Refl impossible
+
+
+||| "You don't lose this mana as steps and phases end", with no add before it.
+||| [CR#106.4] puts mana in a pool only when an effect adds it, so "this mana" with nothing added points at nothing; the sentence names no mana at all.
+public export
+badThisManaWithoutAdd : Unspellable (StaticEffect []) (\ok =>
+  KeepsUnspentMana You (ThisMana {ok = ok}))
+badThisManaWithoutAdd Refl impossible

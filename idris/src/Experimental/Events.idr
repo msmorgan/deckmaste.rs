@@ -737,6 +737,25 @@ counterRole Patient = Agent
 ||| or a targeter rides, whether a counterfactual may) are different
 ||| questions with no field in common.
 
+||| Whether the act may be narrowed by the "for mana" adjunct.
+||| [CR#106.12] defines the phrase for ONE act and defines it as a
+||| different act -- "to 'tap [a permanent] for mana' is to activate a
+||| mana ability of that permanent that includes the {T} symbol in its
+||| activation cost" -- so the adjunct is not an adverb that could ride
+||| any verb, but a rule attaching a second reading to one of them.
+||| Every other label answers False, which is the fail-closed answer and
+||| the one that keeps "whenever you sacrifice a creature for mana" out
+||| of the grammar.
+|||
+||| 58 supported lines write the narrowed act over 57 cards (measured
+||| 2026-08-28) -- 23 in the passive ("whenever enchanted land is tapped
+||| for mana") and 35 in the active ("whenever a player taps a land for
+||| mana", "whenever you tap a land for mana"). One header serves both,
+||| because `VerbedVoice` already makes the voice a spelling.
+public export
+verbForManaOk : VerbLabel -> Bool
+verbForManaOk v = v == "Tap"
+
 ||| The SORT of premise [CR#609.4]'s counterfactual carries at a deed.
 ||| The rule states no single payload: its own body is about an object or
 ||| a player being treated as something it is not, and [CR#609.4b] gives

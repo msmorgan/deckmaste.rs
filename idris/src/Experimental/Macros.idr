@@ -829,6 +829,24 @@ canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
 canDoAsThough n deed p =
   Deontic n Permit [deed] Agent NoDeonticPatient (Just (AsThoughOf p)) {kd} {zn} {dp} {at}
 
+||| "[who] may spend [what] mana as though it were [as] [purpose]", and
+||| its passive "[as] can be spent [purpose]": [CR#609.4b]'s payment
+||| permission at the spend deed. 83 supported sentences over the two
+||| spellings, which [CR#118.14] makes one thing.
+public export
+maySpendAsThough : (who : Noun bs Player) ->
+                   (what : Maybe ColorOrColorless) -> (as : ManaMatch) ->
+                   (purpose : Maybe (SpendPurpose (nomIntro who))) ->
+                   {auto 0 kd : KnownDeeds ["Spend"]} ->
+                   {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Spend"] Agent)} ->
+                   {auto 0 dp : DeedParticipant ["Spend"] Agent Player (nounTy who)} ->
+                   {auto 0 at : So (asThoughOk (Permit {bs = selfSubjIntro who}) ["Spend"]
+                                               (Just (AsThoughMana what as purpose)))} ->
+                   StaticEffect bs
+maySpendAsThough who what as purpose =
+  Deontic who Permit ["Spend"] Agent NoDeonticPatient
+          (Just (AsThoughMana what as purpose)) {kd} {zn} {dp} {at} {pt = Oh}
+
 ||| "[who] can't [deed]": the player-subject prohibition, `PlayerCant`'s
 ||| whole content as a spelling over the carrier.
 public export

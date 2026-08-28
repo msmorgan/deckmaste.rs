@@ -577,12 +577,33 @@ mutual
     ||| "Put" is tolerated overgeneration at its printed zero.
     ||| -- spelling: voiced, "[who] [verb](s) [what]"; unvoiced,
     ||| "[what] is/are [participle]".
+    ||| The "FOR MANA" adjunct is the fourth slot, and it names a second
+    ||| act rather than colouring the first: [CR#106.12] says "to 'tap [a
+    ||| permanent] for mana' is to activate a mana ability of that
+    ||| permanent that includes the {T} symbol in its activation cost", so
+    ||| the narrowed header watches a mana ability where the bare one
+    ||| watches a tap. `verbForManaOk` is which labels a rule gives the
+    ||| phrase to, and it gives it to one.
+    ||| [CR#106.12a] is what the slot buys the body: the trigger fires
+    ||| "whenever such a mana ability resolves and produces mana", so the
+    ||| narrowed event leaves a `ManaProduced` mention and "one mana of
+    ||| any type that land produced" has something to read. All 17
+    ||| supported `ProducedByEvent` sentences sit inside one of these
+    ||| headers and none sits anywhere else -- a total covariance, and the
+    ||| warrant for gating the reader on the header rather than trusting
+    ||| the noun.
+    ||| [CR#605.1b] then makes the resulting triggered ability a mana
+    ||| ability in its own right where it could add mana; that is a fact
+    ||| about the ability the header sits on and not a further slot here.
     VerbedEvent : (who : Maybe (Noun bs Player)) -> (v : VerbLabel) ->
                   (what : Maybe (Noun (agentIntro who) Object)) ->
+                  (forMana : Bool) ->
                   {auto 0 kv : KnownVerb v} ->
                   {auto 0 pt : VerbPatient v what} ->
                   {auto 0 zn : ZoneFits (patientZone what) (actZoneOf v)} ->
-                  {auto 0 vc : VerbedVoice who what} -> GameEvent bs
+                  {auto 0 vc : VerbedVoice who what} ->
+                  {auto 0 fm : So (not forMana || verbForManaOk v)} ->
+                  GameEvent bs
     ||| The ordinal occurrence of an event: "When the fourth plan counter
     ||| is put on this enchantment", "Whenever you cast your first spell
     ||| during each opponent's turn". The ordinal names WHICH occurrence in
@@ -647,7 +668,7 @@ mutual
   eventName (RollsDice _ _ _ _) = DiceRoll
   eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (PaysLife _) = LifePayment
-  eventName (VerbedEvent _ v _) = VerbedAct v
+  eventName (VerbedEvent _ v _ _) = VerbedAct v
   eventName (NthOccurrence _ _ ev) = eventName ev
 
   ||| What an event pattern contributes before it happens — its announced
@@ -715,8 +736,8 @@ mutual
   eventIntro (RollsDice who ManyDice _ _) = outcomeB DiceRolled :: selfSubjIntro who
   eventIntro (PaysCost _ _ whose _) = selfSubjIntro whose
   eventIntro (PaysLife who) = selfSubjIntro who
-  eventIntro (VerbedEvent who _ Nothing) = agentIntro who
-  eventIntro (VerbedEvent _ _ (Just what)) = selfSubjIntro what
+  eventIntro (VerbedEvent who _ Nothing _) = agentIntro who
+  eventIntro (VerbedEvent _ _ (Just what) _) = selfSubjIntro what
   eventIntro (NthOccurrence _ _ ev) = eventIntro ev
 
   ||| The discourse after the event has happened, read by a trigger's
@@ -780,12 +801,17 @@ mutual
   eventAfter (RollsDice who _ _ _) = outcomeB RollResult :: nomIntro who
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
   eventAfter (PaysLife who) = outcomeB LifeLost :: nomIntro who
-  eventAfter (VerbedEvent who _ Nothing) = agentIntro who
+  eventAfter (VerbedEvent who _ Nothing _) = agentIntro who
   -- the act stamps its patient, so the body may name it back by its
   -- participle ("the milled card"), and leaves it where the act's own
   -- rule puts it [CR#701.9a,701.17a] -- or where it already was, when
   -- that rule moves nothing [CR#701.26a].
-  eventAfter (VerbedEvent _ v (Just what)) =
+  -- and the narrowed act leaves what [CR#106.12a] has it produce, so
+  -- the body may read the type its source made.
+  eventAfter (VerbedEvent _ v (Just what) True) =
+    outcomeB ManaProduced ::
+      moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
+  eventAfter (VerbedEvent _ v (Just what) False) =
     moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
   eventAfter (NthOccurrence _ _ ev) = eventAfter ev
 
@@ -824,11 +850,11 @@ mutual
   -- is the already-singular bearer.
   eventSubjectPlur (PaysCost Nothing _ _ _) = OneOf
   eventSubjectPlur (PaysLife who) = nounPlur who
-  eventSubjectPlur (VerbedEvent (Just who) _ _) = nounPlur who
-  eventSubjectPlur (VerbedEvent Nothing _ (Just what)) = nounPlur what
+  eventSubjectPlur (VerbedEvent (Just who) _ _ _) = nounPlur who
+  eventSubjectPlur (VerbedEvent Nothing _ (Just what) _) = nounPlur what
   -- unreachable: `VerbedVoice` refuses an act with neither actor nor
   -- patient written; folded here rather than left to a catch-all.
-  eventSubjectPlur (VerbedEvent Nothing _ Nothing) = OneOf
+  eventSubjectPlur (VerbedEvent Nothing _ Nothing _) = OneOf
   eventSubjectPlur (NthOccurrence _ _ ev) = eventSubjectPlur ev
 
   ||| Whether every arm of a coordination announces exactly what the head

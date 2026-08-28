@@ -1686,11 +1686,11 @@ outcomeIsQuantity NamedNumber = True
 outcomeIsQuantity RepeatCount = True
 -- and a removal leaves the number of counters taken off.
 outcomeIsQuantity CountersRemoved = True
--- mana leaves no number for "that much" to name. [CR#106.1b] makes mana
--- typed rather than counted, and what a later sentence reads back is the
--- mana itself ("you don't lose THIS MANA", "add the mana lost this way")
--- and never an amount of it: 0 supported lines read a quantity off an add
--- (measured 2026-08-28). A production in scope leaves no number either --
+-- mana leaves no number for "that much" to name. [CR#106.1b] gives mana
+-- six TYPES, and what a later sentence reads back is mana of those types
+-- ("you don't lose THIS MANA", "add the mana lost this way") and never an
+-- amount of it: 0 supported lines read a quantity off an add (measured
+-- 2026-08-28). A production in scope leaves no number either --
 -- what [CR#106.12a]'s trigger makes readable is the TYPE its source
 -- produced, which `ProducedByEvent` names and no quantity read reaches.
 outcomeIsQuantity ManaAdded = False
