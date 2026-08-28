@@ -7151,6 +7151,23 @@ powerArtifact =
                    (CostLess (Lit 2) (Just (Lit 1)))) ]
        Nothing
 
+||| Fervent Champion's third line -- "Equip abilities you activate that
+||| target this creature cost {3} less to activate." The "that target
+||| ..." RESTRICTOR at a keyword-named ability class, which is where five
+||| of the seven supported lines write it (Bladegraft Aspirant, Cloud,
+||| Dwarven Mauler, Helitrooper, Strong Back are the others; Kopala's is
+||| the sixth and seventh at the bare class). [CR#702.6a] makes equip an
+||| activated ability that targets, so the class word and the restrictor
+||| answer to the same rule.
+public export
+ferventChampionEquipDiscount : Ability
+ferventChampionEquipDiscount =
+  Static (CostsToCast
+            (AllOf (And [ AbilityHead (KeywordClass "Equip")
+                        , ActivatedBy You
+                        , Targets Macros.thisCreature SomeTarget ]))
+            (CostLess (Lit 3) Nothing))
+
 public export
 suppressionField : Card
 suppressionField =
