@@ -4159,6 +4159,37 @@ mutual
                    {auto 0 wy : So (damageDealtInScope bs)} ->
                    {auto 0 rk : So (kindLte k (Object \/ Player))} ->
                    Condition bs
+    ||| "If damage from a red source is prevented this way, …" (Honorable
+    ||| Passage), "If damage from a creature source …" / "… from a
+    ||| noncreature source …" (Comeuppance's two), "If damage from a black
+    ||| source …" (Shadowbane): the restriction on WHICH prevented damage
+    ||| feeds [CR#615.5]'s consequence rider. 6 supported sentences over 5
+    ||| cards, measured 2026-08-28; the unqualified sibling container "If
+    ||| damage is prevented this way, …" is 31 further sentences and is
+    ||| the bare `PreventedThisWay` read those already write.
+    |||
+    ||| `DealtThisWay`'s twin at the prevention outcome, and its
+    ||| description ranges over the damage's SOURCE rather than its
+    ||| recipient: [CR#120.1] makes the object that deals damage the
+    ||| source of that damage, so the restriction is over an object and
+    ||| the slot is object-kinded rather than kind-polymorphic. [CR#615.2]
+    ||| is why the rider narrows on the source at all -- many prevention
+    ||| effects apply to damage FROM a source -- and [CR#609.7] is where
+    ||| that rule sends the reading.
+    |||
+    ||| Not a slot on the rider and not a second spelling of it: the
+    ||| statement's rider is already an `Effect`, and this is a condition
+    ||| that effect is written under, so Comeuppance's TWO differently
+    ||| qualified riders on one prevention are two `If`s in one body
+    ||| rather than a second rider slot.
+    ||| The gate is `PreventedThisWay`'s own uniqueness test, since the
+    ||| condition is about the prevention that clause performed, and it
+    ||| tests and names no referent, like every other described-set
+    ||| condition.
+    ||| -- spelling: "If damage from [p] is prevented this way, [e]."
+    PreventedFromSource : (p : Predicate bs Object) ->
+                          {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
+                          Condition bs
     ||| "If you win the flip, …", "If you lose the flip, …": the called
     ||| reading of a coin an earlier clause flipped. [CR#705.2] settles
     ||| both halves of the shape — the flipper calls heads or tails and
@@ -4333,6 +4364,7 @@ mutual
   condNegated (Matches _ _) = False
   condNegated (CompareAmt _ _ _) = False
   condNegated (DealtThisWay _) = False
+  condNegated (PreventedFromSource _) = False
   condNegated (FlipCalled _ _) = False
   condNegated (FlipFace _) = False
   condNegated (AnyResultIs _ _) = False
@@ -4400,6 +4432,7 @@ mutual
   condDelta (CompareAmt subj _ bound) =
     gapB :: (tiedDelta subj ++ amtDelta bound ++ amtDelta subj)
   condDelta (DealtThisWay _) = []
+  condDelta (PreventedFromSource _) = []
   condDelta (FlipCalled _ _) = []
   condDelta (FlipFace _) = []
   condDelta (AnyResultIs _ _) = []

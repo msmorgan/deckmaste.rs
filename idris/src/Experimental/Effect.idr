@@ -862,8 +862,16 @@ mutual
                            (who : Noun (nomIntro n) Player) ->
                            {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                            {auto 0 ps : SoleHolder who} -> StaticEffect bs
-      CantPrevent : (kind : DamageKind) -> (scope : DamageScope bs) ->
-                    (by : Maybe (Noun (scopeIntro scope) Object)) -> StaticEffect bs
+      ||| THE unpreventability statement, [CR#615.12]'s own sentence:
+      ||| what damage it is about is `Unpreventable`'s question and what
+      ||| it refuses is `PreventionBan`'s, so the described global, the
+      ||| restricted static and the anaphoric rider are one row.
+      ||| It is not a `Prevents` with a sign flipped and could not be:
+      ||| [CR#615.12] leaves applicable prevention effects applying to
+      ||| unpreventable damage and only stops them preventing any of it,
+      ||| so this statement disables a shield rather than raising one.
+      CantPrevent : (kind : DamageKind) -> (what : Unpreventable bs) ->
+                    (ban : PreventionBan) -> StaticEffect bs
       ||| The leading static conditional, "as long as [c], [se]" / "if
       ||| [c], [se]": the condition is written first and the statement
       ||| reads what it announced. `OnlyWhile` is the postposed twin.
@@ -1348,15 +1356,116 @@ mutual
   byIntro Nothing = bs
   byIntro (Just n) = nomIntro n
 
+  ||| WHICH damage a [CR#615.12] "can't be prevented" statement is about.
+  ||| Two arms because the corpus writes two subjects, and one of them is
+  ||| a description while the other is a mention.
+  |||
+  ||| A DESCRIBED subject is the standing statement: "Damage can't be
+  ||| prevented this turn" (16 supported sentences, the bare global),
+  ||| "Damage that would be dealt by this creature can't be prevented"
+  ||| (4, the restricted). Its two coordinates are the ones every other
+  ||| prevention row carries -- where the damage goes, and what deals it.
+  |||
+  ||| A MENTIONED subject is the rider a damage clause trails: "Combust
+  ||| deals 5 damage to target white or blue creature. THE DAMAGE can't
+  ||| be prevented" -- 9 supported sentences over 9 cards (Arrow Storm,
+  ||| Banefire, Combust, Demonfire, Flames of the Blood Hand, Lightning
+  ||| Surge, Pinpoint Avalanche, Urza's Rage, Volcano Hellion; measured
+  ||| 2026-08-28). It names the one damage event its own text just
+  ||| described, which neither coordinate says: the recipient is that
+  ||| clause's target and the source is the spell, and writing both would
+  ||| still be a second description rather than the anaphor the card
+  ||| prints.
+  ||| The gate is `DealtThisWay`'s, for `DealtThisWay`'s reason:
+  ||| [CR#608.2c] lets later text read the instruction it follows and
+  ||| settles no more than that the reading is available, so the licence
+  ||| is an EXISTENCE test on some damage a clause dealt and no
+  ||| discrimination between two of them is attempted. A text carrying two
+  ||| damage mentions can write this rider pointing at either; that
+  ||| mis-pairing is tolerated overgeneration, refused at the spelling
+  ||| boundary.
+  ||| It announces nothing: the statement names no new referent, and the
+  ||| damage it points at was announced by the clause that dealt it.
+  ||| -- spelling: described, "[kind] damage [scope] [by] can't be
+  ||| prevented"; mentioned, "the damage can't be prevented".
+  public export
+  data Unpreventable : Bindings -> Type where
+    DamageDescribed : (scope : DamageScope bs) ->
+                      (by : Maybe (Noun (scopeIntro scope) Object)) ->
+                      Unpreventable bs
+    ThatDamage : {auto 0 ok : So (damageDealtInScope bs)} -> Unpreventable bs
+
+  public export
+  unpreventableIntro : {bs : Bindings} -> Unpreventable bs -> Bindings
+  unpreventableIntro (DamageDescribed scope by) = byIntro by
+  unpreventableIntro ThatDamage = bs
+
+  ||| WHAT the statement refuses. [CR#615.12] names the plain refusal --
+  ||| "Some effects state that damage 'can't be prevented'" -- and
+  ||| [CR#614.9] names the other half of the conjoined one: an effect that
+  ||| replaces damage dealt to one recipient with the same damage dealt to
+  ||| another "such effects are called redirection effects". So the wider
+  ||| ban stops two different continuous effects, and the arms are a
+  ||| closed pair rather than a list: the rules name exactly these two
+  ||| things a damage event can have done to it short of being modified in
+  ||| size, and no printed line refuses a third.
+  ||| 2 supported sentences write the conjoined ban (Lava Burst,
+  ||| Whippoorwill), both spelling it "can't be prevented or dealt instead
+  ||| to another permanent or player"; the rest of the corpus writes the
+  ||| plain one. Measured 2026-08-28.
+  ||| A FLAG and not a coordination of two statements: one subject, one
+  ||| modality and one negation scope over both refusals, which is what
+  ||| the printed "or" is under.
+  ||| -- spelling: "can't be prevented"; under `NoRedirectEither`, "can't
+  ||| be prevented or dealt instead to another permanent or player".
+  public export
+  data PreventionBan = NoPreventionOnly | NoRedirectEither
+
+  ||| How much of ONE damage event a prevention takes. [CR#615.10] is the
+  ||| rule the whole vocabulary answers to: it writes "If a source would
+  ||| deal damage to you, prevent 1 of that damage" in its own words and
+  ||| has such an effect prevent "only the indicated amount of damage in
+  ||| any applicable damage event at any given time".
+  ||| The written count (`CutSome`) is that rule's own example. The other
+  ||| two arms indicate the amount some other way and are arms here rather
+  ||| than `Amount` rows because neither has an amount to name: the damage
+  ||| event's own size is not a phrase this grammar spells, so "all but
+  ||| 1 of that damage" and "half that damage" can only be said of the
+  ||| event a cut is already attached to.
   public export
   data PreventCut : Bindings -> Type where
     CutAll : PreventCut bs
     CutSome : (amt : Amount bs) -> PreventCut bs
+    ||| "prevent all but [n] of that damage": the cut written as the
+    ||| damage it LEAVES rather than the damage it takes. 4 supported
+    ||| sentences over 4 cards (Ajani Steadfast's emblem, Forcefield,
+    ||| Hyperion, Supreme Hero, Temple Altisaur), re-measured 2026-08-28.
+    ||| The SHIELD seat's twin is a measured ZERO: no card in the corpus,
+    ||| supported or not, writes "prevent all but [n] of the damage that
+    ||| would be dealt ... this turn". All four printings are per-event
+    ||| cuts -- three if-would statics and Forcefield's next-time -- so the
+    ||| complement is one arm here and `Shield` grows none.
+    ||| -- spelling: "prevent all but [amt] of that damage".
+    CutAllBut : (amt : Amount bs) -> PreventCut bs
+    ||| "prevent half that damage, rounded down" (Dark Sphere) / "rounded
+    ||| up" (Gisela, Blade of Goldnight): the cut written as a FRACTION of
+    ||| the event. 2 supported sentences over 2 cards, one at each
+    ||| rounding direction, so the two cards populate both cells of the
+    ||| one arm.
+    ||| The rounding word is obligatory and not a `Maybe`: [CR#107.1a]
+    ||| leaves a fraction unrounded only where the card says how, so a
+    ||| halving that named no direction would state no amount.
+    ||| Not `Amount`'s `Half`, which halves a written amount: there is no
+    ||| amount here to write, only the event the cut is attached to.
+    ||| -- spelling: "prevent half that damage, rounded [r]".
+    CutHalf : (r : RoundMode) -> PreventCut bs
 
   public export
   cutIntro : {bs : Bindings} -> PreventCut bs -> Bindings
   cutIntro CutAll = bs
   cutIntro (CutSome amt) = amtIntro amt
+  cutIntro (CutAllBut amt) = amtIntro amt
+  cutIntro (CutHalf _) = bs
 
   public export
   data DamageScale : Bindings -> Type where
@@ -1517,7 +1626,7 @@ mutual
   staticIntro (Intercepts ev alts window repl use limit) = interceptCtx alts ev
   staticIntro (Prevents kind size scope by also) = byIntro by
   staticIntro (PreventsFrom kind src scope cut use also) = cutIntro cut
-  staticIntro (CantPrevent kind scope by) = byIntro by
+  staticIntro (CantPrevent kind what ban) = unpreventableIntro what
   staticIntro (Redirects kind size scope by to) = nomIntro to
   staticIntro (EntersUnderInstead n who) = nomIntro who
   staticIntro (RedirectsFrom kind src scope to use) = nomIntro to
