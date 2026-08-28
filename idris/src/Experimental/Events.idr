@@ -730,7 +730,7 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | Conditional | PlayPermission | EntryRider
                 | CostModification
                 | PtDefinition | BasePtSet | PtSwitch
-                | TypeSet | AbilityLoss | Coordination
+                | TypeSet | TypeLoss | ColorSet | AbilityLoss | Coordination
                 | CopyEffect
                 | VisibilityRider
                 | LandAllowance

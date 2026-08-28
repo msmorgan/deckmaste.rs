@@ -4172,6 +4172,24 @@ public export
 ColorsDistinct : List Color -> Type
 ColorsDistinct cs = So (colorsDistinct cs)
 
+||| What a colour ascription writes: the colours it names, or the printed
+||| quantifier "all colors" (8 supported lines). Two arms rather than a
+||| five-way enumeration, for `AddsEveryType`'s own reason -- the printed
+||| word is a quantifier and not a list, even though the space it ranges
+||| over is closed where a subtype set is not ([CR#105.1] names the five).
+||| An empty `SomeColors` is "colorless" [CR#105.2c].
+public export
+data ColorSpec = SomeColors (List Color) | EveryColor
+
+public export
+colorSpecOk : ColorSpec -> Bool
+colorSpecOk (SomeColors cs) = colorsDistinct cs
+colorSpecOk EveryColor = True
+
+public export
+ColorSpecOk : ColorSpec -> Type
+ColorSpecOk cs = So (colorSpecOk cs)
+
 public export
 typesDistinct : List CardType -> Bool
 typesDistinct [] = True
@@ -4242,8 +4260,27 @@ public export
 RetentionOk : TypeLine -> Maybe CardType -> Type
 RetentionOk tl ret = So (retentionOk tl ret)
 
+||| An arrival rider: what a permanent's entry says about it beyond its
+||| characteristics. `EntersAs` is indexed over `StatusVal` and carries
+||| `SetStatus`' own gate, so the status vocabulary the flip verb writes
+||| ("turn it face down", "tap it") is the vocabulary an arrival writes
+||| too: [CR#708.3] turns an object face down BEFORE it enters, which is
+||| what makes "return it to the battlefield face down" (Yedora, Grave
+||| Gardener) a rider on the arrival and not a second instruction.
+||| Attacking is not a status -- [CR#506.3a] and [CR#508.4d] speak of a
+||| permanent that "enters the battlefield attacking", a combat position
+||| no `StatusVal` denotes -- so it stays its own row.
+||| -- spelling: "tapped", "face down", "attacking" after the destination.
 public export
-data TokenRider = EntersTapped | EntersAttacking
+data TokenRider : Type where
+  EntersAs : {0 c : StatusCat} -> (v : StatusVal c) ->
+             {auto 0 at : StatusEffectVal v} -> TokenRider
+  EntersAttacking : TokenRider
+
+||| The commonest arrival rider, spelled as the status word it is.
+public export
+EntersTapped : TokenRider
+EntersTapped = EntersAs Tapped
 
 public export
 lastType : List CardType -> Maybe CardType

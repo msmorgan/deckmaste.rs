@@ -285,12 +285,27 @@ badNamedAddition Oh impossible
 
 ||| "Target creature becomes a black black Zombie in addition to its other colors and types."
 ||| A colour list is a set [CR#105.2], so no phrase writes a colour twice.
+||| Refused by `TokenCanonical`, which stands at the addition where
+||| `ColorsDistinct` did and asks the setting row's whole distinctness.
 public export
 badRepeatedAdditionColor : Unspellable (Effect []) (\ok =>
   Macros.becomesAs (Macros.target Macros.creature)
                    (MkToken Nothing [Black, Black] (MkTypeLine [creatureType "Zombie"] []) [] Nothing)
-                   Nothing {cd = ok})
+                   Nothing {tc = ok})
 badRepeatedAdditionColor Oh impossible
+
+
+||| "Target creature becomes an artifact artifact in addition to its other types."
+||| The distinctness half of the same gate, which the addition row did not
+||| ask before: [CR#205.1b] retains the prior types and this line names
+||| what is added, so a card type named twice adds nothing the first
+||| mention did not.
+public export
+badRepeatedAdditionType : Unspellable (Effect []) (\ok =>
+  Macros.becomesAs (Macros.target Macros.creature)
+                   (MkToken Nothing [] (MkTypeLine [] [Artifact, Artifact]) [] Nothing)
+                   Nothing {tc = ok})
+badRepeatedAdditionType Oh impossible
 
 
 ||| "For each of target creature, its controller draws a card."

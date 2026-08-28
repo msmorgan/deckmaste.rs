@@ -57,6 +57,33 @@ mutual
   AdditionUnnamed : TokenChars bs -> Type
   AdditionUnnamed {bs} t = So (additionUnnamed t)
 
+  public export
+  someWritten : {0 a : Type} -> List a -> Bool
+  someWritten [] = False
+  someWritten (_ :: _) = True
+
+  ||| What an addition line has to SAY, asked of the whole bundle where
+  ||| `LineNonEmpty` and `AddsSomething` asked the type line alone.
+  ||| [CR#613.1d] and [CR#613.1e] are different layers, so "becomes blue
+  ||| in addition to its other colors" (Indigo Faerie) adds at layer 5
+  ||| and names no type at all. Neither line-level refusal is dropped: a
+  ||| line that is WRITTEN must still add a type the subject does not
+  ||| already have, and the only bundle admitted without one is a bundle
+  ||| that writes a colour. A P/T or a with-clause ability alone is still
+  ||| refused -- [CR#613.4b]'s base P/T is `HasBasePt`'s statement and a
+  ||| granted ability is `Gains`', and neither is printed without a type
+  ||| word in an addition sentence.
+  public export
+  additionSaysSomething : {0 bs : Bindings} -> Maybe CardType ->
+                          TokenChars bs -> Bool
+  additionSaysSomething subj t =
+    addsSomething subj t.line ||
+      (not (lineNonEmpty t.line) && someWritten t.colors)
+
+  public export
+  AdditionSaysSomething : Maybe CardType -> TokenChars bs -> Type
+  AdditionSaysSomething {bs} subj t = So (additionSaysSomething subj t)
+
 
   public export
   tokenHeadTy : {0 bs : Bindings} -> TokenChars bs -> Maybe CardType
@@ -208,17 +235,75 @@ mutual
                           {auto 0 zn : ZoneFits (seedZone p) (Just Battlefield)} ->
                           StaticEffect bs
       Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
+      ||| The type ADDITION [CR#205.1b] at [CR#613.1d]'s layer 4, and the
+      ||| colour addition [CR#613.1e] rides the same sentence: what the
+      ||| bundle says is asked of the bundle (`AdditionSaysSomething`)
+      ||| rather than of its type line, so the one printed colour-only
+      ||| addition writes. `TokenCanonical` stands where
+      ||| `ColorsDistinct` did: the distinctness the SETTING row demands
+      ||| is the addition's too. Naming a card type twice in one line is
+      ||| not a second addition -- [CR#205.1b] retains the prior types
+      ||| and this line names what is added, so the repeat adds nothing
+      ||| the first mention did not, while `tokenHeadTy` reads the head
+      ||| off the LAST type and so reads one word twice. Measured
+      ||| zero: no supported addition line repeats a card type or a
+      ||| colour, and no ORDERING demand exists anywhere in the grammar
+      ||| to be asked here or at the setting.
+      ||| -- spelling: "[n] is/becomes [added] in addition to its other
+      ||| types" (and "… other colors", where the bundle is a colour).
       BecomesAlso : (n : Noun bs Object) -> (added : TokenChars bs) ->
-                    {auto 0 ne : LineNonEmpty added.line} ->
-                    {auto 0 nw : AddsSomething (nounTy n) added.line} ->
+                    {auto 0 sw : AdditionSaysSomething (nounTy n) added} ->
                     {auto 0 af : AddedFits (nounTy n) added.line} ->
-                    {auto 0 cd : ColorsDistinct added.colors} ->
+                    {auto 0 tc : TokenCanonical added} ->
                     {auto 0 ta : TokenAbilities added} ->
                     {auto 0 un : AdditionUnnamed added} -> StaticEffect bs
       AddsEveryType : (n : Noun bs Object) -> (space : TypeSpace) ->
                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                       {auto 0 sh : SpaceHosted space (nounTy n)} ->
                       StaticEffect bs
+      ||| The quantifier's negative pole: "loses all creature types"
+      ||| (4 lines), "loses all land types" (3). [CR#613.1d]'s layer 4
+      ||| again, and the same `TypeSpace` payload and host gate as the
+      ||| positive pole: [CR#205.1a]'s last sentence -- removing a
+      ||| subtype "doesn't affect its card types at all" -- is why the
+      ||| host gate survives the loss, the subject still having the card
+      ||| type the emptied space belongs to.
+      ||| The ability loss printed beside it on all three land lines is
+      ||| NOT a rider here: [CR#613.1f] applies ability removal at layer
+      ||| 6 where this applies at layer 4, so "loses all land types and
+      ||| abilities" is two statements coordinated by `AndAlso`, the
+      ||| second of them `LosesAllAbilities`' own row.
+      ||| -- spelling: "[n] lose(s) all [space] types".
+      LosesEveryType : (n : Noun bs Object) -> (space : TypeSpace) ->
+                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                       {auto 0 sh : SpaceHosted space (nounTy n)} ->
+                       StaticEffect bs
+      ||| The literal colour change, [CR#613.1e]'s layer 5 under the
+      ||| "becomes"/copular verb with no type word in the sentence ("that
+      ||| creature becomes green", "All creatures are black"). Its OWN
+      ||| row rather than an empty type line on `SetsType`, and the
+      ||| asymmetry with the addition above is the operation's own: a
+      ||| SETTING that named no type would say the subject's types are
+      ||| replaced by none, where an ADDITION of no type adds none and
+      ||| the sentence still means what it says. Modeled on
+      ||| `SetsChosenQuality`, which writes this same sentence over a
+      ||| chosen colour [CR#607.2d]. The payload is the token bundle's
+      ||| own colour list, so the empty list is "colorless" [CR#105.2c]
+      ||| exactly as it is on a written token. Multi-colour settings are
+      ||| a measured zero colour-only ("becomes a blue and red Dragon"
+      ||| writes a type line) and are admitted with the list, and the
+      ||| printed quantifier "all colors" is `ColorSpec`'s other arm.
+      ||| NO subject-zone demand, and here the printed evidence is not
+      ||| one line but eight: the lace cycle and Ersatz Gnomes set the
+      ||| colour of a SPELL, which is on the stack. Same ground as the
+      ||| chosen-quality rows below -- [CR#613.1] applies the layers to
+      ||| an object's characteristics and [CR#109.1] makes a spell an
+      ||| object.
+      ||| -- spelling: "[n] becomes [color]", "[n] is/are [color]",
+      ||| "[n] is all colors".
+      SetsColor : (n : Noun bs Object) -> (cs : ColorSpec) ->
+                  {auto 0 cd : ColorSpecOk cs} ->
+                  StaticEffect bs
       SetsType : (n : Noun bs Object) -> (t : TokenChars bs) ->
                  (ret : Maybe CardType) ->
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -227,15 +312,26 @@ mutual
                  {auto 0 ta : TokenAbilities t} ->
                  {auto 0 tc : TokenCanonical t} ->
                  {auto 0 ro : RetentionOk t.line ret} -> StaticEffect bs
+      ||| The two chosen-quality ascriptions carry NO subject-zone
+      ||| demand, where the type-line rows beside them do. Decided on
+      ||| Ashes of the Fallen, "Each creature card in your graveyard has
+      ||| the chosen creature type in addition to its other types": the
+      ||| layers apply to an OBJECT's characteristics [CR#613.1] and
+      ||| [CR#109.1] makes a card an object, naming no zone, so nothing
+      ||| makes a graveyard card's type unchangeable and the demand
+      ||| refused printed text. What carries the meaning is `HostedRead` --
+      ||| [CR#205.3d] refuses a subtype corresponding to none of the
+      ||| object's types -- and it is asked of the subject's TYPE, which
+      ||| a zone does not decide. Recorded overgeneration: a library or
+      ||| hand subject, neither printed. The type-line rows keep their
+      ||| demand, no printed line asking them to drop it.
       AddsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
                        {auto 0 qr : QualityRead q} ->
                        {auto 0 hr : HostedRead q n} ->
-                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                        StaticEffect bs
       SetsChosenQuality : (n : Noun bs Object) -> (q : Predicate bs Object) ->
                        {auto 0 qr : QualityRead q} ->
                        {auto 0 hr : HostedRead q n} ->
-                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                        StaticEffect bs
       AlsoOffBattlefield : (se : StaticEffect bs) ->
                            {auto 0 nx : NotExtended se} -> StaticEffect bs
@@ -512,6 +608,8 @@ mutual
   staticKind (ObjectCant _ _) = DeedRestriction
   staticKind (BecomesAlso _ _) = TypeAddition
   staticKind (AddsEveryType _ _) = TypeAddition
+  staticKind (LosesEveryType _ _) = TypeLoss
+  staticKind (SetsColor _ _) = ColorSet
   staticKind (BecomesCopy _ _ _) = CopyEffect
   staticKind (SetsType _ _ _) = TypeSet
   staticKind (AddsChosenQuality _ _) = TypeAddition
@@ -562,6 +660,8 @@ mutual
   staticIntro (ObjectCant _ what) = nomIntro what
   staticIntro (BecomesAlso n _) = selfSubjIntro n
   staticIntro (AddsEveryType n _) = selfSubjIntro n
+  staticIntro (LosesEveryType n _) = selfSubjIntro n
+  staticIntro (SetsColor n _) = selfSubjIntro n
   staticIntro (BecomesCopy n _ _) = selfSubjIntro n
   staticIntro (SetsType n _ _) = selfSubjIntro n
   staticIntro (AddsChosenQuality n _) = selfSubjIntro n

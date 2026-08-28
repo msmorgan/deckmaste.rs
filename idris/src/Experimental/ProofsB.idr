@@ -356,18 +356,21 @@ badBecomesZombieLand Oh impossible
 
 ||| "Target creature becomes in addition to its other types."
 ||| The clause has to say WHAT: an empty type line adds nothing and spells no phrase.
+||| One gate now where two stood, and the refusal is unchanged: the
+||| bundle-level `AdditionSaysSomething` admits an absent type line only
+||| where the bundle writes a colour instead (Indigo Faerie), and this
+||| bundle writes nothing at all.
 public export
 badBecomesNothing : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing
-                 {ne = Builtin.fst ok, nw = Builtin.snd ok})
-badBecomesNothing (Oh, _) impossible
+  Macros.becomes (Macros.target Macros.creature) (MkTypeLine [] []) Nothing {sw = ok})
+badBecomesNothing Oh impossible
 
 
 ||| "Target creature becomes a creature in addition to its other types."
 ||| The clause retains what the object had and states what it gains [CR#205.1b]; this states nothing.
 public export
 badBecomesOwnType : Unspellable (Effect []) (\ok =>
-  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Creature]) Nothing {nw = ok})
+  Macros.becomes (Macros.target Macros.creature) (Macros.typesOnly [Creature]) Nothing {sw = ok})
 badBecomesOwnType Oh impossible
 
 
