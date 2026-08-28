@@ -312,3 +312,9 @@ Standard constraints apply.
   `seedsUniform` because `seedType (Compare c _ _) = comparedType c` differs
   per arm; the honest shape is a characteristic LIST on `Compare`, a
   coordination decision. 1 supported line.
+
+- **Routed from workbench-choice-d-ascription-payloads (close, 2026-08-27):**
+  the UNION SUBJECT — the Lace cycle's 6 lines are blocked by
+  `parallelDisjuncts [spell, Permanent]` having no implementation (a spell-or-
+  permanent subject); Mycosynth Lattice and Painter's Servant want the
+  everywhere subject of the same family. Disjunct machinery, so it lands here.

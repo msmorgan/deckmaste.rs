@@ -410,3 +410,9 @@ Standard constraints apply.
   opponent can't choose a card already chosen" (Forgotten Lore, Shrouded Lore).
   A repeated procedure with memory of prior picks; procedure machinery, so it
   lands here.
+
+- **Routed from workbench-choice-d-ascription-payloads (close, 2026-08-27):**
+  the Leyline OPENING-HAND permission — "If this card is in your opening hand,
+  you may begin the game with it on the battlefield", 17 supported cards, a
+  pregame procedure [CR#103.3] region, not a small carrier. Leyline of
+  Transformation's ascription line already writes.
