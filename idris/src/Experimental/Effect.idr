@@ -198,12 +198,29 @@ mutual
 
   public export
   data CostShift : Bindings -> Type where
-    CostLess : (amt : Amount bs) -> CostShift bs
+    ||| "[n] cost [amt] less to cast" / "... to activate", with the
+    ||| printed FLOOR some cards write beside it: "This effect can't
+    ||| reduce the mana in that cost to less than one mana" -- 10
+    ||| supported cards, measured 2026-08-28 (Training Grounds,
+    ||| Heartstone, Biomancer's Familiar, Forensic Gadgeteer,
+    ||| Convergence of Dominion, Power Artifact, Agatha of the Vile
+    ||| Cauldron, Spikeshell Harrier, Valiant Changeling, Zirda).
+    |||
+    ||| A SLOT on the reduction and not a prohibition of its own. The
+    ||| sentence forbids nothing an agent does; it bounds this effect's
+    ||| amount, which is why it is here and not on the deontic carrier.
+    ||| Nor is it the rules' own floor restated: [CR#601.2f] already
+    ||| stops a total cost at {0} ("It can't be reduced to less than
+    ||| {0}"), so a line reading "to less than one mana" states a HIGHER
+    ||| bound that only the card gives, and one no rule would supply.
+    ||| -- spelling: the reduction, then "This effect can't reduce the
+    ||| mana in that cost to less than [floor]."
+    CostLess : (amt : Amount bs) -> (floor : Maybe (Amount bs)) -> CostShift bs
     CostMore : (amt : Amount bs) -> CostShift bs
 
   public export
   costAmount : {0 bs : Bindings} -> CostShift bs -> Amount bs
-  costAmount (CostLess a) = a
+  costAmount (CostLess a _) = a
   costAmount (CostMore a) = a
 
   namespace Static
@@ -3233,6 +3250,17 @@ mutual
                 (window : Maybe Timing) ->
                 (limit : Maybe UsageLimit) ->
                 (guard : Maybe (Condition bs)) ->
+                -- WHO may activate it, where the object says otherwise.
+                -- [CR#602.2] states the default and its exception in one
+                -- sentence -- "Only an object's controller (or its owner,
+                -- if it doesn't have a controller) can activate its
+                -- activated ability unless the object specifically says
+                -- otherwise" -- so the slot IS that exception and
+                -- `Nothing` is the rule's own answer. Not a `Deontic`:
+                -- the restriction is part of the ability's own statement,
+                -- as its window and its usage limit are, and no line
+                -- states it about another object's ability.
+                (activator : Maybe (Noun bs Player)) ->
                 AbilityAt bs
     ||| The trigger header, its concurrent clause, and its joined second
     ||| header. `while` belongs to the head event [CR#603.1,603.2] and
@@ -3361,7 +3389,7 @@ mutual
   public export
   grantableAb : {0 bs : Bindings} -> AbilityAt bs -> Bool
   grantableAb (KeywordAbility _ _) = True
-  grantableAb (Activated _ _ _ _ _) = True
+  grantableAb (Activated _ _ _ _ _ _) = True
   grantableAb (Triggered _ _ _ _ _ _ _ _ _) = True
   grantableAb (Static _) = True
   grantableAb (Spell _) = False
@@ -3375,7 +3403,7 @@ mutual
   public export
   emblemAbilityOk : AbilityAt [] -> Bool
   emblemAbilityOk (KeywordAbility _ _) = False
-  emblemAbilityOk (Activated _ _ _ _ _) = True
+  emblemAbilityOk (Activated _ _ _ _ _ _) = True
   emblemAbilityOk (Triggered _ _ _ _ _ _ _ _ _) = True
   emblemAbilityOk (Static _) = True
   emblemAbilityOk (AlsoForKeywords _ _) = False
@@ -3442,7 +3470,7 @@ mutual
   public export
   abRegime : {0 bs : Bindings} -> AbilityAt bs -> Maybe StackRegime
   abRegime (KeywordAbility k _) = keywordStackRegime k
-  abRegime (Activated _ _ _ _ _) = Nothing
+  abRegime (Activated _ _ _ _ _ _) = Nothing
   abRegime (Triggered _ _ _ _ _ _ _ _ _) = Nothing
   abRegime (Static _) = Nothing
   abRegime (AlsoForKeywords ab _) = abRegime ab
@@ -3523,7 +3551,7 @@ mutual
   public export
   abIntro : {bs : Bindings} -> AbilityAt bs -> Bindings
   abIntro (KeywordAbility _ _) = bs
-  abIntro (Activated _ eff _ _ _) = effChoiceDelta eff ++ bs
+  abIntro (Activated _ eff _ _ _ _) = effChoiceDelta eff ++ bs
   abIntro (Triggered _ _ _ _ _ _ _ _ eff) = effChoiceDelta eff ++ bs
   abIntro (Static se) = staticChoiceIntro se
   abIntro (AlsoForKeywords ab _) = abIntro ab

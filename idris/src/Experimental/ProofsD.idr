@@ -50,7 +50,7 @@ badKeywordOnInstant Oh impossible
 public export
 badTapSorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Tap Sorcery" (Just [Macros.pip Blue]) [] (MkTypeLine [] [Sorcery])
-       [Activated TapSymbol Macros.drawACard Nothing Nothing Nothing] Nothing {tx = ok})
+       [Activated TapSymbol Macros.drawACard Nothing Nothing Nothing Nothing] Nothing {tx = ok})
 badTapSorcery Oh impossible
 
 
@@ -356,7 +356,7 @@ badColorlessWhite Oh impossible
 ||| An activation restriction introduces no turn, so the deictic possessor reaches no antecedent.
 public export
 badThatTurnsPartWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) Macros.drawACard (Just (DuringPart EndStep (Just ThatTurns) {wk = ok})) Nothing Nothing)
+  Activated (Mana [Macros.generic 2]) Macros.drawACard (Just (DuringPart EndStep (Just ThatTurns) {wk = ok})) Nothing Nothing Nothing)
 badThatTurnsPartWindow Oh impossible
 
 
@@ -364,7 +364,7 @@ badThatTurnsPartWindow Oh impossible
 ||| An activation restriction introduces no turn, so the deictic possessor reaches no antecedent.
 public export
 badThatTurnsAttackWindow : Unspellable Ability (\ok =>
-  Activated (Mana [Macros.generic 2]) Macros.drawACard (Just (BeforePoint AttackersDeclared (Just ThatTurns) {pk = ok})) Nothing Nothing)
+  Activated (Mana [Macros.generic 2]) Macros.drawACard (Just (BeforePoint AttackersDeclared (Just ThatTurns) {pk = ok})) Nothing Nothing Nothing)
 badThatTurnsAttackWindow Oh impossible
 
 
@@ -551,7 +551,7 @@ badLifeTotalAmongObjects Refl impossible
 ||| A cost statement is about a spell [CR#609.2], and a battlefield noun is not one.
 public export
 badCostSubjectOnBattlefield : Unspellable (StaticEffect []) (\ok =>
-  CostsToCast (AllOf Macros.creatureYouControl) (CostLess (Lit 1)) {cs = ok})
+  CostsToCast (AllOf Macros.creatureYouControl) (CostLess (Lit 1) Nothing) {cs = ok})
 badCostSubjectOnBattlefield MkCostSubject impossible
 
 

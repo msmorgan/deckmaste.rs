@@ -1794,7 +1794,21 @@ activated : (cost : Cost bs) ->
             (eff : Effect (publicOnly (costIntro cost))) ->
             {auto 0 tp : CostTapOnce cost} ->
             {auto 0 py : CostPaidByYou cost} -> AbilityAt bs
-activated cost eff = Activated cost eff Nothing Nothing Nothing {tp} {py}
+activated cost eff = Activated cost eff Nothing Nothing Nothing Nothing {tp} {py}
+
+||| "[cost]: [eff]" with the activation restricted to a named player:
+||| "Only your opponents may activate this ability" (Soul Ransom).
+||| [CR#602.2] gives the ability to its object's controller alone
+||| "unless the object specifically says otherwise", and this is that
+||| sentence.
+public export
+activatedBy : (cost : Cost bs) ->
+              (eff : Effect (publicOnly (costIntro cost))) ->
+              (who : Noun bs Player) ->
+              {auto 0 tp : CostTapOnce cost} ->
+              {auto 0 py : CostPaidByYou cost} -> AbilityAt bs
+activatedBy cost eff who =
+  Activated cost eff Nothing Nothing Nothing (Just who) {tp} {py}
 
 ||| "Activate only as a sorcery" / "only during your upkeep".
 public export
@@ -1804,7 +1818,7 @@ activatedOnlyDuring : (cost : Cost bs) ->
                       {auto 0 tp : CostTapOnce cost} ->
                       {auto 0 py : CostPaidByYou cost} ->
                       AbilityAt bs
-activatedOnlyDuring cost eff w = Activated cost eff (Just w) Nothing Nothing {tp} {py}
+activatedOnlyDuring cost eff w = Activated cost eff (Just w) Nothing Nothing Nothing {tp} {py}
 
 ||| "Activate only once each turn" (or once each game).
 public export
@@ -1814,7 +1828,7 @@ activatedOnlyOnce : (cost : Cost bs) ->
                     {auto 0 tp : CostTapOnce cost} ->
                     {auto 0 py : CostPaidByYou cost} ->
                     AbilityAt bs
-activatedOnlyOnce cost eff lim = Activated cost eff Nothing (Just lim) Nothing {tp} {py}
+activatedOnlyOnce cost eff lim = Activated cost eff Nothing (Just lim) Nothing Nothing {tp} {py}
 
 ||| "Activate only if <condition>."
 public export
@@ -1824,7 +1838,7 @@ activatedOnlyIf : (cost : Cost bs) ->
                   {auto 0 tp : CostTapOnce cost} ->
                   {auto 0 py : CostPaidByYou cost} ->
                   AbilityAt bs
-activatedOnlyIf cost eff g = Activated cost eff Nothing Nothing (Just g) {tp} {py}
+activatedOnlyIf cost eff g = Activated cost eff Nothing Nothing (Just g) Nothing {tp} {py}
 
 ||| "Activate only once each turn and only if <condition>."
 public export
@@ -1835,7 +1849,7 @@ activatedOnlyOnceIf : (cost : Cost bs) ->
                       {auto 0 py : CostPaidByYou cost} ->
                       AbilityAt bs
 activatedOnlyOnceIf cost eff lim g =
-  Activated cost eff Nothing (Just lim) (Just g) {tp} {py}
+  Activated cost eff Nothing (Just lim) (Just g) Nothing {tp} {py}
 
 ||| "You may play <what>."
 public export

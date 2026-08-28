@@ -111,14 +111,14 @@ staticOnSpellCardOk _ = False
 public export
 classAbilityOk : {0 bs : Bindings} -> CardClass -> AbilityAt bs -> Bool
 classAbilityOk PermanentCard (KeywordAbility k _) = keywordCardOk PermanentCard k
-classAbilityOk PermanentCard (Activated _ _ _ _ _) = True
+classAbilityOk PermanentCard (Activated _ _ _ _ _ _) = True
 classAbilityOk PermanentCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk PermanentCard (Static _) = True
 classAbilityOk PermanentCard (AlsoForKeywords ab _) = classAbilityOk PermanentCard ab
 classAbilityOk PermanentCard (Spell _) = False
 classAbilityOk PermanentCard (AbilityWord _ ab) = classAbilityOk PermanentCard ab
 classAbilityOk SpellCard (KeywordAbility k _) = keywordCardOk SpellCard k
-classAbilityOk SpellCard (Activated c _ _ _ _) = costOffBattlefield c
+classAbilityOk SpellCard (Activated c _ _ _ _ _) = costOffBattlefield c
 classAbilityOk SpellCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
 classAbilityOk SpellCard (AlsoForKeywords ab _) = classAbilityOk SpellCard ab
@@ -133,7 +133,7 @@ classAbilityOk SpellCard (AbilityWord _ ab) = classAbilityOk SpellCard ab
 -- type's own rule reads a narrower list, `commandZoneTypeAbilityOk` below
 -- says so, and `cardAbilityOk` asks both.
 classAbilityOk CommandZoneCard (KeywordAbility k _) = keywordCardOk CommandZoneCard k
-classAbilityOk CommandZoneCard (Activated c _ _ _ _) = costOffBattlefield c
+classAbilityOk CommandZoneCard (Activated c _ _ _ _ _) = costOffBattlefield c
 classAbilityOk CommandZoneCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk CommandZoneCard (Static _) = True
 classAbilityOk CommandZoneCard (AlsoForKeywords ab _) = classAbilityOk CommandZoneCard ab
@@ -175,9 +175,9 @@ public export
 commandZoneTypeAbilityOk : {0 bs : Bindings} -> CardType -> AbilityAt bs -> Bool
 commandZoneTypeAbilityOk t (AlsoForKeywords ab _) = commandZoneTypeAbilityOk t ab
 commandZoneTypeAbilityOk t (AbilityWord _ ab) = commandZoneTypeAbilityOk t ab
-commandZoneTypeAbilityOk Conspiracy (Activated _ _ _ _ _) = False
+commandZoneTypeAbilityOk Conspiracy (Activated _ _ _ _ _ _) = False
 commandZoneTypeAbilityOk Dungeon (KeywordAbility _ _) = False
-commandZoneTypeAbilityOk Dungeon (Activated _ _ _ _ _) = False
+commandZoneTypeAbilityOk Dungeon (Activated _ _ _ _ _ _) = False
 commandZoneTypeAbilityOk Dungeon (Static _) = False
 commandZoneTypeAbilityOk _ _ = True
 

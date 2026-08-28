@@ -274,7 +274,7 @@ badNameMatchBeforeChooser : Unspellable Card (\ok =>
        [ Activated (Mana [Macros.pip Blue])
                    (Macros.counterSpell
                       (Macros.target (And [Macros.spell,
-                                           Named (ChosenName {ok = ok})]))) Nothing Nothing Nothing
+                                           Named (ChosenName {ok = ok})]))) Nothing Nothing Nothing Nothing
        , Static (EntersChoice Macros.thisEnchantment (QSort CardName) Nothing) ]
        Nothing)
 badNameMatchBeforeChooser Refl impossible
@@ -289,7 +289,7 @@ badNameMatchWrongSort : Unspellable Card (\ok =>
        , Activated (Mana [Macros.pip Blue])
                    (Macros.counterSpell
                       (Macros.target (And [Macros.spell,
-                                           Named (ChosenName {ok = ok})]))) Nothing Nothing Nothing ]
+                                           Named (ChosenName {ok = ok})]))) Nothing Nothing Nothing Nothing ]
        Nothing)
 badNameMatchWrongSort Refl impossible
 
@@ -461,7 +461,7 @@ badActivatedSpellClass : Unspellable
 badActivatedSpellClass BareParticipant impossible
 
 
-||| "Activated abilities of artifacts can't be cast."
+||| "Activated abilities of artifacts can't be Nothing cast."
 ||| Casting is of a card as a spell [CR#601.1a], and an unactivated ability is no object at all [CR#109.1].
 public export
 badCastAbilityClass : Unspellable (StaticEffect []) (\ok =>
@@ -524,7 +524,7 @@ public export
 badChosenColorNoChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Land])
        [ Activated TapSymbol
-           (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []) Nothing Nothing Nothing ]
+           (AddMana You (Lit 1) (OfChosenColor Nothing {cq = ok}) []) Nothing Nothing Nothing Nothing ]
        Nothing)
 badChosenColorNoChooser Refl impossible
 

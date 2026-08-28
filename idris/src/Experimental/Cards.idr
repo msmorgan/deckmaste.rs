@@ -430,7 +430,7 @@ cheeringFanatic =
                      [ Macros.choose (Macros.a (Macros.quality CardName))
                      , Continuously
                          (CostsToCast (AllOf (And [Macros.spell, OfChosen CardName]))
-                                      (CostLess (Lit 1)))
+                                      (CostLess (Lit 1) Nothing))
                          (Just Macros.thisTurn) ]) ]
        (Just (2, 2))
 
@@ -1578,6 +1578,55 @@ nowhereToRunTargetLine =
     (AllOf (Joined Macros.spell (AbilityHead AnyOnStack)))
     (Not (HasKeyword "Hexproof"))
 
+||| Nowhere to Run's second sentence -- "Ward abilities of those
+||| creatures don't trigger." The TRIGGERED-ABILITY subject, and the deed
+||| is `"Trigger"` rather than a reading of "Activate": [CR#603.2a] says
+||| outright that triggered abilities "aren't cast or activated" and that
+||| "effects that preclude abilities from being activated don't affect
+||| them", so the activation prohibition reaches this sentence at no
+||| point. [CR#603.2] gives the deed its one participant -- the ability
+||| triggers, and nothing is done to a second thing -- so the ability is
+||| the deed's AGENT and the carrier refuses it at the patient, which is
+||| the gate saying what the rule says.
+||| One real supported line: a naive sweep for "don't trigger" returns
+||| 13, of which 11 are the reminder text printed under read ahead
+||| [CR#702.155a] and one is a different construction (measured
+||| 2026-08-28).
+public export
+nowhereToRunWardLine : StaticEffect []
+nowhereToRunWardLine =
+  Macros.deontic
+    (AllOf (And [ AbilityHead (KeywordClass "Ward")
+                , AbilityOf (AllOf Macros.creatureYourOpponentsControl) ]))
+    Forbid ["Trigger"] Agent NoDeonticPatient
+
+||| Hithlain Rope's first line -- "This artifact can't be sacrificed."
+||| The sacrifice deed's one standalone sentence: [CR#701.21a] moves the
+||| permanent from the battlefield to its owner's graveyard, so the row
+||| is that sentence and nothing else. Seven of the eight remaining
+||| "can't be sacrificed" lines are conjuncts of a wider coordination or
+||| sit inside a quoted token ability (measured 2026-08-28).
+public export
+hithlainRopeSacrificeLock : StaticEffect []
+hithlainRopeSacrificeLock = Macros.objectCant "Sacrifice" This
+
+||| Display of Power's first line -- "This spell can't be copied", which
+||| [CR#113.6g] functions on the stack beside the can't-be-countered
+||| sentence it is printed next to. Three supported lines write it.
+public export
+displayOfPowerCopyLock : StaticEffect []
+displayOfPowerCopyLock = Macros.objectCant "Copy" This
+
+||| Mornsong Aria -- "Players can't draw cards or gain life." The
+||| carrier's deed LIST at a third pair, after "can't attack or block"
+||| and "can't lose the game or win the game": one subject, one
+||| modality, two labels, and no coordination machinery of its own.
+public export
+mornsongAriaLock : StaticEffect []
+mornsongAriaLock =
+  Macros.deontic (PlayerGroup AllPlayers) Forbid ["DrawCard", "GainLife"]
+                 Agent NoDeonticPatient
+
 brainwash : Card
 brainwash =
   Macros.card "Brainwash" (Just [Macros.pip White]) []
@@ -1949,7 +1998,7 @@ ghalta =
   Macros.card "Ghalta, Primal Hunger"
        (Just [Macros.generic 10, Macros.pip Green, Macros.pip Green]) [Legendary]
        (MkTypeLine [creatureType "Elder", creatureType "Dinosaur"] [Creature])
-       [ Static (AndAlso [ CostsToCast This (CostLess (LetterVal X))
+       [ Static (AndAlso [ CostsToCast This (CostLess (LetterVal X) Nothing)
                          , Define X
                              (Aggregate SumOf (CharAxis Power)
                                         Macros.creatureYouControl) ])
@@ -1959,7 +2008,7 @@ ghalta =
 ancientStoneIdol : Ability
 ancientStoneIdol =
   Static (CostsToCast This
-            (CostLess (Macros.forEach (And [Macros.creature, Attacking]))))
+            (CostLess (Macros.forEach (And [Macros.creature, Attacking])) Nothing))
 
 thornOfAmethyst : Card
 thornOfAmethyst =
@@ -1982,7 +2031,7 @@ urzasFilter =
   Macros.card "Urza's Filter" (Just [Macros.generic 4]) []
        (MkTypeLine [] [Artifact])
        [ Static (CostsToCast (AllOf (And [Multicolored, Macros.spell]))
-                             (CostLess (Lit 2))) ]
+                             (CostLess (Lit 2) Nothing)) ]
        Nothing
 
 
@@ -1991,7 +2040,7 @@ emeraldMedallion =
   Macros.card "Emerald Medallion" (Just [Macros.generic 2]) []
        (MkTypeLine [] [Artifact])
        [ Static (CostsToCast (AllOf (And [ColorIs Green, Macros.spell, CastBy You]))
-                             (CostLess (Lit 1))) ]
+                             (CostLess (Lit 1) Nothing)) ]
        Nothing
 
 foundryInspector : Card
@@ -1999,7 +2048,7 @@ foundryInspector =
   Macros.card "Foundry Inspector" (Just [Macros.generic 3]) []
        (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
        [ Static (CostsToCast (AllOf (And [Macros.artifact, Macros.spell, CastBy You]))
-                             (CostLess (Lit 1))) ]
+                             (CostLess (Lit 1) Nothing)) ]
        (Just (3, 2))
 
 daruWarchief : Card
@@ -2008,7 +2057,7 @@ daruWarchief =
        (Just [Macros.generic 2, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ Static (CostsToCast (AllOf (And [HasSubtype (creatureType "Soldier"), Macros.spell, CastBy You]))
-                             (CostLess (Lit 1)))
+                             (CostLess (Lit 1) Nothing))
        , Static (Gets (AllOf (And [HasSubtype (creatureType "Soldier"), Macros.creature, ControlledBy You]))
                       (PtUp (Lit 1)) (PtUp (Lit 2))) ]
        (Just (1, 1))
@@ -2019,9 +2068,9 @@ grandArbiter =
        (Just [Macros.generic 2, Macros.pip White, Macros.pip Blue]) [Legendary]
        (MkTypeLine [creatureType "Human", creatureType "Advisor"] [Creature])
        [ Static (CostsToCast (AllOf (And [ColorIs White, Macros.spell, CastBy You]))
-                             (CostLess (Lit 1)))
+                             (CostLess (Lit 1) Nothing))
        , Static (CostsToCast (AllOf (And [ColorIs Blue, Macros.spell, CastBy You]))
-                             (CostLess (Lit 1)))
+                             (CostLess (Lit 1) Nothing))
        , Static (CostsToCast (AllOf (And [Macros.spell,
                                           CastBy (PlayerGroup YourOpponents)]))
                              (CostMore (Lit 1))) ]
@@ -2035,7 +2084,7 @@ goblinElectromancer =
        (MkTypeLine [creatureType "Goblin", creatureType "Wizard"] [Creature])
        [ Static (CostsToCast (AllOf (And [Macros.instantOrSorcery, Macros.spell,
                                           CastBy You]))
-                             (CostLess (Lit 1))) ]
+                             (CostLess (Lit 1) Nothing)) ]
        (Just (2, 2))
 
 arcaneMelee : Card
@@ -2043,7 +2092,7 @@ arcaneMelee =
   Macros.card "Arcane Melee" (Just [Macros.generic 4, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
        [ Static (CostsToCast (AllOf (And [Macros.instantOrSorcery, Macros.spell]))
-                             (CostLess (Lit 2))) ]
+                             (CostLess (Lit 2) Nothing)) ]
        Nothing
 
 manaMatrix : Card
@@ -2052,7 +2101,7 @@ manaMatrix =
        (MkTypeLine [] [Artifact])
        [ Static (CostsToCast (AllOf (And [Or [Macros.instant, Macros.enchantment],
                                           Macros.spell, CastBy You]))
-                             (CostLess (Lit 2))) ]
+                             (CostLess (Lit 2) Nothing)) ]
        Nothing
 
 auraOfSilence : Card
@@ -3504,7 +3553,7 @@ saheelisEmblem =
     [ Static (Gets (AllOf (And [Macros.artifact, Macros.creature, ControlledBy You]))
                    (PtUp (Lit 1)) (PtUp (Lit 1)))
     , Static (CostsToCast (AllOf (And [Macros.artifact, Macros.spell, CastBy You]))
-                          (CostLess (Lit 1))) ]
+                          (CostLess (Lit 1) Nothing)) ]
 
 
 jaceBeleren : Card
@@ -3616,7 +3665,7 @@ saheeliFiligreeMaster =
                                      (PtUp (Lit 1)) (PtUp (Lit 1)))
                       , Static (CostsToCast (AllOf (And [Macros.artifact, Macros.spell,
                                                          CastBy You]))
-                                            (CostLess (Lit 1))) ]) ]
+                                            (CostLess (Lit 1) Nothing)) ]) ]
        (Macros.loyaltyBox 3)
 
 
@@ -4975,7 +5024,7 @@ urzasIncubator =
        [ Static (Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature))
        , Static (CostsToCast (AllOf (And [Macros.creature, Macros.spell,
                                           OfChosen (SubtypeQ Creature)]))
-                             (CostLess (Lit 2))) ]
+                             (CostLess (Lit 2) Nothing)) ]
        Nothing
 
 public export
@@ -5740,7 +5789,7 @@ councilOfTheAbsolute =
                    (AllOf (And [Macros.spell, Named ChosenName])))
        , Static (CostsToCast (AllOf (And [Macros.spell, Named ChosenName,
                                           CastBy You]))
-                             (CostLess (Lit 2))) ]
+                             (CostLess (Lit 2) Nothing)) ]
        (Just (2, 3))
 
 ||| Failure // Comply's second face -- "Choose a card name. Until your
@@ -6890,7 +6939,7 @@ fluctuator =
        [ Static (CostsToCast
                    (AllOf (And [AbilityHead (KeywordClass "Cycling"),
                                 ActivatedBy You]))
-                   (CostLess (Lit 2))) ]
+                   (CostLess (Lit 2) Nothing)) ]
        Nothing
 
 ||| Boom Scholar's first line -- "Exhaust abilities of other permanents
@@ -6906,7 +6955,7 @@ boomScholarExhaustDiscount =
                         , AbilityOf (AllOf (And [Permanent,
                                                  OtherThan Macros.thisCreature,
                                                  ControlledBy You])) ]))
-            (CostLess (Lit 2)))
+            (CostLess (Lit 2) Nothing))
 
 ||| Hulk, Gamma Goliath's first line -- "Power-up abilities of other
 ||| creatures you control cost {3} less to activate" [CR#702.193a].
@@ -6918,7 +6967,7 @@ hulkPowerUpDiscount =
                         , AbilityOf (AllOf (And [Macros.creature,
                                                  OtherThan Macros.thisCreature,
                                                  ControlledBy You])) ]))
-            (CostLess (Lit 3)))
+            (CostLess (Lit 3) Nothing))
 
 ||| Kang the Conqueror's power-up rider -- "power-up abilities can't be
 ||| activated." The ability-class PROHIBITION at a keyword-named class,
@@ -7071,6 +7120,37 @@ vexingShusher =
               Nothing) ]
        (Just (2, 2))
 
+||| Training Grounds, whole -- "Activated abilities of creatures you
+||| control cost {2} less to activate. This effect can't reduce the mana
+||| in that cost to less than one mana." The cost reduction's printed
+||| FLOOR, a slot on the reduction rather than a prohibition: the second
+||| sentence forbids no agent anything, it bounds the first sentence's
+||| own amount, and it states a bound [CR#601.2f] does not -- the rules
+||| stop a total cost at {0} and this line stops it at one mana.
+public export
+trainingGrounds : Card
+trainingGrounds =
+  Macros.card "Training Grounds" (Just [Macros.pip Blue]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (CostsToCast
+                   (AllOf (And [ AbilityHead AnyActivated
+                               , AbilityOf (AllOf Macros.creatureYouControl) ]))
+                   (CostLess (Lit 2) (Just (Lit 1)))) ]
+       Nothing
+
+||| Power Artifact, whole -- the same floor over the Aura's host.
+public export
+powerArtifact : Card
+powerArtifact =
+  Macros.card "Power Artifact" (Just [Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.artifact
+       , Static (CostsToCast
+                   (AllOf (And [ AbilityHead AnyActivated
+                               , AbilityOf (AttachHost Enchanted (TypeW Artifact)) ]))
+                   (CostLess (Lit 2) (Just (Lit 1)))) ]
+       Nothing
+
 public export
 suppressionField : Card
 suppressionField =
@@ -7102,10 +7182,10 @@ bureauHeadmaster =
        (MkTypeLine [creatureType "Human", creatureType "Assassin"] [Creature])
        [ Static (CostsToCast
                    (AllOf (And [Macros.spell, HasSubtype (artifactType "Equipment"), CastBy You]))
-                   (CostLess (Lit 1)))
+                   (CostLess (Lit 1) Nothing))
        , Static (CostsToCast
                    (AllOf (And [AbilityHead (KeywordClass "Equip"), ActivatedBy You]))
-                   (CostLess (Lit 1))) ]
+                   (CostLess (Lit 1) Nothing)) ]
        (Just (2, 2))
 
 public export
@@ -8254,7 +8334,7 @@ patricianGeist =
        , Static (CostsToCast
                    (AllOf (And [Macros.spell, CastBy You,
                                 CastFrom (Macros.graveyardOf You)]))
-                   (CostLess (Lit 1))) ]
+                   (CostLess (Lit 1) Nothing)) ]
        (Just (2, 2))
 
 
@@ -12448,13 +12528,35 @@ predatoryWurm =
 ||| `selfSubjDelta`, which mints at `SelfD` -- the determiner "it" reads
 ||| and the demonstrative words do not -- so the ascription is the
 ||| sacrifice slot's one candidate at the permanent carrier
-||| [CR#109.2,701.21a] and the clause writes. The whole card waits on an
-||| activation restriction naming who may activate.
+||| [CR#109.2,701.21a] and the clause writes. The whole card is
+||| `soulRansom` below, since the activation restriction it waited on
+||| now has its seat.
 public export
 soulRansomRansom : Effect []
 soulRansomRansom =
   Sequentially [ Macros.sacrificeIt (ControllerOf Macros.thisAura)
                , Draw They (Lit 2) ]
+
+||| Soul Ransom, whole -- the ransom clause with the activation
+||| restriction that was holding it. "Only your opponents may activate
+||| this ability" is [CR#602.2]'s own exception written out: the rule
+||| gives an activated ability to its object's controller alone "unless
+||| the object specifically says otherwise", so the restriction is a slot
+||| on the ability beside its window and its usage limit, and not a
+||| second statement about it.
+public export
+soulRansom : Card
+soulRansom =
+  Macros.card "Soul Ransom"
+       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Black]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (GainsControl You (AttachHost Enchanted (TypeW Creature)))
+       , Macros.activatedBy (Do (Macros.discardN (Lit 2)))
+           (Sequentially [ Macros.sacrificeIt (ControllerOf Macros.thisAura)
+                         , Draw They (Lit 2) ])
+           (PlayerGroup YourOpponents) ]
+       Nothing
 
 ||| ...and the announcement it rests on, measured. The ascription under
 ||| the possessive is one candidate at the sacrifice slot's carrier.
@@ -12650,7 +12752,7 @@ docAurlockCost =
   CostsToCast (AllOf (And [Macros.spell, CastBy You,
                            Or [ CastFrom (Macros.graveyardOf You)
                               , CastFrom Macros.exileZ ]]))
-              (CostLess (Lit 2))
+              (CostLess (Lit 2) Nothing)
 
 -- ---------------------------------------------------------------------------
 -- "and/or": the zone coordination it earns, and the description it does not

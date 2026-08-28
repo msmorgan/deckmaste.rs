@@ -886,6 +886,24 @@ deedFacts =
   -- one sentence: a player at the agent, a battlefield permanent at the
   -- patient. The row exists for the count cap the untap step is the one
   -- deed to have printed nine times.
+  -- [CR#701.21a]: "To sacrifice a permanent, its controller moves it
+  -- from the battlefield directly to its owner's graveyard." Both ends
+  -- come from that one sentence -- the controller at the agent, the
+  -- battlefield permanent at the patient.
+  , MkDeedFacts "Sacrifice"
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
+                            Planeswalker, Battle] True (Just Battlefield))
+      False False False False
+  -- [CR#603.2] has the ability itself trigger -- "that ability
+  -- automatically triggers" -- and nothing is done to a second
+  -- participant. [CR#603.2a] says outright that triggering is neither
+  -- casting nor activating, which is why the deed is its own label and
+  -- not a reading of "Activate": "Ward abilities of those creatures
+  -- don't trigger" is a statement no activation prohibition reaches.
+  , MkDeedFacts "Trigger"
+      (MkDeedRole [Ability] [] True Nothing) noRole
+      False False False False
   , MkDeedFacts "Untap"
       (MkDeedRole [Player] [] True Nothing)
       (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,

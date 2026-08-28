@@ -252,7 +252,7 @@ public export
 badCostReadsSiblingDeed : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
                        Do (Macros.exile (TheVerbed "Sacrifice" CardW Attributive)) {ok}])
-            Macros.drawACard Nothing Nothing Nothing)
+            Macros.drawACard Nothing Nothing Nothing Nothing)
 badCostReadsSiblingDeed Oh impossible
 
 
@@ -260,7 +260,7 @@ badCostReadsSiblingDeed Oh impossible
 ||| An activation cost must be paid by the player activating the ability [CR#602.1a].
 public export
 badForeignPayerCost : Unspellable Ability (\ok =>
-  Activated (Macros.payLife Macros.anOpponent 2) Macros.drawACard Nothing Nothing Nothing {py = ok})
+  Activated (Macros.payLife Macros.anOpponent 2) Macros.drawACard Nothing Nothing Nothing Nothing {py = ok})
 badForeignPayerCost Oh impossible
 
 
@@ -268,7 +268,7 @@ badForeignPayerCost Oh impossible
 ||| The subjected cost verbs the same way: no payment of yours stands before a colon [CR#602.1a].
 public export
 badForeignSacrificeCost : Unspellable Ability (\ok =>
-  Activated (Do (Macros.sacrifice Macros.anOpponent (Macros.a Macros.creature))) Macros.drawACard Nothing Nothing Nothing {py = ok})
+  Activated (Do (Macros.sacrifice Macros.anOpponent (Macros.a Macros.creature))) Macros.drawACard Nothing Nothing Nothing Nothing {py = ok})
 badForeignSacrificeCost Oh impossible
 
 
@@ -294,7 +294,7 @@ public export
 badContinuousAsCost : Unspellable Ability (\ok =>
   Activated (Do (Macros.gets (AllOf Macros.creatureYouControl) (PtUp (Lit 1)) (PtUp (Lit 1))
                              (Just Macros.untilEndOfTurn)) {ok})
-            Macros.drawACard Nothing Nothing Nothing)
+            Macros.drawACard Nothing Nothing Nothing Nothing)
 badContinuousAsCost Oh impossible
 
 
@@ -304,7 +304,7 @@ public export
 badInsteadAsCost : Unspellable Ability (\ok =>
   Activated (Do (InsteadOf (Macros.destroy (Macros.target Macros.creature))
                            (Macros.exile (Macros.target Macros.creature))) {ok})
-            Macros.drawACard Nothing Nothing Nothing)
+            Macros.drawACard Nothing Nothing Nothing Nothing)
 badInsteadAsCost Oh impossible
 
 
@@ -313,7 +313,7 @@ badInsteadAsCost Oh impossible
 public export
 badDelayedAsCost : Unspellable Ability (\ok =>
   Activated (Do (Delayed (BeginningOf EndStep NoPossessor) [] Nothing Macros.drawACard) {ok})
-            Macros.drawACard Nothing Nothing Nothing)
+            Macros.drawACard Nothing Nothing Nothing Nothing)
 badDelayedAsCost Oh impossible
 
 
@@ -323,7 +323,7 @@ public export
 badHeldUntilAsCost : Unspellable Ability (\ok =>
   Activated (Do (HeldUntil (Macros.exile (Macros.target Macros.creature))
                            (Dies (Macros.a Macros.creature))) {ok})
-            Macros.drawACard Nothing Nothing Nothing)
+            Macros.drawACard Nothing Nothing Nothing Nothing)
 badHeldUntilAsCost Oh impossible
 
 
@@ -332,7 +332,7 @@ badHeldUntilAsCost Oh impossible
 public export
 badReflexiveAsCost : Unspellable Ability (\ok =>
   Activated (Do (Reflexively (Macros.gainsLife You (Lit 2)) Macros.drawACard) {ok})
-            Macros.drawACard Nothing Nothing Nothing)
+            Macros.drawACard Nothing Nothing Nothing Nothing)
 badReflexiveAsCost Oh impossible
 
 
@@ -340,7 +340,7 @@ badReflexiveAsCost Oh impossible
 ||| [CR#614.10] makes a skip a replacement effect — "instead of doing [something], do nothing" — not an action the payer carries out [CR#118.1].
 public export
 badSkipAsCost : Unspellable Ability (\ok =>
-  Activated (Do (SkipsNext You Turn (Lit 1)) {ok}) Macros.drawACard Nothing Nothing Nothing)
+  Activated (Do (SkipsNext You Turn (Lit 1)) {ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
 badSkipAsCost Oh impossible
 
 
@@ -348,7 +348,7 @@ badSkipAsCost Oh impossible
 ||| [CR#602.1a] makes the activation cost everything before the colon and fixes its payer, so a cost that re-announces payer and payment states what the slot already holds; the telescope is `Compound`.
 public export
 badPayAsCost : Unspellable Ability (\ok =>
-  Activated (Do (Pay You (Macros.payLife You 2)) {ok}) Macros.drawACard Nothing Nothing Nothing)
+  Activated (Do (Pay You (Macros.payLife You 2)) {ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
 badPayAsCost Oh impossible
 
 
@@ -358,7 +358,7 @@ public export
 badSequentialCost : Unspellable Ability (\ok =>
   Activated (Do (Sequentially [Macros.discardsACard You,
                                Macros.sacrifice You (Macros.a Macros.creature)]) {ok})
-            Macros.drawACard Nothing Nothing Nothing)
+            Macros.drawACard Nothing Nothing Nothing Nothing)
 badSequentialCost Oh impossible
 
 
@@ -368,7 +368,7 @@ public export
 badSimultaneousCost : Unspellable Ability (\ok =>
   Activated (Do (Simultaneously [Macros.discardsACard You,
                                  Macros.sacrifice You (Macros.a Macros.creature)]) {ok})
-            Macros.drawACard Nothing Nothing Nothing)
+            Macros.drawACard Nothing Nothing Nothing Nothing)
 badSimultaneousCost Oh impossible
 
 
@@ -376,7 +376,7 @@ badSimultaneousCost Oh impossible
 ||| [CR#118.1] wants an action or payment; "repeat" names one only by anaphora, and [CR#601.2h] pays a cost's parts in any order, so no part precedes another for the anaphor to reach.
 public export
 badRepeatAsCost : Unspellable Ability (\ok =>
-  Activated (Do (Repeat Again) {ok}) Macros.drawACard Nothing Nothing Nothing)
+  Activated (Do (Repeat Again) {ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
 badRepeatAsCost Oh impossible
 
 
@@ -384,7 +384,7 @@ badRepeatAsCost Oh impossible
 ||| A cost telescope of nothing is no cost: there is nothing to pay.
 public export
 badEmptyCompound : Unspellable Ability (\ok =>
-  Activated (Compound [] {ne = ok}) Macros.drawACard Nothing Nothing Nothing)
+  Activated (Compound [] {ne = ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
 badEmptyCompound ItIsSucc impossible
 
 
@@ -393,7 +393,7 @@ badEmptyCompound ItIsSucc impossible
 public export
 badNestedCompound : Unspellable Ability (\ok =>
   Activated (Compound ((Compound [Mana [Macros.generic 1], TapSymbol] :: (TapSymbol :: Nil)) {nc = ok}))
-            Macros.drawACard Nothing Nothing Nothing)
+            Macros.drawACard Nothing Nothing Nothing Nothing)
 badNestedCompound Oh impossible
 
 
@@ -401,7 +401,7 @@ badNestedCompound Oh impossible
 ||| An already tapped permanent cannot be tapped again to pay a cost [CR#107.5,118.3].
 public export
 badDoubleTapCost : Unspellable Ability (\ok =>
-  Activated (Compound [TapSymbol, TapSymbol]) Macros.drawACard Nothing Nothing Nothing {tp = ok})
+  Activated (Compound [TapSymbol, TapSymbol]) Macros.drawACard Nothing Nothing Nothing Nothing {tp = ok})
 badDoubleTapCost Oh impossible
 
 
@@ -409,7 +409,7 @@ badDoubleTapCost Oh impossible
 ||| A component's symbol run is written; the payment of nothing before a colon is "{0}" [CR#118.5].
 public export
 badEmptyManaCost : Unspellable Ability (\ok =>
-  Activated (Mana [] {wr = ok}) Macros.drawACard Nothing Nothing Nothing)
+  Activated (Mana [] {wr = ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
 badEmptyManaCost IsNonEmpty impossible
 
 

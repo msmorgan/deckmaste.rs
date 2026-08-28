@@ -482,7 +482,7 @@ badTokenSpellAbility Oh impossible
 public export
 badQuotedGrantOnSpell : Unspellable (StaticEffect []) (\ok =>
   Gains (AllOf (And [Macros.instantOrSorcery, Macros.spell, CastBy You]))
-        (Activated TapSymbol Macros.drawACard Nothing Nothing Nothing) {ok})
+        (Activated TapSymbol Macros.drawACard Nothing Nothing Nothing Nothing) {ok})
 badQuotedGrantOnSpell Oh impossible
 
 
@@ -516,7 +516,7 @@ public export
 badLoyaltySorcery : Unspellable Card (\ok =>
   Macros.card "Impossible Loyalty Sorcery" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Sorcery])
-       [Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard Nothing Nothing Nothing] Nothing {tx = ok})
+       [Activated (LoyaltySymbol (LoyaltyUp 1)) Macros.drawACard Nothing Nothing Nothing Nothing] Nothing {tx = ok})
 badLoyaltySorcery Oh impossible
 
 

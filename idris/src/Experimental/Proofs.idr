@@ -185,7 +185,7 @@ badStaleCarrier Refl impossible
 public export
 badHiddenCost : Unspellable Ability (\ok =>
   Activated (Do (Move (Macros.a Macros.creature) Macros.handZ (MkMoveRiders [] Nothing Nothing)))
-            (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}) Nothing Nothing Nothing)
+            (SetStatus Tapped (It {ok = Builtin.fst ok}) {ok = Builtin.snd ok}) Nothing Nothing Nothing Nothing)
 badHiddenCost (Refl, _) impossible
 
 
@@ -195,7 +195,7 @@ public export
 badTwoCostMentions : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.discardsACard You),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Macros.exile (It {ok})) Nothing Nothing Nothing)
+            (Macros.exile (It {ok})) Nothing Nothing Nothing Nothing)
 badTwoCostMentions Refl impossible
 
 
@@ -262,7 +262,7 @@ badInnerAmbig Refl impossible
 public export
 badVerbedWrongVerb : Unspellable Ability (\ok =>
   Activated (Do (Macros.discardsACard You))
-            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
+            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing Nothing)
 badVerbedWrongVerb Refl impossible
 
 
@@ -271,7 +271,7 @@ badVerbedWrongVerb Refl impossible
 public export
 badVerbedWrongNoun : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a (HasType Artifact))))
-            (Move (TheVerbed "Sacrifice" (TypeW Creature) Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
+            (Move (TheVerbed "Sacrifice" (TypeW Creature) Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing Nothing)
 badVerbedWrongNoun Refl impossible
 
 
@@ -281,7 +281,7 @@ public export
 badVerbedAmbig : Unspellable Ability (\ok =>
   Activated (Compound [Do (Macros.sacrifice You (Macros.a Macros.creature)),
                        Do (Macros.sacrifice You (Macros.a Macros.creature))])
-            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing)
+            (Move (TheVerbed "Sacrifice" CardW Attributive {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing)) Nothing Nothing Nothing Nothing)
 badVerbedAmbig Refl impossible
 
 
@@ -295,7 +295,7 @@ public export
 badBareCardRead : Unspellable Ability (\ok =>
   Activated (Do (Macros.sacrifice You (Macros.a Macros.creature)))
             (Sequentially [Macros.exile (Macros.target Macros.creature),
-                           Delayed (BeginningOf EndStep NoPossessor) [] Nothing (Move (That CardW {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing))]) Nothing Nothing Nothing)
+                           Delayed (BeginningOf EndStep NoPossessor) [] Nothing (Move (That CardW {ok}) Macros.battlefieldZ (MkMoveRiders [] Nothing Nothing))]) Nothing Nothing Nothing Nothing)
 badBareCardRead Refl impossible
 
 
@@ -556,7 +556,7 @@ badDiscardedCreatureWord : Unspellable Ability (\ok =>
   Activated (Do (Macros.discards You (Macros.aAtRandom (And [Macros.creature, InZone Macros.handZ]))))
             (DealDamage This
                           (Macros.manaValueOf (TheVerbed "Discard" (TypeW Creature) Attributive {ok}))
-                          (Macros.target Macros.anyTarget)) Nothing Nothing Nothing)
+                          (Macros.target Macros.anyTarget)) Nothing Nothing Nothing Nothing)
 badDiscardedCreatureWord Refl impossible
 
 
