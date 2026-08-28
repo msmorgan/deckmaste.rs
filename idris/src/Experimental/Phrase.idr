@@ -1420,6 +1420,11 @@ mutual
   public export
   isSourceHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isSourceHead IsSource = True
+  -- [CR#109.2] exempts a description carrying the word "card" from the
+  -- battlefield default in the same breath as "source", and [CR#109.2a]
+  -- fixes a zone for it only where the clause writes one -- so the word
+  -- alone places nothing.
+  isSourceHead IsCard = True
   isSourceHead _ = False
 
   public export
@@ -1429,8 +1434,11 @@ mutual
 
   ||| [CR#120.7] makes a source the object that dealt some damage — a
   ||| position in an event rather than an object in a zone — so a phrase
-  ||| headed by the source word places nothing. This is the only head-word
-  ||| placelessness left; the union family's is the kind's (see
+  ||| headed by the source word places nothing. [CR#109.2] names "card"
+  ||| beside "source" among the words that take a description off the
+  ||| battlefield, and the bare card head writes no zone of its own
+  ||| [CR#109.2a], so it places nothing either. Those two head words are
+  ||| the whole of it; the union family's placelessness is the kind's (see
   ||| `phraseZone`).
   public export
   headIsPlaceless : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool

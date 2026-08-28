@@ -1117,7 +1117,7 @@ verbFacts =
   -- act names no patient, no zone to find one in and no destination,
   -- and no printed line names a participant of it by participle.
   -- The ACTOR is the tempted player: [CR#701.54d] has the Ring tempt a
-  -- player "whenever THEY complete the actions in 701.54a". That the
+  -- player whenever THEY complete [CR#701.54a]'s actions. That the
   -- printed clause writes the Ring as its surface subject and the player
   -- after the verb is the label's own spelling, which is why the label
   -- is the whole printed phrase.

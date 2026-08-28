@@ -12737,3 +12737,18 @@ archfiendsVessel =
                           (MkTypeLine [creatureType "Demon"] [Creature])
                           [Macros.keyword "Flying"] Nothing))) ]
        (Just (1, 1))
+
+||| Hostile Investigator's header -- "Whenever one or more players discard
+||| one or more cards, …". Two counted groups in one event, the first a
+||| PLAYER: the act row's subject and patient are kind-general and each
+||| takes its own determiner, so the composition needs nothing. The
+||| patient is the bare card head, which the line writes with no zone
+||| beside it; [CR#701.9a] supplies the hand the act finds it in.
+||| The card's block is its BODY, `investigate` -- a keyword action that
+||| creates a named token, whose label is unwritten here.
+public export
+hostileInvestigatorHeader : GameEvent []
+hostileInvestigatorHeader =
+  VerbedEvent (Just (CountedGroup (Macros.atLeast 1) Nothing AnyPlayer))
+              "Discard"
+              (Just (CountedGroup (Macros.atLeast 1) Nothing IsCard))

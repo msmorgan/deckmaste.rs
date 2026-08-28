@@ -547,9 +547,9 @@ mutual
     ||| header that DOES narrow to some player's turns writes that as its
     ||| window ("your first spell during each opponent's turn"), whose own
     ||| "each" then does the resetting. `Nothing` is the count with no
-    ||| stated period, which the plan- and hour-counter headers write:
-    ||| [CR#714.2b]'s counters accumulate over the game and the ordinal
-    ||| picks one of them absolutely.
+    ||| stated period, which the plan- and hour-counter headers write
+    ||| (Political Triumph, Midnight Clock): those counters accumulate
+    ||| unreset and the ordinal picks one of them absolutely.
     ||| -- spelling: at a counter event, "When the [ord] [kind] counter is
     ||| put on [n]"; at a cast event, "Whenever [who] cast(s) [whose]
     ||| [ord] spell [window]"; the reset, "each [part]".
