@@ -14077,3 +14077,48 @@ soulShatter =
                     Superlative MaxOf (CharAxis ManaValue)
                       (And [Or [Macros.creature, HasType Planeswalker],
                             ControlledBy They])]))
+
+||| Padeem, Consul of Innovation's upkeep trigger -- "At the beginning of
+||| your upkeep, if you control the artifact with the greatest mana value
+||| or tied for the greatest mana value, draw a card." A control test over
+||| a DEFINITE description: the phrase names THE artifact with the
+||| greatest mana value and then asks who controls it, which is not what
+||| `Exists` says. The definite's mention is announced into the governed
+||| clause rather than dropped at the condition's door.
+||| Six supported lines write this (re-measured 2026-08-28): Abzan
+||| Beastmaster and Thickest in the Thicket on toughness and power, this
+||| card on mana value, Summon: Fenrir, Triumph of Cruelty and Triumph of
+||| Ferocity on power.
+||| -- spelling: "or tied for the greatest [axis]" is the superlative's own
+||| bound said twice; the extremal fold admits every referent that reaches
+||| the maximum, so the printed disjunct adds no second test.
+public export
+padeemConsulOfInnovation : Ability
+padeemConsulOfInnovation =
+  Macros.triggeredIf At (BeginningOf Upkeep (ByWord Yours))
+    (Matches (Definite (And [Macros.artifact,
+                             Superlative MaxOf (CharAxis ManaValue)
+                               (And [Macros.artifact,
+                                     InZone Macros.battlefieldZ])]))
+             (ControlledBy You))
+    Macros.drawACard
+
+||| Turbulent Fen -- "This land enters tapped unless your opponents
+||| control eight or more lands." The counted threshold over a POSSESSOR
+||| SET, written as the umbrella asked: an independent counted clause over
+||| a described set, never a possessor relation on a mention. The other
+||| four Turbulent lands print the same sentence and Lashwhip Predator
+||| writes the same clause at three creatures -- six supported lines,
+||| re-measured 2026-08-28 against 259 lines writing "your opponents
+||| control" at all.
+||| No row was needed: `CountOf` already takes a description and
+||| `ControlledBy (PlayerGroup YourOpponents)` already describes one.
+public export
+turbulentFen : Ability
+turbulentFen =
+  Static (OnlyWhile (Macros.entersTapped Macros.thisLand)
+                    (NotCond (CompareAmt
+                                (CountOf (And [Macros.land,
+                                               ControlledBy (PlayerGroup YourOpponents)]))
+                                AtLeast (Lit 8)))
+                    Unless)

@@ -3283,6 +3283,25 @@ mutual
   Bindingless : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
   Bindingless {bs} {k} n = nounDelta n = []
 
+  ||| What a condition may take as the subject it tests. Two cases and
+  ||| one rule between them: a condition announces what its subject
+  ||| announced, so a subject is admissible exactly when the condition
+  ||| frame can carry its announcement out again.
+  ||| A BINDINGLESS subject announces nothing and so costs nothing --
+  ||| every anaphor, every deictic, every possessive read.
+  ||| A DEFINITE one announces its referent [CR#601.2c], and `condDelta`
+  ||| carries that announcement to the governed clause unchanged.
+  ||| Nothing else is admitted, and the omission is the point: an
+  ||| INDEFINITE or TARGETED subject would introduce a referent the
+  ||| condition merely supposed, and `Exists` is the row for supposing.
+  public export
+  data TestSubject : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type where
+    BindinglessSubject : {0 n : Noun bs k} ->
+                         {auto 0 bl : Bindingless n} -> TestSubject n
+    DefiniteSubject : {0 k : Kind} -> {0 p : Predicate bs k} ->
+                      {0 ph : Phrasal k} -> {0 uq : Uniquifying p} ->
+                      TestSubject (Definite p {ph} {uq})
+
   public export
   anchorPhrase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   anchorPhrase This = True
@@ -3666,8 +3685,21 @@ mutual
     NoHolder : (d : Designation) ->
                {auto 0 sc : designationScope d = HeldBy Player} ->
                {auto 0 at : So (designationChecked d)} -> Condition bs
+    ||| "if you control the creature with the greatest power", "if it's a
+    ||| creature card": a test of a named subject against a description.
+    ||| The subject may be a DEFINITE one, and what that costs is paid in
+    ||| `condDelta`, not waived here: a condition announces whatever its
+    ||| subject announced. The definite's mention therefore survives into
+    ||| the clause the condition governs instead of being dropped on the
+    ||| way in, which is the only thing the `Bindingless` gate was ever
+    ||| protecting against ([CR#601.2c] — a phrase announced nowhere is
+    ||| the fault, not a phrase that announces).
+    ||| It is emphatically not `Exists`: that row asks whether ANY object
+    ||| answers a description, where these six lines name THE object with
+    ||| the greatest power and then ask who controls it.
+    ||| -- spelling: "if [n] [is/are] [p]", "if you control [n]".
     Matches : {k : Kind} -> (n : Noun bs k) -> (p : Predicate bs k) ->
-              {auto 0 bl : Bindingless n} ->
+              {auto 0 bl : TestSubject n} ->
               {auto 0 sy : PredSays p} ->
               {auto 0 zc : ZoneFits (nounZone n) (seedZone p)} ->
               Condition bs
@@ -3905,7 +3937,11 @@ mutual
   condDelta (Happened _ who _ _) = selfSubjDelta who
   condDelta (GameIs _) = []
   condDelta (NoHolder _) = []
-  condDelta (Matches n _) = selfSubjDelta n
+  -- whatever the subject announced, plus the self-mention: a
+  -- bindingless subject announces nothing and this reduces to the
+  -- self-mention it always was, while a definite one carries its
+  -- referent into the governed clause instead of losing it.
+  condDelta (Matches n _) = nounDelta n ++ selfSubjDelta n
   condDelta (CompareAmt subj _ bound) =
     gapB :: (tiedDelta subj ++ amtDelta bound ++ amtDelta subj)
   condDelta (DealtThisWay _) = []
