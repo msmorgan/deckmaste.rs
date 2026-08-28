@@ -58,6 +58,16 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
         .filter(|declaration| declaration.identity().kind() == DeclarationKind::KeywordAbility)
         .map(|declaration| (declaration.identity().name().to_owned(), declaration))
         .collect::<BTreeMap<_, _>>();
+    let parameterized = BTreeMap::from([
+        ("Enchant", ("Subject", "enchant ", "enchant")),
+        ("Equip", ("Cost", "equip ", "equip")),
+        ("Fortify", ("Cost", "fortify ", "fortify")),
+        (
+            "Protection",
+            ("Quality", "protection from ", "protection from"),
+        ),
+        ("Ward", ("Cost", "ward ", "ward")),
+    ]);
 
     assert_eq!(actual.len(), 195);
     assert_eq!(
@@ -77,17 +87,38 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
                 .and_then(|stem| stem.to_str()),
             Some(name.as_str()),
         );
-        assert!(matches!(declaration.spelling(), [SpellingPart::Literal(_)]));
         let grammar = declaration
             .grammar()
             .expect("every keyword stub contributes grammar");
         assert_eq!(grammar.recipe(), &GrammarRecipe::FixedKeyword);
         assert_eq!(grammar.surfaces().len(), 1);
         assert_eq!(grammar.surfaces()[0].feature(), SurfaceFeature::Fixed);
-        let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
-            unreachable!()
-        };
-        assert_eq!(grammar.surfaces()[0].text(), spelling);
+        if let Some((parameter, prefix, surface)) = parameterized.get(name.as_str()) {
+            let params = declaration.params().expect("parameterized row has params");
+            assert_eq!(
+                params
+                    .iter()
+                    .map(macro_ron::v2::ParameterType::as_str)
+                    .collect::<Vec<_>>(),
+                [*parameter],
+                "{name}",
+            );
+            assert_eq!(
+                declaration.spelling(),
+                [
+                    SpellingPart::Literal((*prefix).to_owned()),
+                    SpellingPart::Param(0)
+                ],
+                "{name}",
+            );
+            assert_eq!(grammar.surfaces()[0].text(), *surface, "{name}");
+        } else {
+            assert!(declaration.params().is_none(), "{name}");
+            let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
+                panic!("nullary keyword {name} has a parameter hole")
+            };
+            assert_eq!(grammar.surfaces()[0].text(), spelling);
+        }
     }
 
     for (name, surface) in [

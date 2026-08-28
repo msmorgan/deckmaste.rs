@@ -52,8 +52,10 @@ pub(crate) enum FeatureValue {
     BarePluralNoun,
     ModifiedPluralNoun,
     PluralCoordination,
+    MassNoun,
     CountNominal,
     LicensedBareSingularNoun,
+    LicensedMassOrPluralCount,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,12 +98,8 @@ impl Feature {
         match self {
             Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
             Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
-            Self::Compoundability => {
-                &[FeatureValue::Compoundable, FeatureValue::NonCompoundable]
-            }
-            Self::ModifierLicense => {
-                &[FeatureValue::Unrestricted, FeatureValue::LocalDeterminer]
-            }
+            Self::Compoundability => &[FeatureValue::Compoundable, FeatureValue::NonCompoundable],
+            Self::ModifierLicense => &[FeatureValue::Unrestricted, FeatureValue::LocalDeterminer],
             Self::DeterminerNumber => &[
                 FeatureValue::SingularOnly,
                 FeatureValue::PluralOnly,
@@ -115,10 +113,12 @@ impl Feature {
                 FeatureValue::BarePluralNoun,
                 FeatureValue::ModifiedPluralNoun,
                 FeatureValue::PluralCoordination,
+                FeatureValue::MassNoun,
             ],
             Self::NominalLicense => &[
                 FeatureValue::CountNominal,
                 FeatureValue::LicensedBareSingularNoun,
+                FeatureValue::LicensedMassOrPluralCount,
             ],
             Self::Number => &[FeatureValue::Singular, FeatureValue::Plural],
             Self::Onset => &[FeatureValue::Consonant, FeatureValue::Vowel],
@@ -186,14 +186,15 @@ impl FeatureValue {
             Self::Both => "Both",
             Self::NominalOnly => "NominalOnly",
             Self::FusedHead => "FusedHead",
-            Self::BareSingularNoun => "BareSingularNoun",
+            Self::BareSingularNoun | Self::LicensedBareSingularNoun => "BareSingularNoun",
             Self::ModifiedSingularNoun => "ModifiedSingularNoun",
             Self::SingularCoordination => "SingularCoordination",
             Self::BarePluralNoun => "BarePluralNoun",
             Self::ModifiedPluralNoun => "ModifiedPluralNoun",
             Self::PluralCoordination => "PluralCoordination",
+            Self::MassNoun => "MassNoun",
             Self::CountNominal => "CountNominal",
-            Self::LicensedBareSingularNoun => "BareSingularNoun",
+            Self::LicensedMassOrPluralCount => "MassOrPluralCount",
         }
     }
 }
@@ -364,14 +365,15 @@ impl FeatureValue {
             Self::Both => "Both",
             Self::NominalOnly => "NominalOnly",
             Self::FusedHead => "FusedHead",
-            Self::BareSingularNoun => "BareSingularNoun",
+            Self::BareSingularNoun | Self::LicensedBareSingularNoun => "BareSingularNoun",
             Self::ModifiedSingularNoun => "ModifiedSingularNoun",
             Self::SingularCoordination => "SingularCoordination",
             Self::BarePluralNoun => "BarePluralNoun",
             Self::ModifiedPluralNoun => "ModifiedPluralNoun",
             Self::PluralCoordination => "PluralCoordination",
+            Self::MassNoun => "MassNoun",
             Self::CountNominal => "CountNominal",
-            Self::LicensedBareSingularNoun => "BareSingularNoun",
+            Self::LicensedMassOrPluralCount => "MassOrPluralCount",
         }
     }
 }
@@ -426,9 +428,13 @@ pub(crate) fn lower_constant(
         (model::Feature::NominalForm, "BarePluralNoun") => FeatureValue::BarePluralNoun,
         (model::Feature::NominalForm, "ModifiedPluralNoun") => FeatureValue::ModifiedPluralNoun,
         (model::Feature::NominalForm, "PluralCoordination") => FeatureValue::PluralCoordination,
+        (model::Feature::NominalForm, "MassNoun") => FeatureValue::MassNoun,
         (model::Feature::NominalLicense, "CountNominal") => FeatureValue::CountNominal,
         (model::Feature::NominalLicense, "BareSingularNoun") => {
             FeatureValue::LicensedBareSingularNoun
+        }
+        (model::Feature::NominalLicense, "MassOrPluralCount") => {
+            FeatureValue::LicensedMassOrPluralCount
         }
         (model::Feature::Agreement, _) => {
             return Err(syn::Error::new_spanned(
@@ -567,10 +573,12 @@ mod tests {
             .unwrap(),
             FeatureValue::NominalOnly
         );
-        assert!(lower_constant(
-            Feature::FusedHeadLicense,
-            &syn::parse_quote!(Anything::Both),
-        )
-        .is_err());
+        assert!(
+            lower_constant(
+                Feature::FusedHeadLicense,
+                &syn::parse_quote!(Anything::Both),
+            )
+            .is_err()
+        );
     }
 }

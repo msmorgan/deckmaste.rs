@@ -421,7 +421,7 @@ fn construction_requires_constructor(plan: &SemanticPlan, construction: &Constru
         || construction
             .fields()
             .iter()
-            .any(|field| field.is_zeroable())
+            .any(crate::semantic::ConstructionFieldPlan::is_zeroable)
         || construction.fields().iter().any(|field| {
             field
                 .structural_plan()
@@ -926,17 +926,17 @@ fn resolve_constructor_feature(
             let field = field_local(locals, stored)?;
             quote! { #function(#field) }
         } else {
-        if stored.kind() != ConstructionFieldKind::Category {
-            return Err(internal(
-                "constructor feature subject lacks a sealed derivation",
-            ));
-        }
-        let function = emitted_ident(
-            &feature_helper(feature.key(), stored.terminal()),
-            proc_macro2::Span::call_site(),
-        );
-        let field = borrowed_field_expression(plan, construction, stored, locals)?;
-        quote! { #function(#field) }
+            if stored.kind() != ConstructionFieldKind::Category {
+                return Err(internal(
+                    "constructor feature subject lacks a sealed derivation",
+                ));
+            }
+            let function = emitted_ident(
+                &feature_helper(feature.key(), stored.terminal()),
+                proc_macro2::Span::call_site(),
+            );
+            let field = borrowed_field_expression(plan, construction, stored, locals)?;
+            quote! { #function(#field) }
         }
     } else {
         return Err(internal(
@@ -1002,9 +1002,13 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::One => quote! { Cardinality::One },
         crate::feature::FeatureValue::TwoPlus => quote! { Cardinality::TwoPlus },
         crate::feature::FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
-        crate::feature::FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
+        crate::feature::FeatureValue::NonCompoundable => {
+            quote! { Compoundability::NonCompoundable }
+        }
         crate::feature::FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
-        crate::feature::FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
+        crate::feature::FeatureValue::LocalDeterminer => {
+            quote! { ModifierLicense::LocalDeterminer }
+        }
         crate::feature::FeatureValue::SingularOnly => quote! { DeterminerNumber::SingularOnly },
         crate::feature::FeatureValue::PluralOnly => quote! { DeterminerNumber::PluralOnly },
         crate::feature::FeatureValue::Both => quote! { DeterminerNumber::Both },
@@ -1024,9 +1028,13 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::PluralCoordination => {
             quote! { NominalForm::PluralCoordination }
         }
+        crate::feature::FeatureValue::MassNoun => quote! { NominalForm::MassNoun },
         crate::feature::FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
         crate::feature::FeatureValue::LicensedBareSingularNoun => {
             quote! { NominalLicense::BareSingularNoun }
+        }
+        crate::feature::FeatureValue::LicensedMassOrPluralCount => {
+            quote! { NominalLicense::MassOrPluralCount }
         }
     }
 }
@@ -1082,7 +1090,7 @@ fn is_boxed(
     field.kind() == ConstructionFieldKind::Category
         && plan
             .boxed_fields()
-        .contains(&(construction.construction_id().to_owned(), field.name_key()))
+            .contains(&(construction.construction_id().to_owned(), field.name_key()))
 }
 
 fn internal(detail: &str) -> syn::Error {

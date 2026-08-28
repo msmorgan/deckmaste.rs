@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "Heroic",
+    spelling: "Heroic",
+    grammar: FixedTerm(surface: "Heroic"),
+)

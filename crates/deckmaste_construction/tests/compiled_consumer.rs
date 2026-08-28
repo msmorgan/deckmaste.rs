@@ -12,6 +12,45 @@ pub mod environment {
     use macro_ron::v2::Onset;
     use macro_ron::v2::SurfaceFeature;
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub(crate) struct CoreVerbIdentity;
+
+    impl CoreVerbIdentity {
+        #[expect(
+            clippy::unused_self,
+            reason = "the fixture preserves the generated consumer API used by real identities"
+        )]
+        pub(crate) const fn owner_id(self) -> &'static str {
+            "fixture/core-verb"
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub(crate) enum VerbInventoryRef {
+        Core(CoreVerbIdentity),
+        Declaration(DeclarationIdentity),
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub(crate) struct VerbInventoryReading {
+        reference: VerbInventoryRef,
+        onset: Onset,
+    }
+
+    impl VerbInventoryReading {
+        pub(crate) fn new(reference: VerbInventoryRef, onset: Onset) -> Self {
+            Self { reference, onset }
+        }
+
+        pub(crate) fn reference(&self) -> &VerbInventoryRef {
+            &self.reference
+        }
+
+        pub(crate) const fn onset(&self) -> Onset {
+            self.onset
+        }
+    }
+
     pub(crate) struct ParserEnvironment {
         declarations: Vec<NormalizedDeclaration>,
     }
@@ -67,6 +106,42 @@ pub mod environment {
                         .find(|surface| surface.feature() == feature)
                 })
                 .map(macro_ron::v2::RealizedSurface::onset)
+        }
+
+        pub(crate) fn verb_inventory_surface(
+            &self,
+            reference: &VerbInventoryRef,
+            feature: SurfaceFeature,
+        ) -> Option<&str> {
+            match reference {
+                VerbInventoryRef::Core(_) => None,
+                VerbInventoryRef::Declaration(id) => self.surface(id, feature),
+            }
+        }
+
+        pub(crate) fn verb_inventory_onset(
+            &self,
+            reference: &VerbInventoryRef,
+            feature: SurfaceFeature,
+        ) -> Option<Onset> {
+            match reference {
+                VerbInventoryRef::Core(_) => None,
+                VerbInventoryRef::Declaration(id) => self.onset(id, feature),
+            }
+        }
+
+        #[expect(
+            clippy::unused_self,
+            reason = "the fixture preserves the environment lookup API used by generated code"
+        )]
+        pub(crate) fn verb_inventory_owner_id(
+            &self,
+            reference: &VerbInventoryRef,
+        ) -> Option<&'static str> {
+            match reference {
+                VerbInventoryRef::Core(identity) => Some(identity.owner_id()),
+                VerbInventoryRef::Declaration(_) => None,
+            }
         }
 
         pub(crate) fn noun_rows(&self) -> Vec<(DeclarationIdentity, SurfaceFeature, Onset, &str)> {
@@ -752,7 +827,7 @@ mod declaration_noun_fixture {
             &context,
         )
         .expect("singular modifier Number flows to the inherited-number head");
-        let BuildValue::Phrase(phrase) = built else {
+        let BuildValue::Phrase(phrase, _) = built else {
             panic!("the generated compound noun builds its declared root")
         };
         assert_eq!(
@@ -790,10 +865,13 @@ mod declaration_noun_fixture {
             Number::Singular => BuildValue::NumberSource(
                 NumberSource::Singular(SingularNumberSource),
                 Number::Singular,
+                FeatureConstraint::Any,
             ),
-            Number::Plural => {
-                BuildValue::NumberSource(NumberSource::Plural(PluralNumberSource), Number::Plural)
-            }
+            Number::Plural => BuildValue::NumberSource(
+                NumberSource::Plural(PluralNumberSource),
+                Number::Plural,
+                FeatureConstraint::Any,
+            ),
         }
     }
 
@@ -943,7 +1021,7 @@ mod declaration_noun_fixture {
                 &context,
             )
             .expect("the exact realized noun row satisfies its article guard");
-            let BuildValue::InflectedArticle(article, onset) = built else {
+            let BuildValue::InflectedArticle(article, onset, _) = built else {
                 panic!("the article construction carries its frozen onset")
             };
             assert_eq!(onset, expected_onset);
@@ -1187,14 +1265,15 @@ pub mod declaration_verb_fixture {
             start: usize,
             frame: &VerbFrameKey,
             feature: macro_ron::v2::SurfaceFeature,
-        ) -> Vec<(usize, macro_ron::v2::DeclarationIdentity)> {
+        ) -> Vec<(usize, crate::environment::VerbInventoryReading)> {
             assert_eq!(start, self.position.byte_offset);
             self.environment
                 .declarations()
                 .iter()
                 .filter_map(|declaration| {
                     let grammar = declaration.grammar()?;
-                    (grammar.recipe().position() == macro_ron::v2::GrammarPosition::Verb)
+                    (declaration.identity().kind() == macro_ron::v2::DeclarationKind::KeywordAction
+                        && grammar.recipe().position() == macro_ron::v2::GrammarPosition::Verb)
                         .then_some((declaration, grammar))
                 })
                 .filter(|(declaration, grammar)| {
@@ -1211,7 +1290,17 @@ pub mod declaration_verb_fixture {
                         .find(|surface| surface.feature() == feature)
                         .and_then(|surface| {
                             self.word_end(surface.text(), LexicalBoundary::Separated)
-                                .map(|end| (end, declaration.identity().clone()))
+                                .map(|end| {
+                                    (
+                                        end,
+                                        crate::environment::VerbInventoryReading::new(
+                                            crate::environment::VerbInventoryRef::Declaration(
+                                                declaration.identity().clone(),
+                                            ),
+                                            surface.onset(),
+                                        ),
+                                    )
+                                })
                         })
                 })
                 .collect()
@@ -1360,6 +1449,35 @@ pub mod declaration_verb_fixture {
         root ParticiplePhrase { punctuation = "."; eoi = true; standalone_render = true; }
     }
 
+    impl crate::environment::ParserEnvironment {
+        fn verb_frame_licenses(
+            &self,
+            reference: &crate::environment::VerbInventoryRef,
+            frame: VerbFrameKey,
+        ) -> bool {
+            let crate::environment::VerbInventoryRef::Declaration(id) = reference else {
+                return false;
+            };
+            if id.kind() != macro_ron::v2::DeclarationKind::KeywordAction {
+                return false;
+            }
+            let Some(macro_ron::v2::GrammarRecipe::Verb { valence }) = self.grammar_recipe(id)
+            else {
+                return false;
+            };
+            fixture_frames_for(id.name(), valence).contains(&frame.atoms())
+        }
+    }
+
+    fn declaration_id(
+        reference: &crate::environment::VerbInventoryRef,
+    ) -> &macro_ron::v2::DeclarationIdentity {
+        let crate::environment::VerbInventoryRef::Declaration(id) = reference else {
+            panic!("the fixture stores a declaration-backed verb")
+        };
+        id
+    }
+
     fn declaration(path: &str, source: &str) -> macro_ron::v2::DeclarationSource {
         macro_ron::v2::DeclarationSource::new(path, source)
     }
@@ -1428,14 +1546,15 @@ pub mod declaration_verb_fixture {
     fn id(
         environment: &crate::environment::ParserEnvironment,
         name: &str,
-    ) -> macro_ron::v2::DeclarationIdentity {
-        environment
+    ) -> crate::environment::VerbInventoryRef {
+        let identity = environment
             .declarations()
             .iter()
             .find(|declaration| declaration.identity().name() == name)
             .unwrap_or_else(|| panic!("synthetic declaration `{name}` exists"))
             .identity()
-            .clone()
+            .clone();
+        crate::environment::VerbInventoryRef::Declaration(identity)
     }
 
     fn scan<'a>(
@@ -1493,9 +1612,13 @@ pub mod declaration_verb_fixture {
                 Leaf::TransitiveVerb {
                     verb: TransitiveVerb::Declaration(value),
                     ..
-                } => Some(value.id().name().to_owned()),
-                Leaf::NumerativeVerb { verb, .. } => Some(verb.id().name().to_owned()),
-                Leaf::IntransitiveVerb { verb, .. } => Some(verb.id().name().to_owned()),
+                } => Some(declaration_id(value.reference()).name().to_owned()),
+                Leaf::NumerativeVerb { verb, .. } => {
+                    Some(declaration_id(verb.reference()).name().to_owned())
+                }
+                Leaf::IntransitiveVerb { verb, .. } => {
+                    Some(declaration_id(verb.reference()).name().to_owned())
+                }
                 _ => None,
             })
             .collect()
@@ -1555,7 +1678,7 @@ pub mod declaration_verb_fixture {
                     verb: TransitiveVerb::Declaration(declaration),
                     agreement: Agreement::Bare,
                     onset: macro_ron::v2::Onset::Vowel,
-                } => declaration.id().name(),
+                } => declaration_id(declaration.reference()).name(),
                 other => panic!("unexpected declaration verb candidate: {other:?}"),
             })
             .collect::<Vec<_>>();
@@ -1589,7 +1712,7 @@ pub mod declaration_verb_fixture {
                 &context,
             )
             .expect("every preserved homonym materializes through the same rule");
-            let BuildValue::VerbPhrase(phrase) = value else {
+            let BuildValue::VerbPhrase(phrase, _) = value else {
                 panic!("the transitive rule builds its declared category")
             };
             assert!(matches!(phrase, VerbPhrase::Transitive(_)));
@@ -1657,7 +1780,7 @@ pub mod declaration_verb_fixture {
         else {
             panic!("the participle leaf stores only its checked declaration identity")
         };
-        assert_eq!(identity.id().name(), "Cast");
+        assert_eq!(declaration_id(identity.reference()).name(), "Cast");
         assert_eq!(
             verb_terminal
                 .owner
@@ -1677,7 +1800,7 @@ pub mod declaration_verb_fixture {
             &context,
         )
         .expect("the participle and its exact transitive tail build");
-        let BuildValue::ParticiplePhrase(phrase) = value else {
+        let BuildValue::ParticiplePhrase(phrase, _) = value else {
             panic!("the participle rule builds its declared category")
         };
         assert_eq!(
@@ -1812,7 +1935,7 @@ pub mod declaration_verb_fixture {
                 macro_ron::v2::SurfaceFeature::Bare,
             )
             .into_iter()
-            .map(|(_, identity)| identity.name().to_owned())
+            .map(|(_, reading)| declaration_id(reading.reference()).name().to_owned())
             .collect::<Vec<_>>()
         };
 
@@ -1843,7 +1966,7 @@ pub mod declaration_verb_fixture {
         else {
             panic!("the open-only leaf stores its checked category-safe identity")
         };
-        assert_eq!(identity.id().name(), "Count");
+        assert_eq!(declaration_id(identity.reference()).name(), "Count");
 
         let runtime_owner = verb_terminal
             .owner
@@ -1867,11 +1990,11 @@ pub mod declaration_verb_fixture {
             &context,
         )
         .expect("the open-only declaration verb builds through its generated rule");
-        let BuildValue::NumerativePhrase(phrase) = value else {
+        let BuildValue::NumerativePhrase(phrase, _) = value else {
             panic!("the generated rule builds its numerative category")
         };
         let NumerativePhrase::Numerative(stored) = &phrase;
-        assert_eq!(stored.head.id().name(), "Count");
+        assert_eq!(declaration_id(stored.head.reference()).name(), "Count");
         assert_eq!(
             Render::render(&phrase, &context, &environment),
             "Count one."
@@ -3507,7 +3630,7 @@ pub mod fixture {
             context,
         )
         .expect("the exact Bare Be scanner reading builds its generated rule");
-        let BuildValue::BeSentence(be_sentence, Agreement::Bare) = built else {
+        let BuildValue::BeSentence(be_sentence, Agreement::Bare, _) = built else {
             panic!("Bare Be rule produced the wrong generated category value")
         };
         let (rendered, claims) = render_be_sentence_with_claims(&be_sentence, context);
@@ -3717,7 +3840,7 @@ pub mod fixture {
                     &context,
                 );
                 if rule_index == value_index {
-                    let BuildValue::PartitionRoot(root) =
+                    let BuildValue::PartitionRoot(root, _) =
                         built.expect("the rule accepts its exact finite partition")
                     else {
                         panic!("the selected rule builds its declared category")
@@ -3780,7 +3903,7 @@ pub mod fixture {
             &context,
         )
         .expect("the membership-guarded scanner rule accepts its present value");
-        assert!(matches!(that_rule, BuildValue::OptionalGuardRoot(_)));
+        assert!(matches!(that_rule, BuildValue::OptionalGuardRoot(..)));
         assert!(
             build(
                 RuleId::OptionalGuardRootOptionalGuardedFallback,
@@ -3914,9 +4037,12 @@ pub mod fixture {
             "Holder.items: length 0 violates minimum 1",
         );
         let invalid_owner_children = [
-            BuildValue::StructuralAtom(StructuralAtom::StructuralAtom(StructuralAtomValue {
-                marker: StructuralWord::Alpha,
-            })),
+            BuildValue::StructuralAtom(
+                StructuralAtom::StructuralAtom(StructuralAtomValue {
+                    marker: StructuralWord::Alpha,
+                }),
+                FeatureConstraint::Any,
+            ),
             BuildValue::Leaf(Leaf::Literal("<BF>")),
             BuildValue::BoundedPositionalStructuralItemsSequence(vec![]),
         ];
@@ -4090,7 +4216,10 @@ pub mod fixture {
         ));
         let present = build(
             RuleId::OptionalStructuralMaybeOptionalPresent,
-            &[BuildValue::StructuralAtom(alpha.clone())],
+            &[BuildValue::StructuralAtom(
+                alpha.clone(),
+                FeatureConstraint::Any,
+            )],
             &ParseContext::default(),
         )
         .expect("optional present helper folds");
@@ -4108,7 +4237,7 @@ pub mod fixture {
         let tail = build(
             RuleId::CombinedStructuralItemsSequenceSingleton,
             &[
-                BuildValue::StructuralAtom(four[3].clone()),
+                BuildValue::StructuralAtom(four[3].clone(), FeatureConstraint::Any),
                 BuildValue::Leaf(Leaf::Literal("<T>")),
             ],
             &ParseContext::default(),
@@ -4119,7 +4248,7 @@ pub mod fixture {
             built = build(
                 RuleId::CombinedStructuralItemsSequenceRecursive,
                 &[
-                    BuildValue::StructuralAtom(item.clone()),
+                    BuildValue::StructuralAtom(item.clone(), FeatureConstraint::Any),
                     BuildValue::Leaf(Leaf::Literal("<T>")),
                     BuildValue::Leaf(Leaf::Literal("<S>")),
                     built,
@@ -4645,7 +4774,7 @@ pub mod fixture {
                 &context,
             )
             .expect("a normalized verb row builds its onset-carrying head");
-            assert!(matches!(head, BuildValue::VerbHead(_, actual) if actual == onset));
+            assert!(matches!(head, BuildValue::VerbHead(_, actual, _) if actual == onset));
             let literal = if onset == macro_ron::v2::Onset::Vowel { "an" } else { "a" };
             let article = build(
                 article_rule,
@@ -4653,7 +4782,7 @@ pub mod fixture {
                 &context,
             )
             .expect("the frozen verb onset selects the exact guarded article form");
-            let BuildValue::VerbArticle(article, actual) = article else {
+            let BuildValue::VerbArticle(article, actual, _) = article else {
                 panic!("the wrapper carries the forwarded verb onset")
             };
             assert_eq!(actual, onset);
@@ -4847,7 +4976,10 @@ pub mod fixture {
             assert_exact_partition(surface, &parsed_claims);
         }
 
-        let singular_value = BuildValue::CircumfixValue(CircumfixValue::PlusTwo(PlusTwoValue));
+        let singular_value = BuildValue::CircumfixValue(
+            CircumfixValue::PlusTwo(PlusTwoValue),
+            FeatureConstraint::Any,
+        );
         let built = build(
             RuleId::CircumfixSingularRootBracketedValue,
             &[
@@ -4858,7 +4990,7 @@ pub mod fixture {
             &context,
         )
         .expect("the singular public rule builds through both fixed boundaries");
-        let BuildValue::CircumfixSingularRoot(built_singular) = built else {
+        let BuildValue::CircumfixSingularRoot(built_singular, _) = built else {
             panic!("the singular public build returns its root category")
         };
         assert_eq!(
@@ -4893,14 +5025,17 @@ pub mod fixture {
 
         let sequence_tail = build(
             RuleId::BracedValuesValuesSequenceSingleton,
-            &[BuildValue::CircumfixValue(value(CircumfixWord::Tap))],
+            &[BuildValue::CircumfixValue(
+                value(CircumfixWord::Tap),
+                FeatureConstraint::Any,
+            )],
             &context,
         )
         .expect("the delegated sequence singleton builds its stored member");
         let sequence_middle = build(
             RuleId::BracedValuesValuesSequenceRecursive,
             &[
-                BuildValue::CircumfixValue(value(CircumfixWord::WhiteBlue)),
+                BuildValue::CircumfixValue(value(CircumfixWord::WhiteBlue), FeatureConstraint::Any),
                 BuildValue::Leaf(Leaf::Literal("}{")),
                 sequence_tail.clone(),
             ],
@@ -4910,7 +5045,10 @@ pub mod fixture {
         let sequence_carrier = build(
             RuleId::BracedValuesValuesSequenceRecursive,
             &[
-                BuildValue::CircumfixValue(CircumfixValue::CircumfixTwo(CircumfixTwoValue)),
+                BuildValue::CircumfixValue(
+                    CircumfixValue::CircumfixTwo(CircumfixTwoValue),
+                    FeatureConstraint::Any,
+                ),
                 BuildValue::Leaf(Leaf::Literal("}{")),
                 sequence_middle.clone(),
             ],
@@ -4919,11 +5057,14 @@ pub mod fixture {
         .expect("the delegated sequence helper builds through the first interior edge");
         for (member, tail) in [
             (
-                BuildValue::CircumfixValue(value(CircumfixWord::WhiteBlue)),
+                BuildValue::CircumfixValue(value(CircumfixWord::WhiteBlue), FeatureConstraint::Any),
                 sequence_tail,
             ),
             (
-                BuildValue::CircumfixValue(CircumfixValue::CircumfixTwo(CircumfixTwoValue)),
+                BuildValue::CircumfixValue(
+                    CircumfixValue::CircumfixTwo(CircumfixTwoValue),
+                    FeatureConstraint::Any,
+                ),
                 sequence_middle,
             ),
         ] {
@@ -4956,7 +5097,7 @@ pub mod fixture {
             &context,
         )
         .expect("the sequence public rule builds through both fixed outer boundaries");
-        let BuildValue::CircumfixSequenceRoot(built_sequence) = built else {
+        let BuildValue::CircumfixSequenceRoot(built_sequence, _) = built else {
             panic!("the sequence public build returns its root category")
         };
         assert_eq!(
@@ -5099,7 +5240,7 @@ pub mod fixture {
         .expect("the fixed prefix overrides the vowel-initial value onset");
         assert!(matches!(
             head,
-            BuildValue::PrefixHead(_, macro_ron::v2::Onset::Consonant)
+            BuildValue::PrefixHead(_, macro_ron::v2::Onset::Consonant, _)
         ));
         assert!(
             build(
@@ -5116,7 +5257,7 @@ pub mod fixture {
             &context,
         )
         .expect("the consonant article accepts the realized prefix onset");
-        let BuildValue::PrefixArticle(article, actual_onset) = article else {
+        let BuildValue::PrefixArticle(article, actual_onset, _) = article else {
             panic!("the prefixed article builds its declared category")
         };
         assert_eq!(actual_onset, macro_ron::v2::Onset::Consonant);
@@ -5153,7 +5294,7 @@ pub mod fixture {
             .expect("the punctuation form forwards its own payload onset");
             assert!(matches!(
                 head,
-                BuildValue::PrefixHead(_, actual) if actual == expected_onset
+                BuildValue::PrefixHead(_, actual, _) if actual == expected_onset
             ));
             let article = build(
                 article_rule,
@@ -5161,7 +5302,7 @@ pub mod fixture {
                 &context,
             )
             .expect("the article guard consumes the form-local realized onset");
-            let BuildValue::PrefixArticle(article, actual_onset) = article else {
+            let BuildValue::PrefixArticle(article, actual_onset, _) = article else {
                 panic!("the punctuation-prefixed article builds its category")
             };
             assert_eq!(actual_onset, expected_onset);
@@ -5271,7 +5412,7 @@ pub mod fixture {
             .expect("the realized owner surface derives its sealed features");
             assert!(matches!(
                 owner,
-                BuildValue::PossessiveOwner(_, actual_number, actual_ending)
+                BuildValue::PossessiveOwner(_, actual_number, actual_ending, _)
                     if actual_number == number && actual_ending == ending
             ));
             let possessive = build(
@@ -5280,7 +5421,7 @@ pub mod fixture {
                 &context,
             )
             .expect("the exact Number/Ending partition selects one suffix form");
-            let BuildValue::DerivedPossessiveRoot(possessive) = possessive else {
+            let BuildValue::DerivedPossessiveRoot(possessive, _) = possessive else {
                 panic!("the guarded suffix rule builds its declared category")
             };
             assert_eq!(Render::render(&possessive, &context), expected);
@@ -5312,6 +5453,7 @@ pub mod fixture {
             }),
             Number::Plural,
             PossessiveEnding::EndsInS,
+            FeatureConstraint::Any,
         );
         assert!(
             build(
@@ -5329,6 +5471,7 @@ pub mod fixture {
             }),
             Number::Plural,
             PossessiveEnding::Other,
+            FeatureConstraint::Any,
         );
         assert!(
             build(
@@ -5423,7 +5566,7 @@ pub mod fixture {
         .expect("source builds with its parser-domain number payload");
         assert!(matches!(
             source,
-            BuildValue::Source(Source::Source(SourceNode), Number::Singular)
+            BuildValue::Source(Source::Source(SourceNode), Number::Singular, _)
         ));
 
         let one_children = |number| {
@@ -5472,16 +5615,23 @@ pub mod fixture {
             assert!(build(RuleId::PairPhraseTwo, &children, &context).is_none());
         }
 
-        let bare_child = BuildValue::Child(Child::Bare(BareChild), Agreement::Bare);
-        let third_child =
-            BuildValue::Child(Child::Third(ThirdChild), Agreement::ThirdPersonSingular);
+        let bare_child = BuildValue::Child(
+            Child::Bare(BareChild),
+            Agreement::Bare,
+            FeatureConstraint::Any,
+        );
+        let third_child = BuildValue::Child(
+            Child::Third(ThirdChild),
+            Agreement::ThirdPersonSingular,
+            FeatureConstraint::Any,
+        );
         let parent = build(
             RuleId::ParentCategoryChain,
             std::slice::from_ref(&bare_child),
             &context,
         )
         .expect("a constant category writer flows into construction output");
-        assert!(matches!(parent, BuildValue::Parent(_, Agreement::Bare)));
+        assert!(matches!(parent, BuildValue::Parent(_, Agreement::Bare, _)));
         assert!(
             build(
                 RuleId::ParentCategoryChain,
@@ -5491,9 +5641,16 @@ pub mod fixture {
             .is_none()
         );
 
-        let matching_child =
-            BuildValue::Child(Child::Third(ThirdChild), Agreement::ThirdPersonSingular);
-        let mismatching_child = BuildValue::Child(Child::Third(ThirdChild), Agreement::Bare);
+        let matching_child = BuildValue::Child(
+            Child::Third(ThirdChild),
+            Agreement::ThirdPersonSingular,
+            FeatureConstraint::Any,
+        );
+        let mismatching_child = BuildValue::Child(
+            Child::Third(ThirdChild),
+            Agreement::Bare,
+            FeatureConstraint::Any,
+        );
         let refined_children = |child| vec![BuildValue::Leaf(Leaf::Mode(Mode::One)), child];
         let refined = build(
             RuleId::ParentRefined,
@@ -5503,7 +5660,7 @@ pub mod fixture {
         .expect("a refined writer flows through its category into construction output");
         assert!(matches!(
             refined,
-            BuildValue::Parent(_, Agreement::ThirdPersonSingular)
+            BuildValue::Parent(_, Agreement::ThirdPersonSingular, _)
         ));
         assert!(
             build(
@@ -5524,7 +5681,7 @@ pub mod fixture {
             &context,
         )
         .expect("an implicit-verb constant flows into construction output");
-        assert!(matches!(action, BuildValue::Action(_, Agreement::Bare)));
+        assert!(matches!(action, BuildValue::Action(_, Agreement::Bare, _)));
         assert!(
             build(
                 RuleId::ActionAction,
@@ -5539,7 +5696,11 @@ pub mod fixture {
         );
 
         let contextual = |agreement| {
-            BuildValue::Predicate(Predicate::Contextual(ContextualPredicate), agreement)
+            BuildValue::Predicate(
+                Predicate::Contextual(ContextualPredicate),
+                agreement,
+                FeatureConstraint::Any,
+            )
         };
         assert!(
             build(
@@ -5601,13 +5762,16 @@ pub mod fixture {
         .expect("terminal slots cannot shadow the parser context ABI local");
         assert!(matches!(
             context_bound,
-            BuildValue::ContextBound(ContextBound::ContextBound(ContextBoundNode {
-                pair: Pair {
-                    context_value: 1,
-                    child_slot: 2,
-                    rule_code: 3,
-                },
-            }))
+            BuildValue::ContextBound(
+                ContextBound::ContextBound(ContextBoundNode {
+                    pair: Pair {
+                        context_value: 1,
+                        child_slot: 2,
+                        rule_code: 3,
+                    },
+                }),
+                _
+            )
         ));
 
         let feature_bound = build(
@@ -5625,7 +5789,7 @@ pub mod fixture {
         .expect("a map local cannot shadow its carried agreement");
         assert!(matches!(
             feature_bound,
-            BuildValue::FeatureBound(_, Agreement::ThirdPersonSingular)
+            BuildValue::FeatureBound(_, Agreement::ThirdPersonSingular, _)
         ));
 
         let collision = build(
@@ -5650,11 +5814,14 @@ pub mod fixture {
         .expect("adversarial preferred binders compile and build");
         assert!(matches!(
             collision,
-            BuildValue::Collision(Collision::Collision(CollisionNode {
-                number: Head(4),
-                right_number: Head(5),
-                ..
-            }))
+            BuildValue::Collision(
+                Collision::Collision(CollisionNode {
+                    number: Head(4),
+                    right_number: Head(5),
+                    ..
+                }),
+                _
+            )
         ));
 
         let keyword = build(
@@ -5663,7 +5830,7 @@ pub mod fixture {
             &context,
         )
         .expect("a keyword-named construction builds with its carried feature");
-        let BuildValue::Keyword(keyword, Agreement::Bare) = keyword else {
+        let BuildValue::Keyword(keyword, Agreement::Bare, _) = keyword else {
             panic!("`where` preserves its category value and known feature")
         };
 
@@ -5783,7 +5950,7 @@ pub mod fixture {
             &context,
         )
         .expect("raw nonkeyword declaration spellings build through canonical generated names");
-        let BuildValue::RawCategory(raw_category) = raw_category else {
+        let BuildValue::RawCategory(raw_category, _) = raw_category else {
             panic!("raw nonkeyword root preserves its generated category value")
         };
         let rendered_raw_category = Render::render(&raw_category, &context);
@@ -5974,6 +6141,7 @@ pub mod fixture {
                     CardinalQuantity::Cardinal(CardinalQuantityValue { number }),
                     expected_cardinality,
                     expected_number,
+                    FeatureConstraint::Any,
                 ),
             );
         }
@@ -6028,10 +6196,12 @@ pub mod fixture {
         }
 
         let child = |agreement| match agreement {
-            Agreement::Bare => BuildValue::Child(bare(), Agreement::Bare),
-            Agreement::ThirdPersonSingular => {
-                BuildValue::Child(third(), Agreement::ThirdPersonSingular)
-            }
+            Agreement::Bare => BuildValue::Child(bare(), Agreement::Bare, FeatureConstraint::Any),
+            Agreement::ThirdPersonSingular => BuildValue::Child(
+                third(),
+                Agreement::ThirdPersonSingular,
+                FeatureConstraint::Any,
+            ),
         };
         let pair = build(
             RuleId::UniformChildrenMembersSequenceLength2,
@@ -6089,7 +6259,7 @@ pub mod fixture {
             &context,
         )
         .expect("the owner materializes the checked public construction");
-        let BuildValue::HomogeneousSequence(sequence) = built else {
+        let BuildValue::HomogeneousSequence(sequence, _) = built else {
             panic!("the homogeneous sequence builds its declared category")
         };
         assert_eq!(Render::render(&sequence, &context), "Bare bare bare.");
@@ -6114,7 +6284,7 @@ pub mod fixture {
         );
 
         let context = ParseContext::default();
-        let child = |value, agreement| BuildValue::Child(value, agreement);
+        let child = |value, agreement| BuildValue::Child(value, agreement, FeatureConstraint::Any);
         let carrier = build(
             RuleId::SingletonChildrenMembersSequenceSingleton,
             &[child(bare(), Agreement::Bare)],
@@ -6131,7 +6301,7 @@ pub mod fixture {
             &context,
         )
         .expect("the singleton owner materializes its checked public construction");
-        let BuildValue::SingletonSequence(sequence) = built else {
+        let BuildValue::SingletonSequence(sequence, _) = built else {
             panic!("the singleton sequence builds its declared category")
         };
         assert_eq!(Render::render(&sequence, &context), "Bare.");
@@ -6212,8 +6382,13 @@ pub mod fixture {
         );
         assert_eq!(Render::render(&rendered, &context), "Bare bare bare.");
 
-        let choice =
-            |value, agreement| BuildValue::AgreementChild(AgreementChild::Child(value), agreement);
+        let choice = |value, agreement| {
+            BuildValue::AgreementChild(
+                AgreementChild::Child(value),
+                agreement,
+                FeatureConstraint::Any,
+            )
+        };
         let pair = build(
             RuleId::UniformChildChoicesMembersSequenceLength2,
             &[
@@ -6288,7 +6463,9 @@ pub mod fixture {
             "the chart preserves both lexical readings before generated materialization rejects their agreement mismatch",
         );
 
-        let mixed = |value, agreement| BuildValue::MixedAgreementChild(value, agreement);
+        let mixed = |value, agreement| {
+            BuildValue::MixedAgreementChild(value, agreement, FeatureConstraint::Any)
+        };
         let pair = build(
             RuleId::UniformMixedChildChoicesMembersSequenceLength2,
             &[
@@ -6438,7 +6615,8 @@ pub mod fixture {
             built_intrinsic,
             BuildValue::RelayedMixedChoiceSequence(
                 RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(_),
-                Agreement::ThirdPersonSingular
+                Agreement::ThirdPersonSingular,
+                _
             )
         ));
         assert!(
@@ -6458,10 +6636,12 @@ pub mod fixture {
         .expect("the generated Third writer accepts the intrinsic Third carrier");
         assert!(matches!(
             built_third_envelope,
-            BuildValue::MixedRelayEnvelopeRoot(MixedRelayEnvelopeRoot::ThirdRelayEnvelope(_))
+            BuildValue::MixedRelayEnvelopeRoot(MixedRelayEnvelopeRoot::ThirdRelayEnvelope(_), _)
         ));
 
-        let mixed = |value, agreement| BuildValue::MixedAgreementChild(value, agreement);
+        let mixed = |value, agreement| {
+            BuildValue::MixedAgreementChild(value, agreement, FeatureConstraint::Any)
+        };
         let pair = build(
             RuleId::RelayedMixedChildChoicesMembersSequenceLength2,
             &[
@@ -6487,7 +6667,8 @@ pub mod fixture {
             built_owner,
             BuildValue::RelayedMixedChoiceSequence(
                 RelayedMixedChoiceSequence::RelayedMixedChildChoices(_),
-                Agreement::ThirdPersonSingular
+                Agreement::ThirdPersonSingular,
+                _
             )
         ));
         assert!(
@@ -6547,7 +6728,8 @@ pub mod fixture {
             built_checked,
             BuildValue::RelayedMixedChoiceSequence(
                 RelayedMixedChoiceSequence::CheckedBareMixedChoice(_),
-                Agreement::Bare
+                Agreement::Bare,
+                _
             )
         ));
         let checked_rejection = build_checked(
@@ -6670,6 +6852,7 @@ pub mod fixture {
                     RelayedMixedChoiceSequence::IntrinsicThirdMixedChoice(_)
                 ),
                 Agreement::ThirdPersonSingular,
+                _,
             )
         ));
         let built_sequence = build(
@@ -6690,6 +6873,7 @@ pub mod fixture {
             BuildValue::RelayedOuterMixedChoiceSequence(
                 RelayedOuterMixedChoiceSequence::RelayedOuterMixedChoices(_),
                 Agreement::ThirdPersonSingular,
+                _,
             )
         ));
         assert!(
@@ -6710,7 +6894,8 @@ pub mod fixture {
         assert!(matches!(
             built_third_envelope,
             BuildValue::OuterMixedRelayEnvelopeRoot(
-                OuterMixedRelayEnvelopeRoot::ThirdOuterMixedRelayEnvelope(_)
+                OuterMixedRelayEnvelopeRoot::ThirdOuterMixedRelayEnvelope(_),
+                _
             )
         ));
 
@@ -6832,12 +7017,16 @@ pub mod fixture {
         assert!(matches!(
             built_third,
             BuildValue::DirectOuterMixedRelayEnvelopeRoot(
-                DirectOuterMixedRelayEnvelopeRoot::ThirdDirectOuterMixedRelayEnvelope(_)
+                DirectOuterMixedRelayEnvelopeRoot::ThirdDirectOuterMixedRelayEnvelope(_),
+                _
             )
         ));
 
-        let fabricated =
-            BuildValue::OuterRelayedMixedChoice(outer(intrinsic_third()), Agreement::Bare);
+        let fabricated = BuildValue::OuterRelayedMixedChoice(
+            outer(intrinsic_third()),
+            Agreement::Bare,
+            FeatureConstraint::Any,
+        );
         let materialization_rejection = build_checked(
             RuleId::DirectOuterMixedRelayEnvelopeRootBareDirectOuterMixedRelayEnvelope,
             &[fabricated],
@@ -6913,11 +7102,12 @@ pub mod fixture {
             &[BuildValue::AgreementChild(
                 choice,
                 Agreement::ThirdPersonSingular,
+                FeatureConstraint::Any,
             )],
             &context,
         )
         .expect("the exact direct-sum construction builds");
-        let BuildValue::DirectIntrinsicChoiceRoot(built) = built else {
+        let BuildValue::DirectIntrinsicChoiceRoot(built, _) = built else {
             panic!("the direct-sum rule builds its declared category")
         };
         assert_eq!(Render::render(&built, &context), "Third.");
@@ -7016,9 +7206,12 @@ pub mod fixture {
         .expect("the generated construction builds the typed nonzero leaf");
         assert_eq!(
             built,
-            BuildValue::NonZeroQuantity(NonZeroQuantity::Positive(PositiveQuantityValue {
-                number: number.clone(),
-            }))
+            BuildValue::NonZeroQuantity(
+                NonZeroQuantity::Positive(PositiveQuantityValue {
+                    number: number.clone(),
+                }),
+                FeatureConstraint::Any
+            )
         );
 
         let mut recording = RecordingVisitor::default();

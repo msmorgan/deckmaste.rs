@@ -1,6 +1,7 @@
 KeywordAbility(
     name: "Ward",
-    spelling: "ward",
+    params: [Cost],
+    spelling: "ward <Param(0)>",
     grammar: FixedKeyword(
         surface: "ward",
     ),

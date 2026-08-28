@@ -8,8 +8,8 @@ mod compiled_consumer;
 
 pub use compiled_consumer::environment;
 
-fn forge(id: macro_ron::v2::DeclarationIdentity) {
-    let _ = compiled_consumer::declaration_verb_fixture::DeclarationTransitiveVerb { id };
+fn forge(reference: compiled_consumer::environment::VerbInventoryRef) {
+    let _ = compiled_consumer::declaration_verb_fixture::DeclarationTransitiveVerb { reference };
 }
 
 fn main() {}

@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "FatefulHour",
+    spelling: "Fateful hour",
+    grammar: FixedTerm(surface: "Fateful hour"),
+)

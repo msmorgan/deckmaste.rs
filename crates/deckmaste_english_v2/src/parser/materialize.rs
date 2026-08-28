@@ -894,16 +894,16 @@ mod tests {
     use crate::ast::WithWhere;
     use crate::constructions::Agreement;
     use crate::constructions::Determinative;
-    use crate::constructions::FeatureConstraint;
-    use crate::constructions::LexicalOwnerTemplate;
-    use crate::constructions::Nominal;
-    use crate::constructions::Number;
-    use crate::constructions::Onset;
-    use crate::constructions::DeterminerNumber;
     use crate::constructions::DeterminativeHead;
     use crate::constructions::DeterminativeHeadLemma;
+    use crate::constructions::DeterminerNumber;
+    use crate::constructions::FeatureConstraint;
     use crate::constructions::FusedHeadLicense;
+    use crate::constructions::LexicalOwnerTemplate;
+    use crate::constructions::Nominal;
     use crate::constructions::NominalLicense;
+    use crate::constructions::Number;
+    use crate::constructions::Onset;
     use crate::constructions::SingularNominalValue;
     use crate::constructions::SingularSimpleDeterminative;
     use crate::context::ParseContext;
@@ -975,9 +975,7 @@ mod tests {
         .expect("the canonical environment declares intransitive Connive");
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
             frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-                IntransitivePredicate {
-                    head: declaration,
-                },
+                IntransitivePredicate { head: declaration },
             )),
         })
     }
@@ -1039,9 +1037,12 @@ mod tests {
         assert_eq!(outcome.values.len(), 1);
         assert!(matches!(
             outcome.values[0].value,
-            BuildValue::Amount(crate::ast::Amount::Number(crate::ast::NumberAmount {
-                number: ScalarNumber { magnitude: 3 },
-            }), _)
+            BuildValue::Amount(
+                crate::ast::Amount::Number(crate::ast::NumberAmount {
+                    number: ScalarNumber { magnitude: 3 },
+                }),
+                _
+            )
         ));
     }
 
@@ -1057,10 +1058,13 @@ mod tests {
 
     #[test]
     fn root_adapter_materialization_is_identity_over_one_semantic_child() {
-        let value = BuildValue::Sentence(Sentence::Imperative(
-            Imperative::new(Box::new(Predicate::Atomic(Box::new(connive_phrase()))))
-                .expect("bare test predicate satisfies imperative agreement"),
-        ), FeatureConstraint::Any);
+        let value = BuildValue::Sentence(
+            Sentence::Imperative(
+                Imperative::new(Box::new(Predicate::Atomic(Box::new(connive_phrase()))))
+                    .expect("bare test predicate satisfies imperative agreement"),
+            ),
+            FeatureConstraint::Any,
+        );
         let adapter_children = [
             value.clone(),
             BuildValue::Leaf(Leaf::Literal(".")),
@@ -1090,11 +1094,10 @@ mod tests {
     fn determined_nominal_build_derives_reference_onset_from_nominal() {
         let parse_context = context("Context Card");
         let children = |determiner_onset, nominal_onset| {
-            let determiner = Determinative::SingularSimpleDeterminative(
-                SingularSimpleDeterminative {
+            let determiner =
+                Determinative::SingularSimpleDeterminative(SingularSimpleDeterminative {
                     head: DeterminativeHead::Closed(DeterminativeHeadLemma::IndefiniteArticle),
-                },
-            );
+                });
             [
                 BuildValue::Determinative(
                     determiner,
@@ -1153,7 +1156,13 @@ mod tests {
                 ))],
                 &identity_context,
             ),
-            Ok(Some(BuildValue::UnqualifiedReference(_, _, _, Onset::Vowel, _)))
+            Ok(Some(BuildValue::UnqualifiedReference(
+                _,
+                _,
+                _,
+                Onset::Vowel,
+                _
+            )))
         ));
     }
 
@@ -1334,10 +1343,13 @@ mod tests {
         assert_eq!(later.values.len(), 1);
         assert_eq!(
             later.values[0].value,
-            BuildValue::Sentence(Sentence::WithWhere(WithWhere {
-                body: Box::new(once),
-                clause,
-            }), FeatureConstraint::Any)
+            BuildValue::Sentence(
+                Sentence::WithWhere(WithWhere {
+                    body: Box::new(once),
+                    clause,
+                }),
+                FeatureConstraint::Any
+            )
         );
         assert_eq!(
             later.values[0].constructions,
@@ -1685,7 +1697,7 @@ mod tests {
                 RulePosition::Nonterminal(Category::UnqualifiedReference),
                 RulePosition::Nonterminal(Category::Determinative),
                 RulePosition::Nonterminal(Category::Nominal),
-                RulePosition::Lexical(Lexical::DeclarationDeterminative(121)),
+                RulePosition::Lexical(Lexical::DeclarationDeterminative(124)),
                 RulePosition::Nonterminal(Category::SingularNominal),
                 RulePosition::Nonterminal(Category::SingularHead),
                 RulePosition::Lexical(Lexical::DeclarationNoun(

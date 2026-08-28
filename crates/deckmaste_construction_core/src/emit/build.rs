@@ -178,6 +178,10 @@ fn emit_rule_arm(plan: &SemanticPlan, row: &super::rules::RuleRowPlan) -> syn::R
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one construction arm must keep its lowering, feature guards, and checked-boundary assembly together"
+)]
 fn emit_arm_from_plan(
     plan: &SemanticPlan,
     rule: &super::rules::RuleRowPlan,
@@ -306,24 +310,22 @@ fn emit_arm_from_plan(
                         &FeaturePlace::Construction(*feature),
                         &mut HashSet::new(),
                     )?
+                } else if let Some(value) = lowering
+                    .role_features
+                    .get(&(guard_role.to_owned(), *feature))
+                    .map(local_feature_value)
+                {
+                    value
                 } else {
-                    if let Some(value) = lowering
-                        .role_features
-                        .get(&(guard_role.to_owned(), *feature))
-                        .map(local_feature_value)
-                    {
-                        value
-                    } else {
-                        let field = row.field(guard_role)?;
-                        if !plan.terminal_has_feature(field.terminal(), *feature) {
-                            return Err(internal("form guard feature role has no lowered value"));
-                        }
-                        let value = lowering.field_values.get(guard_role).ok_or_else(|| {
-                            internal("form guard feature role has no lowered build value")
-                        })?;
-                        let helper = ident(&feature_helper(feature.key(), field.terminal()));
-                        ResolvedFeatureValue::Computed(quote! { #helper(#value) })
+                    let field = row.field(guard_role)?;
+                    if !plan.terminal_has_feature(field.terminal(), *feature) {
+                        return Err(internal("form guard feature role has no lowered value"));
                     }
+                    let value = lowering.field_values.get(guard_role).ok_or_else(|| {
+                        internal("form guard feature role has no lowered build value")
+                    })?;
+                    let helper = ident(&feature_helper(feature.key(), field.terminal()));
+                    ResolvedFeatureValue::Computed(quote! { #helper(#value) })
                 };
                 let expected = feature_value(*value);
                 let actual = resolved_feature_value_tokens(&actual);
@@ -355,10 +357,7 @@ fn emit_arm_from_plan(
     })
 }
 
-fn lower_following_onset_constraints(
-    form: &crate::semantic::FormPlan,
-    lowering: &mut Lowering,
-) {
+fn lower_following_onset_constraints(form: &crate::semantic::FormPlan, lowering: &mut Lowering) {
     let mut pending = Vec::new();
     for (role, constraint) in &lowering.role_following_onsets {
         let next_role = form
@@ -373,7 +372,8 @@ fn lower_following_onset_constraints(
                 .get(&(next.to_owned(), Feature::Onset))
         });
         if let Some(following_onset) = following_onset {
-            let following_onset = resolved_feature_value_tokens(&local_feature_value(following_onset));
+            let following_onset =
+                resolved_feature_value_tokens(&local_feature_value(following_onset));
             lowering.guards.push(quote! {
                 match *#constraint {
                     FeatureConstraint::Any => true,
@@ -496,13 +496,8 @@ fn emit_product_arm(
                 | super::rules::OwnerFieldBuildState::ZeroablePresent => {
                     let mut zeroable = Lowering::default();
                     std::mem::swap(&mut binders, &mut zeroable.binders);
-                    let lowered = lower_zeroable_owner_value(
-                        plan,
-                        rule,
-                        field,
-                        state,
-                        &mut zeroable,
-                    )?;
+                    let lowered =
+                        lower_zeroable_owner_value(plan, rule, field, state, &mut zeroable)?;
                     std::mem::swap(&mut binders, &mut zeroable.binders);
                     lowered
                 }
@@ -1057,8 +1052,7 @@ fn lower_zeroable_owner_field(
     state: &super::rules::OwnerFieldBuildPlan,
     lowering: &mut Lowering,
 ) -> syn::Result<()> {
-    let (patterns, value) =
-        lower_zeroable_owner_value(plan, rule, field, state, lowering)?;
+    let (patterns, value) = lower_zeroable_owner_value(plan, rule, field, state, lowering)?;
     lowering.patterns.extend(patterns);
     lowering.field_values.insert(field.name().to_owned(), value);
     Ok(())
@@ -1108,18 +1102,18 @@ fn lower_zeroable_owner_value(
                     .category_carries_cardinality(name)
                     .then(|| quote! { , _ });
                 let number = plan.category_carries_number(name).then(|| quote! { , _ });
-                let determiner_number = plan
-                    .carries_feature(name, Feature::DeterminerNumber)
-                    .then(|| {
-                        let feature = lowering
-                            .binders
-                            .allocate(&format!("{}_determiner_number", field.name()));
-                        lowering.role_features.insert(
-                            (field.name().to_owned(), Feature::DeterminerNumber),
-                            LocalFeatureValue::Bound(feature.clone()),
-                        );
-                        quote! { , #feature }
-                    });
+                let determiner_number =
+                    plan.carries_feature(name, Feature::DeterminerNumber)
+                        .then(|| {
+                            let feature = lowering
+                                .binders
+                                .allocate(&format!("{}_determiner_number", field.name()));
+                            lowering.role_features.insert(
+                                (field.name().to_owned(), Feature::DeterminerNumber),
+                                LocalFeatureValue::Bound(feature.clone()),
+                            );
+                            quote! { , #feature }
+                        });
                 let fused_head_license = plan
                     .carries_feature(name, Feature::FusedHeadLicense)
                     .then(|| {
@@ -1132,18 +1126,18 @@ fn lower_zeroable_owner_value(
                         );
                         quote! { , #feature }
                     });
-                let nominal_license = plan
-                    .carries_feature(name, Feature::NominalLicense)
-                    .then(|| {
-                        let feature = lowering
-                            .binders
-                            .allocate(&format!("{}_nominal_license", field.name()));
-                        lowering.role_features.insert(
-                            (field.name().to_owned(), Feature::NominalLicense),
-                            LocalFeatureValue::Bound(feature.clone()),
-                        );
-                        quote! { , #feature }
-                    });
+                let nominal_license =
+                    plan.carries_feature(name, Feature::NominalLicense)
+                        .then(|| {
+                            let feature = lowering
+                                .binders
+                                .allocate(&format!("{}_nominal_license", field.name()));
+                            lowering.role_features.insert(
+                                (field.name().to_owned(), Feature::NominalLicense),
+                                LocalFeatureValue::Bound(feature.clone()),
+                            );
+                            quote! { , #feature }
+                        });
                 let onset = plan.category_carries_onset(name).then(|| quote! { , _ });
                 let possessive_ending = plan
                     .category_carries_possessive_ending(name)
@@ -1504,13 +1498,15 @@ fn homogeneous_sequence_feature(
     (Some(first), guards)
 }
 
+type SequenceOwnerFeature = Option<(Feature, syn::Ident)>;
+
 fn sequence_owner_feature_value(
     feature: Option<Feature>,
     agreements: Vec<syn::Ident>,
     onsets: Vec<syn::Ident>,
     tail_agreement: Option<syn::Ident>,
     tail_onset: Option<syn::Ident>,
-) -> syn::Result<(Option<(Feature, syn::Ident)>, Vec<TokenStream>)> {
+) -> syn::Result<(SequenceOwnerFeature, Vec<TokenStream>)> {
     match feature {
         Some(Feature::Agreement) => {
             let (value, guards) = homogeneous_sequence_feature(agreements, tail_agreement);
@@ -2137,13 +2133,22 @@ fn lower_unsigned_number_role(
     role: &syn::Ident,
     lowering: &mut Lowering,
 ) {
+    let agreement_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
+        .then(|| ident(&feature_helper("agreement", codec.codec_name())));
+    let determiner_number_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
+        .then(|| ident(&feature_helper("determiner_number", codec.codec_name())));
     let number_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
         .then(|| ident(&feature_helper("number", codec.codec_name())));
     let cardinality_provider = (codec.kind() == UnsignedNumberKind::EnglishCardinal)
         .then(|| ident(&feature_helper("cardinality", codec.codec_name())));
-    for provider in [&number_provider, &cardinality_provider]
-        .into_iter()
-        .flatten()
+    for provider in [
+        &agreement_provider,
+        &determiner_number_provider,
+        &number_provider,
+        &cardinality_provider,
+    ]
+    .into_iter()
+    .flatten()
     {
         lowering.binders.reserve(provider.to_string());
     }
@@ -2156,6 +2161,8 @@ fn lower_unsigned_number_role(
         .field_values
         .insert(identifier_key(role), quote! { #value.clone() });
     for (feature, provider) in [
+        (Feature::Agreement, agreement_provider),
+        (Feature::DeterminerNumber, determiner_number_provider),
         (Feature::Number, number_provider),
         (Feature::Cardinality, cardinality_provider),
     ] {
@@ -2168,6 +2175,10 @@ fn lower_unsigned_number_role(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "terminal lowering is deliberately exhaustive over the sealed terminal inventory"
+)]
 fn lower_terminal_role(
     validated: &SemanticPlan,
     row: &ConstructionPlan,
@@ -2313,18 +2324,44 @@ fn lower_terminal_role(
         AtomTerminal::DeclarationDeterminative { plan, .. } => {
             let leaf = plan.codec_ident();
             let value = lowering.binders.allocate(&identifier_key(&role));
-            let onset = lowering.binders.allocate(&format!("{}_onset", identifier_key(&role)));
-            let following_onset = lowering.binders.allocate(&format!("{}_following_onset", identifier_key(&role)));
-            let number_license = lowering.binders.allocate(&format!("{}_number_license", identifier_key(&role)));
-            let fused_head_license = lowering.binders.allocate(&format!("{}_fused_head_license", identifier_key(&role)));
-            let nominal_license = lowering.binders.allocate(&format!("{}_nominal_license", identifier_key(&role)));
-            lowering.role_features.insert((identifier_key(&role), Feature::Onset), LocalFeatureValue::Bound(onset.clone()));
-            lowering.role_following_onsets.insert(identifier_key(&role), following_onset.clone());
-            lowering.role_features.insert((identifier_key(&role), Feature::DeterminerNumber), LocalFeatureValue::Bound(number_license.clone()));
-            lowering.role_features.insert((identifier_key(&role), Feature::FusedHeadLicense), LocalFeatureValue::Bound(fused_head_license.clone()));
-            lowering.role_features.insert((identifier_key(&role), Feature::NominalLicense), LocalFeatureValue::Bound(nominal_license.clone()));
+            let onset = lowering
+                .binders
+                .allocate(&format!("{}_onset", identifier_key(&role)));
+            let following_onset = lowering
+                .binders
+                .allocate(&format!("{}_following_onset", identifier_key(&role)));
+            let number_license = lowering
+                .binders
+                .allocate(&format!("{}_number_license", identifier_key(&role)));
+            let fused_head_license = lowering
+                .binders
+                .allocate(&format!("{}_fused_head_license", identifier_key(&role)));
+            let nominal_license = lowering
+                .binders
+                .allocate(&format!("{}_nominal_license", identifier_key(&role)));
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::Onset),
+                LocalFeatureValue::Bound(onset.clone()),
+            );
+            lowering
+                .role_following_onsets
+                .insert(identifier_key(&role), following_onset.clone());
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::DeterminerNumber),
+                LocalFeatureValue::Bound(number_license.clone()),
+            );
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::FusedHeadLicense),
+                LocalFeatureValue::Bound(fused_head_license.clone()),
+            );
+            lowering.role_features.insert(
+                (identifier_key(&role), Feature::NominalLicense),
+                LocalFeatureValue::Bound(nominal_license.clone()),
+            );
             lowering.patterns.push(quote! { BuildValue::Leaf(Leaf::#leaf { value: #value, onset: #onset, following_onset: #following_onset, number_license: #number_license, fused_head_license: #fused_head_license, nominal_license: #nominal_license }) });
-            lowering.field_values.insert(identifier_key(&role), quote! { #value.clone() });
+            lowering
+                .field_values
+                .insert(identifier_key(&role), quote! { #value.clone() });
             return Ok(());
         }
         AtomTerminal::DeclarationTerm {
@@ -3438,11 +3475,19 @@ fn resolve_feature_place(
                     ResolvedFeatureValue::Computed(quote! { match #source { #(#arms,)* } })
                 }
                 FeaturePlace::Construction(Feature::Compoundability)
-                | FeaturePlace::Role { feature: Feature::Compoundability, .. } => {
-                    return Err(internal("compoundability is closed lexeme metadata, not an equation value"));
+                | FeaturePlace::Role {
+                    feature: Feature::Compoundability,
+                    ..
+                } => {
+                    return Err(internal(
+                        "compoundability is closed lexeme metadata, not an equation value",
+                    ));
                 }
                 FeaturePlace::Construction(Feature::ModifierLicense)
-                | FeaturePlace::Role { feature: Feature::ModifierLicense, .. } => {
+                | FeaturePlace::Role {
+                    feature: Feature::ModifierLicense,
+                    ..
+                } => {
                     let ty = ident(terminal_for_role(row, role)?);
                     let arms = arms.iter().map(|(variant, value)| {
                         let variant = variant.value();
@@ -3455,7 +3500,7 @@ fn resolve_feature_place(
                     Feature::DeterminerNumber
                     | Feature::FusedHeadLicense
                     | Feature::NominalForm
-                    | Feature::NominalLicense
+                    | Feature::NominalLicense,
                 )
                 | FeaturePlace::Role {
                     feature:
@@ -3642,8 +3687,10 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::BarePluralNoun => quote! { NominalForm::BarePluralNoun },
         FeatureValue::ModifiedPluralNoun => quote! { NominalForm::ModifiedPluralNoun },
         FeatureValue::PluralCoordination => quote! { NominalForm::PluralCoordination },
+        FeatureValue::MassNoun => quote! { NominalForm::MassNoun },
         FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
         FeatureValue::LicensedBareSingularNoun => quote! { NominalLicense::BareSingularNoun },
+        FeatureValue::LicensedMassOrPluralCount => quote! { NominalLicense::MassOrPluralCount },
     }
 }
 fn vocab_argument(name: &str) -> String {
@@ -3726,13 +3773,14 @@ mod tests {
             "the lexical realization condition is bound: {source}",
         );
         assert!(
-            source.contains("BuildValue :: Wrapper")
-                && source.contains("head_following_onset"),
+            source.contains("BuildValue :: Wrapper") && source.contains("head_following_onset"),
             "the wrapper preserves the erased condition: {source}",
         );
         assert!(
             source.contains("FeatureConstraint :: Any => true")
-                && source.contains("FeatureConstraint :: Exact (expected) => expected == * following_onset"),
+                && source.contains(
+                    "FeatureConstraint :: Exact (expected) => expected == * following_onset"
+                ),
             "Any accepts either onset while Exact accepts only the matching sealed onset: {source}",
         );
         assert!(
@@ -3809,7 +3857,11 @@ mod tests {
             .tokens
             .to_string();
 
-        for required in ["determinative_is_fused", "head_fused_head_license", "& head"] {
+        for required in [
+            "determinative_is_fused",
+            "head_fused_head_license",
+            "& head",
+        ] {
             assert!(source.contains(required), "missing `{required}`: {source}");
         }
         assert!(
@@ -3896,7 +3948,10 @@ mod tests {
             .tokens
             .to_string();
 
-        assert!(source.contains("whole_number"), "missing direct binding: {source}");
+        assert!(
+            source.contains("whole_number"),
+            "missing direct binding: {source}"
+        );
         assert!(
             !source.contains("number_for_object"),
             "must not fall back to a helper: {source}"
@@ -4167,69 +4222,84 @@ mod tests {
         let items = super::emit(&plan).expect("invariant build fixture emits");
 
         for (rule, expected) in [
-            ("ChildRecursive", syn::parse_quote! {
-                RuleId::ChildRecursive => match children {
-                    [BuildValue::Child(child, child_following_onset), BuildValue::Leaf(Leaf::Mode(mode))]
-                        if match *child_following_onset {
-                            FeatureConstraint::Any => true,
-                            FeatureConstraint::Exact(expected) => expected == match mode {
-                                Mode::One => Onset::Consonant,
-                                Mode::Two => Onset::Consonant,
-                            },
-                        } => RecursiveNode::try_new(Box::new(child.clone()), *mode)
-                            .map(|recursive| { BuildValue::Child(Child::Recursive(recursive), FeatureConstraint::<Onset>::Any) })
+            (
+                "ChildRecursive",
+                syn::parse_quote! {
+                    RuleId::ChildRecursive => match children {
+                        [BuildValue::Child(child, child_following_onset), BuildValue::Leaf(Leaf::Mode(mode))]
+                            if match *child_following_onset {
+                                FeatureConstraint::Any => true,
+                                FeatureConstraint::Exact(expected) => expected == match mode {
+                                    Mode::One => Onset::Consonant,
+                                    Mode::Two => Onset::Consonant,
+                                },
+                            } => RecursiveNode::try_new(Box::new(child.clone()), *mode)
+                                .map(|recursive| { BuildValue::Child(Child::Recursive(recursive), FeatureConstraint::<Onset>::Any) })
+                                .map(Some),
+                        _ => Ok(None),
+                    }
+                },
+            ),
+            (
+                "RootCategoryGuarded",
+                syn::parse_quote! {
+                    RuleId::RootCategoryGuarded => match children {
+                        [BuildValue::Child(child, child_following_onset)]
+                            if match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
+                                (FeatureConstraint::Any, _) | (_, FeatureConstraint::Any) => true,
+                                (FeatureConstraint::Exact(left), FeatureConstraint::Exact(right)) => left == right,
+                            } => CategoryGuarded::try_new(child.clone())
+                                .map(|category_guarded| { BuildValue::Root(Root::CategoryGuarded(category_guarded), match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
+                                    (FeatureConstraint::Any, right) => right,
+                                    (left, FeatureConstraint::Any) => left,
+                                    (FeatureConstraint::Exact(left), FeatureConstraint::Exact(_)) => FeatureConstraint::Exact(left),
+                                }) })
+                                .map(Some),
+                        _ => Ok(None),
+                    }
+                },
+            ),
+            (
+                "RootVocabGuarded",
+                syn::parse_quote! {
+                    RuleId::RootVocabGuarded => match children {
+                        [BuildValue::Leaf(Leaf::Mode(mode))] => VocabGuarded::try_new(*mode)
+                            .map(|vocab_guarded| { BuildValue::Root(Root::VocabGuarded(vocab_guarded), FeatureConstraint::<Onset>::Any) })
                             .map(Some),
-                    _ => Ok(None),
-                }
-            }),
-            ("RootCategoryGuarded", syn::parse_quote! {
-                RuleId::RootCategoryGuarded => match children {
-                    [BuildValue::Child(child, child_following_onset)]
-                        if match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
-                            (FeatureConstraint::Any, _) | (_, FeatureConstraint::Any) => true,
-                            (FeatureConstraint::Exact(left), FeatureConstraint::Exact(right)) => left == right,
-                        } => CategoryGuarded::try_new(child.clone())
-                            .map(|category_guarded| { BuildValue::Root(Root::CategoryGuarded(category_guarded), match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
-                                (FeatureConstraint::Any, right) => right,
-                                (left, FeatureConstraint::Any) => left,
-                                (FeatureConstraint::Exact(left), FeatureConstraint::Exact(_)) => FeatureConstraint::Exact(left),
-                            }) })
+                        _ => Ok(None),
+                    }
+                },
+            ),
+            (
+                "RootDnfGuarded",
+                syn::parse_quote! {
+                    RuleId::RootDnfGuarded => match children {
+                        [BuildValue::Leaf(Leaf::Mode(mode)), BuildValue::Child(child, child_following_onset)]
+                            if match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
+                                (FeatureConstraint::Any, _) | (_, FeatureConstraint::Any) => true,
+                                (FeatureConstraint::Exact(left), FeatureConstraint::Exact(right)) => left == right,
+                            } => DnfGuarded::try_new(*mode, child.clone())
+                                .map(|dnf_guarded| { BuildValue::Root(Root::DnfGuarded(dnf_guarded), match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
+                                    (FeatureConstraint::Any, right) => right,
+                                    (left, FeatureConstraint::Any) => left,
+                                    (FeatureConstraint::Exact(left), FeatureConstraint::Exact(_)) => FeatureConstraint::Exact(left),
+                                }) })
+                                .map(Some),
+                        _ => Ok(None),
+                    }
+                },
+            ),
+            (
+                "RootContextGuarded",
+                syn::parse_quote! {
+                    RuleId::RootContextGuarded => match children {
+                        [BuildValue::Leaf(Leaf::SelfReference(context_2))] => ContextGuarded::try_new(*context_2, context)
+                            .map(|context_guarded| { BuildValue::Root(Root::ContextGuarded(context_guarded), FeatureConstraint::<Onset>::Any) })
                             .map(Some),
-                    _ => Ok(None),
-                }
-            }),
-            ("RootVocabGuarded", syn::parse_quote! {
-                RuleId::RootVocabGuarded => match children {
-                    [BuildValue::Leaf(Leaf::Mode(mode))] => VocabGuarded::try_new(*mode)
-                        .map(|vocab_guarded| { BuildValue::Root(Root::VocabGuarded(vocab_guarded), FeatureConstraint::<Onset>::Any) })
-                        .map(Some),
-                    _ => Ok(None),
-                }
-            }),
-            ("RootDnfGuarded", syn::parse_quote! {
-                RuleId::RootDnfGuarded => match children {
-                    [BuildValue::Leaf(Leaf::Mode(mode)), BuildValue::Child(child, child_following_onset)]
-                        if match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
-                            (FeatureConstraint::Any, _) | (_, FeatureConstraint::Any) => true,
-                            (FeatureConstraint::Exact(left), FeatureConstraint::Exact(right)) => left == right,
-                        } => DnfGuarded::try_new(*mode, child.clone())
-                            .map(|dnf_guarded| { BuildValue::Root(Root::DnfGuarded(dnf_guarded), match (FeatureConstraint::<Onset>::Any, *child_following_onset) {
-                                (FeatureConstraint::Any, right) => right,
-                                (left, FeatureConstraint::Any) => left,
-                                (FeatureConstraint::Exact(left), FeatureConstraint::Exact(_)) => FeatureConstraint::Exact(left),
-                            }) })
-                            .map(Some),
-                    _ => Ok(None),
-                }
-            }),
-            ("RootContextGuarded", syn::parse_quote! {
-                RuleId::RootContextGuarded => match children {
-                    [BuildValue::Leaf(Leaf::SelfReference(context_2))] => ContextGuarded::try_new(*context_2, context)
-                        .map(|context_guarded| { BuildValue::Root(Root::ContextGuarded(context_guarded), FeatureConstraint::<Onset>::Any) })
-                        .map(Some),
-                    _ => Ok(None),
-                }
-            }),
+                        _ => Ok(None),
+                    }
+                },
+            ),
         ] {
             assert_eq!(build_arm(&items[0], rule), expected, "{rule} build arm");
         }
@@ -4249,11 +4319,7 @@ mod tests {
             "RootDnfGuarded",
         ] {
             let source = build_arm(&item, rule).to_token_stream().to_string();
-            for forbidden in [
-                "Child :: First",
-                "Child :: Second",
-                "matches !",
-            ] {
+            for forbidden in ["Child :: First", "Child :: Second", "matches !"] {
                 assert!(
                     !source.contains(forbidden),
                     "{rule} duplicates invariant predicate `{forbidden}`: {source}",

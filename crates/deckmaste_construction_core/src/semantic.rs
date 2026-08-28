@@ -804,6 +804,7 @@ pub(crate) struct DeclarationTermPlan {
     codec_ident: syn::Ident,
     position: macro_ron::v2::GrammarPosition,
     kinds: Vec<macro_ron::v2::DeclarationKind>,
+    params: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -851,10 +852,8 @@ impl VerbFrameKey {
             VerbValence::Numerative => self.atoms == [VerbFrameAtom::Amount],
             VerbValence::Custom { shapes } => shapes.iter().any(|shape| {
                 shape.len() == self.atoms.len()
-                    && shape
-                        .iter()
-                        .zip(&self.atoms)
-                        .all(|(source, planned)| match (source, planned) {
+                    && shape.iter().zip(&self.atoms).all(|(source, planned)| {
+                        match (source, planned) {
                             (
                                 macro_ron::v2::CustomTailAtom::Literal(source),
                                 VerbFrameAtom::Literal(planned),
@@ -872,7 +871,8 @@ impl VerbFrameKey {
                             // frames. Plugin Custom tails intentionally keep
                             // their closed atom vocabulary.
                             _ => false,
-                        })
+                        }
+                    })
             }),
         }
     }
@@ -958,7 +958,7 @@ pub(crate) struct CatalogIdentityPlan {
 }
 
 /// The sealed terminal-capability projection consumed by runtime emission.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct RuntimeEmissionPlan {
     vocab_indices: Vec<usize>,
     noun_lexeme_index: Option<usize>,
@@ -984,24 +984,7 @@ impl RuntimeEmissionPlan {
         constructions: &[ConstructionPlan],
         roots: &[RootPlan],
     ) -> syn::Result<Self> {
-        let mut plan = Self {
-            vocab_indices: Vec::new(),
-            noun_lexeme_index: None,
-            verb_lexeme_index: None,
-            noun_binding_index: None,
-            direct_binding_indices: Vec::new(),
-            opaque_binding_indices: Vec::new(),
-            context_identity_indices: Vec::new(),
-            catalog_identity_indices: Vec::new(),
-            signed_decimal_index: None,
-            unsigned_number_indices: Vec::new(),
-            declaration_determinative_indices: Vec::new(),
-            declaration_noun_indices: Vec::new(),
-            declaration_term_indices: Vec::new(),
-            declaration_verb_indices: Vec::new(),
-            punctuation_literals: Vec::new(),
-            scanner_origin_indices: Vec::new(),
-        };
+        let mut plan = Self::default();
         for (index, terminal) in terminals.iter().enumerate() {
             match terminal {
                 TerminalPlan::Vocab(_) => plan.vocab_indices.push(index),
@@ -1665,11 +1648,8 @@ impl SemanticPlan {
         seal_invariant_category_feature_reads(&constructions, &mut category_reads);
         seal_form_guard_category_feature_reads(&constructions, &equations, &mut category_reads)?;
         let checked_field_category_reads = checked_field_category_feature_reads(&constructions)?;
-        let number_carry_categories = number_carry_categories(
-            &constructions,
-            &equations,
-            &checked_field_category_reads,
-        );
+        let number_carry_categories =
+            number_carry_categories(&constructions, &equations, &checked_field_category_reads);
         let cardinality_carry_categories = cardinality_carry_categories(&constructions, &equations);
         let onset_carry_categories = onset_carry_categories(&constructions, &equations);
         let possessive_ending_carry_categories =
@@ -1912,12 +1892,17 @@ impl SemanticPlan {
     pub(crate) fn runtime_declaration_determinatives(
         &self,
     ) -> impl Iterator<Item = (usize, &DeclarationDeterminativePlan)> {
-        self.runtime.declaration_determinative_indices.iter().map(|&index| {
-            let TerminalPlan::DeclarationDeterminative(codec) = &self.terminals[index] else {
-                unreachable!("sealed runtime declaration-determinative index changed terminal kind")
-            };
-            (index, codec)
-        })
+        self.runtime
+            .declaration_determinative_indices
+            .iter()
+            .map(|&index| {
+                let TerminalPlan::DeclarationDeterminative(codec) = &self.terminals[index] else {
+                    unreachable!(
+                        "sealed runtime declaration-determinative index changed terminal kind"
+                    )
+                };
+                (index, codec)
+            })
     }
 
     pub(crate) fn runtime_declaration_determinative_for(
@@ -3324,41 +3309,44 @@ impl ConstructionPlan {
             .fields
             .iter()
             .map(|field| {
-                let (kind, terminal, value_type, zeroable) = match &field.kind {
-                    crate::model::FieldKind::Zeroable { value_type, item, .. } => (
-                        ConstructionFieldKind::Category,
-                        match item.as_ref() {
-                            crate::model::FieldKind::Category(path) => path_key(path),
-                            _ => unreachable!("zeroable field items are categories"),
-                        },
-                        value_type.clone(),
-                        true,
-                    ),
-                    _ => {
-                let leaf = structural_field_source_leaf(&field.kind);
-                let (kind, terminal, value_type) = match leaf {
-                    crate::model::FieldKind::Category(path) => (
-                        ConstructionFieldKind::Category,
-                        path_key(path),
-                        path.clone(),
-                    ),
-                    crate::model::FieldKind::Lex(path) => {
-                        (ConstructionFieldKind::Lex, path_key(path), path.clone())
-                    }
-                    crate::model::FieldKind::Identity(path) => (
-                        ConstructionFieldKind::Identity,
-                        path_key(path),
-                        path.clone(),
-                    ),
-                    crate::model::FieldKind::Optional(_)
-                    | crate::model::FieldKind::Zeroable { .. }
-                    | crate::model::FieldKind::Sequence { .. } => unreachable!(
-                        "the parser rejects nested structural cardinality before semantic lowering"
-                    ),
-                };
-                (kind, terminal, value_type, false)
-                    }
-                };
+                let (kind, terminal, value_type, zeroable) =
+                    if let crate::model::FieldKind::Zeroable {
+                        value_type, item, ..
+                    } = &field.kind
+                    {
+                        (
+                            ConstructionFieldKind::Category,
+                            match item.as_ref() {
+                                crate::model::FieldKind::Category(path) => path_key(path),
+                                _ => unreachable!("zeroable field items are categories"),
+                            },
+                            value_type.clone(),
+                            true,
+                        )
+                    } else {
+                        let leaf = structural_field_source_leaf(&field.kind);
+                        let (kind, terminal, value_type) = match leaf {
+                            crate::model::FieldKind::Category(path) => (
+                                ConstructionFieldKind::Category,
+                                path_key(path),
+                                path.clone(),
+                            ),
+                            crate::model::FieldKind::Lex(path) => {
+                                (ConstructionFieldKind::Lex, path_key(path), path.clone())
+                            }
+                            crate::model::FieldKind::Identity(path) => (
+                                ConstructionFieldKind::Identity,
+                                path_key(path),
+                                path.clone(),
+                            ),
+                            crate::model::FieldKind::Optional(_)
+                            | crate::model::FieldKind::Zeroable { .. }
+                            | crate::model::FieldKind::Sequence { .. } => unreachable!(
+                                "the parser rejects nested structural cardinality before semantic lowering"
+                            ),
+                        };
+                        (kind, terminal, value_type, false)
+                    };
                 let role = identifier_key(&field.name);
                 Ok(ConstructionFieldPlan {
                     name: field.name.clone(),
@@ -4205,8 +4193,8 @@ fn assignment_witness(domains: &[FiniteDomainPlan], assignment: &FiniteAssignmen
 fn structural_field_source_leaf(kind: &crate::model::FieldKind) -> &crate::model::FieldKind {
     match kind {
         crate::model::FieldKind::Optional(value) => structural_field_source_leaf(value),
-        crate::model::FieldKind::Sequence { item, .. } => structural_field_source_leaf(item),
-        crate::model::FieldKind::Zeroable { item, .. } => structural_field_source_leaf(item),
+        crate::model::FieldKind::Sequence { item, .. }
+        | crate::model::FieldKind::Zeroable { item, .. } => structural_field_source_leaf(item),
         crate::model::FieldKind::Category(_)
         | crate::model::FieldKind::Lex(_)
         | crate::model::FieldKind::Identity(_) => kind,
@@ -6109,80 +6097,158 @@ impl DeclarationNounPlan {
 
 impl DeclarationDeterminativePlan {
     fn from_source(source_index: usize, source: &crate::TerminalBinding) -> Self {
-        let Some(crate::model::GeneratedCodecRecipe::DeclarationDeterminative(recipe)) = &source.generated else {
+        let Some(crate::model::GeneratedCodecRecipe::DeclarationDeterminative(recipe)) =
+            &source.generated
+        else {
             unreachable!("validated generated codec has the declaration_determinative recipe")
         };
-        let closed = recipe.closed_slots.first().into_iter().flat_map(|slot| &slot.members).map(|member| {
-            let number_license = match identifier_key(&member.number_license_slots[0].value).as_str() {
-                "SingularOnly" => macro_ron::v2::DeterminativeNumberLicense::SingularOnly,
-                "PluralOnly" => macro_ron::v2::DeterminativeNumberLicense::PluralOnly,
-                "Both" => macro_ron::v2::DeterminativeNumberLicense::Both,
-                _ => unreachable!("validated determiner number license is closed"),
-            };
-            let nominal_license = match identifier_key(&member.nominal_license_slots[0].value).as_str() {
-                "CountNominal" => macro_ron::v2::DeterminativeNominalLicense::CountNominal,
-                "BareSingularNoun" => macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun,
-                _ => unreachable!("validated nominal license is closed"),
-            };
-            let fused_head_license = match identifier_key(&member.fused_head_license_slots[0].value).as_str() {
-                "NominalOnly" => macro_ron::v2::DeterminativeFusedHeadLicense::NominalOnly,
-                "FusedHead" => macro_ron::v2::DeterminativeFusedHeadLicense::FusedHead,
-                _ => unreachable!("validated fused-head license is closed"),
-            };
-            let realizations = member.realization_slots[0].realizations.iter().map(|row| {
-                let phrase_number = row.phrase_number_slots.first().map(|slot| match identifier_key(&slot.value).as_str() {
-                    "Singular" => macro_ron::v2::DeterminativePhraseNumber::Singular,
-                    "Plural" => macro_ron::v2::DeterminativePhraseNumber::Plural,
-                    _ => unreachable!("validated determinative phrase number is closed"),
-                });
-                let following_onset = row.following_onset_slots.first().map(|slot| match identifier_key(&slot.value).as_str() {
-                    "Consonant" => macro_ron::v2::Onset::Consonant,
-                    "Vowel" => macro_ron::v2::Onset::Vowel,
-                    _ => unreachable!("validated determinative following onset is closed"),
-                });
-                DeterminativeRealizationPlan { surface: row.surface_slots[0].value(), phrase_number, following_onset }
-            }).collect();
-            ClosedDeterminativePlan { lemma: member.lemma.clone(), number_license, fused_head_license, nominal_license, realizations }
-        }).collect();
-        let kinds = recipe.kind_slots.first().into_iter().flat_map(|slot| &slot.kinds).map(|kind| match identifier_key(kind).as_str() {
-            "KeywordAbility" => macro_ron::v2::DeclarationKind::KeywordAbility,
-            "CounterKind" => macro_ron::v2::DeclarationKind::CounterKind,
-            "Designation" => macro_ron::v2::DeclarationKind::Designation,
-            "KeywordAction" => macro_ron::v2::DeclarationKind::KeywordAction,
-            "Type" => macro_ron::v2::DeclarationKind::Type,
-            _ => unreachable!("validated declaration determinative kind is closed"),
-        }).collect();
+        let closed = recipe
+            .closed_slots
+            .first()
+            .into_iter()
+            .flat_map(|slot| &slot.members)
+            .map(|member| {
+                let number_license =
+                    match identifier_key(&member.number_license_slots[0].value).as_str() {
+                        "SingularOnly" => macro_ron::v2::DeterminativeNumberLicense::SingularOnly,
+                        "PluralOnly" => macro_ron::v2::DeterminativeNumberLicense::PluralOnly,
+                        "Both" => macro_ron::v2::DeterminativeNumberLicense::Both,
+                        _ => unreachable!("validated determiner number license is closed"),
+                    };
+                let nominal_license =
+                    match identifier_key(&member.nominal_license_slots[0].value).as_str() {
+                        "CountNominal" => macro_ron::v2::DeterminativeNominalLicense::CountNominal,
+                        "BareSingularNoun" => {
+                            macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun
+                        }
+                        "MassOrPluralCount" => {
+                            macro_ron::v2::DeterminativeNominalLicense::MassOrPluralCount
+                        }
+                        _ => unreachable!("validated nominal license is closed"),
+                    };
+                let fused_head_license =
+                    match identifier_key(&member.fused_head_license_slots[0].value).as_str() {
+                        "NominalOnly" => macro_ron::v2::DeterminativeFusedHeadLicense::NominalOnly,
+                        "FusedHead" => macro_ron::v2::DeterminativeFusedHeadLicense::FusedHead,
+                        _ => unreachable!("validated fused-head license is closed"),
+                    };
+                let realizations = member.realization_slots[0]
+                    .realizations
+                    .iter()
+                    .map(|row| {
+                        let phrase_number = row.phrase_number_slots.first().map(|slot| {
+                            match identifier_key(&slot.value).as_str() {
+                                "Singular" => macro_ron::v2::DeterminativePhraseNumber::Singular,
+                                "Plural" => macro_ron::v2::DeterminativePhraseNumber::Plural,
+                                _ => {
+                                    unreachable!("validated determinative phrase number is closed")
+                                }
+                            }
+                        });
+                        let following_onset = row.following_onset_slots.first().map(|slot| {
+                            match identifier_key(&slot.value).as_str() {
+                                "Consonant" => macro_ron::v2::Onset::Consonant,
+                                "Vowel" => macro_ron::v2::Onset::Vowel,
+                                _ => unreachable!(
+                                    "validated determinative following onset is closed"
+                                ),
+                            }
+                        });
+                        DeterminativeRealizationPlan {
+                            surface: row.surface_slots[0].value(),
+                            phrase_number,
+                            following_onset,
+                        }
+                    })
+                    .collect();
+                ClosedDeterminativePlan {
+                    lemma: member.lemma.clone(),
+                    number_license,
+                    fused_head_license,
+                    nominal_license,
+                    realizations,
+                }
+            })
+            .collect();
+        let kinds = recipe
+            .kind_slots
+            .first()
+            .into_iter()
+            .flat_map(|slot| &slot.kinds)
+            .map(|kind| match identifier_key(kind).as_str() {
+                "KeywordAbility" => macro_ron::v2::DeclarationKind::KeywordAbility,
+                "AbilityWord" => macro_ron::v2::DeclarationKind::AbilityWord,
+                "CounterKind" => macro_ron::v2::DeclarationKind::CounterKind,
+                "Designation" => macro_ron::v2::DeclarationKind::Designation,
+                "KeywordAction" => macro_ron::v2::DeclarationKind::KeywordAction,
+                "Type" => macro_ron::v2::DeclarationKind::Type,
+                _ => unreachable!("validated declaration determinative kind is closed"),
+            })
+            .collect();
         Self {
             source_index,
             origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
             codec_ident: source.name.clone(),
-            lemma_ident: syn::Ident::new(&format!("{}Lemma", identifier_key(&source.name)), source.name.span()),
+            lemma_ident: syn::Ident::new(
+                &format!("{}Lemma", identifier_key(&source.name)),
+                source.name.span(),
+            ),
             closed,
             kinds,
         }
     }
 
-    pub(crate) fn source_index(&self) -> usize { self.source_index }
-    pub(crate) fn origin(&self) -> &DeclarationKey { &self.origin }
-    pub(crate) fn codec_name(&self) -> &str { self.origin.name() }
-    pub(crate) fn codec_ident(&self) -> &syn::Ident { &self.codec_ident }
-    pub(crate) fn lemma_ident(&self) -> &syn::Ident { &self.lemma_ident }
-    pub(crate) fn closed(&self) -> &[ClosedDeterminativePlan] { &self.closed }
-    pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] { &self.kinds }
+    pub(crate) fn source_index(&self) -> usize {
+        self.source_index
+    }
+    pub(crate) fn origin(&self) -> &DeclarationKey {
+        &self.origin
+    }
+    pub(crate) fn codec_name(&self) -> &str {
+        self.origin.name()
+    }
+    pub(crate) fn codec_ident(&self) -> &syn::Ident {
+        &self.codec_ident
+    }
+    pub(crate) fn lemma_ident(&self) -> &syn::Ident {
+        &self.lemma_ident
+    }
+    pub(crate) fn closed(&self) -> &[ClosedDeterminativePlan] {
+        &self.closed
+    }
+    pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] {
+        &self.kinds
+    }
 }
 
 impl ClosedDeterminativePlan {
-    pub(crate) fn lemma(&self) -> &syn::Ident { &self.lemma }
-    pub(crate) fn number_license(&self) -> macro_ron::v2::DeterminativeNumberLicense { self.number_license }
-    pub(crate) fn fused_head_license(&self) -> macro_ron::v2::DeterminativeFusedHeadLicense { self.fused_head_license }
-    pub(crate) fn nominal_license(&self) -> macro_ron::v2::DeterminativeNominalLicense { self.nominal_license }
-    pub(crate) fn realizations(&self) -> &[DeterminativeRealizationPlan] { &self.realizations }
+    pub(crate) fn lemma(&self) -> &syn::Ident {
+        &self.lemma
+    }
+    pub(crate) fn number_license(&self) -> macro_ron::v2::DeterminativeNumberLicense {
+        self.number_license
+    }
+    pub(crate) fn fused_head_license(&self) -> macro_ron::v2::DeterminativeFusedHeadLicense {
+        self.fused_head_license
+    }
+    pub(crate) fn nominal_license(&self) -> macro_ron::v2::DeterminativeNominalLicense {
+        self.nominal_license
+    }
+    pub(crate) fn realizations(&self) -> &[DeterminativeRealizationPlan] {
+        &self.realizations
+    }
 }
 
 impl DeterminativeRealizationPlan {
-    pub(crate) fn surface(&self) -> &str { &self.surface }
-    pub(crate) fn phrase_number(&self) -> Option<macro_ron::v2::DeterminativePhraseNumber> { self.phrase_number }
-    pub(crate) fn following_onset(&self) -> Option<macro_ron::v2::Onset> { self.following_onset }
+    pub(crate) fn surface(&self) -> &str {
+        &self.surface
+    }
+    pub(crate) fn phrase_number(&self) -> Option<macro_ron::v2::DeterminativePhraseNumber> {
+        self.phrase_number
+    }
+    pub(crate) fn following_onset(&self) -> Option<macro_ron::v2::Onset> {
+        self.following_onset
+    }
 }
 
 impl DeclarationTermPlan {
@@ -6212,17 +6278,24 @@ impl DeclarationTermPlan {
             .iter()
             .map(|kind| match identifier_key(kind).as_str() {
                 "KeywordAbility" => macro_ron::v2::DeclarationKind::KeywordAbility,
+                "AbilityWord" => macro_ron::v2::DeclarationKind::AbilityWord,
                 "CounterKind" => macro_ron::v2::DeclarationKind::CounterKind,
                 "Designation" => macro_ron::v2::DeclarationKind::Designation,
                 _ => unreachable!("validated declaration_term kind is closed"),
             })
             .collect();
+        let params = recipe
+            .param_slots
+            .first()
+            .map(|slot| slot.kinds.iter().map(identifier_key).collect())
+            .unwrap_or_default();
         Self {
             source_index,
             origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
             codec_ident: source.name.clone(),
             position,
             kinds,
+            params,
         }
     }
 
@@ -6249,6 +6322,10 @@ impl DeclarationTermPlan {
     pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] {
         &self.kinds
     }
+
+    pub(crate) fn params(&self) -> &[String] {
+        &self.params
+    }
 }
 
 impl DeclarationVerbPlan {
@@ -6258,15 +6335,17 @@ impl DeclarationVerbPlan {
             unreachable!("validated generated codec has the declaration_verb recipe")
         };
         let frame_key = VerbFrameKey {
-            class: recipe.class_slots.first().map_or(
-                VerbFrameClass::Predicate,
-                |slot| match identifier_key(&slot.value).as_str() {
-                    "Predicate" => VerbFrameClass::Predicate,
-                    "Auxiliary" => VerbFrameClass::Auxiliary,
-                    "ProVerb" => VerbFrameClass::ProVerb,
-                    _ => unreachable!("validated declaration_verb class is sealed"),
-                },
-            ),
+            class: recipe
+                .class_slots
+                .first()
+                .map_or(VerbFrameClass::Predicate, |slot| {
+                    match identifier_key(&slot.value).as_str() {
+                        "Predicate" => VerbFrameClass::Predicate,
+                        "Auxiliary" => VerbFrameClass::Auxiliary,
+                        "ProVerb" => VerbFrameClass::ProVerb,
+                        _ => unreachable!("validated declaration_verb class is sealed"),
+                    }
+                }),
             atoms: recipe
                 .tail_slots
                 .first()
@@ -6291,7 +6370,9 @@ impl DeclarationVerbPlan {
                             VerbFrameAtom::ObjectNounPhrase
                         }
                     }
-                    crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(ident) => {
+                    crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(
+                        ident,
+                    ) => {
                         if atom.optional {
                             VerbFrameAtom::OptionalRole(identifier_key(ident))
                         } else {
@@ -6359,7 +6440,7 @@ impl DeclarationVerbPlan {
     }
 
     #[cfg(test)]
-    pub(crate) const fn position(&self) -> macro_ron::v2::GrammarPosition {
+    pub(crate) const fn position() -> macro_ron::v2::GrammarPosition {
         macro_ron::v2::GrammarPosition::Verb
     }
 

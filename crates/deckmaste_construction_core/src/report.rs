@@ -305,12 +305,8 @@ fn structural_report_inventory(plan: &SemanticPlan) -> StructuralReportInventory
         for (field, kind) in fields {
             let role = format!("{owner}.{field}");
             match kind {
-                StructuralFieldKindPlan::Required(value) => {
-                    if stored_value_uses_separator_terminal(value, &separator_terminals) {
-                        stored_separator_fields.push(role);
-                    }
-                }
-                StructuralFieldKindPlan::Zeroable(value) => {
+                StructuralFieldKindPlan::Required(value)
+                | StructuralFieldKindPlan::Zeroable(value) => {
                     if stored_value_uses_separator_terminal(value, &separator_terminals) {
                         stored_separator_fields.push(role);
                     }

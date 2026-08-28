@@ -205,3 +205,18 @@ mod reference_onset_recipes {
         }
     }
 }
+
+#[cfg(test)]
+mod mass_nominal_feature_recipes {
+    use crate::constructions::*;
+
+    #[test]
+    fn zero_determiner_licenses_a_mass_nominal() {
+        let nominal = Nominal::MassNominal(MassNominal {
+            noun: MassCommonNoun::Damage,
+        });
+        assert_eq!(nominal_form_for_nominal(&nominal), NominalForm::MassNoun);
+        assert_eq!(number_for_nominal(&nominal), Number::Singular);
+        assert!(DeterminedNominal::new(Determiner::Zero, nominal).is_some());
+    }
+}

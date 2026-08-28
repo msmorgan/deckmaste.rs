@@ -66,7 +66,7 @@ pub(crate) fn emit(
                     .feature_members(crate::feature::Feature::ModifierLicense)
                     .is_some()
                 {
-                    items.push(emit_vocab_modifier_license_helper(row, origin.clone())?);
+                    items.push(emit_vocab_modifier_license_helper(row, origin.clone()));
                 }
                 contributions.push(TerminalContribution::new(
                     origin,
@@ -117,13 +117,13 @@ pub(crate) fn emit(
                     .feature_members(crate::feature::Feature::Compoundability)
                     .is_some()
                 {
-                    items.push(emit_lexeme_compoundability_helper(row, origin.clone())?);
+                    items.push(emit_lexeme_compoundability_helper(row, origin.clone()));
                 }
                 if row
                     .feature_members(crate::feature::Feature::ModifierLicense)
                     .is_some()
                 {
-                    items.push(emit_lexeme_modifier_license_helper(row, origin.clone())?);
+                    items.push(emit_lexeme_modifier_license_helper(row, origin.clone()));
                 }
                 contributions.push(TerminalContribution::new(
                     origin,
@@ -482,8 +482,14 @@ pub(crate) fn emit(
                 let origin = row.origin().clone();
                 let ty = row.codec_ident();
                 let lemma = row.lemma_ident();
-                let variants = row.closed().iter().map(|member| member.lemma());
-                let allowed = row.kinds().iter().map(|kind| crate::emit::declaration_kind(*kind));
+                let variants = row
+                    .closed()
+                    .iter()
+                    .map(crate::semantic::ClosedDeterminativePlan::lemma);
+                let allowed = row
+                    .kinds()
+                    .iter()
+                    .map(|kind| crate::emit::declaration_kind(*kind));
                 items.push(GeneratedItem::new(ItemKey::named_type(lemma.to_string()), quote! {
                     #[derive(Debug, Clone, Copy, PartialEq, Eq)] pub enum #lemma { #(#variants),* }
                 }, vec![origin.clone()]));
@@ -611,7 +617,7 @@ pub(crate) fn emit(
 fn emit_vocab_modifier_license_helper(
     vocab: &crate::semantic::VocabPlan,
     origin: DeclarationKey,
-) -> syn::Result<GeneratedItem> {
+) -> GeneratedItem {
     let function_name = feature_helper("modifier_license", vocab.name());
     let function = emitted_ident(&function_name, vocab.name_ident().span());
     let ty = emitted_ident(vocab.name(), vocab.name_ident().span());
@@ -622,20 +628,24 @@ fn emit_vocab_modifier_license_helper(
         .map(|(member, value)| {
             let member = emitted_ident(member, vocab.name_ident().span());
             let value = match value {
-                crate::feature::FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
-                crate::feature::FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
+                crate::feature::FeatureValue::Unrestricted => {
+                    quote! { ModifierLicense::Unrestricted }
+                }
+                crate::feature::FeatureValue::LocalDeterminer => {
+                    quote! { ModifierLicense::LocalDeterminer }
+                }
                 _ => unreachable!("sealed modifier license has its closed domain"),
             };
             quote! { #ty::#member => #value }
         });
-    Ok(GeneratedItem::new(
+    GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
             name: function_name,
         },
         quote! { fn #function(value: #ty) -> ModifierLicense { match value { #(#members),* } } },
         vec![origin],
-    ))
+    )
 }
 
 fn emit_lexeme_surface_helper(
@@ -704,7 +714,7 @@ fn emit_lexeme_surface_helper(
 fn emit_lexeme_compoundability_helper(
     lexeme: &crate::semantic::LexemePlan,
     origin: DeclarationKey,
-) -> syn::Result<GeneratedItem> {
+) -> GeneratedItem {
     let function_name = feature_helper("compoundability", lexeme.name());
     let function = emitted_ident(&function_name, lexeme.name_ident().span());
     let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
@@ -715,26 +725,30 @@ fn emit_lexeme_compoundability_helper(
         .map(|(member, value)| {
             let member = emitted_ident(member, lexeme.name_ident().span());
             let value = match value {
-                crate::feature::FeatureValue::Compoundable => quote! { Compoundability::Compoundable },
-                crate::feature::FeatureValue::NonCompoundable => quote! { Compoundability::NonCompoundable },
+                crate::feature::FeatureValue::Compoundable => {
+                    quote! { Compoundability::Compoundable }
+                }
+                crate::feature::FeatureValue::NonCompoundable => {
+                    quote! { Compoundability::NonCompoundable }
+                }
                 _ => unreachable!("sealed compoundability has its closed domain"),
             };
             quote! { #ty::#member => #value }
         });
-    Ok(GeneratedItem::new(
+    GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
             name: function_name,
         },
         quote! { fn #function(value: #ty) -> Compoundability { match value { #(#members),* } } },
         vec![origin],
-    ))
+    )
 }
 
 fn emit_lexeme_modifier_license_helper(
     lexeme: &crate::semantic::LexemePlan,
     origin: DeclarationKey,
-) -> syn::Result<GeneratedItem> {
+) -> GeneratedItem {
     let function_name = feature_helper("modifier_license", lexeme.name());
     let function = emitted_ident(&function_name, lexeme.name_ident().span());
     let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
@@ -745,20 +759,24 @@ fn emit_lexeme_modifier_license_helper(
         .map(|(member, value)| {
             let member = emitted_ident(member, lexeme.name_ident().span());
             let value = match value {
-                crate::feature::FeatureValue::Unrestricted => quote! { ModifierLicense::Unrestricted },
-                crate::feature::FeatureValue::LocalDeterminer => quote! { ModifierLicense::LocalDeterminer },
+                crate::feature::FeatureValue::Unrestricted => {
+                    quote! { ModifierLicense::Unrestricted }
+                }
+                crate::feature::FeatureValue::LocalDeterminer => {
+                    quote! { ModifierLicense::LocalDeterminer }
+                }
                 _ => unreachable!("sealed modifier license has its closed domain"),
             };
             quote! { #ty::#member => #value }
         });
-    Ok(GeneratedItem::new(
+    GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
             name: function_name,
         },
         quote! { fn #function(value: #ty) -> ModifierLicense { match value { #(#members),* } } },
         vec![origin],
-    ))
+    )
 }
 
 #[cfg(test)]

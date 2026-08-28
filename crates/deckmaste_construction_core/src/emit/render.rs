@@ -377,9 +377,44 @@ pub(crate) fn emit(validated: &SemanticPlan) -> syn::Result<Vec<GeneratedItem>> 
                     english_cardinal_formatter(&format),
                     origin.clone(),
                 ));
+                let agreement = ident(&feature_helper("agreement", codec.codec_name()));
+                let determiner_number =
+                    ident(&feature_helper("determiner_number", codec.codec_name()));
                 let number = ident(&feature_helper("number", codec.codec_name()));
                 let cardinality = ident(&feature_helper("cardinality", codec.codec_name()));
                 let ty = codec.codec_ident();
+                items.push(GeneratedItem::new(
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name: agreement.to_string(),
+                    },
+                    quote! {
+                        fn #agreement(value: &#ty) -> Agreement {
+                            if value.magnitude == 1 {
+                                Agreement::ThirdPersonSingular
+                            } else {
+                                Agreement::Bare
+                            }
+                        }
+                    },
+                    origin.clone(),
+                ));
+                items.push(GeneratedItem::new(
+                    ItemKey::Named {
+                        kind: NamedKind::Function,
+                        name: determiner_number.to_string(),
+                    },
+                    quote! {
+                        fn #determiner_number(value: &#ty) -> DeterminerNumber {
+                            if value.magnitude == 1 {
+                                DeterminerNumber::SingularOnly
+                            } else {
+                                DeterminerNumber::PluralOnly
+                            }
+                        }
+                    },
+                    origin.clone(),
+                ));
                 items.push(GeneratedItem::new(
                     ItemKey::Named {
                         kind: NamedKind::Function,
@@ -1802,7 +1837,9 @@ fn render_allocator(
                                 &mut allocator,
                             )?;
                         }
-                    } else if find_declaration_determinative(validated, terminal).is_some() {
+                    } else if find_declaration_determinative(validated, terminal).is_some()
+                        || validated.runtime_declaration_term_for(terminal).is_some()
+                    {
                     } else if let Some(vocab) = find_vocab(validated, terminal) {
                         allocator.reserve(format!("render_{}", snake_case(vocab.name())));
                     } else if let Some(codec) = find_signed_decimal(validated, terminal) {
@@ -1970,11 +2007,16 @@ fn reserve_feature_callees(
         && field.kind() == ConstructionFieldKind::Lex
         && validated.terminal_has_feature(field.terminal(), *source_feature)
     {
-        allocator.reserve(feature_helper(feature_name(*source_feature), field.terminal()));
+        allocator.reserve(feature_helper(
+            feature_name(*source_feature),
+            field.terminal(),
+        ));
         return Ok(());
     }
-    if matches!(*source_feature, Feature::Cardinality | Feature::Number)
-        && field.kind() == ConstructionFieldKind::Lex
+    if matches!(
+        *source_feature,
+        Feature::Agreement | Feature::Cardinality | Feature::DeterminerNumber | Feature::Number
+    ) && field.kind() == ConstructionFieldKind::Lex
         && let Some(codec) = find_unsigned_number(validated, field.terminal())
         && codec.kind() == UnsignedNumberKind::EnglishCardinal
     {
@@ -2173,6 +2215,10 @@ fn render_arms(
         .collect()
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "render atom planning is an ordered dispatch over the complete atom inventory"
+)]
 fn render_atoms(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -2547,6 +2593,10 @@ fn render_fixed_surface_statement(surface: &str) -> TokenStream {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "render statements exhaustively dispatch the sealed atom plan inventory"
+)]
 fn render_atom_statement(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -2715,10 +2765,7 @@ fn render_atom_statement(
     }
 }
 
-fn category_contains_declaration_determinative(
-    plan: &SemanticPlan,
-    category: &str,
-) -> bool {
+fn category_contains_declaration_determinative(plan: &SemanticPlan, category: &str) -> bool {
     plan.constructions()
         .iter()
         .filter(|construction| construction.category() == category)
@@ -3631,9 +3678,13 @@ fn feature_expr(
                     Feature::NominalLicense => {
                         Err(internal("verb slot does not provide nominal license"))
                     }
-                Feature::Onset => implicit_verb_onset(validated, construction, locals),
-                Feature::Compoundability => Err(internal("compoundability is closed lexeme metadata")),
-                Feature::ModifierLicense => Err(internal("verb slot does not provide modifier license")),
+                    Feature::Onset => implicit_verb_onset(validated, construction, locals),
+                    Feature::Compoundability => {
+                        Err(internal("compoundability is closed lexeme metadata"))
+                    }
+                    Feature::ModifierLicense => {
+                        Err(internal("verb slot does not provide modifier license"))
+                    }
                     Feature::Number => Err(internal("verb slot does not provide number")),
                     Feature::Participle => Ok(quote! { Participle::Participle }),
                     Feature::PossessiveEnding => {
@@ -3677,10 +3728,13 @@ fn feature_expr(
                     {
                         sum
                     }
-                    (_, ValueKindPlan::Sum(_))
-                    | (_, ValueKindPlan::Product(_))
-                    | (_, ValueKindPlan::Lex(_))
-                    | (_, ValueKindPlan::Identity(_)) => {
+                    (
+                        _,
+                        ValueKindPlan::Sum(_)
+                        | ValueKindPlan::Product(_)
+                        | ValueKindPlan::Lex(_)
+                        | ValueKindPlan::Identity(_),
+                    ) => {
                         return Err(internal(
                             "sequence feature source item does not carry its declared feature",
                         ));
@@ -3701,8 +3755,13 @@ fn feature_expr(
                     )
                 });
             }
-            if matches!(*source_feature, Feature::Cardinality | Feature::Number)
-                && field.kind() == ConstructionFieldKind::Lex
+            if matches!(
+                *source_feature,
+                Feature::Agreement
+                    | Feature::Cardinality
+                    | Feature::DeterminerNumber
+                    | Feature::Number
+            ) && field.kind() == ConstructionFieldKind::Lex
                 && let Some(codec) = find_unsigned_number(validated, field.terminal())
                 && codec.kind() == UnsignedNumberKind::EnglishCardinal
             {
@@ -3754,7 +3813,10 @@ fn feature_expr(
                 && field.kind() == ConstructionFieldKind::Lex
                 && validated.terminal_has_feature(field.terminal(), *source_feature)
             {
-                let function = ident(&feature_helper(feature_name(*source_feature), field.terminal()));
+                let function = ident(&feature_helper(
+                    feature_name(*source_feature),
+                    field.terminal(),
+                ));
                 let value = copy_value(construction, &role_key, role_value)?;
                 return Ok(quote! { #function(#value) });
             }
@@ -3882,6 +3944,10 @@ fn implicit_verb_onset(
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the declaration surface emitter needs each resolved grammar context explicitly"
+)]
 fn declaration_determinative_surface_expr(
     validated: &SemanticPlan,
     construction: &ConstructionPlan,
@@ -3946,7 +4012,12 @@ fn declaration_determinative_surface_expr(
         }
     };
     let following_onset = following_onset.map_or_else(
-        || writer.map_or_else(|| quote! { None }, |writer| quote! { #writer.following_onset() }),
+        || {
+            writer.map_or_else(
+                || quote! { None },
+                |writer| quote! { #writer.following_onset() },
+            )
+        },
         |onset| quote! { Some(#onset) },
     );
     let ty = codec.codec_ident();
@@ -4123,10 +4194,13 @@ fn lexical_onset_expr(
             .forms()
             .iter()
             .find_map(|form| {
-                form.atoms().iter().enumerate().find_map(|(atom_index, atom)| {
-                    matches!(atom, AtomPlan::Lex { role: found, .. } if found == role)
-                        .then_some((form, atom_index))
-                })
+                form.atoms()
+                    .iter()
+                    .enumerate()
+                    .find_map(|(atom_index, atom)| {
+                        matches!(atom, AtomPlan::Lex { role: found, .. } if found == role)
+                            .then_some((form, atom_index))
+                    })
             })
             .ok_or_else(|| internal("validated determinative role has no surface atom"))?;
         let surface = declaration_determinative_surface_expr(
@@ -4143,6 +4217,16 @@ fn lexical_onset_expr(
         return Ok(quote! {
             ::macro_ron::v2::normalize_surface_onset(#surface, None)
                 .expect("validated determinative realization has an onset")
+        });
+    }
+    if validated
+        .runtime_declaration_term_for(field.terminal())
+        .is_some()
+    {
+        return Ok(quote! {
+            environment
+                .onset((#role_value).id(), ::macro_ron::v2::SurfaceFeature::Fixed)
+                .expect("stored declaration term remains in its parser environment")
         });
     }
     if let Some((_, codec)) = validated.runtime_declaration_verb_for(field.terminal()) {
@@ -5074,8 +5158,10 @@ fn feature_value(value: FeatureValue) -> TokenStream {
         FeatureValue::BarePluralNoun => quote! { NominalForm::BarePluralNoun },
         FeatureValue::ModifiedPluralNoun => quote! { NominalForm::ModifiedPluralNoun },
         FeatureValue::PluralCoordination => quote! { NominalForm::PluralCoordination },
+        FeatureValue::MassNoun => quote! { NominalForm::MassNoun },
         FeatureValue::CountNominal => quote! { NominalLicense::CountNominal },
         FeatureValue::LicensedBareSingularNoun => quote! { NominalLicense::BareSingularNoun },
+        FeatureValue::LicensedMassOrPluralCount => quote! { NominalLicense::MassOrPluralCount },
     }
 }
 

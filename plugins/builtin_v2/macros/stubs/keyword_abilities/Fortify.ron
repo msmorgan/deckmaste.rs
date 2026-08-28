@@ -1,6 +1,7 @@
 KeywordAbility(
     name: "Fortify",
-    spelling: "fortify",
+    params: [Cost],
+    spelling: "fortify <Param(0)>",
     grammar: FixedKeyword(
         surface: "fortify",
         determinative: (

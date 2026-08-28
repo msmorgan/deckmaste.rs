@@ -78,9 +78,7 @@ fn connive() -> VerbPhrase {
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-            IntransitivePredicate {
-                head,
-            },
+            IntransitivePredicate { head },
         )),
     })
 }
@@ -90,9 +88,7 @@ fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
             frame:
                 BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-                    IntransitivePredicate {
-                        head,
-                    },
+                    IntransitivePredicate { head },
                 )),
         }) => match head.reference() {
             VerbInventoryRef::Declaration(id) => Some(id.name()),
@@ -101,10 +97,7 @@ fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
             frame:
                 BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-                    TransitivePredicate {
-                        head,
-                        ..
-                    },
+                    TransitivePredicate { head, .. },
                 )),
         }) => match head.reference() {
             VerbInventoryRef::Declaration(id) => Some(id.name()),
@@ -113,10 +106,7 @@ fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
             frame:
                 BaseVerbFrame::NumerativeFrame(NumerativeFrame::NumerativePredicate(
-                    NumerativePredicate {
-                        head,
-                        ..
-                    },
+                    NumerativePredicate { head, .. },
                 )),
         }) => match head.reference() {
             VerbInventoryRef::Declaration(id) => Some(id.name()),
@@ -224,6 +214,10 @@ impl Visitor for SubjectStructureVisitor {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the contract compares the complete coordination and exclusion structural family"
+)]
 fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
     let parser = parser();
     let context = context("Context Card", false);

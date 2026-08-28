@@ -228,18 +228,17 @@ fn noun_phrase(reference: UnqualifiedReference) -> NounPhrase {
 
 fn indefinite(noun: Noun) -> NounPhrase {
     match noun {
-        Noun::Lexeme(noun) => {
-            determined_singular(DeterminativeHeadLemma::IndefiniteArticle, Noun::Lexeme(noun))
-        }
+        Noun::Lexeme(noun) => determined_singular(
+            DeterminativeHeadLemma::IndefiniteArticle,
+            Noun::Lexeme(noun),
+        ),
         Noun::Type(noun) => {
             determined_singular(DeterminativeHeadLemma::IndefiniteArticle, Noun::Type(noun))
         }
-        Noun::ArtifactSubtype(noun) => {
-            determined_singular(
-                DeterminativeHeadLemma::IndefiniteArticle,
-                Noun::ArtifactSubtype(noun),
-            )
-        }
+        Noun::ArtifactSubtype(noun) => determined_singular(
+            DeterminativeHeadLemma::IndefiniteArticle,
+            Noun::ArtifactSubtype(noun),
+        ),
     }
 }
 
@@ -295,7 +294,9 @@ fn creatures_you_control_with_power_at_most_two() -> NounPhrase {
                                                 &environment(),
                                                 VerbInventoryRef::Core(CoreVerbIdentity::Control),
                                             )
-                                            .expect("the core inventory declares transitive Control"),
+                                            .expect(
+                                                "the core inventory declares transitive Control",
+                                            ),
                                         },
                                     ),
                                 ))),
@@ -490,10 +491,7 @@ fn destroy(object: Object) -> VerbPhrase {
     .expect("the builtin grammar declares transitive Destroy");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-            TransitivePredicate {
-                head,
-                object,
-            },
+            TransitivePredicate { head, object },
         )),
     })
 }
@@ -510,9 +508,7 @@ fn connive() -> VerbPhrase {
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-            IntransitivePredicate {
-                head,
-            },
+            IntransitivePredicate { head },
         )),
     })
 }
@@ -675,9 +671,11 @@ fn generated_cardinals_and_unsigned_scalars_round_trip_with_codec_ownership() {
         .parse_cardinal_quantity("One thousand, one", &context)
         .expect("canonical cardinal parses through its generated parent root");
 
-    let y_ability = plain(vec![imperative(gain_life(Amount::Variable(VariableAmount {
-        variable: Variable::Y,
-    })))]);
+    let y_ability = plain(vec![imperative(gain_life(Amount::Variable(
+        VariableAmount {
+            variable: Variable::Y,
+        },
+    )))]);
     assert_eq!(y_ability.render(&context, &environment), "Gain Y life.");
     assert_eq!(
         parser.parse("Gain Y life.", &context),

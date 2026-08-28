@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "Delirium",
+    spelling: "Delirium",
+    grammar: FixedTerm(surface: "Delirium"),
+)

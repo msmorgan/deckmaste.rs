@@ -947,11 +947,7 @@ fn typed_where_staging_rejects_a_finite_subordinate_clause_in_the_chart() {
             .checked_completion_rejections()
             .items()
             .iter()
-            .map(|rejection| (
-                rejection.rule_name_v1(),
-                rejection.start(),
-                rejection.end(),
-            ))
+            .map(|rejection| (rejection.rule_name_v1(), rejection.start(), rejection.end(),))
             .collect::<Vec<_>>(),
         [
             ("DeterminativePluralSimpleDeterminative", 17, 18),
@@ -1140,15 +1136,15 @@ fn destroy(object: Object) -> VerbPhrase {
     let environment = environment();
     let head = DeclarationTransitiveVerb::new(
         &environment,
-        VerbInventoryRef::Declaration(DeclarationId::new(DeclarationKind::KeywordAction, "Destroy")),
+        VerbInventoryRef::Declaration(DeclarationId::new(
+            DeclarationKind::KeywordAction,
+            "Destroy",
+        )),
     )
     .expect("the builtin grammar declares transitive Destroy");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-            TransitivePredicate {
-                head,
-                object,
-            },
+            TransitivePredicate { head, object },
         )),
     })
 }
@@ -1157,14 +1153,15 @@ fn connive() -> VerbPhrase {
     let environment = environment();
     let head = DeclarationIntransitiveVerb::new(
         &environment,
-        VerbInventoryRef::Declaration(DeclarationId::new(DeclarationKind::KeywordAction, "Connive")),
+        VerbInventoryRef::Declaration(DeclarationId::new(
+            DeclarationKind::KeywordAction,
+            "Connive",
+        )),
     )
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
         frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-            IntransitivePredicate {
-                head,
-            },
+            IntransitivePredicate { head },
         )),
     })
 }
@@ -1205,10 +1202,7 @@ fn triggered_damage() -> Ability {
 }
 
 fn gain_life_sentence() -> Sentence {
-    declarative(
-        subject_you(),
-        gain_life(variable_x()),
-    )
+    declarative(subject_you(), gain_life(variable_x()))
 }
 
 fn gain_life_with_where() -> Ability {
@@ -1449,14 +1443,8 @@ fn generated_morphology_closed_owner_ids_match_scan_and_render_claims() {
     let parser = parser();
     let context = context("Context Card");
     for (text, expected) in [
-        (
-            "Deal X damage to target creature.",
-            "core-verb:Deal",
-        ),
-        (
-            "It deals X damage to target creature.",
-            "core-verb:Deal",
-        ),
+        ("Deal X damage to target creature.", "core-verb:Deal"),
+        ("It deals X damage to target creature.", "core-verb:Deal"),
         (
             "Whenever a player connives, you gain X life.",
             "lexeme:CommonNoun/Player/singular",
@@ -1890,7 +1878,7 @@ fn self_reference_identity_preserves_its_inherent_case() {
 
 #[test]
 fn disallowed_declaration_kind_is_a_parse_failure() {
-    let text = "Destroy target flying.";
+    let text = "Destroy target morbid.";
     let ParseError::Failure { span, expectations } = parser()
         .parse(text, &context("Context Card"))
         .expect_err("an AbilityWord declaration cannot serve as a noun")

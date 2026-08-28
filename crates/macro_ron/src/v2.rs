@@ -41,6 +41,7 @@ pub fn ron_options() -> ron::Options {
 pub enum Declaration {
     KeywordAction(DeclarationFields),
     KeywordAbility(DeclarationFields),
+    AbilityWord(DeclarationFields),
     Subtype(SubtypeDeclaration),
     Type(DeclarationFields),
     CounterKind(DeclarationFields),
@@ -54,6 +55,7 @@ impl Declaration {
         match self {
             Declaration::KeywordAction(_) => DeclarationKind::KeywordAction,
             Declaration::KeywordAbility(_) => DeclarationKind::KeywordAbility,
+            Declaration::AbilityWord(_) => DeclarationKind::AbilityWord,
             Declaration::Subtype(declaration) => DeclarationKind::Subtype(declaration.category),
             Declaration::Type(_) => DeclarationKind::Type,
             Declaration::CounterKind(_) => DeclarationKind::CounterKind,
@@ -65,6 +67,7 @@ impl Declaration {
         match self {
             Declaration::KeywordAction(fields) => (DeclarationKind::KeywordAction, fields),
             Declaration::KeywordAbility(fields) => (DeclarationKind::KeywordAbility, fields),
+            Declaration::AbilityWord(fields) => (DeclarationKind::AbilityWord, fields),
             Declaration::Subtype(declaration) => (
                 DeclarationKind::Subtype(declaration.category),
                 declaration.into_fields(),
@@ -126,6 +129,7 @@ impl SubtypeDeclaration {
 pub enum DeclarationKind {
     KeywordAction,
     KeywordAbility,
+    AbilityWord,
     Subtype(SubtypeCategory),
     Type,
     CounterKind,
@@ -137,6 +141,7 @@ impl fmt::Display for DeclarationKind {
         match self {
             DeclarationKind::KeywordAction => f.write_str("keyword action"),
             DeclarationKind::KeywordAbility => f.write_str("keyword ability"),
+            DeclarationKind::AbilityWord => f.write_str("ability word"),
             DeclarationKind::Subtype(category) => write!(f, "{category} subtype"),
             DeclarationKind::Type => f.write_str("type"),
             DeclarationKind::CounterKind => f.write_str("counter kind"),
@@ -274,6 +279,7 @@ pub enum DeterminativeNumberLicense {
 pub enum DeterminativeNominalLicense {
     CountNominal,
     BareSingularNoun,
+    MassOrPluralCount,
 }
 
 /// Whether a Determinative lemma may serve as a fused partitive head.
@@ -728,6 +734,7 @@ enum GrammarSourceMap {
 enum DiagnosticDeclaration<'a> {
     KeywordAction(#[serde(borrow)] DiagnosticFields<'a>),
     KeywordAbility(#[serde(borrow)] DiagnosticFields<'a>),
+    AbilityWord(#[serde(borrow)] DiagnosticFields<'a>),
     Subtype(#[serde(borrow)] DiagnosticSubtype<'a>),
     Type(#[serde(borrow)] DiagnosticFields<'a>),
     CounterKind(#[serde(borrow)] DiagnosticFields<'a>),
@@ -965,6 +972,7 @@ impl ValidationSourceMap {
         match diagnostic {
             DiagnosticDeclaration::KeywordAction(fields)
             | DiagnosticDeclaration::KeywordAbility(fields)
+            | DiagnosticDeclaration::AbilityWord(fields)
             | DiagnosticDeclaration::Type(fields)
             | DiagnosticDeclaration::CounterKind(fields)
             | DiagnosticDeclaration::Designation(fields) => Self::from_fields(
@@ -1531,6 +1539,26 @@ fn normalize_grammar(
         }
     };
 
+    finish_grammar_normalization(
+        path,
+        spelling_position,
+        spelling,
+        grammar_head,
+        recipe,
+        surfaces,
+        determinative,
+    )
+}
+
+fn finish_grammar_normalization(
+    path: &Path,
+    spelling_position: SourcePosition,
+    spelling: &[SpellingPart],
+    grammar_head: String,
+    recipe: GrammarRecipe,
+    surfaces: Vec<RealizedSurface>,
+    determinative: Option<DeterminativeRow>,
+) -> Result<GrammarRow, ReadError> {
     let spelling_head = spelling_head(spelling);
     if spelling_head != grammar_head {
         return Err(validation_error_at(
@@ -2078,6 +2106,7 @@ fn expected_builtin_identity(
     let kind = match components.as_slice() {
         ["keyword_actions", _] => DeclarationKind::KeywordAction,
         ["keyword_abilities", _] => DeclarationKind::KeywordAbility,
+        ["ability_words", _] => DeclarationKind::AbilityWord,
         ["types", _] => DeclarationKind::Type,
         ["counter_kinds", _] => DeclarationKind::CounterKind,
         ["designations", _] => DeclarationKind::Designation,

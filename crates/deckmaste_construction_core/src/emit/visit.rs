@@ -25,8 +25,8 @@ use crate::semantic::CatalogIdentityPlan;
 use crate::semantic::ConstructionFieldKind;
 use crate::semantic::ConstructionFieldPlan;
 use crate::semantic::ConstructionPlan;
-use crate::semantic::DeclarationNounPlan;
 use crate::semantic::DeclarationDeterminativePlan;
+use crate::semantic::DeclarationNounPlan;
 use crate::semantic::DeclarationTermPlan;
 use crate::semantic::DeclarationVerbPlan;
 use crate::semantic::FiniteDomainKindPlan;
@@ -739,9 +739,7 @@ fn emit_declaration_noun_walker(codec: &DeclarationNounPlan) -> GeneratedItem {
     )
 }
 
-fn emit_declaration_determinative_walker(
-    codec: &DeclarationDeterminativePlan,
-) -> GeneratedItem {
+fn emit_declaration_determinative_walker(codec: &DeclarationDeterminativePlan) -> GeneratedItem {
     let ty = codec.codec_ident();
     let function = ident(&format!("walk_{}", snake_case(codec.codec_name())));
     GeneratedItem::new(

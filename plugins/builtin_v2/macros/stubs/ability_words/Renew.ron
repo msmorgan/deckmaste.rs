@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "Renew",
+    spelling: "Renew",
+    grammar: FixedTerm(surface: "Renew"),
+)

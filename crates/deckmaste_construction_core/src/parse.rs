@@ -34,6 +34,7 @@ use crate::model::FeaturePlace;
 use crate::model::FeatureSlot;
 use crate::model::FeatureValue;
 use crate::model::Field;
+use crate::model::FieldCheck;
 use crate::model::FieldKind;
 use crate::model::FixedSurfaceAtomSource;
 use crate::model::FixedSurfaceSource;
@@ -76,7 +77,6 @@ use crate::model::VerbOperand;
 use crate::model::VisitMode;
 use crate::model::Vocab;
 use crate::model::VocabVariant;
-use crate::model::FieldCheck;
 
 mod keyword {
     syn::custom_keyword!(checked);
@@ -371,10 +371,7 @@ fn parse_field_kind(input: ParseStream<'_>, owner: &Ident, role: &Ident) -> syn:
             ));
         }
         let item = Box::new(FieldKind::Category(parse_generated_owned_path(input)?));
-        return Ok(FieldKind::Zeroable {
-            value_type,
-            item,
-        });
+        return Ok(FieldKind::Zeroable { value_type, item });
     }
     if input.peek(keyword::opt) {
         input.parse::<keyword::opt>()?;
@@ -1185,10 +1182,18 @@ fn parse_vocab(input: ParseStream<'_>) -> syn::Result<Vocab> {
                 overrides_content.parse::<Token![;]>()?;
             }
         }
-        variants.push(VocabVariant { name, word, feature_overrides });
+        variants.push(VocabVariant {
+            name,
+            word,
+            feature_overrides,
+        });
         content.parse::<Token![,]>()?;
     }
-    Ok(Vocab { name, feature_defaults, variants })
+    Ok(Vocab {
+        name,
+        feature_defaults,
+        variants,
+    })
 }
 
 fn parse_morphology(input: ParseStream<'_>) -> syn::Result<Morphology> {
@@ -1632,6 +1637,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
     if recipe == "declaration_term" {
         let mut position_slots = Vec::new();
         let mut kind_slots = Vec::new();
+        let mut param_slots = Vec::new();
         while !content.is_empty() {
             reject_doc_comment(&content)?;
             let slot = content.call(Ident::parse_any)?;
@@ -1648,6 +1654,17 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                     .collect();
                     kind_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
                 }
+                "params" => {
+                    let params_content;
+                    bracketed!(params_content in content);
+                    let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
+                        &params_content,
+                        Ident::parse_any,
+                    )?
+                    .into_iter()
+                    .collect();
+                    param_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
+                }
                 "position" => {
                     let value = content.call(Ident::parse_any)?;
                     position_slots.push(crate::model::GeneratedIdentSlot { slot, value });
@@ -1655,7 +1672,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 _ => {
                     return Err(syn::Error::new(
                         slot.span(),
-                        "declaration_term recipe accepts only `position` and `kinds` fields",
+                        "declaration_term recipe accepts only `position`, `kinds`, and `params` fields",
                     ));
                 }
             }
@@ -1666,6 +1683,7 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 recipe,
                 position_slots,
                 kind_slots,
+                param_slots,
             },
         ));
     }
@@ -1743,22 +1761,22 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
             content.parse::<Token![=]>()?;
             match slot.to_string().as_str() {
                 "closed" => {
-                    let members_content;
-                    bracketed!(members_content in content);
-                    let members = Punctuated::<crate::model::DeclarationDeterminativeMemberSource, Token![,]>::parse_terminated_with(&members_content, |input| {
+                    let members_input;
+                    bracketed!(members_input in content);
+                    let members = Punctuated::<crate::model::DeclarationDeterminativeMemberSource, Token![,]>::parse_terminated_with(&members_input, |input| {
                         let lemma = input.call(Ident::parse_any)?;
-                        let member_content;
-                        braced!(member_content in input);
+                        let fields_input;
+                        braced!(fields_input in input);
                         let mut number_license_slots = Vec::new();
                         let mut fused_head_license_slots = Vec::new();
                         let mut nominal_license_slots = Vec::new();
                         let mut realization_slots = Vec::new();
-                        while !member_content.is_empty() {
-                            let member_slot = member_content.call(Ident::parse_any)?;
-                            member_content.parse::<Token![=]>()?;
+                        while !fields_input.is_empty() {
+                            let member_slot = fields_input.call(Ident::parse_any)?;
+                            fields_input.parse::<Token![=]>()?;
                             match member_slot.to_string().as_str() {
                                 "number_license" | "fused_head_license" | "nominal_license" => {
-                                    let value = member_content.call(Ident::parse_any)?;
+                                    let value = fields_input.call(Ident::parse_any)?;
                                     let row = crate::model::GeneratedIdentSlot { slot: member_slot, value };
                                     match row.slot.to_string().as_str() {
                                         "number_license" => number_license_slots.push(row),
@@ -1768,27 +1786,27 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                                     }
                                 }
                                 "realizations" => {
-                                    let realizations_content;
-                                    bracketed!(realizations_content in member_content);
-                                    let realizations = Punctuated::<crate::model::DeclarationDeterminativeRealizationSource, Token![,]>::parse_terminated_with(&realizations_content, |input| {
-                                        let realization_content;
-                                        braced!(realization_content in input);
+                                    let realizations_input;
+                                    bracketed!(realizations_input in fields_input);
+                                    let realizations = Punctuated::<crate::model::DeclarationDeterminativeRealizationSource, Token![,]>::parse_terminated_with(&realizations_input, |input| {
+                                        let fields_input;
+                                        braced!(fields_input in input);
                                         let mut surface_slots = Vec::new();
                                         let mut phrase_number_slots = Vec::new();
                                         let mut following_onset_slots = Vec::new();
-                                        while !realization_content.is_empty() {
-                                            let realization_slot = realization_content.call(Ident::parse_any)?;
-                                            realization_content.parse::<Token![=]>()?;
+                                        while !fields_input.is_empty() {
+                                            let realization_slot = fields_input.call(Ident::parse_any)?;
+                                            fields_input.parse::<Token![=]>()?;
                                             match realization_slot.to_string().as_str() {
-                                                "surface" => surface_slots.push(realization_content.parse()?),
+                                                "surface" => surface_slots.push(fields_input.parse()?),
                                                 "phrase_number" | "following_onset" => {
-                                                    let value = realization_content.call(Ident::parse_any)?;
+                                                    let value = fields_input.call(Ident::parse_any)?;
                                                     let row = crate::model::GeneratedIdentSlot { slot: realization_slot, value };
                                                     if row.slot == "phrase_number" { phrase_number_slots.push(row); } else { following_onset_slots.push(row); }
                                                 }
                                                 _ => return Err(syn::Error::new(realization_slot.span(), "declaration_determinative realization accepts only `surface`, `phrase_number`, and `following_onset` fields")),
                                             }
-                                            realization_content.parse::<Token![;]>()?;
+                                            fields_input.parse::<Token![;]>()?;
                                         }
                                         Ok(crate::model::DeclarationDeterminativeRealizationSource { surface_slots, phrase_number_slots, following_onset_slots })
                                     })?.into_iter().collect();
@@ -1796,23 +1814,40 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                                 }
                                 _ => return Err(syn::Error::new(member_slot.span(), "declaration_determinative member accepts only `number_license`, `fused_head_license`, `nominal_license`, and `realizations` fields")),
                             }
-                            member_content.parse::<Token![;]>()?;
+                            fields_input.parse::<Token![;]>()?;
                         }
                         Ok(crate::model::DeclarationDeterminativeMemberSource { lemma, number_license_slots, fused_head_license_slots, nominal_license_slots, realization_slots })
                     })?.into_iter().collect();
-                    closed_slots.push(crate::model::DeclarationDeterminativeClosedSource { slot, members });
+                    closed_slots
+                        .push(crate::model::DeclarationDeterminativeClosedSource { slot, members });
                 }
                 "kinds" => {
                     let kinds_content;
                     bracketed!(kinds_content in content);
-                    let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(&kinds_content, Ident::parse_any)?.into_iter().collect();
+                    let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
+                        &kinds_content,
+                        Ident::parse_any,
+                    )?
+                    .into_iter()
+                    .collect();
                     kind_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
                 }
-                _ => return Err(syn::Error::new(slot.span(), "declaration_determinative recipe accepts only `closed` and `kinds` fields")),
+                _ => {
+                    return Err(syn::Error::new(
+                        slot.span(),
+                        "declaration_determinative recipe accepts only `closed` and `kinds` fields",
+                    ));
+                }
             }
             content.parse::<Token![;]>()?;
         }
-        return Ok(GeneratedCodecRecipe::DeclarationDeterminative(crate::model::DeclarationDeterminativeSource { recipe, closed_slots, kind_slots }));
+        return Ok(GeneratedCodecRecipe::DeclarationDeterminative(
+            crate::model::DeclarationDeterminativeSource {
+                recipe,
+                closed_slots,
+                kind_slots,
+            },
+        ));
     }
     if recipe == "declaration_verb" {
         let mut closed_slots = Vec::new();
@@ -2465,7 +2500,9 @@ mod tests {
             panic!("first declaration is a construction");
         };
         let field = &construction.element.fields[0];
-        assert!(matches!(&field.kind, crate::FieldKind::Category(path) if path.is_ident("Determinative")));
+        assert!(
+            matches!(&field.kind, crate::FieldKind::Category(path) if path.is_ident("Determinative"))
+        );
         let check = field.check.as_ref().expect("field carries its callback");
         assert_eq!(path(&check.function), "determinative_is_fused");
         assert!(matches!(
@@ -2492,7 +2529,9 @@ mod tests {
             panic!("first declaration is a construction");
         };
         let field = &construction.element.fields[0];
-        assert!(matches!(&field.kind, crate::FieldKind::Lex(path) if path.is_ident("DeterminativeHead")));
+        assert!(
+            matches!(&field.kind, crate::FieldKind::Lex(path) if path.is_ident("DeterminativeHead"))
+        );
         assert!(matches!(
             field.check.as_ref().map(|check| check.arguments.as_slice()),
             Some([crate::FeatureSlot { role, feature: crate::Feature::FusedHeadLicense }])
@@ -3954,6 +3993,7 @@ mod tests {
                     generate declaration_term {
                         position = FixedKeyword;
                         kinds = [KeywordAbility];
+                        params = [Cost, Quality];
                     }
                 }
             ",
@@ -3968,6 +4008,14 @@ mod tests {
         };
         assert_eq!(source.position_slots[0].value, "FixedKeyword");
         assert_eq!(source.kind_slots[0].kinds[0], "KeywordAbility");
+        assert_eq!(
+            source.param_slots[0]
+                .kinds
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>(),
+            ["Cost", "Quality"],
+        );
     }
 
     #[test]
@@ -4045,7 +4093,10 @@ mod tests {
         let Some(crate::GeneratedCodecRecipe::DeclarationVerb(source)) = &binding.generated else {
             panic!("the codec retains a typed declaration_verb recipe")
         };
-        assert!(source.class_slots.is_empty(), "Predicate is the source default");
+        assert!(
+            source.class_slots.is_empty(),
+            "Predicate is the source default"
+        );
         let [location, literal, sought] = source.tail_slots[0].atoms.as_slice() else {
             panic!("the exact labeled Search tail is preserved")
         };

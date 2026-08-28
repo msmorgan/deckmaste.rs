@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "Opus",
+    spelling: "Opus",
+    grammar: FixedTerm(surface: "Opus"),
+)

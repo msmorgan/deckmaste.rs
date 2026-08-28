@@ -153,6 +153,38 @@ fn environment() -> ParserEnvironment {
             "/synthetic/actions/Untap.ron",
             r#"KeywordAction(name:"Untap",spelling:"untap",grammar:Verb(bare:"untap",valence:Custom(shapes:[[],[ObjectNounPhrase]])))"#,
         ),
+        (
+            "/synthetic/counters/ChargeCounter.ron",
+            r#"CounterKind(name:"ChargeCounter",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+        ),
+        (
+            "/synthetic/counters/LoreCounter.ron",
+            r#"CounterKind(name:"LoreCounter",spelling:"lore",grammar:FixedTerm(surface:"lore"))"#,
+        ),
+        (
+            "/synthetic/counters/LoyaltyCounter.ron",
+            r#"CounterKind(name:"LoyaltyCounter",spelling:"loyalty",grammar:FixedTerm(surface:"loyalty"))"#,
+        ),
+        (
+            "/synthetic/counters/OilCounter.ron",
+            r#"CounterKind(name:"OilCounter",spelling:"oil",grammar:FixedTerm(surface:"oil"))"#,
+        ),
+        (
+            "/synthetic/counters/SporeCounter.ron",
+            r#"CounterKind(name:"SporeCounter",spelling:"spore",grammar:FixedTerm(surface:"spore"))"#,
+        ),
+        (
+            "/synthetic/counters/StunCounter.ron",
+            r#"CounterKind(name:"StunCounter",spelling:"stun",grammar:FixedTerm(surface:"stun"))"#,
+        ),
+        (
+            "/synthetic/counters/TimeCounter.ron",
+            r#"CounterKind(name:"TimeCounter",spelling:"time",grammar:FixedTerm(surface:"time"))"#,
+        ),
+        (
+            "/synthetic/counters/VerseCounter.ron",
+            r#"CounterKind(name:"VerseCounter",spelling:"verse",grammar:FixedTerm(surface:"verse"))"#,
+        ),
     ]
     .into_iter()
     .map(|(path, source)| read_str(path, source).expect("synthetic keyword action is valid"));
@@ -1491,11 +1523,7 @@ fn shared_transitive_frame_preserves_visit_order_and_literal_claims() {
         [
             (0, 3, "vocab:SubjectPronoun/You".to_owned()),
             (3, 13, "lexeme:keyword_action/Sacrifice/bare".to_owned(),),
-            (
-                13,
-                20,
-                "determinative:DeterminativeHead/Target".to_owned(),
-            ),
+            (13, 20, "determinative:DeterminativeHead/Target".to_owned(),),
             (20, 27, "lexeme:CommonNoun/Player/singular".to_owned()),
             (
                 27,
@@ -1503,11 +1531,7 @@ fn shared_transitive_frame_preserves_visit_order_and_literal_claims() {
                 "structural:AndPredicateCoordination/members/separator/pair/0".to_owned(),
             ),
             (32, 39, "core-verb:Control".to_owned()),
-            (
-                39,
-                46,
-                "determinative:DeterminativeHead/Target".to_owned(),
-            ),
+            (39, 46, "determinative:DeterminativeHead/Target".to_owned(),),
             (46, 53, "lexeme:CommonNoun/Player/singular".to_owned()),
             (
                 53,
@@ -2036,6 +2060,7 @@ fn ast_keeps_each_linguistic_product_typed() {
         let observed = match complement.as_ref() {
             PredicativeComplement::Adjective(_) => "adjective",
             PredicativeComplement::Color(_) => "color",
+            PredicativeComplement::Designation(_) => "designation",
             PredicativeComplement::Nominal(_) => "nominal",
             PredicativeComplement::Status(_) => "status",
             PredicativeComplement::Ability(_) => "ability",
@@ -2083,8 +2108,7 @@ fn ast_keeps_each_linguistic_product_typed() {
     let VerbPhrase::PredicativeComplementPredicate(PredicativeComplementPredicate {
         complement,
         ..
-    }) =
-        predicate.as_ref()
+    }) = predicate.as_ref()
     else {
         panic!("become uses the shared predicative-complement frame")
     };
@@ -2428,10 +2452,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             (" becomes", "core-verb:Become"),
             (" blocked", "form:blocked_by_status/blocked_by_status/0"),
             (" by", "form:blocked_by_status/blocked_by_status/1"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR)
         ]
@@ -2517,10 +2538,7 @@ fn every_task7_frame_has_exact_visits_and_complete_ordered_claims() {
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
             (" graveyard", "lexeme:CommonNoun/Graveyard/singular"),
             (" from", "form:from_phrase/from_phrase/0"),
-            (
-                " the",
-                "determinative:DeterminativeHead/DefiniteArticle"
-            ),
+            (" the", "determinative:DeterminativeHead/DefiniteArticle"),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (".", TERMINATOR)
         ]
@@ -2636,9 +2654,8 @@ fn typed_scalar_measure_counter_and_object_complements_select_exact_products() {
     assert_eq!(number.magnitude, 2);
     assert!(matches!(
         &counters.kind,
-        CounterKind::NamedCounter(NamedCounter {
-            name: CounterName::Stun,
-        })
+        CounterKind::DeclaredCounter(DeclaredCounter { kind })
+            if kind.id().name() == "StunCounter"
     ));
     assert!(matches!(
         &predicate.recipient,
@@ -3507,6 +3524,66 @@ fn predicative_nominals_reuse_the_ordinary_noun_phrase_algebra() {
 }
 
 #[test]
+fn all_plus_nominal_is_a_transitive_object_not_an_object_predicative_split() {
+    let parser = parser();
+    let context = context();
+    let text = "Exile all permanents.";
+
+    assert_selected(&parser, &context, text);
+    let analysis = parser.analyze(text, &context);
+    let decision = analysis.decision().expect("the exact witness is selected");
+    let selected = decision
+        .selected()
+        .expect("the exact witness has an ordinal");
+    let path = decision
+        .candidates()
+        .iter()
+        .find(|candidate| candidate.ordinal() == selected)
+        .expect("the selected ordinal names a candidate")
+        .construction_path();
+    assert!(
+        path.iter()
+            .any(|name| name == "TransitiveFrameTransitivePredicate"),
+        "{path:?}",
+    );
+    assert!(
+        path.iter()
+            .all(|name| name != "VerbPhraseDeclaredObjectPredicativeVerbPhrase"),
+        "{path:?}",
+    );
+}
+
+#[test]
+fn all_predeterminer_keeps_its_following_determined_nominal() {
+    let parser = parser();
+    let context = context();
+    let text = "Exile all the cards from your hand.";
+
+    assert_selected(&parser, &context, text);
+    let analysis = parser.analyze(text, &context);
+    let decision = analysis.decision().expect("the exact witness is selected");
+    let selected = decision
+        .selected()
+        .expect("the exact witness has an ordinal");
+    let path = decision
+        .candidates()
+        .iter()
+        .find(|candidate| candidate.ordinal() == selected)
+        .expect("the selected ordinal names a candidate")
+        .construction_path();
+    assert!(
+        path.iter()
+            .any(|name| name == "UnqualifiedReferenceAllPredeterminedNominal"),
+        "{path:?}",
+    );
+    assert!(
+        path.iter()
+            .all(|name| name != "VerbPhraseDeclaredObjectPredicativeVerbPhrase"),
+        "{path:?}",
+    );
+}
+
+#[test]
 fn where_attachments_take_an_ordinary_finite_clause() {
     let parser = parser();
     let context = context();
@@ -4150,10 +4227,6 @@ impl Visitor for ComplementVisitor {
         self.0.push(format!("characteristic:{characteristic:?}"));
     }
 
-    fn visit_counter_name(&mut self, counter: CounterName) {
-        self.0.push(format!("counter:{counter:?}"));
-    }
-
     fn visit_die_shape(&mut self, shape: DieShape) {
         self.0.push(format!("die:{shape:?}"));
     }
@@ -4370,7 +4443,7 @@ fn typed_complements_visit_payloads_in_surface_order_with_exact_claims() {
             "verb:Core(Put)",
             "product:FixedCounterQuantity",
             "cardinal:2",
-            "counter:Stun",
+            "declared:StunCounter",
             "declared:Creature",
         ]
     );
@@ -4434,10 +4507,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" X", "vocab:Variable/X"),
             (" damage", "form:deal_amount_damage/deal_amount_damage/2"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
         ]
@@ -4462,10 +4532,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             (" its", "vocab:PossessiveDeterminerPronoun/Its"),
             (" power", "vocab:ScalarCharacteristic/Power"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
         ]
@@ -4725,10 +4792,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             ("1", "codec:ScalarNumber"),
             (" counter", "form:singular_counter_quantity/a/2"),
             (" on", "form:on_phrase/on_phrase/0"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
         ]
@@ -4763,10 +4827,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             ("1", "codec:ScalarNumber"),
             (" counter", "form:singular_counter_quantity/a/2"),
             (" on", "form:on_phrase/on_phrase/0"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
         ]
@@ -4777,19 +4838,16 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             "product:PutCounters",
             "verb:Core(Put)",
             "product:SingularCounterQuantity",
-            "counter:Time",
+            "declared:TimeCounter",
             "declared:Creature"
         ],
         [
             ("Put", "core-verb:Put"),
             (" a", "form:singular_counter_quantity/a/0"),
-            (" time", "vocab:CounterName/Time"),
+            (" time", "lexeme:counter_kind/TimeCounter/fixed"),
             (" counter", "form:singular_counter_quantity/a/2"),
             (" on", "form:on_phrase/on_phrase/0"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
         ]
@@ -4801,12 +4859,12 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             "verb:Core(Put)",
             "product:FixedCounterQuantity",
             "cardinal:2",
-            "counter:Stun"
+            "declared:StunCounter"
         ],
         [
             ("Put", "core-verb:Put"),
             (" two", "codec:CardinalNumber"),
-            (" stun", "vocab:CounterName/Stun"),
+            (" stun", "lexeme:counter_kind/StunCounter/fixed"),
             (
                 " counters",
                 "form:fixed_counter_quantity/fixed_counter_quantity/2"
@@ -4823,22 +4881,19 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             "verb:Core(Put)",
             "product:VariableCounterQuantity",
             "variable:X",
-            "counter:Time",
+            "declared:TimeCounter",
             "declared:Creature"
         ],
         [
             ("Put", "core-verb:Put"),
             (" X", "vocab:Variable/X"),
-            (" time", "vocab:CounterName/Time"),
+            (" time", "lexeme:counter_kind/TimeCounter/fixed"),
             (
                 " counters",
                 "form:variable_counter_quantity/variable_counter_quantity/2"
             ),
             (" on", "form:on_phrase/on_phrase/0"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
         ]
@@ -4849,23 +4904,20 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             "product:PutCounters",
             "verb:Core(Put)",
             "product:AnaphoricCounterQuantity",
-            "counter:Charge",
+            "declared:ChargeCounter",
             "declared:Creature"
         ],
         [
             ("Put", "core-verb:Put"),
             (" that", "form:that_many/that_many/0"),
             (" many", "form:that_many/that_many/1"),
-            (" charge", "vocab:CounterName/Charge"),
+            (" charge", "lexeme:counter_kind/ChargeCounter/fixed"),
             (
                 " counters",
                 "form:anaphoric_counter_quantity/anaphoric_counter_quantity/2"
             ),
             (" on", "form:on_phrase/on_phrase/0"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (".", TERMINATOR),
         ]
@@ -4877,13 +4929,13 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             "verb:Core(Remove)",
             "product:VariableCounterQuantity",
             "variable:X",
-            "counter:Time",
+            "declared:TimeCounter",
             "noun:Card"
         ],
         [
             ("Remove", "core-verb:Remove"),
             (" X", "vocab:Variable/X"),
-            (" time", "vocab:CounterName/Time"),
+            (" time", "lexeme:counter_kind/TimeCounter/fixed"),
             (
                 " counters",
                 "form:variable_counter_quantity/variable_counter_quantity/2"
@@ -4932,10 +4984,7 @@ fn every_new_complement_family_is_reached_by_the_production_visitor() {
             "noun:Card"
         ],
         [
-            (
-                "Target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            ("Target", "determinative:DeterminativeHead/Target"),
             (" player", "lexeme:CommonNoun/Player/singular"),
             (
                 " discards",
@@ -4972,12 +5021,11 @@ fn target_and_card_name_boundaries_remain_grammatical_and_metadata_governed() {
         "Put two stun counters on the target of Context Card.",
         true,
     );
-    for malformed in ["Put two stun counters on two target creature."] {
-        assert!(
-            parser.parse(malformed, &context).is_err(),
-            "target determiners and modifiers preserve ordinary number agreement: {malformed:?}",
-        );
-    }
+    let malformed = "Put two stun counters on two target creature.";
+    assert!(
+        parser.parse(malformed, &context).is_err(),
+        "target determiners and modifiers preserve ordinary number agreement: {malformed:?}",
+    );
 
     let plus_two = ParseContext::new("+2 Mace", false, Onset::Consonant)
         .expect("opaque punctuation-initial card name is valid");
@@ -5475,13 +5523,13 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
     assert_family!(
         "Put that card into your hand.",
         true,
-        [
-            "product:PutInto",
-            "product:IntoPhraseValue"
-        ],
+        ["product:PutInto", "product:IntoPhraseValue"],
         [
             ("Put", "core-verb:Put"),
-            (" that", "determinative:DeterminativeHead/DistalDemonstrative"),
+            (
+                " that",
+                "determinative:DeterminativeHead/DistalDemonstrative"
+            ),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (" into", "form:into_phrase/into_phrase/0"),
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
@@ -5495,7 +5543,10 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ["product:PutTo", "product:ToPhraseValue"],
         [
             ("Put", "core-verb:Put"),
-            (" that", "determinative:DeterminativeHead/DistalDemonstrative"),
+            (
+                " that",
+                "determinative:DeterminativeHead/DistalDemonstrative"
+            ),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (" to", "form:to_phrase/to_phrase/0"),
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
@@ -5515,20 +5566,14 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ],
         [
             ("Put", "core-verb:Put"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (" from", "form:from_phrase/from_phrase/0"),
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
             (" graveyard", "lexeme:CommonNoun/Graveyard/singular"),
             (" onto", "form:onto_phrase/onto_phrase/0"),
-            (
-                " the",
-                "determinative:DeterminativeHead/DefiniteArticle"
-            ),
+            (" the", "determinative:DeterminativeHead/DefiniteArticle"),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (" tapped", "vocab:Status/Tapped"),
             (
@@ -5553,10 +5598,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ],
         [
             ("Put", "core-verb:Put"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (" on", "form:on_edge_phrase/on_edge_phrase/0"),
             (" top", "vocab:EdgePosition/Top"),
@@ -5583,10 +5625,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ],
         [
             ("Put", "core-verb:Put"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (" on", "form:on_edge_phrase/on_edge_phrase/0"),
             (" the", "form:edge_of_phrase/bottom/0"),
@@ -5614,20 +5653,14 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         ],
         [
             ("Return", "core-verb:Return"),
-            (
-                " target",
-                "determinative:DeterminativeHead/Target"
-            ),
+            (" target", "determinative:DeterminativeHead/Target"),
             (" creature", "lexeme:type/Creature/singular"),
             (" card", "lexeme:CommonNoun/Card/singular"),
             (" from", "form:from_phrase/from_phrase/0"),
             (" your", "vocab:PossessiveDeterminerPronoun/Your"),
             (" graveyard", "lexeme:CommonNoun/Graveyard/singular"),
             (" to", "form:to_phrase/to_phrase/0"),
-            (
-                " the",
-                "determinative:DeterminativeHead/DefiniteArticle"
-            ),
+            (" the", "determinative:DeterminativeHead/DefiniteArticle"),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (" tapped", "vocab:Status/Tapped"),
             (
@@ -5680,10 +5713,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (" enters", "core-verb:Enter"),
-            (
-                " the",
-                "determinative:DeterminativeHead/DefiniteArticle"
-            ),
+            (" the", "determinative:DeterminativeHead/DefiniteArticle"),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (
                 " under",
@@ -5735,10 +5765,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
             ),
             (" creature", "lexeme:type/Creature/singular"),
             (" leaves", "core-verb:Leave"),
-            (
-                " the",
-                "determinative:DeterminativeHead/DefiniteArticle"
-            ),
+            (" the", "determinative:DeterminativeHead/DefiniteArticle"),
             (" battlefield", "lexeme:CommonNoun/Battlefield/singular"),
             (".", TERMINATOR)
         ]
@@ -5868,7 +5895,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         [
             ("Put", "core-verb:Put"),
             (" two", "codec:CardinalNumber"),
-            (" stun", "vocab:CounterName/Stun"),
+            (" stun", "lexeme:counter_kind/StunCounter/fixed"),
             (
                 " counters",
                 "form:fixed_counter_quantity/fixed_counter_quantity/2"
@@ -5885,7 +5912,7 @@ fn every_movement_location_and_control_family_has_exact_visits_and_claims() {
         [
             ("Remove", "core-verb:Remove"),
             (" X", "vocab:Variable/X"),
-            (" time", "vocab:CounterName/Time"),
+            (" time", "lexeme:counter_kind/TimeCounter/fixed"),
             (
                 " counters",
                 "form:variable_counter_quantity/variable_counter_quantity/2"
@@ -6066,10 +6093,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
         ),
         [
             ("It".to_owned(), "vocab:SubjectPronoun/It".to_owned()),
-            (
-                " can".to_owned(),
-                "core-verb:Can".to_owned(),
-            ),
+            (" can".to_owned(), "core-verb:Can".to_owned(),),
             (" block".to_owned(), "core-verb:Block".to_owned(),),
             (
                 " as".to_owned(),
@@ -6229,8 +6253,12 @@ struct AdjunctSurfaceVisitor(Vec<String>);
 impl Visitor for AdjunctSurfaceVisitor {
     fn visit_verb_inventory(&mut self, value: &VerbInventoryRef) {
         match value {
-            VerbInventoryRef::Core(CoreVerbIdentity::May) => self.0.push("auxiliary:May".to_owned()),
-            VerbInventoryRef::Core(CoreVerbIdentity::Cant) => self.0.push("auxiliary:Cant".to_owned()),
+            VerbInventoryRef::Core(CoreVerbIdentity::May) => {
+                self.0.push("auxiliary:May".to_owned());
+            }
+            VerbInventoryRef::Core(CoreVerbIdentity::Cant) => {
+                self.0.push("auxiliary:Cant".to_owned());
+            }
             _ => {}
         }
     }
@@ -6571,10 +6599,9 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
     assert!(matches!(
         counters,
         CounterQuantity::SingularCounterQuantity(SingularCounterQuantity {
-            kind: CounterKind::NamedCounter(NamedCounter {
-                name: CounterName::Oil,
-            }),
+            kind: CounterKind::DeclaredCounter(DeclaredCounter { kind }),
         })
+            if kind.id().name() == "OilCounter"
     ));
 
     let VerbPhrase::RemoveCounters(RemoveCounters { head, counters, .. }) = imperative_atomic(

@@ -1,0 +1,7 @@
+CounterKind(
+    name: "TimeCounter",
+    params: [],
+    spelling: "time",
+    grammar: FixedTerm(surface: "time"),
+    body: Counter(name: "TimeCounter"),
+)

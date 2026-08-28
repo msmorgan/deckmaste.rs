@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "CouncilsDilemma",
+    spelling: "Council's dilemma",
+    grammar: FixedTerm(surface: "Council's dilemma"),
+)

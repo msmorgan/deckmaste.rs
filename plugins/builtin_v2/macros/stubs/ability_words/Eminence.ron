@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "Eminence",
+    spelling: "Eminence",
+    grammar: FixedTerm(surface: "Eminence"),
+)

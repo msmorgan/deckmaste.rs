@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "Undergrowth",
+    spelling: "Undergrowth",
+    grammar: FixedTerm(surface: "Undergrowth"),
+)

@@ -196,6 +196,7 @@ fn builtin_noun_morphology(root: &Path) -> anyhow::Result<BuiltinNounMorphology>
             Declaration::Subtype(fields) => (&fields.name, fields.grammar.as_ref()),
             Declaration::KeywordAction(_)
             | Declaration::KeywordAbility(_)
+            | Declaration::AbilityWord(_)
             | Declaration::CounterKind(_)
             | Declaration::Designation(_) => continue,
         };
@@ -250,6 +251,7 @@ fn declaration_kind_key(kind: macro_ron::v2::DeclarationKind) -> &'static str {
     match kind {
         macro_ron::v2::DeclarationKind::KeywordAction => "keyword_action",
         macro_ron::v2::DeclarationKind::KeywordAbility => "keyword_ability",
+        macro_ron::v2::DeclarationKind::AbilityWord => "ability_word",
         macro_ron::v2::DeclarationKind::Subtype(category) => match category {
             macro_ron::v2::SubtypeCategory::Artifact => "artifact_subtype",
             macro_ron::v2::SubtypeCategory::Battle => "battle_subtype",
@@ -629,15 +631,15 @@ mod tests {
     fn morphology_irregular_validation_preserves_source_order() {
         let mut report = report();
         report.morphology_irregulars = vec![
-            morphology_irregular("lexeme:VerbLexeme/Zeta", &[("bare", "zeta")]),
-            morphology_irregular("lexeme:VerbLexeme/Alpha", &[("bare", "alpha")]),
+            morphology_irregular("test:morphology/Zeta", &[("bare", "zeta")]),
+            morphology_irregular("test:morphology/Alpha", &[("bare", "alpha")]),
         ];
 
         validate_and_sort(&mut report).expect("distinct irregular identities validate");
 
         assert_eq!(
             morphology_identities(&report.morphology_irregulars),
-            ["lexeme:VerbLexeme/Zeta", "lexeme:VerbLexeme/Alpha"]
+            ["test:morphology/Zeta", "test:morphology/Alpha"]
         );
     }
 
@@ -645,21 +647,21 @@ mod tests {
     fn morphology_irregular_duplicate_rejection_does_not_reorder_input() {
         let mut report = report();
         report.morphology_irregulars = vec![
-            morphology_irregular("lexeme:VerbLexeme/Zeta", &[("bare", "first")]),
-            morphology_irregular("lexeme:VerbLexeme/Alpha", &[("bare", "middle")]),
-            morphology_irregular("lexeme:VerbLexeme/Zeta", &[("bare", "last")]),
+            morphology_irregular("test:morphology/Zeta", &[("bare", "first")]),
+            morphology_irregular("test:morphology/Alpha", &[("bare", "middle")]),
+            morphology_irregular("test:morphology/Zeta", &[("bare", "last")]),
         ];
 
         let error = validate_and_sort(&mut report).expect_err("duplicate irregular is invalid");
 
         assert!(error.to_string().contains("morphology irregulars"));
-        assert!(error.to_string().contains("lexeme:VerbLexeme/Zeta"));
+        assert!(error.to_string().contains("test:morphology/Zeta"));
         assert_eq!(
             morphology_identities(&report.morphology_irregulars),
             [
-                "lexeme:VerbLexeme/Zeta",
-                "lexeme:VerbLexeme/Alpha",
-                "lexeme:VerbLexeme/Zeta",
+                "test:morphology/Zeta",
+                "test:morphology/Alpha",
+                "test:morphology/Zeta",
             ]
         );
     }
@@ -673,7 +675,7 @@ mod tests {
             removal_target: Some("target\rnext".to_owned()),
         }];
         report.morphology_irregulars = vec![morphology_irregular(
-            "lexeme:VerbLexeme/Be",
+            "test:morphology/Gamma",
             &[("bare", "are"), ("third_person_singular", "is")],
         )];
         validate_and_sort(&mut report).expect("distinct identities validate");
@@ -693,7 +695,7 @@ mod tests {
                 "stored form tags (0)\n",
                 "stored spelling codecs (0)\n",
                 "morphology irregulars (1)\n",
-                "  - identity=\"lexeme:VerbLexeme/Be\"\n",
+                "  - identity=\"test:morphology/Gamma\"\n",
                 "    - feature=\"bare\" surface=\"are\"\n",
                 "    - feature=\"third_person_singular\" surface=\"is\"\n",
                 "selection exceptions (0)\n",
@@ -750,6 +752,56 @@ mod tests {
                     .overrides
                     .iter()
                     .all(|row| !row.feature.is_empty() && !row.surface.is_empty())
+        }));
+        let construction_irregulars = report
+            .morphology_irregulars
+            .iter()
+            .filter(|irregular| {
+                !matches!(
+                    irregular.identity.split('/').next(),
+                    Some(
+                        "lexeme:artifact_subtype"
+                            | "lexeme:battle_subtype"
+                            | "lexeme:creature_subtype"
+                            | "lexeme:enchantment_subtype"
+                            | "lexeme:land_subtype"
+                            | "lexeme:planeswalker_subtype"
+                            | "lexeme:spell_subtype"
+                            | "lexeme:type"
+                    )
+                )
+            })
+            .map(|irregular| {
+                (
+                    irregular.identity.as_str(),
+                    irregular
+                        .overrides
+                        .iter()
+                        .map(|row| (row.feature.as_str(), row.surface.as_str()))
+                        .collect::<Vec<_>>(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            construction_irregulars,
+            [
+                ("lexeme:CommonNoun/Ability", vec![("plural", "abilities")]),
+                ("lexeme:CommonNoun/Copy", vec![("plural", "copies")]),
+                ("lexeme:CommonNoun/Library", vec![("plural", "libraries")],),
+                ("lexeme:CommonNoun/Tax", vec![("plural", "taxes")]),
+                (
+                    "lexeme:CommonNoun/Toughness",
+                    vec![("plural", "toughnesses")],
+                ),
+                ("lexeme:CommonNoun/Die", vec![("plural", "dice")]),
+            ],
+        );
+        assert!(report.morphology_irregulars.iter().all(|irregular| {
+            !irregular.identity.starts_with("lexeme:VerbLexeme/")
+                && !matches!(
+                    irregular.identity.as_str(),
+                    "lexeme:VerbLexeme/Have" | "lexeme:VerbLexeme/Be"
+                )
         }));
         assert!(report.handwritten_codecs.is_empty());
         assert!(
@@ -838,6 +890,7 @@ mod tests {
                 }
                 Declaration::KeywordAction(_)
                 | Declaration::KeywordAbility(_)
+                | Declaration::AbilityWord(_)
                 | Declaration::CounterKind(_)
                 | Declaration::Designation(_) => continue,
             };
@@ -855,18 +908,7 @@ mod tests {
             actual,
             expected_irregulars()
                 .into_iter()
-                .filter(|(identity, _)| {
-                    !matches!(
-                        *identity,
-                        "lexeme:CommonNoun/Ability"
-                            | "lexeme:CommonNoun/Die"
-                            | "lexeme:VerbLexeme/Have"
-                            | "lexeme:VerbLexeme/Be"
-                            | "lexeme:CoreIntransitiveVerb/Die"
-                            | "lexeme:DamageParticipleLexeme/Deal"
-                            | "lexeme:MovementParticipleLexeme/Put"
-                    )
-                })
+                .filter(|(identity, _)| { !identity.starts_with("lexeme:CommonNoun/") })
                 .map(|(identity, rows)| (identity.to_owned(), rows[0].1.to_owned()))
                 .collect::<Vec<_>>()
         );
@@ -1026,27 +1068,14 @@ mod tests {
     fn expected_irregulars() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
         vec![
             ("lexeme:CommonNoun/Ability", vec![("plural", "abilities")]),
+            ("lexeme:CommonNoun/Copy", vec![("plural", "copies")]),
+            ("lexeme:CommonNoun/Library", vec![("plural", "libraries")]),
+            ("lexeme:CommonNoun/Tax", vec![("plural", "taxes")]),
+            (
+                "lexeme:CommonNoun/Toughness",
+                vec![("plural", "toughnesses")],
+            ),
             ("lexeme:CommonNoun/Die", vec![("plural", "dice")]),
-            (
-                "lexeme:VerbLexeme/Have",
-                vec![("third_person_singular", "has")],
-            ),
-            (
-                "lexeme:VerbLexeme/Be",
-                vec![("bare", "are"), ("third_person_singular", "is")],
-            ),
-            (
-                "lexeme:CoreIntransitiveVerb/Die",
-                vec![("third_person_singular", "dies")],
-            ),
-            (
-                "lexeme:DamageParticipleLexeme/Deal",
-                vec![("participle", "dealt")],
-            ),
-            (
-                "lexeme:MovementParticipleLexeme/Put",
-                vec![("participle", "put")],
-            ),
             (
                 "lexeme:artifact_subtype/Equipment",
                 vec![("plural", "Equipment")],

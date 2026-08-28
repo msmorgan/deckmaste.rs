@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "Revolt",
+    spelling: "Revolt",
+    grammar: FixedTerm(surface: "Revolt"),
+)

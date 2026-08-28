@@ -207,16 +207,6 @@ constructions! {
         Green = "G",
     }
     vocab ScalarCharacteristic { Power = "power", Toughness = "toughness", }
-    vocab CounterName {
-        Charge = "charge",
-        Lore = "lore",
-        Loyalty = "loyalty",
-        Oil = "oil",
-        Spore = "spore",
-        Stun = "stun",
-        Time = "time",
-        Verse = "verse",
-    }
     vocab DieShape { SixSided = "six-sided", }
     vocab EdgePosition { Top = "top", Bottom = "bottom", }
     vocab NonCommonNoun { Token = "token", }
@@ -724,13 +714,40 @@ constructions! {
             kinds = [KeywordAbility];
         }
     }
+    codec CostedKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = [Cost];
+        }
+    }
+    codec QualityKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = [Quality];
+        }
+    }
+    codec SubjectKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = [Subject];
+        }
+    }
+    codec AbilityWordTerm {
+        generate declaration_term {
+            position = FixedTerm;
+            kinds = [AbilityWord];
+        }
+    }
     codec DeclaredCounterKind {
         generate declaration_term {
             position = FixedTerm;
             kinds = [CounterKind];
         }
     }
-    codec Designation {
+    codec DesignationTerm {
         generate declaration_term {
             position = FixedTerm;
             kinds = [Designation];
@@ -755,10 +772,13 @@ constructions! {
                     realizations = [{ surface = "the"; }];
                 },
                 ProximalDemonstrative {
-                    number_license = SingularOnly;
+                    number_license = Both;
                     nominal_license = CountNominal;
                     fused_head_license = FusedHead;
-                    realizations = [{ surface = "this"; phrase_number = Singular; }];
+                    realizations = [
+                        { surface = "this"; phrase_number = Singular; },
+                        { surface = "these"; phrase_number = Plural; },
+                    ];
                 },
                 DistalDemonstrative {
                     number_license = Both;
@@ -782,8 +802,8 @@ constructions! {
                     realizations = [{ surface = "each"; }];
                 },
                 All {
-                    number_license = PluralOnly;
-                    nominal_license = CountNominal;
+                    number_license = Both;
+                    nominal_license = MassOrPluralCount;
                     fused_head_license = FusedHead;
                     realizations = [{ surface = "all"; }];
                 },
@@ -1027,6 +1047,7 @@ constructions! {
     abstract sum PredicativeComplement {
         Adjective: PredicativeAdjectiveComplement,
         Color: PredicativeColorComplement,
+        Designation: PredicativeDesignationComplement,
         Nominal: PredicativeNominalComplement,
         Status: PredicativeStatus,
         Ability: PredicativeAbilityComplement,
@@ -1586,6 +1607,10 @@ constructions! {
     construction predicative_color: PredicativeColorComplement {
         element PredicativeColorValue { color: lex Color, }
         form predicative_color = lex(color);
+    }
+    construction predicative_designation: PredicativeDesignationComplement {
+        element PredicativeDesignationValue { designation: lex DesignationTerm, }
+        form predicative_designation = lex(designation);
     }
     construction predicative_nominal: PredicativeNominalComplement {
         element PredicativeNominalValue { value: NounPhrase, }
@@ -2186,7 +2211,9 @@ constructions! {
         form variable_subject = lex(variable);
     }
     construction object_nominal: Object {
-        element NominalObject { value: NounPhrase, }
+        element NominalObject {
+            value: NounPhrase checked by nominal_object_is_not_fused_all(),
+        }
         derive agreement = value.agreement;
         derive number = value.number;
         derive onset = value.onset;
@@ -3000,6 +3027,14 @@ constructions! {
         derive onset = nominal.onset;
         form plural_nominal_value = nominal;
     }
+    construction mass_nominal: Nominal {
+        element MassNominal { noun: lex MassCommonNoun, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive nominal_form = Values::MassNoun;
+        derive onset = noun.onset;
+        form mass_nominal = lex(noun);
+    }
     construction singular_coordination_nominal_value: Nominal {
         element SingularCoordinationNominalValue {
             coordination: SingularNominalCoordination,
@@ -3095,27 +3130,16 @@ constructions! {
         derive onset = head.onset;
         form plural_simple_determinative = lex(head);
     }
-    construction one_quantifying_determiner: Determinative {
-        element OneQuantifyingDeterminer { count: CardinalQuantity, }
-        require count.cardinality is One;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive determiner_number = Values::SingularOnly;
+    construction cardinal_quantifying_determiner: Determinative {
+        element CardinalQuantifyingDeterminer { count: CardinalQuantity, }
+        require any(count.cardinality is One, count.cardinality is TwoPlus);
+        derive agreement = count.agreement;
+        derive number = count.number;
+        derive determiner_number = count.determiner_number;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::FusedHead;
         derive onset = Values::Consonant;
-        form one_quantifying_determiner = count;
-    }
-    construction plural_cardinal_quantifying_determiner: Determinative {
-        element PluralCardinalQuantifyingDeterminer { count: CardinalQuantity, }
-        require count.cardinality is TwoPlus;
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive determiner_number = Values::PluralOnly;
-        derive nominal_license = Values::CountNominal;
-        derive fused_head_license = Values::FusedHead;
-        derive onset = Values::Consonant;
-        form plural_cardinal_quantifying_determiner = count;
+        form cardinal_quantifying_determiner = count;
     }
     construction variable_quantifying_determiner: Determinative {
         element VariableQuantifyingDeterminer { count: lex Variable, }
@@ -3127,27 +3151,16 @@ constructions! {
         derive onset = Values::Consonant;
         form variable_quantifying_determiner = lex(count);
     }
-    construction up_to_one_quantifying_determiner: Determinative {
-        element UpToOneQuantifyingDeterminer { count: CardinalQuantity, }
-        require count.cardinality is One;
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive determiner_number = Values::SingularOnly;
+    construction up_to_quantifying_determiner: Determinative {
+        element UpToQuantifyingDeterminer { count: CardinalQuantity, }
+        require any(count.cardinality is One, count.cardinality is TwoPlus);
+        derive agreement = count.agreement;
+        derive number = count.number;
+        derive determiner_number = count.determiner_number;
         derive nominal_license = Values::CountNominal;
         derive fused_head_license = Values::FusedHead;
         derive onset = Values::Vowel;
-        form up_to_one_quantifying_determiner = "up" "to" count;
-    }
-    construction up_to_many_quantifying_determiner: Determinative {
-        element UpToManyQuantifyingDeterminer { count: CardinalQuantity, }
-        require count.cardinality is TwoPlus;
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive determiner_number = Values::PluralOnly;
-        derive nominal_license = Values::CountNominal;
-        derive fused_head_license = Values::FusedHead;
-        derive onset = Values::Vowel;
-        form up_to_many_quantifying_determiner = "up" "to" count;
+        form up_to_quantifying_determiner = "up" "to" count;
     }
     construction any_number_quantifying_determiner: Determinative {
         element AnyNumberQuantifyingDeterminer {}
@@ -3158,16 +3171,6 @@ constructions! {
         derive fused_head_license = Values::NominalOnly;
         derive onset = Values::Vowel;
         form any_number_quantifying_determiner = "any" "number" "of";
-    }
-    construction one_or_more_quantifying_determiner: Determinative {
-        element OneOrMoreQuantifyingDeterminer {}
-        derive agreement = Values::Bare;
-        derive number = Values::Plural;
-        derive determiner_number = Values::PluralOnly;
-        derive nominal_license = Values::CountNominal;
-        derive fused_head_license = Values::FusedHead;
-        derive onset = Values::Consonant;
-        form one_or_more_quantifying_determiner = "one" "or" "more";
     }
     construction no_more_quantifying_determiner: Determinative {
         element NoMoreQuantifyingDeterminer {}
@@ -3194,7 +3197,6 @@ constructions! {
             count: CardinalQuantity,
             comparison: CountComparison,
         }
-        require count.cardinality is TwoPlus;
         derive agreement = Values::Bare;
         derive number = Values::Plural;
         derive determiner_number = Values::PluralOnly;
@@ -3209,20 +3211,6 @@ constructions! {
         derive number = Values::Singular;
         derive onset = Values::Consonant;
         form named_card_reference = "a" "card" "named" identity(name);
-    }
-    construction mass_common_noun_reference: UnqualifiedReference {
-        element MassCommonNounReference { noun: lex MassCommonNoun, }
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = noun.onset;
-        form mass_common_noun_reference = lex(noun);
-    }
-    construction all_mass_common_noun_reference: UnqualifiedReference {
-        element AllMassCommonNounReference { noun: lex MassCommonNoun, }
-        derive agreement = Values::ThirdPersonSingular;
-        derive number = Values::Singular;
-        derive onset = Values::Vowel;
-        form all_mass_common_noun_reference = "all" lex(noun);
     }
     construction definite_next_mass_quantity_reference: UnqualifiedReference {
         element DefiniteNextMassQuantityReference {
@@ -3319,11 +3307,26 @@ constructions! {
             ),
             nominal: Nominal,
         }
-        derive det.number = nominal.number;
         derive agreement = nominal.agreement;
         derive number = nominal.number;
         derive onset = nominal.onset;
         form determined_nominal = det nominal;
+    }
+    construction all_predetermined_nominal: UnqualifiedReference {
+        element AllPredeterminedNominal {
+            all: Determinative checked by determinative_is_plural_all(all.number),
+            det: Determinative checked by headed_determiner_licenses_nominal(
+                det.determiner_number,
+                det.nominal_license,
+                nominal.number,
+                nominal.nominal_form
+            ),
+            nominal: Nominal,
+        }
+        derive agreement = nominal.agreement;
+        derive number = nominal.number;
+        derive onset = nominal.onset;
+        form all_predetermined_nominal = all det nominal;
     }
     construction full_and_noun_phrase_coordination: FullNounPhraseCoordination {
         element FullAndNounPhraseCoordination {
@@ -3983,10 +3986,10 @@ constructions! {
         require len(magnitudes) = 2;
         form power_toughness_adjustment = magnitudes;
     }
-    construction named_counter: CounterKind {
-        element NamedCounter { name: lex CounterName, }
-        derive onset = name.onset;
-        form named_counter = lex(name);
+    construction declared_counter: CounterKind {
+        element DeclaredCounter { kind: lex DeclaredCounterKind, }
+        derive onset = kind.onset;
+        form declared_counter = lex(kind);
     }
     construction singular_counter_quantity: CounterQuantity {
         element SingularCounterQuantity { kind: CounterKind, }
@@ -4484,12 +4487,89 @@ constructions! {
     }
     construction cardinal: CardinalQuantity {
         element CardinalQuantityValue { number: lex CardinalNumber, }
+        derive agreement = number.agreement;
         derive cardinality = number.cardinality;
+        derive determiner_number = number.determiner_number;
         derive number = number.number;
         form cardinal = lex(number);
     }
 
-    abstract sum DocumentBlock { Ability, }
+    abstract sum KeywordLineItem {
+        Bare: BareKeywordLineItem,
+        Costed: CostedKeywordLineItem,
+        Qualified: QualifiedKeywordLineItem,
+        Subject: SubjectKeywordLineItem,
+    }
+    abstract sum KeywordQuality {
+        Color: KeywordColorQuality,
+        Nominal: KeywordNominalQuality,
+        Coordination: KeywordQualityCoordination,
+    }
+    construction bare_keyword_line_item: BareKeywordLineItem {
+        element BareKeywordLineItemValue { keyword: lex KeywordAbility, }
+        form bare_keyword_line_item = lex(keyword);
+    }
+    construction costed_keyword_line_item: CostedKeywordLineItem {
+        element CostedKeywordLineItemValue {
+            keyword: lex CostedKeywordAbility,
+            cost: ActivationCostComponent,
+        }
+        form costed_keyword_line_item = lex(keyword) cost;
+    }
+    construction keyword_color_quality: KeywordColorQuality {
+        element KeywordColorQualityValue { color: lex Color, }
+        form keyword_color_quality = lex(color);
+    }
+    construction keyword_nominal_quality: KeywordNominalQuality {
+        element KeywordNominalQualityValue { nominal: Nominal, }
+        form keyword_nominal_quality = nominal;
+    }
+    construction keyword_quality_coordination: KeywordQualityCoordination {
+        element KeywordQualityCoordinationValue {
+            members: seq KeywordQuality separated by position {
+                pair = " and from ";
+                first = ", from ";
+                middle = ", from ";
+                last = ", and from ";
+            },
+        }
+        require len(members) >= 2;
+        form keyword_quality_coordination = members;
+    }
+    construction qualified_keyword_line_item: QualifiedKeywordLineItem {
+        element QualifiedKeywordLineItemValue {
+            keyword: lex QualityKeywordAbility,
+            quality: KeywordQuality,
+        }
+        form qualified_keyword_line_item = lex(keyword) quality;
+    }
+    construction subject_keyword_line_item: SubjectKeywordLineItem {
+        element SubjectKeywordLineItemValue {
+            keyword: lex SubjectKeywordAbility,
+            subject: SingularNominal,
+        }
+        form subject_keyword_line_item = lex(keyword) subject;
+    }
+    construction keyword_line: KeywordLine {
+        element KeywordLineValue {
+            items: seq KeywordLineItem separated by ", ",
+        }
+        require len(items) >= 1;
+        form keyword_line = items;
+    }
+    construction ability_word_ability: AbilityWordAbility {
+        element AbilityWordAbilityValue {
+            label: lex AbilityWordTerm,
+            ability: Ability,
+        }
+        form ability_word_ability = lex(label) sentence_initial(" — ") ability;
+    }
+
+    abstract sum DocumentBlock {
+        Ability,
+        AbilityWord: AbilityWordAbility,
+        KeywordLine,
+    }
     abstract product OracleText {
         blocks: seq DocumentBlock separated by "\n",
     }
@@ -4504,8 +4584,35 @@ constructions! {
     root OracleText { eoi = true; standalone_render = true; }
 }
 
-fn determinative_is_fused(_head: &Determinative, fused_head_license: FusedHeadLicense) -> bool {
+fn determinative_is_fused(head: &Determinative, fused_head_license: FusedHeadLicense) -> bool {
+    let _ = head;
     fused_head_license == FusedHeadLicense::FusedHead
+}
+
+fn determinative_is_all(head: &Determinative) -> bool {
+    match head {
+        Determinative::SingularSimpleDeterminative(det) => matches!(
+            det.head,
+            DeterminativeHead::Closed(DeterminativeHeadLemma::All)
+        ),
+        Determinative::PluralSimpleDeterminative(det) => matches!(
+            det.head,
+            DeterminativeHead::Closed(DeterminativeHeadLemma::All)
+        ),
+        _ => false,
+    }
+}
+
+fn determinative_is_plural_all(head: &Determinative, number: Number) -> bool {
+    number == Number::Plural && determinative_is_all(head)
+}
+
+fn nominal_object_is_not_fused_all(value: &NounPhrase) -> bool {
+    !matches!(
+        value,
+        NounPhrase::FusedDeterminativeReference(FusedDeterminativeReference { head })
+            if determinative_is_all(head)
+    )
 }
 
 fn determinative_licenses_partitive_head(
@@ -4573,7 +4680,7 @@ fn determiner_licenses_nominal(
     nominal_form: NominalForm,
 ) -> bool {
     let Some(det) = det else {
-        return number == Number::Plural;
+        return number == Number::Plural || nominal_form == NominalForm::MassNoun;
     };
     let Some(determiner_number) = determiner_number else {
         return false;
@@ -4589,11 +4696,29 @@ fn determiner_licenses_nominal(
     let Some(nominal_license) = nominal_license else {
         return false;
     };
-    let licenses_form = match nominal_license {
+    match nominal_license {
         NominalLicense::CountNominal => true,
         NominalLicense::BareSingularNoun => nominal_form == NominalForm::BareSingularNoun,
-    };
-    licenses_form
+        NominalLicense::MassOrPluralCount => {
+            nominal_form == NominalForm::MassNoun || number == Number::Plural
+        }
+    }
+}
+
+fn headed_determiner_licenses_nominal(
+    det: &Determinative,
+    determiner_number: DeterminerNumber,
+    nominal_license: NominalLicense,
+    number: Number,
+    nominal_form: NominalForm,
+) -> bool {
+    determiner_licenses_nominal(
+        Some(det),
+        Some(determiner_number),
+        Some(nominal_license),
+        number,
+        nominal_form,
+    )
 }
 
 #[cfg(test)]

@@ -384,6 +384,25 @@ mod tests {
     use crate::semantic::SemanticPlan;
     use crate::test_support::representative_expansion;
 
+    fn declaration_verb_plan_for(tail: &proc_macro2::TokenStream) -> SemanticPlan {
+        crate::validate_declarations(
+            crate::parse_declarations(crate::test_support::declaration_verb_tokens(tail))
+                .expect("declaration_verb syntax parses"),
+        )
+        .expect("the exact declaration_verb recipe validates")
+        .into_semantic()
+    }
+
+    fn sole_declaration_verb(
+        plan: &SemanticPlan,
+    ) -> (usize, &crate::semantic::DeclarationVerbPlan) {
+        let recipes = plan.runtime_declaration_verbs().collect::<Vec<_>>();
+        let [(terminal_index, recipe)] = recipes.as_slice() else {
+            panic!("one declaration_verb recipe is sealed")
+        };
+        (*terminal_index, *recipe)
+    }
+
     #[test]
     fn structural_planning_emits_abstract_rows_and_structural_construction_bnf() {
         let abstract_semantic = crate::validate_declarations(
@@ -997,21 +1016,9 @@ mod tests {
         use macro_ron::v2::CustomTailAtom;
         use macro_ron::v2::VerbValence;
 
-        let plan_for = |tail| {
-            crate::validate_declarations(
-                crate::parse_declarations(crate::test_support::declaration_verb_tokens(&tail))
-                    .expect("declaration_verb syntax parses"),
-            )
-            .expect("the exact declaration_verb recipe validates")
-            .into_semantic()
-        };
-
-        let object_plan = plan_for(quote::quote! { ObjectNounPhrase });
-        let object_recipes = object_plan.runtime_declaration_verbs().collect::<Vec<_>>();
-        let [(terminal_index, object)] = object_recipes.as_slice() else {
-            panic!("one declaration_verb recipe is sealed")
-        };
-        assert_eq!(*terminal_index, 1);
+        let object_plan = declaration_verb_plan_for(&quote::quote! { ObjectNounPhrase });
+        let (terminal_index, object) = sole_declaration_verb(&object_plan);
+        assert_eq!(terminal_index, 1);
         assert_eq!(object.source_index(), 2);
         assert_eq!(object.codec_ident(), "TransitiveVerb");
         assert_eq!(
@@ -1019,7 +1026,10 @@ mod tests {
             "DeclarationTransitiveVerb"
         );
         assert_eq!(object.closed_lexeme().expect("closed branch"), "CoreVerb");
-        assert_eq!(object.position(), macro_ron::v2::GrammarPosition::Verb);
+        assert_eq!(
+            crate::semantic::DeclarationVerbPlan::position(),
+            macro_ron::v2::GrammarPosition::Verb
+        );
         assert_eq!(object.feature_axis(), crate::feature::Feature::Agreement);
         assert_eq!(
             object.frame_key().class(),
@@ -1035,11 +1045,8 @@ mod tests {
             shapes: vec![vec![CustomTailAtom::ObjectNounPhrase]],
         }));
 
-        let amount_plan = plan_for(quote::quote! { Amount });
-        let (_, amount) = amount_plan
-            .runtime_declaration_verbs()
-            .next()
-            .expect("mutated declaration_verb remains one recipe");
+        let amount_plan = declaration_verb_plan_for(&quote::quote! { Amount });
+        let (_, amount) = sole_declaration_verb(&amount_plan);
         assert_eq!(
             amount.frame_key().atoms(),
             [crate::semantic::VerbFrameAtom::Amount]
@@ -1047,11 +1054,8 @@ mod tests {
         assert!(amount.frame_key().matches_valence(&VerbValence::Numerative));
         assert!(!amount.frame_key().matches_valence(&VerbValence::Transitive));
 
-        let predicative_plan = plan_for(quote::quote! { PredicativeComplement });
-        let (_, predicative) = predicative_plan
-            .runtime_declaration_verbs()
-            .next()
-            .expect("predicative declaration_verb remains one recipe");
+        let predicative_plan = declaration_verb_plan_for(&quote::quote! { PredicativeComplement });
+        let (_, predicative) = sole_declaration_verb(&predicative_plan);
         assert_eq!(
             predicative.frame_key().atoms(),
             [crate::semantic::VerbFrameAtom::PredicativeComplement]
@@ -1064,28 +1068,26 @@ mod tests {
                 })
         );
 
-        let optional_predicative_plan = plan_for(quote::quote! { PredicativeComplement? });
-        let (_, optional_predicative) = optional_predicative_plan
-            .runtime_declaration_verbs()
-            .next()
-            .expect("optional compiler-side role remains one recipe");
+        let optional_predicative_plan =
+            declaration_verb_plan_for(&quote::quote! { PredicativeComplement? });
+        let (_, optional_predicative) = sole_declaration_verb(&optional_predicative_plan);
         assert_eq!(
             optional_predicative.frame_key().atoms(),
             [crate::semantic::VerbFrameAtom::OptionalRole(
                 "PredicativeComplement".to_owned(),
             )]
         );
-        assert!(!optional_predicative
-            .frame_key()
-            .matches_valence(&VerbValence::Custom {
-                shapes: vec![vec![CustomTailAtom::PredicativeComplement]],
-            }));
+        assert!(
+            !optional_predicative
+                .frame_key()
+                .matches_valence(&VerbValence::Custom {
+                    shapes: vec![vec![CustomTailAtom::PredicativeComplement]],
+                })
+        );
 
-        let rich_role_plan = plan_for(quote::quote! { ToDestination, PostState? });
-        let (_, rich_role) = rich_role_plan
-            .runtime_declaration_verbs()
-            .next()
-            .expect("rich compiler-side roles remain one recipe");
+        let rich_role_plan =
+            declaration_verb_plan_for(&quote::quote! { ToDestination, PostState? });
+        let (_, rich_role) = sole_declaration_verb(&rich_role_plan);
         assert_eq!(
             rich_role.frame_key().atoms(),
             [
@@ -1094,15 +1096,12 @@ mod tests {
             ]
         );
 
-        let search_plan = plan_for(quote::quote! {
+        let search_plan = declaration_verb_plan_for(&quote::quote! {
             location: ObjectNounPhrase,
             "for",
             sought: ObjectNounPhrase
         });
-        let (_, search) = search_plan
-            .runtime_declaration_verbs()
-            .next()
-            .expect("labeled Search tail remains one recipe");
+        let (_, search) = sole_declaration_verb(&search_plan);
         assert_eq!(
             search.frame_key().atoms(),
             [
@@ -1120,11 +1119,8 @@ mod tests {
         }));
         assert!(!search.frame_key().matches_valence(&VerbValence::Transitive));
 
-        let empty_plan = plan_for(quote::quote! {});
-        let (_, empty) = empty_plan
-            .runtime_declaration_verbs()
-            .next()
-            .expect("empty tail remains one recipe");
+        let empty_plan = declaration_verb_plan_for(&quote::quote! {});
+        let (_, empty) = sole_declaration_verb(&empty_plan);
         assert!(
             empty
                 .frame_key()
@@ -1135,11 +1131,8 @@ mod tests {
         }));
         assert!(!empty.frame_key().matches_valence(&VerbValence::Transitive));
 
-        let custom_plan = plan_for(quote::quote! { "with", ObjectNounPhrase });
-        let (_, custom) = custom_plan
-            .runtime_declaration_verbs()
-            .next()
-            .expect("custom tail remains one recipe");
+        let custom_plan = declaration_verb_plan_for(&quote::quote! { "with", ObjectNounPhrase });
+        let (_, custom) = sole_declaration_verb(&custom_plan);
         assert_eq!(
             custom.frame_key().atoms(),
             [
@@ -1222,15 +1215,21 @@ mod tests {
             recipes[2].frame_key().class(),
             crate::semantic::VerbFrameClass::ProVerb
         );
-        assert!(recipes[0]
-            .frame_key()
-            .matches_valence(&VerbValence::Intransitive));
-        assert!(!recipes[1]
-            .frame_key()
-            .matches_valence(&VerbValence::Intransitive));
-        assert!(!recipes[2]
-            .frame_key()
-            .matches_valence(&VerbValence::Intransitive));
+        assert!(
+            recipes[0]
+                .frame_key()
+                .matches_valence(&VerbValence::Intransitive)
+        );
+        assert!(
+            !recipes[1]
+                .frame_key()
+                .matches_valence(&VerbValence::Intransitive)
+        );
+        assert!(
+            !recipes[2]
+                .frame_key()
+                .matches_valence(&VerbValence::Intransitive)
+        );
     }
 
     #[test]

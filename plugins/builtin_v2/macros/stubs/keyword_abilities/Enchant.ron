@@ -1,6 +1,7 @@
 KeywordAbility(
     name: "Enchant",
-    spelling: "enchant",
+    params: [Subject],
+    spelling: "enchant <Param(0)>",
     grammar: FixedKeyword(
         surface: "enchant",
         determinative: (

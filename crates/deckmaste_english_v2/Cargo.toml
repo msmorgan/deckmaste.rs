@@ -17,7 +17,5 @@ macro_ron = { version = "0.1.0", path = "../macro_ron" }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-deckmaste_construction_core = { path = "../deckmaste_construction_core" }
-proc-macro2 = "1.0.106"
 syn = { version = "2.0.117", features = ["full", "visit"] }
 tempfile = "3.27.0"

@@ -256,7 +256,9 @@ pub(super) fn structural_helper_categories(
         .flat_map(|carrier| {
             let base = carrier.category_variant();
             let states = match carrier.field.kind() {
-                StructuralFieldKindPlan::Zeroable(_) => Vec::new(),
+                StructuralFieldKindPlan::Zeroable(_) | StructuralFieldKindPlan::Required(_) => {
+                    Vec::new()
+                }
                 StructuralFieldKindPlan::Optional(_) => {
                     vec![(StructuralHelperCategoryState::Optional, base)]
                 }
@@ -275,7 +277,6 @@ pub(super) fn structural_helper_categories(
                         crate::identifier::StructuralSequenceStyle::Uniform
                     },
                 ),
-                StructuralFieldKindPlan::Required(_) => Vec::new(),
             };
             states
                 .into_iter()
@@ -557,6 +558,9 @@ pub(super) fn declaration_kind(kind: macro_ron::v2::DeclarationKind) -> TokenStr
         }
         DeclarationKind::KeywordAbility => {
             quote! { ::macro_ron::v2::DeclarationKind::KeywordAbility }
+        }
+        DeclarationKind::AbilityWord => {
+            quote! { ::macro_ron::v2::DeclarationKind::AbilityWord }
         }
         DeclarationKind::Type => quote! { ::macro_ron::v2::DeclarationKind::Type },
         DeclarationKind::CounterKind => quote! { ::macro_ron::v2::DeclarationKind::CounterKind },

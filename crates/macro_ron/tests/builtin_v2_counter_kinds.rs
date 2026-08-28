@@ -34,7 +34,11 @@ const EXPECTED_NAMES: &[&str] = &[
     "ReachCounter",
     "ShadowCounter",
     "ShieldCounter",
+    "SporeCounter",
+    "StunCounter",
+    "TimeCounter",
     "TrampleCounter",
+    "VerseCounter",
     "VigilanceCounter",
 ];
 

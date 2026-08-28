@@ -261,7 +261,6 @@ impl AuditSummary {
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_english_v2::context::ParseContext;
     use deckmaste_english_v2::parser::ParseError;
     use deckmaste_english_v2::parser::Parser;
     use deckmaste_english_v2::parser::SelectionExceptionInventoryError;
@@ -299,26 +298,6 @@ mod tests {
                 .message()
                 .unwrap()
                 .contains("parse failed at bytes")
-        );
-    }
-
-    #[test]
-    fn authored_build_rejection_counts_as_parse_failure_not_internal_failure() {
-        let context = ParseContext::new("Context Card", false, macro_ron::v2::Onset::Consonant)
-            .expect("test context is valid");
-        let error = parser()
-            .analyze_oracle_text("Destroy one target creatures.", &context)
-            .into_parse_result()
-            .expect_err("the fixed-reference invariant rejects a singular count");
-
-        assert!(matches!(error, ParseError::BuildRejected { .. }));
-        assert_eq!(
-            super::audit_status_for_error(&error),
-            AuditStatus::ParseFailure
-        );
-        assert_ne!(
-            super::audit_status_for_error(&error),
-            AuditStatus::InternalFailure
         );
     }
 

@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "Addendum",
+    spelling: "Addendum",
+    grammar: FixedTerm(surface: "Addendum"),
+)

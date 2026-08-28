@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "Hellbent",
+    spelling: "Hellbent",
+    grammar: FixedTerm(surface: "Hellbent"),
+)

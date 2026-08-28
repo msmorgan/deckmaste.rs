@@ -544,45 +544,7 @@ fn validate_sequence_feature_roles(
             .iter()
             .map(|field| (identifier_key(&field.name), field))
             .collect::<HashMap<_, _>>();
-        let mut uses: HashMap<String, Vec<(ParsedFeature, proc_macro2::Span)>> = HashMap::new();
-        for equation in &construction.equations {
-            if let ParsedFeaturePlace::Role { field, feature } = &equation.target
-                && matches!(
-                    fields.get(&identifier_key(field)).map(|field| &field.kind),
-                    Some(FieldKind::Sequence { .. })
-                )
-            {
-                if *feature == ParsedFeature::Onset {
-                    combine(
-                        &mut errors,
-                        syn::Error::new(
-                            field.span(),
-                            format!(
-                                "{element}.{}: sequence onset is a first-member relay; derive construction onset from `{}.onset` instead",
-                                identifier_key(field),
-                                identifier_key(field),
-                            ),
-                        ),
-                    );
-                } else {
-                    uses.entry(identifier_key(field))
-                        .or_default()
-                        .push((*feature, field.span()));
-                }
-            }
-            if let ParsedFeatureValue::FromRole(source) = &equation.value
-                && matches!(
-                    fields
-                        .get(&identifier_key(&source.role))
-                        .map(|field| &field.kind),
-                    Some(FieldKind::Sequence { .. })
-                )
-            {
-                uses.entry(identifier_key(&source.role))
-                    .or_default()
-                    .push((source.feature, source.role.span()));
-            }
-        }
+        let uses = sequence_feature_uses(construction, &fields, &element, &mut errors);
         for (role, uses) in uses {
             let distinct = uses
                 .iter()
@@ -711,6 +673,54 @@ fn validate_sequence_feature_roles(
     }
     finish(errors)?;
     Ok(result)
+}
+
+fn sequence_feature_uses(
+    construction: &crate::Construction,
+    fields: &HashMap<String, &crate::model::Field>,
+    element: &str,
+    errors: &mut Option<syn::Error>,
+) -> HashMap<String, Vec<(ParsedFeature, proc_macro2::Span)>> {
+    let mut uses: HashMap<String, Vec<(ParsedFeature, proc_macro2::Span)>> = HashMap::new();
+    for equation in &construction.equations {
+        if let ParsedFeaturePlace::Role { field, feature } = &equation.target
+            && matches!(
+                fields.get(&identifier_key(field)).map(|field| &field.kind),
+                Some(FieldKind::Sequence { .. })
+            )
+        {
+            if *feature == ParsedFeature::Onset {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        field.span(),
+                        format!(
+                            "{element}.{}: sequence onset is a first-member relay; derive construction onset from `{}.onset` instead",
+                            identifier_key(field),
+                            identifier_key(field),
+                        ),
+                    ),
+                );
+            } else {
+                uses.entry(identifier_key(field))
+                    .or_default()
+                    .push((*feature, field.span()));
+            }
+        }
+        if let ParsedFeatureValue::FromRole(source) = &equation.value
+            && matches!(
+                fields
+                    .get(&identifier_key(&source.role))
+                    .map(|field| &field.kind),
+                Some(FieldKind::Sequence { .. })
+            )
+        {
+            uses.entry(identifier_key(&source.role))
+                .or_default()
+                .push((source.feature, source.role.span()));
+        }
+    }
+    uses
 }
 
 #[derive(Debug)]
@@ -1953,36 +1963,69 @@ fn validate_morphology(raw: &Declarations) -> syn::Result<()> {
     finish(errors)
 }
 
-fn validate_vocab_declaration_shape(
-    vocab: &crate::model::Vocab,
-    errors: &mut Option<syn::Error>,
-) {
+fn validate_vocab_declaration_shape(vocab: &crate::model::Vocab, errors: &mut Option<syn::Error>) {
     let mut feature_defaults = HashSet::new();
     for default in &vocab.feature_defaults {
         if default.feature != crate::model::Feature::ModifierLicense {
-            combine(errors, syn::Error::new(default.value.span(), "closed vocab metadata supports only ModifierLicense"));
+            combine(
+                errors,
+                syn::Error::new(
+                    default.value.span(),
+                    "closed vocab metadata supports only ModifierLicense",
+                ),
+            );
         }
         if !feature_defaults.insert(default.feature) {
-            combine(errors, syn::Error::new(default.value.span(), "duplicate vocab feature default"));
+            combine(
+                errors,
+                syn::Error::new(default.value.span(), "duplicate vocab feature default"),
+            );
         }
-        if crate::feature::Feature::from(default.feature).member(&default.value).is_err() {
-            combine(errors, syn::Error::new(default.value.span(), "invalid vocab feature default"));
+        if crate::feature::Feature::from(default.feature)
+            .member(&default.value)
+            .is_err()
+        {
+            combine(
+                errors,
+                syn::Error::new(default.value.span(), "invalid vocab feature default"),
+            );
         }
     }
     for variant in &vocab.variants {
         let mut feature_overrides = HashSet::new();
         for override_ in &variant.feature_overrides {
             if override_.feature != crate::model::Feature::ModifierLicense {
-                combine(errors, syn::Error::new(override_.value.span(), "closed vocab metadata supports only ModifierLicense"));
+                combine(
+                    errors,
+                    syn::Error::new(
+                        override_.value.span(),
+                        "closed vocab metadata supports only ModifierLicense",
+                    ),
+                );
             }
             if !feature_defaults.contains(&override_.feature) {
-                combine(errors, syn::Error::new(override_.value.span(), "vocab feature override requires a vocab-level default"));
+                combine(
+                    errors,
+                    syn::Error::new(
+                        override_.value.span(),
+                        "vocab feature override requires a vocab-level default",
+                    ),
+                );
             }
             if !feature_overrides.insert(override_.feature) {
-                combine(errors, syn::Error::new(override_.value.span(), "duplicate vocab feature override"));
+                combine(
+                    errors,
+                    syn::Error::new(override_.value.span(), "duplicate vocab feature override"),
+                );
             }
-            if crate::feature::Feature::from(override_.feature).member(&override_.value).is_err() {
-                combine(errors, syn::Error::new(override_.value.span(), "invalid vocab feature override"));
+            if crate::feature::Feature::from(override_.feature)
+                .member(&override_.value)
+                .is_err()
+            {
+                combine(
+                    errors,
+                    syn::Error::new(override_.value.span(), "invalid vocab feature override"),
+                );
             }
         }
     }
@@ -1998,13 +2041,28 @@ fn validate_lexeme_declaration_shape(
             default.feature,
             crate::model::Feature::Compoundability | crate::model::Feature::ModifierLicense
         ) {
-            combine(errors, syn::Error::new(default.value.span(), "closed lexeme metadata supports only Compoundability and ModifierLicense"));
+            combine(
+                errors,
+                syn::Error::new(
+                    default.value.span(),
+                    "closed lexeme metadata supports only Compoundability and ModifierLicense",
+                ),
+            );
         }
         if !feature_defaults.insert(default.feature) {
-            combine(errors, syn::Error::new(default.value.span(), "duplicate lexeme feature default"));
+            combine(
+                errors,
+                syn::Error::new(default.value.span(), "duplicate lexeme feature default"),
+            );
         }
-        if crate::feature::Feature::from(default.feature).member(&default.value).is_err() {
-            combine(errors, syn::Error::new(default.value.span(), "invalid lexeme feature default"));
+        if crate::feature::Feature::from(default.feature)
+            .member(&default.value)
+            .is_err()
+        {
+            combine(
+                errors,
+                syn::Error::new(default.value.span(), "invalid lexeme feature default"),
+            );
         }
     }
     let mut members = HashSet::new();
@@ -2053,16 +2111,37 @@ fn validate_lexeme_declaration_shape(
                 override_.feature,
                 crate::model::Feature::Compoundability | crate::model::Feature::ModifierLicense
             ) {
-                combine(errors, syn::Error::new(override_.value.span(), "closed lexeme metadata supports only Compoundability and ModifierLicense"));
+                combine(
+                    errors,
+                    syn::Error::new(
+                        override_.value.span(),
+                        "closed lexeme metadata supports only Compoundability and ModifierLicense",
+                    ),
+                );
             }
             if !feature_defaults.contains(&override_.feature) {
-                combine(errors, syn::Error::new(override_.value.span(), "lexeme feature override requires a lexeme-level default"));
+                combine(
+                    errors,
+                    syn::Error::new(
+                        override_.value.span(),
+                        "lexeme feature override requires a lexeme-level default",
+                    ),
+                );
             }
             if !feature_overrides.insert(override_.feature) {
-                combine(errors, syn::Error::new(override_.value.span(), "duplicate lexeme feature override"));
+                combine(
+                    errors,
+                    syn::Error::new(override_.value.span(), "duplicate lexeme feature override"),
+                );
             }
-            if crate::feature::Feature::from(override_.feature).member(&override_.value).is_err() {
-                combine(errors, syn::Error::new(override_.value.span(), "invalid lexeme feature override"));
+            if crate::feature::Feature::from(override_.feature)
+                .member(&override_.value)
+                .is_err()
+            {
+                combine(
+                    errors,
+                    syn::Error::new(override_.value.span(), "invalid lexeme feature override"),
+                );
             }
         }
     }
@@ -2419,99 +2498,295 @@ fn validate_declaration_determinative_source(
 ) {
     if source.closed_slots.len() > 1 {
         for duplicate in &source.closed_slots[1..] {
-            combine(errors, syn::Error::new(duplicate.slot.span(), "duplicate declaration_determinative field `closed`"));
+            combine(
+                errors,
+                syn::Error::new(
+                    duplicate.slot.span(),
+                    "duplicate declaration_determinative field `closed`",
+                ),
+            );
         }
     }
     if source.kind_slots.len() > 1 {
         for duplicate in &source.kind_slots[1..] {
-            combine(errors, syn::Error::new(duplicate.slot.span(), "duplicate declaration_determinative field `kinds`"));
+            combine(
+                errors,
+                syn::Error::new(
+                    duplicate.slot.span(),
+                    "duplicate declaration_determinative field `kinds`",
+                ),
+            );
         }
     }
-    let has_closed = source.closed_slots.first().is_some_and(|slot| !slot.members.is_empty());
-    let has_kinds = source.kind_slots.first().is_some_and(|slot| !slot.kinds.is_empty());
+    let has_closed = source
+        .closed_slots
+        .first()
+        .is_some_and(|slot| !slot.members.is_empty());
+    let has_kinds = source
+        .kind_slots
+        .first()
+        .is_some_and(|slot| !slot.kinds.is_empty());
     if !has_closed && !has_kinds {
-        combine(errors, syn::Error::new(source.recipe.span(), "declaration_determinative requires a nonempty `closed` or `kinds` provider"));
+        combine(
+            errors,
+            syn::Error::new(
+                source.recipe.span(),
+                "declaration_determinative requires a nonempty `closed` or `kinds` provider",
+            ),
+        );
     }
     if let Some(closed) = source.closed_slots.first() {
         if closed.members.is_empty() {
-            combine(errors, syn::Error::new(closed.slot.span(), "declaration_determinative closed provider cannot be empty"));
+            combine(
+                errors,
+                syn::Error::new(
+                    closed.slot.span(),
+                    "declaration_determinative closed provider cannot be empty",
+                ),
+            );
         }
         let mut lemmas = HashSet::new();
         for member in &closed.members {
             let lemma = identifier_key(&member.lemma);
             if !lemmas.insert(lemma.clone()) {
-                combine(errors, syn::Error::new(member.lemma.span(), format!("duplicate declaration_determinative lemma `{lemma}`")));
+                combine(
+                    errors,
+                    syn::Error::new(
+                        member.lemma.span(),
+                        format!("duplicate declaration_determinative lemma `{lemma}`"),
+                    ),
+                );
             }
-            validate_determinative_member_slot(&member.number_license_slots, &member.lemma, "number_license", &["SingularOnly", "PluralOnly", "Both"], errors);
-            validate_determinative_member_slot(&member.fused_head_license_slots, &member.lemma, "fused_head_license", &["NominalOnly", "FusedHead"], errors);
-            validate_determinative_member_slot(&member.nominal_license_slots, &member.lemma, "nominal_license", &["CountNominal", "BareSingularNoun"], errors);
-            match member.realization_slots.as_slice() {
-                [] => combine(errors, syn::Error::new(member.lemma.span(), "declaration_determinative member requires one `realizations` field")),
-                [slot, rest @ ..] => {
-                    for duplicate in rest { combine(errors, syn::Error::new(duplicate.slot.span(), "duplicate declaration_determinative member field `realizations`")); }
-                    if slot.realizations.is_empty() { combine(errors, syn::Error::new(slot.slot.span(), "declaration_determinative realizations cannot be empty")); }
-                    let mut conditions = Vec::<(Option<String>, Option<String>, proc_macro2::Span)>::new();
-                    for row in &slot.realizations {
-                        if row.surface_slots.len() != 1 {
-                            combine(errors, syn::Error::new(member.lemma.span(), "declaration_determinative realization requires one `surface` field"));
-                        }
-                        validate_optional_determinative_condition(&row.phrase_number_slots, "phrase_number", &["Singular", "Plural"], errors);
-                        validate_optional_determinative_condition(&row.following_onset_slots, "following_onset", &["Consonant", "Vowel"], errors);
-                        if row.surface_slots.len() == 1 && row.phrase_number_slots.len() <= 1 && row.following_onset_slots.len() <= 1 {
-                            if ::macro_ron::v2::normalize_surface_onset(&row.surface_slots[0].value(), None).is_none() {
-                                combine(errors, syn::Error::new(row.surface_slots[0].span(), "declaration_determinative realization has no discernible onset"));
-                            }
-                            let phrase = row.phrase_number_slots.first().map(|slot| identifier_key(&slot.value));
-                            let onset = row.following_onset_slots.first().map(|slot| identifier_key(&slot.value));
-                            let number = member.number_license_slots.first().map(|slot| identifier_key(&slot.value));
-                            if matches!(number.as_deref(), Some("SingularOnly")) && matches!(phrase.as_deref(), Some("Plural"))
-                                || matches!(number.as_deref(), Some("PluralOnly")) && matches!(phrase.as_deref(), Some("Singular")) {
-                                combine(errors, syn::Error::new(row.surface_slots[0].span(), "declaration_determinative realization conflicts with its number_license"));
-                            }
-                            if conditions.iter().any(|(other_phrase, other_onset, _)| {
-                                (phrase.is_none() || other_phrase.is_none() || phrase == *other_phrase)
-                                    && (onset.is_none() || other_onset.is_none() || onset == *other_onset)
-                            }) { combine(errors, syn::Error::new(row.surface_slots[0].span(), "overlapping declaration_determinative realizations")); }
-                            conditions.push((phrase, onset, row.surface_slots[0].span()));
-                        }
-                    }
-                }
-            }
+            validate_determinative_member(member, errors);
         }
     }
     if let Some(kinds) = source.kind_slots.first() {
         let mut seen = HashSet::new();
         for kind in &kinds.kinds {
             let name = identifier_key(kind);
-            if !matches!(name.as_str(), "KeywordAbility" | "CounterKind" | "Designation" | "KeywordAction" | "Type") {
-                combine(errors, syn::Error::new(kind.span(), "declaration_determinative kinds must be declaration kinds"));
+            if !matches!(
+                name.as_str(),
+                "KeywordAbility" | "CounterKind" | "Designation" | "KeywordAction" | "Type"
+            ) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        kind.span(),
+                        "declaration_determinative kinds must be declaration kinds",
+                    ),
+                );
             } else if !seen.insert(name.clone()) {
-                combine(errors, syn::Error::new(kind.span(), format!("duplicate declaration_determinative kind `{name}`")));
+                combine(
+                    errors,
+                    syn::Error::new(
+                        kind.span(),
+                        format!("duplicate declaration_determinative kind `{name}`"),
+                    ),
+                );
+            }
+        }
+    }
+}
+
+fn validate_determinative_member(
+    member: &crate::model::DeclarationDeterminativeMemberSource,
+    errors: &mut Option<syn::Error>,
+) {
+    validate_determinative_member_slot(
+        &member.number_license_slots,
+        &member.lemma,
+        "number_license",
+        &["SingularOnly", "PluralOnly", "Both"],
+        errors,
+    );
+    validate_determinative_member_slot(
+        &member.fused_head_license_slots,
+        &member.lemma,
+        "fused_head_license",
+        &["NominalOnly", "FusedHead"],
+        errors,
+    );
+    validate_determinative_member_slot(
+        &member.nominal_license_slots,
+        &member.lemma,
+        "nominal_license",
+        &["CountNominal", "BareSingularNoun", "MassOrPluralCount"],
+        errors,
+    );
+    match member.realization_slots.as_slice() {
+        [] => combine(
+            errors,
+            syn::Error::new(
+                member.lemma.span(),
+                "declaration_determinative member requires one `realizations` field",
+            ),
+        ),
+        [slot, rest @ ..] => {
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        "duplicate declaration_determinative member field `realizations`",
+                    ),
+                );
+            }
+            if slot.realizations.is_empty() {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        slot.slot.span(),
+                        "declaration_determinative realizations cannot be empty",
+                    ),
+                );
+            }
+            let mut conditions = Vec::<(Option<String>, Option<String>, proc_macro2::Span)>::new();
+            for row in &slot.realizations {
+                if row.surface_slots.len() != 1 {
+                    combine(
+                        errors,
+                        syn::Error::new(
+                            member.lemma.span(),
+                            "declaration_determinative realization requires one `surface` field",
+                        ),
+                    );
+                }
+                validate_optional_determinative_condition(
+                    &row.phrase_number_slots,
+                    "phrase_number",
+                    &["Singular", "Plural"],
+                    errors,
+                );
+                validate_optional_determinative_condition(
+                    &row.following_onset_slots,
+                    "following_onset",
+                    &["Consonant", "Vowel"],
+                    errors,
+                );
+                if row.surface_slots.len() == 1
+                    && row.phrase_number_slots.len() <= 1
+                    && row.following_onset_slots.len() <= 1
+                {
+                    if ::macro_ron::v2::normalize_surface_onset(&row.surface_slots[0].value(), None)
+                        .is_none()
+                    {
+                        combine(
+                            errors,
+                            syn::Error::new(
+                                row.surface_slots[0].span(),
+                                "declaration_determinative realization has no discernible onset",
+                            ),
+                        );
+                    }
+                    let phrase = row
+                        .phrase_number_slots
+                        .first()
+                        .map(|slot| identifier_key(&slot.value));
+                    let onset = row
+                        .following_onset_slots
+                        .first()
+                        .map(|slot| identifier_key(&slot.value));
+                    let number = member
+                        .number_license_slots
+                        .first()
+                        .map(|slot| identifier_key(&slot.value));
+                    if matches!(number.as_deref(), Some("SingularOnly"))
+                        && matches!(phrase.as_deref(), Some("Plural"))
+                        || matches!(number.as_deref(), Some("PluralOnly"))
+                            && matches!(phrase.as_deref(), Some("Singular"))
+                    {
+                        combine(
+                            errors,
+                            syn::Error::new(
+                                row.surface_slots[0].span(),
+                                "declaration_determinative realization conflicts with its number_license",
+                            ),
+                        );
+                    }
+                    if conditions.iter().any(|(other_phrase, other_onset, _)| {
+                        (phrase.is_none() || other_phrase.is_none() || phrase == *other_phrase)
+                            && (onset.is_none() || other_onset.is_none() || onset == *other_onset)
+                    }) {
+                        combine(
+                            errors,
+                            syn::Error::new(
+                                row.surface_slots[0].span(),
+                                "overlapping declaration_determinative realizations",
+                            ),
+                        );
+                    }
+                    conditions.push((phrase, onset, row.surface_slots[0].span()));
+                }
             }
         }
     }
 }
 
 fn validate_determinative_member_slot(
-    slots: &[crate::model::GeneratedIdentSlot], lemma: &syn::Ident, name: &str, allowed: &[&str], errors: &mut Option<syn::Error>,
+    slots: &[crate::model::GeneratedIdentSlot],
+    lemma: &syn::Ident,
+    name: &str,
+    allowed: &[&str],
+    errors: &mut Option<syn::Error>,
 ) {
     match slots {
-        [] => combine(errors, syn::Error::new(lemma.span(), format!("declaration_determinative member requires one `{name}` field"))),
+        [] => combine(
+            errors,
+            syn::Error::new(
+                lemma.span(),
+                format!("declaration_determinative member requires one `{name}` field"),
+            ),
+        ),
         [slot, rest @ ..] => {
-            for duplicate in rest { combine(errors, syn::Error::new(duplicate.slot.span(), format!("duplicate declaration_determinative member field `{name}`"))); }
+            for duplicate in rest {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        duplicate.slot.span(),
+                        format!("duplicate declaration_determinative member field `{name}`"),
+                    ),
+                );
+            }
             let value = identifier_key(&slot.value);
-            if !allowed.contains(&value.as_str()) { combine(errors, syn::Error::new(slot.value.span(), format!("invalid declaration_determinative {name} `{value}`"))); }
+            if !allowed.contains(&value.as_str()) {
+                combine(
+                    errors,
+                    syn::Error::new(
+                        slot.value.span(),
+                        format!("invalid declaration_determinative {name} `{value}`"),
+                    ),
+                );
+            }
         }
     }
 }
 
 fn validate_optional_determinative_condition(
-    slots: &[crate::model::GeneratedIdentSlot], name: &str, allowed: &[&str], errors: &mut Option<syn::Error>,
+    slots: &[crate::model::GeneratedIdentSlot],
+    name: &str,
+    allowed: &[&str],
+    errors: &mut Option<syn::Error>,
 ) {
     if let Some((slot, rest)) = slots.split_first() {
-        for duplicate in rest { combine(errors, syn::Error::new(duplicate.slot.span(), format!("duplicate declaration_determinative realization field `{name}`"))); }
+        for duplicate in rest {
+            combine(
+                errors,
+                syn::Error::new(
+                    duplicate.slot.span(),
+                    format!("duplicate declaration_determinative realization field `{name}`"),
+                ),
+            );
+        }
         let value = identifier_key(&slot.value);
-        if !allowed.contains(&value.as_str()) { combine(errors, syn::Error::new(slot.value.span(), format!("invalid declaration_determinative {name} `{value}`"))); }
+        if !allowed.contains(&value.as_str()) {
+            combine(
+                errors,
+                syn::Error::new(
+                    slot.value.span(),
+                    format!("invalid declaration_determinative {name} `{value}`"),
+                ),
+            );
+        }
     }
 }
 
@@ -2592,6 +2867,11 @@ fn validate_declaration_term_domains_are_pairwise_intentional(
             };
             let position = source.position_slots.first()?;
             let kinds = source.kind_slots.first()?;
+            let params = source
+                .param_slots
+                .first()
+                .map(|slot| slot.kinds.iter().map(identifier_key).collect::<Vec<_>>())
+                .unwrap_or_default();
             Some((
                 binding,
                 identifier_key(&position.value),
@@ -2600,12 +2880,13 @@ fn validate_declaration_term_domains_are_pairwise_intentional(
                     .iter()
                     .map(identifier_key)
                     .collect::<BTreeSet<_>>(),
+                params,
             ))
         })
         .collect::<Vec<_>>();
-    for (index, (left, left_position, left_kinds)) in terms.iter().enumerate() {
-        for (right, right_position, right_kinds) in &terms[index + 1..] {
-            if left_position != right_position {
+    for (index, (left, left_position, left_kinds, left_params)) in terms.iter().enumerate() {
+        for (right, right_position, right_kinds, right_params) in &terms[index + 1..] {
+            if left_position != right_position || left_params != right_params {
                 continue;
             }
             if let Some(kind) = left_kinds.intersection(right_kinds).next() {
@@ -2614,7 +2895,7 @@ fn validate_declaration_term_domains_are_pairwise_intentional(
                     syn::Error::new(
                         right.name.span(),
                         format!(
-                            "declaration_term domains `{}` and `{}` overlap at `{kind}/{left_position}`",
+                            "declaration_term domains `{}` and `{}` overlap at `{kind}/{left_position}/{left_params:?}`",
                             left.name, right.name
                         ),
                     ),
@@ -2659,6 +2940,17 @@ fn validate_declaration_term_source(
             Some(slot)
         }
     };
+    if let [_, rest @ ..] = source.param_slots.as_slice() {
+        for duplicate in rest {
+            combine(
+                errors,
+                syn::Error::new(
+                    duplicate.slot.span(),
+                    "duplicate declaration_term field `params`",
+                ),
+            );
+        }
+    }
 
     if let Some(position) = position
         && !matches!(
@@ -2690,13 +2982,13 @@ fn validate_declaration_term_source(
         let name = identifier_key(kind);
         if !matches!(
             name.as_str(),
-            "KeywordAbility" | "CounterKind" | "Designation"
+            "KeywordAbility" | "AbilityWord" | "CounterKind" | "Designation"
         ) {
             combine(
                 errors,
                 syn::Error::new(
                     kind.span(),
-                    "declaration_term kinds must be `KeywordAbility`, `CounterKind`, or `Designation`",
+                    "declaration_term kinds must be `KeywordAbility`, `AbilityWord`, `CounterKind`, or `Designation`",
                 ),
             );
             continue;
@@ -2714,7 +3006,8 @@ fn validate_declaration_term_source(
             let position = identifier_key(position);
             let compatible = matches!(
                 (position.as_str(), name.as_str()),
-                ("FixedKeyword", "KeywordAbility") | ("FixedTerm", "CounterKind" | "Designation")
+                ("FixedKeyword", "KeywordAbility")
+                    | ("FixedTerm", "AbilityWord" | "CounterKind" | "Designation")
             );
             if !compatible {
                 combine(
@@ -2821,19 +3114,19 @@ fn declaration_verb_domain(
         .iter()
         .map(|atom| {
             let key = match &atom.kind {
-            crate::model::DeclarationVerbTailAtomKindSource::Literal(literal) => {
-                format!("Literal({:?})", literal.value())
-            }
-            crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => "Amount".to_owned(),
-            crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
-                "ObjectNounPhrase".to_owned()
-            }
-            crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(_) => {
-                "PredicativeComplement".to_owned()
-            }
-            crate::model::DeclarationVerbTailAtomKindSource::Role(role) => {
-                format!("Role({})", identifier_key(role))
-            }
+                crate::model::DeclarationVerbTailAtomKindSource::Literal(literal) => {
+                    format!("Literal({:?})", literal.value())
+                }
+                crate::model::DeclarationVerbTailAtomKindSource::Amount(_) => "Amount".to_owned(),
+                crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(_) => {
+                    "ObjectNounPhrase".to_owned()
+                }
+                crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(_) => {
+                    "PredicativeComplement".to_owned()
+                }
+                crate::model::DeclarationVerbTailAtomKindSource::Role(role) => {
+                    format!("Role({})", identifier_key(role))
+                }
             };
             if atom.optional { format!("{key}?") } else { key }
         })
@@ -3186,9 +3479,7 @@ fn validate_declaration_verb_tail(
             crate::model::DeclarationVerbTailAtomKindSource::Amount(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::ObjectNounPhrase(atom)
             | crate::model::DeclarationVerbTailAtomKindSource::PredicativeComplement(atom)
-            | crate::model::DeclarationVerbTailAtomKindSource::Role(atom) => {
-                atom.span()
-            }
+            | crate::model::DeclarationVerbTailAtomKindSource::Role(atom) => atom.span(),
             crate::model::DeclarationVerbTailAtomKindSource::Literal(_) => {
                 unreachable!("only nonliteral occurrences are grouped")
             }
@@ -4485,7 +4776,11 @@ fn generated_name_inventory(
                     );
                     for (feature, spelling, display) in [
                         (Feature::Agreement, "agreement", "Agreement"),
-                        (Feature::ModifierLicense, "modifier_license", "ModifierLicense"),
+                        (
+                            Feature::ModifierLicense,
+                            "modifier_license",
+                            "ModifierLicense",
+                        ),
                         (
                             Feature::DeterminerNumber,
                             "determiner_number",
@@ -4740,12 +5035,19 @@ fn generated_name_inventory(
                         binding.generated,
                         Some(crate::model::GeneratedCodecRecipe::EnglishCardinal(_))
                     ) {
-                        names.register_value(
-                            &feature_helper("number", &name),
-                            &format!("generated Number provider for `{name}`"),
-                            binding.name.span(),
-                            errors,
-                        );
+                        for (feature, label) in [
+                            ("agreement", "Agreement"),
+                            ("determiner_number", "DeterminerNumber"),
+                            ("number", "Number"),
+                            ("cardinality", "Cardinality"),
+                        ] {
+                            names.register_value(
+                                &feature_helper(feature, &name),
+                                &format!("generated {label} provider for `{name}`"),
+                                binding.name.span(),
+                                errors,
+                            );
+                        }
                     }
                 }
                 if let Some(family) = match binding.generated {
@@ -5865,7 +6167,9 @@ fn validate_resolved_field_kind(
     errors: &mut Option<syn::Error>,
 ) {
     match kind {
-        FieldKind::Zeroable { item, .. } => validate_resolved_field_kind(item, symbols, errors),
+        FieldKind::Zeroable { item, .. } | FieldKind::Sequence { item, .. } => {
+            validate_resolved_field_kind(item, symbols, errors);
+        }
         FieldKind::Category(path) => {
             let name = path_name(path);
             if !symbols.categories.contains(&name) && !symbols.structural_types.contains(&name) {
@@ -5898,7 +6202,6 @@ fn validate_resolved_field_kind(
             }
         }
         FieldKind::Optional(value) => validate_resolved_field_kind(value, symbols, errors),
-        FieldKind::Sequence { item, .. } => validate_resolved_field_kind(item, symbols, errors),
     }
 }
 
@@ -6501,9 +6804,10 @@ fn check_role_kind(
 
 fn field_kind_leaf(kind: &FieldKind) -> &FieldKind {
     match kind {
-        FieldKind::Zeroable { item, .. } => field_kind_leaf(item),
+        FieldKind::Zeroable { item, .. } | FieldKind::Sequence { item, .. } => {
+            field_kind_leaf(item)
+        }
         FieldKind::Optional(value) => field_kind_leaf(value),
-        FieldKind::Sequence { item, .. } => field_kind_leaf(item),
         FieldKind::Category(_) | FieldKind::Lex(_) | FieldKind::Identity(_) => kind,
     }
 }
@@ -9070,6 +9374,8 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             Some(crate::model::GeneratedCodecRecipe::EnglishCardinal(_))
         ) {
             let terminal = identifier_key(&binding.name);
+            providers.insert((terminal.clone(), ParsedFeature::Agreement));
+            providers.insert((terminal.clone(), ParsedFeature::DeterminerNumber));
             providers.insert((terminal.clone(), ParsedFeature::Number));
             providers.insert((terminal, ParsedFeature::Cardinality));
         }
@@ -9544,30 +9850,7 @@ fn validate_lowerable_feature_compositions(
         .iter()
         .flat_map(|form| &form.atoms)
         .any(|atom| matches!(atom, FormAtom::Noun(_)));
-    let matched_role = |feature| {
-        construction.equations.iter().find_map(|equation| {
-            matches!(&equation.target, ParsedFeaturePlace::Construction(found) if *found == feature)
-                .then_some(&equation.value)
-                .and_then(|value| match value {
-                    ParsedFeatureValue::Match { role, .. } => Some(role),
-                    ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_) => None,
-                })
-        })
-    };
-    let agreement_match_role = matched_role(ParsedFeature::Agreement);
-    let number_match_role = matched_role(ParsedFeature::Number);
-    if agreement_match_role
-        .zip(number_match_role)
-        .is_some_and(|(agreement, number)| !same_identifier(agreement, number))
-    {
-        combine(
-            errors,
-            syn::Error::new(
-                construction.name.span(),
-                "unimplemented in MVP: `feature equation composition`; construction agreement and number matches must use the same vocabulary role",
-            ),
-        );
-    }
+    validate_matched_feature_roles(construction, errors);
 
     for equation in &construction.equations {
         let lowerable = match (&equation.target, &equation.value) {
@@ -9602,7 +9885,7 @@ fn validate_lowerable_feature_compositions(
                     | ParsedFeature::FusedHeadLicense
                     | ParsedFeature::NominalForm
                     | ParsedFeature::NominalLicense
-                    | ParsedFeature::ModifierLicense
+                    | ParsedFeature::ModifierLicense,
                 ),
                 ParsedFeatureValue::FromRole(source),
             ) => role_feature_is_constructible(
@@ -9640,7 +9923,13 @@ fn validate_lowerable_feature_compositions(
                 } => role_provides_cardinality(raw, &fields, field),
                 _ => false,
             },
-            (ParsedFeaturePlace::Role { feature: ParsedFeature::Compoundability, .. }, _) => false,
+            (
+                ParsedFeaturePlace::Role {
+                    feature: ParsedFeature::Compoundability,
+                    ..
+                },
+                _,
+            ) => false,
             (
                 ParsedFeaturePlace::Role {
                     feature: ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
@@ -9692,6 +9981,36 @@ fn validate_lowerable_feature_compositions(
     }
 }
 
+fn validate_matched_feature_roles(
+    construction: &crate::Construction,
+    errors: &mut Option<syn::Error>,
+) {
+    let matched_role = |feature| {
+        construction.equations.iter().find_map(|equation| {
+            matches!(&equation.target, ParsedFeaturePlace::Construction(found) if *found == feature)
+                .then_some(&equation.value)
+                .and_then(|value| match value {
+                    ParsedFeatureValue::Match { role, .. } => Some(role),
+                    ParsedFeatureValue::Constant(_) | ParsedFeatureValue::FromRole(_) => None,
+                })
+        })
+    };
+    let agreement = matched_role(ParsedFeature::Agreement);
+    let number = matched_role(ParsedFeature::Number);
+    if agreement
+        .zip(number)
+        .is_some_and(|(agreement, number)| !same_identifier(agreement, number))
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                construction.name.span(),
+                "unimplemented in MVP: `feature equation composition`; construction agreement and number matches must use the same vocabulary role",
+            ),
+        );
+    }
+}
+
 fn role_provides_agreement(
     raw: &Declarations,
     fields: &HashMap<String, &FieldKind>,
@@ -9732,8 +10051,7 @@ fn role_provides_number(
     role: &syn::Ident,
 ) -> bool {
     match fields.get(&identifier_key(role)) {
-        Some(FieldKind::Zeroable { .. }) => true,
-        Some(FieldKind::Category(_)) => true,
+        Some(FieldKind::Zeroable { .. } | FieldKind::Category(_)) => true,
         Some(FieldKind::Lex(path)) => {
             raw.declarations
                 .iter()
@@ -9995,10 +10313,11 @@ pub(crate) mod tests {
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("callback companion-feature fixture validates");
-        assert!(!validated.semantic().category_reads_feature(
-            "Object",
-            crate::feature::Feature::Number,
-        ));
+        assert!(
+            !validated
+                .semantic()
+                .category_reads_feature("Object", crate::feature::Feature::Number,)
+        );
         assert!(validated.semantic().category_carries_number("Object"));
     }
 
@@ -11075,6 +11394,14 @@ pub(crate) mod tests {
                 generate declaration_term {
                     position = FixedKeyword;
                     kinds = [KeywordAbility];
+                    params = [Cost];
+                }
+            }
+            codec QualityKeywordAbility {
+                generate declaration_term {
+                    position = FixedKeyword;
+                    kinds = [KeywordAbility];
+                    params = [Quality];
                 }
             }
             codec FixedTerm {
@@ -11108,6 +11435,15 @@ pub(crate) mod tests {
                 kinds = [Designation];
             })
             .contains("declaration_term position must be `FixedTerm` or `FixedKeyword`")
+        );
+        assert!(
+            declaration_term_error(&quote! {
+                position = FixedKeyword;
+                kinds = [KeywordAbility];
+                params = [Cost];
+                params = [Quality];
+            })
+            .contains("duplicate declaration_term field `params`")
         );
     }
 

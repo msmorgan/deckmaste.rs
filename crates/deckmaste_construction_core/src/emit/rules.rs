@@ -2076,18 +2076,6 @@ fn declaration_verb_feature(
             FeatureValue::ThirdPersonSingular => {
                 Ok(quote! { FeatureConstraint::Exact(Agreement::ThirdPersonSingular) })
             }
-            FeatureValue::Singular
-            | FeatureValue::Plural
-            | FeatureValue::Consonant
-            | FeatureValue::Vowel
-            | FeatureValue::EndsInS
-            | FeatureValue::Other
-            | FeatureValue::Participle
-            | FeatureValue::Zero
-            | FeatureValue::One
-            | FeatureValue::TwoPlus => Err(internal(
-                "declaration verb agreement has a non-agreement value",
-            )),
             _ => Err(internal(
                 "declaration verb agreement has a non-agreement value",
             )),
@@ -2283,16 +2271,6 @@ fn noun_number(
         FeatureExpr::Constant(value) => match value.value() {
             FeatureValue::Singular => Ok(quote! { FeatureConstraint::Exact(Number::Singular) }),
             FeatureValue::Plural => Ok(quote! { FeatureConstraint::Exact(Number::Plural) }),
-            FeatureValue::Bare
-            | FeatureValue::ThirdPersonSingular
-            | FeatureValue::Consonant
-            | FeatureValue::Vowel
-            | FeatureValue::EndsInS
-            | FeatureValue::Other
-            | FeatureValue::Participle
-            | FeatureValue::Zero
-            | FeatureValue::One
-            | FeatureValue::TwoPlus => Err(internal("noun number has a non-number value")),
             _ => Err(internal("noun number has a non-number value")),
         },
         FeatureExpr::MatchVocab { .. } | FeatureExpr::FromRole { .. } => {

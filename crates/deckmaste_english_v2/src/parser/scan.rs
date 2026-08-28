@@ -888,6 +888,7 @@ impl ScanInput<'_> {
         &self,
         position: GrammarPosition,
         kinds: &[DeclarationKind],
+        params: &[&str],
         right_boundary: LexicalBoundary,
     ) -> Vec<(usize, DeclarationId, Onset)> {
         let offset = self.position.byte_offset;
@@ -929,8 +930,19 @@ impl ScanInput<'_> {
                 self.environment.readings(position, candidate)
             };
             results.extend(readings.iter().filter_map(|reading| {
-                (reading.feature() == SurfaceFeature::Fixed && kinds.contains(&reading.id().kind()))
-                    .then(|| (end, reading.id().clone(), reading.onset()))
+                let record = self
+                    .environment
+                    .declaration(reading.id().kind(), reading.id().name());
+                (reading.feature() == SurfaceFeature::Fixed
+                    && kinds.contains(&reading.id().kind())
+                    && record.is_some_and(|record| {
+                        record
+                            .params()
+                            .iter()
+                            .map(AsRef::as_ref)
+                            .eq(params.iter().copied())
+                    }))
+                .then(|| (end, reading.id().clone(), reading.onset()))
             }));
         }
         results.sort();
@@ -958,8 +970,7 @@ impl ScanInput<'_> {
             return Vec::new();
         };
         let surface_byte_limit = if initial {
-            self.environment
-                .initial_determinative_surface_byte_limit()
+            self.environment.initial_determinative_surface_byte_limit()
         } else {
             self.environment.determinative_surface_byte_limit()
         };
@@ -1044,14 +1055,15 @@ impl ScanInput<'_> {
                 self.environment
                     .verb_inventory_readings(candidate, feature, *frame)
             };
-            results.extend(
-                readings
-                    .into_iter()
-                .map(|reading| (end, reading)),
-            );
+            results.extend(readings.into_iter().map(|reading| (end, reading)));
         }
-        results.sort_by(|left, right| left.0.cmp(&right.0).then_with(|| left.1.reference().cmp(right.1.reference())));
-        results.dedup_by(|left, right| left.0 == right.0 && left.1.reference() == right.1.reference());
+        results.sort_by(|left, right| {
+            left.0
+                .cmp(&right.0)
+                .then_with(|| left.1.reference().cmp(right.1.reference()))
+        });
+        results
+            .dedup_by(|left, right| left.0 == right.0 && left.1.reference() == right.1.reference());
         results
     }
 }
@@ -1519,16 +1531,8 @@ mod tests {
             })
             .expect("the intransitive frame owns one declaration-verb terminal");
         for (text, agreement, owner) in [
-            (
-                "Die.",
-                Agreement::Bare,
-                "core-verb:Die",
-            ),
-            (
-                "Dies.",
-                Agreement::ThirdPersonSingular,
-                "core-verb:Die",
-            ),
+            ("Die.", Agreement::Bare, "core-verb:Die"),
+            ("Dies.", Agreement::ThirdPersonSingular, "core-verb:Die"),
         ] {
             let matches = scan(
                 text,
@@ -3026,9 +3030,10 @@ mod tests {
                 Leaf::IntransitiveVerb {
                     verb: crate::ast::DeclarationIntransitiveVerb::new(
                         &canonical_test_environment(),
-                        crate::environment::VerbInventoryRef::Declaration(
-                            DeclarationId::new(DeclarationKind::KeywordAction, "Connive"),
-                        ),
+                        crate::environment::VerbInventoryRef::Declaration(DeclarationId::new(
+                            DeclarationKind::KeywordAction,
+                            "Connive",
+                        )),
                     )
                     .expect("the canonical environment declares intransitive Connive"),
                     agreement: Agreement::ThirdPersonSingular,

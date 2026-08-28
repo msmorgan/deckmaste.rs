@@ -31,6 +31,7 @@ pub struct DeclarationRecord {
     id: DeclarationId,
     recipe: Option<GrammarRecipe>,
     surfaces: Vec<(SurfaceFeature, Onset, Arc<str>)>,
+    params: Vec<Arc<str>>,
     determinative: Option<DeterminativeRecord>,
     provenance: PathBuf,
 }
@@ -80,6 +81,7 @@ pub enum CoreVerbIdentity {
 }
 
 impl CoreVerbIdentity {
+    #[must_use]
     pub const fn owner_id(self) -> &'static str {
         match self {
             Self::Add => "core-verb:Add",
@@ -206,6 +208,12 @@ impl DeclarationRecord {
     #[must_use]
     pub fn recipe(&self) -> Option<&GrammarRecipe> {
         self.recipe.as_ref()
+    }
+
+    /// Returns the declaration's exact positional parameter signature.
+    #[must_use]
+    pub fn params(&self) -> &[Arc<str>] {
+        &self.params
     }
 
     /// Returns the verb valence when this is a verb declaration.
@@ -526,6 +534,10 @@ impl ParserEnvironment {
     /// # Errors
     /// Returns a typed error for duplicate declaration identities, provider
     /// groups, provider identities, or provider surfaces.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "environment freezing validates and indexes every declaration-backed provider in one transaction"
+    )]
     pub fn try_from_parts(
         declarations: impl IntoIterator<Item = NormalizedDeclaration>,
         catalog_providers: impl IntoIterator<Item = CatalogProviderRows>,
@@ -535,6 +547,12 @@ impl ParserEnvironment {
             let id =
                 DeclarationId::new(declaration.identity().kind(), declaration.identity().name());
             let provenance = declaration.provenance().path().to_owned();
+            let params = declaration
+                .params()
+                .unwrap_or_default()
+                .iter()
+                .map(|param| Arc::from(param.as_str()))
+                .collect();
             let records_by_name = records.entry(id.kind()).or_default();
             if let Some(first) = records_by_name.get(id.name()) {
                 return Err(ParserEnvironmentError::DuplicateIdentity {
@@ -580,6 +598,7 @@ impl ParserEnvironment {
                     id,
                     recipe,
                     surfaces,
+                    params,
                     determinative,
                     provenance,
                 },
@@ -1136,12 +1155,12 @@ impl From<VerbFrameAtom> for OwnedVerbFrameAtom {
 impl OwnedVerbFrameAtom {
     fn matches(&self, runtime: VerbFrameAtom) -> bool {
         match (self, runtime) {
-            (Self::Literal(owned), VerbFrameAtom::Literal(runtime)) => owned == runtime,
+            (Self::Literal(owned), VerbFrameAtom::Literal(runtime))
+            | (Self::Role(owned), VerbFrameAtom::Role(runtime))
+            | (Self::OptionalRole(owned), VerbFrameAtom::OptionalRole(runtime)) => owned == runtime,
             (Self::Amount, VerbFrameAtom::Amount)
             | (Self::ObjectNounPhrase, VerbFrameAtom::ObjectNounPhrase)
             | (Self::PredicativeComplement, VerbFrameAtom::PredicativeComplement) => true,
-            (Self::Role(owned), VerbFrameAtom::Role(runtime))
-            | (Self::OptionalRole(owned), VerbFrameAtom::OptionalRole(runtime)) => owned == runtime,
             _ => false,
         }
     }
@@ -1201,16 +1220,16 @@ fn normalized_verb_inventory(
     inventory
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the sealed core verb inventory is intentionally visible as one exhaustive data table"
+)]
 fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
-    use CustomTailAtom::Literal;
-    use CustomTailAtom::ObjectNounPhrase;
     use VerbFrameAtom::OptionalRole;
     use VerbFrameAtom::Role;
 
-    let seed = |_name: &str,
-                bare: &str,
+    let seed = |bare: &str,
                 third_person: &str,
-                _valence: VerbValence,
                 identity: CoreVerbIdentity,
                 frames: Vec<Vec<VerbFrameAtom>>| VerbInventoryRecord {
         reference: VerbInventoryRef::Core(identity),
@@ -1228,33 +1247,19 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             .collect(),
         provenance: VerbProvenance::Core(identity),
     };
-    let class_seed = |name: &str,
-                      bare: &str,
-                      third_person: &str,
-                      identity: CoreVerbIdentity,
-                      class: VerbFrameClass| {
-        let mut record = seed(
-            name,
-            bare,
-            third_person,
-            VerbValence::Custom { shapes: Vec::new() },
-            identity,
-            Vec::new(),
-        );
-        record.frames = vec![OwnedVerbFrameKey {
-            class,
-            atoms: Vec::new(),
-        }];
-        record
-    };
-    let rich_valence = || VerbValence::Custom { shapes: Vec::new() };
-
+    let class_seed =
+        |bare: &str, third_person: &str, identity: CoreVerbIdentity, class: VerbFrameClass| {
+            let mut record = seed(bare, third_person, identity, Vec::new());
+            record.frames = vec![OwnedVerbFrameKey {
+                class,
+                atoms: Vec::new(),
+            }];
+            record
+        };
     let mut records = vec![
         seed(
-            "Add",
             "add",
             "adds",
-            rich_valence(),
             CoreVerbIdentity::Add,
             vec![
                 vec![Role("ManaPhrase")],
@@ -1268,64 +1273,39 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ],
         ),
         seed(
-            "Attack",
             "attack",
             "attacks",
-            rich_valence(),
             CoreVerbIdentity::Attack,
             vec![vec![], vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
-            "Block",
             "block",
             "blocks",
-            rich_valence(),
             CoreVerbIdentity::Block,
             vec![vec![], vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
-            "Choose",
             "choose",
             "chooses",
-            rich_valence(),
             CoreVerbIdentity::Choose,
             vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
-            "Control",
             "control",
             "controls",
-            rich_valence(),
             CoreVerbIdentity::Control,
             vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
-            "Copy",
             "copy",
             "copies",
-            rich_valence(),
             CoreVerbIdentity::Copy,
             vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
+        seed("cycle", "cycles", CoreVerbIdentity::Cycle, vec![vec![]]),
         seed(
-            "Cycle",
-            "cycle",
-            "cycles",
-            rich_valence(),
-            CoreVerbIdentity::Cycle,
-            vec![vec![]],
-        ),
-        seed(
-            "Deal",
             "deal",
             "deals",
-            VerbValence::Custom {
-                shapes: vec![vec![
-                    CustomTailAtom::Amount,
-                    Literal("damage".to_owned()),
-                    ObjectNounPhrase,
-                ]],
-            },
             CoreVerbIdentity::Deal,
             vec![
                 vec![
@@ -1358,19 +1338,10 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
                 ],
             ],
         ),
+        seed("die", "dies", CoreVerbIdentity::Die, vec![vec![]]),
         seed(
-            "Die",
-            "die",
-            "dies",
-            rich_valence(),
-            CoreVerbIdentity::Die,
-            vec![vec![]],
-        ),
-        seed(
-            "Draw",
             "draw",
             "draws",
-            rich_valence(),
             CoreVerbIdentity::Draw,
             vec![
                 vec![Role("CardQuantity")],
@@ -1380,10 +1351,8 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ],
         ),
         seed(
-            "Enter",
             "enter",
             "enters",
-            rich_valence(),
             CoreVerbIdentity::Enter,
             vec![
                 vec![],
@@ -1402,20 +1371,14 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ],
         ),
         seed(
-            "Flip",
             "flip",
             "flips",
-            rich_valence(),
             CoreVerbIdentity::Flip,
             vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
-            "Gain",
             "gain",
             "gains",
-            VerbValence::Custom {
-                shapes: vec![vec![CustomTailAtom::Amount, Literal("life".to_owned())]],
-            },
             CoreVerbIdentity::Gain,
             vec![
                 vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
@@ -1424,10 +1387,8 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ],
         ),
         seed(
-            "Get",
             "get",
             "gets",
-            rich_valence(),
             CoreVerbIdentity::Get,
             vec![vec![
                 Role("PowerToughnessAdjustment"),
@@ -1435,10 +1396,8 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ]],
         ),
         seed(
-            "Have",
             "have",
             "has",
-            rich_valence(),
             CoreVerbIdentity::Have,
             vec![
                 vec![Role("QuotedAbility")],
@@ -1455,28 +1414,20 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ],
         ),
         seed(
-            "Leave",
             "leave",
             "leaves",
-            rich_valence(),
             CoreVerbIdentity::Leave,
             vec![vec![], vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
-            "Look",
             "look",
             "looks",
-            rich_valence(),
             CoreVerbIdentity::Look,
             vec![vec![VerbFrameAtom::Literal("at"), Role("Object")]],
         ),
         seed(
-            "Lose",
             "lose",
             "loses",
-            VerbValence::Custom {
-                shapes: vec![vec![CustomTailAtom::Amount, Literal("life".to_owned())]],
-            },
             CoreVerbIdentity::Lose,
             vec![
                 vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
@@ -1485,18 +1436,14 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ],
         ),
         seed(
-            "Own",
             "own",
             "owns",
-            rich_valence(),
             CoreVerbIdentity::Own,
             vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
-            "Pay",
             "pay",
             "pays",
-            rich_valence(),
             CoreVerbIdentity::Pay,
             vec![
                 vec![VerbFrameAtom::Amount, VerbFrameAtom::Literal("life")],
@@ -1504,18 +1451,14 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ],
         ),
         seed(
-            "Prevent",
             "prevent",
             "prevents",
-            rich_valence(),
             CoreVerbIdentity::Prevent,
             vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
-            "Put",
             "put",
             "puts",
-            rich_valence(),
             CoreVerbIdentity::Put,
             vec![
                 vec![Role("CounterQuantity"), Role("OnPhrase")],
@@ -1546,18 +1489,14 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ],
         ),
         seed(
-            "Remove",
             "remove",
             "removes",
-            rich_valence(),
             CoreVerbIdentity::Remove,
             vec![vec![Role("CounterQuantity"), Role("FromPhrase")]],
         ),
         seed(
-            "Return",
             "return",
             "returns",
-            rich_valence(),
             CoreVerbIdentity::Return,
             vec![vec![
                 Role("Object"),
@@ -1568,26 +1507,20 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ]],
         ),
         seed(
-            "Roll",
             "roll",
             "rolls",
-            rich_valence(),
             CoreVerbIdentity::Roll,
             vec![vec![Role("DieObject")]],
         ),
         seed(
-            "Skip",
             "skip",
             "skips",
-            rich_valence(),
             CoreVerbIdentity::Skip,
             vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
         seed(
-            "Turn",
             "turn",
             "turns",
-            rich_valence(),
             CoreVerbIdentity::Turn,
             vec![vec![
                 VerbFrameAtom::Literal("face"),
@@ -1595,10 +1528,8 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ]],
         ),
         seed(
-            "Unattach",
             "unattach",
             "unattaches",
-            rich_valence(),
             CoreVerbIdentity::Unattach,
             vec![vec![VerbFrameAtom::ObjectNounPhrase]],
         ),
@@ -1606,18 +1537,14 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
 
     records.extend([
         seed(
-            "Become",
             "become",
             "becomes",
-            rich_valence(),
             CoreVerbIdentity::Become,
             vec![vec![VerbFrameAtom::PredicativeComplement]],
         ),
         seed(
-            "Cause",
             "cause",
             "causes",
-            rich_valence(),
             CoreVerbIdentity::Cause,
             vec![vec![
                 Role("Object"),
@@ -1626,10 +1553,8 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ]],
         ),
         seed(
-            "Cost",
             "cost",
             "costs",
-            rich_valence(),
             CoreVerbIdentity::Cost,
             vec![vec![
                 Role("ManaAmount"),
@@ -1639,54 +1564,42 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
             ]],
         ),
         class_seed(
-            "May",
             "may",
             "may",
             CoreVerbIdentity::May,
             VerbFrameClass::Auxiliary,
         ),
         class_seed(
-            "Can",
             "can",
             "can",
             CoreVerbIdentity::Can,
             VerbFrameClass::Auxiliary,
         ),
         class_seed(
-            "Cant",
             "can't",
             "can't",
             CoreVerbIdentity::Cant,
             VerbFrameClass::Auxiliary,
         ),
         class_seed(
-            "Must",
             "must",
             "must",
             CoreVerbIdentity::Must,
             VerbFrameClass::Auxiliary,
         ),
         class_seed(
-            "Didnt",
             "didn't",
             "didn't",
             CoreVerbIdentity::Didnt,
             VerbFrameClass::Auxiliary,
         ),
         class_seed(
-            "Would",
             "would",
             "would",
             CoreVerbIdentity::Would,
             VerbFrameClass::Auxiliary,
         ),
-        class_seed(
-            "Do",
-            "do",
-            "does",
-            CoreVerbIdentity::Do,
-            VerbFrameClass::ProVerb,
-        ),
+        class_seed("do", "does", CoreVerbIdentity::Do, VerbFrameClass::ProVerb),
     ]);
 
     for (identity, atoms) in [

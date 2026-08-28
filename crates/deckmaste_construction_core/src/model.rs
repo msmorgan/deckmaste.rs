@@ -399,6 +399,7 @@ pub struct DeclarationTermSource {
     pub recipe: Ident,
     pub position_slots: Vec<GeneratedIdentSlot>,
     pub kind_slots: Vec<DeclarationVerbKindsSource>,
+    pub param_slots: Vec<DeclarationVerbKindsSource>,
 }
 
 #[derive(Debug)]

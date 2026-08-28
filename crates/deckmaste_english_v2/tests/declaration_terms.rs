@@ -3,18 +3,20 @@ use std::path::Path;
 use deckmaste_english_v2::ast::CatalogProvider;
 use deckmaste_english_v2::ast::CounterKind;
 use deckmaste_english_v2::ast::DeclaredCounterKind;
-use deckmaste_english_v2::ast::Designation;
+use deckmaste_english_v2::ast::DesignationTerm;
 use deckmaste_english_v2::ast::KeywordAbility;
-use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
+use deckmaste_english_v2::environment::ParserEnvironment;
 use deckmaste_english_v2::parser::Parser;
+use deckmaste_english_v2::render::Render;
 use deckmaste_english_v2::visit::Visitor;
-use deckmaste_english_v2::context::ParseContext;
-use macro_ron::v2::Onset;
+use macro_ron::v2::DeclarationIdentity;
 use macro_ron::v2::DeclarationKind;
 use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::NormalizedDeclaration;
+use macro_ron::v2::Onset;
 use macro_ron::v2::read_builtin_v2;
 use macro_ron::v2::read_str;
 
@@ -23,7 +25,7 @@ fn declaration(path: &str, source: &str) -> NormalizedDeclaration {
 }
 
 #[test]
-fn fixed_declaration_term_inventories_load_through_their_generated_consumers() {
+fn fixed_declaration_term_codecs_reject_wrong_kinds_and_positions() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
         .expect("builtin-v2 declarations load");
@@ -83,7 +85,7 @@ fn fixed_declaration_term_inventories_load_through_their_generated_consumers() {
                 structured_counter_kinds += 1;
             }
             DeclarationKind::Designation if position == Some(GrammarPosition::FixedTerm) => {
-                Designation::new(&environment, id.clone()).unwrap_or_else(|| {
+                DesignationTerm::new(&environment, id.clone()).unwrap_or_else(|| {
                     panic!("designation did not load through its consumer: {id}")
                 });
                 designations += 1;
@@ -97,8 +99,8 @@ fn fixed_declaration_term_inventories_load_through_their_generated_consumers() {
         "195 builtins plus one same-plugin row"
     );
     assert_eq!(
-        lexical_counter_kinds, 26,
-        "25 builtins plus one same-plugin row"
+        lexical_counter_kinds, 30,
+        "29 builtins plus one same-plugin row"
     );
     assert_eq!(
         structured_counter_kinds, 2,
@@ -124,10 +126,94 @@ fn fixed_declaration_term_inventories_load_through_their_generated_consumers() {
 
     assert!(KeywordAbility::new(&environment, running_word.id().clone()).is_none());
     assert!(DeclaredCounterKind::new(&environment, keyword_counter.id().clone()).is_none());
-    assert!(Designation::new(&environment, keyword_designation.id().clone()).is_none());
+    assert!(DesignationTerm::new(&environment, keyword_designation.id().clone()).is_none());
     assert!(KeywordAbility::new(&environment, quest.id().clone()).is_none());
     assert!(DeclaredCounterKind::new(&environment, featured_game.id().clone()).is_none());
-    assert!(Designation::new(&environment, quest.id().clone()).is_none());
+    assert!(DesignationTerm::new(&environment, quest.id().clone()).is_none());
+}
+
+#[test]
+fn counter_and_designation_terms_parse_render_visit_and_own_exactly() {
+    #[derive(Default)]
+    struct Declarations(Vec<(DeclarationKind, String)>);
+
+    impl Visitor for Declarations {
+        fn visit_declaration(&mut self, declaration: &DeclarationIdentity) {
+            self.0
+                .push((declaration.kind(), declaration.name().to_owned()));
+        }
+    }
+
+    let mut declarations =
+        read_builtin_v2(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin_v2"))
+            .expect("builtin-v2 declarations load");
+    declarations.extend([
+        declaration(
+            "/same-plugin/counter_kinds/Quest.ron",
+            r#"CounterKind(name:"Quest",spelling:"quest",grammar:FixedTerm(surface:"quest"))"#,
+        ),
+        declaration(
+            "/same-plugin/designations/FeaturedGame.ron",
+            r#"Designation(name:"FeaturedGame",spelling:"the featured game",grammar:FixedTerm(surface:"the featured game"))"#,
+        ),
+    ]);
+    let environment = ParserEnvironment::try_from_parts(
+        declarations,
+        [CatalogProviderRows::new(
+            CatalogProvider::CardNames,
+            [CatalogProviderRow::new(
+                "context-card",
+                "Context Card",
+                Onset::Consonant,
+            )],
+        )],
+    )
+    .expect("builtin and same-plugin declarations freeze");
+    let parser = Parser::new(environment.clone()).expect("declaration-term grammar initializes");
+    let context = ParseContext::new("Context Card", false, Onset::Consonant)
+        .expect("synthetic card context is valid");
+
+    for (text, kind, name) in [
+        (
+            "Put a shield counter on target creature.",
+            DeclarationKind::CounterKind,
+            "ShieldCounter",
+        ),
+        (
+            "Put a quest counter on target creature.",
+            DeclarationKind::CounterKind,
+            "Quest",
+        ),
+        (
+            "You become the monarch.",
+            DeclarationKind::Designation,
+            "Monarch",
+        ),
+        (
+            "You become the featured game.",
+            DeclarationKind::Designation,
+            "FeaturedGame",
+        ),
+    ] {
+        let analysis = parser.analyze(text, &context);
+        let ability = analysis
+            .selected()
+            .unwrap_or_else(|| panic!("{text:?} selects: {analysis:?}"));
+        assert_eq!(ability.render(&context, &environment), text);
+        let ownership = analysis
+            .ownership()
+            .unwrap_or_else(|| panic!("{text:?} has selected ownership"));
+        assert!(ownership.failures().is_empty(), "{text:?}: {ownership:?}");
+        assert!(ownership.summary().covered(), "{text:?}: {ownership:?}");
+
+        let mut visitor = Declarations::default();
+        visitor.visit_ability(ability);
+        assert!(
+            visitor.0.contains(&(kind, name.to_owned())),
+            "{text:?}: {:?}",
+            visitor.0,
+        );
+    }
 }
 
 #[test]
@@ -163,7 +249,9 @@ fn structured_power_toughness_counters_remain_nonlexical_counter_kinds() {
         "Put a +1/+1 counter on target creature.",
         "Put a -1/-1 counter on target creature.",
     ] {
-        let ability = parser.parse(text, &context).expect("structured counter parses");
+        let ability = parser
+            .parse(text, &context)
+            .expect("structured counter parses");
         visitor.visit_ability(&ability);
     }
 

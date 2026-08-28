@@ -1,5 +1,5 @@
-error: declaration_verb tail atoms must be string literals, `Amount`, `ObjectNounPhrase`, or `PredicativeComplement`
- --> tests/compile_fail/declaration_verb_invalid_tail.rs:8:21
+error: declaration_verb tail literals cannot be optional
+ --> tests/compile_fail/declaration_verb_invalid_tail.rs:7:26
   |
-8 |             tail = [Clause];
-  |                     ^^^^^^
+7 |             tail = ["if"?];
+  |                          ^

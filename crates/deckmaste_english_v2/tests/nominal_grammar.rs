@@ -22,8 +22,8 @@ use deckmaste_english_v2::ast::Variable;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::environment::CatalogProviderRow;
 use deckmaste_english_v2::environment::CatalogProviderRows;
-use deckmaste_english_v2::environment::VerbInventoryRef;
 use deckmaste_english_v2::environment::ParserEnvironment;
+use deckmaste_english_v2::environment::VerbInventoryRef;
 use deckmaste_english_v2::parser::LexicalProvenanceKind;
 use deckmaste_english_v2::parser::ParseAnalysisOutcome;
 use deckmaste_english_v2::parser::ParseError;
@@ -1842,6 +1842,11 @@ fn expected_visitor_events(text: &str) -> &'static [&'static str] {
             "UnqualifiedReference",
             "DeterminedNominal",
             "Determinative",
+            "CardinalQuantity",
+            "CardinalQuantityValue",
+            "CardinalNumber:1",
+            "CountComparison",
+            "CountOrMore",
             "Nominal",
             "PluralNominalValue",
             "PluralNominal",
@@ -2465,7 +2470,7 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Rain of Salt",
             text: "Destroy two target lands.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativePluralCardinalQuantifyingDeterminer/CardinalQuantityCardinal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadTypePluralHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeCardinalQuantifyingDeterminer/CardinalQuantityCardinal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadTypePluralHead",
             specificity: "NNNNTNNNNNNNNNTNNNTT",
             candidates: 1,
         },
@@ -2479,21 +2484,21 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Gearbane Orangutan",
             text: "Destroy up to one target artifact.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToOneQuantifyingDeterminer/CardinalQuantityCardinal/NominalSingularNominalValue/SingularNominalModifiedSingularNominal/NominalModifierAttributiveAdjectiveModifier/SingularHeadTypeSingularHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToQuantifyingDeterminer/CardinalQuantityCardinal/NominalSingularNominalValue/SingularNominalModifiedSingularNominal/NominalModifierAttributiveAdjectiveModifier/SingularHeadTypeSingularHead",
             specificity: "NNNNTNNNNNNNNLLNTNNNTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy up to one other target artifact.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToOneQuantifyingDeterminer/CardinalQuantityCardinal/NominalSingularNominalValue/SingularNominalModifiedSingularNominal/NominalModifierAttributiveAdjectiveModifier/NominalModifierAttributiveAdjectiveModifier/SingularHeadTypeSingularHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToQuantifyingDeterminer/CardinalQuantityCardinal/NominalSingularNominalValue/SingularNominalModifiedSingularNominal/NominalModifierAttributiveAdjectiveModifier/NominalModifierAttributiveAdjectiveModifier/SingularHeadTypeSingularHead",
             specificity: "NNNNTNNNNNNNNLLNTNNNNTTT",
             candidates: 1,
         },
         Witness {
             card_name: "Context Card",
             text: "Destroy up to three target artifacts.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToManyQuantifyingDeterminer/CardinalQuantityCardinal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadTypePluralHead",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeUpToQuantifyingDeterminer/CardinalQuantityCardinal/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadTypePluralHead",
             specificity: "NNNNTNNNNNNNNLLNTNNNTT",
             candidates: 1,
         },
@@ -2577,8 +2582,8 @@ fn authentic_nominal_and_selector_sentences_parse() {
         Witness {
             card_name: "Context Card",
             text: "Destroy one or more target creatures.",
-            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeOneOrMoreQuantifyingDeterminer/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadTypePluralHead",
-            specificity: "NNNNTNNNNNNNNLLLNNNTT",
+            path: "AbilityPlain/AbilityBodySentences/SentenceImperative/VerbPhraseBaseVerbPhrase/TransitiveFrameTransitivePredicate/ObjectObjectNominal/NounPhraseQualifiedNounPhrase/NumericStageUnqualifiedNumericStage/LocativeStageUnqualifiedLocativeStage/ControllerStageUnqualifiedControllerStage/UnqualifiedReferenceDeterminedNominal/DeterminativeCountComparisonQuantifyingDeterminer/CardinalQuantityCardinal/CountComparisonCountOrMore/NominalPluralNominalValue/PluralNominalModifiedPluralNominal/NominalModifierAttributiveAdjectiveModifier/PluralHeadTypePluralHead",
+            specificity: "NNNNTNNNNNNNNNNTLLNNNTT",
             candidates: 1,
         },
         Witness {
@@ -3069,12 +3074,7 @@ fn assert_former_count_fixture_ownership(
             LexicalProvenanceKind::Vocab,
             "vocab:SubjectPronoun/You",
         ),
-        (
-            13,
-            21,
-            LexicalProvenanceKind::Lexeme,
-            "core-verb:Control",
-        ),
+        (13, 21, LexicalProvenanceKind::Lexeme, "core-verb:Control"),
         (
             21,
             26,
@@ -3100,12 +3100,7 @@ fn assert_former_count_fixture_ownership(
             LexicalProvenanceKind::FormLiteral,
             "form:scalar_or_less/scalar_or_less/2",
         ),
-        (
-            42,
-            47,
-            LexicalProvenanceKind::Lexeme,
-            "core-verb:Gain",
-        ),
+        (42, 47, LexicalProvenanceKind::Lexeme, "core-verb:Gain"),
         (47, 49, LexicalProvenanceKind::Vocab, "vocab:Variable/X"),
         (
             49,
@@ -3130,6 +3125,10 @@ fn assert_former_count_fixture_ownership(
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the contract keeps AST, traversal, and ownership evidence together for one fixture"
+)]
 fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     use deckmaste_english_v2::ast::Ability;
     use deckmaste_english_v2::ast::AbilityBody;
@@ -4022,6 +4021,10 @@ fn quantity_determinatives_exclude_zero_and_derive_number() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the target determiner contract compares the full singular and zero-headed plural family"
+)]
 fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
     let parser = parser();
     let context = context("Context Card");
@@ -4171,12 +4174,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                     LexicalProvenanceKind::Lexeme,
                     "lexeme:type/Creature/plural",
                 ),
-                (
-                    16,
-                    21,
-                    LexicalProvenanceKind::Lexeme,
-                    "core-verb:Gain",
-                ),
+                (16, 21, LexicalProvenanceKind::Lexeme, "core-verb:Gain"),
                 (21, 23, LexicalProvenanceKind::Codec, "codec:ScalarNumber"),
                 (
                     23,
@@ -4254,12 +4252,7 @@ fn target_determiner_is_singular_and_target_modifier_plurals_are_zero_headed() {
                 LexicalProvenanceKind::FormLiteral,
                 "form:non_color_modifier/non_color_modifier/0/affix",
             ),
-            (
-                31,
-                36,
-                LexicalProvenanceKind::Vocab,
-                "vocab:Color/Black",
-            ),
+            (31, 36, LexicalProvenanceKind::Vocab, "vocab:Color/Black"),
             (
                 36,
                 46,
@@ -4304,7 +4297,11 @@ fn target_determiner_and_modifier_distributions_select_uniquely() {
             .unwrap_or_else(|| panic!("{text:?} must select: {analysis:?}"));
         let decision = analysis.decision().expect("selected parse has a decision");
         assert_eq!(decision.candidates().len(), 1, "{text:?}: {decision:?}");
-        assert_eq!(decision.resolution(), SelectionResolution::Unique, "{text:?}");
+        assert_eq!(
+            decision.resolution(),
+            SelectionResolution::Unique,
+            "{text:?}"
+        );
         assert_eq!(selected.render(&context, parser.environment()), text);
     }
 }
@@ -4539,7 +4536,7 @@ fn other_target_plurals_are_compositional_determiner_phrases() {
             SelectionResolution::Unique,
             &[
                 "UnqualifiedReferenceDeterminedNominal",
-                "DeterminativePluralCardinalQuantifyingDeterminer",
+                "DeterminativeCardinalQuantifyingDeterminer",
                 "CardinalQuantityCardinal",
                 "NominalPluralNominalValue",
                 "PluralNominalModifiedPluralNominal",
@@ -4598,7 +4595,7 @@ fn other_target_plurals_are_compositional_determiner_phrases() {
             SelectionResolution::Unique,
             &[
                 "UnqualifiedReferenceDeterminedNominal",
-                "DeterminativeUpToManyQuantifyingDeterminer",
+                "DeterminativeUpToQuantifyingDeterminer",
                 "CardinalQuantityCardinal",
                 "NominalPluralNominalValue",
                 "PluralNominalModifiedPluralNominal",
@@ -4665,6 +4662,10 @@ fn other_target_plurals_are_compositional_determiner_phrases() {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the helper names every independent parse, render, and visitor expectation at its call site"
+)]
 fn assert_quantified_other_target_case(
     parser: &Parser,
     context: &ParseContext<'_>,
@@ -5432,6 +5433,10 @@ impl Visitor for CoordinationVisitor {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "coordination evidence keeps each independent ambiguity and ownership expectation explicit"
+)]
 fn assert_coordination_evidence(
     parser: &Parser,
     card_name: &str,
@@ -5482,6 +5487,10 @@ fn assert_coordination_evidence(
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the coordination contract compares AST scope, traversal, ownership, and ambiguity together"
+)]
 fn coordination_ast_scope_traversal_ownership_and_ambiguity_are_exact() {
     let parser = parser();
     for (
@@ -5882,7 +5891,7 @@ fn singular_and_plural_negative_modifier_sequences_have_exact_ast_scope() {
                 "LocativeStageUnqualifiedLocativeStage",
                 "ControllerStageUnqualifiedControllerStage",
                 "UnqualifiedReferenceDeterminedNominal",
-                "DeterminativePluralCardinalQuantifyingDeterminer",
+                "DeterminativeCardinalQuantifyingDeterminer",
                 "CardinalQuantityCardinal",
                 "NominalPluralNominalValue",
                 "PluralNominalNegativeModifiedPluralNominal",
@@ -6293,8 +6302,7 @@ fn indefinite_full_noun_phrase_members_derive_each_article_from_their_own_onset(
         .parsed_claims()
         .iter()
         .filter(|claim| {
-            claim.stable_owner_id()
-                == "determinative:DeterminativeHead/IndefiniteArticle"
+            claim.stable_owner_id() == "determinative:DeterminativeHead/IndefiniteArticle"
         })
         .map(deckmaste_english_v2::parser::LexicalClaim::stable_owner_id)
         .collect::<Vec<_>>();

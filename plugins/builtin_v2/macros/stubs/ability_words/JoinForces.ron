@@ -1,0 +1,5 @@
+AbilityWord(
+    name: "JoinForces",
+    spelling: "Join forces",
+    grammar: FixedTerm(surface: "Join forces"),
+)

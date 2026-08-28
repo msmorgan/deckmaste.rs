@@ -122,6 +122,10 @@ impl<'a> RuntimeInventory<'a> {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "runtime emission order mirrors the generated module's public ABI"
+)]
 pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
     let inventory = RuntimeInventory::from_plan(plan);
     let mut items = vec![
@@ -163,11 +167,11 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         ),
         named_type(
             NOMINAL_FORM_TYPE,
-            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum NominalForm { BareSingularNoun, ModifiedSingularNoun, SingularCoordination, BarePluralNoun, ModifiedPluralNoun, PluralCoordination } },
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum NominalForm { BareSingularNoun, ModifiedSingularNoun, SingularCoordination, BarePluralNoun, ModifiedPluralNoun, PluralCoordination, MassNoun } },
         ),
         named_type(
             NOMINAL_LICENSE_TYPE,
-            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum NominalLicense { CountNominal, BareSingularNoun } },
+            quote! { #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)] pub(crate) enum NominalLicense { CountNominal, BareSingularNoun, MassOrPluralCount } },
         ),
         named_type(
             NUMBER_TYPE,
@@ -467,6 +471,12 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         let number = plan
             .category_carries_number(root.category())
             .then(|| quote! { , _ });
+        let determiner_number = plan
+            .carries_feature(
+                root.category(),
+                crate::feature::Feature::DeterminerNumber,
+            )
+            .then(|| quote! { , _ });
         let onset = plan
             .category_carries_onset(root.category())
             .then(|| quote! { , _ });
@@ -491,7 +501,7 @@ fn emit_generated_roots(plan: &SemanticPlan) -> Vec<GeneratedItem> {
 
                     fn from_build(value: BuildValue) -> Option<Self> {
                         match value {
-                            BuildValue::#category(value #agreement #cardinality #number #onset #possessive_ending #following_onset) => Some(value),
+                            BuildValue::#category(value #agreement #cardinality #number #determiner_number #onset #possessive_ending #following_onset) => Some(value),
                             _ => None,
                         }
                     }
@@ -1030,6 +1040,10 @@ fn declaration_term_lexical_variants(
     )
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "lexical type emission is a single ordered inventory pass"
+)]
 fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let vocab_variants = vocab_lexical_variants(inventory);
     let vocab_leaf_variants = inventory.vocabs.iter().map(|vocab| {
@@ -1104,12 +1118,14 @@ fn emit_lexical_types(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
     let (catalog_lexical, catalog_leaf, catalog_class) = catalog_lexical_variants(inventory);
     let (signed_lexical, signed_leaf, signed_class) = signed_lexical_variants(inventory);
     let (unsigned_lexical, unsigned_leaf, unsigned_class) = unsigned_lexical_variants(inventory);
-    let declaration_determinative_lexical = (!inventory.declaration_determinatives.is_empty()).then(|| quote! { DeclarationDeterminative(usize), });
+    let declaration_determinative_lexical = (!inventory.declaration_determinatives.is_empty())
+        .then(|| quote! { DeclarationDeterminative(usize), });
     let declaration_determinative_leaf = inventory.declaration_determinatives.iter().map(|(_, codec)| {
         let ty = codec.codec_ident();
         quote! { #ty { value: #ty, onset: Onset, following_onset: FeatureConstraint<Onset>, number_license: DeterminerNumber, fused_head_license: FusedHeadLicense, nominal_license: NominalLicense }, }
     });
-    let declaration_determinative_class = (!inventory.declaration_determinatives.is_empty()).then(|| quote! { DeclarationDeterminative(usize), });
+    let declaration_determinative_class = (!inventory.declaration_determinatives.is_empty())
+        .then(|| quote! { DeclarationDeterminative(usize), });
 
     vec![
         named_type(
@@ -1325,9 +1341,11 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         quote! { Lexical::DeclarationNoun(terminal_index, _) => TerminalClass::DeclarationNoun(terminal_index), }
     });
     let declaration_determinative_class_arm = (!inventory.declaration_determinatives.is_empty())
-        .then(|| quote! {
-            Lexical::DeclarationDeterminative(terminal_index) =>
-                TerminalClass::DeclarationDeterminative(terminal_index),
+        .then(|| {
+            quote! {
+                Lexical::DeclarationDeterminative(terminal_index) =>
+                    TerminalClass::DeclarationDeterminative(terminal_index),
+            }
         });
     let declaration_term_class_arm = (!inventory.declaration_terms.is_empty()).then(|| {
         quote! { Lexical::DeclarationTerm(terminal_index) => TerminalClass::DeclarationTerm(terminal_index), }
@@ -1383,8 +1401,9 @@ fn emit_class_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
         .map(|_| quote! { TerminalClass::Noun => "noun", });
     let declaration_noun_label = (!inventory.declaration_nouns.is_empty())
         .then(|| quote! { TerminalClass::DeclarationNoun(_) => "declaration noun", });
-    let declaration_determinative_label = (!inventory.declaration_determinatives.is_empty())
-        .then(|| quote! { TerminalClass::DeclarationDeterminative(_) => "declaration determinative", });
+    let declaration_determinative_label = (!inventory.declaration_determinatives.is_empty()).then(
+        || quote! { TerminalClass::DeclarationDeterminative(_) => "declaration determinative", },
+    );
     let declaration_term_label = (!inventory.declaration_terms.is_empty())
         .then(|| quote! { TerminalClass::DeclarationTerm(_) => "declaration term", });
     let declaration_verb_label = (!inventory.declaration_verbs.is_empty())
@@ -1889,39 +1908,40 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     )),
                 }
             });
-    let declaration_determinative_owner = inventory
-        .declaration_determinatives
-        .iter()
-        .map(|(terminal_index, codec)| {
-            let ty = codec.codec_ident();
-            let lemma = codec.lemma_ident();
-            let closed = codec.closed().iter().map(|member| {
-                let member = member.lemma();
-                let stable_id = syn::LitStr::new(
-                    &format!("determinative:{}/{member}", codec.codec_name()),
-                    Span::call_site(),
-                );
+    let declaration_determinative_owner =
+        inventory
+            .declaration_determinatives
+            .iter()
+            .map(|(terminal_index, codec)| {
+                let ty = codec.codec_ident();
+                let lemma = codec.lemma_ident();
+                let closed = codec.closed().iter().map(|member| {
+                    let member = member.lemma();
+                    let stable_id = syn::LitStr::new(
+                        &format!("determinative:{}/{member}", codec.codec_name()),
+                        Span::call_site(),
+                    );
+                    quote! {
+                        (
+                            LexicalOwnerTemplate::DeclarationDeterminative(#terminal_index),
+                            Leaf::#ty { value: #ty::Closed(#lemma::#member), .. },
+                        ) => Some(LexicalOwner::static_owner(
+                            LexicalProvenanceKind::Codec,
+                            #stable_id,
+                        )),
+                    }
+                });
                 quote! {
+                    #(#closed)*
                     (
                         LexicalOwnerTemplate::DeclarationDeterminative(#terminal_index),
-                        Leaf::#ty { value: #ty::Closed(#lemma::#member), .. },
-                    ) => Some(LexicalOwner::static_owner(
-                        LexicalProvenanceKind::Codec,
-                        #stable_id,
+                        Leaf::#ty { value: #ty::Declared(id), .. },
+                    ) => Some(LexicalOwner::declaration_owner(
+                        id.clone(),
+                        ::macro_ron::v2::SurfaceFeature::Fixed,
                     )),
                 }
             });
-            quote! {
-                #(#closed)*
-                (
-                    LexicalOwnerTemplate::DeclarationDeterminative(#terminal_index),
-                    Leaf::#ty { value: #ty::Declared(id), .. },
-                ) => Some(LexicalOwner::declaration_owner(
-                    id.clone(),
-                    ::macro_ron::v2::SurfaceFeature::Fixed,
-                )),
-            }
-        });
     let declaration_verb_owner =
         inventory
             .declaration_verbs
@@ -2029,6 +2049,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     let kind = match id.kind() {
                         ::macro_ron::v2::DeclarationKind::KeywordAction => "keyword_action",
                         ::macro_ron::v2::DeclarationKind::KeywordAbility => "keyword_ability",
+                        ::macro_ron::v2::DeclarationKind::AbilityWord => "ability_word",
                         ::macro_ron::v2::DeclarationKind::Subtype(category) => match category {
                             ::macro_ron::v2::SubtypeCategory::Artifact => "artifact_subtype",
                             ::macro_ron::v2::SubtypeCategory::Battle => "battle_subtype",
@@ -2478,18 +2499,39 @@ mod tests {
         assert_eq!(
             variants,
             [
-                ("Choice".to_owned(), vec!["Choice".to_owned(), "FeatureConstraint < Onset >".to_owned()]),
+                (
+                    "Choice".to_owned(),
+                    vec![
+                        "Choice".to_owned(),
+                        "FeatureConstraint < Onset >".to_owned()
+                    ]
+                ),
                 ("Holder".to_owned(), vec!["Holder".to_owned()]),
                 (
                     "RecursiveChoice".to_owned(),
-                    vec!["RecursiveChoice".to_owned(), "FeatureConstraint < Onset >".to_owned()],
+                    vec![
+                        "RecursiveChoice".to_owned(),
+                        "FeatureConstraint < Onset >".to_owned()
+                    ],
                 ),
                 (
                     "RecursiveBranch".to_owned(),
                     vec!["RecursiveBranch".to_owned()],
                 ),
-                ("LeftNode".to_owned(), vec!["LeftNode".to_owned(), "FeatureConstraint < Onset >".to_owned()]),
-                ("RightNode".to_owned(), vec!["RightNode".to_owned(), "FeatureConstraint < Onset >".to_owned()]),
+                (
+                    "LeftNode".to_owned(),
+                    vec![
+                        "LeftNode".to_owned(),
+                        "FeatureConstraint < Onset >".to_owned()
+                    ]
+                ),
+                (
+                    "RightNode".to_owned(),
+                    vec![
+                        "RightNode".to_owned(),
+                        "FeatureConstraint < Onset >".to_owned()
+                    ]
+                ),
                 (
                     "HolderMaybeOptional".to_owned(),
                     vec!["Option < LeftNode >".to_owned()],
