@@ -25,6 +25,14 @@ Consequences owned by this ticket:
   french vanilla selects; "Don't strip" fixture updated to the new
   contract.
 
+Scope fence — the other three v1 normalization helpers are deliberately
+NOT ported: expand_keyword_lines (v2 parses keyword lines as document
+structure), self_ref_to_tilde (v2 resolves self-reference via the
+environment's context_name), and expand_repeated_from_lines
+(coordination grammar's job). v2's existing typography normalization
+(quote straightening, roll-row dashes) is untouched. Reminder stripping
+is the single restored piece.
+
 Expect a substantial coverage jump (the paren wall was ~9.7k units).
 Genuine tie or contradiction = STOP-and-report. Standard constraints
 apply.
