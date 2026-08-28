@@ -1109,6 +1109,20 @@ verbFacts =
   -- permanent by participle.
   , MkVerbFacts "Proliferate" Nothing            Nothing
                               Nothing            Nothing
+  -- [CR#701.54] makes the Ring's temptation a keyword action, and
+  -- [CR#701.54d] names the trigger on it outright -- "Some abilities
+  -- trigger 'Whenever the Ring tempts you'" -- exactly as [CR#701.22b]
+  -- does for the scry. [CR#701.54a]'s act chooses a Ring-bearer and
+  -- [CR#701.54c] grants an emblem; nothing is carried anywhere, so the
+  -- act names no patient, no zone to find one in and no destination,
+  -- and no printed line names a participant of it by participle.
+  -- The ACTOR is the tempted player: [CR#701.54d] has the Ring tempt a
+  -- player "whenever THEY complete the actions in 701.54a". That the
+  -- printed clause writes the Ring as its surface subject and the player
+  -- after the verb is the label's own spelling, which is why the label
+  -- is the whole printed phrase.
+  , MkVerbFacts "The Ring Tempts You" Nothing    Nothing
+                              Nothing            Nothing
   ]
 public export
 factsIn : VerbLabel -> List VerbFacts -> Maybe VerbFacts
@@ -3158,11 +3172,22 @@ data AbilityClass : Type where
   ||| ability is an instruction followed while its spell resolves
   ||| [CR#113.3a] and a static ability is simply true [CR#113.3d]; no
   ||| card can name either as a thing. So the arm is not "any ability
-  ||| whatever" but the pair the stack holds, of which `AnyActivated` is
-  ||| the narrower half.
+  ||| whatever" but the pair the stack holds, whose two halves are
+  ||| `AnyActivated` and `AnyTriggered`.
   ||| -- spelling: "ability".
   AnyOnStack : AbilityClass
   AnyActivated : AbilityClass
+  ||| "target triggered ability", "activated or triggered ability": the
+  ||| other half of that pair, named on its own. [CR#113.3c] puts a
+  ||| triggered ability on the stack, [CR#113.9] lets an effect that
+  ||| counters abilities counter it there, and [CR#115.1d] gives it the
+  ||| word "target" -- the same three rules that open `AnyActivated`,
+  ||| said of the other kind. A row and not a narrowing written on
+  ||| `AnyOnStack`, because the corpus writes the two halves side by side
+  ||| inside one phrase ("activated or triggered ability") and a
+  ||| disjunction needs a word for each disjunct.
+  ||| -- spelling: "triggered ability".
+  AnyTriggered : AbilityClass
   LoyaltyClass : AbilityClass
   KeywordClass : (k : KeywordLabel) -> {auto 0 kn : KnownKeyword k} ->
                  AbilityClass
@@ -3173,6 +3198,8 @@ Eq AbilityClass where
   (==) AnyOnStack _ = False
   (==) AnyActivated AnyActivated = True
   (==) AnyActivated _ = False
+  (==) AnyTriggered AnyTriggered = True
+  (==) AnyTriggered _ = False
   (==) LoyaltyClass LoyaltyClass = True
   (==) LoyaltyClass _ = False
   (==) (KeywordClass a) (KeywordClass b) = a == b

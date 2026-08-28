@@ -12609,3 +12609,53 @@ oathOfKaya =
            (Sequentially [ DealDamage This (Lit 2) (That PlayerW)
                          , Macros.gainsLife You (Lit 2) ]) ]
        Nothing
+
+||| Stifle, whole -- "Counter target activated or triggered ability."
+||| The TRIGGERED half of the pair on the stack, named beside the
+||| activated one: [CR#113.3c] puts it there, [CR#113.9] lets an
+||| ability-countering effect counter it, and [CR#115.1d] gives it the
+||| word "target". Its reminder text ("Mana abilities can't be targeted")
+||| is [CR#605.3b]'s rule restated and is not part of the ability.
+public export
+stifle : Card
+stifle =
+  Macros.card "Stifle" (Just [Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Macros.counterSpell
+                  (Macros.target (Or [AbilityHead AnyActivated,
+                                      AbilityHead AnyTriggered]))) ]
+       Nothing
+
+||| Disallow, whole -- "Counter target spell, activated ability, or
+||| triggered ability." The same pair with the spell arm beside it, which
+||| is the cross-kind head over an ability disjunction.
+public export
+disallow : Card
+disallow =
+  Macros.card "Disallow"
+       (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Macros.counterSpell
+                  (Macros.target
+                     (Joined Macros.spell
+                             (Or [AbilityHead AnyActivated,
+                                  AbilityHead AnyTriggered])))) ]
+       Nothing
+
+||| Nazgûl's third line -- "Whenever the Ring tempts you, put a +1/+1
+||| counter on each Wraith you control." The Ring's temptation as a thing
+||| that happens: [CR#701.54] makes it a keyword action and [CR#701.54d]
+||| states the trigger on it in the rules' own words, so it needs no event
+||| row of its own -- the labelled act reading is what the vocabulary
+||| already has for a watched keyword action.
+||| The card is not whole: its second line INSTRUCTS the temptation, whose
+||| body is [CR#701.54a]'s Ring-bearer choice and [CR#701.54c]'s emblem,
+||| and its last line is a deck-construction rule with no seat here.
+public export
+nazgulRingTrigger : Ability
+nazgulRingTrigger =
+  Macros.triggered Whenever
+    (VerbedEvent (Just You) "The Ring Tempts You" Nothing)
+    (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                 (Each (And [HasSubtype (creatureType "Wraith"),
+                             ControlledBy You])))
