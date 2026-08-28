@@ -1903,8 +1903,13 @@ mutual
     ||| player performing it written as its subject. Macro-only, on
     ||| `Enact`'s policy and for its reasons.
     ||| -- spelling: "[subj] [verb]s [body]".
+    ||| The body is typed in `agentIntro`, not `nomIntro`: a
+    ||| DISTRIBUTIVE subject hands its clause one member to read back
+    ||| ("Each opponent sacrifices a creature with the greatest power
+    ||| among creatures that player controls"), and every other subject
+    ||| hands it the same prefix `nomIntro` always did.
     Does : (subj : Noun bs Player) -> (v : VerbLabel) ->
-           (e : Effect (nomIntro subj)) ->
+           (e : Effect (agentIntro subj)) ->
            {auto 0 kn : KnownVerb v} -> Effect bs
     ||| "[n]'s controller sacrifices it": the sacrifice written with its
     ||| agent, where the agent is DERIVED from the patient and the

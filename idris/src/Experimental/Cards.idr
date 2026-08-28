@@ -14033,3 +14033,47 @@ openTheVaults =
                                  (PossessedBy (PlayerGroup AllPlayers)))]))
           Macros.battlefieldZ
           (MkMoveRiders [] (Just (PossessorsOf OwnerAx Them)) Nothing))
+
+||| Crackling Doom, whole -- "Crackling Doom deals 2 damage to each
+||| opponent. Each opponent sacrifices a creature with the greatest power
+||| among creatures that player controls." The demonstrative reading a
+||| DISTRIBUTED mention: the pass's member is what `agentIntro` binds, so
+||| "that player" names the opponent the pass is on. Consume's singular
+||| twin (`consume` above) writes the same superlative under a targeted
+||| player and is unchanged.
+public export
+cracklingDoom : Effect []
+cracklingDoom =
+  Sequentially
+    [ DealDamage This (Lit 2) (Each Opponent)
+    , Macros.sacrifice (Each Opponent)
+        (Macros.a (And [Macros.creature,
+                        Superlative MaxOf (CharAxis Power)
+                          (And [Macros.creature,
+                                ControlledBy (That PlayerW)])])) ]
+
+||| Altar of the Brood's trigger -- "Whenever another permanent you
+||| control enters, each opponent mills a card." The DISTRIBUTIVE MILL,
+||| counted before it was written: 62 supported lines write "each
+||| opponent/player mills [n]" (measured 2026-08-28), all of them wanting
+||| the same thing -- a library the pass's own member owns. `They` finds
+||| it now that the agent seat binds one.
+public export
+altarOfTheBrood : Ability
+altarOfTheBrood =
+  Macros.triggered Whenever
+    (Enters (Macros.a (And [Permanent, ControlledBy You, OtherThan This])) Nothing)
+    (Macros.mills (Each Opponent) (Lit 1) They)
+
+||| Soul Shatter -- "Each opponent sacrifices a creature or planeswalker
+||| with the greatest mana value among creatures and planeswalkers they
+||| control." The same distributed subject read back by the PRONOUN
+||| rather than the demonstrative; one binder answers both spellings.
+public export
+soulShatter : Effect []
+soulShatter =
+  Macros.sacrifice (Each Opponent)
+    (Macros.a (And [Or [Macros.creature, HasType Planeswalker],
+                    Superlative MaxOf (CharAxis ManaValue)
+                      (And [Or [Macros.creature, HasType Planeswalker],
+                            ControlledBy They])]))

@@ -445,7 +445,7 @@ exile n = Enact "Exile" (Move n exileZ noRiders)
 ||| "<player> exiles <n>": `exile`'s agentive surface -- the same labeled
 ||| move with the player performing it written as its subject.
 public export
-exiles : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
+exiles : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
          Effect bs
 exiles agent n = Does agent "Exile" (Move n exileZ noRiders)
 
@@ -501,7 +501,7 @@ putOntoBattlefieldUnderYourControl n =
   Move n battlefieldZ (MkMoveRiders [] (Just You) Nothing) {pl}
 
 public export
-sacrifice : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
+sacrifice : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
             {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
 sacrifice agent n =
   Does agent "Sacrifice" (Move n graveyardZ noRiders)
@@ -529,13 +529,13 @@ itAsCard = ItAt CardSlot {ok}
 ||| the targeting spell beside the permanent it targeted.
 public export
 sacrificeIt : (agent : Noun bs Player) ->
-              {auto 0 ok : countOnesAt PermanentSlot (nomIntro agent) = 1} ->
-              {auto 0 zn : OnBattlefield (zoneOfItAt PermanentSlot (nomIntro agent))} ->
+              {auto 0 ok : countOnesAt PermanentSlot (agentIntro agent) = 1} ->
+              {auto 0 zn : OnBattlefield (zoneOfItAt PermanentSlot (agentIntro agent))} ->
               Effect bs
 sacrificeIt agent = sacrifice agent (itAsPermanent {ok}) {ok = zn}
 
 public export
-discards : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
+discards : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
            {auto 0 dk : DiscardOk n} -> Effect bs
 discards agent n =
   Does agent "Discard" (Move n graveyardZ noRiders)
@@ -1193,7 +1193,7 @@ shuffleInto n = Enact "Shuffle" (Move n shuffledIntoZ noRiders {pl})
 ||| agentive voice, on `puts`' model. The library is still the moved
 ||| card's owner's [CR#400.3]; the subject is who performs the act.
 public export
-shufflesInto : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
+shufflesInto : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
                {auto 0 pl : Placeable (nounTy n) Library} -> Effect bs
 shufflesInto agent n = Does agent "Shuffle" (Move n shuffledIntoZ noRiders {pl})
 
@@ -1296,7 +1296,7 @@ searchLibraryOrGraveyard p =
 
 ||| "<player> puts <it> into/onto <zone>": the agentive placement clause.
 public export
-puts : (agent : Noun bs Player) -> (n : Noun (nomIntro agent) Object) ->
+puts : (agent : Noun bs Player) -> (n : Noun (agentIntro agent) Object) ->
        (to : ZoneExpr (nomIntro n)) ->
        {auto 0 ok : DestOk to} ->
        {auto 0 arr : ArrangementOk (nounPlur n) to} ->
@@ -1442,8 +1442,8 @@ mayWhen d body trig =
 
 ||| "Target player mills N cards."
 public export
-mills : (agent : Noun bs Player) -> (amt : Amount (nomIntro agent)) ->
-        (whose : Noun (nomIntro agent) Player) ->
+mills : (agent : Noun bs Player) -> (amt : Amount (agentIntro agent)) ->
+        (whose : Noun (agentIntro agent) Player) ->
         {auto 0 sp : SlicePossessor whose} ->
         Effect bs
 mills agent amt whose =
@@ -1551,8 +1551,8 @@ surveilOne =
 ||| and both destinations read it back as the anaphor.
 public export
 playerScries : {bs : Bindings} -> (agent : Noun bs Player) ->
-               (amt : Amount (nomIntro agent)) ->
-               {auto 0 an : countOnes Player (nomIntro agent) = 1} ->
+               (amt : Amount (agentIntro agent)) ->
+               {auto 0 an : countOnes Player (agentIntro agent) = 1} ->
                {auto 0 mn : countManys Object (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
                {auto 0 ps : Placeable (tyOfThem (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Library} ->
                {auto 0 tr : So (theRestOk (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Library))} ->
@@ -1568,8 +1568,8 @@ playerScries agent amt =
 
 public export
 playerSurveils : {bs : Bindings} -> (agent : Noun bs Player) ->
-                 (amt : Amount (nomIntro agent)) ->
-                 {auto 0 an : countOnes Player (nomIntro agent) = 1} ->
+                 (amt : Amount (agentIntro agent)) ->
+                 {auto 0 an : countOnes Player (agentIntro agent) = 1} ->
                  {auto 0 mn : countManys Object (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) = 1} ->
                  {auto 0 ps : Placeable (tyOfThem (nomIntro (LibrarySlice OnTop amt (They {ok = an})))) Graveyard} ->
                  {auto 0 tr : So (theRestOk (lookedRest (nomIntro (LibrarySlice OnTop amt (They {ok = an}))) mn Graveyard))} ->

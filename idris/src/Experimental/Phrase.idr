@@ -2414,6 +2414,32 @@ mutual
               (ObjectP (nounTy grp) (nounZone grp) (nounProv grp) Nothing)
       :: nomIntro grp
 
+  ||| What a DISTRIBUTIVE AGENT hands the clause it governs: the member
+  ||| the pass is on, bound `TheD OneOf` for the body to read back.
+  ||| The shape is `AggregateOver`'s element binder, lifted from the
+  ||| AMOUNT sort -- where a per-member read has worked since "the
+  ||| greatest number of creatures a player controls" -- to the EFFECT
+  ||| sort, which is where a distributive agent's body is typed. That
+  ||| lift is what the bench's `eachPlayerBindsNoSingular` measurement
+  ||| named as the answer, and it is why the fix is here and not in
+  ||| `Each`'s own delta: the group mention stays exactly as it was
+  ||| (`EachD ManyOf`, still the only thing "those players" reads), and
+  ||| the member mention is the AGENT SEAT's, not the noun's.
+  ||| So "Each opponent sacrifices a creature with the greatest power
+  ||| among creatures THAT PLAYER controls" writes, and every clause
+  ||| whose subject is not a pass reads the prefix it always read.
+  ||| The member REPLACES the group mention rather than standing beside
+  ||| it. A body is read INSIDE the pass, so what it can name there is
+  ||| the one member the pass is on; leaving the group beside it would
+  ||| mint two mentions of one referent and leave "a creature of their
+  ||| choice" with two players to attribute the choice to. The group
+  ||| mention is `nomIntro`'s and stays exactly where it was, for the
+  ||| clauses AFTER the pass that read it back as "those players".
+  public export
+  agentIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
+  agentIntro (Each p {ph}) = bindFor TheD OneOf ph p :: predDelta p ++ bs
+  agentIntro n = nomIntro n
+
   ||| `elemIntro`'s twin at the VALUE: what a distributive pass over an
   ||| axis leaves its body -- the value the pass is running over, bound as
   ||| a quality of the axis's sort, over the domain's own mentions. Where
