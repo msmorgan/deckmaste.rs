@@ -3,6 +3,12 @@ needs: []
 ---
 # Write the coordinations the grammar still refuses
 
+**SPLIT 2026-08-27 into two sub-tickets — claim those, not this.** This file
+is the umbrella and stays authoritative:
+[1 condition disjunction](workbench-coordination-1-condition-disjunction.md),
+[2 noun and phrase coordinations](workbench-coordination-2-noun-and-phrase.md).
+Order: 1 first (its hand count sizes the family's biggest row); 2 after.
+
 Split from `workbench-conditional-and-coordination` on 2026-08-22 after its
 conditional half landed as round 1; the per-section scoping (NOT cross-kind
 union questions) stands.
