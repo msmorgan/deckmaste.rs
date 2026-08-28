@@ -458,3 +458,32 @@ Standard constraints apply.
   a bare `It` inside `DeonticCounterpart` can still resolve to the Deontic's
   own subject — a rules-impossible self-block ([CR#509.1a]) that wants a pin;
   nothing on the bench writes it today. Deontic machinery, so it lands here.
+
+## Routed from sub-round 1 (unified carrier, 2026-08-28)
+
+The carrier landed (see that ticket's "As landed"). Four lines of future
+work it could not pay, routed here so they stay live:
+
+- **A bare `Blocked` predicate.** `Blocking`, `BlockedBy m` and
+  `CouldBeBlockedBy m` all name a counterpart, so "as though it weren't
+  blocked" has no premise word and the 19-sentence assign-damage cell
+  cannot bench. Its CARRIER question is answered and recorded
+  (`Compulsion.Permit`); only the word is missing. One `Predicate bs
+  Object` row.
+- **"Abilities you control."** `ControlledBy` is `Object`-kinded and
+  `ActivatedBy` is a different relation [CR#602.2], so 4 of the 5
+  hexproof lines (Glaring Spotlight, Detection Tower, Kaya Bane of the
+  Dead, Autumn Willow) still do not bench; Nowhere to Run's bare "spells
+  and abilities" is the one that does.
+- **`"Crew"`, `"Saddle"` and `"AssignCombatDamage"` deed rows** for the
+  18-line greater-power cell and the 19-line assignment cell. A row each
+  in `deedFacts` and nothing else; not written for want of the premise
+  words above.
+- **Corrections to this file's own numbers**, measured 2026-08-28: the
+  targeting prohibition is **30** real sentences, not 39 (a naive sweep
+  returns 216 and 186 of those sit inside hexproof/shroud reminder text);
+  "can't attack or block" is **109** lines, not 6; and the one-subject
+  two-kind outcome coordination is **1** card, Everybody Lives!, not 2 —
+  "Platinum Persecutor" is not a card, and Abyssal Persecutor / Platinum
+  Angel / Angel's Grace / Herald of Eternal Dawn write two SUBJECTS,
+  which is a plain conjunction and already writable.
