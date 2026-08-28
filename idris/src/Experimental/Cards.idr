@@ -13957,3 +13957,37 @@ apexOfPowerCast =
         (MayPlay You (Macros.fromAmong Macros.anyNumber Macros.spell Them)
                  Cast Nothing Nothing Nothing Nothing False)
         (Just ThisTurn) ]
+
+||| Umbris, Fear Manifest's first line -- "Umbris gets +1/+1 for each card
+||| your opponents own in exile." The ownership PREDICATE's description
+||| witness, and the reason the axis is not `ControlledBy`'s: [CR#109.4]
+||| leaves an exiled card controlled by nobody, so the owner [CR#108.3] is
+||| the only possessor the phrase can describe it by.
+public export
+umbrisPump : Ability
+umbrisPump =
+  Static (Gets Macros.thisCreature
+               (PtUp (Macros.nForEach 1
+                        (And [IsCard, OwnedBy (PlayerGroup YourOpponents),
+                              InZone Macros.exileZ])))
+               (PtUp (Macros.nForEach 1
+                        (And [IsCard, OwnedBy (PlayerGroup YourOpponents),
+                              InZone Macros.exileZ]))))
+
+||| Obelisk of Undoing -- "{6}, {T}: Return target permanent you both own
+||| and control to your hand." The non-melding carrier of "you both own
+||| and control": the conjunction row reaches the phrase as two
+||| descriptions the moment ownership has one, where all seven cards
+||| writing the same words as a CONDITION end in a meld this grammar has
+||| no vocabulary for.
+||| -- spelling: the destination is the BARE hand zone, as every other
+||| benched return writes it. The printed "your hand" adds nothing the
+||| description has not already said: the returned permanent is one YOU
+||| own [CR#108.3], and a return puts a card into its owner's hand.
+public export
+obeliskOfUndoing : Ability
+obeliskOfUndoing =
+  Macros.activated (Compound [Mana [Macros.generic 6], TapSymbol])
+                   (Macros.returnTo
+                      (Macros.target (And [Permanent, OwnedBy You, ControlledBy You]))
+                      Macros.handZ)

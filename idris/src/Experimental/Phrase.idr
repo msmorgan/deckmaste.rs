@@ -11,8 +11,13 @@ mutual
   public export
   data ZoneScope : Bindings -> Zone -> Type where
     Bare : ZoneScope bs z
-    OwnedBy : (n : Noun bs Player) -> {auto 0 ps : Possessable z} ->
-              ZoneScope bs z
+    ||| "[a player]'s hand/graveyard/library": the zone read through
+    ||| the player who possesses it [CR#400.3]. Renamed off `OwnedBy`
+    ||| when ownership became a PREDICATE over an object; this row reads
+    ||| a zone and that one describes a card, and one name for the two
+    ||| would have shadowed.
+    PossessedBy : (n : Noun bs Player) -> {auto 0 ps : Possessable z} ->
+                  ZoneScope bs z
 
   ||| Where in a library a card lands: one end of the ordered pile
   ||| [CR#401.2], the top-or-bottom disjunction, or no position at all.
@@ -419,6 +424,25 @@ mutual
     HasKeyword : (k : KeywordLabel) -> {auto 0 kn : KnownKeyword k} ->
                  Predicate bs Object
     ControlledBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
+    ||| "cards your opponents own", "target permanent you both own and
+    ||| control": ownership as a relation that DESCRIBES an object, beside
+    ||| `ControlledBy` and gated exactly as it is.
+    ||| Its own row and not a spelling of the control one, because the two
+    ||| relations come apart in every zone but two: [CR#109.4] gives a
+    ||| controller only to objects on the stack or the battlefield and
+    ||| leaves every other object controlled by nobody, while [CR#108.3]
+    ||| gives a card its owner at the start of the game and never takes it
+    ||| away. That is why the six lines writing this all name cards in
+    ||| EXILE -- there the owner is the only possessor left to describe
+    ||| them by -- and why the row carries no `zoneAdmit`: ownership
+    ||| admits every zone where control admits two.
+    ||| ONE row serves the description and the possessor axis. The
+    ||| possessive-zone reader (`ZoneScope.PossessedBy`) is a different
+    ||| seat and stays as it was: that one reads a ZONE through a player,
+    ||| this one describes a CARD by one.
+    ||| -- spelling: "[n] your opponents own", "[n] you own", "[n] you
+    ||| both own and control" (with `ControlledBy` beside it).
+    OwnedBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
     CastBy : (n : Noun bs Player) -> {auto 0 ps : SoleHolder n} -> Predicate bs Object
     CastFrom : (z : ZoneExpr bs) ->
                {auto 0 pf : So (playableFrom (Just (zoneSort z)))} ->
@@ -720,6 +744,13 @@ mutual
   public export
   seedTy : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Maybe CardType
   seedTy (HasType t) = Just t
+  -- a subtype word is a head noun too, and [CR#205.3c] correlates each
+  -- subtype to its appropriate card type, so "target Zombie" projects
+  -- the creature head its own word names. `seedType` read the same
+  -- correlation off the same word; what the two answer differs only in
+  -- whether the type is the phrase's head or its presupposition, and a
+  -- subtype head supplies both.
+  seedTy (HasSubtype s) = Just (subtypeType s)
   seedTy (And ps) = seedTyAll ps
   seedTy (Or ps) = seedTyJoin ps
   seedTy (Joined l r) = joinSeed (seedTy l) (seedTy r)
@@ -961,6 +992,7 @@ mutual
   hasHead ManaCostHasX = False
   hasHead (HasKeyword _) = False
   hasHead (ControlledBy _) = False
+  hasHead (OwnedBy _) = False
   hasHead (CastBy _) = False
   hasHead Attacking = False
   hasHead BeingDeclaredAttacker = False
@@ -1151,6 +1183,8 @@ mutual
   predEq (HasKeyword _) _ = False
   predEq (ControlledBy a) (ControlledBy b) = nounEqRef a b
   predEq (ControlledBy _) _ = False
+  predEq (OwnedBy a) (OwnedBy b) = nounEqRef a b
+  predEq (OwnedBy _) _ = False
   predEq (CastBy a) (CastBy b) = nounEqRef a b
   predEq (CastBy _) _ = False
   predEq (ExiledWith a) (ExiledWith b) = nounEqRef a b
@@ -1351,6 +1385,11 @@ mutual
 
   public export
   negTypesOf : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> List CardType
+  -- a negated SUBTYPE word rules out the subtype, never the card type its
+  -- word is correlated to [CR#205.3c]: "attacking creature that isn't a
+  -- Demon" is still a creature, so the head the subtype seeds survives its
+  -- own negation and contributes no negated type here.
+  negTypesOf (Not (HasSubtype _)) = []
   negTypesOf (Not p) = case seedTy p of
     Just t => [t]
     Nothing => []
@@ -1643,11 +1682,16 @@ mutual
   ||| A "non-" prefix names the complement of one modifier inside its own
   ||| kind. Refused only where the rules leave that complement empty: the
   ||| universal player word covers every person in the game [CR#102.1]; a
-  ||| quality noun names its whole sort, which for colour is closed at five
-  ||| [CR#105.1] — the cell over-reaches a domain-restricted quality noun,
-  ||| whose complement is NOT empty; and [CR#120.7] makes a source the
-  ||| object that dealt some damage, a position any object may occupy rather
-  ||| than a property it lacks. Every other modifier has something outside it.
+  ||| DOMAINLESS quality noun names its whole sort, which for colour is
+  ||| closed at five [CR#105.1], so nothing of that sort lies outside it;
+  ||| and [CR#120.7] makes a source the object that dealt some damage, a
+  ||| position any object may occupy rather than a property it lacks. Every
+  ||| other modifier has something outside it.
+  ||| The domain slot is what parts the quality-noun cell. A domain is a
+  ||| bindingless narrowing of the sort ("a color other than red"), and
+  ||| [CR#105.1]'s five colours empty only the UNRESTRICTED complement: the
+  ||| complement of a narrowed sort holds every value the narrowing left
+  ||| out, so the negation says something and stands.
   ||| A CONJUNCTION is among those others, and deliberately so. By De
   ||| Morgan its complement is the disjunction of the conjuncts'
   ||| complements, and the rules read object properties one at a time --
@@ -1662,7 +1706,8 @@ mutual
   negatable : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   negatable AnyPlayer = False
   negatable ChosenPlayer = False
-  negatable (QualityNoun _ _) = False
+  negatable (QualityNoun _ Nothing) = False
+  negatable (QualityNoun _ (Just _)) = True
   negatable (CounterKindOn _) = False
   negatable IsSource = False
   negatable _ = True
@@ -1692,6 +1737,7 @@ mutual
   predSays ManaCostHasX = True
   predSays (HasKeyword _) = True
   predSays (ControlledBy _) = True
+  predSays (OwnedBy _) = True
   predSays (CastBy _) = True
   predSays (ExiledWith _) = True
   predSays Attacking = True
@@ -1763,6 +1809,7 @@ mutual
   predNegFree ManaCostHasX = True
   predNegFree (HasKeyword _) = True
   predNegFree (ControlledBy _) = True
+  predNegFree (OwnedBy _) = True
   predNegFree (CastBy _) = True
   predNegFree (ExiledWith _) = True
   predNegFree Attacking = True
@@ -2364,6 +2411,7 @@ mutual
   predDelta (ActivatedBy n) = nounDelta n
   predDelta (Targets m _) = nounDelta m
   predDelta (ControlledBy n) = nounDelta n
+  predDelta (OwnedBy n) = nounDelta n
   predDelta (CastBy n) = nounDelta n
   predDelta (BlockerOf m) = nounDelta m
   predDelta (CounterKindOn n) = nounDelta n
@@ -2412,9 +2460,9 @@ mutual
 
   public export
   zoneDelta : {bs : Bindings} -> ZoneExpr bs -> List Binding
-  zoneDelta (ZoneAt z (OwnedBy n)) = nounDelta n
+  zoneDelta (ZoneAt z (PossessedBy n)) = nounDelta n
   zoneDelta (ZoneAt z Bare) = []
-  zoneDelta (LibraryAt pl _ _ (OwnedBy n)) = placeDelta pl ++ nounDelta n
+  zoneDelta (LibraryAt pl _ _ (PossessedBy n)) = placeDelta pl ++ nounDelta n
   zoneDelta (LibraryAt pl _ _ Bare) = placeDelta pl
 
   ||| Whether a coordinated search names more than one DISTINCT zone. A
@@ -4010,7 +4058,17 @@ mutual
   ||| carrier's general premise slot, and what this gate ever asked of it
   ||| was whether a counterfactual was written at all. A permission
   ||| carrying one describes the object by what it would be rather than
-  ||| by where it is, so the complement answers `castComplementOk`.
+  ||| by where it is, so the complement's own zone word constrains nothing
+  ||| and only a written origin phrase is asked about.
+  ||| `castComplementOk` used to stand in that seat and refused a
+  ||| battlefield complement on no rule; it is retired here rather than
+  ||| re-grounded, because there is no rule to re-ground it on.
+  ||| [CR#601.2a] moves the card to the stack "from where it is" and
+  ||| excludes no zone, and [CR#601.3] leaves which zones a spell may be
+  ||| cast from to whatever rule or effect grants the permission — which
+  ||| is exactly the ground `playableFrom` already stands on, so the
+  ||| counterfactual arm answers as the plain arm does and its table's
+  ||| seven rows were seven rows of nothing.
   public export
   playSourceOk : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
                  Bool -> Bool
@@ -4022,9 +4080,8 @@ mutual
   playSourceOk zn (Just z) False =
     playableFrom (Just (zoneSort z)) &&
     (not (complementLocates zn) || zoneFits zn (Just (zoneSort z)))
-  playSourceOk zn Nothing True = castComplementOk zn
-  playSourceOk zn (Just z) True =
-    castComplementOk zn && playableFrom (Just (zoneSort z))
+  playSourceOk _ Nothing True = True
+  playSourceOk _ (Just z) True = playableFrom (Just (zoneSort z))
 
   public export
   data PlaySource : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->

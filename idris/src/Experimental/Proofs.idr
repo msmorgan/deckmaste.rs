@@ -545,7 +545,7 @@ badZeroGroup (MaxAtLeastOne, _) impossible
 ||| Shared zones take no possessor: [CR#400.1] gives each player library, hand, and graveyard.
 public export
 badOwnedBattlefield : Unspellable (ZoneExpr []) (\ok =>
-  ZoneAt Battlefield (OwnedBy You {ps = ok}))
+  ZoneAt Battlefield (PossessedBy You {ps = ok}))
 badOwnedBattlefield HandIsOwned impossible
 
 

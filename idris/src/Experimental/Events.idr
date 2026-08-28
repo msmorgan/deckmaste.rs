@@ -1155,9 +1155,10 @@ playableFrom Nothing = True
 -- is" and excludes no zone, and [CR#601.3] leaves which zones a spell may
 -- be cast from to whatever rule or effect grants the permission -- the
 -- rules close no zone against one. No printed line writes a battlefield
--- cast, and a count is no refusal. (The two readings that DO refuse a
--- battlefield word do it on their own rules: `complementLocates` below,
--- and `castComplementOk`.)
+-- cast, and a count is no refusal. (The one reading that DOES refuse a
+-- battlefield word does it on its own rule: `complementLocates` below.
+-- `castComplementOk` used to be a second; it refused the battlefield on
+-- no rule at all and retired for that reason -- see `playSourceOk`.)
 playableFrom (Just Battlefield) = True
 playableFrom (Just Graveyard) = True
 playableFrom (Just Exile) = True

@@ -196,11 +196,11 @@ graveyardZ = ZoneAt Graveyard Bare
 
 public export
 handOf : (n : Noun bs Player) -> ZoneExpr bs
-handOf n = ZoneAt Hand (OwnedBy n {ps = HandIsOwned})
+handOf n = ZoneAt Hand (PossessedBy n {ps = HandIsOwned})
 
 public export
 graveyardOf : (n : Noun bs Player) -> ZoneExpr bs
-graveyardOf n = ZoneAt Graveyard (OwnedBy n {ps = GraveyardIsOwned})
+graveyardOf n = ZoneAt Graveyard (PossessedBy n {ps = GraveyardIsOwned})
 
 
 public export
@@ -1122,7 +1122,7 @@ itsACard p = Matches (itAsCard {ok}) p {sy} {zc}
 
 public export
 libraryOf : (n : Noun bs Player) -> ZoneExpr bs
-libraryOf n = ZoneAt Library (OwnedBy n {ps = LibraryIsOwned})
+libraryOf n = ZoneAt Library (PossessedBy n {ps = LibraryIsOwned})
 
 public export
 yourLibrary : ZoneExpr bs
