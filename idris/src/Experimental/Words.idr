@@ -3462,10 +3462,9 @@ keywordFacts =
   -- combat damage from a source sharing the spell's creature types
   -- (prowl), you or a teammate cast another spell (surge), an opponent
   -- lost life (spectacle), combat damage from an Assassin or a commander
-  -- you control (freerunning) -- and all four say "Casting a spell for
-  -- its [w] cost follows the rules for paying alternative costs in rules
-  -- 601.2b and 601.2f-h". So all four take `AtCasting`: the ability acts
-  -- while the spell is being cast.
+  -- you control (freerunning) -- and all four route the cast through the
+  -- alternative-cost rules [CR#601.2b,601.2f..601.2h]. So all four take
+  -- `AtCasting`: the ability acts while the spell is being cast.
   --
   -- The other three each carry their own ZONE, which is why they are not
   -- the same template at a fifth condition. [CR#702.35a] makes madness a
@@ -3505,6 +3504,24 @@ keywordFacts =
   -- umbrella listed them as measured readback payers; the re-measure
   -- says zero, and the correction is recorded here rather than
   -- re-derived.
+  --
+  -- TWO CARRIED CORRECTIONS, settled here so they are not re-bought.
+  -- FALL OF THE TITANS was recorded as unreachable because its "Surge
+  -- {X}{R}" line was taken for reminder text shared with ten siblings.
+  -- The reminder was never the blocker: the keyword LINE is the card's
+  -- own line, the parenthetical after it is the reminder, and with the
+  -- Surge row the whole card writes. And the shape
+  -- "If you've cast another spell this turn, you may pay {1}{U} rather
+  -- than pay this spell's mana cost" is ZERO supported lines -- the
+  -- condition is attested only inside surge's own rule [CR#702.117a] and
+  -- in cost-reduction lines ("This spell costs {2} less to cast if
+  -- you've cast another spell this turn", 4 of the 9 lines that write
+  -- the condition at all). A RECORDED zero and not a pinned one:
+  -- [CR#118.9] defines an alternative cost as one "listed in a spell's
+  -- text ... that its controller may pay rather than paying the spell's
+  -- mana cost" and puts no bound on what a card may condition one on,
+  -- so nothing refuses the sentence and the corpus simply does not
+  -- write it.
   , MkKeywordFacts "Madness"          CostParam    False Nothing             True  True  False
   , MkKeywordFacts "Prowl"            CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Surge"            CostParam    False (Just AtCasting)    True  True  False

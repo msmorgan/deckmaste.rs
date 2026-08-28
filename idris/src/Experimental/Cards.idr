@@ -10785,7 +10785,7 @@ borrowedMalevolence =
 ||| Korlash, Heir to Blackblade: Search your library for up to two Swamp
 ||| cards, put them onto the battlefield tapped, then shuffle." The
 ||| grandeur discard cost's shape, 7 supported lines: the cost names a
-||| card by its own PRINTED NAME [CR#201.4a] and excludes the object
+||| card by its own PRINTED NAME [CR#201.1] and excludes the object
 ||| itself, which is `Named (PrintedName ...)` beside `Other` and needs
 ||| nothing minted. Benched as the cost alone -- the body's
 ||| search-and-put is not this row's.

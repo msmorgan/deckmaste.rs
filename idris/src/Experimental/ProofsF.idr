@@ -480,6 +480,22 @@ badAltCostLoyaltySymbol NoAltPayment impossible
 badAltCostLoyaltySymbol AltPaymentWritten impossible
 
 
+||| "As an additional cost to cast this spell, {T}."
+||| [CR#118.8] pays an additional cost with the mana cost, at [CR#601.2f..601.2h], and a spell being cast is on the stack [CR#601.2b] where [CR#107.5]'s "{T}" taps a permanent.
+public export
+badAddedCostTapSymbol : Unspellable (StaticEffect []) (\ok =>
+  AddedCost TapSymbol False {ap = ok})
+badAddedCostTapSymbol AddedPaymentWritten impossible
+
+
+||| "As an additional cost to cast this spell, [+1]."
+||| [CR#606.2] makes the loyalty symbol an activation-cost component, payable only on a permanent [CR#606.3]; a spell being cast is not one.
+public export
+badAddedCostLoyaltySymbol : Unspellable (StaticEffect []) (\ok =>
+  AddedCost (LoyaltySymbol (LoyaltyUp 1)) False {ap = ok})
+badAddedCostLoyaltySymbol AddedPaymentWritten impossible
+
+
 ||| "You may sacrifice a Mountain rather than pay this spell's mana cost" written as a resolving clause
 ||| [CR#113.6d] prices one object, and the node names none: the clause has no spell to price.
 public export

@@ -326,6 +326,14 @@ mutual
       ||| five Defilers; Molten Exhale writes the phrase as a postposed
       ||| rider) want the subject slot `CostsToCast` has and this row has
       ||| none of, which is the generic grants' gap and not this one's.
+      ||| WHAT A CARD MAY STILL NOT READ OFF IT: what the cost's ACTION
+      ||| did. 13 supported lines pair an any-number additional cost with
+      ||| a for-each reduction that counts it ("you may sacrifice any
+      ||| number of artifacts and/or creatures. This spell costs {2} less
+      ||| to cast for each permanent sacrificed this way", Dargo), and
+      ||| Burn at the Stake reads the same stamp from its damage line.
+      ||| `staticChoiceDelta` carries a CHOOSER across the ability
+      ||| boundary [CR#607.2d] and not a whole delta, so those reads wait.
       ||| -- spelling: "As an additional cost to cast this spell, [c]";
       ||| under `offered`, "..., you may [c]".
       AddedCost : (c : Cost bs) -> (offered : Bool) ->
@@ -1231,7 +1239,7 @@ mutual
   staticIntro (CostsToCast n sh) = amtDelta (costAmount sh) ++ selfSubjIntro n
   staticIntro (AltCost _) = bs
   -- The cost is a statement about the payment, not a clause that
-  -- announces anything: the additional cost is paid at [CR#601.2f-h],
+  -- announces anything: the additional cost is paid at [CR#601.2f..601.2h],
   -- long before any line of the card reads a mention.
   staticIntro (AddedCost _ _) = bs
   -- A granted keyword whose NUMBER parameter is a letter opens that

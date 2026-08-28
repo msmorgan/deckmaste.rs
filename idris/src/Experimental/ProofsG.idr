@@ -1192,7 +1192,7 @@ badExactlySixColors Oh impossible
 ||| names nothing that could have been paid.
 public export
 badPaidCostOnCostlessKeyword : Unspellable (Predicate [] Object) (\ok =>
-  PaidCost (ByKeyword "Flying") {nc = ok})
+  PaidCost (ByKeyword "Flying") Nothing {nc = ok})
 badPaidCostOnCostlessKeyword Oh impossible
 
 ||| "for each time it was kickre'd"
