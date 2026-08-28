@@ -10718,6 +10718,88 @@ stormscapeBattlemageFirstKicker =
     (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker")))
     (Macros.gainsLife You (Lit 3))
 
+-- The ALTERNATIVE-cost words read back the same way the additional-cost
+-- ones do: [CR#607.2i] links the offering ability to the reading one and
+-- the read names WHICH cost, so nothing about `PaidCost` changes when
+-- the word offers a cost instead of adding one. What the four cards
+-- below buy is the catalog rows -- prowl [CR#702.76a], surge
+-- [CR#702.117a], spectacle [CR#702.137a] -- each a static ability on the
+-- stack reading "You may pay [cost] rather than pay this spell's mana
+-- cost if [something happened this turn]".
+
+||| Latchkey Faerie -- "Flying / Prowl {2}{U} / When this creature
+||| enters, if its prowl cost was paid, draw a card." The whole card, and
+||| the plainest alternative-cost readback there is: the keyword line
+||| offers the cost and the intervening-if reads back the declaration.
+public export
+latchkeyFaerie : Card
+latchkeyFaerie =
+  Macros.card "Latchkey Faerie"
+       (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Faerie", creatureType "Rogue"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.keywordCosting "Prowl"
+           (Mana [Macros.generic 2, Macros.pip Blue])
+       , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Prowl")))
+           Macros.drawACard ]
+       (Just (3, 1))
+
+||| Tyrant of Valakut -- "Surge {3}{R}{R} / Flying / When this creature
+||| enters, if its surge cost was paid, it deals 3 damage to any target."
+||| One of Fall of the Titans' ten surge siblings, whole.
+public export
+tyrantOfValakut : Card
+tyrantOfValakut =
+  Macros.card "Tyrant of Valakut"
+       (Just [Macros.generic 5, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Dragon"] [Creature])
+       [ Macros.keywordCosting "Surge"
+           (Mana [Macros.generic 3, Macros.pip Red, Macros.pip Red])
+       , Macros.keyword "Flying"
+       , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Surge")))
+           (DealDamage Macros.thisCreature (Lit 3)
+                       (Macros.target Macros.anyTarget)) ]
+       (Just (5, 4))
+
+||| Rafter Demon -- "Spectacle {3}{B}{R} / When this creature enters, if
+||| its spectacle cost was paid, each opponent discards a card." Whole.
+public export
+rafterDemon : Card
+rafterDemon =
+  Macros.card "Rafter Demon"
+       (Just [Macros.generic 2, Macros.pip Black, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Demon"] [Creature])
+       [ Macros.keywordCosting "Spectacle"
+           (Mana [Macros.generic 3, Macros.pip Black, Macros.pip Red])
+       , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Spectacle")))
+           (Macros.discardsACard (Each Opponent)) ]
+       (Just (4, 2))
+
+||| Fall of the Titans -- "Surge {X}{R} / Fall of the Titans deals X
+||| damage to each of up to two targets." The payment test the round was
+||| scoped against, whole. Its X is the CARD's: the printed mana cost is
+||| {X}{X}{R}, so `costLetters` opens the letter before any line is read,
+||| and [CR#107.3a] gives the surge cost's X and the mana cost's X the
+||| one announced value ([CR#107.3i]: all instances of X on an object
+||| have the same value). So the keyword line's cost parameter reads a
+||| letter it does not have to bind, and no letter flows out of a keyword
+||| line -- `abIntro (KeywordAbility _ _) = bs` stands.
+||| The damage clause alone was already benched as `fallOfTheTitans`
+||| above; this is the whole card the surge row completes.
+public export
+fallOfTheTitansCard : Card
+fallOfTheTitansCard =
+  Macros.card "Fall of the Titans"
+       (Just [Variable, Variable, Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Macros.keywordCosting "Surge" (Mana [Variable, Macros.pip Red])
+       , Spell (DealDamage This (LetterVal X)
+                  (EachOf (TargetGroup (Macros.upTo 2) Macros.anyTarget))) ]
+       Nothing
+
 -- The choice frame that licenses a later read: a choice announced as the
 -- effect applies [CR#608.2d] partitions the described set, and what it
 -- leaves behind -- the unchosen members, the margin of a comparison it

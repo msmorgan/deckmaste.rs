@@ -3255,15 +3255,19 @@ record KeywordFacts where
 ||| WORDS DELIBERATELY ABSENT, and why -- so the next round does not
 ||| re-derive the reasons:
 |||
-||| * EIGHT words the layer below cannot resolve -- cascade, replicate,
-|||   conspire, rebound, prowl, freerunning, demonstrate and sticker
-|||   kicker. No macro under `plugins/builtin/macros/keyword/` and no
-|||   built-card use, so a row would name a word nothing beneath this
-|||   grammar has anything for; The First Sliver, Cast Through Time and
-|||   Flamekin Herald are unbuildable whatever a row here said. This was
-|||   NINE: emerge left the list with a row above, bought by a describing
-|||   read (`HasKeyword "Emerge"`, Foul Emissary) rather than by a
-|||   keyword line, which is a use the count had not seen.
+||| * SIX words the layer below cannot resolve -- cascade, replicate,
+|||   conspire, rebound, demonstrate and sticker kicker. No macro under
+|||   `plugins/builtin/macros/keyword/` and no built-card use, so a row
+|||   would name a word nothing beneath this grammar has anything for;
+|||   The First Sliver, Cast Through Time and Flamekin Herald are
+|||   unbuildable whatever a row here said. This was NINE: emerge left
+|||   the list with a row above, bought by a describing read
+|||   (`HasKeyword "Emerge"`, Foul Emissary) rather than by a keyword
+|||   line, which is a use the count had not seen. PROWL and
+|||   FREERUNNING left it the same way -- the READBACK channel is their
+|||   consumer ("if its prowl cost was paid", 4 lines; "if its
+|||   freerunning cost was paid", 1), and `PaidCost` reaches a word
+|||   through `keywordCosts` and not through a macro below.
 ||| * SUSPEND, whose parameter is COMPOUND. [CR#702.62a] writes
 |||   "Suspend N--[cost]" and expands it to an exile "with N time
 |||   counters on it" after paying [cost]: a counter count beside a cost,
@@ -3427,6 +3431,74 @@ keywordFacts =
   -- `keywordFacts` above.
   , MkKeywordFacts "Emerge"           CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Craft"            CostParam    False Nothing             True  False False
+  -- THE ALTERNATIVE-COST WORDS, seven rows, each a cost the card offers
+  -- INSTEAD of its mana cost [CR#118.9] and each bought by the READBACK
+  -- channel: `PaidCost (ByKeyword w)` reaches a word through
+  -- `keywordCosts`, so "if its [w] cost was paid" is a consumer no macro
+  -- below has to supply. Re-measured 2026-08-28 over supported cards
+  -- with reminder text stripped -- keyword lines / readback lines:
+  -- Madness 61/4, Sneak 28/4, Mayhem 15/1, Freerunning 12/1, Prowl 10/4,
+  -- Surge 11/3, Spectacle 11/2.
+  --
+  -- FOUR of them share ONE template, written here once and not four
+  -- times: [CR#702.76a] (prowl), [CR#702.117a] (surge), [CR#702.137a]
+  -- (spectacle) and [CR#702.173a] (freerunning) are each "a static
+  -- ability that functions [while the spell is] on the stack" reading
+  -- "You may pay [cost] rather than pay this spell's mana cost if
+  -- [something happened this turn]". Only the condition differs --
+  -- combat damage from a source sharing the spell's creature types
+  -- (prowl), you or a teammate cast another spell (surge), an opponent
+  -- lost life (spectacle), combat damage from an Assassin or a commander
+  -- you control (freerunning) -- and all four say "Casting a spell for
+  -- its [w] cost follows the rules for paying alternative costs in rules
+  -- 601.2b and 601.2f-h". So all four take `AtCasting`: the ability acts
+  -- while the spell is being cast.
+  --
+  -- The other three each carry their own ZONE, which is why they are not
+  -- the same template at a fifth condition. [CR#702.35a] makes madness a
+  -- static ability in the HAND plus a triggered one, and the cast is from
+  -- EXILE; [CR#702.187a,702.187b] make mayhem a static ability in the
+  -- GRAVEYARD, casting from there "as long as you discarded this card
+  -- this turn". Neither functions on the stack, so neither has a stack
+  -- regime. [CR#702.190a] makes sneak a static ability on the stack like
+  -- the first four, but its meaning is a TIMING permission plus a second
+  -- cost component -- "Any time you could cast an instant during your
+  -- declare blockers step, you may cast this spell by paying [cost] and
+  -- returning an unblocked creature you control to its owner's hand" --
+  -- and [CR#702.190b] adds an entry rider, so it templates alone.
+  --
+  -- No rule of the seven names a card type, and the corpus writes each on
+  -- permanent and on spell cards alike; none is in [CR#122.1b]'s
+  -- keyword-counter list; and none functions from the command zone.
+  --
+  -- WHAT A ROW DOES NOT BUY: the word's REMINDER TEXT. 1005 supported
+  -- lines carry a parenthetical explaining an alternative-cost cast
+  -- ("(You may cast this spell for its [w] cost ...)"), spread over 50
+  -- leading words -- Flashback 202, Morph 150, Suspend 55, Bestow 41,
+  -- Disguise 38, Cascade 35, Mutate 34 down to Impending 5 -- and ZERO
+  -- of them survive reminder-stripping. Reminder text is not a card's
+  -- own line, so none of that population is bench-payable and no row
+  -- here is owed to it; what earns a row is the keyword LINE and the
+  -- readback, both measured above. (Re-measured 2026-08-28; the
+  -- umbrella's "956 lines / 25 keywords" was the same population under
+  -- a narrower pattern.)
+  --
+  -- TWENTY more alternative-cost words print a keyword line and write
+  -- NO readback anywhere in the corpus: escape, foretell, bestow,
+  -- disguise, mutate, overload, disturb, dash, evoke, blitz, cleave,
+  -- harmonize, impending, awaken, buyback, casualty, squad, offspring,
+  -- gift and replicate. `PaidCost` names none of them, so their rows
+  -- wait on a keyword-LINE consumer rather than on this channel. The
+  -- umbrella listed them as measured readback payers; the re-measure
+  -- says zero, and the correction is recorded here rather than
+  -- re-derived.
+  , MkKeywordFacts "Madness"          CostParam    False Nothing             True  True  False
+  , MkKeywordFacts "Prowl"            CostParam    False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Surge"            CostParam    False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Spectacle"        CostParam    False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Freerunning"      CostParam    False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Sneak"            CostParam    False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Mayhem"           CostParam    False Nothing             True  True  False
   ]
 
 public export
