@@ -262,3 +262,8 @@ Standard constraints apply.
   Koh the Face Stealer's whole-ability-set grant (gaining all activated
   abilities of the chosen card) — an ability-values grant; the chooser side
   landed in choice-C.
+
+- **Routed from workbench-counted-anaphora-narrowings (close, 2026-08-27):**
+  no lose-one-NAMED-ability row exists (`LosesAllAbilities` is the only loss
+  shape) — Blind Fury's last blocker. Ability-values machinery, so it lands
+  here.

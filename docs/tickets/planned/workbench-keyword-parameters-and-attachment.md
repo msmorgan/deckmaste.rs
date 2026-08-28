@@ -378,3 +378,10 @@ Standard constraints apply.
   ladder (Rogue Class), the Case to-solve/solved pair (Case of the Crimson
   Pulse), the Room door vocabulary (Glassworks // Industrial Advancement).
   `KnownKeyword` carries none of them.
+
+- **Routed from workbench-counted-anaphora-narrowings (close, 2026-08-27):**
+  there is NO ATTACH EFFECT CONSTRUCTOR in the grammar at all (`AttachChoice`
+  is the chooser, `AttachHost` the noun) — 65 supported faces wait on it, and
+  two landed narrowings (`ItToken`, `ItOtherThan`) are already positioned to
+  consume it. The biggest single anaphora win available; attachment machinery,
+  so it lands here.

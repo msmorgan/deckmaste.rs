@@ -445,3 +445,8 @@ Standard constraints apply.
   an activation restriction naming WHO may activate — "only the player who
   controls Soul Ransom may activate" shape; Soul Ransom's whole card waits on
   it. A deontic agent restriction, this region's machinery.
+
+- **Routed from workbench-counted-anaphora-narrowings (close, 2026-08-27):**
+  a bare `It` inside `DeonticCounterpart` can still resolve to the Deontic's
+  own subject — a rules-impossible self-block ([CR#509.1a]) that wants a pin;
+  nothing on the bench writes it today. Deontic machinery, so it lands here.
