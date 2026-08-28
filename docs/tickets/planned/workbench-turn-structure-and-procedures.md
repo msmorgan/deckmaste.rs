@@ -414,5 +414,5 @@ Standard constraints apply.
 - **Routed from workbench-choice-d-ascription-payloads (close, 2026-08-27):**
   the Leyline OPENING-HAND permission — "If this card is in your opening hand,
   you may begin the game with it on the battlefield", 17 supported cards, a
-  pregame procedure [CR#103.3] region, not a small carrier. Leyline of
+  pregame opening-hand action [CR#103.6] region, not a small carrier. Leyline of
   Transformation's ascription line already writes.

@@ -218,3 +218,9 @@ sort ([CR#609.4b]) — one mechanism with the prohibition region's rider, not a
 sibling `SpendAsThough` row. The ruling text lives in
 workbench-prohibition-and-permission-acts; this round builds the spend deed's
 premise sort against it.
+
+- **Routed from workbench-coordination-1-condition-disjunction (close,
+  2026-08-27):** the MANA-SPENT-TO-CAST condition — "if no mana was spent to
+  cast it" / "if mana was spent to cast it" has no `Condition` row; the last
+  blocker on Mythos of Nethroi and Primeval Spawn (their disjunctions now
+  write). A spent-mana read, this region's machinery.
