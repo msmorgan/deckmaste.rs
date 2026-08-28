@@ -147,6 +147,13 @@ struct VerbInventoryRecord {
     provenance: VerbProvenance,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct IndexedVerbInventoryReading {
+    feature: SurfaceFeature,
+    frames: Vec<OwnedVerbFrameKey>,
+    reading: VerbInventoryReading,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct OwnedVerbFrameKey {
     class: VerbFrameClass,
@@ -499,6 +506,8 @@ struct EnvironmentData {
     initial_determinative_surface_byte_limit: usize,
     catalog_providers: BTreeMap<CatalogProvider, CatalogProviderData>,
     verb_inventory: BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
+    verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
+    initial_verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
 }
 
 #[cfg(test)]
@@ -720,6 +729,8 @@ impl ParserEnvironment {
             );
         }
         let verb_inventory = normalized_verb_inventory(&records);
+        let (verb_inventory_readings, initial_verb_inventory_readings) =
+            index_verb_inventory_readings(&verb_inventory);
 
         Ok(Self {
             data: Arc::new(EnvironmentData {
@@ -734,6 +745,8 @@ impl ParserEnvironment {
                 initial_determinative_surface_byte_limit,
                 catalog_providers: frozen_catalog_providers,
                 verb_inventory,
+                verb_inventory_readings,
+                initial_verb_inventory_readings,
             }),
         })
     }
@@ -859,32 +872,23 @@ impl ParserEnvironment {
         frame: VerbFrameKey,
         initial: bool,
     ) -> Vec<VerbInventoryReading> {
-        self.data
-            .verb_inventory
-            .values()
-            .filter(|record| {
-                record
+        let index = if initial {
+            &self.data.initial_verb_inventory_readings
+        } else {
+            &self.data.verb_inventory_readings
+        };
+        index
+            .get(surface)
+            .into_iter()
+            .flatten()
+            .filter(|indexed| indexed.feature == feature)
+            .filter(|indexed| {
+                indexed
                     .frames
                     .iter()
                     .any(|candidate| candidate.matches(frame))
             })
-            .filter_map(|record| {
-                record
-                    .surfaces
-                    .iter()
-                    .find(|(candidate, _, text)| {
-                        *candidate == feature
-                            && if initial {
-                                initial_surface(text) == surface
-                            } else {
-                                text.as_ref() == surface
-                            }
-                    })
-                    .map(|(_, onset, _)| VerbInventoryReading {
-                        reference: record.reference.clone(),
-                        onset: *onset,
-                    })
-            })
+            .map(|indexed| indexed.reading.clone())
             .collect()
     }
 
@@ -1218,6 +1222,36 @@ fn normalized_verb_inventory(
         );
     }
     inventory
+}
+
+type VerbInventoryReadingIndex = BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>;
+
+fn index_verb_inventory_readings(
+    inventory: &BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
+) -> (VerbInventoryReadingIndex, VerbInventoryReadingIndex) {
+    let mut running = VerbInventoryReadingIndex::new();
+    let mut initial = VerbInventoryReadingIndex::new();
+    for record in inventory.values() {
+        for (feature, onset, surface) in &record.surfaces {
+            let indexed = IndexedVerbInventoryReading {
+                feature: *feature,
+                frames: record.frames.clone(),
+                reading: VerbInventoryReading {
+                    reference: record.reference.clone(),
+                    onset: *onset,
+                },
+            };
+            running
+                .entry(Arc::clone(surface))
+                .or_default()
+                .push(indexed.clone());
+            initial
+                .entry(Arc::from(initial_surface(surface)))
+                .or_default()
+                .push(indexed);
+        }
+    }
+    (running, initial)
 }
 
 #[expect(

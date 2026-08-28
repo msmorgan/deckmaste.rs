@@ -524,7 +524,7 @@ fn cross_root_nesting_materializes_from_base_children_without_root_sentinels() {
     let built = materialize_fixture(&forest, &context);
 
     assert_eq!(built.len(), 1);
-    let BuildValue::OuterRoot(OuterRoot::OuterRoot(value), _) = &built[0].value else {
+    let BuildValue::OuterRoot(OuterRoot::OuterRoot(value), _) = built[0].value.as_ref() else {
         panic!("the nested category materializes as the outer root value");
     };
     assert!(matches!(
@@ -896,7 +896,7 @@ fn generated_homonyms_survive_scan_build_and_trace_with_category_safe_identity()
 
     let mut visited = BTreeSet::new();
     for candidate in &built {
-        let BuildValue::Homonym(homonym, Agreement::Bare, _) = &candidate.value else {
+        let BuildValue::Homonym(homonym, Agreement::Bare, _) = candidate.value.as_ref() else {
             panic!("open homonym materialization retains bare agreement")
         };
         assert_eq!(homonym.render(&context, &environment), text);

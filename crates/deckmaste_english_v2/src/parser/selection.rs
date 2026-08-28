@@ -1097,8 +1097,8 @@ mod tests {
         assert_eq!(
             candidates
                 .iter()
-                .map(|candidate| match candidate.value {
-                    TestBuildValue::Ability(ability) => ability,
+                .map(|candidate| match candidate.value.as_ref() {
+                    TestBuildValue::Ability(ability) => *ability,
                     TestBuildValue::Leaf(_) => panic!("accepted roots build abilities"),
                 })
                 .collect::<std::collections::BTreeSet<_>>(),
@@ -1107,7 +1107,7 @@ mod tests {
         assert!(
             candidates
                 .iter()
-                .all(|candidate| candidate.constructions == [Construction::AmountNumber])
+                .all(|candidate| candidate.constructions.as_ref() == [Construction::AmountNumber])
         );
         assert_eq!(
             candidates
@@ -1119,7 +1119,7 @@ mod tests {
 
         let selected = select_ranked(
             candidates,
-            |candidate| candidate.constructions.as_slice(),
+            |candidate| candidate.constructions.as_ref(),
             |candidate| {
                 structural_specificity(&candidate.positions, |lexical| {
                     matches!(lexical, Lexical::Literal(_))
@@ -1129,7 +1129,10 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(selected.value, TestBuildValue::Ability("literal form"));
+        assert_eq!(
+            selected.value.as_ref(),
+            &TestBuildValue::Ability("literal form")
+        );
         assert_eq!(selected.claims[0].owner, Some("literal-owner"));
     }
 
@@ -1212,7 +1215,7 @@ mod tests {
         assert!(
             candidates
                 .iter()
-                .all(|candidate| candidate.value == SegValue::Same)
+                .all(|candidate| candidate.value.as_ref() == &SegValue::Same)
         );
         assert_eq!(
             candidates

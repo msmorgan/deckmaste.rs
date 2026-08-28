@@ -32,6 +32,7 @@ use super::engine::Rule;
 use super::engine::StatefulLexicalMatch;
 use super::engine::parse_root_observed_with_state;
 use super::engine::parse_root_with_state;
+use super::materialize::CheckedCompletionState;
 use super::materialize::completion_has_checked_build;
 use crate::constructions::BuildRejection;
 use crate::constructions::CasePosition;
@@ -123,6 +124,7 @@ pub(crate) fn parse_forest<R: GeneratedParseRoot>(
     #[cfg(test)]
     super::count_pipeline_stage(super::PipelineStage::Parse);
     let rules = rules_for_root::<R>();
+    let mut completion_state = CheckedCompletionState::default();
     let forest = parse_root_with_state(
         &rules,
         RootRule::family_reachable(RootRuleId::Adapter),
@@ -132,7 +134,14 @@ pub(crate) fn parse_forest<R: GeneratedParseRoot>(
             grammar.scan_stateful(lexical, text, offset, *position, suppress_right_boundary)
         },
         |rule, family, forest| {
-            completion_has_checked_build(&rules, rule, family, forest, grammar.context)
+            completion_has_checked_build(
+                &rules,
+                rule,
+                family,
+                forest,
+                grammar.context,
+                &mut completion_state,
+            )
         },
     )
     .map_err(project_failure)?;
@@ -150,6 +159,7 @@ pub(crate) fn parse_forest_observed<R: GeneratedParseRoot>(
     super::count_pipeline_stage(super::PipelineStage::Parse);
     let mut observation = StructuralObservation::new(limits);
     let rules = rules_for_root::<R>();
+    let mut completion_state = CheckedCompletionState::default();
     let result = parse_root_observed_with_state(
         &rules,
         RootRule::family_reachable(RootRuleId::Adapter),
@@ -159,7 +169,14 @@ pub(crate) fn parse_forest_observed<R: GeneratedParseRoot>(
             grammar.scan_stateful(lexical, text, offset, *position, suppress_right_boundary)
         },
         |rule, family, forest| {
-            completion_has_checked_build(&rules, rule, family, forest, grammar.context)
+            completion_has_checked_build(
+                &rules,
+                rule,
+                family,
+                forest,
+                grammar.context,
+                &mut completion_state,
+            )
         },
         &mut observation,
     )

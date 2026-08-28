@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::VecDeque;
+use std::hash::Hash;
+use std::sync::Arc;
 
 use super::TextSpan;
 
@@ -61,6 +63,7 @@ pub(crate) struct PackedNode<R, T, O = ()> {
 pub(crate) struct Forest<R, T, O = ()> {
     nodes: Vec<PackedNode<R, T, O>>,
     accepted_roots: Vec<NodeId>,
+    extended_nodes: Vec<NodeId>,
 }
 
 impl<R, T, O> Forest<R, T, O> {
@@ -79,6 +82,10 @@ impl<R, T, O> Forest<R, T, O> {
         self.accepted_roots.iter().copied()
     }
 
+    pub(crate) fn extended_nodes_since(&self, index: usize) -> &[NodeId] {
+        &self.extended_nodes[index..]
+    }
+
     pub(crate) fn nodes(&self) -> impl Iterator<Item = (NodeId, &PackedNode<R, T, O>)> {
         self.nodes
             .iter()
@@ -94,6 +101,7 @@ impl<R, T, O> Forest<R, T, O> {
         Self {
             nodes,
             accepted_roots,
+            extended_nodes: Vec::new(),
         }
     }
 }
@@ -249,7 +257,7 @@ where
     R: Copy + Eq,
     T: Clone + Eq,
     O: Clone + Eq,
-    S: Clone + Eq + Ord,
+    S: Clone + Eq + Hash + Ord,
     Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, O, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
@@ -279,7 +287,7 @@ where
     R: Copy + Eq,
     T: Clone + Eq,
     O: Clone + Eq,
-    S: Clone + Eq + Ord,
+    S: Clone + Eq + Hash + Ord,
     Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, O, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
@@ -349,7 +357,7 @@ where
     R: Copy + Eq,
     T: Clone + Eq,
     Owner: Clone + Eq,
-    S: Clone + Eq + Ord,
+    S: Clone + Eq + Hash + Ord,
     Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
@@ -392,7 +400,7 @@ where
     R: Copy + Eq,
     T: Clone + Eq,
     Owner: Clone + Eq,
-    S: Clone + Eq + Ord,
+    S: Clone + Eq + Hash + Ord,
     Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
@@ -428,7 +436,7 @@ where
     R: Copy + Eq,
     T: Clone + Eq,
     Owner: Clone + Eq,
-    S: Clone + Eq + Ord,
+    S: Clone + Eq + Hash + Ord,
     Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, Owner, S>>,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, Owner>, &Forest<R, T, Owner>) -> D,
@@ -438,8 +446,11 @@ where
         forest: Forest {
             nodes: Vec::new(),
             accepted_roots: Vec::new(),
+            extended_nodes: Vec::new(),
         },
         node_states: Vec::new(),
+        node_index: BTreeMap::new(),
+        parents_by_child: BTreeMap::new(),
     };
 
     let mut chart = (0..=input_length)
@@ -447,10 +458,24 @@ where
         .collect::<Vec<_>>();
     let mut agenda = VecDeque::new();
     let mut completed_by_start = (0..=input_length)
-        .map(|_| Vec::<(N, bool, NodeId)>::new())
+        .map(|_| BTreeMap::<(N, bool), Vec<NodeId>>::new())
         .collect::<Vec<_>>();
+    let mut waiters_by_column = (0..=input_length)
+        .map(|_| WaiterIndex::<N, S>::new())
+        .collect::<Vec<_>>();
+    let mut rules_by_lhs = BTreeMap::<N, Vec<usize>>::new();
+    for (rule_index, rule) in rules.iter().enumerate() {
+        rules_by_lhs.entry(rule.lhs).or_default().push(rule_index);
+    }
 
-    seed_chart(rules, seed, initial_state, &mut chart, &mut agenda);
+    seed_chart(
+        rules,
+        seed,
+        initial_state,
+        &mut chart,
+        &mut waiters_by_column,
+        &mut agenda,
+    );
 
     while let Some((column, item, family)) = agenda.pop_front() {
         let rule = &rules[item.rule_index];
@@ -459,7 +484,7 @@ where
                 rule,
                 column,
                 &item,
-                family,
+                Arc::clone(&family),
                 &mut stateful_forest,
                 &mut validate_completion,
                 observation,
@@ -469,10 +494,28 @@ where
             // Family-reachable validation cannot reference a node before it exists, so
             // only extending an existing packed node can change an earlier result.
             // Whole-forest validation retains the conservative global retry contract.
-            if extended_existing_node
-                || seed.completion_dependency() == CompletionDependency::WholeForest
-            {
-                requeue_completed_items_after_forest_growth(&chart, rules, &mut agenda);
+            if extended_existing_node {
+                match seed.completion_dependency() {
+                    CompletionDependency::FamilyReachable => {
+                        let affected = affected_nodes(&stateful_forest, node_id);
+                        requeue_completed_items_after_forest_growth(
+                            &chart,
+                            rules,
+                            Some(&affected),
+                            &mut agenda,
+                        );
+                    }
+                    CompletionDependency::WholeForest => {
+                        requeue_completed_items_after_forest_growth(
+                            &chart,
+                            rules,
+                            None,
+                            &mut agenda,
+                        );
+                    }
+                }
+            } else if seed.completion_dependency() == CompletionDependency::WholeForest {
+                requeue_completed_items_after_forest_growth(&chart, rules, None, &mut agenda);
             }
 
             if !register_completed_node(
@@ -494,26 +537,32 @@ where
                 continue;
             }
 
-            let waiters = chart[item.origin]
-                .iter()
-                .filter(|(waiter, _)| {
-                    waiter.state == item.origin_state
-                        && matches!(
-                            rules[waiter.rule_index].rhs.get(waiter.dot),
-                            Some(RulePosition::Nonterminal(category) | RulePosition::AdjacentNonterminal(category))
-                                if *category == rule.lhs
-                                    && expected_right_boundary(rules, waiter)
-                                        == item.suppress_right_boundary
-                        )
+            let waiters = waiters_by_column[item.origin]
+                .get(&(
+                    rule.lhs,
+                    item.origin_state.clone(),
+                    item.suppress_right_boundary,
+                ))
+                .into_iter()
+                .flatten()
+                .map(|waiter| {
+                    (
+                        waiter.clone(),
+                        chart[item.origin]
+                            .get(waiter)
+                            .expect("the waiter index references a live chart item")
+                            .clone(),
+                    )
                 })
-                .map(|(key, families)| (key.clone(), families.clone()))
                 .collect::<Vec<_>>();
             for (waiter, waiter_families) in waiters {
                 for waiter_family in waiter_families {
-                    let mut children = waiter_family.children;
+                    let mut children = waiter_family.children.clone();
                     children.push(Child::Node(node_id));
                     insert_item(
+                        rules,
                         &mut chart,
+                        &mut waiters_by_column,
                         &mut agenda,
                         column,
                         ItemKey {
@@ -534,10 +583,13 @@ where
         match rule.rhs[item.dot] {
             RulePosition::Nonterminal(category) | RulePosition::AdjacentNonterminal(category) => {
                 let suppress_right_boundary = expected_right_boundary(rules, &item);
-                for (predicted_rule, predicted) in rules.iter().enumerate() {
-                    if predicted.lhs == category && !seed.excludes_from_prediction(&predicted.id) {
+                for &predicted_rule in rules_by_lhs.get(&category).into_iter().flatten() {
+                    let predicted = &rules[predicted_rule];
+                    if !seed.excludes_from_prediction(&predicted.id) {
                         insert_item(
+                            rules,
                             &mut chart,
+                            &mut waiters_by_column,
                             &mut agenda,
                             column,
                             ItemKey {
@@ -556,20 +608,20 @@ where
                 }
 
                 let completed = completed_by_start[column]
-                    .iter()
+                    .get(&(category, suppress_right_boundary))
+                    .into_iter()
+                    .flatten()
                     .copied()
-                    .filter(|(completed_category, completed_boundary, node_id)| {
-                        *completed_category == category
-                            && *completed_boundary == suppress_right_boundary
-                            && stateful_forest.node_states[node_id.0].start == item.state
-                    })
+                    .filter(|node_id| stateful_forest.node_states[node_id.0].start == item.state)
                     .collect::<Vec<_>>();
-                for (_, _, node_id) in completed {
+                for node_id in completed {
                     let mut children = family.children.clone();
                     children.push(Child::Node(node_id));
                     let node = &stateful_forest.forest.nodes[node_id.0];
                     insert_item(
+                        rules,
                         &mut chart,
+                        &mut waiters_by_column,
                         &mut agenda,
                         node.end,
                         ItemKey {
@@ -586,6 +638,7 @@ where
             }
             RulePosition::Lexical(lexical) => {
                 advance_lexical(
+                    rules,
                     &PendingLexicalScan {
                         lexical,
                         suppress_right_boundary: item.suppress_right_boundary
@@ -596,6 +649,7 @@ where
                         family: &family,
                     },
                     &mut chart,
+                    &mut waiters_by_column,
                     &mut agenda,
                     &mut scan,
                     observation,
@@ -613,9 +667,9 @@ where
     }
 }
 
-fn register_completed_node<N: Copy + Eq, R, T, O, S>(
+fn register_completed_node<N: Copy + Ord, R, T, O, S>(
     stateful_forest: &mut StatefulForest<R, T, O, S>,
-    completed_by_start: &mut [Vec<(N, bool, NodeId)>],
+    completed_by_start: &mut [BTreeMap<(N, bool), Vec<NodeId>>],
     is_root: bool,
     excluded_from_prediction: bool,
     lhs: N,
@@ -628,9 +682,11 @@ fn register_completed_node<N: Copy + Eq, R, T, O, S>(
     if excluded_from_prediction {
         return false;
     }
-    let completion = (lhs, item.suppress_right_boundary, node_id);
-    if !completed_by_start[item.origin].contains(&completion) {
-        completed_by_start[item.origin].push(completion);
+    let completed = completed_by_start[item.origin]
+        .entry((lhs, item.suppress_right_boundary))
+        .or_default();
+    if !completed.contains(&node_id) {
+        completed.push(node_id);
     }
     true
 }
@@ -646,7 +702,7 @@ fn accept_completed_node<N, L, R, T, O, D, S, ValidateCompletion, Obs>(
     rule: &Rule<N, L, R>,
     column: usize,
     item: &ItemKey<S>,
-    family: Family<T, O>,
+    family: SharedFamily<T, O>,
     stateful_forest: &mut StatefulForest<R, T, O, S>,
     validate_completion: &mut ValidateCompletion,
     observation: &mut Obs,
@@ -655,54 +711,69 @@ where
     R: Copy + Eq,
     T: Clone + Eq,
     O: Clone + Eq,
-    S: Clone + Eq,
+    S: Clone + Ord,
     D: CompletionResult,
     ValidateCompletion: FnMut(R, &Family<T, O>, &Forest<R, T, O>) -> D,
     Obs: Observation<R, T, L, O, D::Rejection>,
 {
     let disposition =
-        validate_completion(rule.id, &family, &stateful_forest.forest).into_disposition();
-    observation.checked_completion(rule.id, item.origin, column, &family, &disposition);
+        validate_completion(rule.id, family.as_ref(), &stateful_forest.forest).into_disposition();
+    observation.checked_completion(rule.id, item.origin, column, family.as_ref(), &disposition);
     if !disposition.is_accepted() {
         return None;
     }
-    let (node_id, extended_existing_node) = stateful_forest
-        .forest
-        .nodes
+    let key = PackedNodeKey {
+        rule_index: item.rule_index,
+        start: item.origin,
+        end: column,
+        origin_state: item.origin_state.clone(),
+        state: item.state.clone(),
+        suppress_right_boundary: item.suppress_right_boundary,
+    };
+    let (node_id, extended_existing_node) =
+        if let Some(node_id) = stateful_forest.node_index.get(&key).copied() {
+            (node_id, true)
+        } else {
+            let node_id = NodeId(stateful_forest.forest.nodes.len());
+            stateful_forest.forest.nodes.push(PackedNode {
+                rule: rule.id,
+                start: item.origin,
+                end: column,
+                families: Vec::new(),
+            });
+            stateful_forest.node_states.push(NodeState {
+                start: item.origin_state.clone(),
+                end: item.state.clone(),
+            });
+            stateful_forest.node_index.insert(key, node_id);
+            (node_id, false)
+        };
+    let family = Arc::unwrap_or_clone(family);
+    let child_nodes = family
+        .children
         .iter()
-        .enumerate()
-        .position(|(index, node)| {
-            node.rule == rule.id
-                && node.start == item.origin
-                && node.end == column
-                && stateful_forest.node_states[index].start == item.origin_state
-                && stateful_forest.node_states[index].end == item.state
-                && stateful_forest.node_states[index].suppress_right_boundary
-                    == item.suppress_right_boundary
+        .filter_map(|child| match child {
+            Child::Node(child_id) => Some(*child_id),
+            Child::Lexical(_) => None,
         })
-        .map_or_else(
-            || {
-                let node_id = NodeId(stateful_forest.forest.nodes.len());
-                stateful_forest.forest.nodes.push(PackedNode {
-                    rule: rule.id,
-                    start: item.origin,
-                    end: column,
-                    families: Vec::new(),
-                });
-                stateful_forest.node_states.push(NodeState {
-                    start: item.origin_state.clone(),
-                    end: item.state.clone(),
-                    suppress_right_boundary: item.suppress_right_boundary,
-                });
-                (node_id, false)
-            },
-            |index| (NodeId(index), true),
-        );
-    insert_family(
+        .collect::<Vec<_>>();
+    let inserted = insert_family(
         &mut stateful_forest.forest.nodes[node_id.0].families,
         family,
-    )
-    .then_some((node_id, extended_existing_node))
+    );
+    if inserted {
+        for child_id in child_nodes {
+            stateful_forest
+                .parents_by_child
+                .entry(child_id)
+                .or_default()
+                .insert(node_id);
+        }
+        if extended_existing_node {
+            stateful_forest.forest.extended_nodes.push(node_id);
+        }
+    }
+    inserted.then_some((node_id, extended_existing_node))
 }
 
 fn observe_final_chart<N, L, R, T, O, E, S, Obs>(
@@ -712,6 +783,7 @@ fn observe_final_chart<N, L, R, T, O, E, S, Obs>(
     forest: &Forest<R, T, O>,
 ) where
     R: Copy,
+    S: Ord,
     Obs: Observation<R, T, L, O, E>,
 {
     for (column, items) in chart.iter().enumerate() {
@@ -728,17 +800,20 @@ fn observe_final_chart<N, L, R, T, O, E, S, Obs>(
     observation.final_forest(forest);
 }
 
-fn advance_lexical<L, R, T, O, E, S, Scan, Obs>(
+fn advance_lexical<N, L, R, T, O, E, S, Scan, Obs>(
+    rules: &[Rule<N, L, R>],
     pending: &PendingLexicalScan<'_, L, T, O, S>,
     chart: &mut [ChartColumn<T, O, S>],
+    waiters_by_column: &mut [WaiterIndex<N, S>],
     agenda: &mut Agenda<T, O, S>,
     scan: &mut Scan,
     observation: &mut Obs,
 ) where
+    N: Copy + Ord,
     L: Copy,
     T: Clone + Eq,
     O: Clone + Eq,
-    S: Clone + Eq + Ord,
+    S: Clone + Eq + Hash + Ord,
     Scan: FnMut(L, usize, &S, bool) -> Vec<StatefulLexicalMatch<T, O, S>>,
     Obs: Observation<R, T, L, O, E>,
 {
@@ -768,7 +843,9 @@ fn advance_lexical<L, R, T, O, E, S, Scan, Obs>(
             owner: lexical_match.owner,
         }));
         insert_item(
+            rules,
             chart,
+            waiters_by_column,
             agenda,
             lexical_match.end,
             ItemKey {
@@ -808,13 +885,14 @@ fn seed_chart<N, L, R, T, O, S>(
     seed: RootSeed<N, R>,
     initial_state: &S,
     chart: &mut [ChartColumn<T, O, S>],
+    waiters_by_column: &mut [WaiterIndex<N, S>],
     agenda: &mut Agenda<T, O, S>,
 ) where
-    N: Copy + Eq,
+    N: Copy + Ord,
     R: Copy + Eq,
     T: Clone + Eq,
     O: Clone + Eq,
-    S: Clone + Eq + Ord,
+    S: Clone + Eq + Hash + Ord,
 {
     for (rule_index, rule) in rules.iter().enumerate() {
         let selected = match seed {
@@ -823,7 +901,9 @@ fn seed_chart<N, L, R, T, O, S>(
         };
         if selected {
             insert_item(
+                rules,
                 chart,
+                waiters_by_column,
                 agenda,
                 0,
                 ItemKey {
@@ -857,7 +937,7 @@ fn completed_rule_is_root<N: Eq, R: Eq>(
     selected && origin == 0 && column == input_length
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Ord, PartialOrd)]
 struct ItemKey<S> {
     rule_index: usize,
     dot: usize,
@@ -870,12 +950,23 @@ struct ItemKey<S> {
 struct NodeState<S> {
     start: S,
     end: S,
+}
+
+#[derive(Clone, PartialEq, Eq, Ord, PartialOrd)]
+struct PackedNodeKey<S> {
+    rule_index: usize,
+    start: usize,
+    end: usize,
+    origin_state: S,
+    state: S,
     suppress_right_boundary: bool,
 }
 
 struct StatefulForest<R, T, O, S> {
     forest: Forest<R, T, O>,
     node_states: Vec<NodeState<S>>,
+    node_index: BTreeMap<PackedNodeKey<S>, NodeId>,
+    parents_by_child: BTreeMap<NodeId, BTreeSet<NodeId>>,
 }
 
 struct PendingLexicalScan<'a, L, T, O, S> {
@@ -887,19 +978,58 @@ struct PendingLexicalScan<'a, L, T, O, S> {
     family: &'a Family<T, O>,
 }
 
-type ChartColumn<T, O, S> = BTreeMap<ItemKey<S>, Vec<Family<T, O>>>;
-type Agenda<T, O, S> = VecDeque<(usize, ItemKey<S>, Family<T, O>)>;
+type SharedFamily<T, O> = Arc<Family<T, O>>;
+type ChartColumn<T, O, S> = BTreeMap<ItemKey<S>, Vec<SharedFamily<T, O>>>;
+type Agenda<T, O, S> = VecDeque<(usize, ItemKey<S>, SharedFamily<T, O>)>;
+type WaiterIndex<N, S> = BTreeMap<(N, S, bool), Vec<ItemKey<S>>>;
 
-fn insert_item<T: Clone + Eq, O: Clone + Eq, S: Clone + Eq + Ord>(
+fn insert_item<N, L, R, T, O, S>(
+    rules: &[Rule<N, L, R>],
     chart: &mut [ChartColumn<T, O, S>],
+    waiters_by_column: &mut [WaiterIndex<N, S>],
     agenda: &mut Agenda<T, O, S>,
     column: usize,
     item: ItemKey<S>,
     family: Family<T, O>,
-) {
-    let families = chart[column].entry(item.clone()).or_default();
-    if insert_family(families, family.clone()) {
-        agenda.push_back((column, item, family));
+) where
+    N: Copy + Ord,
+    T: Clone + Eq,
+    O: Clone + Eq,
+    S: Clone + Eq + Hash + Ord,
+{
+    let (families, new_item) = match chart[column].entry(item.clone()) {
+        std::collections::btree_map::Entry::Vacant(entry) => (entry.insert(Vec::new()), true),
+        std::collections::btree_map::Entry::Occupied(entry) => (entry.into_mut(), false),
+    };
+    if let Some(family) = insert_shared_family(families, family) {
+        agenda.push_back((column, item.clone(), family));
+    }
+    if new_item
+        && let Some(
+            RulePosition::Nonterminal(category) | RulePosition::AdjacentNonterminal(category),
+        ) = rules[item.rule_index].rhs.get(item.dot)
+    {
+        waiters_by_column[column]
+            .entry((
+                *category,
+                item.state.clone(),
+                expected_right_boundary(rules, &item),
+            ))
+            .or_default()
+            .push(item);
+    }
+}
+
+fn insert_shared_family<T: Eq, O: Eq>(
+    families: &mut Vec<SharedFamily<T, O>>,
+    family: Family<T, O>,
+) -> Option<SharedFamily<T, O>> {
+    if families.iter().any(|existing| existing.as_ref() == &family) {
+        None
+    } else {
+        let family = Arc::new(family);
+        families.push(Arc::clone(&family));
+        Some(family)
     }
 }
 
@@ -912,9 +1042,28 @@ fn insert_family<T: Eq, O: Eq>(families: &mut Vec<Family<T, O>>, family: Family<
     }
 }
 
+fn affected_nodes<R, T, O, S>(
+    stateful_forest: &StatefulForest<R, T, O, S>,
+    extended: NodeId,
+) -> BTreeSet<NodeId> {
+    let mut affected = BTreeSet::from([extended]);
+    let mut pending = vec![extended];
+    while let Some(node_id) = pending.pop() {
+        if let Some(parents) = stateful_forest.parents_by_child.get(&node_id) {
+            for &parent in parents {
+                if affected.insert(parent) {
+                    pending.push(parent);
+                }
+            }
+        }
+    }
+    affected
+}
+
 fn requeue_completed_items_after_forest_growth<N, L, R, T: Clone, O: Clone, S: Clone + Ord>(
     chart: &[ChartColumn<T, O, S>],
     rules: &[Rule<N, L, R>],
+    affected: Option<&BTreeSet<NodeId>>,
     agenda: &mut Agenda<T, O, S>,
 ) {
     for (column, items) in chart.iter().enumerate() {
@@ -923,7 +1072,13 @@ fn requeue_completed_items_after_forest_growth<N, L, R, T: Clone, O: Clone, S: C
                 continue;
             }
             for family in families {
-                agenda.push_back((column, item.clone(), family.clone()));
+                if affected.is_none_or(|affected| {
+                    family.children.iter().any(
+                        |child| matches!(child, Child::Node(node_id) if affected.contains(node_id)),
+                    )
+                }) {
+                    agenda.push_back((column, item.clone(), Arc::clone(family)));
+                }
             }
         }
     }
@@ -1081,7 +1236,7 @@ mod tests {
         },
     ];
 
-    #[derive(Clone, PartialEq, Eq, Ord, PartialOrd)]
+    #[derive(Clone, Hash, PartialEq, Eq, Ord, PartialOrd)]
     struct RootBoundaryState;
 
     fn scan_root_boundary(
@@ -1716,7 +1871,7 @@ mod tests {
 
     #[test]
     fn scanner_state_is_path_local_across_ambiguous_same_offset_derivations() {
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+        #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
         enum ScanState {
             Initial,
             Left,

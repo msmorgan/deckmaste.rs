@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::sync::Arc;
 
 use super::diagnostic::MaterializationTrace;
 use super::diagnostic::MaterializationTraceBuilder;
@@ -35,10 +36,10 @@ use crate::parser::scan::rules_for_root;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct MaterializedCandidate<V, C, K = Category, M = Lexical, T = (), O = ()> {
-    pub(super) value: V,
-    pub(super) constructions: Vec<C>,
-    pub(super) positions: Vec<RulePosition<K, M>>,
-    pub(super) claims: Vec<SpannedLexical<T, O>>,
+    pub(super) value: Arc<V>,
+    pub(super) constructions: Arc<[C]>,
+    pub(super) positions: Arc<[RulePosition<K, M>]>,
+    pub(super) claims: Arc<[SpannedLexical<T, O>]>,
 }
 
 type MaterializedMemo<V, C, K, M, T, O> =
@@ -145,6 +146,7 @@ impl MaterializationObservation<RootRuleId> for MaterializationTraceBuilder {
 struct MaterializationStateFor<V, C, K = Category, M = Lexical, T = (), O = ()> {
     memo: MaterializedMemo<V, C, K, M, T, O>,
     in_progress: BTreeSet<NodeId>,
+    parents_by_child: BTreeMap<NodeId, BTreeSet<NodeId>>,
 }
 
 impl<V, C, K, M, T, O> Default for MaterializationStateFor<V, C, K, M, T, O> {
@@ -152,6 +154,23 @@ impl<V, C, K, M, T, O> Default for MaterializationStateFor<V, C, K, M, T, O> {
         Self {
             memo: BTreeMap::new(),
             in_progress: BTreeSet::new(),
+            parents_by_child: BTreeMap::new(),
+        }
+    }
+}
+
+impl<V, C, K, M, T, O> MaterializationStateFor<V, C, K, M, T, O> {
+    fn invalidate(&mut self, node_id: NodeId) {
+        let mut pending = vec![node_id];
+        let mut invalidated = BTreeSet::new();
+        while let Some(node_id) = pending.pop() {
+            if !invalidated.insert(node_id) {
+                continue;
+            }
+            self.memo.remove(&node_id);
+            if let Some(parents) = self.parents_by_child.remove(&node_id) {
+                pending.extend(parents);
+            }
         }
     }
 }
@@ -256,6 +275,17 @@ where
         }
 
         let node = forest.node(node_id);
+        for family in &node.families {
+            for child in &family.children {
+                if let Child::Node(child_id) = child {
+                    state
+                        .parents_by_child
+                        .entry(*child_id)
+                        .or_default()
+                        .insert(node_id);
+                }
+            }
+        }
         let mut values = Vec::new();
         let mut cycle_pruned = false;
         let mut first_rejection = None;
@@ -314,10 +344,10 @@ where
                     outcome.values
                 }
                 Child::Lexical(lexical) => vec![MaterializedCandidate {
-                    value: (self.build_leaf)(&lexical.value),
-                    constructions: Vec::new(),
-                    positions: Vec::new(),
-                    claims: vec![lexical.clone()],
+                    value: Arc::new((self.build_leaf)(&lexical.value)),
+                    constructions: Arc::from([]),
+                    positions: Arc::from([]),
+                    claims: Arc::from([lexical.clone()]),
                 }],
             };
             let mut next = Vec::new();
@@ -334,7 +364,7 @@ where
         for children in combinations {
             let child_values = children
                 .iter()
-                .map(|child| child.value.clone())
+                .map(|child| child.value.as_ref().clone())
                 .collect::<Vec<_>>();
             match (self.build)(rule_id, &child_values) {
                 Ok(Some(value)) => {
@@ -359,18 +389,18 @@ where
                     };
                     let mut claims = Vec::new();
                     for child in children {
-                        constructions.extend(child.constructions);
-                        positions.extend(child.positions);
-                        claims.extend(child.claims);
+                        constructions.extend(child.constructions.iter().copied());
+                        positions.extend(child.positions.iter().cloned());
+                        claims.extend(child.claims.iter().cloned());
                     }
                     claims.sort_by_key(|claim| (claim.span.start, claim.span.end));
                     push_unique(
                         &mut values,
                         MaterializedCandidate {
-                            value,
-                            constructions,
-                            positions,
-                            claims,
+                            value: Arc::new(value),
+                            constructions: Arc::from(constructions),
+                            positions: Arc::from(positions),
+                            claims: Arc::from(claims),
                         },
                     );
                 }
@@ -684,7 +714,7 @@ fn finalize_candidates<R: GeneratedParseRoot>(
         let mut varied = vec![first.clone()];
         for position_index in literal_positions.into_iter().take(copies - 1) {
             let mut candidate = first.clone();
-            candidate.positions[position_index] = nonterminal;
+            Arc::make_mut(&mut candidate.positions)[position_index] = nonterminal;
             varied.push(candidate);
         }
         varied
@@ -693,15 +723,15 @@ fn finalize_candidates<R: GeneratedParseRoot>(
     super::count_pipeline_stage(super::PipelineStage::Specificity);
     let mut candidates = Vec::new();
     for built in built_values {
-        if let Some(value) = R::from_build(built.value) {
+        if let Some(value) = R::from_build(Arc::unwrap_or_clone(built.value)) {
             let mut claims = Vec::new();
             let mut synthetic_claims = Vec::new();
-            for claim in built.claims {
-                match claim.owner {
+            for claim in built.claims.iter() {
+                match &claim.owner {
                     Some(owner) => claims.push(RawLexicalClaim {
                         span: claim.span,
-                        value: claim.value,
-                        owner,
+                        value: claim.value.clone(),
+                        owner: owner.clone(),
                     }),
                     None if !matches!(claim.value, Leaf::EndOfInput) => {
                         synthetic_claims.push(claim.span);
@@ -713,9 +743,9 @@ fn finalize_candidates<R: GeneratedParseRoot>(
             count_specificity_candidate();
             let candidate = Candidate {
                 value,
-                constructions: built.constructions,
+                constructions: built.constructions.as_ref().to_vec(),
                 specificity: specificity_tiers(&built.positions),
-                positions: built.positions,
+                positions: built.positions.as_ref().to_vec(),
                 claims,
                 synthetic_claims,
             };
@@ -790,13 +820,26 @@ fn materialize_node(
     kernel.materialize_node(forest, node_id, state, &mut Vec::new(), &mut ())
 }
 
+#[derive(Default)]
+pub(super) struct CheckedCompletionState {
+    materialization:
+        MaterializationStateFor<BuildValue, Construction, Category, Lexical, Leaf, LexicalOwner>,
+    observed_extensions: usize,
+}
+
 pub(super) fn completion_has_checked_build(
     rules: &[Rule<Category, LexicalTerminal, RootRuleId>],
     rule: RootRuleId,
     family: &Family<Leaf, LexicalOwner>,
     forest: &Forest<RootRuleId, Leaf, LexicalOwner>,
     context: &ParseContext<'_>,
+    state: &mut CheckedCompletionState,
 ) -> super::engine::CompletionDisposition<BuildRejection> {
+    let extensions = forest.extended_nodes_since(state.observed_extensions);
+    state.observed_extensions += extensions.len();
+    for &node_id in extensions {
+        state.materialization.invalidate(node_id);
+    }
     let kernel: MaterializationKernel<
         '_,
         RootRuleId,
@@ -820,14 +863,7 @@ pub(super) fn completion_has_checked_build(
         forest,
         rule,
         family,
-        &mut MaterializationStateFor::<
-            BuildValue,
-            Construction,
-            Category,
-            Lexical,
-            Leaf,
-            LexicalOwner,
-        >::default(),
+        &mut state.materialization,
         &mut Vec::new(),
         &mut (),
     );
@@ -1036,7 +1072,7 @@ mod tests {
 
         assert_eq!(outcome.values.len(), 1);
         assert!(matches!(
-            outcome.values[0].value,
+            outcome.values[0].value.as_ref(),
             BuildValue::Amount(
                 crate::ast::Amount::Number(crate::ast::NumberAmount {
                     number: ScalarNumber { magnitude: 3 },
@@ -1189,6 +1225,44 @@ mod tests {
     }
 
     #[test]
+    fn memo_hits_share_materialized_values_and_provenance() {
+        let forest = Forest::from_test_parts(
+            vec![PackedNode {
+                rule: RuleId::AmountNumber,
+                start: 0,
+                end: 1,
+                families: vec![Family {
+                    children: vec![lexical(Leaf::ScalarNumber(ScalarNumber { magnitude: 3 }))],
+                }],
+            }],
+            vec![NodeId(0)],
+        );
+        let mut state =
+            MaterializationStateFor::<BuildValue, Construction, Category, Lexical, Leaf>::default();
+
+        let first = materialize_node(&forest, NodeId(0), &context("Context Card"), &mut state);
+        let memo_hit = materialize_node(&forest, NodeId(0), &context("Context Card"), &mut state);
+
+        assert_eq!(first.values, memo_hit.values);
+        assert!(std::sync::Arc::ptr_eq(
+            &first.values[0].value,
+            &memo_hit.values[0].value,
+        ));
+        assert!(std::sync::Arc::ptr_eq(
+            &first.values[0].constructions,
+            &memo_hit.values[0].constructions,
+        ));
+        assert!(std::sync::Arc::ptr_eq(
+            &first.values[0].positions,
+            &memo_hit.values[0].positions,
+        ));
+        assert!(std::sync::Arc::ptr_eq(
+            &first.values[0].claims,
+            &memo_hit.values[0].claims,
+        ));
+    }
+
+    #[test]
     fn materialization_rejects_an_indirect_nullable_cycle_but_keeps_an_acyclic_family() {
         let forest = Forest::from_test_parts(
             vec![
@@ -1335,15 +1409,15 @@ mod tests {
         let first = materialize_node(&forest, NodeId(0), &context, &mut state);
         assert_eq!(first.values.len(), 1);
         assert_eq!(
-            first.values[0].value,
-            BuildValue::Sentence(once.clone(), FeatureConstraint::Any)
+            first.values[0].value.as_ref(),
+            &BuildValue::Sentence(once.clone(), FeatureConstraint::Any)
         );
 
         let later = materialize_node(&forest, NodeId(1), &context, &mut state);
         assert_eq!(later.values.len(), 1);
         assert_eq!(
-            later.values[0].value,
-            BuildValue::Sentence(
+            later.values[0].value.as_ref(),
+            &BuildValue::Sentence(
                 Sentence::WithWhere(WithWhere {
                     body: Box::new(once),
                     clause,
@@ -1352,8 +1426,8 @@ mod tests {
             )
         );
         assert_eq!(
-            later.values[0].constructions,
-            vec![
+            later.values[0].constructions.as_ref(),
+            &[
                 Construction::SentenceWithWhere,
                 Construction::SentenceWithWhere,
                 Construction::SentenceImperative,

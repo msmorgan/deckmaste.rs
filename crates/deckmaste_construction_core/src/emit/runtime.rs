@@ -210,14 +210,14 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         named_type(
             CASE_POSITION_TYPE,
             quote! {
-                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum CasePosition { DocumentInitial, SentenceInitial, Continuation }
             },
         ),
         named_type(
             PREFIX_POSITION_TYPE,
             quote! {
-                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) enum PrefixPosition { WordOwnedSpace, SurfaceOwned, None }
             },
         ),
@@ -243,7 +243,7 @@ pub(crate) fn emit(plan: &SemanticPlan) -> Vec<GeneratedItem> {
         named_type(
             SCAN_POSITION_TYPE,
             quote! {
-                #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+                #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Ord, PartialOrd)]
                 pub(crate) struct ScanPosition {
                     pub(crate) byte_offset: usize,
                     pub(crate) case: CasePosition,
