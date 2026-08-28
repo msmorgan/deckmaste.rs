@@ -192,3 +192,12 @@ Standard constraints apply.
   must be able to name nothing) and `Effect.CopyStack` is not kind-indexed
   (its `what` is gated `OnStack` at Object only). Copy machinery, so both
   land here.
+
+- **Design obligation from the recency audit (2026-08-27):** when the
+  ENTERS-AS-COPY family ("have this enter as a copy of X, except…") gets its
+  constructor — 23 measured lines have none today — it MUST follow
+  `TokenCopyOf`'s precedent and leave the copy source out of its delta
+  (`specDelta = []`; the source is a constructor argument, never a discourse
+  mention). Announcing the source would double every "except it" pronoun's
+  antecedents and turn all 23 lines into live misbinding hazards. Audit
+  record: scratchpad recency-audit/opus-analysis.md (session-local).
