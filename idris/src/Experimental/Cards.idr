@@ -2878,6 +2878,23 @@ helicaGlider =
                    Fresh) ]
        (Just (2, 2))
 
+||| Grimdancer -- whole: "This creature enters with your choice of two
+||| different counters on it from among menace, deathtouch, and lifelink."
+||| The menu picked TWICE with distinctness written, against Denry Klin's
+||| and Helica Glider's single pick from the same slot.
+public export
+grimdancer : Card
+grimdancer =
+  Macros.card "Grimdancer"
+       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Nightmare"] [Creature])
+       [ Static (EntersWithCounters Macros.thisCreature (Lit 2)
+                   (DistinctChosenKinds [ KeywordCounter "Menace"
+                                        , KeywordCounter "Deathtouch"
+                                        , KeywordCounter "Lifelink" ])
+                   Fresh) ]
+       (Just (3, 3))
+
 ||| Me, the Immortal's combat trigger -- "put your choice of a +1/+1,
 ||| first strike, vigilance, or menace counter on Me": the menu at the
 ||| put seat, four arms, and the same slot as the entry side.
@@ -4889,9 +4906,120 @@ chromaticArmor =
        , Static (Macros.entersChoosing Macros.thisAura Color)
        , Static (Prevents AnyDamage AllOfIt
                           (Macros.shieldingIt (AttachHost Enchanted (TypeW Creature)))
-                          (Just (AllOf (And [Macros.source, OfLastChosenColor])))
+                          (Just (AllOf (And [Macros.source, OfLastChosen Color])))
                           Nothing) ]
        Nothing
+
+||| Sanctuary Blade -- "As this Equipment becomes attached to a creature,
+||| choose a color. / Equipped creature gets +2/+0 and has protection from
+||| the last chosen color. / Equip {3}". The ATTACH-triggered chooser's
+||| witness: a replacement effect watching [CR#701.3a]'s attachment rather
+||| than [CR#614.1c]'s entering, and the marked read it feeds
+||| [CR#607.2d] -- marked because re-equipping re-fires the chooser.
+||| Beckoning Will-o'-Wisp's chooser -- "At the beginning of combat on
+||| your turn, choose an opponent." The COMBAT-trigger chooser position;
+||| Triarch Stalker writes the same ability. Neither card lands and the
+||| chooser is not why. Two further blockers apiece: the flavor word
+||| ("Lure the Unwary", "Targeting Relay") is not one of [CR#207.2c]'s
+||| ability words and no row spells it; and both spend the read inside
+||| "creatures attacking the last chosen player", an attributive
+||| attacking-DEFENDER phrase that `Attacking` carries no slot for -- 94
+||| supported lines write one, so that is its own cell and not this
+||| round's.
+public export
+beckoningWillOWispChooser : Ability
+beckoningWillOWispChooser =
+  Macros.triggered At (BeginningOf Combat (ByWord Yours))
+                   (Macros.choose (Macros.a Opponent))
+
+||| Koh, the Face Stealer's third line -- "Pay 1 life: Choose a creature
+||| card exiled with Koh." The chooser at an ACTIVATED ability and at an
+||| OBJECT: the exile linkage [CR#607.2a] narrows the choice and the clause
+||| leaves a mention, not a chosen value. The card's fourth line, "Koh has
+||| all activated and triggered abilities of the last chosen card", wants
+||| two things this round does not buy: a grant of ANOTHER object's whole
+||| ability set, which no row writes, and the object-sorted marked read.
+public export
+kohChooser : Ability
+kohChooser =
+  Macros.activated (Macros.payLife You 1)
+    (Macros.choose (Macros.a (And [Macros.creature, ExiledWith This])))
+
+||| Volrath's Laboratory's first line -- "As this artifact enters, choose a
+||| color and a creature type." The COMPOUND chooser at the as-enters
+||| position: two choices in ONE sentence, spelled as the coordination it
+||| is, which is all the family was missing -- the two choosers already
+||| composed and both reads already elaborated. Riptide Replicator writes
+||| the same line. Neither card lands whole and the chooser is not why:
+||| both spend the reads on a TOKEN SPEC ("a 2/2 creature token of the
+||| chosen color and type"), and `TokenChars` carries a literal colour
+||| list and a literal type line with nowhere for a read to sit.
+public export
+volrathsLaboratoryChoice : StaticEffect []
+volrathsLaboratoryChoice =
+  AndAlso [ Macros.entersChoosing Macros.thisArtifact Color
+          , Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature) ]
+
+||| Call to Arms' first line -- "As this enchantment enters, choose a color
+||| and an opponent." The same coordination ACROSS SORTS, a quality beside
+||| a player, which the container needed no extra row for. The card's
+||| second and third lines read both choices inside a most-common-colour
+||| comparison and are not taken here.
+public export
+callToArmsChoice : StaticEffect []
+callToArmsChoice =
+  AndAlso [ Macros.entersChoosing Macros.thisEnchantment Color
+          , Macros.entersChoosingPlayer Macros.thisEnchantment
+                                        (Just OpponentsOnly) ]
+
+||| Forgotten Lore's first sentence -- "Target opponent chooses a card in
+||| your graveyard." The chooser at an OBJECT, with the chooser written:
+||| what it leaves is a MENTION, which the ordinary anaphora reads, and no
+||| chosen VALUE for a linked ability to name [CR#607.2d]. Shrouded Lore
+||| writes the same sentence. Neither card lands: the tail repeats the
+||| process with an exclusion memory ("that opponent can't choose a card
+||| already chosen for Forgotten Lore") and then reads "the last chosen
+||| card", the object-sorted marked read no row writes.
+public export
+forgottenLoreChoice : Effect []
+forgottenLoreChoice =
+  Macros.chooses (Macros.target Opponent)
+                 (Macros.a (InZone (Macros.graveyardOf You)))
+
+public export
+sanctuaryBlade : Card
+sanctuaryBlade =
+  Macros.card "Sanctuary Blade" (Just [Macros.generic 2]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Static (Macros.attachChoosing Macros.thisEquipment Color)
+       , Static (AndAlso [ Gets (AttachHost Equipped (TypeW Creature))
+                                (PtUp (Lit 2)) (PtUp (Lit 0))
+                         , Gains (AttachHost Equipped (TypeW Creature))
+                                 (Macros.keywordQuality "Protection"
+                                    (OfLastChosen Color)) ])
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
+       Nothing
+
+||| Psychic Paper minus its three-way coordination -- "As this Equipment
+||| becomes attached to a creature, choose a creature card name and a
+||| creature type." with the setting half of "its name and creature type
+||| are the last chosen name and creature type". Two witnesses in one
+||| fragment: the COMPOUND chooser (two choices in one sentence, spelled
+||| as the coordination it is) at the attach position, and the marked
+||| read at the two sorts colour is not. The ward and can't-be-blocked
+||| conjuncts of the printed second line are the coordination cell's,
+||| not this one's.
+public export
+psychicPaperChoiceAndReads : AbilitySeq []
+psychicPaperChoiceAndReads =
+  [ Static (AndAlso [ Macros.attachChoosing Macros.thisEquipment CardName
+                    , Macros.attachChoosing Macros.thisEquipment
+                                            (SubtypeQ Creature) ])
+  , Static (AndAlso
+      [ SetsChosenQuality (AttachHost Equipped (TypeW Creature))
+                          (OfLastChosen CardName)
+      , SetsChosenQuality (AttachHost Equipped (TypeW Creature))
+                          (OfLastChosen (SubtypeQ Creature)) ]) ]
 
 public export
 xenograft : Card
@@ -9036,6 +9164,32 @@ public export
 shapeshifterBox : PrintedBox
 shapeshifterBox = PtBox PrintedStar (PrintedMinusStar 7)
 
+||| Shapeshifter -- "As this creature enters, choose a number between 0 and
+||| 7. / At the beginning of your upkeep, you may choose a number between 0
+||| and 7. / Shapeshifter's power is equal to the last chosen number and its
+||| toughness is equal to 7 minus that number." The NON-ENTRY chooser's
+||| whole-card witness: the second chooser sits in an UPKEEP TRIGGER and the
+||| static two lines later reads it, so what the card wanted was the
+||| container carrying a choice across the ability boundary, not a second
+||| choice clause. The read is marked for the reason [CR#607.2d] marks it --
+||| two choosers of one sort stand, so no unmarked read could name either.
+public export
+shapeshifter : Card
+shapeshifter =
+  Macros.cardOf "Shapeshifter" (Just [Macros.generic 6]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Artifact, Creature])
+       [ Static (Macros.entersChoosingFrom Macros.thisCreature Number
+                                           (NumberBetween 0 7))
+       , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+           (Macros.may You
+              (Macros.choose (Macros.a (Macros.qualityFrom Number
+                                          (NumberBetween 0 7)))))
+       , Static (AndAlso
+           [ DefinesPt Macros.thisCreature PowerAlone ChosenNumber
+           , DefinesPt Macros.thisCreature ToughnessAlone
+               (Minus (Lit 7) ChosenNumber) ]) ]
+       (Just shapeshifterBox)
+
 ||| Multiple Choice, first arm -- "If X is 1, scry 1, then draw a card." The
 ||| announced letter on a comparison's left, at the equality.
 public export
@@ -11474,3 +11628,19 @@ possessiveDescribedBaseUnchanged :
   countOnesAt PermanentSlot
     (nomIntro (ControllerOf (Macros.target Macros.creature {bs = []}))) = 1
 possessiveDescribedBaseUnchanged = Refl
+
+||| Contractual Safeguard's second paragraph -- "Choose a kind of counter on
+||| a creature you control. Put a counter of that kind on each other creature
+||| you control." The BOARD-READ counter-kind chooser and the first benched
+||| carrier of `BoundKind`, which landed with a measured zero of them. The
+||| chooser's description is what makes the second sentence's "other"
+||| readable: it names the creature the kind came off, and "each OTHER
+||| creature you control" is other than that one. The card's Addendum
+||| paragraph is a cast-timing rider and is not taken here.
+public export
+contractualSafeguardPass : Effect []
+contractualSafeguardPass =
+  Sequentially
+    [ Macros.choose (Macros.a (CounterKindOn (Macros.a Macros.creatureYouControl)))
+    , PutCounters (Lit 1) BoundKind
+        (Each (Macros.otherCreatureYouControl It)) ]
