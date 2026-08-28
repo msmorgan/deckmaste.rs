@@ -1932,6 +1932,62 @@ mutual
     ||| different counts for that reason and do not compose.
     ||| -- spelling: "it", exactly as `It` spells.
     ItToken : {auto 0 ok : countItToken bs = 1} -> Noun bs Object
+    ||| "it" in a verb's OBJECT slot, read over the prefix that verb's own
+    ||| CO-ARGUMENT did not mint. "[Another] target creature blocks IT
+    ||| this turn if able" names the creature the blocker is made to
+    ||| block, and the one referent it cannot name is the blocker itself:
+    ||| [CR#509.1a] has the DEFENDING player choose blockers from among
+    ||| the creatures they control and choose, for each, a creature to
+    ||| block that is attacking that player, while [CR#508.1a] has the
+    ||| ACTIVE player choose attackers from among the creatures THEY
+    ||| control. The two are different players, so the blocked creature
+    ||| is never the blocker. The candidate is excluded by the deed's own
+    ||| rule and not by a preference among candidates, which is what the
+    ||| house doctrine asks of every exclusion.
+    ||| Where the three narrowings above ask a per-binding question of
+    ||| the whole prefix, this one asks `It`'s own question of a NAMED
+    ||| SEGMENT of it: `co` is what the co-argument announced, `rest` the
+    ||| prefix the co-argument was read in, and the split is the equation
+    ||| `bs = co ++ rest` rather than a position, so nothing here indexes
+    ||| a slot list. `countBySplit` makes the narrowed count no larger
+    ||| than the whole prefix's, and it is still a count: two candidates
+    ||| in `rest` refuse exactly as two candidates in `bs` do.
+    ||| The exclusion is the CONSTRUCTOR's and never the sentence's. A
+    ||| description nested inside the object -- "attach to IT any number
+    ||| of Auras on the battlefield" (Bruna, Light of Alabaster) -- is a
+    ||| different verb's argument and excludes nothing, which is why the
+    ||| segment is written rather than derived from the clause. Which
+    ||| delta is the co-argument's is the owning construction's fact, so
+    ||| only a macro writes this, on `ItAt`'s ground.
+    ||| -- spelling: "it", exactly as `It` spells.
+    ItOtherThan : (co : Bindings) -> (rest : Bindings) ->
+                  {auto 0 sp : bs = co ++ rest} ->
+                  {auto 0 ok : countOnes Object rest = 1} -> Noun bs Object
+    ||| "it", read among the mentions the IMMEDIATELY PRECEDING member of
+    ||| a coordination made. "Tap target creature an opponent controls
+    ||| and put a stun counter on IT" reads the creature the tap clause
+    ||| named, whatever the sentence before it announced.
+    ||| `Effects` hands each member `effIntro e = effDelta e ++ bs`
+    ||| [CR#608.2c] -- the instructions are followed in the order
+    ||| written, and later text is read against the text before it -- so
+    ||| the preceding member's own delta is a segment the CONSTRUCTION
+    ||| names, not a position this read invents. That is the whole of the
+    ||| exclusion: a conjunct elaborating its neighbour reads its
+    ||| neighbour's mentions.
+    ||| `ItOtherThan`'s twin at the other end of the same split: that one
+    ||| counts the segment the co-argument did NOT mint, this one counts
+    ||| the segment the preceding clause DID. Both are `It`'s gate over a
+    ||| named segment and neither ranks anything -- two singular objects
+    ||| in `made` refuse, and a `made` holding none refuses too, where
+    ||| the bare `It` remains the spelling.
+    ||| It is emphatically NOT clause recency: recency would rank the
+    ||| whole prefix and take a winner, where this counts one segment and
+    ||| refuses a tie. A macro writes it for a coordination's own
+    ||| neighbour and for nothing else.
+    ||| -- spelling: "it", exactly as `It` spells.
+    ItPrior : (made : Bindings) -> (before : Bindings) ->
+              {auto 0 sp : bs = made ++ before} ->
+              {auto 0 ok : countOnes Object made = 1} -> Noun bs Object
     They : {auto 0 ok : countOnes Player bs = 1} -> Noun bs Player
     Them : {auto 0 ok : countManys Object bs = 1} -> Noun bs Object
     ||| "them", read at the verb that STAMPED its referents rather than
@@ -2017,6 +2073,8 @@ mutual
   nounEqRef (ItAt _) _ = False
   nounEqRef (ItVerbed _) _ = False
   nounEqRef (ItToken) _ = False
+  nounEqRef (ItOtherThan _ _) _ = False
+  nounEqRef (ItPrior _ _) _ = False
   nounEqRef They They = True
   nounEqRef They _ = False
   nounEqRef Them _ = False
@@ -2111,6 +2169,8 @@ mutual
   nounDelta (ItAt _) = []
   nounDelta (ItVerbed _) = []
   nounDelta ItToken = []
+  nounDelta (ItOtherThan _ _) = []
+  nounDelta (ItPrior _ _) = []
   nounDelta They = []
   nounDelta Them = []
   nounDelta (ThemVerbed _) = []
@@ -3013,6 +3073,8 @@ mutual
   anchorPhrase (ItAt _) = True
   anchorPhrase (ItVerbed _) = True
   anchorPhrase ItToken = True
+  anchorPhrase (ItOtherThan _ _) = True
+  anchorPhrase (ItPrior _ _) = True
   anchorPhrase They = True
   anchorPhrase Them = True
   anchorPhrase (ThemVerbed _) = True
@@ -3070,6 +3132,8 @@ mutual
   choosable (ItAt _) = False
   choosable (ItVerbed _) = False
   choosable ItToken = False
+  choosable (ItOtherThan _ _) = False
+  choosable (ItPrior _ _) = False
   choosable They = False
   choosable Them = False
   choosable (ThemVerbed _) = False
@@ -3129,6 +3193,8 @@ mutual
   groupMention (ItAt _) = False
   groupMention (ItVerbed _) = False
   groupMention ItToken = False
+  groupMention (ItOtherThan _ _) = False
+  groupMention (ItPrior _ _) = False
   groupMention They = False
   groupMention (That _) = False
   groupMention (ThatHalf _) = False
@@ -3758,6 +3824,12 @@ mutual
   remarkTest (ItAt sl) = Just (itAtReaches sl)
   remarkTest (ItVerbed v) = Just (itVerbedReaches v)
   remarkTest ItToken = Just itTokenReaches
+  -- the segment reads answer no per-binding question: their gate is
+  -- `It`'s over ONE segment of the prefix, and a test asked of every
+  -- binding would reach the candidates the segment excludes. So they
+  -- say nothing about the subject rather than say it wrongly.
+  remarkTest (ItOtherThan _ _) = Nothing
+  remarkTest (ItPrior _ _) = Nothing
   remarkTest _ = Nothing
 
   ||| ...and which re-mark a whole condition licenses: the test its
@@ -3866,6 +3938,8 @@ mutual
   costNounOk (ItAt _) = True
   costNounOk (ItVerbed _) = True
   costNounOk ItToken = True
+  costNounOk (ItOtherThan _ _) = True
+  costNounOk (ItPrior _ _) = True
   costNounOk They = True
   costNounOk Them = True
   costNounOk (ThemVerbed _) = True
@@ -3904,6 +3978,8 @@ mutual
   nounIsYou (ItAt _) = False
   nounIsYou (ItVerbed _) = False
   nounIsYou ItToken = False
+  nounIsYou (ItOtherThan _ _) = False
+  nounIsYou (ItPrior _ _) = False
   nounIsYou They = False
   nounIsYou Them = False
   nounIsYou (ThemVerbed _) = False
@@ -3942,6 +4018,8 @@ mutual
   nounTargeted (ItAt _) = False
   nounTargeted (ItVerbed _) = False
   nounTargeted ItToken = False
+  nounTargeted (ItOtherThan _ _) = False
+  nounTargeted (ItPrior _ _) = False
   nounTargeted They = False
   nounTargeted Them = False
   nounTargeted (ThemVerbed _) = False
@@ -3970,6 +4048,8 @@ mutual
   counterMemoryOk (ItAt sl) = not (stampMoves (provOfItAt sl bs))
   counterMemoryOk (ItVerbed v) = not (stampMoves (provOfVerbedIt v bs))
   counterMemoryOk ItToken = not (stampMoves (provOfItToken bs))
+  counterMemoryOk (ItOtherThan _ rest) = not (stampMoves (provOfIt rest))
+  counterMemoryOk (ItPrior made _) = not (stampMoves (provOfIt made))
   counterMemoryOk Them = not (stampMoves (provOfThem bs))
   counterMemoryOk (ThemVerbed v) = not (stampMoves (provOfVerbedThem v bs))
   -- a participle read names a referent some labeled action MOVED, so
@@ -3992,6 +4072,8 @@ mutual
   moveDestOk (ItAt _) = False
   moveDestOk (ItVerbed _) = False
   moveDestOk ItToken = False
+  moveDestOk (ItOtherThan _ _) = False
+  moveDestOk (ItPrior _ _) = False
   moveDestOk Them = False
   moveDestOk (ThemVerbed _) = False
   moveDestOk _ = True
@@ -4184,6 +4266,12 @@ mutual
   moveIntro p (ItAt sl) z = setZoneItAt sl p z bs
   moveIntro p (ItVerbed v) z = setZoneVerbedIt v p z bs
   moveIntro p ItToken z = setZoneItToken p z bs
+  -- the re-mark stays INSIDE the segment the read counted, and the two
+  -- halves are put back in the order the split named them: a segment
+  -- read rewrites its own binding in place, exactly as the bare `It`
+  -- does over the whole prefix.
+  moveIntro p (ItOtherThan co rest) z = co ++ setZoneIt p z rest
+  moveIntro p (ItPrior made before) z = setZoneIt p z made ++ before
   moveIntro p Them z = setZoneThem p z bs
   moveIntro p (ThemVerbed v) z = setZoneVerbedThem v p z bs
   moveIntro p (That w) z = setZoneThat p w z bs
@@ -4244,6 +4332,8 @@ mutual
   nounProv (ItAt sl) = provOfItAt sl bs
   nounProv (ItVerbed v) = provOfVerbedIt v bs
   nounProv ItToken = provOfItToken bs
+  nounProv (ItOtherThan _ rest) = provOfIt rest
+  nounProv (ItPrior made _) = provOfIt made
   nounProv Them = provOfThem bs
   nounProv (ThemVerbed v) = provOfVerbedThem v bs
   nounProv (That w) = provOfThat w bs
@@ -4283,6 +4373,8 @@ mutual
   nounZone (ItAt sl) = zoneOfItAt sl bs
   nounZone (ItVerbed v) = zoneOfVerbedIt v bs
   nounZone ItToken = zoneOfItToken bs
+  nounZone (ItOtherThan _ rest) = zoneOfIt rest
+  nounZone (ItPrior made _) = zoneOfIt made
   nounZone They = Nothing
   nounZone Them = zoneOfThem bs
   nounZone (ThemVerbed v) = zoneOfVerbedThem v bs
@@ -4323,6 +4415,8 @@ mutual
   nounTy (ItAt sl) = tyOfItAt sl bs
   nounTy (ItVerbed v) = tyOfVerbedIt v bs
   nounTy ItToken = tyOfItToken bs
+  nounTy (ItOtherThan _ rest) = tyOfIt rest
+  nounTy (ItPrior made _) = tyOfIt made
   nounTy They = Nothing
   nounTy Them = tyOfThem bs
   nounTy (ThemVerbed v) = tyOfVerbedThem v bs
@@ -4384,6 +4478,8 @@ mutual
   nounPlur (ItAt _) = OneOf
   nounPlur (ItVerbed _) = OneOf
   nounPlur ItToken = OneOf
+  nounPlur (ItOtherThan _ _) = OneOf
+  nounPlur (ItPrior _ _) = OneOf
   nounPlur They = OneOf
   nounPlur Them = ManyOf
   nounPlur (ThemVerbed _) = ManyOf

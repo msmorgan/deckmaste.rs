@@ -746,6 +746,35 @@ cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n
                 {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 cantBeBlocked n span = Continuously (Deontic n Forbid Block Patient NoDeonticPatient {zn} {dp}) span {sp}
 
+||| "[n] blocks IT this turn if able": the forced block whose blocked
+||| creature is named by the pronoun (Fighter Class, Feral Contest,
+||| Avalanche Tusker, Tower Above -- 6 supported faces).
+||| The counterpart is read over the prefix the SUBJECT did not
+||| announce, and the exclusion is the deed's own rule rather than a
+||| preference: [CR#509.1a] has the defending player choose blockers
+||| from among the creatures THEY control and, for each, a creature to
+||| block that is attacking that player, while [CR#508.1a] has the
+||| active player choose attackers from among the creatures THEY
+||| control. A creature therefore never blocks itself, so the blocker's
+||| own mention is not a candidate for what it is made to block.
+||| The macro owns the segment, as the carrier macros own theirs:
+||| `nounDelta n` is what the subject announced, and no author writes it
+||| by hand.
+public export
+mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
+              (span : Maybe (Duration (selfSubjIntro n))) ->
+              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+              {auto 0 dp : DeedParticipant Block Agent (nounTy n)} ->
+              {auto 0 ok : countOnes Object bs = 1} ->
+              {auto 0 zm : ZoneFits (zoneOfIt bs) (Just Battlefield)} ->
+              {auto 0 dm : DeedParticipant Block Patient (tyOfIt bs)} ->
+              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+mustBlockIt n span =
+  Continuously (Deontic n Require Block Agent
+                  (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}) {zn = zm} {dp = dm})
+                  {zn} {dp})
+               span {sp}
+
 
 public export
 gainControl : (n : Noun bs Object) ->
@@ -1854,6 +1883,21 @@ public export
 themVerbed : (v : VerbLabel) -> {auto 0 kn : KnownVerb v} ->
              {auto 0 ok : countVerbedThem v bs = 1} -> Noun bs Object
 themVerbed v = ThemVerbed v {kn} {ok}
+
+||| "it", read among the mentions the clause immediately before it made.
+||| The segment is that clause's OWN delta, taken off the clause itself
+||| rather than written out, so the coordination names its own
+||| neighbour: "Tap target creature an opponent controls and put a stun
+||| counter on IT" [CR#608.2c]. The preceding clause is written twice --
+||| once as the coordination's member and once here -- and the two are
+||| held together by the type, since the pronoun's context is that
+||| member's `effIntro` and no other clause's is.
+public export
+itPrior : {bs : Bindings} -> (prev : Effect bs) ->
+          {auto 0 sp : effIntro prev = effDelta prev ++ bs} ->
+          {auto 0 ok : countOnes Object (effDelta prev) = 1} ->
+          Noun (effIntro prev) Object
+itPrior prev = ItPrior (effDelta prev) bs {sp} {ok}
 
 ||| "the exiled card": the attributive singular participle anaphor.
 public export

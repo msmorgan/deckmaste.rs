@@ -12413,3 +12413,104 @@ harriedDronesmithToken =
                             (MkTypeLine [creatureType "Thopter"] [Artifact, Creature])
                             [Macros.keyword "Flying"] Nothing)
                , Macros.gainsHaste Macros.itAsToken (Just Macros.untilEndOfTurn) ]
+
+||| Feral Contest, whole card -- "Put a +1/+1 counter on target creature
+||| you control. Another target creature blocks IT this turn if able."
+||| The pronoun is read over the prefix the BLOCKER did not announce:
+||| [CR#509.1a] and [CR#508.1a] put the blocker and the creature it is
+||| made to block under different players' control, so the second
+||| sentence's own subject is not among the candidates for its object.
+||| The bare `It` here counts two battlefield creatures and refuses --
+||| correctly, since one of the two is the blocker itself. 6 supported
+||| faces write the forced block with a pronoun (re-measured 2026-08-27).
+public export
+feralContest : Card
+feralContest =
+  Macros.card "Feral Contest" (Just [Macros.generic 3, Macros.pip Green]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                                (Macros.target Macros.creatureYouControl)
+                  , Macros.mustBlockIt
+                      (Macros.target (And [Macros.creature, Other]))
+                      (Just Macros.thisTurn) ]) ]
+       Nothing
+
+||| Thranduil's Company, whole card -- "Whenever a land you control
+||| enters, put two +1/+1 counters on target creature you control. It
+||| gains vigilance until end of turn."
+||| Both candidates are on the battlefield, so neither the bare `It` nor
+||| the carrier narrowing resolves this, and the counter clause leaves no
+||| label and no origin for the producer narrowings to read. What names
+||| the referent is the coordination itself: the third clause reads the
+||| mentions its immediate neighbour made [CR#608.2c], and that segment
+||| holds exactly one singular object.
+public export
+thranduilsCompany : Card
+thranduilsCompany =
+  Macros.card "Thranduil's Company"
+       (Just [Macros.generic 2, Macros.pip Green, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Elf", creatureType "Soldier"] [Creature])
+       [ Macros.triggered Whenever
+           (Enters (Macros.a (And [Macros.land, ControlledBy You])) Nothing)
+           (Sequentially
+              [ PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne)
+                            (Macros.target Macros.creatureYouControl)
+              , Macros.gains
+                  (Macros.itPrior
+                     (PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne)
+                                  (Macros.target Macros.creatureYouControl)))
+                  (Macros.keyword "Vigilance") (Just Macros.untilEndOfTurn) ]) ]
+       (Just (3, 4))
+
+||| Inquisitor's Flail, whole card -- "If equipped creature would deal
+||| combat damage, it deals double that damage instead. / If another
+||| creature would deal combat damage to equipped creature, it deals
+||| double that damage to equipped creature instead. / Equip {2}"
+||| The damage-replacement family's "it" is CONSTRUCTOR SPELLING and not
+||| a read at all: `Scales` writes the source once and the replacement
+||| restates it, exactly as [CR#614.6] restates the replaced event
+||| ("A modified event occurs instead"). Both of this card's rows are the
+||| family at its two shapes -- an unattributed recipient and a named one
+||| -- and neither writes a pronoun the grammar has to resolve.
+public export
+inquisitorsFlail : Card
+inquisitorsFlail =
+  Macros.card "Inquisitor's Flail" (Just [Macros.generic 2]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Static (Scales CombatOnly (AttachHost Equipped (TypeW Creature))
+                        Everywhere (Multiplied Doubled) Repeatedly)
+       , Static (Scales CombatOnly
+                        (Macros.a (Macros.otherCreature
+                                     (AttachHost Equipped (TypeW Creature))))
+                        (Macros.shieldingIt (AttachHost Equipped (TypeW Creature)))
+                        (Multiplied Doubled) Repeatedly)
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
+       Nothing
+
+||| Stunning Shot, whole card -- "Put two +1/+1 counters on up to one
+||| target creature you control. Tap up to one target creature an
+||| opponent controls and put a stun counter on IT."
+||| The ticket's named witness for the previous-sibling read, and the
+||| within-sentence shape of it: the two conjuncts of one "and" [CR#608.2c],
+||| where the first sentence has already announced a second battlefield
+||| creature and the bare `It` therefore counts two. 38 supported faces
+||| write the tap-then-stun pair (re-measured 2026-08-27). The label
+||| narrowing `ItVerbed "Tap"` admits this line too -- what the segment
+||| read adds is the LABEL-FREE case, which Thranduil's Company benches.
+public export
+stunningShot : Card
+stunningShot =
+  Macros.card "Stunning Shot" (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ PutCounters (Lit 2) (PrintedKind Macros.plusOnePlusOne)
+                                (TargetGroup (Macros.upTo 1) Macros.creatureYouControl)
+                  , Macros.tap (TargetGroup (Macros.upTo 1)
+                                  (And [Macros.creature, ControlledBy Macros.anOpponent]))
+                  , PutCounters (Lit 1) (PrintedKind Stun)
+                                (Macros.itPrior
+                                   (Macros.tap (TargetGroup (Macros.upTo 1)
+                                      (And [Macros.creature,
+                                            ControlledBy Macros.anOpponent])))) ]) ]
+       Nothing

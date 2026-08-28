@@ -532,6 +532,91 @@ itTokenResolvesInPrefix bs ok =
   countByWitness itTokenReaches bs Z (trans (sym (countItTokenIsFold bs)) ok)
 
 
+-- "it" again, read over ONE NAMED SEGMENT of the prefix.
+--
+-- The three narrowings above ask a per-binding question of the whole
+-- prefix. The two below ask `It`'s OWN question of a segment the
+-- consuming construction names: the co-argument's delta is subtracted
+-- (`ItOtherThan`) or the preceding clause's delta is all that is looked
+-- at (`ItPrior`). The segment is written as the split `bs = xs ++ ys`,
+-- so a segment read is still a `countBy` fold over material that is IN
+-- `bs` -- the three lemmas here are what make that literal.
+
+||| A binding one segment holds is a binding the whole prefix holds.
+||| `Elem` is the term form of "in `bs`", so these two lemmas are what
+||| carry a segment read's witness back out to the context the binder
+||| contract's clause 3 names.
+public export
+elemInSuffix : {0 b : Binding} -> {0 rest : Bindings} -> (co : Bindings) ->
+               Elem b rest -> Elem b (co ++ rest)
+elemInSuffix [] el = el
+elemInSuffix (c :: cs) el = There (elemInSuffix cs el)
+
+public export
+elemInPrefix : {0 b : Binding} -> {0 made : Bindings} -> (before : Bindings) ->
+               Elem b made -> Elem b (made ++ before)
+elemInPrefix bef Here = Here
+elemInPrefix bef (There el) = There (elemInPrefix bef el)
+
+||| A segment read counts NO MORE than the whole prefix does, in either
+||| direction of the split. This is the sense in which every narrowing
+||| in this family is a count over a provably smaller set: `countBySplit`
+||| turns the whole count into the two segments' sum, and a summand never
+||| exceeds its sum.
+public export
+countBySegmentNoLarger : (p : Binding -> Bool) -> (xs, ys : Bindings) ->
+                         (LTE (countBy p xs) (countBy p (xs ++ ys)),
+                          LTE (countBy p ys) (countBy p (xs ++ ys)))
+countBySegmentNoLarger p xs ys =
+  rewrite countBySplit p xs ys in
+    (lteAddRight (countBy p xs), lteRightPlus (countBy p xs) (countBy p ys))
+  where
+    lteRightPlus : (n, m : Nat) -> LTE m (n + m)
+    lteRightPlus Z m = reflexive
+    lteRightPlus (S n) m = lteSuccRight (lteRightPlus n m)
+
+||| The co-argument-scoped pronoun asks the prefix ONE question -- how
+||| many singular objects the segment its CO-ARGUMENT did not mint holds
+||| -- and carries a second obligation that names no candidate at all,
+||| that the two segments are the prefix. The split is `TheVerbed`'s
+||| again: only the first is a context read, and it is a read of `bs`.
+public export
+itOtherThanReadsOnlyPrefix : (co, rest : Bindings) ->
+                             countOnes Object rest = 1 -> Noun (co ++ rest) Object
+itOtherThanReadsOnlyPrefix co rest ok = ItOtherThan co rest {sp = Refl} {ok}
+
+||| ...and it resolves to a mention IN the prefix. The witness comes back
+||| out of the segment by `elemInSuffix`, so narrowing to a segment
+||| changed which binding comes back and never where it comes from --
+||| the same sentence the three per-binding narrowings above earn.
+public export
+itOtherThanResolvesInPrefix : (co, rest : Bindings) ->
+                              countOnes Object rest = 1 ->
+                              (b : Binding ** (Elem b (co ++ rest),
+                                               So (oneOfKind Object b)))
+itOtherThanResolvesInPrefix co rest ok =
+  let (b ** (el, k)) = resolveOnes Object rest ok in
+      (b ** (elemInSuffix co el, k))
+
+||| The previous-sibling read is the same shape at the other end of the
+||| split: the segment counted is the one the preceding clause MADE, and
+||| the question asked of it is `It`'s.
+public export
+itPriorReadsOnlyPrefix : (made, before : Bindings) ->
+                         countOnes Object made = 1 -> Noun (made ++ before) Object
+itPriorReadsOnlyPrefix made before ok = ItPrior made before {sp = Refl} {ok}
+
+||| ...and it too resolves to a mention IN the prefix, by `elemInPrefix`.
+public export
+itPriorResolvesInPrefix : (made, before : Bindings) ->
+                          countOnes Object made = 1 ->
+                          (b : Binding ** (Elem b (made ++ before),
+                                           So (oneOfKind Object b)))
+itPriorResolvesInPrefix made before ok =
+  let (b ** (el, k)) = resolveOnes Object made ok in
+      (b ** (elemInPrefix before el, k))
+
+
 -- "they": the player pronoun.
 
 public export
