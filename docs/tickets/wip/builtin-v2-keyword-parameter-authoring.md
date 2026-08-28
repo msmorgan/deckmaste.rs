@@ -15,3 +15,23 @@ now sits on the largest measured single-boundary bucket (~2,700 units one
 byte after a complete keyword line).
 
 Standard constraints apply.
+
+## Realization ruling
+
+The schema extension declares only typed parameter vectors, including
+multi-parameter vectors such as `params: [Amount, Cost]`. The vector is the
+payload shape intended to survive the pending macro-ron fold-back. Keyword
+stubs must not declare separators, dashes, periods, or any other layout; a
+stub-side layout field would relapse into the template model and is banned.
+
+The compiler owns keyword-line realization. It derives the surface from the
+declared parameter categories and the realized cost shape:
+
+- a mana-only single cost uses a space form (`Ward {2}`);
+- a sentence-shaped cost uses an em dash and terminal period
+  (`Ward—Pay 3 life.`); and
+- a count or quality parameter before a cost uses an em dash even when the
+  cost is mana-only (`Reinforce 3—{1}{G}`).
+
+Attested printed keyword lines remain the provenance for deciding which
+parameter vector each keyword declares; punctuation is not declaration data.
