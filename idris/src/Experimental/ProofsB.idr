@@ -346,7 +346,7 @@ badTypelessToken Oh impossible
 public export
 badRemoveCountersDead : Unspellable (Effect []) (\ok =>
   Sequentially [Macros.destroy (Macros.target Macros.creature),
-                RemoveCounters (Lit 1) (Just Macros.plusOnePlusOne) It {cm = ok}])
+                RemoveCounters (Macros.exactly 1) (Just Macros.plusOnePlusOne) It {cm = ok}])
 badRemoveCountersDead Oh impossible
 
 

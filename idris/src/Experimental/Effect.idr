@@ -1493,7 +1493,30 @@ mutual
   public export
   data Cost : Bindings -> Type where
     Mana : (c : ManaCost) -> {auto 0 wr : ManaRun c} -> Cost bs
-    ScaledMana : (amt : Amount bs) ->
+    ||| "pay {2} for each age counter on it" [CR#702.24a], "pay {G} for
+    ||| each wind counter on it" (Cyclone): a mana payment whose size is
+    ||| a COUNT, the amount carrying both the per-unit numeral and the
+    ||| thing counted.
+    |||
+    ||| The unit is what the coloured lines want and what the generic
+    ||| amount could not say: [CR#107.4a] makes coloured mana in a cost
+    ||| payable only with mana of that colour, where generic mana takes
+    ||| any type [CR#107.4b], so "{G} for each" and "{1} for each" differ
+    ||| in what may pay them and not only in how they are written. 3
+    ||| supported lines write a run (Cyclone {G}, Thelon's Curse {U},
+    ||| Norn's Annex {W/P}); the rest write `GenericUnit`.
+    |||
+    ||| TWO MEASURED ZEROS, recorded and not pinned -- no rule refuses
+    ||| either, and a count is never a refusal. (1) No supported line
+    ||| writes a scaled ALTERNATIVE cost: the row reaches `AltCost`
+    ||| structurally and nothing in [CR#118.9] would forbid one, so it is
+    ||| owed nothing and refused nothing. Liesa, Shroud of Dusk is the
+    ||| near miss and not the case -- it DECLINES a scaled cost and
+    ||| substitutes a repeated life payment, which is the repetition
+    ||| channel's. (2) No supported line writes a scaled non-mana
+    ||| ADDITIONAL cost: "as an additional cost ... for each" returns
+    ||| nothing, and [CR#118.8] would allow it.
+    ScaledMana : (unit : ManaUnit) -> (amt : Amount bs) ->
                  {auto 0 fe : ForEachAmount amt} -> Cost bs
     TapSymbol : Cost bs
     UntapSymbol : Cost bs
@@ -1540,9 +1563,15 @@ mutual
     ||| cost a sentence fixing a granted keyword's parameter names.
     ItsManaCost : Cost bs
 
+  ||| Whether an amount is written as a PER-EACH product -- the shape a
+  ||| scaled payment needs, and the only one it admits. Both product arms
+  ||| answer yes: they differ in whether the per-unit was printed as a
+  ||| numeral or is read [CR#118.4,107.3a], which is no difference to
+  ||| this question.
   public export
   forEachAmount : {0 bs : Bindings} -> Amount bs -> Bool
   forEachAmount (Times _ _) = True
+  forEachAmount (TimesOf _ _) = True
   forEachAmount _ = False
 
   public export
@@ -1552,7 +1581,7 @@ mutual
   public export
   costIntro : {bs : Bindings} -> Cost bs -> Bindings
   costIntro (Mana c) = if manaHasX c then letterB X :: bs else bs
-  costIntro (ScaledMana _) = bs
+  costIntro (ScaledMana _ _) = bs
   costIntro TapSymbol = bs
   costIntro UntapSymbol = bs
   costIntro (LoyaltySymbol LoyaltyDownX) = letterB X :: bs
@@ -1586,13 +1615,73 @@ mutual
                     {auto 0 ar : AltRunWritten alt} ->
                     {auto 0 cq : countChoice (QSort Color) bs = 1} ->
                     {auto 0 rd : ChosenQualityRead Color} -> ProducedMana bs
+    ||| "Add mana equal to enchanted permanent's mana cost" (Elemental
+    ||| Resonance): a production the card names by a PRINTED COST and
+    ||| leaves the rules to translate. 1 supported line, measured
+    ||| 2026-08-28.
+    |||
+    ||| Its own row, never a widening of `ProducedRun`. A run is a list
+    ||| of [CR#106.1b]'s six mana types, and a printed cost is not one:
+    ||| [CR#202.1] builds it out of [CR#107.4]'s symbols, and four of
+    ||| those name no type until the rules act -- a hybrid symbol has its
+    ||| half chosen [CR#106.8], a Phyrexian symbol adds mana of its
+    ||| colour [CR#106.9], a generic symbol adds that much colorless
+    ||| [CR#106.10] and snow symbols do the same [CR#106.11]. So the card
+    ||| names the cost and those four rules say what is added; widening
+    ||| the run would make the CARD state a translation it does not
+    ||| write.
+    |||
+    ||| Ice Cauldron's "Add this artifact's last noted type and amount of
+    ||| mana" is the family's second line and is NOT this row: what it
+    ||| names is a note its own earlier ability took of mana that was
+    ||| SPENT, not a cost printed anywhere, and this grammar has no note
+    ||| channel. 1 line, its own gap.
+    ||| -- spelling: "mana equal to [n]'s mana cost".
+    AsPrintedCost : (n : Noun bs Object) ->
+                    {auto 0 one : nounPlur n = OneOf} -> ProducedMana bs
 
+  ||| What a spend restriction [CR#106.6] lets its mana be spent on. The
+  ||| list `SpendOnly` carries is the DISJUNCTION printed lines write
+  ||| ("to cast an artifact spell or activate an ability of an artifact"),
+  ||| so an arm is one way of naming a purpose and not one whole line.
+  |||
+  ||| Two of the three name an OBJECT -- the spell being cast, the source
+  ||| whose ability is activated -- because [CR#106.1] names casting and
+  ||| activating as the usual occasions for spending mana. The third
+  ||| names the COST, which is what that same rule says mana is actually
+  ||| spent to pay, and what the object-taking arms cannot reach: a cost
+  ||| is not an object and no predicate describes one.
+  |||
+  ||| The zone-qualified lines are NOT a fourth arm and need nothing
+  ||| here. "Spend this mana only to cast spells from your graveyard"
+  ||| (Rootcoil Creeper, Lord of the Forsaken), "only to cast spells from
+  ||| exile" (Interdimensional Web Watch), "only to cast a spell from
+  ||| anywhere other than your hand" (Mm'menon, the Right Hand) and the
+  ||| two negative hand lines (Karolina Dean, Vhal) -- 7 supported lines,
+  ||| measured 2026-08-28 -- describe the SPELL by where it was cast
+  ||| from, which `CastFrom` already says of an object: [CR#601.2a] moves
+  ||| the card to the stack before [CR#601.2h] takes the payment, so the
+  ||| provenance is fixed by the time the restriction is tested.
   public export
   data SpendPurpose : Bindings -> Type where
     ToCast : (p : Predicate bs Object) ->
              SpendPurpose bs
     ToActivate : (src : Maybe (Predicate bs Object)) ->
                  SpendPurpose bs
+    ||| "Spend this mana only on costs that contain {X}" (Rosheen
+    ||| Meanderer), "only to pay cumulative upkeep costs" (Adarkar
+    ||| Unicorn), "only to turn permanents face up" (Overgrown Zealot):
+    ||| the purpose that names a COST rather than the object whose cost
+    ||| it is. 15 supported lines of 204, measured 2026-08-28;
+    ||| `CostNamed` carries the three ways they pick a cost out and the
+    ||| count of each.
+    |||
+    ||| The landed `Keyword.CumulativeUpkeep` row does not unblock
+    ||| Adarkar Unicorn on its own: that row is what a permanent PRINTS,
+    ||| where this names the cost such a permanent's ability charges.
+    ||| -- spelling: "to pay [c]", "on costs that contain [c]".
+    ToPay : (c : CostNamed) -> {auto 0 nm : CostNameable c} ->
+            SpendPurpose bs
 
   public export
   data ManaRider : Bindings -> Type where
@@ -2149,8 +2238,25 @@ mutual
                  (among : Noun (amtIntro amt) k) ->
                  {auto 0 gm : GroupMention among} ->
                  {auto 0 tk : DividedTakes (divTag v) among} -> Effect bs
-    RemoveCounters : (amt : Amount bs) -> (kind : Maybe CounterKind) ->
-                     (from : Noun (amtIntro amt) Object) ->
+    ||| "Remove a +1/+1 counter from this creature", "Remove any number
+    ||| of storage counters from this land" (the eleven storage lands),
+    ||| "Remove up to X counters from target permanent" (Hex Parasite).
+    |||
+    ||| The count is a `Quantity` and not an `Amount` because a removal
+    ||| is the one counter verb whose size the ACTOR chooses: 19
+    ||| supported lines write "any number of" and 6 write "up to"
+    ||| (measured 2026-08-28), and neither is a value read off the game.
+    ||| A `Range` says both and says "a counter" too; no put line asks
+    ||| for either, so `PutCounters` keeps its amount. "Remove ALL
+    ||| counters" (25 lines) is neither and stays refused: a range names
+    ||| a number and "all" names whatever is there.
+    |||
+    ||| It announces how many it took, which is what the storage
+    ||| counters read back (`RemovedThisWay`).
+    ||| -- spelling: "remove [q] [kind] counter(s) from [from]".
+    RemoveCounters : (q : Quantity bs) -> (kind : Maybe CounterKind) ->
+                     (from : Noun (quantIntro q) Object) ->
+                     {auto 0 wf : WellFormedQ q} ->
                      {auto 0 kn : CounterKindNamed Object kind} ->
                      {auto 0 cm : CounterMemory from} -> Effect bs
     ||| "Move [amt] [kind] counter(s) from [src] onto [dst]": the
@@ -2833,7 +2939,7 @@ mutual
   public export
   payableOk : {0 bs : Bindings} -> Cost bs -> Bool
   payableOk (Mana _) = True
-  payableOk (ScaledMana _) = True
+  payableOk (ScaledMana _ _) = True
   payableOk TapSymbol = False
   payableOk UntapSymbol = False
   payableOk (LoyaltySymbol _) = False
@@ -3209,7 +3315,7 @@ mutual
   effIntro (PutCounters amt kind on) = nomIntro on
   effIntro (Distribute (DividedDamage _) amt among) = outcomeB DamageDealt :: nomIntro among
   effIntro (Distribute (DistributedCounters _) amt among) = nomIntro among
-  effIntro (RemoveCounters amt kind from) = nomIntro from
+  effIntro (RemoveCounters q kind from) = outcomeB CountersRemoved :: nomIntro from
   effIntro (MoveCounters amt kind src dst) = nomIntro dst
   effIntro (PutSameCounters src dst) = nomIntro dst
   effIntro (PutCountersOfThoseKinds amt on) = nomIntro on
@@ -3330,7 +3436,7 @@ mutual
   preIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   preIntro (GetsEmblem who _) = nomIntro who
   preIntro (PutCounters amt kind on) = nomIntro on
-  preIntro (RemoveCounters amt kind from) = nomIntro from
+  preIntro (RemoveCounters q kind from) = nomIntro from
   preIntro (MoveCounters amt kind src dst) = nomIntro dst
   preIntro (PutSameCounters src dst) = nomIntro dst
   preIntro (PutCountersOfThoseKinds amt on) = nomIntro on
@@ -3469,7 +3575,7 @@ mutual
   annIntro (Create agent count spec riders) = specDelta spec ++ amtIntro count
   annIntro (GetsEmblem who _) = nomIntro who
   annIntro (PutCounters amt kind on) = nomIntro on
-  annIntro (RemoveCounters amt kind from) = nomIntro from
+  annIntro (RemoveCounters q kind from) = nomIntro from
   annIntro (MoveCounters amt kind src dst) = nomIntro dst
   annIntro (PutSameCounters src dst) = nomIntro dst
   annIntro (PutCountersOfThoseKinds amt on) = nomIntro on
@@ -3621,7 +3727,7 @@ mutual
                (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin) Nothing)]
   deedDelta (GetsEmblem _ _) = []
   deedDelta (PutCounters amt kind on) = []
-  deedDelta (RemoveCounters amt kind from) = []
+  deedDelta (RemoveCounters q kind from) = [outcomeB CountersRemoved]
   deedDelta (MoveCounters amt kind src dst) = []
   deedDelta (PutSameCounters src dst) = []
   deedDelta (PutCountersOfThoseKinds amt on) = []
@@ -4258,7 +4364,7 @@ mutual
   public export
   selfTapPayment : {0 bs : Bindings} -> Cost bs -> Bool
   selfTapPayment (Mana _) = False
-  selfTapPayment (ScaledMana _) = False
+  selfTapPayment (ScaledMana _ _) = False
   selfTapPayment TapSymbol = True
   selfTapPayment UntapSymbol = True
   selfTapPayment (LoyaltySymbol _) = False
@@ -4280,7 +4386,7 @@ mutual
   public export
   costTapOnce : {0 bs : Bindings} -> Cost bs -> Bool
   costTapOnce (Mana _) = True
-  costTapOnce (ScaledMana _) = True
+  costTapOnce (ScaledMana _ _) = True
   costTapOnce TapSymbol = True
   costTapOnce UntapSymbol = True
   costTapOnce (LoyaltySymbol _) = True
@@ -4296,7 +4402,7 @@ mutual
   public export
   costPaidByYou : {0 bs : Bindings} -> Cost bs -> Bool
   costPaidByYou (Mana _) = True
-  costPaidByYou (ScaledMana _) = True
+  costPaidByYou (ScaledMana _ _) = True
   costPaidByYou TapSymbol = True
   costPaidByYou UntapSymbol = True
   costPaidByYou (LoyaltySymbol _) = True
@@ -4328,7 +4434,7 @@ mutual
   public export
   costOffBattlefield : {0 bs : Bindings} -> Cost bs -> Bool
   costOffBattlefield (Mana _) = True
-  costOffBattlefield (ScaledMana _) = True
+  costOffBattlefield (ScaledMana _ _) = True
   costOffBattlefield TapSymbol = False
   costOffBattlefield UntapSymbol = False
   costOffBattlefield (LoyaltySymbol _) = False

@@ -315,7 +315,7 @@ crovaxTheCursed : Effect []
 crovaxTheCursed =
   Macros.mayThenElse You (Macros.sacrifice You (Macros.a Macros.creature))
                   (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
-                  (RemoveCounters (Lit 1) (Just Macros.plusOnePlusOne) Macros.thisCreature)
+                  (RemoveCounters (Macros.exactly 1) (Just Macros.plusOnePlusOne) Macros.thisCreature)
 
 yawgmothDemon : Effect []
 yawgmothDemon =
@@ -356,7 +356,7 @@ battlegrowth : Effect []
 battlegrowth = PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (Macros.target Macros.creature)
 
 chainbreaker : Effect []
-chainbreaker = RemoveCounters (Lit 1) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature)
+chainbreaker = RemoveCounters (Macros.exactly 1) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature)
 
 kaitoBaneOfNightmares : Effect []
 kaitoBaneOfNightmares = Sequentially [SetStatus Tapped (Macros.target Macros.creature),
@@ -369,7 +369,7 @@ jhoiraOfTheGhitu =
                    (PutCounters (Lit 4) (PrintedKind Time) (Macros.theVerbed "Exile" CardW))
 
 alaundoTheSeer : Effect []
-alaundoTheSeer = RemoveCounters (Lit 1) (Just Time) (Each (InZone Macros.exileZ))
+alaundoTheSeer = RemoveCounters (Macros.exactly 1) (Just Time) (Each (InZone Macros.exileZ))
 
 arcBlade : Effect []
 arcBlade = Sequentially [DealDamage This (Lit 2) (Macros.target Macros.anyTarget),
@@ -718,7 +718,7 @@ bondersEnclave =
 woeleecher : Ability
 woeleecher =
   Macros.activated (Compound [Mana [Macros.pip White], TapSymbol])
-                   (Macros.doThen (RemoveCounters (Lit 1) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature))
+                   (Macros.doThen (RemoveCounters (Macros.exactly 1) (Just Macros.minusOneMinusOne) (Macros.target Macros.creature))
                     (Macros.gainsLife You (Lit 2)))
 
 moltingHarpy : Effect []
@@ -887,7 +887,7 @@ workhorse =
   Macros.card "Workhorse" (Just [Macros.generic 6]) []
        (MkTypeLine [creatureType "Horse"] [Artifact, Creature])
        [ Static (Macros.entersWithCounters Macros.thisCreature (Lit 4) Macros.plusOnePlusOne)
-       , Macros.activated (Do (RemoveCounters (Lit 1) (Just Macros.plusOnePlusOne) Macros.thisCreature))
+       , Macros.activated (Do (RemoveCounters (Macros.exactly 1) (Just Macros.plusOnePlusOne) Macros.thisCreature))
                           (AddMana You (Lit 1) (Runs [[Colorless]]) []) ]
        (Just (0, 0))
 
@@ -2341,7 +2341,7 @@ divineIntervention =
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 2) Intervention)
        , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
-                          (RemoveCounters (Lit 1) (Just Intervention) Macros.thisEnchantment)
+                          (RemoveCounters (Macros.exactly 1) (Just Intervention) Macros.thisEnchantment)
        , Macros.triggered When (Macros.lastCounterRemovedBy Intervention Macros.thisEnchantment You)
                           GameDrawn ]
        Nothing
@@ -2354,7 +2354,7 @@ celestialConvergence =
        [ Static (Macros.entersWithCounters Macros.thisEnchantment (Lit 7) Omen)
        , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
            (Sequentially
-              [ RemoveCounters (Lit 1) (Just Omen) Macros.thisEnchantment
+              [ RemoveCounters (Macros.exactly 1) (Just Omen) Macros.thisEnchantment
               , If (CompareAmt (CountersOn Omen Macros.thisEnchantment)
                                AtMost (Lit 0))
                           (Concludes WinGame
@@ -3709,6 +3709,157 @@ boommobile =
   Macros.triggered When (Enters Macros.thisArtifact Nothing)
                    (AddMana You (Lit 4) (AnyColor SameColor)
                      [SpendOnly [ToActivate Nothing]])
+
+||| Rosheen Meanderer, whole card -- "{T}: Add {C}{C}{C}{C}. Spend this
+||| mana only on costs that contain {X}." The spend purpose that names a
+||| COST by a symbol its text writes, where the two older cells name an
+||| object.
+public export
+rosheenMeanderer : Card
+rosheenMeanderer =
+  Macros.card "Rosheen Meanderer"
+       (Just [Macros.generic 3, Macros.hybridPip Red Green]) [Legendary]
+       (MkTypeLine [creatureType "Giant", creatureType "Shaman"] [Creature])
+       [ Macros.activated TapSymbol
+                          (AddMana You (Lit 1)
+                            (Runs [[Colorless, Colorless, Colorless, Colorless]])
+                            [SpendOnly [ToPay (Containing Variable)]]) ]
+       (Just (4, 4))
+
+||| Adarkar Unicorn, whole card -- "{T}: Add {U} or {C}{U}. Spend this
+||| mana only to pay cumulative upkeep costs." The keyword-named cost,
+||| and the card the landed `Keyword.CumulativeUpkeep` row did NOT
+||| unblock: that row is what a permanent prints, this names the cost it
+||| charges.
+public export
+adarkarUnicorn : Card
+adarkarUnicorn =
+  Macros.card "Adarkar Unicorn"
+       (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [creatureType "Unicorn"] [Creature])
+       [ Macros.activated TapSymbol
+                          (AddMana You (Lit 1)
+                            (Runs [[OfColor Blue], [Colorless, OfColor Blue]])
+                            [SpendOnly [ToPay (OfKeyword "CumulativeUpkeep")]]) ]
+       (Just (2, 2))
+
+||| Overgrown Zealot, whole card -- its second ability is "Spend this
+||| mana only to turn permanents face up", the purpose that names a
+||| SPECIAL ACTION [CR#116.2b] rather than a cost's contents or a
+||| keyword.
+public export
+overgrownZealot : Card
+overgrownZealot =
+  Macros.card "Overgrown Zealot"
+       (Just [Macros.generic 1, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Elf", creatureType "Druid"] [Creature])
+       [ Macros.activated TapSymbol (AddMana You (Lit 1) (AnyColor SameColor) [])
+       , Macros.activated TapSymbol
+                          (AddMana You (Lit 2) (AnyColor SameColor)
+                            [SpendOnly [ToPay (OfSpecialAction TurnFaceUp)]]) ]
+       (Just (0, 4))
+
+||| Rootcoil Creeper's second ability -- "{T}: Add two mana of any one
+||| color. Spend this mana only to cast spells from your graveyard."
+||| The ZONE-QUALIFIED spend purpose, which needed no cell of its own:
+||| the landed cast-provenance predicate describes the spell, and
+||| [CR#601.2a] has the card on the stack before [CR#601.2h] takes the
+||| payment. Its two negative kin (Karolina Dean, Vhal) write the same
+||| cell under `Not`.
+public export
+rootcoilCreeperGraveyardMana : Ability
+rootcoilCreeperGraveyardMana =
+  Macros.activated TapSymbol
+                   (AddMana You (Lit 2) (AnyColor SameColor)
+                     [SpendOnly [ToCast (And [Macros.spell,
+                                              CastFrom (Macros.graveyardOf You)])]])
+
+||| Black Mana Battery, whole card -- the storage-counter family's shape
+||| written twice over. Its second ability is the round's two purchases
+||| at once: an ANY-NUMBER removal in the activation cost, and the
+||| production reading how many that removal took.
+||| "An additional" gets no cell of its own: all 16 supported lines that
+||| write it (measured 2026-08-28) are the second add of a chain or a
+||| production off another one, so the word marks discourse and the
+||| structure is the sequence.
+public export
+blackManaBattery : Card
+blackManaBattery =
+  Macros.card "Black Mana Battery" (Just [Macros.generic 4]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol])
+                          (PutCounters (Lit 1) (PrintedKind Charge) Macros.thisArtifact)
+       , Macros.activated (Compound [TapSymbol,
+                                     Do (RemoveCounters Macros.anyNumber (Just Charge)
+                                                        Macros.thisArtifact)])
+                          (Sequentially
+                             [ AddMana You (Lit 1) (Runs [[OfColor Black]]) []
+                             , AddMana You RemovedThisWay (Runs [[OfColor Black]]) [] ]) ]
+       Nothing
+
+||| Cyclone's upkeep trigger, first sentence -- "put a wind counter on
+||| this enchantment, then sacrifice this enchantment unless you pay {G}
+||| for each wind counter on it". The COLOURED scaled payment: the count
+||| composed before, the unit did not. Its second sentence reads the
+||| payment back and is not this witness.
+public export
+cycloneUpkeepPayment : Ability
+cycloneUpkeepPayment =
+  Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+    (Sequentially
+       [ PutCounters (Lit 1) (PrintedKind Wind) Macros.thisEnchantment
+       , Macros.mayElse You
+           (Pay You (ScaledMana (RunUnit [Macros.pip Green])
+                                (Times 1 (CountersOn Wind Macros.thisEnchantment)))
+                PaidOnce)
+           (Macros.sacrifice You Macros.thisEnchantment) ])
+
+||| War Tax's payment -- "pays {X} for each attacking creature". The
+||| product whose PER-UNIT is read rather than printed, announced by the
+||| ability's own {X} [CR#107.3a]. The fragment and not the card: all
+||| four lines writing this product are attack/block gates, and the
+||| payer noun those gates derive is a separate gap.
+public export
+warTaxScaledPayment : Cost [letterB X]
+warTaxScaledPayment =
+  ScaledMana GenericUnit
+             (TimesOf (LetterVal X) (CountOf (And [Macros.creature, Attacking])))
+
+||| Rune Snag, whole card -- "Counter target spell unless its controller
+||| pays {2} plus an additional {2} for each card named Rune Snag in each
+||| graveyard." A fixed base beside a scaled one needs no new cost cell:
+||| the compound already joins them, and "plus an additional" is the
+||| coordinator's spelling. Spell Stutter and Concerted Defense are the
+||| other two lines.
+public export
+runeSnag : Card
+runeSnag =
+  Macros.card "Rune Snag" (Just [Macros.generic 1, Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Macros.mayElse (ControllerOf (Macros.target Macros.spell))
+                  (Pay They (Compound [Mana [Macros.generic 2],
+                                       ScaledMana GenericUnit
+                                         (Times 2 (CountOf
+                                            (And [Named (PrintedName "Rune Snag"),
+                                                  InZone (ZoneAt Graveyard Bare)])))])
+                       PaidOnce)
+                  (Macros.counterSpell It)) ]
+       Nothing
+
+||| Elemental Resonance, whole card -- "add mana equal to enchanted
+||| permanent's mana cost". The production a card names by a PRINTED
+||| COST, leaving [CR#106.8..106.11] to say what each symbol adds.
+public export
+elementalResonance : Card
+elementalResonance =
+  Macros.card "Elemental Resonance"
+       (Just [Macros.generic 2, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Permanent
+       , Macros.triggered At (BeginningOf FirstMain (ByWord Yours))
+           (AddMana You (Lit 1)
+                    (AsPrintedCost (AttachHost Enchanted PermanentW)) []) ]
+       Nothing
 
 
 
@@ -6582,7 +6733,7 @@ magistratesScepter =
        [ Macros.activated (Compound [Mana [Macros.generic 4], TapSymbol])
                           (PutCounters (Lit 1) (PrintedKind Charge) Macros.thisArtifact)
        , Macros.activated (Compound [TapSymbol,
-                              Do (RemoveCounters (Lit 3) (Just Charge) Macros.thisArtifact)])
+                              Do (RemoveCounters (Macros.exactly 3) (Just Charge) Macros.thisArtifact)])
                           (ExtraTurn You (Lit 1)) ] Nothing
 
 public export
@@ -6778,7 +6929,7 @@ sageOfFables =
                                                      (Lit 1)
                                                      Macros.plusOnePlusOne)
        , Macros.activated (Compound [Mana [Macros.generic 2],
-                              Do (RemoveCounters (Lit 1) (Just Macros.plusOnePlusOne)
+                              Do (RemoveCounters (Macros.exactly 1) (Just Macros.plusOnePlusOne)
                                    (Macros.a (And [Macros.creature, ControlledBy You])))])
                           Macros.drawACard ]
        (Just (2, 2))
@@ -8471,7 +8622,7 @@ override =
   Macros.card "Override" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Spell (Macros.mayElse (ControllerOf (Macros.target Macros.spell))
-                               (Pay They (ScaledMana (Macros.forEach
+                               (Pay They (ScaledMana GenericUnit (Macros.forEach
                                             (And [Macros.artifact, ControlledBy You]))) PaidOnce)
                                (Macros.counterSpell It)) ]
        Nothing
@@ -8482,7 +8633,7 @@ rakshasasDisdain =
   Macros.card "Rakshasa's Disdain" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Spell (Macros.mayElse (ControllerOf (Macros.target Macros.spell))
-                               (Pay They (ScaledMana (Macros.forEach
+                               (Pay They (ScaledMana GenericUnit (Macros.forEach
                                             (InZone (Macros.graveyardOf You)))) PaidOnce)
                                (Macros.counterSpell It)) ]
        Nothing
@@ -8495,7 +8646,7 @@ fettergeist =
        [ Macros.keyword "Flying"
        , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
            (Macros.mayElse You
-              (Pay You (ScaledMana (Macros.forEach
+              (Pay You (ScaledMana GenericUnit (Macros.forEach
                           (And [Macros.creature, ControlledBy You,
                                 OtherThan Macros.thisCreature]))) PaidOnce)
               (Macros.sacrifice You Macros.thisCreature)) ]
@@ -8509,7 +8660,7 @@ megatherium =
        [ Macros.keyword "Trample"
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
            (Macros.mayElse You
-              (Pay You (ScaledMana (Macros.forEach (InZone (Macros.handOf You)))) PaidOnce)
+              (Pay You (ScaledMana GenericUnit (Macros.forEach (InZone (Macros.handOf You)))) PaidOnce)
               (Macros.sacrifice You Macros.thisCreature)) ]
        (Just (4, 4))
 
@@ -10041,7 +10192,7 @@ investigatorsJournal =
        [ Static (Macros.entersWithCounters Macros.thisArtifact
                    greatestCreaturesAPlayerControls Suspect)
        , Macros.activated (Compound [Mana [Macros.generic 2], TapSymbol,
-                              Do (RemoveCounters (Lit 1) (Just Suspect)
+                              Do (RemoveCounters (Macros.exactly 1) (Just Suspect)
                                     Macros.thisArtifact)])
                           Macros.drawACard
        , Macros.activated (Compound [Mana [Macros.generic 2],
@@ -14044,7 +14195,7 @@ bewitchingLeechcraft =
                               (StatusEvent Macros.thisCreature Untapped) []
                               (Just (DuringWindow UntapStep (Just Yours)))
                               (Macros.doThen
-                                 (RemoveCounters (Lit 1)
+                                 (RemoveCounters (Macros.exactly 1)
                                     (Just Macros.plusOnePlusOne)
                                     Macros.thisCreature)
                                  (Macros.untap Macros.thisCreature))

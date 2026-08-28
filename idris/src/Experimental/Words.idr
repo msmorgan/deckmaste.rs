@@ -878,6 +878,17 @@ data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  -- discards two. The batch's own size is read off its
                  -- summary mention (`GroupSize`).
                  | RepeatCount
+                 -- what a counter REMOVAL leaves: "for each charge counter
+                 -- removed this way" (the five Mana Batteries and the
+                 -- eleven storage lands). Its own sort beside
+                 -- `CountersPut`, not a spelling of it: [CR#122.5] makes
+                 -- a move a remove AND a put, so one clause can leave
+                 -- both numbers and a single sort could not tell the
+                 -- read apart. [CR#122.2] draws the same line from the
+                 -- other side -- counters that cease to exist on a zone
+                 -- change are "not 'removed'" -- so the word names an
+                 -- action and not any loss of counters.
+                 | CountersRemoved
 
 ||| Which reading of a flipped coin a clause takes. [CR#705.2] gives a
 ||| flip two and only two: the face it came up, and -- when the flipper
@@ -1450,6 +1461,8 @@ Eq OutcomeSort where
   (==) NamedNumber _ = False
   (==) RepeatCount RepeatCount = True
   (==) RepeatCount _ = False
+  (==) CountersRemoved CountersRemoved = True
+  (==) CountersRemoved _ = False
 
 public export
 outcomeB : OutcomeSort -> Binding
@@ -1644,6 +1657,8 @@ outcomeIsQuantity PlanarRolled = False
 outcomeIsQuantity NamedNumber = True
 -- so does a repetition: the text wrote how many times.
 outcomeIsQuantity RepeatCount = True
+-- and a removal leaves the number of counters taken off.
+outcomeIsQuantity CountersRemoved = True
 
 ||| What "that much" folds: the outcome mentions that carry a number.
 public export
@@ -4009,6 +4024,131 @@ public export
 ManaRun : ManaCost -> Type
 ManaRun c = NonEmpty c
 
+||| The mana a SCALED cost adds per unit of what it counts: generic
+||| mana, whose size the amount's own numeral carries, or a printed RUN
+||| of symbols.
+|||
+||| Three supported lines write the run: Cyclone's "pay {G} for each wind
+||| counter on it", Thelon's Curse's "pay {U} for each creature chosen
+||| this way", and Norn's Annex's "pays {W/P} for each of those
+||| creatures" (measured 2026-08-28). What refuses them is not the count
+||| -- that composes -- but the unit: a generic amount is a number, and
+||| [CR#107.4a] makes coloured mana in a cost payable "only with the
+||| appropriate color of mana", so a coloured per-unit says something a
+||| number cannot. `ManaCost` is what already carries that, hybrid and
+||| Phyrexian symbols included [CR#107.4e,107.4f], so the unit is a run
+||| and no new symbol vocabulary is minted.
+|||
+||| ONE type for both scaled ledgers. The cost SHIFT carries the same
+||| `Amount` and the same missing symbol ("costs {2}{R} more to cast"),
+||| so when its coloured payload lands it takes this unit rather than a
+||| second one of its own.
+||| -- spelling: nothing at `GenericUnit` beyond the amount's own
+||| numeral; the printed symbols at `RunUnit`.
+public export
+data ManaUnit : Type where
+  GenericUnit : ManaUnit
+  RunUnit : (run : ManaCost) -> {auto 0 wr : ManaRun run} -> ManaUnit
+
+||| The special actions [CR#116.2] a mana payment can serve -- the ones
+||| whose taking a player PAYS mana for. [CR#116.2] closes its own list
+||| at twelve, and these are the four of the twelve that cost mana:
+||| turning a face-down creature face up [CR#116.2b], which pays the
+||| morph cost [CR#702.37e] or, for a manifested card, its mana cost;
+||| putting a companion into hand for {3} [CR#116.2g]; foretelling a card
+||| for {2} [CR#116.2h]; and unlocking a locked half for its unlock cost
+||| [CR#116.2m]. The other eight take no cost at all, so no spend
+||| restriction could name them, and the enumeration is the rule's rather
+||| than the corpus's.
+|||
+||| Not a keyword-named cost: [CR#116.2b]'s action is taken by paying
+||| whichever cost the permanent has, and Qarsi Deceiver prints both
+||| readings side by side ("pay a mana cost to turn a manifested creature
+||| face up, or pay a morph cost") precisely because they come apart.
+||| -- spelling: "to turn permanents face up", "to foretell cards", "to
+||| unlock doors".
+public export
+data SpecialAction = TurnFaceUp | PutCompanionIntoHand | Foretell | UnlockDoor
+
+public export
+Eq SpecialAction where
+  (==) TurnFaceUp TurnFaceUp = True
+  (==) TurnFaceUp _ = False
+  (==) PutCompanionIntoHand PutCompanionIntoHand = True
+  (==) PutCompanionIntoHand _ = False
+  (==) Foretell Foretell = True
+  (==) Foretell _ = False
+  (==) UnlockDoor UnlockDoor = True
+  (==) UnlockDoor _ = False
+
+||| A COST, described so that a mana sentence can name it. [CR#106.1] has
+||| players spend mana "to pay costs, usually when casting spells and
+||| activating abilities": the cost is what a spend restriction restricts
+||| to, and casting and activating are the two usual occasions, not the
+||| whole of it. So a described cost is a third thing a purpose can name,
+||| beside the object being cast and the source whose ability is
+||| activated.
+|||
+||| Three arms, one per way a printed line picks a cost out. 15 supported
+||| lines carry at least one of them, measured 2026-08-28 out of 204
+||| spend-restriction lines; a line may write two arms, so the per-arm
+||| counts below sum higher.
+|||
+||| * by a SYMBOL its text writes -- "on costs that contain {X}" (Rosheen
+|||   Meanderer, Rosheen Roaring Prophet, Nexos, Elementalist's Palette)
+|||   and "pay a cost that contains {C}" (Cultivator Drone), 5 lines.
+||| * by the KEYWORD that declares it -- "to pay cumulative upkeep costs"
+|||   (Adarkar Unicorn, Snowfall) [CR#702.24a], "pay a disturb cost"
+|||   (Unblinking Observer), "pay a morph cost" (Qarsi Deceiver), 4
+|||   lines. Named as `PaidCostName` names one, and gated by the same
+|||   `keywordCosts`: a word that declares no cost names none here
+|||   either.
+||| * by the SPECIAL ACTION it pays for -- "to turn permanents face up"
+|||   (Overgrown Zealot, Tin Street Gossip, Creeping Peeper, Qarsi
+|||   Deceiver), "to foretell cards" (Niko Defies Destiny, Karfell
+|||   Harbinger) and "unlock doors" (Smoky Lounge, Creeping Peeper), 7
+|||   lines over the three actions.
+|||
+||| Two lines look like this arm and are `ToActivate`'s: Quinjet
+||| Technician's "to activate power-up abilities" and Sorcerer Class'
+||| "to gain a Class level" both name ACTIVATED abilities, which the
+||| older cell already reaches -- [CR#716.2c] says so in as many words,
+||| "to gain a Class level" meaning "to activate an ability indicated by
+||| a class level bar".
+|||
+||| Jegantha, the Wellspring is measured and NOT this type: "This mana
+||| can't be spent to pay generic mana costs" restricts which PART of a
+||| cost the mana may pay, where every arm here picks out a whole cost.
+||| [CR#107.4b] is what separates them -- numerical and variable symbols
+||| "represent generic mana in costs", a component of a cost rather than
+||| a cost -- and Jegantha's mana pays the {R} of {2}{R} perfectly well.
+||| 1 line, its own gap.
+|||
+||| Two of the keyword-named lines have no word to name yet: `keywordFacts`
+||| carries no Disturb and no Morph row, so Unblinking Observer and Qarsi
+||| Deceiver wait on the keyword catalog rather than on this type. The
+||| cost-arm/cast-arm disjunction both of them also write needs nothing:
+||| `SpendOnly` already takes a LIST of purposes, and an arm of each kind
+||| in one list is that sentence.
+public export
+data CostNamed : Type where
+  Containing : (sym : ManaSymbol) -> CostNamed
+  OfKeyword : (kw : KeywordLabel) -> CostNamed
+  OfSpecialAction : (act : SpecialAction) -> CostNamed
+
+||| A named cost has to be one there is: the keyword arm needs a word
+||| whose own rule writes a cost, exactly as `paidCostNamed` demands at
+||| the readback seat. A symbol and a special action name themselves.
+public export
+costNameable : CostNamed -> Bool
+costNameable (Containing _) = True
+costNameable (OfKeyword kw) = keywordCosts kw
+costNameable (OfSpecialAction _) = True
+
+public export
+CostNameable : CostNamed -> Type
+CostNameable c = So (costNameable c)
+
 
 public export
 ProducedRun : Type
@@ -4584,6 +4724,9 @@ data CounterKind : Type where
   ||| Blood Spatter Analysis' tally of creatures that have died: the same
   ||| ordinary marker [CR#122.1], counted by the ability that reads it.
   Bloodstain : CounterKind
+  ||| Cyclone's escalating tally: the same ordinary marker [CR#122.1],
+  ||| counted by the payment that reads it.
+  Wind : CounterKind
 
 public export
 counterScope : CounterKind -> Kind
@@ -4609,6 +4752,7 @@ counterScope Suspect = Object
 counterScope Luck = Object
 counterScope Blood = Object
 counterScope Bloodstain = Object
+counterScope Wind = Object
 
 public export
 Eq CounterKind where
@@ -4657,6 +4801,8 @@ Eq CounterKind where
   (==) Blood _ = False
   (==) Bloodstain Bloodstain = True
   (==) Bloodstain _ = False
+  (==) Wind Wind = True
+  (==) Wind _ = False
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where

@@ -3000,6 +3000,22 @@ mutual
                  {auto 0 sb : LookbackSubject ev k} -> Amount bs
     Times : (per : Nat) -> (a : Amount bs) ->
             {auto 0 nz : IsSucc per} -> Amount bs
+    ||| "{X} for each attacking creature they control" (War Tax, War
+    ||| Cadence), "{X} for each of those creatures, where X is the number
+    ||| of enchantments you control" (Sphere of Safety, Collective
+    ||| Restraint): `Times`' product with a per-unit the text READS
+    ||| instead of printing. 4 supported lines, measured 2026-08-28.
+    |||
+    ||| Beside `Times` and not a widening of it. [CR#118.4] lets a cost
+    ||| include an X and sends the reading to [CR#107.3], where
+    ||| [CR#107.3a] has the value announced as the ability is activated;
+    ||| so the multiplier is a second AMOUNT, read at payment, where
+    ||| `Times`' is a numeral the card printed. The numeral arm keeps its
+    ||| `IsSucc` gate, which is the whole of what it buys -- a written
+    ||| zero per-unit says nothing -- and a read amount states no size to
+    ||| gate, exactly as `UpToOf` states no bound beside `Range`'s.
+    ||| -- spelling: "[per] for each [a]".
+    TimesOf : (per : Amount bs) -> (a : Amount (amtIntro per)) -> Amount bs
     ||| "that much": the quantity an earlier clause's outcome wrote. The
     ||| gate counts the outcome mentions that CARRY a number
     ||| (`outcomeIsQuantity`) rather than every outcome mention, because a
@@ -3026,6 +3042,20 @@ mutual
                    Amount bs
     PreventedThisWay : {auto 0 ok : countOutcomes DamagePrevented bs = 1} ->
                        Amount bs
+    ||| "for each charge counter removed this way", "for each storage
+    ||| counter removed this way": how many counters the clause that ran
+    ||| before this one took off. 18 supported lines over 18 cards write
+    ||| it -- the five Mana Batteries, the eleven storage lands,
+    ||| Hierophant Bio-Titan and Eventide's Shadow (measured 2026-08-28)
+    ||| -- and on the Batteries and the lands the removal is the
+    ||| ACTIVATION COST, whose context an ability's effect already reads.
+    ||| Sorted to the removal rather than left to `ThatMuch`, on
+    ||| `PreventedThisWay`'s own reasons: [CR#122.5] makes a move a
+    ||| remove and a put together, so a clause can leave two counter
+    ||| numbers and only a sorted read tells them apart.
+    ||| -- spelling: "for each [kind] counter removed this way".
+    RemovedThisWay : {auto 0 ok : countOutcomes CountersRemoved bs = 1} ->
+                     Amount bs
     ||| "the result": the number on the die a clause rolled. [CR#706.2]
     ||| names it -- the natural result once every modifier has been
     ||| applied -- so the read is sorted to the roll rather than left to
@@ -3213,9 +3243,11 @@ mutual
   amtDelta (CountOf p) = predDelta p
   amtDelta (Aggregate _ _ p) = predDelta p
   amtDelta (Times _ a) = amtDelta a
+  amtDelta (TimesOf per a) = amtDelta per ++ amtDelta a
   amtDelta ThatMuch = []
   amtDelta ChosenNumber = []
   amtDelta PreventedThisWay = []
+  amtDelta RemovedThisWay = []
   amtDelta TheResult = []
   amtDelta TheTotal = []
   amtDelta (CoinsShowing _) = []
@@ -3246,9 +3278,11 @@ mutual
   amtIntro (CountOf p) = predDelta p ++ bs
   amtIntro (Aggregate _ _ p) = predDelta p ++ bs
   amtIntro (Times per a) = amtIntro a
+  amtIntro (TimesOf per a) = amtIntro a
   amtIntro ThatMuch = bs
   amtIntro ChosenNumber = bs
   amtIntro PreventedThisWay = bs
+  amtIntro RemovedThisWay = bs
   amtIntro TheResult = bs
   amtIntro TheTotal = bs
   amtIntro (CoinsShowing _) = bs
@@ -3287,9 +3321,11 @@ mutual
   amtPlur (CountOf _) = ManyOf
   amtPlur (Aggregate _ _ _) = ManyOf
   amtPlur (Times _ _) = ManyOf
+  amtPlur (TimesOf _ _) = ManyOf
   amtPlur ThatMuch = ManyOf
   amtPlur ChosenNumber = ManyOf
   amtPlur PreventedThisWay = ManyOf
+  amtPlur RemovedThisWay = ManyOf
   amtPlur TheResult = ManyOf
   amtPlur TheTotal = ManyOf
   amtPlur (CoinsShowing _) = ManyOf
@@ -3321,9 +3357,11 @@ mutual
   writtenBound (CountOf _) = False
   writtenBound (Aggregate _ _ _) = False
   writtenBound (Times _ _) = False
+  writtenBound (TimesOf _ _) = False
   writtenBound ThatMuch = False
   writtenBound ChosenNumber = False
   writtenBound PreventedThisWay = False
+  writtenBound RemovedThisWay = False
   writtenBound TheResult = False
   writtenBound TheTotal = False
   writtenBound (CoinsShowing _) = False
@@ -3447,10 +3485,12 @@ mutual
   readAmount (CountOf _) = True
   readAmount (Aggregate _ _ _) = True
   readAmount (Times _ _) = False
+  readAmount (TimesOf _ _) = False
   readAmount ThatMuch = False
   -- Announced under [CR#608.2d], as `UpTo` is; no game state carries it.
   readAmount ChosenNumber = False
   readAmount PreventedThisWay = False
+  readAmount RemovedThisWay = False
   -- the die's number is a read of the roll, not a re-mention of a
   -- quantity the text already stated, so a comparison may take it as
   -- its subject: "If the result is 0 or less, …" [CR#706.2].
@@ -3599,6 +3639,15 @@ mutual
   quantDelta (Range _ _) = []
   quantDelta (UpToOf a) = amtDelta a
   quantDelta (ExactlyOf a) = amtDelta a
+
+  ||| `amtIntro`'s move at the quantity seat: what the text after a
+  ||| written count can see. A `Range` writes no amount and so introduces
+  ||| nothing.
+  public export
+  quantIntro : {bs : Bindings} -> Quantity bs -> Bindings
+  quantIntro (Range _ _) = bs
+  quantIntro (UpToOf a) = amtIntro a
+  quantIntro (ExactlyOf a) = amtIntro a
 
   public export
   Bindingless : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type

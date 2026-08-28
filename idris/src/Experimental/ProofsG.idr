@@ -296,7 +296,7 @@ badUnlessConjunction MkMarkingOk impossible
 ||| A scaled payment scales; a literal magnitude is what the fixed symbol run already spells.
 public export
 badLiteralScaledMana : Unspellable (Cost []) (\ok =>
-  ScaledMana (Lit 2) {fe = ok})
+  ScaledMana GenericUnit (Lit 2) {fe = ok})
 badLiteralScaledMana Oh impossible
 
 
@@ -304,7 +304,7 @@ badLiteralScaledMana Oh impossible
 ||| The scaled payment scales a per-unit: a numeral in braces with the counted phrase after "for each".
 public export
 badBareCountScaledMana : Unspellable (Cost []) (\ok =>
-  ScaledMana (CountOf (And [Macros.artifact, ControlledBy You])) {fe = ok})
+  ScaledMana GenericUnit (CountOf (And [Macros.artifact, ControlledBy You])) {fe = ok})
 badBareCountScaledMana Oh impossible
 
 
