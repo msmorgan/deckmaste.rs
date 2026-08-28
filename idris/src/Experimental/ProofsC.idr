@@ -482,7 +482,7 @@ badLeavesThenTap OnField impossible
 ||| A static ability does not target [CR#115.1a..115.1e].
 public export
 badStaticTargets : Unspellable Ability (\ok =>
-  Static (Deontic (Macros.target Macros.creature) Forbid Attack Agent NoDeonticPatient) {ut = ok})
+  Static (Macros.deontic (Macros.target Macros.creature) Forbid ["Attack"] Agent NoDeonticPatient) {ut = ok})
 badStaticTargets Oh impossible
 
 

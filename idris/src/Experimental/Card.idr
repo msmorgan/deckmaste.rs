@@ -92,8 +92,8 @@ public export
 staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
 -- [CR#113.6g] licenses a "can't be countered" static on any object and
 -- says nothing about how broadly its subject may be described.
-staticOnSpellCardOk (ObjectCant Countered _) = True
-staticOnSpellCardOk (ObjectCant Copied _) = True
+staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _) = True
+staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _) = True
 staticOnSpellCardOk (AltCost _) = True
 staticOnSpellCardOk (Conditionally _ se _) = staticOnSpellCardOk se
 staticOnSpellCardOk (OnlyWhile se _ _) = staticOnSpellCardOk se

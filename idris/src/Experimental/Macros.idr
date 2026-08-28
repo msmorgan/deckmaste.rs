@@ -725,26 +725,143 @@ flyingCounter : CounterKind
 flyingCounter = KeywordCounter "Flying"
 
 
+||| The deontic carrier with no counterfactual: the five slots the bench
+||| writes wherever [CR#609.4]'s rider is absent, which is every
+||| prohibition, every requirement and every gate -- of 264 supported "as
+||| though" sentences, ZERO write one under a can't, a must or a gate
+||| (measured 2026-08-28), and the carrier refuses the pairing anyway.
+public export
+deontic : {k : Kind} -> (n : Noun bs k) -> (c : Compulsion bs) ->
+          (deeds : Deeds) -> (role : Role) ->
+          (patient : DeonticPatient {bs = nomIntro n} deeds role) ->
+          {auto 0 ne : NonEmpty deeds} ->
+          {auto 0 kd : KnownDeeds deeds} ->
+          {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
+          {auto 0 dp : DeedParticipant deeds role k (nounTy n)} ->
+          {auto 0 pt : So (deonticPatientOk n deeds role patient)} ->
+          StaticEffect bs
+deontic n c deeds role patient =
+  Deontic n c deeds role patient Nothing {ne} {kd} {zn} {dp} {pt}
+
 public export
 cantAttack : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
-             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-             {auto 0 dp : DeedParticipant Attack Agent (nounTy n)} ->
+             {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Attack"] Agent)} ->
+             {auto 0 dp : DeedParticipant ["Attack"] Agent Object (nounTy n)} ->
              {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantAttack n span = Continuously (Deontic n Forbid Attack Agent NoDeonticPatient {zn} {dp}) span {sp}
+cantAttack n span =
+  Continuously (Deontic n Forbid ["Attack"] Agent NoDeonticPatient Nothing {zn} {dp}) span {sp}
 
 public export
 cantBlock : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
-            {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-            {auto 0 dp : DeedParticipant Block Agent (nounTy n)} ->
+            {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Block"] Agent)} ->
+            {auto 0 dp : DeedParticipant ["Block"] Agent Object (nounTy n)} ->
             {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantBlock n span = Continuously (Deontic n Forbid Block Agent NoDeonticPatient {zn} {dp}) span {sp}
+cantBlock n span =
+  Continuously (Deontic n Forbid ["Block"] Agent NoDeonticPatient Nothing {zn} {dp}) span {sp}
+
+||| "[n] can't attack or block": ONE subject, ONE modality, TWO deeds --
+||| the coordination the carrier's deed list is, and the shape the
+||| outcome gate's "can't lose the game or win the game" reads too.
+||| 109 supported lines write it (measured 2026-08-28).
+public export
+cantAttackOrBlock : (n : Noun bs Object) ->
+                    (span : Maybe (Duration (selfSubjIntro n))) ->
+                    {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Attack", "Block"] Agent)} ->
+                    {auto 0 dp : DeedParticipant ["Attack", "Block"] Agent Object (nounTy n)} ->
+                    {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+cantAttackOrBlock n span =
+  Continuously (Deontic n Forbid ["Attack", "Block"] Agent NoDeonticPatient Nothing
+                  {zn} {dp}) span {sp}
+
+||| "[n] can [deed]": the permission, the deed restriction's twin. No
+||| counterfactual is present and none is needed -- [CR#609.4]'s slot is
+||| a rider on this row, not the reason for it.
+public export
+canDo : (n : Noun bs Object) -> (deed : VerbLabel) ->
+        (span : Maybe (Duration (selfSubjIntro n))) ->
+        {auto 0 kd : KnownDeeds [deed]} ->
+        {auto 0 zn : ZoneFits (nounZone n) (deedsZone [deed] Agent)} ->
+        {auto 0 dp : DeedParticipant [deed] Agent Object (nounTy n)} ->
+        {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+canDo n deed span =
+  Continuously (Deontic n Permit [deed] Agent NoDeonticPatient Nothing {kd} {zn} {dp})
+               span {sp}
+
+||| "[n] can [deed] as though [p]": the permission with [CR#609.4]'s
+||| premise riding it. "This creature can attack as though it didn't have
+||| defender" is `canDoAsThough n "Attack" (Not (HasKeyword "Defender"))`
+||| -- 52 supported lines, the largest cell of the permission family.
+public export
+canDoAsThough : (n : Noun bs Object) -> (deed : VerbLabel) ->
+                (p : Predicate (nomIntro n) Object) ->
+                (span : Maybe (Duration (selfSubjIntro n))) ->
+                {auto 0 kd : KnownDeeds [deed]} ->
+                {auto 0 cf : So (deedCounterfactualOk deed)} ->
+                {auto 0 zn : ZoneFits (nounZone n) (deedsZone [deed] Agent)} ->
+                {auto 0 dp : DeedParticipant [deed] Agent Object (nounTy n)} ->
+                {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
+canDoAsThough n deed p span =
+  Continuously (Deontic n Permit [deed] Agent NoDeonticPatient (Just (AsThoughOf p))
+                  {kd} {zn} {dp}) span {sp}
+
+||| "[who] can't [deed]": the player-subject prohibition, `PlayerCant`'s
+||| whole content as a spelling over the carrier.
+public export
+playerCant : (deed : VerbLabel) -> (who : Noun bs Player) ->
+             {auto 0 kd : KnownDeeds [deed]} ->
+             {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
+             {auto 0 dp : DeedParticipant [deed] Agent Player (nounTy who)} ->
+             StaticEffect bs
+playerCant deed who = Deontic who Forbid [deed] Agent NoDeonticPatient Nothing {kd} {zn} {dp}
+
+||| "[what] can't be [deed]ed": the object-subject prohibition,
+||| `ObjectCant`'s whole content as a spelling over the carrier. The same
+||| label as `playerCant` at the other ROLE, which is what retired the
+||| two parallel act enums: the corpus writes both voices of one act one
+||| card apart.
+public export
+objectCant : {k : Kind} -> (deed : VerbLabel) -> (what : Noun bs k) ->
+             {auto 0 kd : KnownDeeds [deed]} ->
+             {auto 0 zn : ZoneFits (nounZone what) (deedsZone [deed] Patient)} ->
+             {auto 0 dp : DeedParticipant [deed] Patient k (nounTy what)} ->
+             StaticEffect bs
+objectCant deed what =
+  Deontic what Forbid [deed] Patient NoDeonticPatient Nothing {kd} {zn} {dp}
+
+||| "[what] can't be the target of [by]": the targeting prohibition, 30
+||| real supported sentences (measured 2026-08-28; a naive sweep returns
+||| 216, of which 186 are the reminder text printed under hexproof and
+||| shroud and are no card's own line).
+public export
+cantBeTargetedBy : {k : Kind} -> {ka : Kind} -> (what : Noun bs k) ->
+                   (by : Noun (nomIntro what) ka) ->
+                   {auto 0 tr : Targeter ka} ->
+                   {auto 0 zn : ZoneFits (nounZone what) (deedsZone ["Target"] Patient)} ->
+                   {auto 0 dp : DeedParticipant ["Target"] Patient k (nounTy what)} ->
+                   StaticEffect bs
+cantBeTargetedBy what by =
+  Deontic what Forbid ["Target"] Patient (TargetedBy by {tr}) Nothing {zn} {dp}
+
+||| "[what] can be the target of [by] as though [p]": Glaring Spotlight's
+||| line, the targeting deed's permission with [CR#609.4]'s premise.
+public export
+canBeTargetedAsThough : {k : Kind} -> {ka : Kind} -> (what : Noun bs k) ->
+                        (by : Noun (nomIntro what) ka) ->
+                        (p : Predicate (nomIntro what) Object) ->
+                        {auto 0 tr : Targeter ka} ->
+                        {auto 0 zn : ZoneFits (nounZone what) (deedsZone ["Target"] Patient)} ->
+                        {auto 0 dp : DeedParticipant ["Target"] Patient k (nounTy what)} ->
+                        StaticEffect bs
+canBeTargetedAsThough what by p =
+  Deontic what Permit ["Target"] Patient (TargetedBy by {tr}) (Just (AsThoughOf p)) {zn} {dp}
 
 public export
 cantBeBlocked : (n : Noun bs Object) -> (span : Maybe (Duration (selfSubjIntro n))) ->
-                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                {auto 0 dp : DeedParticipant Block Patient (nounTy n)} ->
+                {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Block"] Patient)} ->
+                {auto 0 dp : DeedParticipant ["Block"] Patient Object (nounTy n)} ->
                 {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-cantBeBlocked n span = Continuously (Deontic n Forbid Block Patient NoDeonticPatient {zn} {dp}) span {sp}
+cantBeBlocked n span =
+  Continuously (Deontic n Forbid ["Block"] Patient NoDeonticPatient Nothing {zn} {dp}) span {sp}
 
 ||| "[n] blocks IT this turn if able": the forced block whose blocked
 ||| creature is named by the pronoun (Fighter Class, Feral Contest,
@@ -763,16 +880,16 @@ cantBeBlocked n span = Continuously (Deontic n Forbid Block Patient NoDeonticPat
 public export
 mustBlockIt : {bs : Bindings} -> (n : Noun bs Object) ->
               (span : Maybe (Duration (selfSubjIntro n))) ->
-              {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-              {auto 0 dp : DeedParticipant Block Agent (nounTy n)} ->
+              {auto 0 zn : ZoneFits (nounZone n) (deedsZone ["Block"] Agent)} ->
+              {auto 0 dp : DeedParticipant ["Block"] Agent Object (nounTy n)} ->
               {auto 0 ok : countOnes Object bs = 1} ->
-              {auto 0 zm : ZoneFits (zoneOfIt bs) (Just Battlefield)} ->
-              {auto 0 dm : DeedParticipant Block Patient (tyOfIt bs)} ->
+              {auto 0 pt : So (deonticPatientOk n ["Block"] Agent
+                                 (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok})))} ->
               {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
 mustBlockIt n span =
-  Continuously (Deontic n Require Block Agent
-                  (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}) {zn = zm} {dp = dm})
-                  {zn} {dp})
+  Continuously (Deontic n Require ["Block"] Agent
+                  (DeonticCounterpart (ItOtherThan (nounDelta n) bs {ok}))
+                  Nothing {zn} {dp} {pt})
                span {sp}
 
 
@@ -1699,7 +1816,7 @@ public export
 mayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
           {auto 0 pz : PlaySource (nounZone what)
                                   (the (Maybe (ZoneExpr (nomIntro what))) Nothing)
-                                  Nothing} ->
+                                  False} ->
           {auto 0 cv : CastableTy Play (nounTy what)} -> StaticEffect bs
 mayPlay who what = MayPlay who what Play Nothing Nothing Nothing Nothing {pz} {cv}
 
@@ -1707,7 +1824,7 @@ mayPlay who what = MayPlay who what Play Nothing Nothing Nothing Nothing {pz} {c
 public export
 mayCastFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               (from : ZoneExpr (nomIntro what)) ->
-              {auto 0 pz : PlaySource (nounZone what) (Just from) Nothing} ->
+              {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
               {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
 mayCastFrom who what from =
   MayPlay who what Cast (Just from) Nothing Nothing Nothing {pz} {cv}
@@ -1716,7 +1833,7 @@ mayCastFrom who what from =
 public export
 mayPlayFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               (from : ZoneExpr (nomIntro what)) ->
-              {auto 0 pz : PlaySource (nounZone what) (Just from) Nothing} ->
+              {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
               {auto 0 cv : CastableTy Play (nounTy what)} -> StaticEffect bs
 mayPlayFrom who what from =
   MayPlay who what Play (Just from) Nothing Nothing Nothing {pz} {cv}
@@ -1725,21 +1842,24 @@ mayPlayFrom who what from =
 public export
 mayCastFromLimited : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                      (from : ZoneExpr (nomIntro what)) -> (lim : PlayLimit) ->
-                     {auto 0 pz : PlaySource (nounZone what) (Just from) Nothing} ->
+                     {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
                      {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
 mayCastFromLimited who what from lim =
   MayPlay who what Cast (Just from) Nothing (Just lim) Nothing {pz} {cv}
 
-||| "You may cast <what> as though it had flash."
+||| "You may cast <what> as though it had flash." The hardcoded
+||| `PlayAsThough = HadFlash` retired: the premise is the carrier's
+||| general [CR#609.4] one, and flash is `HasKeyword "Flash"` like any
+||| other counterfactual payload. 89 supported lines write it.
 public export
 mayCastAsThough : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
-                  (asThough : PlayAsThough) ->
                   {auto 0 pz : PlaySource (nounZone what)
                                           (the (Maybe (ZoneExpr (nomIntro what))) Nothing)
-                                          (Just asThough)} ->
+                                          True} ->
                   {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
-mayCastAsThough who what asThough =
-  MayPlay who what Cast Nothing (Just asThough) Nothing Nothing {pz} {cv}
+mayCastAsThough who what =
+  MayPlay who what Cast Nothing (Just (AsThoughOf (HasKeyword "Flash"))) Nothing Nothing
+          {pz} {cv}
 
 ||| "[n] leaves the battlefield": the zone the leaves-the-battlefield
 ||| ability names [CR#603.10a], written into the row's source slot.
@@ -2238,7 +2358,7 @@ onlyUnless se c = OnlyWhile se (NotCond c) Unless {nn}
 public export
 mayCastFromWhileSearching : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                             (from : ZoneExpr (nomIntro what)) ->
-                            {auto 0 pz : PlaySource (nounZone what) (Just from) Nothing} ->
+                            {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
                             {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
 mayCastFromWhileSearching who what from =
   MayPlay who what Cast (Just from) Nothing Nothing (Just WhileSearchingLibrary) {pz} {cv}

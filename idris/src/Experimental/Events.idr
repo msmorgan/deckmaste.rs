@@ -687,9 +687,8 @@ public export
 data DamageKind = AnyDamage | CombatOnly | NoncombatOnly
 
 
-public export
-data Deed = Attack | Block
 
+||| Which end of a deed a participant is at.
 public export
 data Role = Agent | Patient
 
@@ -700,74 +699,318 @@ counterRole : Role -> Role
 counterRole Agent = Patient
 counterRole Patient = Agent
 
+||| ==== The deed vocabulary ====
+|||
+||| A DEED is what a deontic statement permits, forbids, requires or
+||| gates: attacking, being blocked, being targeted, casting, playing a
+||| land, activating, countering, regenerating, gaining life, drawing,
+||| searching, losing or winning the game. The slot is a `VerbLabel` and
+||| the vocabulary is OPEN for `VerbLabel`'s own reasons -- a deed needs
+||| no row in a total table and no rules entry of its own, only a name
+||| and the facts its own rule states. The gate is `KnownDeed` against
+||| `deedFacts`, `KnownVerb`'s twin: fail-closed membership, typo-safety
+||| without a per-deed type, exhaustiveness traded for the gate.
+|||
+||| The closed `Deed = Attack | Block` this replaced cost 76 rows of
+||| `deedType` to say what two rules say in two sentences, and had no
+||| room for the eight deeds the corpus writes beside them.
+|||
+||| It is a SECOND table rather than rows in `verbFacts`, and the reason
+||| is what each table is READ BY. `verbFacts` is the KEYWORD-ACTION
+||| table [CR#701.1]: `Enact`, `Does`, the verbed event and the
+||| participle anaphors all key off it, so a deed row added there would
+||| make "you attack", "the targeted card" and "whenever you lose the
+||| game" spellable at those four seats -- a widening no line asks for,
+||| and the opposite of a fail-closed gate. The two tables share the
+||| label TYPE, which is what keeps ONE open act vocabulary rather than
+||| two parallel ones; they do not share the facts, because what is
+||| asked of a keyword action (its participle, the zone its rule finds a
+||| patient in, where it leaves it, whether it has steps) and what is
+||| asked of a deed (who may fill each role, where, whether a defender
+||| or a targeter rides, whether a counterfactual may) are different
+||| questions with no field in common.
+
+||| One ROLE's facts. [CR#506.3] states attacking's and blocking's
+||| outright -- "Only a creature can attack or block. Only a player, a
+||| planeswalker, or a battle can be attacked" -- and every other deed's
+||| own rule states its own.
 public export
-deedType : Deed -> Role -> CardType -> Bool
-deedType Attack Agent Creature = True
-deedType Attack Agent Artifact = False
-deedType Attack Agent Land = False
-deedType Attack Agent Enchantment = False
-deedType Attack Agent Instant = False
-deedType Attack Agent Sorcery = False
-deedType Attack Agent Planeswalker = False
-deedType Attack Agent Battle = False
-deedType Attack Agent Kindred = False
-deedType Attack Patient Creature = False
-deedType Attack Patient Artifact = False
-deedType Attack Patient Land = False
-deedType Attack Patient Enchantment = False
-deedType Attack Patient Instant = False
-deedType Attack Patient Sorcery = False
-deedType Attack Patient Planeswalker = True
-deedType Attack Patient Battle = True
-deedType Attack Patient Kindred = False
-deedType Block Agent Creature = True
-deedType Block Agent Artifact = False
-deedType Block Agent Land = False
-deedType Block Agent Enchantment = False
-deedType Block Agent Instant = False
-deedType Block Agent Sorcery = False
-deedType Block Agent Planeswalker = False
-deedType Block Agent Battle = False
-deedType Block Agent Kindred = False
-deedType Block Patient Creature = True
-deedType Block Patient Artifact = False
-deedType Block Patient Land = False
-deedType Block Patient Enchantment = False
-deedType Block Patient Instant = False
-deedType Block Patient Sorcery = False
-deedType Block Patient Planeswalker = False
-deedType Block Patient Battle = False
-deedType Block Patient Kindred = False
--- [CR#110.4] names no command-zone type among the permanent types, so
--- nothing of these types is ever on the battlefield to take either role.
-deedType Attack Agent Conspiracy = False
-deedType Attack Agent Dungeon = False
-deedType Attack Agent Phenomenon = False
-deedType Attack Agent Plane = False
-deedType Attack Agent Scheme = False
-deedType Attack Agent Vanguard = False
-deedType Attack Patient Conspiracy = False
-deedType Attack Patient Dungeon = False
-deedType Attack Patient Phenomenon = False
-deedType Attack Patient Plane = False
-deedType Attack Patient Scheme = False
-deedType Attack Patient Vanguard = False
-deedType Block Agent Conspiracy = False
-deedType Block Agent Dungeon = False
-deedType Block Agent Phenomenon = False
-deedType Block Agent Plane = False
-deedType Block Agent Scheme = False
-deedType Block Agent Vanguard = False
-deedType Block Patient Conspiracy = False
-deedType Block Patient Dungeon = False
-deedType Block Patient Phenomenon = False
-deedType Block Patient Plane = False
-deedType Block Patient Scheme = False
-deedType Block Patient Vanguard = False
+record DeedRole where
+  constructor MkDeedRole
+  ||| the KINDS of referent the deed's rule admits in this role: a
+  ||| player casts [CR#601.2], an ability is activated [CR#602.2], a
+  ||| creature attacks [CR#506.3]. Empty where nothing fills the role at
+  ||| all, which is the fail-closed answer for a label with no row.
+  roleKinds : List Kind
+  ||| the card types the deed's rule admits in this role. Empty where
+  ||| the role names no card ([CR#109.1] makes an ability on the stack
+  ||| an object with no card type) or where nothing may fill it.
+  roleTypes : List CardType
+  ||| whether a participant whose card TYPE is unstated may fill the
+  ||| role. False where the rule names the types outright ([CR#506.3]'s
+  ||| two), True where what fills the role is a player [CR#400.1], an
+  ||| ability [CR#109.1], or an object the rule describes some other way
+  ||| (the spell of [CR#601.2], the card of [CR#701.23a]).
+  roleBare : Bool
+  ||| where the deed's own rule has the participant BE while it is
+  ||| performed: [CR#506.3]'s combatants are on the battlefield,
+  ||| [CR#601.2] puts a spell on the stack. `Nothing` where the rule
+  ||| names no zone -- a player is in none [CR#400.1], and a target is
+  ||| wherever it already is [CR#115.1].
+  roleZone : Maybe Zone
+
+||| The role nothing fills: what a deed with no agent, or no patient,
+||| states about the end it does not have.
+public export
+noRole : DeedRole
+noRole = MkDeedRole [] [] False Nothing
+
+||| What a deed's label records beyond its name. The two roles are the
+||| deed's own rule speaking; the four flags are what a statement may
+||| write beside the deed.
+public export
+record DeedFacts where
+  constructor MkDeedFacts
+  ||| the label as a statement writes it
+  deed : VerbLabel
+  ||| who performs it
+  deedAgent : DeedRole
+  ||| who it is performed on
+  deedPatient : DeedRole
+  ||| whether the deed is aimed at a DEFENDER: [CR#506.3] lets an attack
+  ||| name a player as well as a permanent, which is the one place a
+  ||| deontic's other participant is not an object.
+  deedDefends : Bool
+  ||| whether the deed's other participant is a TARGETER -- a spell
+  ||| [CR#115.1a] or an ability [CR#115.1c,115.1d] -- rather than a
+  ||| participant of the deed's own kind.
+  deedTargeted : Bool
+  ||| whether [CR#609.4]'s counterfactual may ride a permission of this
+  ||| deed. The rule's own bipartition is "a player may do something
+  ||| 'as though' ... or a creature can do something 'as though' ...",
+  ||| so the flag records which deeds the corpus writes one for.
+  deedCounterfactual : Bool
+  ||| whether the deed spells the EFFECT-SCOPED rider (`CantBe`), which
+  ||| is a different construction from a standing prohibition: the rider
+  ||| denies one resolution's own consequence ("destroy it. It can't be
+  ||| regenerated"), where the carrier states a continuous restriction.
+  ||| Both read this one label vocabulary; only the flag differs.
+  deedRides : Bool
+
+||| The deed table, open by construction: a row is a name, two roles and
+||| four flags, and adding one obliges nothing else.
+public export
+deedFacts : List DeedFacts
+deedFacts =
+  -- [CR#506.3]: "Only a creature can attack or block. Only a player, a
+  -- planeswalker, or a battle can be attacked." The player half is
+  -- `DefendingPlayer`'s, which is why the flag rides beside the types.
+  [ MkDeedFacts "Attack"
+      (MkDeedRole [Object] [Creature] False (Just Battlefield))
+      (MkDeedRole [Object] [Planeswalker, Battle] False (Just Battlefield))
+      True False True False
+  , MkDeedFacts "Block"
+      (MkDeedRole [Object] [Creature] False (Just Battlefield))
+      (MkDeedRole [Object] [Creature] False (Just Battlefield))
+      False False True False
+  -- [CR#115.1] makes the targets "object(s) and/or player(s) the spell
+  -- or ability will affect", and they are chosen wherever they are, so
+  -- the patient's zone is unstated and its type is whatever the printed
+  -- description says. The agent is the stack object [CR#115.1a,115.1c,
+  -- 115.1d], which is what `deedTargeted` says of it.
+  , MkDeedFacts "Target"
+      (MkDeedRole [] [] True (Just Stack))
+      (MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True Nothing)
+      False True True False
+  -- [CR#601.2] takes the spell from where it is and puts it on the
+  -- stack; [CR#305.9] keeps a land off it. The agent is the player who
+  -- casts, in no zone [CR#400.1].
+  , MkDeedFacts "Cast"
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True (Just Stack))
+      False False True True
+  -- [CR#701.18a]: "To play a land means to put it onto the battlefield
+  -- from the zone it's in" -- a special action, never on the stack, so
+  -- the patient's zone is the one the clause names and not this rule's.
+  , MkDeedFacts "Play"
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [Land] True Nothing)
+      False False True True
+  -- [CR#701.6a] cancels a spell or ability and removes it from the
+  -- stack, so both ends of the deed are stack objects.
+  , MkDeedFacts "Counter"
+      (MkDeedRole [] [] True (Just Stack))
+      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True (Just Stack))
+      False False False True
+  -- [CR#707.10] puts a copy of a spell or ability onto the stack.
+  , MkDeedFacts "Copy"
+      (MkDeedRole [] [] True (Just Stack))
+      (MkDeedRole [Object] [Creature, Artifact, Enchantment, Instant, Sorcery,
+                   Planeswalker, Battle, Kindred] True (Just Stack))
+      False False False False
+  -- [CR#602.2] puts an ability on the stack and pays its costs; only
+  -- the object's controller activates it. [CR#109.1] makes the ability
+  -- an object with no card type, which is why the patient is bare with
+  -- no types at all.
+  , MkDeedFacts "Activate"
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Ability] [] True Nothing)
+      False False False False
+  -- [CR#614.8] makes regeneration a destruction-replacement on a
+  -- permanent, so the patient is on the battlefield.
+  , MkDeedFacts "Regenerate"
+      (MkDeedRole [] [] True Nothing)
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
+                            Planeswalker, Battle] True (Just Battlefield))
+      False False False True
+  -- [CR#119.3] adjusts a PLAYER's life total; nothing is done to a
+  -- second participant.
+  , MkDeedFacts "GainLife"
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False False False
+  -- [CR#121.1] has a player put the top card of their library into
+  -- their hand.
+  , MkDeedFacts "DrawCard"
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False False False
+  -- [CR#701.23a] looks at all cards in a zone and finds one; what a
+  -- printed line writes after the verb is the zone, which is no `Kind`
+  -- here, so the deed states only its agent.
+  , MkDeedFacts "SearchLibrary"
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False False False
+  -- [CR#104.3] and [CR#104.2] name the ways a player loses and wins;
+  -- the deed's agent is the player the outcome befalls and there is no
+  -- second participant. Two labels rather than one signed row, because
+  -- the corpus coordinates them under one subject ("players can't lose
+  -- the game or win the game this turn") and the carrier's deed LIST is
+  -- what that coordination is.
+  , MkDeedFacts "LoseGame"
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False False False
+  , MkDeedFacts "WinGame"
+      (MkDeedRole [Player] [] True Nothing) noRole
+      False False False False
+  ]
 
 public export
-data DeedParticipant : Deed -> Role -> Maybe CardType -> Type where
-  Participant : {auto 0 ok : So (deedType d r t)} -> DeedParticipant d r (Just t)
+deedIn : VerbLabel -> List DeedFacts -> Maybe DeedFacts
+deedIn v [] = Nothing
+deedIn v (f :: fs) = if deed f == v then Just f else deedIn v fs
+
+public export
+deedFactsFor : VerbLabel -> Maybe DeedFacts
+deedFactsFor v = deedIn v deedFacts
+
+||| The membership gate: typo-safety without a per-deed type, and the
+||| whole of what exhaustiveness was traded for.
+public export
+knownDeed : VerbLabel -> Bool
+knownDeed v = isJust (deedFactsFor v)
+
+public export
+KnownDeed : VerbLabel -> Type
+KnownDeed v = So (knownDeed v)
+
+||| One end's facts, or the empty role for a label with no row -- which
+||| is the fail-closed answer, since the empty role admits nothing.
+public export
+deedRoleOf : VerbLabel -> Role -> DeedRole
+deedRoleOf v Agent = maybe noRole deedAgent (deedFactsFor v)
+deedRoleOf v Patient = maybe noRole deedPatient (deedFactsFor v)
+
+||| Whether a referent of that KIND may fill the role at all. Asked
+||| before the type, and the reason "spells can't be activated" and
+||| "abilities can't be cast" stay refused now that no per-act subject
+||| type indexes the gate.
+public export
+deedKindOk : VerbLabel -> Role -> Kind -> Bool
+deedKindOk v r k = elem k (roleKinds (deedRoleOf v r))
+
+||| Whether a participant of a stated card type may fill the role.
+public export
+deedTypeOk : VerbLabel -> Role -> CardType -> Bool
+deedTypeOk v r t = elem t (roleTypes (deedRoleOf v r))
+
+||| Whether a participant whose card type is unstated may fill it.
+public export
+deedBareOk : VerbLabel -> Role -> Bool
+deedBareOk v r = roleBare (deedRoleOf v r)
+
+||| Where the deed's rule has the role's participant be.
+public export
+deedZoneOf : VerbLabel -> Role -> Maybe Zone
+deedZoneOf v r = roleZone (deedRoleOf v r)
+
+public export
+deedDefendsOk : VerbLabel -> Bool
+deedDefendsOk v = maybe False deedDefends (deedFactsFor v)
+
+public export
+deedTargetedOk : VerbLabel -> Bool
+deedTargetedOk v = maybe False deedTargeted (deedFactsFor v)
+
+public export
+deedCounterfactualOk : VerbLabel -> Bool
+deedCounterfactualOk v = maybe False deedCounterfactual (deedFactsFor v)
+
+public export
+deedRidesOk : VerbLabel -> Bool
+deedRidesOk v = maybe False deedRides (deedFactsFor v)
+
+||| A statement's deeds: one label, or the several a single subject and
+||| a single modality coordinate ("can't attack or block", "can't lose
+||| the game or win the game this turn"). The coordination lives HERE,
+||| at the carrier, rather than at each family that wants one: the deed,
+||| the gate and the effect-scoped rider all read this list.
+public export
+Deeds : Type
+Deeds = List VerbLabel
+
+||| Every deed in the list is known. An empty list passes this and is
+||| refused by `IsSucc` at the carrier instead, which is where the
+||| emptiness is a statement about the SENTENCE rather than the labels.
+public export
+knownDeeds : Deeds -> Bool
+knownDeeds ds = all knownDeed ds
+
+public export
+KnownDeeds : Deeds -> Type
+KnownDeeds ds = So (knownDeeds ds)
+
+||| A coordination's shared zone: the zone every coordinated deed puts
+||| the role's participant in, and `Nothing` where they disagree or
+||| where none states one. Disagreement answering `Nothing` is not a
+||| loosening -- `zoneFits` reads `Nothing` on the DESCRIPTION side as
+||| "the deed states no zone", and a coordination of two deeds that
+||| state different ones states none in common.
+public export
+deedsZone : Deeds -> Role -> Maybe Zone
+deedsZone [] r = Nothing
+deedsZone (d :: ds) r =
+  case deedsZone ds r of
+    Nothing => if null ds then deedZoneOf d r else Nothing
+    Just z => if deedZoneOf d r == Just z then Just z else Nothing
+
+||| The participant gate, asked of every coordinated deed at once.
+public export
+data DeedParticipant : Deeds -> Role -> Kind -> Maybe CardType -> Type where
+  ||| the participant whose card type the phrase states: every deed's
+  ||| own rule must admit that kind and that type in that role.
+  Participant : {auto 0 kk : So (all (\d => deedKindOk d r k) ds)} ->
+                {auto 0 ok : So (all (\d => deedTypeOk d r t) ds)} ->
+                DeedParticipant ds r k (Just t)
+  ||| the participant whose card type the phrase does not state -- a
+  ||| player, an ability [CR#109.1], or an object described by
+  ||| something other than its type ("spells with the chosen name").
+  ||| Refused wherever the deed's rule names the types outright, which
+  ||| is what keeps [CR#506.3]'s two deeds as tight as they were.
+  BareParticipant : {auto 0 kk : So (all (\d => deedKindOk d r k) ds)} ->
+                    {auto 0 ok : So (all (\d => deedBareOk d r) ds)} ->
+                    DeedParticipant ds r k Nothing
 
 public export
 data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
@@ -787,9 +1030,6 @@ data CondMarking = AsLongAs | Unless
 
 public export
 data PlayVerb = Play | Cast
-
-public export
-data PlayAsThough = HadFlash
 
 public export
 data PlayLimit = OnceEachYourTurn | OnceEachTurn

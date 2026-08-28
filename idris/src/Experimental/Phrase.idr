@@ -3401,22 +3401,12 @@ mutual
                Predicate bs Object -> Noun bs k -> Type
   HostedRead {bs} {k} p n = So (hostedRead p n)
 
-  public export
-  data ActSubject : {0 k : Kind} -> ObjectAct -> Noun bs k -> Type where
-    CounteredOnStack : {0 n : Noun bs Object} ->
-                       {auto 0 zn : ZoneFits (nounZone n) (Just Stack)} ->
-                       ActSubject Countered n
-    CastOnStack : {0 n : Noun bs Object} ->
-                  {auto 0 zn : ZoneFits (nounZone n) (Just Stack)} ->
-                  ActSubject Cast n
-    CopiedOnStack : {0 n : Noun bs Object} ->
-                    {auto 0 zn : ZoneFits (nounZone n) (Just Stack)} ->
-                    ActSubject Copied n
-    PlayedIsLand : {0 n : Noun bs Object} -> ActSubject Played n
-    ActivatedIsAbility : {0 n : Noun bs Ability} -> ActSubject Activated n
-    RegeneratedOnField : {0 n : Noun bs Object} ->
-                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                         ActSubject Regenerated n
+  ||| `ActSubject` retired with `ObjectAct`. Its six rows said, per act,
+  ||| what KIND of referent the act is done to and what ZONE the act's
+  ||| own rule finds it in; both are now `deedFacts` fields
+  ||| (`roleKinds`, `roleZone`) read by one gate at the unified carrier,
+  ||| so a new deed adds a row rather than a constructor here and a
+  ||| clause in every reader.
 
   ||| The possessor of a relation an object can hold to only ONE player:
   ||| [CR#110.2] gives a permanent one controller, the player under whose
@@ -3995,24 +3985,30 @@ mutual
   interveningIntro Nothing = bs
   interveningIntro (Just c) = condIntro c
 
+  ||| The third argument is the PRESENCE of a [CR#609.4] counterfactual
+  ||| and no longer its value: `PlayAsThough = HadFlash` retired into the
+  ||| carrier's general premise slot, and what this gate ever asked of it
+  ||| was whether a counterfactual was written at all. A permission
+  ||| carrying one describes the object by what it would be rather than
+  ||| by where it is, so the complement answers `castComplementOk`.
   public export
   playSourceOk : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
-                 Maybe PlayAsThough -> Bool
+                 Bool -> Bool
   -- with no source phrase written, the complement's own sort word is the
   -- only thing that could name one, so the question is whether that word
   -- LOCATES the object at all -- `complementLocates`, not `playableFrom`,
   -- which answers a written origin phrase.
-  playSourceOk zn Nothing Nothing = complementLocates zn
-  playSourceOk zn (Just z) Nothing =
+  playSourceOk zn Nothing False = complementLocates zn
+  playSourceOk zn (Just z) False =
     playableFrom (Just (zoneSort z)) &&
     (not (complementLocates zn) || zoneFits zn (Just (zoneSort z)))
-  playSourceOk zn Nothing (Just HadFlash) = castComplementOk zn
-  playSourceOk zn (Just z) (Just HadFlash) =
+  playSourceOk zn Nothing True = castComplementOk zn
+  playSourceOk zn (Just z) True =
     castComplementOk zn && playableFrom (Just (zoneSort z))
 
   public export
   data PlaySource : {0 bs : Bindings} -> Maybe Zone -> Maybe (ZoneExpr bs) ->
-                    Maybe PlayAsThough -> Type where
+                    Bool -> Type where
     MkPlaySource : {0 fz : Maybe (ZoneExpr bs)} ->
                    {auto 0 ok : So (playSourceOk zn fz at)} -> PlaySource zn fz at
 

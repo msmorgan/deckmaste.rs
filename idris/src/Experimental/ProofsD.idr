@@ -175,7 +175,7 @@ badInstantOntoBattlefield Oh impossible
 public export
 badUnlessOnPositive : Unspellable Ability (\ok =>
   Static (Conditionally (Exists (And [Macros.artifact, ControlledBy You]))
-                        (Deontic Macros.thisCreature Forbid Attack Agent NoDeonticPatient) Unless {mk = ok}))
+                        (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent NoDeonticPatient) Unless {mk = ok}))
 badUnlessOnPositive MkMarkingOk impossible
 
 
@@ -372,7 +372,7 @@ badThatTurnsAttackWindow Oh impossible
 ||| Only a creature attacks [CR#506.3], and the requirement reads the restriction's own grid.
 public export
 badMustAttackLand : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic (Macros.target Macros.land) Require Attack Agent NoDeonticPatient {dp = ok})
+  Continuously (Macros.deontic (Macros.target Macros.land) Require ["Attack"] Agent NoDeonticPatient {dp = ok})
                (Just Macros.thisTurn))
 badMustAttackLand Participant impossible
 
@@ -401,10 +401,10 @@ badThatCreatureIsSelf Refl impossible
 ||| is attacked [CR#506.3].
 public export
 badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
-  Continuously (Deontic Macros.thisCreature Forbid Attack Agent
-                        (DeonticCounterpart (Macros.target Macros.creature) {dp = ok}))
+  Continuously (Macros.deontic Macros.thisCreature Forbid ["Attack"] Agent
+                        (DeonticCounterpart (Macros.target Macros.creature)) {pt = ok})
                (Just Macros.thisTurn))
-badForbidAttackWithPatient Participant impossible
+badForbidAttackWithPatient Oh impossible
 
 
 ||| "As long as this creature is attacking, that creature gets +2/+0."
@@ -436,7 +436,7 @@ badFortifiedCreature Oh impossible
 ||| The gate is a static line, and a static ability announces no target [CR#115.1d].
 public export
 badTargetedOutcomeGate : Unspellable Ability (\ok =>
-  Static (OutcomeGate CantLose (Macros.target AnyPlayer)) {ut = ok})
+  Static (Macros.playerCant "LoseGame" (Macros.target AnyPlayer)) {ut = ok})
 badTargetedOutcomeGate Oh impossible
 
 

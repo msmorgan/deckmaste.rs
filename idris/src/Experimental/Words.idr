@@ -3849,26 +3849,14 @@ Eq OutcomeVerb where
   (==) LoseGame LoseGame = True
   (==) LoseGame _ = False
 
-public export
-data OutcomeGateKind = CantLose | CantWin
-
-public export
-data PlayerAct = GainsLife | PlaysLands | CastsSpells | SearchesLibraries
-               | DrawsCards
-
-public export
-data ObjectAct = Countered | Cast | Played | Copied | Activated
-               | Regenerated
-
-public export
-riderAct : ObjectAct -> Bool
-riderAct Regenerated = True
-riderAct Countered = True
-riderAct Cast = True
-riderAct Played = True
-riderAct Copied = False
-riderAct Activated = False
-
+||| The prohibition ACTS -- `OutcomeGateKind`, `PlayerAct` and
+||| `ObjectAct` -- retired into the deed labels of
+||| `Experimental.Events.deedFacts`. They were three closed enums for
+||| what is one open vocabulary: the same act is written in two voices
+||| one card apart ("your opponents can't cast spells" against "spells
+||| with the chosen name can't be cast"), and under labels that is one
+||| deed at two roles rather than a row in each of two tables. What
+||| `riderAct` decided is the `deedRides` field of the same rows.
 public export
 data DefinedSlots = PowerAlone | ToughnessAlone | BothEach
 

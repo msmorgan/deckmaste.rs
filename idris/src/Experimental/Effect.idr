@@ -6,6 +6,38 @@ import public Experimental.Triggers
 
 %default total
 
+||| [CR#609.4]'s counterfactual, the premise a permission is scoped by:
+||| "treat the game exactly as if the stated condition were true. For
+||| all other purposes, treat the game normally." It is a SLOT on the
+||| deontic row and never a node above one -- the permission is the
+||| head and the counterfactual its rider -- because a node above would
+||| admit pairings the rule cannot express, a free-floating May or
+||| Can't under an unrelated premise. [CR#609.4a]'s stacked as-thoughs
+||| are two permissions each carrying its own rider, not one nesting.
+|||
+||| The premise is a general `Predicate`, not a closed list of negated
+||| keywords: the corpus writes six unrelated payload families over the
+||| same 264 sentences -- a keyword ("as though it didn't have
+||| defender"), a characteristic ("as though its power were 2
+||| greater"), a combat fact ("as though it weren't blocked"), a status
+||| ("as though they were untapped"), counters ("as though it had no
+||| +1/+1 counters on it") and existence -- and each is already a
+||| `Predicate bs Object` here, with `Not` and its `Negatable` gate
+||| supplying the negation. [CR#609.4] states no restriction on the
+||| condition, so a closed payload would refuse rules-meaningful
+||| sentences and pin nothing.
+|||
+||| ONE arm, for now, and the seam is named: [CR#609.4b] gives spending
+||| mana "as though it were mana of any [type or color]" its own rule
+||| and its own payload -- a mana-symbol matcher, not a predicate over
+||| an object -- and that arm belongs to the spend deed, which is the
+||| mana family's round.
+||| -- spelling: "as though [p]".
+public export
+data AsThough : Bindings -> Type where
+  AsThoughOf : (p : Predicate bs Object) -> AsThough bs
+
+
 mutual
   public export
   record TokenChars (bs : Bindings) where
@@ -213,20 +245,46 @@ mutual
       Gains : (n : Noun bs Object) -> (ab : AbilityAt bs) ->
               {auto 0 ok : GrantSubject ab n} ->
               {auto 0 gr : Grantable ab} -> StaticEffect bs
-      Deontic : (n : Noun bs Object) -> (c : Compulsion bs) ->
-                (deed : Deed) -> (role : Role) ->
-                (patient : DeonticPatient {bs = nomIntro n} deed role) ->
-                {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
-                {auto 0 dp : DeedParticipant deed role (nounTy n)} -> StaticEffect bs
+      ||| THE deontic carrier: one subject, one modality, one or more
+      ||| deeds, one role, an optional other participant and an optional
+      ||| [CR#609.4] counterfactual. It is the whole modal algebra --
+      ||| May, Can't, Must and Gate -- over the OPEN deed vocabulary, so
+      ||| "this creature can attack", "creatures you control can't
+      ||| attack", "this creature must be blocked if able" and "this
+      ||| creature can't attack unless you pay {1}" are one row at four
+      ||| `Compulsion` values, and "spells with the chosen name can't be
+      ||| cast", "your opponents can't cast spells", "this ability can't
+      ||| be activated", "you can't lose the game" and "this creature
+      ||| can't be the target of nongreen spells" are the same row at
+      ||| other labels. `PlayerCant`, `ObjectCant` and `OutcomeGate` were
+      ||| three Cant-only carriers over three closed act enums; they say
+      ||| nothing this one does not, and the corpus writes the same act
+      ||| in both voices one card apart, which under labels is one deed
+      ||| at two ROLES rather than a row in each of two vocabularies.
+      |||
+      ||| The deed slot is a LIST, and that list is the coordination the
+      ||| deed, the outcome gate and the effect-scoped rider each wanted
+      ||| separately: "can't attack or block" and "players can't lose the
+      ||| game or win the game this turn" are one subject and one
+      ||| modality over two labels, which is what the list says and what
+      ||| no per-family fix could have said once.
+      ||| -- spelling: "[n] can't/must/may [deed]", the deeds coordinated
+      ||| with "or"; under `GatedBy`, "unless [cost]"; with a premise,
+      ||| "as though [premise]".
+      Deontic : {k : Kind} -> (n : Noun bs k) -> (c : Compulsion bs) ->
+                (deeds : Deeds) -> (role : Role) ->
+                (patient : DeonticPatient {bs = nomIntro n} deeds role) ->
+                (asThough : Maybe (AsThough (nomIntro n))) ->
+                {auto 0 ne : NonEmpty deeds} ->
+                {auto 0 kd : KnownDeeds deeds} ->
+                {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
+                {auto 0 dp : DeedParticipant deeds role k (nounTy n)} ->
+                {auto 0 pt : So (deonticPatientOk n deeds role patient)} ->
+                {auto 0 at : So (asThoughOk c deeds asThough)} ->
+                StaticEffect bs
       MayDeclineUntap : (n : Noun bs Object) ->
                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                         StaticEffect bs
-      OutcomeGate : (k : OutcomeGateKind) -> (who : Noun bs Player) ->
-                    StaticEffect bs
-      PlayerCant : (act : PlayerAct) -> (who : Noun bs Player) ->
-                   StaticEffect bs
-      ObjectCant : {k : Kind} -> (act : ObjectAct) -> (what : Noun bs k) ->
-                   {auto 0 sub : ActSubject act what} -> StaticEffect bs
       DoesntUntap : (n : Noun bs Object) ->
                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                     StaticEffect bs
@@ -445,10 +503,10 @@ mutual
       MayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                 (verb : PlayVerb) ->
                 (from : Maybe (ZoneExpr (nomIntro what))) ->
-                (asThough : Maybe PlayAsThough) ->
+                (asThough : Maybe (AsThough (nomIntro what))) ->
                 (limit : Maybe PlayLimit) ->
                 (window : Maybe PlayWindow) ->
-                {auto 0 pz : PlaySource (nounZone what) from asThough} ->
+                {auto 0 pz : PlaySource (nounZone what) from (isJust asThough)} ->
                 {auto 0 cv : CastableTy verb (nounTy what)} -> StaticEffect bs
       Visibility : (v : ExposeVerb) -> (who : Noun bs Player) ->
                    (what : VisibleThing) ->
@@ -544,27 +602,131 @@ mutual
                   {auto 0 ok : So (vpsOk (nounZone n) (nounRegime n) vps)} ->
                   StaticEffect bs
 
+  ||| The modality, all four rows of it. [CR#609.4] writes the
+  ||| permissive one in the rules' own words -- "a player may do
+  ||| something ... or A CREATURE CAN do something" -- and it is the row
+  ||| the closed enum lacked: "this creature can attack" was unwritable
+  ||| before any counterfactual was reached, which is what blocked the
+  ||| whole permission family.
   public export
   data Compulsion : Bindings -> Type where
+    ||| "[n] can't [deed]"
     Forbid : Compulsion bs
+    ||| "[n] [deed]s if able"
     Require : Compulsion bs
+    ||| "[n] can't [deed] unless [c]"
     GatedBy : (c : Cost bs) -> Compulsion bs
+    ||| "[n] can [deed]", "you may have [n] [deed]". The optionality is
+    ||| this row's own and needs no second carrier: a permission a player
+    ||| declines is a permission unused.
+    Permit : Compulsion bs
 
-  ||| The deed's other participant, written or left out. [CR#506.3]
-  ||| fixes who that may be: only a player, a planeswalker or a battle
-  ||| is attacked, and only a creature attacks or blocks.
+  ||| The deed's other participant, written or left out. Which arms a
+  ||| given deed admits is `deonticPatientOk`'s question, asked once at
+  ||| the carrier against `deedFacts`, so the arms are not indexed by the
+  ||| deed and a new deed adds no constructor here.
   public export
-  data DeonticPatient : {0 bs : Bindings} -> Deed -> Role -> Type where
-    NoDeonticPatient : DeonticPatient {bs} d r
+  data DeonticPatient : {0 bs : Bindings} -> Deeds -> Role -> Type where
+    NoDeonticPatient : DeonticPatient {bs} ds r
     ||| What an attack is aimed at [CR#506.3] -- a player, a planeswalker
     ||| or a battle, and under a joined kind a phrase naming either half.
+    ||| The one place a deontic's other participant may be a PLAYER,
+    ||| which is why the deed's row carries `deedDefends` beside its
+    ||| patient types.
     DefendingPlayer : {k : Kind} -> (m : Noun bs k) ->
                       {auto 0 at : Attackable m} ->
-                      DeonticPatient {bs} Attack Agent
+                      DeonticPatient {bs} ds r
+    ||| The deed's own counterpart: a blocker's attacker, an attacker's
+    ||| blocker [CR#506.3].
     DeonticCounterpart : (m : Noun bs Object) ->
-                         {auto 0 dp : DeedParticipant d (counterRole r) (nounTy m)} ->
-                         {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
-                         DeonticPatient {bs} d r
+                         DeonticPatient {bs} ds r
+    ||| WHAT may not target the subject: "spells or abilities your
+    ||| opponents control", "nongreen spells or abilities from nongreen
+    ||| sources", "Aura spells". The by-spell/by-source distinction the
+    ||| act vocabularies had no room for needs no slot of its own here --
+    ||| [CR#115.1a] describes a targeting SPELL by the stack object
+    ||| itself, while [CR#115.1c,115.1d] reach an ability through the
+    ||| object it came from, and `AbilityOf` is already the predicate
+    ||| that names that object. So the agent is ONE noun at the joined
+    ||| kind the printed line writes ("spells or abilities"), gated by
+    ||| `Targeter`, and "nongreen spells or abilities from nongreen
+    ||| sources" spells the colour twice because the rules make it two
+    ||| descriptions of two different objects.
+    ||| Not a member of any act vocabulary, and not `CantBe`: that rider
+    ||| denies one resolving effect's own consequence, where this states
+    ||| a continuous restriction on a permanent. The two now share the
+    ||| deed labels and differ in construction, which is exactly their
+    ||| relationship.
+    TargetedBy : {k : Kind} -> (m : Noun bs k) ->
+                 {auto 0 tr : Targeter k} ->
+                 DeonticPatient {bs} ds r
+
+  public export
+  agentRole : Role -> Bool
+  agentRole Agent = True
+  agentRole Patient = False
+
+  ||| Whether the deed's own counterpart fits the role it is written
+  ||| into: the kind, the card type (or its absence) and the zone, asked
+  ||| of every coordinated deed at once. `DeedParticipant`'s content as a
+  ||| Bool, because the counterpart is checked from the carrier rather
+  ||| than at its own constructor.
+  public export
+  counterpartFits : {bs : Bindings} -> Deeds -> Role -> Noun bs Object -> Bool
+  counterpartFits ds r m =
+    all (\d => deedKindOk d r Object) ds &&
+    (case nounTy m of
+       Just ty => all (\d => deedTypeOk d r ty) ds
+       Nothing => all (\d => deedBareOk d r) ds) &&
+    zoneFits (nounZone m) (deedsZone ds r)
+
+  ||| A creature never blocks itself and never attacks itself.
+  ||| [CR#509.1a] has the DEFENDING player choose the blockers from among
+  ||| the creatures they control and, for each, "one creature for it to
+  ||| block that's attacking that player"; [CR#508.1a] has the ACTIVE
+  ||| player choose the attackers from among the creatures they control.
+  ||| The two participants are therefore always under different
+  ||| controllers and are never one object, so a statement naming the
+  ||| subject as its own counterpart says what no game state can satisfy.
+  ||| A bare `It` written as the counterpart is exactly that statement
+  ||| whenever the subject made the only Object announcement the pronoun
+  ||| could read -- the counterpart is typed at `nomIntro n`, and
+  ||| bindings are nearest-first. `ItOtherThan` is the positive path: it
+  ||| splits the subject's own delta off the prefix and reads what is
+  ||| left, which is what `mustBlockIt` writes.
+  public export
+  counterpartNotSelf : {bs : Bindings} -> {k : Kind} -> (n : Noun bs k) ->
+                       Noun (nomIntro n) Object -> Bool
+  counterpartNotSelf n It = countOnes Object (nounDelta n) == 0
+  counterpartNotSelf n _ = True
+
+  ||| Which other participant each deed admits, asked once at the
+  ||| carrier: a defender only where the deed is aimed at one
+  ||| [CR#506.3], a targeter only where the deed is targeting
+  ||| [CR#115.1a,115.1c,115.1d], and the deed's own counterpart wherever
+  ||| the deed's other role can be filled at all.
+  public export
+  deonticPatientOk : {bs : Bindings} -> {k : Kind} -> (n : Noun bs k) ->
+                     (ds : Deeds) -> (r : Role) ->
+                     DeonticPatient {bs = nomIntro n} ds r -> Bool
+  deonticPatientOk n ds r NoDeonticPatient = True
+  deonticPatientOk n ds r (DefendingPlayer m) = all deedDefendsOk ds && agentRole r
+  deonticPatientOk n ds r (DeonticCounterpart m) =
+    counterpartFits ds (counterRole r) m && counterpartNotSelf n m
+  deonticPatientOk n ds r (TargetedBy m) = all deedTargetedOk ds
+
+  ||| [CR#609.4]'s slot opens on the PERMISSION alone. The rule's own
+  ||| sentence is "a player may do something 'as though' ... or a
+  ||| creature can do something 'as though' ...", and the corpus agrees:
+  ||| of 264 supported "as though" sentences, ZERO write one under a
+  ||| can't, a must or a gate (measured 2026-08-28). The deed must admit
+  ||| one too, which is what `deedCounterfactual` records.
+  public export
+  asThoughOk : {0 bs : Bindings} -> {0 cs : Bindings} ->
+               Compulsion bs -> Deeds -> Maybe (AsThough cs) -> Bool
+  asThoughOk _ ds Nothing = True
+  asThoughOk Permit ds (Just _) = all deedCounterfactualOk ds
+  asThoughOk _ _ (Just _) = False
 
   ||| The gate on both static conditionals: a conditioned statement is not
   ||| conditioned again. It is a NARROWING and not a pin, and it is
@@ -681,14 +843,11 @@ mutual
   staticKind (CostsToCast _ _) = CostModification
   staticKind (AltCost _) = CostModification
   staticKind (Gains _ _) = KeywordGrant
-  staticKind (Deontic _ _ _ _ _) = DeedRestriction
+  staticKind (Deontic _ _ _ _ _ _) = DeedRestriction
   staticKind (DoesntUntap _) = DeedRestriction
   staticKind (CantUntapMoreThan _ _ _) = DeedRestriction
   staticKind (Skips _ _) = TurnSkip
   staticKind (MayDeclineUntap _) = DeedRestriction
-  staticKind (OutcomeGate _ _) = DeedRestriction
-  staticKind (PlayerCant _ _) = DeedRestriction
-  staticKind (ObjectCant _ _) = DeedRestriction
   staticKind (BecomesAlso _ _) = TypeAddition
   staticKind (AddsEveryType _ _) = TypeAddition
   staticKind (LosesEveryType _ _) = TypeLoss
@@ -735,14 +894,11 @@ mutual
   staticIntro (CostsToCast n sh) = amtDelta (costAmount sh) ++ selfSubjIntro n
   staticIntro (AltCost _) = bs
   staticIntro (Gains n _) = selfSubjIntro n
-  staticIntro (Deontic n _ _ _ _) = selfSubjIntro n
+  staticIntro (Deontic n _ _ _ _ _) = selfSubjIntro n
   staticIntro (DoesntUntap n) = selfSubjIntro n
   staticIntro (CantUntapMoreThan _ _ _) = bs
   staticIntro (Skips _ _) = bs
   staticIntro (MayDeclineUntap n) = selfSubjIntro n
-  staticIntro (OutcomeGate _ who) = selfSubjIntro who
-  staticIntro (PlayerCant _ who) = selfSubjIntro who
-  staticIntro (ObjectCant _ what) = nomIntro what
   staticIntro (BecomesAlso n _) = selfSubjIntro n
   staticIntro (AddsEveryType n _) = selfSubjIntro n
   staticIntro (LosesEveryType n _) = selfSubjIntro n
@@ -1080,10 +1236,10 @@ mutual
     ||| blocks [what]".
     BecomesBlocking : (n : Noun bs Object) ->
                       {auto 0 zn : OnBattlefield (nounZone n)} ->
-                      {auto 0 dn : DeedParticipant Block Agent (nounTy n)} ->
+                      {auto 0 dn : DeedParticipant ["Block"] Agent Object (nounTy n)} ->
                       (what : Noun (nomIntro n) Object) ->
                       {auto 0 zw : OnBattlefield (nounZone what)} ->
-                      {auto 0 dw : DeedParticipant Block Patient (nounTy what)} ->
+                      {auto 0 dw : DeedParticipant ["Block"] Patient Object (nounTy what)} ->
                       Effect bs
     ||| "[n] stops blocking [what]": one assignment unwritten and nothing
     ||| else. [CR#506.4] lists what removes a permanent from combat and a
@@ -1100,10 +1256,10 @@ mutual
     ||| -- spelling: "[n] stops blocking [what]"
     StopsBlocking : (n : Noun bs Object) ->
                     {auto 0 zn : OnBattlefield (nounZone n)} ->
-                    {auto 0 dn : DeedParticipant Block Agent (nounTy n)} ->
+                    {auto 0 dn : DeedParticipant ["Block"] Agent Object (nounTy n)} ->
                     (what : Noun (nomIntro n) Object) ->
                     {auto 0 zw : OnBattlefield (nounZone what)} ->
-                    {auto 0 dw : DeedParticipant Block Patient (nounTy what)} ->
+                    {auto 0 dw : DeedParticipant ["Block"] Patient Object (nounTy what)} ->
                     Effect bs
     ||| "[n] is attacking [whom]": the attacking twin of
     ||| `BecomesBlocking`, for a permanent already on the battlefield.
@@ -1117,15 +1273,25 @@ mutual
     ||| -- spelling: "[n] is attacking [whom]"
     BecomesAttacking : (n : Noun bs Object) ->
                        {auto 0 zn : OnBattlefield (nounZone n)} ->
-                       {auto 0 dn : DeedParticipant Attack Agent (nounTy n)} ->
+                       {auto 0 dn : DeedParticipant ["Attack"] Agent Object (nounTy n)} ->
                        (whom : AttackDefender (nomIntro n)) -> Effect bs
     Regenerate : (n : Noun bs Object) ->
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                  Effect bs
-    CantBe : {k : Kind} -> (e : Effect bs) -> (act : ObjectAct) ->
+    ||| "Destroy target creature. It can't be regenerated": the
+    ||| effect-scoped rider, denying one resolving effect's own
+    ||| consequence where the deontic carrier states a continuous
+    ||| restriction on a permanent. The two constructions now read ONE
+    ||| act vocabulary -- the deed labels -- and differ only in what they
+    ||| are attached to; `deedRides` is which labels a rider may spell.
+    CantBe : {k : Kind} -> (e : Effect bs) -> (deed : VerbLabel) ->
              (what : Noun (riderIntro e) k) ->
-             {auto 0 rd : So (riderAct act)} ->
-             {auto 0 sub : ActSubject act what} -> Effect bs
+             {auto 0 kd : KnownDeed deed} ->
+             {auto 0 rd : So (deedRidesOk deed)} ->
+             {auto 0 kk : So (deedKindOk deed Patient k)} ->
+             {auto 0 sub : DeedParticipant [deed] Patient k (nounTy what)} ->
+             {auto 0 zn : ZoneFits (nounZone what) (deedZoneOf deed Patient)} ->
+             Effect bs
     ||| The warrant tells the bare instruction from a keyword's expansion
     ||| body. A conferral may state how long it lasts: saddle's expansion
     ||| writes "until end of turn" [CR#702.171a] and ascend's and

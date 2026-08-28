@@ -157,7 +157,7 @@ badThatCreatureIsDamagedSelf Refl impossible
 ||| A static ability does not target [CR#115.1a..115.1e].
 public export
 badStaticPlayerCantTargets : Unspellable Ability (\ok =>
-  Static (PlayerCant GainsLife (Macros.target AnyPlayer)) {ut = ok})
+  Static (Macros.playerCant "GainLife" (Macros.target AnyPlayer)) {ut = ok})
 badStaticPlayerCantTargets Oh impossible
 
 
@@ -314,8 +314,8 @@ badSingularNameAgreement Refl impossible
 ||| Countering removes a spell or ability from the stack [CR#701.6a]; a graveyard card is past that.
 public export
 badCounteredInGraveyard : Unspellable (StaticEffect []) (\ok =>
-  ObjectCant Countered (AllOf (And [Macros.creature, InZone Macros.graveyardZ]))
-    {sub = CounteredOnStack {zn = ok}})
+  Macros.objectCant "Counter"
+    (AllOf (And [Macros.creature, InZone Macros.graveyardZ])) {zn = ok})
 badCounteredInGraveyard Oh impossible
 
 
@@ -401,7 +401,8 @@ badChapterReplacement Oh impossible
 ||| A permission's complement is named by what the object will become [CR#701.5b], not by a battlefield word.
 public export
 badFlashPermissionOnPermanent : Unspellable (StaticEffect []) (\ok =>
-  MayPlay You (AllOf Macros.creatureYouControl) Cast Nothing (Just HadFlash) Nothing Nothing {pz = ok})
+  MayPlay You (AllOf Macros.creatureYouControl) Cast Nothing
+          (Just (AsThoughOf (HasKeyword "Flash"))) Nothing Nothing {pz = ok})
 badFlashPermissionOnPermanent MkPlaySource impossible
 
 
@@ -455,26 +456,19 @@ badAdditionalTurn Oh impossible
 public export
 badActivatedSpellClass : Unspellable
   (StaticEffect [MkBinding AD (Quality CardName) OneOf QualityP]) (\ok =>
-  ObjectCant Activated (AllOf (And [Macros.spell, Named ChosenName])) {sub = ok})
-badActivatedSpellClass CounteredOnStack impossible
-badActivatedSpellClass CastOnStack impossible
-badActivatedSpellClass CopiedOnStack impossible
-badActivatedSpellClass PlayedIsLand impossible
-badActivatedSpellClass ActivatedIsAbility impossible
+  Macros.objectCant "Activate"
+    (AllOf (And [Macros.spell, Named ChosenName])) {dp = ok})
+badActivatedSpellClass BareParticipant impossible
 
 
 ||| "Activated abilities of artifacts can't be cast."
 ||| Casting is of a card as a spell [CR#601.1a], and an unactivated ability is no object at all [CR#109.1].
 public export
 badCastAbilityClass : Unspellable (StaticEffect []) (\ok =>
-  ObjectCant Cast
+  Macros.objectCant "Cast"
     (AllOf (And [AbilityHead AnyActivated, AbilityOf (AllOf Macros.artifact)]))
-    {sub = ok})
-badCastAbilityClass CounteredOnStack impossible
-badCastAbilityClass CastOnStack impossible
-badCastAbilityClass CopiedOnStack impossible
-badCastAbilityClass PlayedIsLand impossible
-badCastAbilityClass ActivatedIsAbility impossible
+    {dp = ok})
+badCastAbilityClass BareParticipant impossible
 
 
 ||| "You may {T} rather than pay this spell's mana cost."
@@ -518,10 +512,10 @@ badRegenerateInGraveyard Oh impossible
 ||| The prohibition's subject stands where the verb's object does, so [CR#701.19a] refuses it there too.
 public export
 badRegeneratedInGraveyard : Unspellable (StaticEffect []) (\ok =>
-  ObjectCant Regenerated
-             (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
-             {sub = ok})
-badRegeneratedInGraveyard (RegeneratedOnField {zn = Oh}) impossible
+  Macros.objectCant "Regenerate"
+                    (Macros.a (And [Macros.creature, InZone Macros.graveyardZ]))
+                    {zn = ok})
+badRegeneratedInGraveyard Oh impossible
 
 
 ||| "{T}: Add one mana of the chosen color." (on a card that chooses nothing)
