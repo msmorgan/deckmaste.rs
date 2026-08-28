@@ -487,3 +487,39 @@ work it could not pay, routed here so they stay live:
   "Platinum Persecutor" is not a card, and Abyssal Persecutor / Platinum
   Angel / Angel's Grace / Herald of Eternal Dawn write two SUBJECTS,
   which is a plain conjunction and already writable.
+
+## Routed from sub-round 2 (qualified acts, 2026-08-28)
+
+The qualified complements landed (see that ticket's "As landed", which
+carries the full re-measured table and the three recorded decisions —
+the mana restriction's home, the amount floor's home, the ZONE family's
+home). Seven lines of future work it could not pay, routed here so they
+stay live:
+
+- **The ZONE qualifier family**, 7 lines, is deliberately sub-round 3's:
+  "can't cast spells from graveyards" names the Cast deed's SOURCE, the
+  same slot `MayPlay.from` holds in the permissive voice. Build it once,
+  in the `MayPlay` fold, for both voices.
+- **The mana restriction**, 9 real lines (not 48 — 31 of the 40 naive
+  hits are Powerstone/Vibranium token reminder text, and the umbrella's
+  quoted example sentence is ZERO lines): the mana vocabulary's, since
+  `Kind` has no mana row for the deontic subject. Its complement should
+  read `DeonticCounterpart`'s noun rather than mint one.
+- **The amount floor** "X can't be 0", 19 lines over 17 cards: the
+  amount vocabulary's, beside the letter's announcement [CR#107.3].
+- **The ordinal turn-of-game window**, 3 lines ("during your first,
+  second, or third turns of the game"): `TurnPart` names parts of a
+  turn, so `OnlyDuring` refuses it correctly and a turn-ordinal
+  vocabulary is a separate ask.
+- **The Aura coordination's anaphoric subject**, 43 of the 60 real
+  activation-prohibition lines: "Enchanted creature can't attack or
+  block, and ITS activated abilities can't be activated". Both halves
+  write; the possessive read across the conjunction does not. An
+  anaphora question.
+- **The causative deed** (The Master, Multiplied, 1 line) and the
+  **destruction prohibition** (Ogre Enforcer, 1 line): one wants a deed
+  whose complement is a clause, the other a by-clause and an
+  unless-clause on one statement. One line each.
+- **Necrologia's additional cost** and **Alhammarret's reveal-then-choose
+  as-enters**: the two named blockers left on cards whose deontic lines
+  landed.
