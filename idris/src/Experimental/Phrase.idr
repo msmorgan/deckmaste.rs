@@ -423,6 +423,20 @@ mutual
     CastFrom : (z : ZoneExpr bs) ->
                {auto 0 pf : So (playableFrom (Just (zoneSort z)))} ->
                Predicate bs Object
+    ||| "it wasn't cast": the casting history read with NO agent and no
+    ||| origin -- the bare question of whether the object went through
+    ||| [CR#601.2]'s procedure at all. `CastBy` and `CastFrom` each
+    ||| narrow a casting that happened; this one asks whether there was
+    ||| one, which is the question an entry replacement puts to a
+    ||| permanent that may have arrived without a spell: [CR#111.1]
+    ||| makes a token an object that never was a card on the stack, and
+    ||| [CR#707.10] makes even a spell's own copy uncast.
+    ||| Not `Not (CastBy p)` for any p: that denies one NAMED player's
+    ||| casting and leaves every other player's standing.
+    ||| It is history and not a location, so it seeds no zone, on
+    ||| `CastBy`'s own reasons [CR#400.7d].
+    ||| -- spelling: "[n] was cast"; under `Not`, "[n] wasn't cast".
+    WasCast : Predicate bs Object
     Attacking : Predicate bs Object
     ||| "[n] is being declared as an attacker": the attack declaration IN
     ||| PROGRESS, which is not the same question as attacking.
@@ -924,6 +938,7 @@ mutual
   hasHead (CouldBeBlockedBy _) = False
   hasHead (HappenedTo _ _ _) = False
   hasHead (CastFrom _) = False
+  hasHead WasCast = False
   hasHead (ColorIs _) = False
   hasHead IsColorless = False
   hasHead Multicolored = False
@@ -1174,6 +1189,8 @@ mutual
   predEq (CompareOver _ _ _ _) _ = False
   predEq (CastFrom z) (CastFrom w) = zoneSort z == zoneSort w
   predEq (CastFrom _) _ = False
+  predEq WasCast WasCast = True
+  predEq WasCast _ = False
   predEq (InZone z) (InZone w) = zoneSort z == zoneSort w
   predEq (InZone _) _ = False
   predEq (And xs) (And ys) = predEqAll xs ys
@@ -1647,6 +1664,7 @@ mutual
   predSays (CouldBeBlockedBy _) = True
   predSays (HappenedTo _ _ _) = True
   predSays (CastFrom _) = True
+  predSays WasCast = True
   predSays (ColorIs _) = True
   predSays IsColorless = True
   predSays Multicolored = True
@@ -1715,6 +1733,7 @@ mutual
   predNegFree (CouldBeBlockedBy _) = True
   predNegFree (HappenedTo _ _ _) = True
   predNegFree (CastFrom _) = True
+  predNegFree WasCast = True
   predNegFree (ColorIs _) = True
   predNegFree IsColorless = True
   predNegFree Multicolored = True

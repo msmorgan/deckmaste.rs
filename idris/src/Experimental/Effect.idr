@@ -388,6 +388,32 @@ mutual
                (scope : DamageScope (nomIntro src)) ->
                (op : DamageScale (scopeIntro scope)) ->
                (use : ReplUse) -> StaticEffect bs
+      ||| "If [n] would enter the battlefield under an opponent's
+      ||| control, it enters under [who]'s control instead" (Gather
+      ||| Specimens): the entry with its CONTROLLER replaced. A dedicated
+      ||| row whose body is fixed, on `Redirects`' model, and not an
+      ||| entry written into `Intercepts`' body slot: [CR#614.1d] makes a
+      ||| line reading "[objects] enter [the battlefield] ..." a
+      ||| replacement effect and [CR#614.12] has such an effect modify
+      ||| HOW the permanent enters, so what changes is a parameter of the
+      ||| one entry rather than a second instruction to put the permanent
+      ||| anywhere. The `Effect` vocabulary states no entry for that
+      ||| reason -- entering is not an act a player is instructed to
+      ||| take, which is why [CR#614.1c,614.1d]'s other entry riders
+      ||| (`EntersRider`, `EntersWithCounters`, `EntersChoice`) are
+      ||| static rows too.
+      ||| The event's own side is written on the subject: the permanent
+      ||| that would enter carries the control it would enter under,
+      ||| which [CR#614.12] checks as it would exist on the battlefield.
+      ||| `Replacement` and not `EntryRider`: those three are a
+      ||| permanent's own printed entry riders, standing for as long as
+      ||| the permanent does, where this is [CR#614.1a]'s "instead" and
+      ||| takes a duration ("this turn").
+      ||| -- spelling: "[n] enters under [who]'s control instead".
+      EntersUnderInstead : (n : Noun bs Object) ->
+                           (who : Noun (nomIntro n) Player) ->
+                           {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                           {auto 0 ps : SoleHolder who} -> StaticEffect bs
       CantPrevent : (kind : DamageKind) -> (scope : DamageScope bs) ->
                     (by : Maybe (Noun (scopeIntro scope) Object)) -> StaticEffect bs
       Conditionally : (c : Condition bs) -> (se : StaticEffect (condIntro c)) ->
@@ -668,6 +694,7 @@ mutual
   staticKind (PreventsFrom _ _ _ _ _ _) = Prevention
   staticKind (CantPrevent _ _ _) = Prevention
   staticKind (Redirects _ _ _ _ _) = Replacement
+  staticKind (EntersUnderInstead _ _) = Replacement
   staticKind (RedirectsFrom _ _ _ _ _) = Replacement
   staticKind (Scales _ _ _ _ _) = Replacement
   staticKind (Conditionally _ _ _) = Conditional
@@ -729,6 +756,7 @@ mutual
   staticIntro (PreventsFrom kind src scope cut use also) = cutIntro cut
   staticIntro (CantPrevent kind scope by) = byIntro by
   staticIntro (Redirects kind size scope by to) = nomIntro to
+  staticIntro (EntersUnderInstead n who) = nomIntro who
   staticIntro (RedirectsFrom kind src scope to use) = nomIntro to
   staticIntro (Scales kind src scope op use) = scaleIntro op
   staticIntro (Conditionally c se _) = staticIntro se
@@ -3052,6 +3080,7 @@ mutual
                Predicate bs k -> Maybe StackRegime
   predRegime (CastBy _) = Just AtCasting
   predRegime (CastFrom _) = Just AtCasting
+  predRegime WasCast = Just AtCasting
   predRegime (ControlledBy _) = Just AtResolution
   predRegime (And ps) = predRegimeAll ps
   predRegime (Or ps) = predRegimeAll ps

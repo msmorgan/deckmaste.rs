@@ -10983,24 +10983,38 @@ forsakenWastesTargeted =
     (BecomesTarget Macros.thisEnchantment (Macros.a Macros.spell))
     (Macros.losesLife (ControllerOf (That SpellW)) (Lit 5))
 
-||| Fblthp, the Lost's second ability, whole -- "When Fblthp becomes the
-||| target of a spell, shuffle Fblthp into its owner's library." The tail
-||| is a move whose destination names no position because the act that
-||| puts the card there randomizes the pile [CR#701.24a,701.24c]; the
-||| library is owner-rooted [CR#400.3], so the bare scope IS "its
-||| owner's".
-||| The card's FIRST ability still does not write, but no longer for the
-||| origin's sake: `Enters` now carries a source slot and
-||| `lookbackOriginOk Entry` admits a library, so "entered from your
-||| library" has both seats. What it lacks is a WINDOW -- "if it entered
-||| from your library" scopes the reading to the entry that triggered the
-||| ability, and every `Lookback` value names a stretch of time or
-||| [CR#608.2c]'s "this way" cause, none of which this line writes.
+||| Fblthp, the Lost, whole -- "When Fblthp enters, draw a card. If it
+||| entered from your library or was cast from your library, draw two
+||| cards instead. / When Fblthp becomes the target of a spell, shuffle
+||| Fblthp into its owner's library."
+||| The two disjuncts are two different readings of one arrival and
+||| neither needs a new word now: "it entered from your library" is the
+||| windowless lookback `Triggering` [CR#603.2c], scoped to the entry the
+||| ability triggered on, and "was cast from your library" is the
+||| object's own casting history, agentless -- which `CastFrom` has
+||| always been, since [CR#601.2a] names the zone the card left without
+||| naming who moved it.
+||| The tail is a move whose destination names no position because the
+||| act that puts the card there randomizes the pile
+||| [CR#701.24a,701.24c]; the library is owner-rooted [CR#400.3], so the
+||| bare scope IS "its owner's".
 public export
-fblthpTargeted : Ability
-fblthpTargeted =
-  Macros.triggered When (BecomesTarget This (Macros.a Macros.spell))
-    (Macros.shuffleInto This)
+fblthp : Card
+fblthp =
+  Macros.card "Fblthp, the Lost" (Just [Macros.generic 1, Macros.pip Blue])
+       [Legendary]
+       (MkTypeLine [creatureType "Homunculus"] [Creature])
+       [ Macros.triggered When (Enters This Nothing)
+           (InsteadOf Macros.drawACard
+              (If (OrCond
+                     [ Happened Entry It Triggering
+                         (Just (FromZones (FromZone [Macros.yourLibrary]) Nothing))
+                     , Matches It (CastFrom Macros.yourLibrary) ])
+                  (Draw You (Lit 2))
+                  Nothing))
+       , Macros.triggered When (BecomesTarget This (Macros.a Macros.spell))
+           (Macros.shuffleInto This) ]
+       (Just (1, 1))
 
 ||| Squelch, whole card -- "Counter target activated ability. Draw a
 ||| card." The ability TARGET: [CR#115.2] admits an object that can't
@@ -12754,6 +12768,153 @@ hostileInvestigatorHeader =
   VerbedEvent (Just (CountedGroup (Macros.atLeast 1) Nothing AnyPlayer))
               "Discard"
               (Just (CountedGroup (Macros.atLeast 1) Nothing IsCard))
+
+||| Hallowed Moonlight, whole -- "Until end of turn, if a creature would
+||| enter and it wasn't cast, exile it instead. / Draw a card." The
+||| agentless cast history: the conjunct denies that ANY casting
+||| happened, which `CastBy` cannot say (it denies one named player's)
+||| and `CastFrom` cannot say (it denies one origin's), so `WasCast`
+||| under `Not` is the whole of it [CR#601.2,111.1].
+public export
+hallowedMoonlight : Card
+hallowedMoonlight =
+  Macros.card "Hallowed Moonlight"
+       (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.ifWouldInstead
+                      (Enters (Macros.a (And [Macros.creature, Not WasCast])) Nothing)
+                      (Macros.exile It)
+                      (Just Macros.untilEndOfTurn)
+                  , Macros.drawACard ]) ]
+       Nothing
+
+||| Containment Priest, whole -- "Flash / If a nontoken creature would
+||| enter and it wasn't cast, exile it instead." The same conjunct with
+||| no duration: a permanent's own standing replacement.
+public export
+containmentPriest : Card
+containmentPriest =
+  Macros.card "Containment Priest"
+       (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
+       [ Macros.keyword "Flash"
+       , Static (Intercepts
+                   (Enters (Macros.a (And [Macros.creature, Not IsToken,
+                                           Not WasCast])) Nothing)
+                   [] (Macros.exile It) Repeatedly Nothing) ]
+       (Just (2, 2))
+
+
+testMox1 : Card
+testMox1 =
+  Macros.card "Mox Diamond" Nothing [] (MkTypeLine [] [Artifact])
+       [ Macros.activated TapSymbol
+                          (AddMana You (Lit 1) (AnyColor SameColor) []) ]
+       Nothing
+
+||| Heart of Yavimaya, whole -- "If this land would enter, sacrifice a
+||| Forest instead. If you do, put this land onto the battlefield. If you
+||| don't, put it into its owner's graveyard. / {T}: Add {G}. / {T}:
+||| Target creature gets +1/+1 until end of turn."
+||| The replacement's body is ONE instruction with two conditional
+||| continuations over the same antecedent, and that pair is `May`'s own
+||| two arms: [CR#608.2c] reads the sentences in the order written, and
+||| the second arm is reachable without an offer because [CR#609.3] does
+||| only as much as possible -- a player who controls no Forest leaves
+||| the instructed sacrifice undone, and the third sentence says what
+||| happens then. So the offer slot stays empty here and Mox Diamond
+||| writes it; nothing else separates the cycle's members.
+||| The third sentence's printed pronoun is written as the self: the
+||| replacement's body is PROSPECTIVE, so the entry it intercepts has
+||| introduced no mention to read, and the sentence's "it" is the same
+||| permanent its neighbour calls "this land".
+public export
+heartOfYavimaya : Card
+heartOfYavimaya =
+  Macros.card "Heart of Yavimaya" Nothing [] (MkTypeLine [] [Land])
+       [ Static (Intercepts (Enters This Nothing) []
+                   (May Nothing
+                        (Macros.sacrifice You
+                           (Macros.a (And [Macros.land,
+                                           HasSubtype (landType "Forest")])))
+                        (Just (Macros.putOntoBattlefield This))
+                        (Just (Macros.move This Macros.graveyardZ)))
+                   Repeatedly Nothing)
+       , Macros.activated TapSymbol
+                          (AddMana You (Lit 1) (Runs [[OfColor Green]]) [])
+       , Macros.activated TapSymbol
+                          (Macros.gets (Macros.target Macros.creature)
+                             (PtUp (Lit 1)) (PtUp (Lit 1))
+                             (Just Macros.untilEndOfTurn)) ]
+       Nothing
+
+||| Mox Diamond, whole -- "If this artifact would enter, you may discard a
+||| land card instead. If you do, put this artifact onto the battlefield.
+||| If you don't, put it into its owner's graveyard. / {T}: Add one mana
+||| of any color." The same pair with the offer WRITTEN, which is what
+||| `May`'s first slot spells. The discarded card's hand is unwritten on
+||| the card and supplied by [CR#701.9a], as it is wherever this
+||| vocabulary writes a discard.
+public export
+moxDiamond : Card
+moxDiamond =
+  Macros.card "Mox Diamond" Nothing [] (MkTypeLine [] [Artifact])
+       [ Static (Intercepts (Enters This Nothing) []
+                   (May (Just You)
+                        (Macros.discard
+                           (Macros.a (And [Macros.land, InZone Macros.handZ])))
+                        (Just (Macros.putOntoBattlefield This))
+                        (Just (Macros.move This Macros.graveyardZ)))
+                   Repeatedly Nothing)
+       , Macros.activated TapSymbol
+                          (AddMana You (Lit 1) (AnyColor SameColor) []) ]
+       Nothing
+
+||| Gather Specimens, whole -- "If a creature would enter the battlefield
+||| under an opponent's control this turn, it enters under your control
+||| instead." The entry as a replacement BODY, which is a fixed-body row
+||| and not an instruction: `EntersUnderInstead` changes one parameter of
+||| the entry [CR#614.1d,614.12] where an `Effect` in `Intercepts`' body
+||| would instruct a second act. The antecedent's "under an opponent's
+||| control" rides the subject, where [CR#614.12] checks it.
+public export
+gatherSpecimens : Card
+gatherSpecimens =
+  Macros.card "Gather Specimens"
+       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue, Macros.pip Blue])
+       [] (MkTypeLine [] [Instant])
+       [ Spell (Continuously
+                  (EntersUnderInstead
+                     (Macros.a (And [Macros.creature,
+                                     ControlledBy Macros.anOpponent]))
+                     You)
+                  (Just Macros.thisTurn)) ]
+       Nothing
+
+||| Don't Blink's replacement, without its written agent -- "Until end of
+||| turn, if one or more creatures would enter from exile or after being
+||| cast from exile, their owners shuffle them into their libraries
+||| instead."
+||| Both halves the entry originally recorded as missing are seated: the
+||| entry event carries the zone it arrived FROM, and the disjunction
+||| over that origin is `Intercepts`' own arm list -- the second arm
+||| reads the origin off the casting instead ([CR#601.2a] moves the card
+||| to the stack, so a permanent spell cast from exile enters from there).
+||| What the whole line still wants is the PLURAL possessor: "their
+||| owners" distributes over the counted group, and `OwnerOf` is gated to
+||| a singular subject, so the agent is dropped here and the act is
+||| written agentless ([CR#701.24a] shuffles the library either way).
+public export
+dontBlinkReplacement : StaticEffect []
+dontBlinkReplacement =
+  Intercepts (Enters (CountedGroup (Macros.atLeast 1) Nothing Macros.creature)
+                     (Just (FromZone [Macros.exileZ])))
+             [ Enters (CountedGroup (Macros.atLeast 1) Nothing
+                         (And [Macros.creature, CastFrom Macros.exileZ]))
+                      Nothing ]
+             (Macros.shuffleInto Them)
+             Repeatedly Nothing
 
 ||| Seasoned Warrenguard, whole -- "Whenever this creature attacks while
 ||| you control a token, this creature gets +2/+0 until end of turn."
