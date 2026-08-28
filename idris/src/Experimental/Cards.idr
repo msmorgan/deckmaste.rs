@@ -14299,3 +14299,47 @@ creatureSpellFromAmongExiled : Noun [] Object
 creatureSpellFromAmongExiled =
   Macros.oneFromAmong (And [Macros.creature, Macros.spell])
                       (AllOf (And [IsCard, Macros.exiledWithThisArtifact]))
+
+||| "the Ring has tempted you two or more times this game" (Frodo,
+||| Adventurous Hobbit; Frodo, Sauron's Bane writes four). The umbrella
+||| recorded these as out of reach for want of Ring machinery; the
+||| trigger round's `verbFacts` row for the temptation put the COUNT in
+||| reach, and this is the check on that. [CR#701.54d] makes the tempted
+||| player the act's own subject, which is why the count takes `You` and
+||| writes no complement.
+||| What the two cards still wait on is the Ring-BEARER possessive ("if
+||| Frodo is your Ring-bearer"): the designation is checked and
+||| object-scoped, so `HasDesignation RingBearer` says "is a
+||| Ring-bearer", and the possessive that names WHOSE has no row.
+public export
+ringHasTemptedYouTwiceThisGame : Condition []
+ringHasTemptedYouTwiceThisGame =
+  CompareAmt (Macros.eventCount (VerbedAct "The Ring Tempts You") You ThisGame)
+             AtLeast (Lit 2)
+
+||| "a creature card" with no zone written -- the bare CARD word routed
+||| here from the placement round. It needed no row either: `IsCard` is
+||| the head [CR#109.2] names among the four words that take a
+||| description out of the battlefield default, and conjoining it with a
+||| type word is what spells the printed phrase. Syr Konrad's second arm,
+||| Disa the Restless and the two Ultrons spell "a creature" today and
+||| can spell the card word now.
+public export
+creatureCardAnywhere : Predicate [] Object
+creatureCardAnywhere = And [Macros.creature, IsCard]
+
+||| "a permanent card" -- the class the anaphora round measured at 4
+||| blocked cards, and the second thing the bare CARD word closes. The
+||| card word takes the head OUT of the battlefield default [CR#109.2]
+||| and `headIsPlaceless` reads it, so the conjunction is placeless: "a
+||| card of a permanent type, wherever it is", which is the printed
+||| class. Measured beside the phrase, because the whole question was
+||| where the phrase lands.
+public export
+permanentCardAnywhere : Predicate [] Object
+permanentCardAnywhere = And [Permanent, IsCard]
+
+public export
+permanentCardIsPlaceless :
+  phraseZone (And {bs = []} [Permanent, IsCard]) = Nothing
+permanentCardIsPlaceless = Refl
