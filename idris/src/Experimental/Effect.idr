@@ -3548,6 +3548,7 @@ mutual
                    Maybe (Condition (joinedCtx joins (headerCtx alts ev)))) ->
                 (eff : Effect (interveningIntro intervening)) ->
                 {auto 0 hn : HeaderNontarget ev} ->
+                {auto 0 hs : HeaderStatus ev} ->
                 {auto 0 ae : AltEvent word alts} ->
                 {auto 0 cd :
                    ChapterDefaults ev alts while joins window limit intervening} ->

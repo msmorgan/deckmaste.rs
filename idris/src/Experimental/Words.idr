@@ -4169,6 +4169,21 @@ Eq AttachWord where
 ||| types are zeros in those two rows for the same reason: neither an
 ||| Equipment nor a Fortification can attach to a card that never reaches
 ||| the battlefield.
+|||
+||| The `Enchanted` catch-all STANDS, and no tightening is written here.
+||| It admits "enchanted instant" and, since the catalog grew the six
+||| command-zone types, "enchanted conspiracy" -- and the question that
+||| decides both is where the restriction lives, not how many lines write
+||| the phrase. [CR#702.5a] answers it outright: "the enchant ability
+||| restricts what an Aura spell can target and what an Aura can
+||| enchant", and [CR#303.4] says the same in the Aura's own rule. So the
+||| constraint is the ENCHANT ability's subject, not this word's head, and
+||| [CR#109.1] makes every one of these heads an object an Aura could in
+||| principle be attached to -- a card is an object whatever zone it is
+||| in, which is why "enchanted creature card in a graveyard" is ordinary
+||| printed text. A rule refusing a head here would have to be a rule
+||| about the PARTICIPLE, and the CR states none; a refusal by count is
+||| what this workbench does not write.
 public export
 attachHeadOk : AttachWord -> NounWord -> Bool
 attachHeadOk Enchanted _ = True
@@ -4735,6 +4750,29 @@ statusEventOk PhasedOut = True
 public export
 StatusEventVal : StatusVal c -> Type
 StatusEventVal v = So (statusEventOk v)
+
+||| The TRIGGER HEADER's reader over the same transitions, and the ONE
+||| cell where it disagrees with the table above.
+||| Two tables and not one widened cell. `statusEventOk` asks whether a
+||| transition exists at all to be named, which is a fact about the
+||| status: [CR#710.4] makes flipping one-way, so nothing ever becomes
+||| unflipped. This asks the different question a HEADER puts -- whether
+||| the corpus writes a trigger on that transition -- and the two
+||| questions have different answers at exactly one value.
+||| FaceDown: 132 supported occurrences write "turned face up" and every
+||| one of them heads a trigger or an as-clause; "turned face down"
+||| occurs ONCE in the whole supported corpus (Vesuvan Shapeshifter,
+||| "until this creature is turned face down") and that occurrence is a
+||| DURATION ENDPOINT, not a header. Re-measured 2026-08-28. So the
+||| header cell stays closed at zero and the endpoint reads the
+||| transition through `statusEventOk`, which is what a split buys and a
+||| widened cell would have thrown away.
+||| Everything else is `statusEventOk`'s answer unchanged; there is no
+||| second disagreement and none is claimed.
+public export
+statusHeaderOk : {0 c : StatusCat} -> StatusVal c -> Bool
+statusHeaderOk FaceDown = False
+statusHeaderOk v = statusEventOk v
 
 -- [CR#702.26a]: phasing has no imperative wording of its own, only the
 -- intransitive declarative ("target creature phases out").

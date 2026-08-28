@@ -290,6 +290,13 @@ spanEventOk DamageDealing = True
 -- "until [n] becomes the target of a spell" is a moment no turn-part
 -- phrase already spells [CR#603.2e].
 spanEventOk BecomesTarget = True
+-- `StatusChange` is the catch-all's one ATTESTED row, and it took one
+-- line to attest: Vesuvan Shapeshifter's "until this creature is turned
+-- face down" is the only supported endpoint naming a status transition
+-- (measured 2026-08-28). It reads the transition through
+-- `statusEventOk`, which the trigger header's own `statusHeaderOk`
+-- refuses at that value -- the split is what lets this row be attested
+-- while the header stays at zero.
 spanEventOk _ = True
 
 ||| Which events have an INSIDE -- a span of ordered steps a player is

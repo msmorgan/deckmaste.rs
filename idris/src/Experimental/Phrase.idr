@@ -601,6 +601,33 @@ mutual
     HasCardDesignation : (d : Designation) ->
                          {auto 0 sc : designationScope d = HeldByCard} ->
                          Predicate bs Object
+    ||| "as long as this creature is equipped", "creatures you control
+    ||| that are enchanted get +1/+1", "equipped creatures you control
+    ||| have flying": the attachment participle as a PREDICATE of the
+    ||| host, asking only whether it is attached.
+    ||| THREE POSITIONS, ONE ROW, and finding 369's record is corrected
+    ||| here: it said the corpus writes the participle "predicatively
+    ||| after the copula and never prenominally", and the second half is
+    ||| wrong. Re-measured 2026-08-28 -- 43 supported faces after a
+    ||| copula ("this creature is equipped"), 12 in a relative clause
+    ||| ("creatures you control that are enchanted"), and 29 occurrences
+    ||| over 28 faces PRENOMINALLY ("equipped creatures you control",
+    ||| "equipped creature you control", "Equipped Warriors you
+    ||| control").
+    ||| Nothing was minted for the third position, on finding 275's test:
+    ||| the three writings take the same word with the same absent slots
+    ||| and nothing covaries with the position, so the position is
+    ||| spelling. English fronts a bare participle and postposes a
+    ||| phrasal one, which is why the relative clause and the prenominal
+    ||| are the same description written twice.
+    ||| What the prenominal writing is NOT is `AttachHost`. That names
+    ||| the ONE host of this permanent's own attachment -- [CR#301.5f]
+    ||| and [CR#303.4m] both read it off "whatever creature that
+    ||| permanent is attached to" -- where these lines describe every
+    ||| equipped creature their controller has, and are as freely
+    ||| combined with other predicates as any description.
+    ||| -- spelling: "[n] is [participle]"; attributively, "[head] that
+    ||| are [participle]" and "[participle] [head]".
     IsAttached : (w : AttachWord) ->
                  {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
     ||| "enchanted by two or more Auras", "enchanted by an Aura you

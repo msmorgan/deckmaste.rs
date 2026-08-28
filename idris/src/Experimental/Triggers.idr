@@ -1016,6 +1016,7 @@ mutual
     NoAlt : AltEvent w []
     MoreAlt : {0 e : GameEvent bs} -> {0 es : List (GameEvent bs)} ->
               {auto 0 hn : HeaderNontarget e} ->
+              {auto 0 hs : HeaderStatus e} ->
               {auto 0 rest : AltEvent w es} -> AltEvent w (e :: es)
 
   ||| The discourse a header's intervening clause and effect read: the
@@ -1107,6 +1108,7 @@ mutual
                      (while : Maybe (Concurrent (headerCtx alts ev))) ->
                      (window : Maybe TriggerWindow) ->
                      {auto 0 hn : HeaderNontarget ev} ->
+                     {auto 0 hs : HeaderStatus ev} ->
                      {auto 0 ae : AltEvent word alts} ->
                      JoinedHeader bs
 
@@ -1150,3 +1152,19 @@ mutual
   public export
   HeaderNontarget : {bs : Bindings} -> GameEvent bs -> Type
   HeaderNontarget {bs} ev = So (not (anyTargetedAt (eventIntro ev)))
+
+  ||| The header's second per-event gate, beside `HeaderNontarget` and at
+  ||| the same three seats: which STATUS transitions a trigger header may
+  ||| name. It reads `statusHeaderOk`, which is the header's own table --
+  ||| the duration endpoint asks `statusEventOk` instead, through
+  ||| `StatusEvent`'s own gate, and that is the whole of the split.
+  ||| Every other event answers True: no event but the status transition
+  ||| has a per-value question a header could disagree with.
+  public export
+  headerStatusOk : {0 bs : Bindings} -> GameEvent bs -> Bool
+  headerStatusOk (StatusEvent _ v) = statusHeaderOk v
+  headerStatusOk _ = True
+
+  public export
+  HeaderStatus : {bs : Bindings} -> GameEvent bs -> Type
+  HeaderStatus {bs} ev = So (headerStatusOk ev)

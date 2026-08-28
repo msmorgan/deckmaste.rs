@@ -14931,10 +14931,10 @@ embercleave =
 ||| the copula and never prenominally"; the second half of that is wrong
 ||| and is corrected here and at `IsAttached`. Both writings are
 ||| `IsAttached` inside a described noun, and the position is spelling:
-||| "creatures you control that are equipped" (Bruna's family, 10
-||| supported lines) and "equipped creatures you control" (18 occurrences
-||| over 18 cards, re-measured 2026-08-28) take the same word with the
-||| same absent slots, so nothing covaries with the position.
+||| "creatures you control that are equipped" (12 supported faces) and
+||| "equipped creatures you control" (29 occurrences over 28 faces,
+||| re-measured 2026-08-28) take the same word with the same absent
+||| slots, so nothing covaries with the position.
 ||| What the participle is NOT here is `AttachHost`: that names the ONE
 ||| host of this permanent's own attachment [CR#301.5f], where these
 ||| lines describe every equipped creature their controller has.
@@ -15227,3 +15227,31 @@ luxiorTypeSetting =
             [ LosesType (AttachHost Equipped PermanentW) Planeswalker
             , BecomesAlso It (MkToken Nothing []
                                       (MkTypeLine [] [Creature]) [] Nothing) ])
+
+||| Vesuvan Shapeshifter's copy clause -- "until this creature is turned
+||| face down, it becomes a copy of that creature, except it has 'At the
+||| beginning of your upkeep, you may turn this creature face down.'"
+||| THE STATUS EVENT'S SECOND READER. This is the only supported line
+||| anywhere that names a face-down transition, and it names it as a
+||| DURATION ENDPOINT. `statusEventOk` answers it -- the transition
+||| exists -- while `statusHeaderOk` keeps the trigger header at its
+||| measured zero (`badTurnedFaceDownHeader`). Two tables, one cell of
+||| disagreement, and neither reader widened.
+||| `spanEventOk`'s `StatusChange` cell is answered by the same line: it
+||| was admitted by the catch-all and is now attested, at one line, by
+||| this one.
+||| A FRAGMENT: the sentence before it is an as-clause over two
+||| alternative events ("As this creature enters or is turned face up")
+||| whose body is an optional choice, and morph's own line waits on the
+||| keyword row.
+public export
+vesuvanShapeshifterCopySpan :
+  Effect [MkBinding AD Object OneOf
+            (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing Nothing)]
+vesuvanShapeshifterCopySpan =
+  Continuously
+    (BecomesCopy Macros.thisCreature (That (TypeW Creature))
+       [ExceptAbility
+          (Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+             (Macros.may You (SetStatus FaceDown Macros.thisCreature)))])
+    (Just (UntilEvent (StatusEvent Macros.thisCreature FaceDown)))

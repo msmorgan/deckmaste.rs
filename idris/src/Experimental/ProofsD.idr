@@ -187,6 +187,19 @@ badUnflipEvent : Unspellable Ability (\ok =>
 badUnflipEvent Oh impossible
 
 
+||| a trigger header watching a permanent be turned face down
+||| The header's own table refuses it. "Turned face up" heads 132
+||| supported occurrences; "turned face down" occurs once in the whole
+||| supported corpus and that once is a DURATION ENDPOINT (Vesuvan
+||| Shapeshifter), which reads the same transition through
+||| `statusEventOk` and is unaffected by this refusal. The split is what
+||| lets the endpoint write while the header stays at its measured zero.
+public export
+badTurnedFaceDownHeader : Unspellable Ability (\ok =>
+  Triggered Whenever (StatusEvent (Macros.a Permanent) FaceDown) [] Nothing [] Nothing Nothing Nothing Macros.drawACard {hs = ok})
+badTurnedFaceDownHeader Oh impossible
+
+
 
 
 ||| "Target creature card in your graveyard doesn't untap during its controller's next untap step."
