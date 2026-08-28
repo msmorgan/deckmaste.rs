@@ -123,3 +123,10 @@ Standard constraints apply to every sub-ticket claimed off this split.
   the WHICH-ZONE reader — after a multi-zone search (`SearchScope.SomeZones`,
   landed) nothing reads which zone the found card came from, which blocks
   every and/or-search card whole. A zone-provenance read, so it lands here.
+
+- **Routed from workbench-mana-family-residues (close, 2026-08-28):** the
+  SPELL-TO-PERMANENT read — "if that mana is spent to cast a creature spell,
+  that creature gains haste" needs the permanent the resolved spell becomes;
+  9 of the 11 paid-for-object cells wait on it (the grammar correctly refuses
+  granting haste to a stack object). Zone-crossing referent machinery, so it
+  lands here.

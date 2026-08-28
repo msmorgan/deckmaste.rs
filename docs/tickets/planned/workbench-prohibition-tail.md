@@ -48,3 +48,9 @@ Re-measure everything at claim; the counts are the close-outs'.
   wants a TEMPORAL WINDOW on a prohibition ("during your turn, opponents
   can't cast spells" — note prohibition-2's `OnlyDuring` may already carry
   it; probe first).
+
+- **Update from workbench-mana-family-residues (close, 2026-08-28):** the
+  premise-SORT machinery now exists — `deedCounterfactual` is
+  `Maybe PremiseSort` and the `"Spend"` deed carries `ManaPremise`. The
+  crew/saddle COUNTERFACTUAL-VALUE premise (the 18 as-though lines) is now
+  one sort in that mold, not a redesign.
