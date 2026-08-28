@@ -407,3 +407,8 @@ Standard constraints apply.
   attachment phrase — "an Aura attached TO a creature" (Kitsune Mystic's
   whole-card blocker; `AttachedBy` landed the attacher side, this is the
   host-from-the-attachment side). Attachment machinery, so it lands here.
+
+- **Routed from prohibition-1 (close, 2026-08-28):** the `"Crew"` and
+  `"Saddle"` DEED rows for the unified deontic carrier ride with this
+  ticket's Crew/Saddle keyword vocabularies — the crew/saddle-at-greater-power
+  as-though cell (18 lines) waits on them.

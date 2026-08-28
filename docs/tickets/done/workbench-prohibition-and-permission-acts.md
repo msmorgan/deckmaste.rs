@@ -3,7 +3,7 @@ needs: []
 ---
 # Pay what the prohibition, permission and outcome-gate acts still owe
 
-**SPLIT 2026-08-28 into three sub-tickets — claim those, not this.** This
+**CLOSED 2026-08-28: ALL THREE SUB-ROUNDS DONE.** Survivors live in workbench-prohibition-tail; the mana restriction is decided into mana-family; the Crew/Saddle deed rows ride keyword-parameters. Originally split as: This
 file is the umbrella and stays authoritative:
 [1 unified carrier](workbench-prohibition-1-unified-carrier.md),
 [2 qualified acts](workbench-prohibition-2-qualified-acts.md),

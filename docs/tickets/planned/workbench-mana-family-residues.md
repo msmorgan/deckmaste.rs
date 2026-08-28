@@ -224,3 +224,10 @@ premise sort against it.
   cast it" / "if mana was spent to cast it" has no `Condition` row; the last
   blocker on Mythos of Nethroi and Primeval Spawn (their disjunctions now
   write). A spent-mana read, this region's machinery.
+
+- **Decision from prohibition-2 (close, 2026-08-28):** the MANA RESTRICTION
+  ("can't be spent to cast …", 9 real lines — 31 of the naive 40 are token
+  reminder text) is RULED into this vocabulary: `Kind` has no mana row, so
+  the restriction rides the mana-adding effect and reads
+  `DeonticCounterpart`'s noun. Note the umbrella's quoted example ("mana
+  value 3 or greater") is 0 supported lines — build against the real 9.
