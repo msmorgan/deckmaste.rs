@@ -2384,9 +2384,11 @@ phyrexianIngester =
 
 ||| Drach'Nyen, the same shape on an Equipment: the enters trigger exiles
 ||| up to one creature and the equipment's static line reads "the exiled
-||| card's power". Its linkage word is unprinted, so the read is written
-||| against the card type ([CR#607.2a] again); `thisEquipment` would want
-||| the subtype linkage cell, which is not this round's.
+||| card's power" ([CR#607.2a] again). The card prints no linkage word at
+||| all, so the self-word is the bench's to pick, and it picks the one
+||| this card's own enters trigger already writes -- "this Equipment".
+||| The card-type spelling stood in only while the subtype linkage cell
+||| was shut.
 drachNyen : Card
 drachNyen =
   Macros.card "Drach'Nyen"
@@ -2400,7 +2402,7 @@ drachNyen =
                                 (PtUp (LetterVal X)) (PtUp (Lit 0))
                          , Define X
                              (StatOf Power
-                                (Macros.a (ExiledWith Macros.thisArtifact))) ])
+                                (Macros.a (ExiledWith Macros.thisEquipment))) ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
        Nothing
 
@@ -11314,3 +11316,161 @@ noCostNoLetter = Refl
 
 
 
+--------------------------------------------------------------------------------
+-- The ascription's last five subtype words, its self-antecedent pronoun,
+-- and the linkage read written under a subtype word.
+--------------------------------------------------------------------------------
+
+||| Debris Beetle's enters trigger -- "When this Vehicle enters, each
+||| opponent loses 3 life and you gain 3 life." The `Vehicle` word's
+||| witness: [CR#205.3c] hangs the word on its own card type and
+||| `ascriptionOk` reads it back, so naming it is writing it. The whole
+||| card waits on crew.
+public export
+debrisBeetleTrigger : Ability
+debrisBeetleTrigger =
+  Macros.triggered When (Enters Macros.thisVehicle Nothing)
+    (Sequentially [ Macros.losesLife (Each Opponent) (Lit 3)
+                  , Macros.gainsLife You (Lit 3) ])
+
+||| Nautiloid Ship's damage trigger -- "Whenever this Vehicle deals combat
+||| damage to a player, you may put a creature card exiled with this
+||| Vehicle onto the battlefield under your control." The linkage note
+||| [CR#406.6] read at a SUBTYPE word: the note hangs on the object, and
+||| which of its own type words named it is spelling. The whole card waits
+||| on crew.
+public export
+nautiloidShipTrigger : Ability
+nautiloidShipTrigger =
+  Macros.triggered Whenever
+    (DealsCombatDamage Macros.thisVehicle (Macros.a AnyPlayer))
+    (Macros.may You
+       (Macros.putOntoBattlefieldUnderYourControl
+          (Macros.a (And [Macros.creature, ExiledWith Macros.thisVehicle]))))
+
+||| Summon: Esper Valigarmanda's II/III/IV body, in part -- "You may cast
+||| an instant or sorcery card exiled with this Saga." The Saga word was
+||| already rowed; only the linkage cell was shut, and this is the first
+||| of the six supported lines it was shutting. The clause beside it
+||| ("mana of any type can be spent to cast that spell") has no carrier
+||| in this vocabulary, and neither has the possessed-hand destination
+||| Roads Go Ever, Ever On's chapter wants: `DestOk` admits bare zones
+||| only, which is a move-destination gap and not a linkage one.
+public export
+summonEsperValigarmandaCast : StaticEffect []
+summonEsperValigarmandaCast =
+  MayPlay You (Macros.a (And [Macros.instantOrSorcery, ExiledWith Macros.thisSaga]))
+          Cast Nothing Nothing Nothing Nothing
+
+||| Rogue Class's level-3 body -- "You may play cards exiled with this
+||| Class." The `Class` word and the single line that writes its linkage,
+||| together. The clause after it ("you may spend mana as though it were
+||| mana of any color") has no carrier in this vocabulary; the level
+||| machinery is what the whole card waits on.
+public export
+rogueClassLevelThree : StaticEffect []
+rogueClassLevelThree =
+  Macros.mayPlay You (AllOf (ExiledWith Macros.thisClass))
+
+||| Wurmwall Sweeper's enters trigger -- "When this Spacecraft enters,
+||| surveil 2." The `Spacecraft` word's witness; the whole card waits on
+||| station.
+public export
+wurmwallSweeperTrigger : Ability
+wurmwallSweeperTrigger =
+  Macros.triggered When (Enters Macros.thisSpacecraft Nothing) (Macros.surveil (Lit 2))
+
+||| Case of the Crimson Pulse's enters trigger -- "When this Case enters,
+||| discard a card, then draw two cards." The `Case` word's witness; the
+||| whole card waits on the to-solve/solved clauses.
+public export
+caseOfTheCrimsonPulseTrigger : Ability
+caseOfTheCrimsonPulseTrigger =
+  Macros.triggered When (Enters Macros.thisCase Nothing)
+    (Sequentially [Macros.discardsACard You, Macros.drawCards 2])
+
+||| Glassworks' end-step trigger -- "At the beginning of your end step,
+||| this Room deals 1 damage to each opponent." The `Room` word's witness;
+||| the whole card waits on the door machinery.
+public export
+glassworksTrigger : Ability
+glassworksTrigger =
+  Macros.triggered At (BeginningOf EndStep (ByWord Yours))
+    (DealDamage Macros.thisRoom (Lit 1) (Each Opponent))
+
+||| Ferocious Pup, whole -- "When this creature enters, create a 2/2 green
+||| Wolf creature token." The `Wolf` word, on the type line and on the
+||| token, for the row Arlinn, Voice of the Pack asked for.
+public export
+ferociousPup : Card
+ferociousPup =
+  Macros.card "Ferocious Pup" (Just [Macros.generic 2, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Wolf"] [Creature])
+       [ Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Macros.create (Lit 1) (Macros.creatureTok 2 2 [Green] [creatureType "Wolf"])) ]
+       (Just (0, 1))
+
+||| Talrand's Invocation -- "Create two 2/2 blue Drake creature tokens
+||| with flying." The `Drake` word, for the row Flailing Drake asked for.
+public export
+talrandsInvocation : Effect []
+talrandsInvocation =
+  Macros.create (Lit 2)
+    (MkToken (Just (Lit 2 ** Lit 2)) [Blue] (MkTypeLine [creatureType "Drake"] [Creature])
+             [Macros.keyword "Flying"] Nothing)
+
+||| Predatory Wurm, whole -- "Vigilance / This creature gets +2/+2 as long
+||| as you control a Garruk planeswalker." The `Garruk` word, read as a
+||| DESCRIPTION rather than off a type line: [CR#109.2] reads a
+||| description naming a card type or subtype onto the battlefield, so a
+||| card may name the planeswalker set without being in it. Garruk
+||| Relentless is still blocked on the transform verb.
+public export
+predatoryWurm : Card
+predatoryWurm =
+  Macros.card "Predatory Wurm" (Just [Macros.generic 3, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Wurm"] [Creature])
+       [ Macros.keyword "Vigilance"
+       , Static (Macros.asLongAs
+                   (Exists (And [HasSubtype (planeswalkerType "Garruk"), ControlledBy You]))
+                   (Gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)))) ]
+       (Just (4, 4))
+
+||| Soul Ransom's ransom clause -- "This Aura's controller sacrifices it,
+||| then draws two cards." The SELF-ANTECEDENT pronoun. A possessive
+||| already announces whatever its base announces, so "target creature's
+||| controller … it" has always written; a deictic base announced nothing
+||| only because deixis has no `nounDelta`. The possessive now threads
+||| `selfSubjDelta`, which mints at `SelfD` -- the determiner "it" reads
+||| and the demonstrative words do not -- so the ascription is the
+||| sacrifice slot's one candidate at the permanent carrier
+||| [CR#109.2,701.21a] and the clause writes. The whole card waits on an
+||| activation restriction naming who may activate.
+public export
+soulRansomRansom : Effect []
+soulRansomRansom =
+  Sequentially [ Macros.sacrificeIt (ControllerOf Macros.thisAura)
+               , Draw They (Lit 2) ]
+
+||| ...and the announcement it rests on, measured. The ascription under
+||| the possessive is one candidate at the sacrifice slot's carrier.
+public export
+possessiveDeicticIsReadableByIt :
+  countOnesAt PermanentSlot (nomIntro (ControllerOf (Macros.thisAura {bs = []}))) = 1
+possessiveDeicticIsReadableByIt = Refl
+
+||| ...while the demonstrative noun words still find nothing there:
+||| `SelfD` is what "it" reads and what "that enchantment" does not, so
+||| opening the possessive costs no demonstrative its resolution.
+public export
+possessiveDeicticIsNotADemonstrative :
+  countWord (TypeW Enchantment) (nomIntro (ControllerOf (Macros.thisAura {bs = []}))) = 0
+possessiveDeicticIsNotADemonstrative = Refl
+
+||| ...and a DESCRIBED base is unchanged: it announced its referent
+||| before this round and announces exactly one now.
+public export
+possessiveDescribedBaseUnchanged :
+  countOnesAt PermanentSlot
+    (nomIntro (ControllerOf (Macros.target Macros.creature {bs = []}))) = 1
+possessiveDescribedBaseUnchanged = Refl
