@@ -95,6 +95,15 @@ staticOnSpellCardOk : {0 bs : Bindings} -> StaticEffect bs -> Bool
 staticOnSpellCardOk (Deontic _ Forbid ["Counter"] Patient _ _) = True
 staticOnSpellCardOk (Deontic _ Forbid ["Copy"] Patient _ _) = True
 staticOnSpellCardOk (AltCost _) = True
+-- [CR#113.6e]: "An object's ability that restricts or modifies how that
+-- particular object can be played or cast functions in any zone from
+-- which it could be played or cast and also on the stack." The cast
+-- WINDOW is that ability -- 47 supported lines print "Cast this spell
+-- only during ..." -- and it is the windowed permission and not a bare
+-- one, since what the line restricts is when the only permission there
+-- is holds.
+staticOnSpellCardOk (OnlyDuring _ _ (Deontic _ Permit ["Cast"] Patient _ _)) = True
+staticOnSpellCardOk (OnlyDuring _ _ se) = staticOnSpellCardOk se
 staticOnSpellCardOk (Conditionally _ se _) = staticOnSpellCardOk se
 staticOnSpellCardOk (OnlyWhile se _ _) = staticOnSpellCardOk se
 staticOnSpellCardOk _ = False

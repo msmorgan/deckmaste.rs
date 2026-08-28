@@ -6929,6 +6929,148 @@ kangPowerUpLock =
   Macros.objectCant "Activate"
     (AllOf (AbilityHead (KeywordClass "PowerUp")))
 
+||| Grand Abolisher, whole -- "During your turn, your opponents can't
+||| cast spells or activate abilities of artifacts, creatures, or
+||| enchantments." The WINDOW and the qualified complement in one line,
+||| and the reason the complement is kind-general: casting takes an
+||| object [CR#601.2] and activating takes an ability [CR#602.2,109.1],
+||| so a coordination of the two names participants at two kinds and the
+||| slot cannot be `Object`-only. Two statements under one window rather
+||| than one statement over two labels, because each deed carries its own
+||| complement and the carrier holds one.
+public export
+grandAbolisher : Card
+grandAbolisher =
+  Macros.card "Grand Abolisher" (Just [Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
+       [ Static (OnlyDuring Turn (Just Yours)
+                   (AndAlso
+                      [ Macros.cantDoTo "Cast" (PlayerGroup YourOpponents)
+                          (AllOf Macros.spell)
+                      , Macros.cantDoTo "Activate" (PlayerGroup YourOpponents)
+                          (AllOf (And [ AbilityHead AnyActivated
+                                      , AbilityOf (AllOf (Or [Macros.artifact,
+                                                              Macros.creature,
+                                                              HasType Enchantment])) ])) ])) ]
+       (Just (2, 2))
+
+||| Festival, whole -- "Cast this spell only during an opponent's upkeep.
+||| / Creatures can't attack this turn." The CAST WINDOW on a spell card,
+||| which [CR#113.6e] functions from the zones the spell could be cast
+||| from and from the stack; 47 supported lines write one. The routed
+||| gap read it as a missing `Timing` seat, and the answer was the
+||| window a static statement is confined to rather than a second
+||| activation restriction.
+public export
+festival : Card
+festival =
+  Macros.card "Festival" (Just [Macros.pip White]) []
+       (MkTypeLine [] [Instant])
+       [ Static (OnlyDuring Upkeep (Just AnOpponents)
+                   (Macros.deontic This Permit ["Cast"] Patient NoDeonticPatient))
+       , Spell (Macros.cantAttack (AllOf Macros.creature)
+                                  (Just Macros.thisTurn)) ]
+       Nothing
+
+||| Kopala, Warden of Waves, whole -- "Spells your opponents cast that
+||| target a Merfolk you control cost {2} more to cast. / Abilities your
+||| opponents activate that target a Merfolk you control cost {2} more to
+||| activate." The "that target ..." RESTRICTOR on an ability class, and
+||| the second line is the first one's shape at the other kind:
+||| [CR#115.9b] states the relation in the rules' own words for a spell
+||| and an ability alike, so one predicate answers both and the class
+||| word is what changes.
+public export
+kopalaWardenOfWaves : Card
+kopalaWardenOfWaves =
+  Macros.card "Kopala, Warden of Waves"
+       (Just [Macros.generic 1, Macros.pip Blue, Macros.pip Blue])
+       [Legendary]
+       (MkTypeLine [creatureType "Merfolk", creatureType "Wizard"] [Creature])
+       [ Static (CostsToCast
+                   (AllOf (And [ Macros.spell
+                               , CastBy (PlayerGroup YourOpponents)
+                               , Targets (Macros.a (And [Macros.creature,
+                                                         HasSubtype (creatureType "Merfolk"),
+                                                         ControlledBy You]))
+                                         SomeTarget ]))
+                   (CostMore (Lit 2)))
+       , Static (CostsToCast
+                   (AllOf (And [ AbilityHead AnyActivated
+                               , ActivatedBy (PlayerGroup YourOpponents)
+                               , Targets (Macros.a (And [Macros.creature,
+                                                         HasSubtype (creatureType "Merfolk"),
+                                                         ControlledBy You]))
+                                         SomeTarget ]))
+                   (CostMore (Lit 2))) ]
+       (Just (2, 2))
+
+||| Tithe Taker, whole -- "During your turn, spells your opponents cast
+||| cost {1} more to cast and abilities your opponents activate cost {1}
+||| more to activate unless they're mana abilities. / Afterlife 1." The
+||| WINDOW over a coordination of two cost statements at two sorts, which
+||| is the card's own difficulty: the window is not a duration and not a
+||| condition, and each conjunct describes a different kind of object.
+public export
+titheTaker : Card
+titheTaker =
+  Macros.card "Tithe Taker" (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+       [ Static (OnlyDuring Turn (Just Yours)
+                   (AndAlso
+                      [ CostsToCast
+                          (AllOf (And [Macros.spell,
+                                       CastBy (PlayerGroup YourOpponents)]))
+                          (CostMore (Lit 1))
+                      , CostsToCast
+                          (AllOf (And [ AbilityHead AnyActivated
+                                      , ActivatedBy (PlayerGroup YourOpponents)
+                                      , Not IsManaAbility ]))
+                          (CostMore (Lit 1)) ]))
+       , Macros.keywordNumber "Afterlife" (Lit 1) ]
+       (Just (2, 1))
+
+||| Gaddock Teeg, whole -- "Noncreature spells with mana value 4 or
+||| greater can't be cast. / Noncreature spells with {X} in their mana
+||| costs can't be cast." Two qualified cast prohibitions in the object
+||| voice whose complements differ in KIND of question: the first reads a
+||| derived characteristic [CR#202.3] and the second reads a printed
+||| symbol [CR#202.1], which is why the second wanted a predicate of its
+||| own rather than another comparison.
+public export
+gaddockTeeg : Card
+gaddockTeeg =
+  Macros.card "Gaddock Teeg" (Just [Macros.pip Green, Macros.pip White])
+       [Legendary]
+       (MkTypeLine [creatureType "Kithkin", creatureType "Advisor"] [Creature])
+       [ Static (Macros.objectCant "Cast"
+                   (AllOf (And [Macros.spell, Not (HasType Creature),
+                                Compare ManaValue AtLeast (Lit 4)])))
+       , Static (Macros.objectCant "Cast"
+                   (AllOf (And [Macros.spell, Not (HasType Creature),
+                                ManaCostHasX]))) ]
+       (Just (2, 2))
+
+||| Vexing Shusher, whole -- "This spell can't be countered. / {R/G}:
+||| Target spell can't be countered." The SPANLESS prohibition, and the
+||| finding is that nothing refuses it: `SpanOk` admits an unstated
+||| duration at every `StaticKind` ([CR#611.2a] gives an unstated
+||| duration the end of the game), so the second line wanted only the
+||| targeted spell's own noun. The first line elaborated already; the
+||| pair is one card because [CR#113.6g] functions both on the stack.
+public export
+vexingShusher : Card
+vexingShusher =
+  Macros.card "Vexing Shusher"
+       (Just [Macros.hybridPip Red Green, Macros.hybridPip Red Green]) []
+       (MkTypeLine [creatureType "Goblin", creatureType "Shaman"] [Creature])
+       [ Static (Macros.objectCant "Counter" This)
+       , Macros.activated (Mana [Macros.hybridPip Red Green])
+           (Continuously
+              (Macros.objectCant "Counter" (Macros.target Macros.spell))
+              Nothing) ]
+       (Just (2, 2))
+
 public export
 suppressionField : Card
 suppressionField =

@@ -667,6 +667,21 @@ mutual
                  {auto 0 rk : So (kindLte k (Object \/ Player))} ->
                  Predicate bs k
     IsSource : Predicate bs Object
+    ||| "spells with {X} in their mana costs": an object described by a
+    ||| SYMBOL its printed mana cost writes. [CR#202.1] makes the mana
+    ||| cost a printed characteristic indicated by mana symbols, and
+    ||| [CR#107.3a] makes {X} in a mana cost the placeholder whose value
+    ||| the controller announces as the spell is cast -- so the phrase
+    ||| asks about the printed cost and never about the value X took,
+    ||| which is why it is a predicate here and not a comparison against
+    ||| an amount. `manaHasX` is the reader, and it was already written.
+    |||
+    ||| ONE symbol, not a matcher over the symbol vocabulary. Gaddock
+    ||| Teeg's second line is the only supported sentence that describes
+    ||| an object by a symbol in its cost; a general matcher would spell
+    ||| a description for every `ManaSymbol` and no card writes one.
+    ||| -- spelling: "with {X} in [its/their] mana cost[s]".
+    ManaCostHasX : Predicate bs Object
     AbilityHead : (cls : AbilityClass) -> Predicate bs Ability
     AbilityOf : (src : Noun bs Object) -> Predicate bs Ability
     ActivatedBy : (who : Noun bs Player) ->
@@ -943,6 +958,7 @@ mutual
   -- "ability" the clause hangs off [CR#115.9b].
   hasHead (Targets _ _) = False
   hasHead IsSource = True
+  hasHead ManaCostHasX = False
   hasHead (HasKeyword _) = False
   hasHead (ControlledBy _) = False
   hasHead (CastBy _) = False
@@ -1129,6 +1145,8 @@ mutual
   predEq (Targets _ _) _ = False
   predEq IsSource IsSource = True
   predEq IsSource _ = False
+  predEq ManaCostHasX ManaCostHasX = True
+  predEq ManaCostHasX _ = False
   predEq (HasKeyword a) (HasKeyword b) = a == b
   predEq (HasKeyword _) _ = False
   predEq (ControlledBy a) (ControlledBy b) = nounEqRef a b
@@ -1671,6 +1689,7 @@ mutual
   predSays IsManaAbility = True
   predSays (Targets _ _) = True
   predSays IsSource = True
+  predSays ManaCostHasX = True
   predSays (HasKeyword _) = True
   predSays (ControlledBy _) = True
   predSays (CastBy _) = True
@@ -1741,6 +1760,7 @@ mutual
   predNegFree IsManaAbility = True
   predNegFree (Targets _ _) = True
   predNegFree IsSource = True
+  predNegFree ManaCostHasX = True
   predNegFree (HasKeyword _) = True
   predNegFree (ControlledBy _) = True
   predNegFree (CastBy _) = True

@@ -842,8 +842,8 @@ objectCant deed what =
 ||| ONE description at two roles rather than a member in each of two
 ||| act vocabularies.
 public export
-cantDoTo : {k : Kind} -> (deed : VerbLabel) -> (who : Noun bs k) ->
-           (what : Noun (nomIntro who) Object) ->
+cantDoTo : {k : Kind} -> {kw : Kind} -> (deed : VerbLabel) ->
+           (who : Noun bs k) -> (what : Noun (nomIntro who) kw) ->
            {auto 0 kd : KnownDeeds [deed]} ->
            {auto 0 zn : ZoneFits (nounZone who) (deedsZone [deed] Agent)} ->
            {auto 0 dp : DeedParticipant [deed] Agent k (nounTy who)} ->

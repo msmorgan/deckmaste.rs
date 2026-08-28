@@ -3131,6 +3131,11 @@ keywordFacts =
   -- and Kang the Conqueror's "power-up abilities can't be activated" --
   -- which name the word where `KeywordClass` reads it. Cycling and
   -- ninjutsu are the same cell at words that already had rows.
+  -- [CR#702.135a] makes afterlife a triggered ability with a number
+  -- after the word: "Afterlife N" means "When this permanent is put
+  -- into a graveyard from the battlefield, create N 1/1 white and black
+  -- Spirit creature tokens with flying."
+  , MkKeywordFacts "Afterlife"        NumberParam  False Nothing             True  False False
   , MkKeywordFacts "Boast"            AbilityParam False Nothing             True  False False
   , MkKeywordFacts "Exhaust"          AbilityParam False Nothing             True  False False
   , MkKeywordFacts "PowerUp"          AbilityParam False Nothing             True  False False

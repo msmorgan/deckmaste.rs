@@ -521,6 +521,36 @@ mutual
                   (marking : CondMarking) ->
                   {auto 0 nn : NotConditional se} ->
                   {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
+      ||| "During [p] of [w], [se]" / "[se] only during [p] of [w]": the
+      ||| WINDOW a static statement is confined to. `Conditionally`'s
+      ||| twin at the turn structure rather than at the game state, and
+      ||| the third thing a static statement can be qualified BY -- a
+      ||| duration says when it ends [CR#611.2a], a condition says what
+      ||| must hold, and a window says which part of a turn it is in
+      ||| force during. None of the three is the others: "your opponents
+      ||| can't cast spells during your turn" never ends, holds under no
+      ||| condition, and applies in one part of every turn, so
+      ||| `Continuously`'s span and `Conditionally`'s condition are both
+      ||| the wrong shape for it. [CR#500.1] is what a window names -- a
+      ||| phase or step of the turn, recurring every turn -- and
+      ||| `windowOk` is the same gate an activation restriction's
+      ||| `Timing` already puts on the pair.
+      |||
+      ||| Its readings under the two modalities are one reading, not
+      ||| two: the window says WHEN the statement is in force. Under a
+      ||| `Forbid` that is "during your turn, [n] can't [deed]"; under a
+      ||| `Permit` it is "[deed] only during your end step", where the
+      ||| permission is the only one there is and being confined is what
+      ||| "only" says. [CR#601.3] leaves when a spell may be cast to
+      ||| whatever rule or effect says so, which is what a confined
+      ||| permission is.
+      ||| -- spelling: "During [window], [se]" leading, "[se] only during
+      ||| [window]" postposed; the window as its part and possessor.
+      OnlyDuring : (p : TurnPart) -> (w : Maybe Owner) ->
+                   (se : StaticEffect bs) ->
+                   {auto 0 wk : WindowOk p w} ->
+                   {auto 0 nw : So (notWindowed se)} ->
+                   StaticEffect bs
       ||| THE static play permission: "[who] may play/cast [what]", with
       ||| an optional source zone, a [CR#609.4] premise, a per-window
       ||| count cap and a window.
@@ -742,7 +772,7 @@ mutual
     ||| carrier paid for it, and the five qualifier families that name an
     ||| object (a spell TYPE, a NAME, a colour, a chosen type) are one
     ||| noun here rather than five members of an act vocabulary.
-    DeonticCounterpart : (m : Noun bs Object) ->
+    DeonticCounterpart : {k : Kind} -> (m : Noun bs k) ->
                          DeonticPatient {bs} ds r
     ||| WHAT may not target the subject: "spells or abilities your
     ||| opponents control", "nongreen spells or abilities from nongreen
@@ -778,9 +808,10 @@ mutual
   ||| Bool, because the counterpart is checked from the carrier rather
   ||| than at its own constructor.
   public export
-  counterpartFits : {bs : Bindings} -> Deeds -> Role -> Noun bs Object -> Bool
-  counterpartFits ds r m =
-    all (\d => deedKindOk d r Object) ds &&
+  counterpartFits : {bs : Bindings} -> {k : Kind} -> Deeds -> Role ->
+                    Noun bs k -> Bool
+  counterpartFits {k} ds r m =
+    all (\d => deedKindOk d r k) ds &&
     (case nounTy m of
        Just ty => all (\d => deedTypeOk d r ty) ds
        Nothing => all (\d => deedBareOk d r) ds) &&
@@ -801,8 +832,8 @@ mutual
   ||| splits the subject's own delta off the prefix and reads what is
   ||| left, which is what `mustBlockIt` writes.
   public export
-  counterpartNotSelf : {bs : Bindings} -> {k : Kind} -> (n : Noun bs k) ->
-                       Noun (nomIntro n) Object -> Bool
+  counterpartNotSelf : {bs : Bindings} -> {k : Kind} -> {ka : Kind} ->
+                       (n : Noun bs k) -> Noun (nomIntro n) ka -> Bool
   counterpartNotSelf n It = countOnes Object (nounDelta n) == 0
   counterpartNotSelf n _ = True
 
@@ -857,6 +888,17 @@ mutual
   public export
   NotConditional : StaticEffect bs -> Type
   NotConditional {bs} se = So (notConditional se)
+
+  ||| A windowed statement is not windowed again -- the same narrowing
+  ||| `notConditional` puts on the conditional, and for the same reason:
+  ||| no printed line writes two turn-part windows over one statement,
+  ||| and the second would have to name a part inside the first for the
+  ||| pair to mean anything [CR#500.1] does not already give the inner
+  ||| one.
+  public export
+  notWindowed : {0 bs : Bindings} -> StaticEffect bs -> Bool
+  notWindowed (OnlyDuring _ _ _) = False
+  notWindowed _ = True
 
   public export
   data Shield : Bindings -> Type where
@@ -972,6 +1014,7 @@ mutual
   staticKind (EntersUnderInstead _ _) = Replacement
   staticKind (RedirectsFrom _ _ _ _ _) = Replacement
   staticKind (Scales _ _ _ _ _) = Replacement
+  staticKind (OnlyDuring _ _ se) = staticKind se
   staticKind (Conditionally _ _ _) = Conditional
   staticKind (OnlyWhile _ _ _) = Conditional
   staticKind (AlsoOffBattlefield se) = staticKind se
@@ -1032,6 +1075,7 @@ mutual
   staticIntro (EntersUnderInstead n who) = nomIntro who
   staticIntro (RedirectsFrom kind src scope to use) = nomIntro to
   staticIntro (Scales kind src scope op use) = scaleIntro op
+  staticIntro (OnlyDuring _ _ se) = staticIntro se
   staticIntro (Conditionally c se _) = staticIntro se
   staticIntro (OnlyWhile se c _) = staticIntro se
   staticIntro (AlsoOffBattlefield se) = staticIntro se
