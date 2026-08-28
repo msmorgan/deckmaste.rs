@@ -451,7 +451,7 @@ badWarpGrantInGraveyard Oh impossible
 ||| payload's own witness, one half at a time.
 public export
 spellOrAbilityJoin : Payload (Object \/ Ability)
-spellOrAbilityJoin = JoinP (ObjectP Nothing (Just Stack) Nothing Nothing) AbilityP
+spellOrAbilityJoin = JoinP (ObjectP Nothing (Just Stack) Nothing Nothing Nothing) AbilityP
 
 ||| ...and the order reads either half back: "counter that ability" after
 ||| "target spell or ability" resolves `Ability` against the join.

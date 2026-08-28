@@ -1051,14 +1051,14 @@ public export
 oneTokenIsOneSpec :
   countTokenSpecs [MkBinding AD Object OneOf
                              (ObjectP (Just Creature) (Just Battlefield)
-                                      Nothing (Just TokenOrigin))] = 1
+                                      Nothing (Just TokenOrigin) Nothing)] = 1
 oneTokenIsOneSpec = Refl
 
 public export
 manyTokensAreOneSpec :
   countTokenSpecs [MkBinding AD Object ManyOf
                              (ObjectP (Just Creature) (Just Battlefield)
-                                      Nothing (Just TokenOrigin))] = 1
+                                      Nothing (Just TokenOrigin) Nothing)] = 1
 manyTokensAreOneSpec = Refl
 
 ||| A non-token object leaves no definition whatever its plurality, which
@@ -1067,7 +1067,7 @@ public export
 oneNonTokenIsNoSpec :
   countTokenSpecs [MkBinding TheD Object OneOf
                              (ObjectP (Just Creature) (Just Battlefield)
-                                      Nothing Nothing)] = 0
+                                      Nothing Nothing Nothing)] = 0
 oneNonTokenIsNoSpec = Refl
 
 
@@ -1195,9 +1195,9 @@ nomIntroIsDeltaThenPrefix bs k n = Refl
 public export
 markTyKeepsOnes : (j : Kind) -> (ty : Maybe CardType) -> (b : Binding) ->
                   oneOfKind j (markTy ty b) = oneOfKind j b
-markTyKeepsOnes j ty (MkBinding det Object OneOf (ObjectP Nothing zn st og)) = Refl
-markTyKeepsOnes j ty (MkBinding det Object ManyOf (ObjectP Nothing zn st og)) = Refl
-markTyKeepsOnes j ty (MkBinding det Object plur (ObjectP (Just t) zn st og)) = Refl
+markTyKeepsOnes j ty (MkBinding det Object OneOf (ObjectP Nothing zn st og _)) = Refl
+markTyKeepsOnes j ty (MkBinding det Object ManyOf (ObjectP Nothing zn st og _)) = Refl
+markTyKeepsOnes j ty (MkBinding det Object plur (ObjectP (Just t) zn st og _)) = Refl
 markTyKeepsOnes j ty (MkBinding det Player plur PlayerP) = Refl
 markTyKeepsOnes j ty (MkBinding det Player plur ChosenPlayerP) = Refl
 markTyKeepsOnes j ty (MkBinding det (Quality q) plur QualityP) = Refl
@@ -1213,8 +1213,8 @@ markTyKeepsOnes j ty (MkBinding det (a \/ b) plur (JoinP l r)) = Refl
 public export
 markTyKeepsAt : (sl : SlotCarrier) -> (ty : Maybe CardType) -> (b : Binding) ->
                 itAtReaches sl (markTy ty b) = itAtReaches sl b
-markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP Nothing zn st og)) = Refl
-markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP (Just t) zn st og)) = Refl
+markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP Nothing zn st og _)) = Refl
+markTyKeepsAt sl ty (MkBinding det Object plur (ObjectP (Just t) zn st og _)) = Refl
 markTyKeepsAt sl ty (MkBinding det Player plur PlayerP) = Refl
 markTyKeepsAt sl ty (MkBinding det Player plur ChosenPlayerP) = Refl
 markTyKeepsAt sl ty (MkBinding det (Quality q) plur QualityP) = Refl

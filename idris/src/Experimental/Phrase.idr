@@ -1876,7 +1876,7 @@ mutual
   ||| description for the pair hands the same leaf to both.
   public export
   joinHalfPayload : {k : Kind} -> Phrasal k -> HeadTy k -> Payload k
-  joinHalfPayload PhObject (SoleTy ty) = ObjectP ty Nothing Nothing Nothing
+  joinHalfPayload PhObject (SoleTy ty) = ObjectP ty Nothing Nothing Nothing Nothing
   joinHalfPayload PhPlayer _ = PlayerP
   joinHalfPayload {k = Quality q} PhQuality _ = QualityP
   joinHalfPayload PhAbility _ = AbilityP
@@ -1892,7 +1892,8 @@ mutual
               (ObjectP (seedTy p)
                        (Just (zoneOr Battlefield (seedZone p)))
                        Nothing
-                       (if seedsToken p then Just TokenOrigin else Nothing))
+                       (if seedsToken p then Just TokenOrigin else Nothing)
+                       Nothing)
   bindFor det plur PhPlayer p = MkBinding det Player plur PlayerP
   bindFor det plur {k = Quality q} PhQuality p = MkBinding det (Quality q) plur QualityP
   bindFor det plur PhAbility p = MkBinding det Ability plur AbilityP
@@ -2054,6 +2055,26 @@ mutual
                  {auto 0 cm : CountedMention grp} ->
                  {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Object
     TheRest : {auto 0 ok : So (theRestOk bs)} -> Noun bs Object
+    ||| "the other": the SUBSET COMPLEMENT, and `TheRest`'s singular
+    ||| twin. 104 occurrences over 102 supported cards write it
+    ||| (re-measured 2026-08-28), the great majority in one sentence
+    ||| shape -- a counted group is assembled, a partitive takes some of
+    ||| it, and what is left is named as ONE thing: "Look at the top two
+    ||| cards of your library. Put one of them into your hand and THE
+    ||| OTHER into your graveyard."
+    ||| It is not a second `TheRest`. The two read the same partition and
+    ||| differ in NUMBER, and number is exactly what the prefix could not
+    ||| say until a mention recorded its own count: `theRestOk` asks only
+    ||| that something was taken, while this asks that all but one member
+    ||| was, which is what makes English write "the other" instead of
+    ||| "the rest". A group whose size the text never stated answers
+    ||| False here and keeps "the rest".
+    ||| Its determiner is definite for `TheRest`'s reason -- the
+    ||| remainder is fixed by the partition, not chosen -- and its
+    ||| disposal spends the group the same way.
+    ||| -- spelling: "the other", and with a head noun repeated, "the
+    ||| other [card]".
+    TheOther : {auto 0 ok : So (theOtherOk bs)} -> Noun bs Object
     It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
     ||| "it", read at the carrier the CONSUMING VERB's rule admits
     ||| rather than across every singular object mention. [CR#109.2]
@@ -2268,6 +2289,7 @@ mutual
   nounEqRef (SomeOf _ _ _) _ = False
   nounEqRef (NamesAgree _ _) _ = False
   nounEqRef TheRest _ = False
+  nounEqRef TheOther _ = False
   nounEqRef It It = True
   nounEqRef It _ = False
   nounEqRef (ItAt _) _ = False
@@ -2345,10 +2367,11 @@ mutual
   nounDelta (Indefinite m p {ph}) = bindFor AD OneOf ph p :: predDelta p
   nounDelta (Definite p {ph}) = bindFor TheD OneOf ph p :: predDelta p
   nounDelta (TargetGroup q p {tk}) =
-    bindFor TargetD (quantPlur q) (targetablePhrasal tk) p
+    sized (quantExact q) (bindFor TargetD (quantPlur q) (targetablePhrasal tk) p)
       :: (quantDelta q ++ predDelta p)
   nounDelta (CountedGroup q _ p {ph}) =
-    bindFor CountD (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
+    sized (quantExact q) (bindFor CountD (quantPlur q) ph p)
+      :: (quantDelta q ++ predDelta p)
   nounDelta (AllOf p {ph}) = bindFor AllD ManyOf ph p :: predDelta p
   nounDelta (EachOf grp) = nounDelta grp
   nounDelta (Both l r) = nounDelta r ++ nounDelta l
@@ -2357,15 +2380,17 @@ mutual
   nounDelta (EachOfBoth p) = nounDelta p
   nounDelta (LibrarySlice pos amt whose) =
     MkBinding TheD Object (outputPlur (nounPlur whose) (amtPlur amt))
-              (ObjectP Nothing (Just Library) Nothing Nothing)
+              (ObjectP Nothing (Just Library) Nothing Nothing (amtExact amt))
       :: nounDelta whose
   -- the constraint is a modifier on the wrapped mention, so the mention
   -- binds once and the phrase reads back as itself.
   nounDelta (NamesAgree _ grp) = nounDelta grp
   nounDelta (SomeOf q d grp) =
-    MkBinding PartD Object (quantPlur q) (ObjectP (sliceTy d grp) (nounZone grp) Nothing Nothing)
+    MkBinding PartD Object (quantPlur q)
+              (ObjectP (sliceTy d grp) (nounZone grp) Nothing Nothing (quantExact q))
       :: (quantDelta q ++ sliceDelta d ++ nounDelta grp)
   nounDelta TheRest = []
+  nounDelta TheOther = []
   nounDelta It = []
   nounDelta (ItAt _) = []
   nounDelta (ItVerbed _) = []
@@ -2411,7 +2436,7 @@ mutual
   elemIntro : {bs : Bindings} -> Noun bs Object -> Bindings
   elemIntro grp =
     MkBinding TheD Object OneOf
-              (ObjectP (nounTy grp) (nounZone grp) (nounProv grp) Nothing)
+              (ObjectP (nounTy grp) (nounZone grp) (nounProv grp) Nothing (Just 1))
       :: nomIntro grp
 
   ||| What a DISTRIBUTIVE AGENT hands the clause it governs: the member
@@ -3235,6 +3260,25 @@ mutual
   WellFormedQ : Quantity bs -> Type
   WellFormedQ q = So (quantWellFormed q)
 
+  ||| The count a written AMOUNT states, where it states one. A literal
+  ||| is the only amount whose value the text fixes; every other amount
+  ||| is read at resolution and states no size here.
+  public export
+  amtExact : {0 bs : Bindings} -> Amount bs -> Maybe Nat
+  amtExact (Lit n) = Just n
+  amtExact _ = Nothing
+
+  ||| The count a written QUANTITY states. A range whose floor and
+  ||| ceiling agree is the exact count [CR#107.1c]; "up to" states a
+  ||| ceiling and not a count, and the amount-valued arms state theirs
+  ||| only when the amount does.
+  public export
+  quantExact : {0 bs : Bindings} -> Quantity bs -> Maybe Nat
+  quantExact (Range (Just lo) (Just hi)) = if lo == hi then Just lo else Nothing
+  quantExact (Range _ _) = Nothing
+  quantExact (UpToOf _) = Nothing
+  quantExact (ExactlyOf a) = amtExact a
+
   public export
   quantPlur : {0 bs : Bindings} -> Quantity bs -> Plurality
   quantPlur (Range _ (Just (S Z))) = OneOf
@@ -3294,13 +3338,20 @@ mutual
   ||| Nothing else is admitted, and the omission is the point: an
   ||| INDEFINITE or TARGETED subject would introduce a referent the
   ||| condition merely supposed, and `Exists` is the row for supposing.
+  ||| A Bool and a `So`, not a two-constructor witness: a witness with a
+  ||| bindingless ARM would let the erased equality inside it stand
+  ||| unrefuted, and `badMatchesTargetSubject` is a pin that has to be
+  ||| able to refute the whole gate at once.
   public export
-  data TestSubject : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type where
-    BindinglessSubject : {0 n : Noun bs k} ->
-                         {auto 0 bl : Bindingless n} -> TestSubject n
-    DefiniteSubject : {0 k : Kind} -> {0 p : Predicate bs k} ->
-                      {0 ph : Phrasal k} -> {0 uq : Uniquifying p} ->
-                      TestSubject (Definite p {ph} {uq})
+  testSubjectOk : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bool
+  testSubjectOk (Definite _) = True
+  testSubjectOk n = case nounDelta n of
+                      [] => True
+                      _ => False
+
+  public export
+  TestSubject : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Type
+  TestSubject {bs} {k} n = So (testSubjectOk n)
 
   public export
   anchorPhrase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -3323,6 +3374,7 @@ mutual
   anchorPhrase (SomeOf _ _ _) = False
   anchorPhrase (NamesAgree _ grp) = anchorPhrase grp
   anchorPhrase TheRest = False
+  anchorPhrase TheOther = False
   anchorPhrase It = True
   anchorPhrase (ItAt _) = True
   anchorPhrase (ItVerbed _) = True
@@ -3383,6 +3435,7 @@ mutual
   choosable (SomeOf _ _ _) = False
   choosable (NamesAgree _ grp) = choosable grp
   choosable TheRest = False
+  choosable TheOther = False
   choosable It = False
   choosable (ItAt _) = False
   choosable (ItVerbed _) = False
@@ -3445,6 +3498,7 @@ mutual
   groupMention (SomeOf _ _ _) = False
   groupMention (NamesAgree _ grp) = groupMention grp
   groupMention TheRest = False
+  groupMention TheOther = False
   groupMention It = False
   groupMention (ItAt _) = False
   groupMention (ItVerbed _) = False
@@ -4063,11 +4117,11 @@ mutual
   public export
   selfSubjDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   selfSubjDelta (AsType t This _) =
-    [MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
+    [MkBinding SelfD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing Nothing)]
   selfSubjDelta (AttachHost _ (TypeW t)) =
-    [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing)]
+    [MkBinding TheD Object OneOf (ObjectP (Just t) (Just Battlefield) Nothing Nothing Nothing)]
   selfSubjDelta (AttachHost _ PermanentW) =
-    [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing)]
+    [MkBinding TheD Object OneOf (ObjectP Nothing (Just Battlefield) Nothing Nothing Nothing)]
   selfSubjDelta (AttachHost _ PlayerW) = [MkBinding TheD Player OneOf PlayerP]
   selfSubjDelta _ = []
 
@@ -4267,6 +4321,7 @@ mutual
   costNounOk (LibrarySlice _ _ _) = True
   costNounOk (SomeOf _ _ grp) = costNounOk grp
   costNounOk TheRest = True
+  costNounOk TheOther = True
   costNounOk It = True
   costNounOk (ItAt _) = True
   costNounOk (ItVerbed _) = True
@@ -4308,6 +4363,7 @@ mutual
   nounIsYou (LibrarySlice _ _ _) = False
   nounIsYou (SomeOf _ _ _) = False
   nounIsYou TheRest = False
+  nounIsYou TheOther = False
   nounIsYou It = False
   nounIsYou (ItAt _) = False
   nounIsYou (ItVerbed _) = False
@@ -4349,6 +4405,7 @@ mutual
   nounTargeted (LibrarySlice _ _ _) = False
   nounTargeted (SomeOf _ _ grp) = nounTargeted grp
   nounTargeted TheRest = False
+  nounTargeted TheOther = False
   nounTargeted It = False
   nounTargeted (ItAt _) = False
   nounTargeted (ItVerbed _) = False
@@ -4466,8 +4523,8 @@ mutual
 
   public export
   setZone : Maybe VerbLabel -> Maybe Zone -> Binding -> Binding
-  setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og)) =
-    MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn (not (oldZn == z))) og)
+  setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og sz)) =
+    MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn (not (oldZn == z))) og sz)
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
   setZone p z (MkBinding det Player plur ChosenPlayerP) =
     MkBinding det Player plur ChosenPlayerP
@@ -4598,6 +4655,7 @@ mutual
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p TheRest z = groupSpent bs
+  moveIntro p TheOther z = groupSpent bs
   moveIntro p It z = setZoneIt p z bs
   moveIntro p (ItAt sl) z = setZoneItAt sl p z bs
   moveIntro p (ItVerbed v) z = setZoneVerbedIt v p z bs
@@ -4620,7 +4678,7 @@ mutual
   -- object a cost discarded is the same object under the same
   -- determiner. It names no card type, because `This` names none.
   moveIntro p This z =
-    MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing) :: bs
+    MkBinding SelfD Object OneOf (ObjectP Nothing z (mkStamp p Nothing (isJust z)) Nothing Nothing) :: bs
   -- an attachment's host is announced where it is moved or stamped, on
   -- `selfSubjDelta`'s rows: the attach word names a referent no delta of
   -- its own mints, so a clause acting on it would otherwise leave the
@@ -4628,12 +4686,12 @@ mutual
   moveIntro p (AttachHost _ (TypeW t)) z =
     MkBinding TheD Object OneOf
               (ObjectP (Just t) z (mkStamp p (Just Battlefield)
-                                            (not (z == Just Battlefield))) Nothing)
+                                            (not (z == Just Battlefield))) Nothing Nothing)
       :: bs
   moveIntro p (AttachHost _ PermanentW) z =
     MkBinding TheD Object OneOf
               (ObjectP Nothing z (mkStamp p (Just Battlefield)
-                                           (not (z == Just Battlefield))) Nothing)
+                                           (not (z == Just Battlefield))) Nothing Nothing)
       :: bs
   moveIntro p (AttachHost _ PlayerW) z = MkBinding TheD Player OneOf PlayerP :: bs
   moveIntro p (AttachHost _ w) z = bs
@@ -4643,11 +4701,11 @@ mutual
   -- neither.
   moveIntro p (AsType t This _) z =
     MkBinding SelfD Object OneOf
-              (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing)
+              (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
       :: bs
   moveIntro p (AsType t n _) z =
     MkBinding TheD Object OneOf
-              (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing)
+              (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
       :: bs
   moveIntro p You z = bs
   moveIntro p (PlayerGroup _) z = bs
@@ -4706,6 +4764,7 @@ mutual
   nounZone (LibrarySlice _ _ _) = Just Library
   nounZone (SomeOf _ _ grp) = nounZone grp
   nounZone TheRest = zoneOfGroup bs
+  nounZone TheOther = zoneOfGroup bs
   nounZone It = zoneOfIt bs
   nounZone (ItAt sl) = zoneOfItAt sl bs
   nounZone (ItVerbed v) = zoneOfVerbedIt v bs
@@ -4749,6 +4808,7 @@ mutual
   nounTy (LibrarySlice _ _ _) = Nothing
   nounTy (SomeOf _ d grp) = sliceTy d grp
   nounTy TheRest = tyOfGroup bs
+  nounTy TheOther = tyOfGroup bs
   nounTy It = tyOfIt bs
   nounTy (ItAt sl) = tyOfItAt sl bs
   nounTy (ItVerbed v) = tyOfVerbedIt v bs
@@ -4813,6 +4873,9 @@ mutual
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
   nounPlur (SomeOf q _ _) = quantPlur q
   nounPlur TheRest = ManyOf
+  -- the whole point of the row: one member is left, so the phrase is
+  -- singular and a singular destination or verb takes it.
+  nounPlur TheOther = OneOf
   nounPlur It = OneOf
   nounPlur (ItAt _) = OneOf
   nounPlur (ItVerbed _) = OneOf

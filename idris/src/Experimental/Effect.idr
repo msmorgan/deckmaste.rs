@@ -2694,7 +2694,7 @@ mutual
   effIntro (CounterSpell what) = nomIntro what
   effIntro (CopyStack agent what times exc) =
     MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
-              (ObjectP (nounTy what) (Just Stack) Nothing (Just CopyOrigin))
+              (ObjectP (nounTy what) (Just Stack) Nothing (Just CopyOrigin) Nothing)
       :: amtIntro times
   effIntro (ChooseNewTargets what) = nomIntro what
   effIntro (Choose n Nothing) = chosenIntro n
@@ -2714,7 +2714,7 @@ mutual
   effIntro (Search who sc q p) =
     MkBinding AD Object (quantPlur q)
               (ObjectP (seedTy p) (searchZone sc)
-                       (mkStamp (Just "Search") Nothing False) Nothing)
+                       (mkStamp (Just "Search") Nothing False) Nothing Nothing)
       :: (quantDelta q ++ predDelta p ++ searchDelta sc ++ nomIntro who)
   effIntro (Shuffle whose) = afterShuffle (nomIntro whose)
   effIntro (FlipCoins who count) = outcomeB CoinFlipped :: flipScopeIntro count
@@ -2730,7 +2730,7 @@ mutual
   effIntro (Throughout _ se) = staticIntro se
   effIntro (Create agent count spec riders) =
     MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
-              (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin))
+              (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin) Nothing)
       :: (specDelta spec ++ amtIntro count)
   effIntro (GetsEmblem who _) = nomIntro who
   effIntro (PutCounters amt kind on) = nomIntro on
@@ -3097,7 +3097,7 @@ mutual
   deedDelta (CounterSpell _) = []
   deedDelta (CopyStack agent what times exc) =
     [MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
-               (ObjectP (nounTy what) (Just Stack) Nothing (Just CopyOrigin))]
+               (ObjectP (nounTy what) (Just Stack) Nothing (Just CopyOrigin) Nothing)]
   deedDelta (ChooseNewTargets _) = []
   deedDelta (Choose n _) = []
   deedDelta (Move what to _) = []
@@ -3109,7 +3109,7 @@ mutual
   deedDelta (Expose v who what) = []
   deedDelta (Search who sc q p) =
     [MkBinding AD Object (quantPlur q)
-               (ObjectP (seedTy p) (searchZone sc) Nothing Nothing)]
+               (ObjectP (seedTy p) (searchZone sc) Nothing Nothing Nothing)]
   deedDelta (Shuffle whose) = []
   deedDelta (FlipCoins _ _) = [outcomeB CoinFlipped]
   deedDelta (RollDice _ _ _) = [outcomeB RollResult]
@@ -3127,7 +3127,7 @@ mutual
   deedDelta (Throughout _ _) = []
   deedDelta (Create agent count spec riders) =
     [MkBinding AD Object (outputPlur (nounPlur agent) (amtPlur count))
-               (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin))]
+               (ObjectP (specHeadTy spec) (Just Battlefield) Nothing (Just TokenOrigin) Nothing)]
   deedDelta (GetsEmblem _ _) = []
   deedDelta (PutCounters amt kind on) = []
   deedDelta (RemoveCounters amt kind from) = []

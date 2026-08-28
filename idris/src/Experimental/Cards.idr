@@ -242,7 +242,7 @@ arrowsOfJustice = DealDamage This (Lit 4)
                              (Macros.target (And [Macros.creature, Or [Attacking, Blocking]]))
 
 anotherDisjunctPhrase : Predicate [MkBinding TargetD Object OneOf
-                                             (ObjectP Nothing (Just Battlefield) Nothing Nothing)] Object
+                                             (ObjectP Nothing (Just Battlefield) Nothing Nothing Nothing)] Object
 anotherDisjunctPhrase = And [Or [Macros.creature, Macros.land], Other]
 
 
@@ -14122,3 +14122,98 @@ turbulentFen =
                                                ControlledBy (PlayerGroup YourOpponents)]))
                                 AtLeast (Lit 8)))
                     Unless)
+
+||| Darkblade Agent's first grant -- "As long as you've surveilled this
+||| turn, this creature has deathtouch". The KEYWORD-ACTION event name,
+||| and the round's answer to the pair the umbrella routed together: the
+||| name already exists. `VerbedAct` carries the label [CR#701.1] leaves
+||| open, so the per-turn state read is `Happened (VerbedAct "Surveil")`
+||| and wanted nothing new -- `bareLookbackOk` already admits a
+||| subjectless act ([CR#701.25a]'s surveil names no patient), and Eye of
+||| Duskmantle's "cards in your graveyard you've surveilled this turn"
+||| reads the same event.
+||| Yidaro's cycling count is the SAME answer arriving negative, and that
+||| is why the two are one item: [CR#702.29c] defines "when you cycle this
+||| card" as "when you discard this card to pay an activation cost of a
+||| cycling ability", so cycling is no keyword action and a `VerbedAct
+||| "Cycle"` label would be a fiction. What Yidaro counts is a labelled
+||| COST PAYMENT, which is `PaysCost`'s neighbourhood; the card stays
+||| blocked there and not here.
+public export
+darkbladeAgentDeathtouch : Ability
+darkbladeAgentDeathtouch =
+  Static (Conditionally (Macros.happened (VerbedAct "Surveil") You ThisTurn)
+                        (Gains Macros.thisCreature (Macros.keyword "Deathtouch"))
+                        AsLongAs)
+
+||| The Fallen, whole -- "At the beginning of your upkeep, this creature
+||| deals 1 damage to each opponent and planeswalker it has dealt damage
+||| to this game." The umbrella priced this as a THIRD reader shape --
+||| a relative clause with both an overt subject and its head in the
+||| complement position, being neither `Happened` nor `HappenedTo`. The
+||| re-derivation says otherwise and the round takes the smaller answer:
+||| `HappenedTo` at the VICTIM's voice already puts the dealer in the
+||| complement. [CR#120.1]'s two sides are two event names here, and
+||| reading the same clause as `DamageTaken` rather than `DamageDealing`
+||| moves the head to the subject seat and "it" to the complement, which
+||| is the shape the row has always had.
+||| The head is a JOINED kind and is read as one head over it, per
+||| [The kind index joins; union marking is spelling]: `lookbackSubjectOk`
+||| and `lookbackComplementOk` both distribute `DamageTaken` over the
+||| join, so the join costs nothing here either.
+||| No row was minted. The per-game lookback keeps its first benched
+||| carrier past Approach of the Second Sun.
+public export
+theFallen : Ability
+theFallen =
+  Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+    (DealDamage Macros.thisCreature (Lit 1)
+       (Each (And [Joined Opponent (HasType Planeswalker),
+                   Macros.happenedToInvolving DamageTaken ThisGame
+                     Macros.thisCreature])))
+
+||| Codecracker Hound's second line -- "Look at the top two cards of your
+||| library. Put one into your hand and the other into your graveyard."
+||| The SUBSET COMPLEMENT, and the cardinality that makes it writable: the
+||| library slice records that it is two cards, the partitive records that
+||| it took one, and "the other" is the row that can ask. `TheRest` would
+||| have written the same partition in the plural and mis-spelled the
+||| sentence.
+||| A Little Chat, Akal Pakal, Chrome Courier, Ashiok, Wicked Manipulator
+||| and Atris, Oracle of Half-Truths write the same shape into different
+||| destinations; 104 occurrences over 102 supported cards write the word
+||| at all (re-measured 2026-08-28).
+public export
+codecrackerHoundLook : Effect []
+codecrackerHoundLook =
+  Sequentially
+    [ Macros.lookAt (Macros.topSlice (Lit 2))
+    , Macros.move (Macros.oneOf Them) Macros.handZ
+    , Macros.move TheOther Macros.graveyardZ ]
+
+||| The subset complement's gate, measured from both sides. A group the
+||| text COUNTED leaves a singleton once all but one member is taken, and
+||| "the other" names it; a group whose size is read at resolution leaves
+||| a remainder of unknown size, and the sentence writes "the rest".
+||| This is what the cardinality on `ObjectP` buys, and the only thing it
+||| buys: nothing else reads a mention's size.
+public export
+theOtherAfterATwoCardLook :
+  theOtherOk (nomIntro (SomeOf {bs = []} (Macros.exactly 1) Nothing
+                               (LibrarySlice OnTop (Lit 2) You)
+                               {gm = Oh} {nz = MaxAtLeastOne} {wf = Oh})) = True
+theOtherAfterATwoCardLook = Refl
+
+public export
+theOtherNeedsAStatedCount :
+  theOtherOk (nomIntro (SomeOf {bs = []} (Macros.exactly 1) Nothing
+                               (LibrarySlice OnTop (CountOf Macros.creature) You)
+                               {gm = Oh} {nz = MaxAtLeastOne} {wf = Oh})) = False
+theOtherNeedsAStatedCount = Refl
+
+public export
+theRestStandsWhereTheOtherRefuses :
+  theRestOk (nomIntro (SomeOf {bs = []} (Macros.exactly 1) Nothing
+                              (LibrarySlice OnTop (CountOf Macros.creature) You)
+                              {gm = Oh} {nz = MaxAtLeastOne} {wf = Oh})) = True
+theRestStandsWhereTheOtherRefuses = Refl

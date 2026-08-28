@@ -1232,8 +1232,21 @@ isCopyOrigin Nothing = False
 
 public export
 data Payload : Kind -> Type where
+  ||| The last field is the mention's own CARDINALITY, where the text
+  ||| stated one: "the top two cards of your library" knows it is two,
+  ||| "one of them" knows it is one, and a description knows nothing.
+  ||| It is recorded here because a binding is what the anaphora reads,
+  ||| and the subset complement -- "put one of them into your hand and
+  ||| THE OTHER into your graveyard", 104 occurrences over 102 supported
+  ||| cards (re-measured 2026-08-28) -- is a read no other fact answers:
+  ||| what makes the remainder a singular "the other" rather than a
+  ||| plural "the rest" is that the group was counted and all but one
+  ||| member has been taken.
+  ||| `Nothing` is the ordinary answer and means only that no count was
+  ||| stated, never that the set is empty or unbounded.
   ObjectP : (ty : Maybe CardType) -> (zone : Maybe Zone) ->
-            (prov : Maybe Stamp) -> (orig : Maybe Origin) -> Payload Object
+            (prov : Maybe Stamp) -> (orig : Maybe Origin) ->
+            (size : Maybe Nat) -> Payload Object
   PlayerP : Payload Player
   ||| A player a CHOICE bound, where `PlayerP` is any other player
   ||| mention. [CR#607.2d] links "choose a [value]" to the later "the
@@ -1273,7 +1286,7 @@ Bindings = List Binding
 ||| reports none.
 public export
 payloadZone : Payload k -> Maybe Zone
-payloadZone (ObjectP _ zn _ _) = zn
+payloadZone (ObjectP _ zn _ _ _) = zn
 payloadZone PlayerP = Nothing
 payloadZone ChosenPlayerP = Nothing
 payloadZone QualityP = Nothing
@@ -1301,7 +1314,7 @@ joinSeed (Just t) (Just u) = if t == u then Just t else Nothing
 ||| mention was joined.
 public export
 payloadTy : Payload k -> Maybe CardType
-payloadTy (ObjectP ty _ _ _) = ty
+payloadTy (ObjectP ty _ _ _ _) = ty
 payloadTy PlayerP = Nothing
 payloadTy ChosenPlayerP = Nothing
 payloadTy QualityP = Nothing
@@ -1319,6 +1332,39 @@ bindingZone (MkBinding _ _ _ pl) = payloadZone pl
 public export
 bindingTy : Binding -> Maybe CardType
 bindingTy (MkBinding _ _ _ pl) = payloadTy pl
+
+||| How many members a mention has, where the text counted them. Only an
+||| object mention can carry a count -- the other payloads name one thing
+||| apiece -- and a join reports its object half's, on `payloadZone`'s
+||| model.
+public export
+payloadSize : Payload k -> Maybe Nat
+payloadSize (ObjectP _ _ _ _ sz) = sz
+payloadSize PlayerP = Nothing
+payloadSize ChosenPlayerP = Nothing
+payloadSize QualityP = Nothing
+payloadSize (OutcomeP _) = Nothing
+payloadSize GapP = Nothing
+payloadSize LetterP = Nothing
+payloadSize TurnRefP = Nothing
+payloadSize AbilityP = Nothing
+payloadSize (JoinP l r) = maybe (payloadSize r) Just (payloadSize l)
+
+public export
+bindingSize : Binding -> Maybe Nat
+bindingSize (MkBinding _ _ _ pl) = payloadSize pl
+
+||| Write a stated count onto a mention `bindFor` already built. The
+||| determiner rows that carry a quantity mint their binding through
+||| `bindFor`, which sees the description and not the count, so the count
+||| is written here rather than threaded through a slot nothing else
+||| wants.
+public export
+sized : Maybe Nat -> Binding -> Binding
+sized sz (MkBinding det Object pl (ObjectP ty zn pv og _)) =
+  MkBinding det Object pl (ObjectP ty zn pv og sz)
+sized _ b = b
+
 
 ||| The head type a phrase projects onto EACH half of its kind -- the
 ||| description-side twin of `Payload`'s `JoinP` pair, and read the same
@@ -1677,6 +1723,40 @@ public export
 theRestOk : Bindings -> Bool
 theRestOk bs = countGroups bs <= 1 && not (countParts bs == Z)
 
+||| "the other [X]": whether the prefix leaves a SINGLETON remainder --
+||| one counted group, and parts taken out of it totalling all but one of
+||| its members. That is the fact `theRestOk` cannot state and the reason
+||| the subset complement had no row: "the rest" needs only that
+||| something was taken, where "the other" needs to know how much is
+||| left, and nothing recorded the sizes until `ObjectP` did.
+||| The group's own count is read off the mention the text assembled;
+||| a group whose size was never stated answers False, and the phrase
+||| stays "the rest".
+public export
+partsTaken : Bindings -> Nat
+partsTaken [] = Z
+partsTaken (b@(MkBinding PartD _ _ _) :: bs) =
+  if kindLte Object b.kind
+    then (case bindingSize b of
+            Just n => n + partsTaken bs
+            Nothing => S (partsTaken bs))
+    else partsTaken bs
+partsTaken (_ :: bs) = partsTaken bs
+
+public export
+countedGroupSize : Bindings -> Maybe Nat
+countedGroupSize [] = Nothing
+countedGroupSize (MkBinding PartD _ _ _ :: bs) = countedGroupSize bs
+countedGroupSize (b :: bs) =
+  if objGroup b then bindingSize b else countedGroupSize bs
+
+public export
+theOtherOk : Bindings -> Bool
+theOtherOk bs = theRestOk bs &&
+                (case countedGroupSize bs of
+                   Nothing => False
+                   Just n => n == S (partsTaken bs))
+
 ||| What a disposal of "the rest" spends: the remainder itself. The
 ||| assembled group goes, and the parts stop being parts -- the members
 ||| they name are still there to read, but nothing is outstanding, so a
@@ -1795,10 +1875,10 @@ sameMaybeBy f _ _ = False
 ||| constructor and field alone.
 public export
 samePayload : {0 j, k : Kind} -> Payload j -> Payload k -> Bool
-samePayload (ObjectP ty zn pv og) (ObjectP ty' zn' pv' og') =
+samePayload (ObjectP ty zn pv og _) (ObjectP ty' zn' pv' og' _) =
   sameMaybeBy (==) ty ty' && sameMaybeBy (==) zn zn' &&
   sameMaybeBy sameStamp pv pv' && sameMaybeBy sameOrigin og og'
-samePayload (ObjectP _ _ _ _) _ = False
+samePayload (ObjectP _ _ _ _ _) _ = False
 samePayload PlayerP PlayerP = True
 samePayload ChosenPlayerP ChosenPlayerP = True
 samePayload ChosenPlayerP _ = False
@@ -1888,8 +1968,8 @@ ExposableZone z = So (exposableZone z)
 
 public export
 pubB : Binding -> Bool
-pubB (MkBinding _ _ _ (ObjectP _ (Just z) _ _)) = publicZone z
-pubB (MkBinding _ _ _ (ObjectP _ Nothing _ _)) = True
+pubB (MkBinding _ _ _ (ObjectP _ (Just z) _ _ _)) = publicZone z
+pubB (MkBinding _ _ _ (ObjectP _ Nothing _ _ _)) = True
 pubB (MkBinding _ _ _ PlayerP) = True
 pubB (MkBinding _ _ _ ChosenPlayerP) = True
 pubB (MkBinding _ _ _ QualityP) = True
@@ -1958,7 +2038,7 @@ stampWasField (Just (MkStamp _ wasF _)) = wasF
 ||| The stamp a payload was left with, read like `payloadZone`.
 public export
 payloadProv : Payload k -> Maybe Stamp
-payloadProv (ObjectP _ _ pv _) = pv
+payloadProv (ObjectP _ _ pv _ _) = pv
 payloadProv PlayerP = Nothing
 payloadProv ChosenPlayerP = Nothing
 payloadProv QualityP = Nothing
@@ -1976,7 +2056,7 @@ payloadProv (JoinP l r) = maybe (payloadProv r) Just (payloadProv l)
 ||| model.
 public export
 payloadOrig : Payload k -> Maybe Origin
-payloadOrig (ObjectP _ _ _ og) = og
+payloadOrig (ObjectP _ _ _ og _) = og
 payloadOrig PlayerP = Nothing
 payloadOrig ChosenPlayerP = Nothing
 payloadOrig QualityP = Nothing
@@ -2181,8 +2261,8 @@ mkStamp (Just v) oldZn moved = Just (MkStamp v (onFieldZone oldZn) moved)
 public export
 halfReaches : NounWord -> Payload k -> Bool
 halfReaches w (JoinP l r) = halfReaches w l || halfReaches w r
-halfReaches (TypeW t) (ObjectP ty _ _ _) = tyIs t ty
-halfReaches PermanentW (ObjectP ty _ _ _) = isNothing ty
+halfReaches (TypeW t) (ObjectP ty _ _ _ _) = tyIs t ty
+halfReaches PermanentW (ObjectP ty _ _ _ _) = isNothing ty
 halfReaches PlayerW PlayerP = True
 halfReaches PlayerW ChosenPlayerP = True
 halfReaches _ _ = False
@@ -2192,7 +2272,7 @@ halfReaches _ _ = False
 ||| says; this says only that there is one.
 public export
 joinedPayload : Payload k -> Bool
-joinedPayload (ObjectP _ _ _ _) = False
+joinedPayload (ObjectP _ _ _ _ _) = False
 joinedPayload PlayerP = False
 joinedPayload ChosenPlayerP = False
 joinedPayload QualityP = False
@@ -2205,7 +2285,7 @@ joinedPayload (JoinP _ _) = True
 
 public export
 wordReaches : NounWord -> Binding -> Bool
-wordReaches (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _ _)) = onFieldZone zn && tyIs t ty
+wordReaches (TypeW t) (MkBinding _ _ _ (ObjectP ty zn _ _ _)) = onFieldZone zn && tyIs t ty
 wordReaches (TypeW t) (MkBinding _ _ _ PlayerP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ ChosenPlayerP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ QualityP) = False
@@ -2215,7 +2295,7 @@ wordReaches (TypeW t) (MkBinding _ _ _ LetterP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ TurnRefP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ AbilityP) = False
 wordReaches (TypeW t) (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches (TypeW t) pl
-wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _)) = isCardZone zn
+wordReaches CardW (MkBinding _ _ _ (ObjectP _ zn _ _ _)) = isCardZone zn
 wordReaches CardW (MkBinding _ _ _ PlayerP) = False
 wordReaches CardW (MkBinding _ _ _ ChosenPlayerP) = False
 wordReaches CardW (MkBinding _ _ _ QualityP) = False
@@ -2225,7 +2305,7 @@ wordReaches CardW (MkBinding _ _ _ LetterP) = False
 wordReaches CardW (MkBinding _ _ _ TurnRefP) = False
 wordReaches CardW (MkBinding _ _ _ AbilityP) = False
 wordReaches CardW (MkBinding _ _ _ (JoinP _ _)) = False
-wordReaches (TypedCardW t) (MkBinding _ _ _ (ObjectP ty zn _ _)) =
+wordReaches (TypedCardW t) (MkBinding _ _ _ (ObjectP ty zn _ _ _)) =
   isCardZone zn && tyIs t ty
 wordReaches (TypedCardW t) (MkBinding _ _ _ PlayerP) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ ChosenPlayerP) = False
@@ -2236,7 +2316,7 @@ wordReaches (TypedCardW t) (MkBinding _ _ _ LetterP) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ TurnRefP) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ AbilityP) = False
 wordReaches (TypedCardW t) (MkBinding _ _ _ (JoinP _ _)) = False
-wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
+wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onStackZone zn && not (isCopyOrigin og)
 wordReaches SpellW (MkBinding _ _ _ PlayerP) = False
 wordReaches SpellW (MkBinding _ _ _ ChosenPlayerP) = False
@@ -2247,7 +2327,7 @@ wordReaches SpellW (MkBinding _ _ _ LetterP) = False
 wordReaches SpellW (MkBinding _ _ _ TurnRefP) = False
 wordReaches SpellW (MkBinding _ _ _ AbilityP) = False
 wordReaches SpellW (MkBinding _ _ _ (JoinP _ _)) = False
-wordReaches PlayerW (MkBinding _ _ _ (ObjectP _ _ _ _)) = False
+wordReaches PlayerW (MkBinding _ _ _ (ObjectP _ _ _ _ _)) = False
 wordReaches PlayerW (MkBinding _ _ _ PlayerP) = True
 wordReaches PlayerW (MkBinding _ _ _ ChosenPlayerP) = True
 wordReaches PlayerW (MkBinding _ _ _ QualityP) = False
@@ -2261,7 +2341,7 @@ wordReaches PlayerW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PlayerW pl
 -- battlefield: [CR#608.2h] reads a departed referent by its last known
 -- information, and [CR#110.1] is why the read is that and not the
 -- current state.
-wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn pv _)) =
+wordReaches PermanentW (MkBinding _ _ _ (ObjectP _ zn pv _ _)) =
   onFieldZone zn || stampWasField pv
 wordReaches PermanentW (MkBinding _ _ _ PlayerP) = False
 wordReaches PermanentW (MkBinding _ _ _ ChosenPlayerP) = False
@@ -2272,7 +2352,7 @@ wordReaches PermanentW (MkBinding _ _ _ LetterP) = False
 wordReaches PermanentW (MkBinding _ _ _ TurnRefP) = False
 wordReaches PermanentW (MkBinding _ _ _ AbilityP) = False
 wordReaches PermanentW (MkBinding _ _ _ pl@(JoinP _ _)) = halfReaches PermanentW pl
-wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
+wordReaches TokenW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onFieldZone zn && isTokenOrigin og
 wordReaches TokenW (MkBinding _ _ _ PlayerP) = False
 wordReaches TokenW (MkBinding _ _ _ ChosenPlayerP) = False
@@ -2283,7 +2363,7 @@ wordReaches TokenW (MkBinding _ _ _ LetterP) = False
 wordReaches TokenW (MkBinding _ _ _ TurnRefP) = False
 wordReaches TokenW (MkBinding _ _ _ AbilityP) = False
 wordReaches TokenW (MkBinding _ _ _ (JoinP _ _)) = False
-wordReaches CopyW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
+wordReaches CopyW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
   onStackZone zn && isCopyOrigin og
 wordReaches CopyW (MkBinding _ _ _ PlayerP) = False
 wordReaches CopyW (MkBinding _ _ _ ChosenPlayerP) = False
@@ -2498,8 +2578,8 @@ tyOfItToken (b :: bs) =
 ||| the announced word to a tested one, which no printed line asks for.
 public export
 markTy : Maybe CardType -> Binding -> Binding
-markTy ty (MkBinding det Object plur (ObjectP Nothing zn st og)) =
-  MkBinding det Object plur (ObjectP ty zn st og)
+markTy ty (MkBinding det Object plur (ObjectP Nothing zn st og sz)) =
+  MkBinding det Object plur (ObjectP ty zn st og sz)
 markTy ty b = b
 
 ||| The re-mark itself: the FIRST binding the read's own test admits is
@@ -2535,9 +2615,9 @@ markFirst q ty (b :: bs) =
 ||| the owner-scoped reading and this one agree on every written line.
 public export
 survivesShuffle : Binding -> Bool
-survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) (Just st) _)) =
+survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) (Just st) _ _)) =
   stampedBy "Search" st
-survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) Nothing _)) = False
+survivesShuffle (MkBinding _ _ _ (ObjectP _ (Just Library) Nothing _ _)) = False
 survivesShuffle _ = True
 
 ||| What a shuffle leaves the discourse holding.
@@ -2553,9 +2633,9 @@ stampWordOk v w st ty zn = stampedBy v st && verbedWordOk w st ty zn
 
 public export
 verbedMatch : VerbLabel -> NounWord -> Binding -> Bool
-verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just st) _)) = stampWordOk v w st ty zn
-verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing _)) = False
-verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _ _)) = False
+verbedMatch v w (MkBinding _ _ OneOf (ObjectP ty zn (Just st) _ _)) = stampWordOk v w st ty zn
+verbedMatch v w (MkBinding _ _ OneOf (ObjectP _ _ Nothing _ _)) = False
+verbedMatch v w (MkBinding _ _ ManyOf (ObjectP _ _ _ _ _)) = False
 verbedMatch v w (MkBinding _ _ _ PlayerP) = False
 verbedMatch v w (MkBinding _ _ _ ChosenPlayerP) = False
 verbedMatch v w (MkBinding _ _ _ QualityP) = False
@@ -2568,9 +2648,9 @@ verbedMatch v w (MkBinding _ _ _ (JoinP _ _)) = False
 
 public export
 verbedMatchMany : VerbLabel -> NounWord -> Binding -> Bool
-verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st) _)) = stampWordOk v w st ty zn
-verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing _)) = False
-verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _ _)) = False
+verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP ty zn (Just st) _ _)) = stampWordOk v w st ty zn
+verbedMatchMany v w (MkBinding _ _ ManyOf (ObjectP _ _ Nothing _ _)) = False
+verbedMatchMany v w (MkBinding _ _ OneOf (ObjectP _ _ _ _ _)) = False
 verbedMatchMany v w (MkBinding _ _ _ PlayerP) = False
 verbedMatchMany v w (MkBinding _ _ _ ChosenPlayerP) = False
 verbedMatchMany v w (MkBinding _ _ _ QualityP) = False
@@ -2664,7 +2744,7 @@ public export
 countTokenSpecs : Bindings -> Nat
 countTokenSpecs [] = Z
 countTokenSpecs (MkBinding SelfD _ _ _ :: bs) = countTokenSpecs bs
-countTokenSpecs (MkBinding _ _ _ (ObjectP _ _ _ og) :: bs) =
+countTokenSpecs (MkBinding _ _ _ (ObjectP _ _ _ og _) :: bs) =
   if isTokenOrigin og then S (countTokenSpecs bs) else countTokenSpecs bs
 countTokenSpecs (_ :: bs) = countTokenSpecs bs
 

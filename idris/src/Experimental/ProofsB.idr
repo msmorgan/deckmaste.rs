@@ -17,7 +17,7 @@ import Experimental.Unspellable
 public export
 badDoubleOther : Unspellable
   (Predicate [MkBinding TargetD Object OneOf
-                        (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing)] Object)
+                        (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing Nothing)] Object)
   (\ok => And [Macros.creature, Other, Other] {oa = ok})
 badDoubleOther Oh impossible
 
@@ -28,7 +28,7 @@ badDoubleOther Oh impossible
 ||| An antecedent recording no zone is no hand card, and [CR#701.9a] discards FROM a hand.
 public export
 badDiscardIt : Unspellable
-  (Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing Nothing)])
+  (Effect [MkBinding AD Object OneOf (ObjectP Nothing Nothing Nothing Nothing Nothing)])
   (\ok => Macros.discards You It {dk = ok})
 badDiscardIt DiscardTracked impossible
 
@@ -140,7 +140,7 @@ badSpellOrPermanentSubject Oh impossible
 public export
 badOtherInOr : Unspellable
   (Predicate [MkBinding TargetD Object OneOf
-                        (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing)] Object)
+                        (ObjectP (Just Creature) (Just Battlefield) Nothing Nothing Nothing)] Object)
   (\ok => Or [And [Macros.creature, Other], Macros.land] {cd = ok})
 badOtherInOr Oh impossible
 
@@ -264,11 +264,12 @@ badMixedCharacteristicDisjunct Oh impossible
 
 
 ||| "if target creature is an artifact"
-||| The condition's subject is a read, never a mention, so "if target …" is unrepresentable here.
+||| The condition's subject is a read or a definite description, never a mention the
+||| condition merely supposes, so "if target …" is unrepresentable here.
 public export
 badMatchesTargetSubject : Unspellable (Condition []) (\ok =>
   Matches (Macros.target Macros.creature) Macros.artifact {bl = ok})
-badMatchesTargetSubject Refl impossible
+badMatchesTargetSubject Oh impossible
 
 
 ||| "Tap target creature. You gain 1 life if it's."
