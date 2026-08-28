@@ -2822,10 +2822,20 @@ namespace Lookback
   ||| a window is generic over every event name. A text writing it with no
   ||| earlier instruction to name is tolerated overgeneration, refused at the
   ||| spelling boundary.
+  ||| `Triggering` is neither a stretch nor a cause: it names the very
+  ||| OCCURRENCE the ability triggered on, which is what "if it entered
+  ||| from your library" (Fblthp, the Lost) asks about. [CR#603.2]
+  ||| triggers the ability on an event matching its condition and
+  ||| [CR#603.2c] has it trigger "only once each time its trigger event
+  ||| occurs", so one instance of the ability answers to exactly one
+  ||| occurrence, and a clause in its text that names its own trigger
+  ||| event names that one. Written in a text with no trigger event to
+  ||| name, it is tolerated overgeneration on `ThisWay`'s own terms.
   ||| -- spelling: "this way" in the window's place, "dealt damage this
-  ||| way", "destroyed this way".
+  ||| way", "destroyed this way"; `Triggering` writes nothing at all.
   public export
   data Lookback = ThisTurn | ThisCombat | LastTurn | ThisGame | ThisWay
+                | Triggering
 
 public export
 data OnStack : Maybe Zone -> Type where

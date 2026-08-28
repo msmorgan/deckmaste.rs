@@ -12709,3 +12709,31 @@ verityCircle =
            (Macros.tap (Macros.target
                           (And [Macros.creature, Not (HasKeyword "Flying")]))) ]
        Nothing
+
+||| Archfiend's Vessel, whole -- "Lifelink / When this creature enters, if
+||| it entered from your graveyard or you cast it from your graveyard,
+||| exile it. If you do, create a 5/5 black Demon creature token with
+||| flying." The WINDOWLESS lookback: "it entered from your graveyard"
+||| scopes to the entry this ability triggered on and writes no window
+||| word, which is `Triggering` [CR#603.2,603.2c]. Its other disjunct
+||| needs no window at all -- "you cast it from your graveyard" is the
+||| object's own casting history, which the description side already
+||| reads [CR#601.2a].
+public export
+archfiendsVessel : Card
+archfiendsVessel =
+  Macros.card "Archfiend's Vessel" (Just [Macros.pip Black]) []
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
+       [ Macros.keyword "Lifelink"
+       , Macros.triggeredIf When
+           (Enters This Nothing)
+           (OrCond [ Happened Entry It Triggering
+                       (Just (FromZones (FromZone [Macros.graveyardOf You]) Nothing))
+                   , Matches It (And [CastBy You,
+                                      CastFrom (Macros.graveyardOf You)]) ])
+           (Reflexively (Macros.exile It)
+              (Macros.create (Lit 1)
+                 (MkToken (Just (Lit 5 ** Lit 5)) [Black]
+                          (MkTypeLine [creatureType "Demon"] [Creature])
+                          [Macros.keyword "Flying"] Nothing))) ]
+       (Just (1, 1))
