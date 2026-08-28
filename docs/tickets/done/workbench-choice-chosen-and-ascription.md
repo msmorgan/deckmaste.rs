@@ -3,7 +3,7 @@ needs: []
 ---
 # Write the chooser positions, the chosen-value reads, and the ascription rows' last payloads
 
-**SPLIT 2026-08-27 into five sub-tickets — claim those, not this.** This file
+**CLOSED 2026-08-27: ALL FIVE SUB-ROUNDS DONE.** Surviving remainders live in [workbench-choice-tail](../planned/workbench-choice-tail.md) and were routed to their bundles at each sub-round's close; the closure-tables staleness is [workbench-closure-tables-refresh](../planned/workbench-closure-tables-refresh.md). Originally split as: This file
 is the umbrella and stays authoritative for section content, measurements,
 pins and acceptance: [A obligation face law](workbench-choice-a-obligation-face-law.md),
 [B sorts and reads](workbench-choice-b-sorts-and-reads.md),
