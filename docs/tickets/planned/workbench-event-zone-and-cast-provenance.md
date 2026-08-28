@@ -112,3 +112,9 @@ to touch the relevant cell.
     predefined-token catalog ([CR#111.10]) alone.
 
 Standard constraints apply to every sub-ticket claimed off this split.
+
+- **Routed from workbench-choice-e-subtype-words-and-linkage (close, 2026-08-27):**
+  a POSSESSED zone is not a move destination — `DestOk` admits bare zones only,
+  so "Put a card exiled with this Saga into its owner's hand" (Roads Go Ever,
+  Ever On chapters II/III) does not write. A move-destination gap, not a
+  linkage one; the linkage read itself lands.

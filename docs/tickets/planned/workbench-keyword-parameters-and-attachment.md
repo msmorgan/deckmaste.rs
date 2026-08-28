@@ -371,3 +371,10 @@ stay unwritten; this round does not touch it.
 Standard constraints apply.
 
 - **Routed from workbench-axis-distributive-reads (close, 2026-08-26):** landwalk is entirely absent from the grammar (Magnigoth Treefolk's "landwalk of that type" is doubly blocked: no landwalk keyword param family, and the land-subtype quality sort routed to workbench-quality-sort-gaps); Sunbird Effigy's domain needs craft machinery. Keyword-parameter families, so they land here.
+
+- **Routed from workbench-choice-e-subtype-words-and-linkage (close, 2026-08-27):**
+  the keyword vocabularies behind the five subtype words' whole cards — Crew
+  (Debris Beetle, Nautiloid Ship), Station (Wurmwall Sweeper), the Class level
+  ladder (Rogue Class), the Case to-solve/solved pair (Case of the Crimson
+  Pulse), the Room door vocabulary (Glassworks // Industrial Advancement).
+  `KnownKeyword` carries none of them.
