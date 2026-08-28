@@ -12,7 +12,9 @@ mutual
   data ZoneScope : Bindings -> Zone -> Type where
     Bare : ZoneScope bs z
     ||| "[a player]'s hand/graveyard/library": the zone read through
-    ||| the player who possesses it [CR#400.3]. Renamed off `OwnedBy`
+    ||| the player who possesses it. [CR#400.1] is what makes the read
+    ||| possible at all -- each player has their own library, hand and
+    ||| graveyard, where the other zones are shared. Renamed off `OwnedBy`
     ||| when ownership became a PREDICATE over an object; this row reads
     ||| a zone and that one describes a card, and one name for the two
     ||| would have shadowed.
@@ -3361,9 +3363,10 @@ mutual
   amtExact _ = Nothing
 
   ||| The count a written QUANTITY states. A range whose floor and
-  ||| ceiling agree is the exact count [CR#107.1c]; "up to" states a
-  ||| ceiling and not a count, and the amount-valued arms state theirs
-  ||| only when the amount does.
+  ||| ceiling agree is an exact count; "up to" states a ceiling and not a
+  ||| count, and the amount-valued arms state theirs only when the amount
+  ||| does. No rule is cited because none is needed: this reads what the
+  ||| quantity already says.
   public export
   quantExact : {0 bs : Bindings} -> Quantity bs -> Maybe Nat
   quantExact (Range (Just lo) (Just hi)) = if lo == hi then Just lo else Nothing
@@ -3425,8 +3428,9 @@ mutual
   ||| frame can carry its announcement out again.
   ||| A BINDINGLESS subject announces nothing and so costs nothing --
   ||| every anaphor, every deictic, every possessive read.
-  ||| A DEFINITE one announces its referent [CR#601.2c], and `condDelta`
-  ||| carries that announcement to the governed clause unchanged.
+  ||| A DEFINITE one announces its referent, and `condDelta` carries
+  ||| that announcement to the governed clause unchanged -- which is the
+  ||| whole of what admitting it costs.
   ||| Nothing else is admitted, and the omission is the point: an
   ||| INDEFINITE or TARGETED subject would introduce a referent the
   ||| condition merely supposed, and `Exists` is the row for supposing.
@@ -3620,9 +3624,11 @@ mutual
   ||| ("each of [X]" needs [X]'s determiner slot free) and is right to
   ||| refuse the universal there; the partitive asks a different one --
   ||| are this phrase's members fixed, so that a pick can be made out of
-  ||| them? -- and the universal's are: [CR#608.2] applies the
-  ||| instruction as the spell or ability resolves, and at that moment
-  ||| "creatures you control" names exactly the creatures you control.
+  ||| them? -- and the universal's are: [CR#608.2d] has a player
+  ||| announce a choice an effect offers WHILE APPLYING the effect, so
+  ||| the pick is made out of the set that exists then, and at that
+  ||| moment "creatures you control" names exactly the creatures you
+  ||| control.
   ||| Every other description leaves them open, which is what the three
   ||| standing pins say and what this still says.
   public export
