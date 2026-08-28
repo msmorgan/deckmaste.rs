@@ -45,6 +45,37 @@ badRedirectToPlural : Unspellable (StaticEffect []) (\ok =>
 badRedirectToPlural Oh impossible
 
 
+||| "The damage can't be prevented." -- as a card's whole printed line.
+||| [CR#608.2c] licenses later text to read the instruction it FOLLOWS --
+||| its own worked example is "Destroy target creature. It can't be
+||| regenerated" -- and here there is no earlier instruction to read.
+public export
+badTheDamageUnannounced : Unspellable (StaticEffect []) (\ok =>
+  CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly)
+badTheDamageUnannounced Oh impossible
+
+
+||| "You gain 3 life. The damage can't be prevented."
+||| A life gain announces no damage, so the rider still points at nothing.
+public export
+badTheDamageAfterLifeGain : Unspellable (Effect []) (\ok =>
+  Sequentially [ ChangeLife You (Up (Lit 3))
+               , Continuously
+                   (CantPrevent AnyDamage (ThatDamage {ok}) NoPreventionOnly) Nothing ])
+badTheDamageAfterLifeGain Oh impossible
+
+
+||| "If damage from a red source is prevented this way, you gain 3 life."
+||| -- with no prevention before it. [CR#615.5] makes the additional
+||| effect part of the prevention, so the container's outcome never stands
+||| outside the rider it qualifies.
+public export
+badPreventedFromSourceUnannounced : Unspellable (Effect []) (\ok =>
+  If (PreventedFromSource (And [Macros.source, ColorIs Red]) {ok})
+     (Macros.gainsLife You (Lit 3)) Nothing)
+badPreventedFromSourceUnannounced Refl impossible
+
+
 ||| "Deal 3 damage to target creature. You gain life equal to the damage prevented this way."
 ||| The phrase names a prevention, and a damage outcome is not one.
 public export
@@ -128,7 +159,7 @@ badScaleToArtifact ObjectTakes impossible
 ||| The phrase names a prevention, and no prevention happened at a damage event either.
 public export
 badPreventedThisWayAfterDamageEvent : Unspellable Ability (\ok =>
-  Triggered Whenever (IsDealtDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
+  Triggered Whenever (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
             (DealDamage It (PreventedThisWay {ok = ok}) (Macros.target Macros.anyTarget)))
 badPreventedThisWayAfterDamageEvent Refl impossible
 
@@ -147,7 +178,7 @@ badThatMuchAfterDeath Refl impossible
 ||| The demonstrative screen at a fourth minting site: it never picks out the speaker.
 public export
 badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
-  Triggered Whenever (IsDealtDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
+  Triggered Whenever (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
             (DealDamage (That (TypeW Creature) {ok = ok}) ThatMuch
                         (Macros.target Macros.anyTarget)))
 badThatCreatureIsDamagedSelf Refl impossible

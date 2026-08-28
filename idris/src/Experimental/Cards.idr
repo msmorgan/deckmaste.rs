@@ -1627,6 +1627,21 @@ mornsongAriaLock =
   Macros.deontic (PlayerGroup AllPlayers) Forbid ["DrawCard", "GainLife"]
                  Agent NoDeonticPatient
 
+||| "Your opponents can't gain life" -- the 9-line subfamily of the
+||| life-gain suppression mass, at the carrier's other player subject.
+||| Recorded as a witness because the measurement that scheduled a
+||| suppression ROW is what retired it: all 23 supported can't-gain-life
+||| sentences (10 "Players can't", 9 "Your opponents can't", 3 singular
+||| subjects, and Mornsong Aria's conjoined line; re-measured 2026-08-28)
+||| are the deontic carrier at the "GainLife" label, and the carrier's
+||| deed LIST is the shared suppressed-event row the ticket asked whether
+||| to mint. The sibling "can't" statics ride it already -- "DrawCard"
+||| (6 lines), "SearchLibrary" (4), "WinGame"/"LoseGame" (8) -- so no
+||| suppression subsystem is minted here.
+public export
+opponentsCantGainLife : StaticEffect []
+opponentsCantGainLife = Macros.playerCant "GainLife" (PlayerGroup YourOpponents)
+
 brainwash : Card
 brainwash =
   Macros.card "Brainwash" (Just [Macros.pip White]) []
@@ -4024,7 +4039,8 @@ excruciator =
   Macros.card "Excruciator"
        (Just [Macros.generic 6, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [creatureType "Avatar"] [Creature])
-       [ Static (CantPrevent AnyDamage Everywhere (Just Macros.thisCreature)) ]
+       [ Static (CantPrevent AnyDamage (DamageDescribed Everywhere (Just Macros.thisCreature))
+                                 NoPreventionOnly) ]
        (Just (7, 7))
 
 public export
@@ -4032,7 +4048,7 @@ flaringPain : Card
 flaringPain =
   Macros.card "Flaring Pain" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [] [Instant])
-       [ Spell (Continuously (CantPrevent AnyDamage Everywhere Nothing)
+       [ Spell (Continuously (CantPrevent AnyDamage (DamageDescribed Everywhere Nothing) NoPreventionOnly)
                              (Just Macros.thisTurn)) ]
        Nothing
 
@@ -4346,6 +4362,227 @@ deflectingPalm =
                                 (Just (DealDamage This ThatMuch (ControllerOf It))))
                   (Just Macros.thisTurn)) ]
        Nothing
+
+||| "Pinpoint Avalanche deals 4 damage to target creature. The damage
+||| can't be prevented." -- [CR#615.12]'s rider with an ANAPHORIC subject:
+||| "the damage" names the damage event this card's own previous clause
+||| described, which neither a recipient scope nor a by-phrase says. 9
+||| supported sentences write it (measured 2026-08-28).
+public export
+pinpointAvalanche : Card
+pinpointAvalanche =
+  Macros.card "Pinpoint Avalanche"
+       (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ DealDamage This (Lit 4) (Macros.target Macros.creature)
+                  , Continuously
+                      (CantPrevent AnyDamage ThatDamage NoPreventionOnly) Nothing ]) ]
+       Nothing
+
+||| "Damage that would be dealt to that creature this turn can't be
+||| prevented or dealt instead to another permanent or player" --
+||| Whippoorwill's middle statement, the CONJOINED ban over [CR#615.12]'s
+||| prevention and [CR#614.9]'s redirection. Benched as a fragment because
+||| the ability's other two statements (a regeneration prohibition and a
+||| delayed exile) are not this round's; the subject is written as a
+||| description rather than the printed anaphor for the same reason.
+||| Lava Burst writes the same ban under an if-would antecedent, which no
+||| statement row takes -- recorded as the family's remaining spelling gap.
+public export
+whippoorwillImmunity : Effect []
+whippoorwillImmunity =
+  Continuously
+    (CantPrevent AnyDamage
+                 (DamageDescribed (Macros.shieldingIt (Macros.a Macros.creature)) Nothing)
+                 NoRedirectEither)
+    (Just Macros.thisTurn)
+
+||| "If damage would be dealt to this creature, put that many +1/+1
+||| counters on it instead." The replacement side of the recipient's
+||| damage event, whose body reads the MAGNITUDE of the damage that would
+||| have been dealt: [CR#614.6] keeps the event from happening, but
+||| [CR#614.1] has the replacement watch an event that WOULD happen and
+||| [CR#120.8] makes that event one of a stated size, so `eventIntro`
+||| leaves the amount for "that many" -- `RollsDice`' announcement at the
+||| damage seat. 10 supported bodies read it (measured 2026-08-28).
+public export
+phytohydra : Card
+phytohydra =
+  Macros.card "Phytohydra"
+       (Just [Macros.generic 2, Macros.pip Green, Macros.pip White,
+              Macros.pip White]) []
+       (MkTypeLine [creatureType "Plant", creatureType "Hydra"] [Creature])
+       [ Static (Intercepts (IsDealtDamage AnyDamage Macros.thisCreature) [] Nothing
+                            (PutCounters ThatMuch
+                                         (PrintedKind Macros.plusOnePlusOne) It)
+                            Repeatedly Nothing) ]
+       (Just (1, 1))
+
+||| "If you would gain life, draw that many cards instead" -- Nefarious
+||| Lich's middle statement. The life change as a REPLACEABLE event, whose
+||| announced amount the body reads: [CR#119.9] makes a 0-life gain no
+||| life gain event at all, so the event a replacement reaches is one of a
+||| stated size. Benched as a fragment; the card's other two statements
+||| are not this round's.
+public export
+nefariousLichGain : AbilityAt []
+nefariousLichGain =
+  Static (Intercepts (LifeChanges You LifeGoesUp) [] Nothing
+                     (Draw You ThatMuch) Repeatedly Nothing)
+
+||| "Whenever this creature is dealt combat damage, you gain that much
+||| life." The damage KIND written at an event position: `IsDealtDamage`'s
+||| new adjective, the same vocabulary the shield rows spell. 9 supported
+||| sentences carry it (measured 2026-08-28).
+public export
+piousWarrior : Card
+piousWarrior =
+  Macros.card "Pious Warrior"
+       (Just [Macros.generic 3, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Rebel",
+                    creatureType "Warrior"] [Creature])
+       [ Macros.triggered Whenever
+                          (IsDealtDamage CombatOnly Macros.thisCreature)
+                          (Macros.gainsLife You ThatMuch) ]
+       (Just (2, 3))
+
+||| "Whenever an opponent is dealt noncombat damage, this creature gets
+||| +3/+0 until end of turn." The other pole of the same adjective.
+public export
+chandrasSpitfire : Card
+chandrasSpitfire =
+  Macros.card "Chandra's Spitfire"
+       (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Elemental"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggered Whenever
+                          (IsDealtDamage NoncombatOnly (Macros.a Opponent))
+                          (Macros.gets Macros.thisCreature (PtUp (Lit 3)) (PtUp (Lit 0))
+                                       (Just Macros.untilEndOfTurn)) ]
+       (Just (1, 3))
+
+||| "Whenever you gain life, target opponent loses that much life."
+||| [CR#119.9] writes this header in the rules' own words; the row
+||| announces the amount [CR#119.3] moved the total by, which "that much
+||| life" reads.
+public export
+sanguineBond : Card
+sanguineBond =
+  Macros.card "Sanguine Bond"
+       (Just [Macros.generic 3, Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered Whenever (LifeChanges You LifeGoesUp)
+                          (ChangeLife (Macros.target Opponent) (Down ThatMuch)) ]
+       Nothing
+
+||| "Whenever an opponent loses life, you gain that much life." The other
+||| direction of the same row.
+public export
+exquisiteBlood : Card
+exquisiteBlood =
+  Macros.card "Exquisite Blood"
+       (Just [Macros.generic 4, Macros.pip Black]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered Whenever (LifeChanges (Macros.anOpponent) LifeGoesDown)
+                          (Macros.gainsLife You ThatMuch) ]
+       Nothing
+
+||| "Whenever you gain life, put that many +1/+1 counters on this
+||| creature."
+public export
+agelessEntity : Card
+agelessEntity =
+  Macros.card "Ageless Entity"
+       (Just [Macros.generic 3, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Elemental"] [Creature])
+       [ Macros.triggered Whenever (LifeChanges You LifeGoesUp)
+                          (PutCounters ThatMuch (PrintedKind Macros.plusOnePlusOne)
+                                       Macros.thisCreature) ]
+       (Just (4, 4))
+
+||| "If a source would deal damage to another Dinosaur you control,
+||| prevent all but 1 of that damage." [CR#615.10]'s per-event cut written
+||| as the damage it LEAVES. All 4 supported "prevent all but" sentences
+||| sit at this seat; the shield determiner's twin is a measured zero.
+public export
+templeAltisaur : Card
+templeAltisaur =
+  Macros.card "Temple Altisaur"
+       (Just [Macros.generic 4, Macros.pip White]) []
+       (MkTypeLine [creatureType "Dinosaur"] [Creature])
+       [ Static (PreventsFrom AnyDamage (DealtBy (Macros.a Macros.source))
+                              (Macros.shieldingIt
+                                 (Macros.a (And [HasSubtype (creatureType "Dinosaur"),
+                                                 ControlledBy You])))
+                              (CutAllBut (Lit 1)) Repeatedly Nothing) ]
+       (Just (3, 4))
+
+||| "{T}, Sacrifice this artifact: The next time a source of your choice
+||| would deal damage to you this turn, prevent half that damage, rounded
+||| down." The cut written as a FRACTION; [CR#107.1a] is why the rounding
+||| word is obligatory. Gisela, Blade of Goldnight writes the same arm at
+||| `RoundUp`, and the two cards are the whole of the family.
+public export
+darkSphere : Card
+darkSphere =
+  Macros.card "Dark Sphere" (Just []) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.activated
+           (Compound [TapSymbol, Do (Macros.sacrifice You Macros.thisArtifact)])
+                          (Continuously
+                             (PreventsFrom AnyDamage
+                                           (DealtBy (Macros.aYourChoice Macros.source))
+                                           (Macros.shieldingIt You)
+                                           (CutHalf RoundDown) NextTimeOnly Nothing)
+                             (Just Macros.thisTurn)) ]
+       Nothing
+
+||| "The next time a source of your choice would deal damage to any target
+||| this turn, prevent that damage. If damage from a red source is
+||| prevented this way, Honorable Passage deals that much damage to the
+||| source's controller." [CR#615.5]'s consequence rider with its
+||| container clause narrowed by the damage's SOURCE -- 6 supported
+||| sentences over 5 cards write that narrowing (measured 2026-08-28).
+||| The source read is the generic pronoun's, as Deflecting Palm's is.
+||| "The next time a source of your choice would deal damage to you
+||| and/or creatures you control this turn, prevent that damage. If damage
+||| from a black source is prevented this way, you gain that much life."
+||| [CR#615.5]'s consequence rider with its container clause narrowed by
+||| the damage's SOURCE -- [CR#615.2] is why a prevention narrows there at
+||| all, and [CR#120.1] is what a source is. 6 supported sentences over 5
+||| cards write the narrowing (measured 2026-08-28).
+||| The recipient is written with "and": the printed "and/or" is a
+||| coordination surface this grammar does not spell, recorded as a
+||| spelling gap rather than paid here.
+public export
+shadowbane : Card
+shadowbane =
+  Macros.card "Shadowbane" (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Continuously
+                  (PreventsFrom AnyDamage
+                                (DealtBy (Macros.aYourChoice Macros.source))
+                                (Macros.shieldingIt
+                                   (Macros.youAnd (AllOf Macros.creatureYouControl)))
+                                CutAll NextTimeOnly
+                                (Just (If (PreventedFromSource
+                                             (And [Macros.source, ColorIs Black]))
+                                          (Macros.gainsLife You PreventedThisWay)
+                                          Nothing)))
+                  (Just Macros.thisTurn)) ]
+       Nothing
+
+||| Honorable Passage's rider is the one member of the family this round
+||| does NOT bench, and its blocker is recorded rather than paid: "If
+||| damage from a red source is prevented this way, Honorable Passage
+||| deals that much damage to THE SOURCE'S CONTROLLER" over a shield whose
+||| recipient is "any target". The generic pronoun the other source reads
+||| use (Deflecting Palm's `ControllerOf It`) needs exactly one object
+||| mention to resolve against, and this card leaves two -- the chosen
+||| source and the joined-kind target. So Honorable Passage is a card that
+||| needs the demonstrative re-sort the "source" word would buy, which
+||| corrects the ledger entry saying none of the 13 source reads does.
 
 public export
 sphereOfLaw : Card
@@ -4708,7 +4945,7 @@ spitemare =
               Macros.hybridPip Red White]) []
        (MkTypeLine [creatureType "Elemental"] [Creature])
        [ Macros.triggered Whenever
-                          (IsDealtDamage Macros.thisCreature)
+                          (IsDealtDamage AnyDamage Macros.thisCreature)
                           (DealDamage It ThatMuch (Macros.target Macros.anyTarget)) ]
        (Just (3, 3))
 
@@ -4718,7 +4955,7 @@ grollub =
   Macros.card "Grollub" (Just [Macros.generic 2, Macros.pip Black]) []
        (MkTypeLine [creatureType "Beast"] [Creature])
        [ Macros.triggered Whenever
-                          (IsDealtDamage Macros.thisCreature)
+                          (IsDealtDamage AnyDamage Macros.thisCreature)
                           (Macros.gainsLife (Each Opponent) ThatMuch) ]
        (Just (3, 3))
 
@@ -4728,7 +4965,7 @@ moggManiac =
   Macros.card "Mogg Maniac" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [creatureType "Goblin"] [Creature])
        [ Macros.triggered Whenever
-                          (IsDealtDamage Macros.thisCreature)
+                          (IsDealtDamage AnyDamage Macros.thisCreature)
                           (DealDamage It ThatMuch
                                (Macros.target (Macros.kindJoin Opponent (HasType Planeswalker)))) ]
        (Just (1, 1))
@@ -4740,7 +4977,7 @@ repercussion =
        (Just [Macros.generic 1, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
-                          (IsDealtDamage (Macros.a Macros.creature))
+                          (IsDealtDamage AnyDamage (Macros.a Macros.creature))
                           (DealDamage Macros.thisEnchantment ThatMuch
                                (ControllerOf (That (TypeW Creature)))) ]
        Nothing
@@ -4752,7 +4989,7 @@ spitefulShadows =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Macros.triggered Whenever
-                          (IsDealtDamage (AttachHost Enchanted (TypeW Creature)))
+                          (IsDealtDamage AnyDamage (AttachHost Enchanted (TypeW Creature)))
                           (DealDamage It ThatMuch (ControllerOf It)) ]
        Nothing
 
@@ -4763,7 +5000,7 @@ bindingAgony =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Macros.triggered Whenever
-                          (IsDealtDamage (AttachHost Enchanted (TypeW Creature)))
+                          (IsDealtDamage AnyDamage (AttachHost Enchanted (TypeW Creature)))
                           (DealDamage Macros.thisAura ThatMuch
                                (ControllerOf (That (TypeW Creature)))) ]
        Nothing
@@ -4775,7 +5012,7 @@ darienKingOfKjeldor =
        (Just [Macros.generic 4, Macros.pip White, Macros.pip White]) [Legendary]
        (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
        [ Macros.triggered Whenever
-                          (IsDealtDamage You)
+                          (IsDealtDamage AnyDamage You)
                           (Macros.may You
                       (Macros.create ThatMuch
                                      (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))) ]
@@ -4809,7 +5046,7 @@ screamingNemesis =
        (MkTypeLine [creatureType "Spirit"] [Creature])
        [ Macros.keyword "Haste"
        , Macros.triggered Whenever
-                          (IsDealtDamage Macros.thisCreature)
+                          (IsDealtDamage AnyDamage Macros.thisCreature)
                           (Sequentially
                              [ DealDamage It ThatMuch
                                  (Macros.target (And [Macros.anyTarget,
@@ -4857,7 +5094,7 @@ callInAProfessional =
                       (Macros.playerCant "GainLife" (PlayerGroup AllPlayers))
                       (Just Macros.thisTurn)
                   , Continuously
-                      (CantPrevent AnyDamage Everywhere Nothing)
+                      (CantPrevent AnyDamage (DamageDescribed Everywhere Nothing) NoPreventionOnly)
                       (Just Macros.thisTurn)
                   , DealDamage This (Lit 3) (Macros.target Macros.anyTarget) ]) ]
        Nothing
@@ -5882,7 +6119,7 @@ stuffyDoll =
        [ Macros.keyword "Indestructible"
        , Static (Macros.entersChoosingPlayer Macros.thisCreature Nothing)
        , Macros.triggered Whenever
-                          (IsDealtDamage Macros.thisCreature)
+                          (IsDealtDamage AnyDamage Macros.thisCreature)
                           (DealDamage It ThatMuch (Definite ChosenPlayer))
        , Macros.activated TapSymbol
                           (DealDamage Macros.thisCreature (Lit 1)
