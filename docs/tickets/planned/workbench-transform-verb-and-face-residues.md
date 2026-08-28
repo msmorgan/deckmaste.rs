@@ -37,6 +37,13 @@ designing a constructor.
 
 So this is not a sixth layout constructor by default. Decide what it is.
 
+**RULED (user, 2026-08-27): the melded (reverse) face is DUPLICATED on each
+of the two cards** — the shape JSON representations typically use. Not a
+layout constructor, not a two-card object type, no cross-card reference for
+now. The duplication is acknowledged tech debt: fix later or add a lint
+asserting the two copies are really identical (the lint is the cheap option
+and may land with the round that first benches a meld pair).
+
 ## 3. Rooms — the unlock designations and the special action
 
 `SplitCard` already admits a shared type line ([CR#709.5]). What is missing:

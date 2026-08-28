@@ -359,6 +359,23 @@ What the report adds beyond what is scheduled above:
   Exhaustiveness is traded for the gate, the established price of every open
   vocabulary here.
 
+  **RULED (user, 2026-08-27): the as-though counterfactual is a premise SLOT
+  on the deontic row, never a node above it.** [CR#609.4]'s own grammar is
+  "may do something as though some condition were true — this applies only to
+  the stated effect": the permission is the head, the counterfactual a scoped
+  rider. v1's `AsThough(Counterfactual(premise, then: Deontic))` inverts that
+  and admits pairings the rule cannot express (a free-floating May or Cant
+  under an unrelated premise) — do NOT copy it. Shape: modality x deed label
+  x `asThough : Maybe premise`, the premise's SORT depending on the deed —
+  object/condition predicate at target/cast/play (Glaring Spotlight =
+  `May Target ... asThough (Not (Has Hexproof))`; the hardcoded
+  `PlayAsThough = HadFlash` collapses into `May Cast ... asThough HasFlash`),
+  the mana-symbol matcher at the spend deed ([CR#609.4b] — v1's separate
+  `SpendAsThough` row folds in too; cross-referenced in
+  workbench-mana-family-residues). Stacked as-thoughs ([CR#609.4a]) are two
+  permissions each carrying its own rider. The slot opens on May only; the
+  other modalities' zero is measured, not assumed.
+
 ## Routed ledger items
 
 Items from closed round tickets that this ticket owns. One line each, citing

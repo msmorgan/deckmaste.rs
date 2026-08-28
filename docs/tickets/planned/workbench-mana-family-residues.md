@@ -209,3 +209,12 @@ Standard constraints apply.
   "Mana of any type/colour can be spent to cast that spell" has no carrier
   (`PlayAsThough = HadFlash` and nothing else) — the clause beside the linkage
   read on Rogue Class, King Narfi's Betrayal, Summon: Esper Valigarmanda.
+
+## Ruling cross-reference (2026-08-27)
+
+The "as though" payment permission is RULED to be the deontic carrier's
+as-though premise slot at the SPEND deed, with a mana-symbol-matcher premise
+sort ([CR#609.4b]) — one mechanism with the prohibition region's rider, not a
+sibling `SpendAsThough` row. The ruling text lives in
+workbench-prohibition-and-permission-acts; this round builds the spend deed's
+premise sort against it.
