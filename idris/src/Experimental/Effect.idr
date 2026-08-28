@@ -497,6 +497,19 @@ mutual
                          {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
                          DeonticPatient {bs} d r
 
+  ||| The gate on both static conditionals: a conditioned statement is not
+  ||| conditioned again. It is a NARROWING and not a pin, and it is
+  ||| asserted by nothing on purpose. A nested conditional is
+  ||| rules-meaningful — [CR#603.4] leaves "if" its normal English meaning
+  ||| everywhere it is not an intervening clause — so a proof refusing one
+  ||| would refuse no rules impossibility, which is the pin `Effect.If`'s
+  ||| round retired for exactly that reason. Nor does the gate merely
+  ||| prefer a canonical form: `AndCond` is not the same term, because it
+  ||| holds every conjunct at `bs` where a nesting would type the inner
+  ||| condition at `condIntro` of the outer and let it read what the outer
+  ||| announced. So the gate withholds real width, and no supported line
+  ||| pays for it — the eight "as long as … as long as" lines are
+  ||| independent statements. It stays until one does.
   public export
   notConditional : {0 bs : Bindings} -> StaticEffect bs -> Bool
   notConditional (Conditionally _ _ _) = False
@@ -1451,9 +1464,22 @@ mutual
     ||| the clause resolves, before the deed, so it sits at `preIntro e`.
     ||| Not a macro over `If`: the two introduce mentions in different
     ||| places, and oracle text reads backward only.
+    |||
+    ||| The `otherwise` arm reads what the CONDITION announced as well as
+    ||| what the then-branch did, which is the same answer the leading
+    ||| orientation gives: [CR#601.2c] announces a target at casting
+    ||| whichever arm goes on to run, so an arm's scope cannot depend on
+    ||| which side of the clause the condition was written. `If` gets it
+    ||| structurally — its consequent is already typed at `condIntro c`, so
+    ||| `otherwiseCtx` carries `condDelta c` through — and this row has to
+    ||| write the same term explicitly, because its consequent is typed at
+    ||| `bs`. The two therefore over-generate alike: a failed comparison's
+    ||| margin stands in an arm that ran because the comparison failed,
+    ||| tolerated and recorded at both orientations rather than at one.
     ||| -- spelling: "[e] if [c]"; under `NotCond`, "[e] unless [c]".
     OnlyIf : (e : Effect bs) -> (c : Condition (preIntro e)) ->
-             (otherwise : Maybe (Effect (otherwiseCtx e))) -> Effect bs
+             (otherwise : Maybe (Effect (condDelta c ++ otherwiseCtx e))) ->
+             Effect bs
     ||| The leading conditional, "If [c], [e]. Otherwise, [o].": the
     ||| consequent reads what the condition introduced (`condDelta`) — a
     ||| comparison's margin, a phrase a comparison named. The otherwise

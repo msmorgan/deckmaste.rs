@@ -2061,22 +2061,6 @@ public export
 ifThen : (c : Condition bs) -> Effect (condIntro c) -> Effect bs
 ifThen c e = If c e Nothing
 
-||| "If [c], [e]. Otherwise, [o]."
-public export
-ifThenElse : (c : Condition bs) -> (e : Effect (condIntro c)) ->
-             Effect (otherwiseCtx e) -> Effect bs
-ifThenElse c e o = If c e (Just o)
-
-||| "[e] if [c]."
-public export
-onlyIf : (e : Effect bs) -> Condition (preIntro e) -> Effect bs
-onlyIf e c = OnlyIf e c Nothing
-
-||| "[e] unless [c]." — the conditional unless, beside the cost arm `Unless`.
-public export
-onlyIfNot : (e : Effect bs) -> Condition (preIntro e) -> Effect bs
-onlyIfNot e c = OnlyIf e (NotCond c) Nothing
-
 ||| "[se] as long as [c]."
 public export
 onlyWhile : (se : StaticEffect bs) -> (c : Condition (staticIntro se)) ->
