@@ -363,6 +363,31 @@ badChapterIntervening : Unspellable Ability (\ok =>
 badChapterIntervening Oh impossible
 
 
+||| "I — while you control a creature, draw a card."
+||| [CR#714.2b] writes the chapter header whole -- "When one or more lore
+||| counters are put onto this Saga, if …" -- so the printed line has
+||| nowhere to hang a concurrent clause either.
+public export
+badChapterWhile : Unspellable Ability (\ok =>
+  Triggered When (ChapterMark [ChapterI]) []
+    (Just (Macros.whileState (Exists (And [Macros.creature, ControlledBy You]))))
+    [] Nothing Nothing Nothing
+    Macros.drawACard {cd = ok})
+badChapterWhile Oh impossible
+
+
+||| "I — and whenever you draw a card, draw a card."
+||| The same rule at the join: [CR#714.2b]'s expansion is the whole
+||| header, so a chapter cannot be one half of a two-headed one.
+public export
+badChapterJoin : Unspellable Ability (\ok =>
+  Triggered When (ChapterMark [ChapterI]) [] Nothing
+    [ Macros.joinedHead Whenever (Draws You) ]
+    Nothing Nothing Nothing
+    Macros.drawACard {cd = ok})
+badChapterJoin Oh impossible
+
+
 ||| "If I — would happen, draw a card instead."
 ||| The chapter symbol stands for a trigger [CR#107.15]; the event a replacement names is
 ||| the lore counter's placement [CR#714.2b].

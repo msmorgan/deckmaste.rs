@@ -693,3 +693,41 @@ badThreeArmHeaderReadback : Unspellable Ability (\ok =>
             (DealDamage Macros.thisCreature (Macros.powerOf (It {ok = ok}))
                         (Each Opponent)))
 badThreeArmHeaderReadback Refl impossible
+
+
+||| "When this creature enters and whenever a creature you control dies,
+||| put a +1/+1 counter on it."
+||| The two-header join's readback, on `badAltHeaderMixedReadback`'s
+||| ground and for the same reason: the ability fires on ONE of its
+||| headers, the entry leaves this creature on the battlefield and the
+||| death leaves another creature in a graveyard, so the two headers
+||| announce different things and the sentence cannot say which fired.
+||| `joinedCtx` hands the tail the outer discourse bare and "it" looks for
+||| a mention neither header agreed to make.
+public export
+badJoinedHeaderReadback : Unspellable Ability (\ok =>
+  Triggered When (Enters Macros.thisCreature Nothing) [] Nothing
+            [ Macros.joinedHead Whenever
+                (Dies (Macros.a Macros.creatureYouControl)) ]
+            Nothing Nothing Nothing
+            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                         (It {ok = ok})))
+badJoinedHeaderReadback Refl impossible
+
+
+||| "Whenever this creature attacks while a creature is dying, draw a
+||| card."
+||| The concurrent clause's ACT arm names a moment INSIDE an event, and
+||| only two rules put ordered steps inside one: [CR#601.2] has a player
+||| cast a spell by following "the steps listed below, in order", and
+||| [CR#602.2] says the same of activating an ability. A death is a zone
+||| change -- [CR#700.4] makes it "is put into a graveyard from the
+||| battlefield" -- so the object is in the graveyard or it is not, and
+||| there is no step between for "while" to name.
+public export
+badWhileDoingMoment : Unspellable Ability (\ok =>
+  Triggered Whenever (Macros.attacks Macros.thisCreature) []
+            (Just (WhileDoing (Dies (Macros.a Macros.creature)) {up = ok}))
+            [] Nothing Nothing Nothing
+            Macros.drawACard)
+badWhileDoingMoment Oh impossible

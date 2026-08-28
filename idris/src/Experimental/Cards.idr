@@ -12846,3 +12846,20 @@ veilingOddityLine =
     (Continuously (Deontic (AllOf Macros.creature) Forbid Block Patient
                            NoDeonticPatient)
                   (Just Macros.thisTurn))
+
+||| The concurrent clause's ACT arm, at the one printed shape the event
+||| vocabulary already names: "while scrying" (The Temporal Anchor).
+||| [CR#701.22a] looks at the top N cards and THEN puts them, so the act
+||| has a moment inside it, which is what `eventUnderwayOk` reads off
+||| `actStepwise`. The other two printed act shapes wait on the KEYWORD
+||| vocabulary and not on this arm: "while casting a spell with emerge"
+||| (Foul Emissary) needs an "Emerge" `keywordFacts` row for `HasKeyword`,
+||| and "while you're activating a craft ability" (Market Gnome) needs a
+||| "Craft" row and an ability described by it, which `AbilityClass` does
+||| not spell.
+||| The Temporal Anchor is not on the bench for its own reason: its
+||| trigger event is "you choose to put one or more cards on the bottom
+||| of your library", a step inside the scry that no event row names.
+public export
+whileScrying : Concurrent []
+whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing)
