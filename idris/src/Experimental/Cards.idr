@@ -13188,3 +13188,61 @@ bewitchingLeechcraft =
                                  (Macros.untap Macros.thisCreature))
                               Repeatedly Nothing))) ]
        Nothing
+
+||| Bonus Round, whole -- "Until end of turn, whenever a player casts an
+||| instant or sorcery spell, that player copies it and may choose new
+||| targets for the copy."
+||| The STANDING triggered ability: [CR#603.7b] fires a delayed trigger
+||| once "unless it has a stated duration", so the duration slot the
+||| delayed clause already carries is what makes the ability stand and
+||| fire repeatedly while it lasts. No second ability shape is needed;
+||| the re-measurement is 29 supported lines and this is the shape all of
+||| them write.
+public export
+bonusRound : Card
+bonusRound =
+  Macros.card "Bonus Round"
+       (Just [Macros.generic 1, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Delayed (Casts (Macros.a AnyPlayer)
+                               (Macros.a (And [Macros.instantOrSorcery,
+                                               Macros.spell])))
+                        [] (Just Macros.untilEndOfTurn)
+                        (Sequentially
+                           [ CopyStack (That PlayerW) (That SpellW) (Lit 1) []
+                           , Macros.may (That PlayerW)
+                               (ChooseNewTargets (That CopyW)) ])) ]
+       Nothing
+
+||| Sheltered Valley, whole -- "If this land would enter, instead
+||| sacrifice each other permanent named Sheltered Valley you control,
+||| then put this land onto the battlefield. / At the beginning of your
+||| upkeep, if you control three or fewer lands, you gain 1 life. / {T}:
+||| Add {C}." The cycle's exception, with no conditional pair at all.
+||| Both blockers the umbrella recorded are gone: the sacrifice is
+||| `Does`' labelled act [CR#701.21a], which this vocabulary has always
+||| written, and the name match is `Named` over a printed name, which
+||| [CR#201.2a] is what makes true. What the printed "each other" needed
+||| was an ANCHOR: the
+||| replacement's body is prospective, so nothing has been announced for
+||| a bare "other" to be other than, and the phrase names the land
+||| itself.
+public export
+shelteredValley : Card
+shelteredValley =
+  Macros.card "Sheltered Valley" Nothing [] (MkTypeLine [] [Land])
+       [ Static (Intercepts (Enters This Nothing) [] Nothing
+                   (Sequentially
+                      [ Macros.sacrifice You
+                          (Each (And [Permanent, OtherThan Macros.thisLand,
+                                      Named (PrintedName "Sheltered Valley"),
+                                      ControlledBy You]))
+                      , Macros.putOntoBattlefield This ])
+                   Repeatedly Nothing)
+       , Macros.triggeredIf At (BeginningOf Upkeep (ByWord Yours))
+           (CompareAmt (CountOf (And [Macros.land, ControlledBy You]))
+                       AtMost (Lit 3))
+           (Macros.gainsLife You (Lit 1))
+       , Macros.activated TapSymbol
+                          (AddMana You (Lit 1) (Runs [[Colorless]]) []) ]
+       Nothing
