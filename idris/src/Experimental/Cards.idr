@@ -12659,3 +12659,31 @@ nazgulRingTrigger =
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                  (Each (And [HasSubtype (creatureType "Wraith"),
                              ControlledBy You])))
+
+||| Captain Marvel, Apex Avenger, whole -- "Flying, double strike,
+||| indestructible / Whenever you put one or more counters on another
+||| creature, if it's not a Kree, you may put the same number and kind of
+||| counters on Captain Marvel." The negated-SUBTYPE intervening "if" was
+||| routed here as having no writable form; it writes, and always did.
+||| [CR#603.4] gives the intervening slot a condition and puts no shape on
+||| it, and the description side negates a subtype like any other
+||| predicate, so the clause is `Matches` over `Not (HasSubtype …)` and
+||| wants nothing new. The body's "same number and kind" is the landed
+||| kind-blind distributive over the batch the header announced.
+public export
+captainMarvelApexAvenger : Card
+captainMarvelApexAvenger =
+  Macros.card "Captain Marvel, Apex Avenger"
+       (Just [Macros.generic 5, Macros.pip Red, Macros.pip White]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Kree",
+                    creatureType "Hero"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.keyword "DoubleStrike"
+       , Macros.keyword "Indestructible"
+       , Macros.triggeredIf Whenever
+           (CounterEvent CounterPut Nothing
+                         (Macros.a (And [Macros.creature, OtherThan This]))
+                         ManyCounters (Just You) Nothing)
+           (Matches It (Not (HasSubtype (creatureType "Kree"))))
+           (Macros.may You (PutCountersOfThoseKinds ThatMuch This)) ]
+       (Just (4, 4))
