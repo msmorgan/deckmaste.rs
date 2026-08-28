@@ -276,7 +276,7 @@ badForeignSacrificeCost Oh impossible
 ||| The pay clause spells its subject ONCE, so the component under the verb names the same player.
 public export
 badMismatchedPayer : Unspellable (Effect []) (\ok =>
-  Macros.mayElse You (Pay You (Macros.payLife Macros.anOpponent 1) {ag = ok}) Macros.drawACard)
+  Macros.mayElse You (Pay You (Macros.payLife Macros.anOpponent 1) PaidOnce {ag = ok}) Macros.drawACard)
 badMismatchedPayer Oh impossible
 
 
@@ -284,7 +284,7 @@ badMismatchedPayer Oh impossible
 ||| The tap symbol is a cost that exists only before a colon [CR#107.5], never as a verb phrase.
 public export
 badPayTapSymbol : Unspellable (Effect []) (\ok =>
-  Pay You TapSymbol {pb = ok})
+  Pay You TapSymbol PaidOnce {pb = ok})
 badPayTapSymbol Oh impossible
 
 
@@ -348,7 +348,7 @@ badSkipAsCost Oh impossible
 ||| [CR#602.1a] makes the activation cost everything before the colon and fixes its payer, so a cost that re-announces payer and payment states what the slot already holds; the telescope is `Compound`.
 public export
 badPayAsCost : Unspellable Ability (\ok =>
-  Activated (Do (Pay You (Macros.payLife You 2)) {ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
+  Activated (Do (Pay You (Macros.payLife You 2) PaidOnce) {ok}) Macros.drawACard Nothing Nothing Nothing Nothing)
 badPayAsCost Oh impossible
 
 

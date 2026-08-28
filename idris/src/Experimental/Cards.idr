@@ -722,10 +722,10 @@ woeleecher =
                     (Macros.gainsLife You (Lit 2)))
 
 moltingHarpy : Effect []
-moltingHarpy = Macros.mayElse You (Pay You (Mana [Macros.generic 2])) (Macros.sacrifice You Macros.thisCreature)
+moltingHarpy = Macros.mayElse You (Pay You (Mana [Macros.generic 2]) PaidOnce) (Macros.sacrifice You Macros.thisCreature)
 
 carnophage : Effect []
-carnophage = Macros.mayElse You (Pay You (Macros.payLife You 1)) (SetStatus Tapped Macros.thisCreature)
+carnophage = Macros.mayElse You (Pay You (Macros.payLife You 1) PaidOnce) (SetStatus Tapped Macros.thisCreature)
 
 solitaryConfinement : Effect []
 solitaryConfinement = Macros.mayElse You (Macros.discardsACard You) (Macros.sacrifice You Macros.thisEnchantment)
@@ -844,13 +844,13 @@ theLastRoninII =
 thousandMoonsCrackshot : Ability
 thousandMoonsCrackshot =
   Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
-    (Macros.mayWhen You (Pay You (Mana [Macros.generic 2, Macros.pip White]))
+    (Macros.mayWhen You (Pay You (Mana [Macros.generic 2, Macros.pip White]) PaidOnce)
                  (SetStatus Tapped (Macros.target Macros.creature)))
 
 anointerOfValor : Ability
 anointerOfValor =
   Macros.triggered Whenever (Macros.attacks (Macros.a Macros.creature))
-    (Macros.mayWhen You (Pay You (Mana [Macros.generic 3]))
+    (Macros.mayWhen You (Pay You (Mana [Macros.generic 3]) PaidOnce)
                  (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) (That (TypeW Creature))))
 
 
@@ -6624,7 +6624,7 @@ stasis =
        (MkTypeLine [] [Enchantment])
        [ Static (Skips (PlayerGroup AllPlayers) UntapStep)
        , Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
-           (Macros.mayElse You (Pay You (Mana [Macros.pip Blue]))
+           (Macros.mayElse You (Pay You (Mana [Macros.pip Blue]) PaidOnce)
                            (Macros.sacrifice You Macros.thisEnchantment)) ] Nothing
 
 public export
@@ -6725,7 +6725,7 @@ hellkiteCharger =
        , Macros.keyword "Haste"
        , Macros.triggered Whenever (Macros.attacks Macros.thisCreature)
            (Macros.mayThen You
-              (Pay You (Mana [Macros.generic 5, Macros.pip Red, Macros.pip Red]))
+              (Pay You (Mana [Macros.generic 5, Macros.pip Red, Macros.pip Red]) PaidOnce)
               (Sequentially
                 [ SetStatus Untapped (AllOf (And [Macros.creature, Attacking]))
                 , Macros.additionalPart Combat Nothing (Lit 1)])) ] (Just (5, 5))
@@ -8472,7 +8472,7 @@ override =
        (MkTypeLine [] [Instant])
        [ Spell (Macros.mayElse (ControllerOf (Macros.target Macros.spell))
                                (Pay They (ScaledMana (Macros.forEach
-                                            (And [Macros.artifact, ControlledBy You]))))
+                                            (And [Macros.artifact, ControlledBy You]))) PaidOnce)
                                (Macros.counterSpell It)) ]
        Nothing
 
@@ -8483,7 +8483,7 @@ rakshasasDisdain =
        (MkTypeLine [] [Instant])
        [ Spell (Macros.mayElse (ControllerOf (Macros.target Macros.spell))
                                (Pay They (ScaledMana (Macros.forEach
-                                            (InZone (Macros.graveyardOf You)))))
+                                            (InZone (Macros.graveyardOf You)))) PaidOnce)
                                (Macros.counterSpell It)) ]
        Nothing
 
@@ -8497,7 +8497,7 @@ fettergeist =
            (Macros.mayElse You
               (Pay You (ScaledMana (Macros.forEach
                           (And [Macros.creature, ControlledBy You,
-                                OtherThan Macros.thisCreature]))))
+                                OtherThan Macros.thisCreature]))) PaidOnce)
               (Macros.sacrifice You Macros.thisCreature)) ]
        (Just (3, 4))
 
@@ -8509,7 +8509,7 @@ megatherium =
        [ Macros.keyword "Trample"
        , Macros.triggered When (Enters Macros.thisCreature Nothing)
            (Macros.mayElse You
-              (Pay You (ScaledMana (Macros.forEach (InZone (Macros.handOf You)))))
+              (Pay You (ScaledMana (Macros.forEach (InZone (Macros.handOf You)))) PaidOnce)
               (Macros.sacrifice You Macros.thisCreature)) ]
        (Just (4, 4))
 
@@ -8599,7 +8599,7 @@ killingWave : Effect []
 killingWave =
   ForEachOf (Each Macros.creature)
             (Macros.mayElse (ControllerOf It)
-                            (Pay They (Do (ChangeLife They (Down (LetterVal X)))))
+                            (Pay They (Do (ChangeLife They (Down (LetterVal X)))) PaidOnce)
                             (Macros.sacrifice They It))
 
 public export
@@ -8607,7 +8607,7 @@ fadeAway : Effect []
 fadeAway =
   ForEachOf (Each Macros.creature)
             (Macros.mayElse (ControllerOf It)
-                            (Pay They (Mana [Macros.generic 1]))
+                            (Pay They (Mana [Macros.generic 1]) PaidOnce)
                             (Macros.sacrifice They (Macros.a Permanent)))
 
 public export
@@ -8657,7 +8657,7 @@ tidalFlats =
            (ForEachOf (Each (And [Macros.creature, Attacking,
                                   Not (HasKeyword (TheKeyword "Flying"))]))
                       (Macros.mayElse (ControllerOf It)
-                                      (Pay They (Mana [Macros.generic 1]))
+                                      (Pay They (Mana [Macros.generic 1]) PaidOnce)
                                       (Macros.gains
                                          (AllOf (And [Macros.creature, ControlledBy You,
                                                       BlockerOf (That (TypeW Creature))]))
@@ -10717,6 +10717,58 @@ stormscapeBattlemageFirstKicker =
   Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
     (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker")))
     (Macros.gainsLife You (Lit 3))
+
+||| Tranquil Frillback's offer -- "you may pay {G} up to three times."
+||| The capped half of `PayTimes`, and the family's one card that writes
+||| a bound; the reflexive trigger it seats chooses up to that many modes
+||| and is not this row's.
+public export
+tranquilFrillbackOffer : Effect []
+tranquilFrillbackOffer =
+  Macros.may You (Pay You (Mana [Macros.pip Green]) (UpToTimes 3))
+
+-- THE WHERE-CLAUSE ON A KEYWORD'S NUMBER PARAMETER: the grant opens the
+-- letter, the where-clause closes it. 4 supported lines write one, and
+-- monstrosity's "{X}{X}{G}: Monstrosity X" is NOT among them --
+-- [CR#701.37c] makes the value X had as the permanent became monstrous
+-- a LINKED value the other abilities read, so nothing there is defined
+-- afresh and no card writes "where X is" beside it.
+
+||| Fumiko the Lowblood's first line -- "Fumiko has bushido X, where X is
+||| the number of attacking creatures." [CR#702.45a] writes "Bushido N";
+||| the card puts a variable in the slot and defines it in the same
+||| statement, which is [CR#107.3f]'s "X appears in the text ... and the
+||| value is defined by the text".
+public export
+fumikoBushidoX : Ability
+fumikoBushidoX =
+  Static (AndAlso [ Gains Macros.thisCreature
+                          (KeywordAbility "Bushido"
+                             (Just (ParamNumber (LetterVal X))))
+                  , Define X (CountOf Attacking) ])
+
+-- THE REPEATED-PAYMENT OFFER: one payment offered a number of times
+-- inside one resolution [CR#702.56a], and the reflexive trigger it seats
+-- [CR#603.12a]. 6 supported cards -- the five Adversaries at "any number
+-- of times" and Tranquil Frillback at "up to three times".
+
+||| Tainted Adversary's offer and its reflexive trigger -- "When this
+||| creature enters, you may pay {2}{B} any number of times. When you pay
+||| this cost one or more times, put that many +1/+1 counters on this
+||| creature." The count the repeated payment leaves is what "that many"
+||| reads, and [CR#603.12a] is why the trigger fires ONCE however many
+||| payments were made: the reflexive seat restates the offer rather than
+||| naming an iteration. (The card's second clause creates twice that
+||| many Zombie tokens with decayed and is not this row's.)
+public export
+taintedAdversaryOffer : Ability
+taintedAdversaryOffer =
+  Macros.triggered When (Enters Macros.thisCreature Nothing)
+    (Reflexively
+       (Macros.may You (Pay You (Mana [Macros.generic 2, Macros.pip Black])
+                            AnyNumberOfTimes))
+       (PutCounters ThatMuch (PrintedKind Macros.plusOnePlusOne)
+                    Macros.thisCreature))
 
 -- THE UN-KEYWORDED ADDITIONAL COST [CR#118.8], the row the 12 measured
 -- "if this spell's additional cost was paid" lines were waiting on. 315

@@ -724,11 +724,11 @@ gets n pow tou d = Continuously (Gets n pow tou {ok}) d {sp}
 
 public export
 gains : (n : Noun bs Object) -> (a : AbilityAt bs) ->
-        (d : Maybe (Duration (selfSubjIntro n))) ->
         {auto 0 ok : GrantSubject a n} ->
         {auto 0 gr : Grantable a} ->
+        (d : Maybe (Duration (staticIntro (Gains n a {ok} {gr})))) ->
         {auto 0 sp : SpanOk KeywordGrant d} -> Effect bs
-gains n a d = Continuously (Gains n a) d
+gains n a d = Continuously (Gains n a {ok} {gr}) d
 
 public export
 gainsHaste : (n : Noun bs Object) -> (d : Maybe (Duration (selfSubjIntro n))) ->

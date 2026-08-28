@@ -1460,7 +1460,7 @@ public export
 payThreadsPrefix : (bs : Bindings) -> (who : Noun bs Player) ->
                    (c : Cost (nomIntro who)) -> Payable c -> PayAgrees who c ->
                    Effect bs
-payThreadsPrefix bs who c pb ag = Pay who c {pb} {ag}
+payThreadsPrefix bs who c pb ag = Pay who c PaidOnce {pb} {ag}
 
 ||| The postposed conditional: the condition is written after the clause
 ||| and reads what the clause announced. Forward.

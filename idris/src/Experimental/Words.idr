@@ -3846,6 +3846,45 @@ manaHasX (_ :: ms) = manaHasX ms
 ||| [CR#107.3j] does the same for a gained ability. Both are facts about
 ||| where an ability's cost gets its value, which is the ability's own
 ||| telescope and not the face's.
+||| How many times ONE offer to pay a cost may be taken. [CR#702.56a]
+||| writes the unbounded form in rules language -- replicate means "As an
+||| additional cost to cast this spell, you may pay [cost] any number of
+||| times" -- and the capped form is Tranquil Frillback's "up to three
+||| times". 6 supported cards write the offer un-keyworded: the five
+||| Adversaries at `AnyNumberOfTimes` and Tranquil Frillback at
+||| `UpToTimes 3`.
+|||
+||| A slot on the payment and not a `Repeated` around it: `Repeated`
+||| takes a definite `Amount` and iterates a clause, where this is ONE
+||| payment offered a number of times as part of a single resolution,
+||| which is what [CR#603.12a] rests on -- "if a resolving spell or
+||| ability includes a choice to pay a cost multiple times and creates a
+||| triggered ability that triggers when that payment is made, paying
+||| that cost one or more times causes the reflexive triggered ability to
+||| trigger only once".
+||| -- spelling: nothing after the cost at `PaidOnce`; "any number of
+||| times" and "up to [n] times" after it otherwise.
+public export
+data PayTimes = PaidOnce | AnyNumberOfTimes | UpToTimes Nat
+
+public export
+Eq PayTimes where
+  (==) PaidOnce PaidOnce = True
+  (==) PaidOnce _ = False
+  (==) AnyNumberOfTimes AnyNumberOfTimes = True
+  (==) AnyNumberOfTimes _ = False
+  (==) (UpToTimes m) (UpToTimes n) = m == n
+  (==) (UpToTimes _) _ = False
+
+||| Whether the offer may be taken more than once -- the payment then
+||| leaves a COUNT for the clause after it to read ("put that many
+||| +1/+1 counters on this creature").
+public export
+payRepeats : PayTimes -> Bool
+payRepeats PaidOnce = False
+payRepeats AnyNumberOfTimes = True
+payRepeats (UpToTimes _) = True
+
 public export
 costLetters : Maybe ManaCost -> Bindings
 costLetters Nothing = []

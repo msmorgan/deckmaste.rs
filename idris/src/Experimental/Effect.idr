@@ -1199,7 +1199,15 @@ mutual
   -- announces anything: the additional cost is paid at [CR#601.2f-h],
   -- long before any line of the card reads a mention.
   staticIntro (AddedCost _ _) = bs
-  staticIntro (Gains n _) = selfSubjIntro n
+  -- A granted keyword whose NUMBER parameter is a letter opens that
+  -- letter for the where-clause that follows: "Ulamog has annihilator X,
+  -- WHERE X IS the number of +1/+1 counters on it" [CR#702.86a] writes
+  -- "Annihilator N" and the card puts a variable in the slot, which
+  -- [CR#107.3f] leaves to be defined by the text -- and this is the text
+  -- defining it. `Define` is the closing half and already exists; what
+  -- was missing was the OPENING, since `ParamNumber`'s amount is typed
+  -- at `[]` and its own `amtIntro` reaches nothing here.
+  staticIntro (Gains n ab) = abLetterDelta ab ++ selfSubjIntro n
   staticIntro (Deontic n _ _ _ _ _) = selfSubjIntro n
   staticIntro (DoesntUntap n) = selfSubjIntro n
   staticIntro (CantMoreThan _ _ _ _) = bs
@@ -2179,7 +2187,15 @@ mutual
     ControllerSacrifices : (n : Noun bs Object) ->
                            {auto 0 one : nounPlur n = OneOf} ->
                            {auto 0 zn : OnBattlefield (nounZone n)} -> Effect bs
+    ||| "[who] pay[s] [c]", with the number of times the one offer may
+    ||| be taken [CR#702.56a]. At `PaidOnce` the clause is what it always
+    ||| was; at the two repeating values the payment leaves a COUNT for
+    ||| the clause after it ("put that many +1/+1 counters on this
+    ||| creature", the five Adversaries).
+    ||| -- spelling: the payer, the verb and the cost, with `PayTimes`'
+    ||| own words after it.
     Pay : (who : Noun bs Player) -> (c : Cost (nomIntro who)) ->
+          (times : PayTimes) ->
           {auto 0 pb : Payable c} ->
           {auto 0 ag : PayAgrees who c} -> Effect bs
     May : (offer : Maybe (Noun bs Player)) -> (body : Effect (mayCtx offer)) ->
@@ -2405,7 +2421,7 @@ mutual
   heldUntilOk (Enact _ (Move _ _ _)) = True
   heldUntilOk (Enact _ _) = False
   heldUntilOk (Does _ _ _) = False
-  heldUntilOk (Pay _ _) = False
+  heldUntilOk (Pay _ _ _) = False
   heldUntilOk (May _ _ _ _) = False
   heldUntilOk (OnlyIf _ _ _) = False
   heldUntilOk (If _ _ _) = False
@@ -2458,7 +2474,7 @@ mutual
   reflexEncloseUse (Throughout _ (GainsControl _ _)) = EncReflexive
   reflexEncloseUse (Throughout _ _) = EncAgentless
   reflexEncloseUse (Does _ _ _) = EncReflexive
-  reflexEncloseUse (Pay _ _) = EncReflexive        -- 66, all of them offered
+  reflexEncloseUse (Pay _ _ _) = EncReflexive      -- 66, all of them offered
   reflexEncloseUse (Enact _ _) = EncReflexive
   -- a status change is the effect's, not a player's: [CR#603.12]'s
   -- agent form has no subject to inflect.
@@ -2525,6 +2541,17 @@ mutual
   reflexEncloseUse (ForEachOf _ _) = EncNotOneAction
   reflexEncloseUse (ForEachKindOf _ _ _ _) = EncNotOneAction
   reflexEncloseUse (Repeat _) = EncNotOneAction
+  -- [CR#603.12a]'s named exception: "if a resolving spell or ability
+  -- includes a choice to pay a cost multiple times and creates a
+  -- triggered ability that triggers when that payment is made, paying
+  -- that cost one or more times causes the reflexive triggered ability
+  -- to trigger only once". A repetition whose body is a PAYMENT is
+  -- therefore one enclosure with one agent, not the many-actions shape
+  -- every other repetition is; the trigger it seats restates the offer
+  -- ("When you pay this cost one or more times, ...") rather than
+  -- naming an iteration.
+  reflexEncloseUse (Repeated _ (Pay _ _ _)) = EncReflexive
+  reflexEncloseUse (Repeated _ (May _ (Pay _ _ _) Nothing _)) = EncReflexive
   reflexEncloseUse (Repeated _ _) = EncNotOneAction
   reflexEncloseUse (Sequentially _) = EncNotOneAction
   reflexEncloseUse (Simultaneously _) = EncNotOneAction
@@ -2620,7 +2647,7 @@ mutual
   thisWayOutcomeOk (DoubleCountersOfOwnKinds _) = True
   thisWayOutcomeOk (Enact _ _) = True
   thisWayOutcomeOk (Does _ _ _) = True
-  thisWayOutcomeOk (Pay _ _) = True
+  thisWayOutcomeOk (Pay _ _ _) = True
   thisWayOutcomeOk (OnlyIf _ _ _) = True
   thisWayOutcomeOk (If _ _ _) = True
   thisWayOutcomeOk (Unless _ _ _) = True
@@ -2727,7 +2754,7 @@ mutual
   costActionOk (PutCountersOfThoseKinds _ _) = False
   costActionOk (Enact _ e) = costActionOk e
   costActionOk (Does _ _ e) = costActionOk e
-  costActionOk (Pay _ _) = False
+  costActionOk (Pay _ _ _) = False
   costActionOk (May _ body ifDid ifNot) =
     costActionOk body && costActionOkOpt ifDid && costActionOkOpt ifNot
   costActionOk (OnlyIf e _ otherwise) = costActionOk e && costActionOkOpt otherwise
@@ -2875,7 +2902,7 @@ mutual
   effEq (Enact v e) (Enact w f) = v == w && effEq e f
   effEq (Enact _ _) _ = False
   effEq (Does _ _ _) _ = False
-  effEq (Pay _ _) _ = False
+  effEq (Pay _ _ _) _ = False
   effEq (May _ _ _ _) _ = False
   effEq (OnlyIf _ _ _) _ = False
   effEq (If _ _ _) _ = False
@@ -3020,7 +3047,13 @@ mutual
     afterMoveTo to (moveIntro (Just v) what (Just (zoneSort to)))
   effIntro (Does s v (SetStatus _ n)) = stampIntro (Just v) n
   effIntro (Does s v e) = effIntro e
-  effIntro (Pay who c) = costIntro c
+  -- A repeating offer leaves the number of times it was taken, which is
+  -- what "that many" reads on the five Adversaries. `RepeatCount` is
+  -- already the mention for a count a clause WROTE rather than a batch
+  -- it produced, and this is that count at the payment.
+  effIntro (Pay who c PaidOnce) = costIntro c
+  effIntro (Pay who c AnyNumberOfTimes) = outcomeB RepeatCount :: costIntro c
+  effIntro (Pay who c (UpToTimes _)) = outcomeB RepeatCount :: costIntro c
   effIntro (May d body did notd) = mayIntro body did notd
   -- a conditioned clause exports what it ANNOUNCED and no more: the
   -- condition may have failed, so nothing the clause would have DONE
@@ -3131,7 +3164,7 @@ mutual
   preIntro (Enact _ e) = preIntro e
   preIntro (Does s v (Move what to _)) = nomIntro what
   preIntro (Does s v e) = preIntro e
-  preIntro (Pay who c) = nomIntro who
+  preIntro (Pay who c _) = nomIntro who
   preIntro (May d body did notd) = mayIntro body did notd
   preIntro (OnlyIf e c oth) = annIntro e
   preIntro (If c e oth) = bs
@@ -3270,7 +3303,7 @@ mutual
   annIntro (Enact _ e) = annIntro e
   annIntro (Does s v (Move what to _)) = nomIntro what
   annIntro (Does s v e) = annIntro e
-  annIntro (Pay who c) = nomIntro who
+  annIntro (Pay who c _) = nomIntro who
   annIntro (May d body did notd) = annIntro body
   annIntro (OnlyIf e c oth) = annIntro e
   annIntro (If c e oth) = bs
@@ -3422,7 +3455,7 @@ mutual
   deedDelta (Enact _ e) = deedDelta e
   deedDelta (Does s v (Move what to _)) = []
   deedDelta (Does s v e) = deedDelta e
-  deedDelta (Pay who c) = []
+  deedDelta (Pay who c _) = []
   deedDelta (May d body did notd) = []
   deedDelta (OnlyIf e c oth) = []
   deedDelta (If c e oth) = []
@@ -3873,6 +3906,23 @@ mutual
   abIntro (AlsoForKeywords ab _) = abIntro ab
   abIntro (AbilityWord _ ab) = abIntro ab
   abIntro (Spell eff) = effChoiceDelta eff ++ bs
+
+  ||| The letter a granted ability's NUMBER parameter leaves open. 4
+  ||| supported lines write one: Ulamog, the Defiler's annihilator X,
+  ||| Fumiko the Lowblood's bushido X, and mobilize X on Avenger of the
+  ||| Fallen and Infantry Shield. Only the number parameter can carry a
+  ||| letter -- a cost's {X} is announced as the spell is cast
+  ||| [CR#107.3a] and is not this text's to define.
+  ||| Monstrosity's five "{X}{X}{G}: Monstrosity X" lines are NOT this:
+  ||| there the letter is the activation cost's, and [CR#701.37c] makes
+  ||| the permanent's other abilities read the value X had as it became
+  ||| monstrous -- a linked value, never a fresh read, and no
+  ||| where-clause is written.
+  public export
+  abLetterDelta : {0 bs : Bindings} -> AbilityAt bs -> List Binding
+  abLetterDelta (KeywordAbility _ (Just (ParamNumber (LetterVal l)))) = [letterB l]
+  abLetterDelta _ = []
+
 
   namespace Coord
     public export

@@ -506,7 +506,7 @@ badEmptyEmblem Oh impossible
 ||| The pay clause names its payer, and [CR#606.4] moves counters on the permanent instead.
 public export
 badPayLoyalty : Unspellable (Effect []) (\ok =>
-  Pay You (LoyaltySymbol (LoyaltyUp 1)) {pb = ok})
+  Pay You (LoyaltySymbol (LoyaltyUp 1)) PaidOnce {pb = ok})
 badPayLoyalty Oh impossible
 
 
