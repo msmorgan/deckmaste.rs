@@ -15822,7 +15822,7 @@ propaganda =
   Macros.card "Propaganda" (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.deontic (AllOf Macros.creature)
-                   (GatedBy (ScaledMana (Times 2
+                   (GatedBy (ScaledMana GenericUnit (Times 2
                       (CountOf (And [Macros.creature, ControlledBy They,
                                      AttackerOf You])))))
                    ["Attack"] Agent (DefendingPlayer You)) ]
@@ -15839,7 +15839,7 @@ ghostlyPrisonWhole =
   Macros.card "Ghostly Prison" (Just [Macros.generic 2, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Static (Macros.deontic (AllOf Macros.creature)
-                   (GatedBy (ScaledMana (Times 2
+                   (GatedBy (ScaledMana GenericUnit (Times 2
                       (CountOf (And [Macros.creature, ControlledBy They,
                                      AttackerOf You])))))
                    ["Attack"] Agent (DefendingPlayer You)) ]
@@ -15859,7 +15859,7 @@ archangelOfTithesBlockToll : Ability
 archangelOfTithesBlockToll =
   Static (Macros.asLongAs (Matches Macros.thisCreature Attacking)
             (Macros.deontic (AllOf Macros.creature)
-               (GatedBy (ScaledMana (Times 1 GroupSize)))
+               (GatedBy (ScaledMana GenericUnit (Times 1 GroupSize)))
                ["Block"] Agent NoDeonticPatient))
 
 ||| Myr Prototype, whole -- "At the beginning of your upkeep, put a
@@ -15877,7 +15877,7 @@ myrPrototype =
        [ Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
        , Static (Macros.deontic Macros.thisCreature
-                   (GatedBy (ScaledMana (Times 1
+                   (GatedBy (ScaledMana GenericUnit (Times 1
                       (CountersOn Macros.plusOnePlusOne It))))
                    ["Attack", "Block"] Agent NoDeonticPatient) ]
        (Just (3, 3))
@@ -15990,7 +15990,7 @@ public export
 chamberSentryDamage : Ability
 chamberSentryDamage =
   Macros.activated (Compound [Mana [Variable], TapSymbol,
-                       Do (RemoveCounters (LetterVal X)
+                       Do (RemoveCounters (ExactlyOf (LetterVal X))
                              (Just Macros.plusOnePlusOne) Macros.thisCreature)])
                    (DealDamage This (LetterVal X) (Macros.target Macros.anyTarget))
 
@@ -16009,7 +16009,7 @@ awesomePresence =
        (MkTypeLine [enchantmentType "Aura"] [Enchantment])
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
-                   (GatedBy (ScaledMana (Times 3
+                   (GatedBy (ScaledMana GenericUnit (Times 3
                       (CountOf (And [Macros.creature, ControlledBy They,
                                      BlockerOf It])))))
                    ["Block"] Patient NoDeonticPatient) ]
