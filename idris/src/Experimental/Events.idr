@@ -152,6 +152,30 @@ paymentEventName : PaymentOutcome -> EventName
 paymentEventName Paid = CostPayment
 paymentEventName Unpaid = CostNonpayment
 
+||| The two directions a life total moves, as two events. [CR#119.3]
+||| adjusts a player's life total for a gain and for a loss in one
+||| sentence, so the two are one change read two ways rather than two
+||| unrelated happenings; [CR#119.9] then writes the gain header in the
+||| rules' own words ("Whenever [a player] gains life, . . . ."), which is
+||| what makes the change watchable and not merely instructable.
+||| Two names on `paymentEventName`'s model, so a name-keyed table can
+||| answer about each direction alone.
+public export
+data LifeMove = LifeGoesUp | LifeGoesDown
+
+public export
+lifeEventName : LifeMove -> EventName
+lifeEventName LifeGoesUp = LifeGain
+lifeEventName LifeGoesDown = LifeLoss
+
+||| The outcome each direction of a life change leaves for a following
+||| clause to read: [CR#119.3] moves the total by an amount, and that
+||| amount is what "that much life" names.
+public export
+lifeMoveOutcome : LifeMove -> OutcomeSort
+lifeMoveOutcome LifeGoesUp = LifeGained
+lifeMoveOutcome LifeGoesDown = LifeLost
+
 ||| Which keyword names a cost a clause may watch being paid: the ones
 ||| whose parameter IS a cost [CR#118.1]. A keyword with no cost parameter
 ||| -- flying, menace -- names nothing payable.

@@ -268,7 +268,21 @@ mutual
     ||| -- spelling: "[n] leave(s) [from]"
     Leaves : (n : Noun bs Object) -> (from : Maybe (EventSource bs)) ->
              {auto 0 zn : ZoneFits (nounZone n) (sourceZone from)} -> GameEvent bs
-    IsDealtDamage : {k : Kind} -> (to : Noun bs k) ->
+    ||| "Whenever this creature is dealt damage", "Whenever this creature
+    ||| is dealt combat damage" (Pious Warrior, Wall of Essence, Wall of
+    ||| Souls, Souls of the Faultless), "Whenever this creature is dealt
+    ||| noncombat damage" (Smaug, the Golden): the damage read from the
+    ||| RECIPIENT's side, with the damage's KIND written where the header
+    ||| writes it.
+    ||| The kind is a slot and not two rows, and not a reading of
+    ||| `DealsCombatDamage` either: that row is the DEALER's side and
+    ||| carries a battlefield gate on its subject because [CR#510.1]
+    ||| assigns combat damage from attacking and blocking creatures,
+    ||| while what takes the damage need be neither. So the adjective the
+    ||| shield rows already spell (`DamageKind`) sits here at an event
+    ||| position, one vocabulary at both seats.
+    ||| -- spelling: "[to] is/are dealt [kind] damage".
+    IsDealtDamage : {k : Kind} -> (kind : DamageKind) -> (to : Noun bs k) ->
                     {auto 0 rk : DamageRecipient to} -> GameEvent bs
     Draws : (who : Noun bs Player) -> GameEvent bs
     LosesGame : (who : Noun bs Player) -> GameEvent bs
@@ -540,6 +554,30 @@ mutual
     ||| same number.
     ||| -- spelling: "[who] pay(s) life"
     PaysLife : (who : Noun bs Player) -> GameEvent bs
+    ||| "Whenever you gain life" (Sanguine Bond, Ageless Entity),
+    ||| "Whenever an opponent gains life" (Kavu Predator), "Whenever you
+    ||| lose life" (Vilis, Broker of Blood), "Whenever an opponent loses
+    ||| life" (Exquisite Blood, Mindcrank): a life total MOVING as a thing
+    ||| that happens. [CR#119.9] writes this header in the rules' own
+    ||| words -- "Some triggered abilities are written, 'Whenever [a
+    ||| player] gains life, . . . .'" -- so the change is watchable and
+    ||| not merely instructable, and [CR#119.3] is what one is.
+    ||| The two directions are one row under a `LifeMove` slot lifting
+    ||| through `lifeEventName`, on `FlipEvent`'s and `PaysCost`'s model:
+    ||| [CR#119.3] adjusts the total for a gain and for a loss in one
+    ||| sentence, so nothing but the sign tells the two apart, and a
+    ||| name-keyed table still answers about each alone.
+    ||| NOT `PaysLife`, which watches a PAYMENT towards a cost
+    ||| [CR#118.3b] and is a life loss only by [CR#119.4]'s reading; a
+    ||| player who loses life to damage [CR#119.2] paid nothing.
+    ||| It happens IN a number -- [CR#119.3] moves the total by an amount
+    ||| and [CR#119.9] makes a 0-life gain no life gain event at all -- so
+    ||| the row announces that amount for the tail to read ("target
+    ||| opponent loses that much life", "put that many +1/+1 counters on
+    ||| this creature"), on `PaysLife`'s own model, and the mint is the
+    ||| change's own sort rather than a second sort naming the number.
+    ||| -- spelling: "[who] gain(s)/lose(s) life"
+    LifeChanges : (who : Noun bs Player) -> (dir : LifeMove) -> GameEvent bs
     ||| "Whenever you discard a card", "Whenever an opponent discards a
     ||| card", "Whenever one or more nonland cards are milled", "Whenever
     ||| you scry": a keyword action as a thing that HAPPENS, named by the
@@ -640,7 +678,7 @@ mutual
   eventName : {0 bs : Bindings} -> GameEvent bs -> EventName
   eventName (Dies _) = Death
   eventName (Leaves _ _) = Departure
-  eventName (IsDealtDamage _) = DamageTaken
+  eventName (IsDealtDamage _ _) = DamageTaken
   eventName (Draws _) = CardDrawn
   eventName (LosesGame _) = GameLoss
   eventName (Enters _ _) = Entry
@@ -668,6 +706,7 @@ mutual
   eventName (RollsDice _ _ _ _) = DiceRoll
   eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (PaysLife _) = LifePayment
+  eventName (LifeChanges _ dir) = lifeEventName dir
   eventName (VerbedEvent _ v _ _) = VerbedAct v
   eventName (NthOccurrence _ _ ev) = eventName ev
 
@@ -685,7 +724,16 @@ mutual
   eventIntro : {bs : Bindings} -> GameEvent bs -> Bindings
   eventIntro (Dies n) = selfSubjIntro n
   eventIntro (Leaves n _) = selfSubjIntro n
-  eventIntro (IsDealtDamage to) = selfSubjIntro to
+  -- the damage it announces is the damage that WOULD be dealt, on
+  -- `RollsDice`' model: [CR#614.6] keeps the replaced event from
+  -- happening, but [CR#614.1] has the replacement watch for an event
+  -- that WOULD happen, and [CR#120.8] makes that event one of a stated
+  -- size -- a source that would deal 0 damage deals none and leaves
+  -- nothing to replace. So the amount stands for the body to read, which
+  -- is what "put that many -1/-1 counters on that creature instead"
+  -- (Soul-Scar Mage) names. 10 supported bodies read it (re-measured
+  -- 2026-08-28).
+  eventIntro (IsDealtDamage _ to) = outcomeB DamageDealt :: selfSubjIntro to
   eventIntro (Draws who) = selfSubjIntro who
   eventIntro (LosesGame who) = selfSubjIntro who
   eventIntro (Enters n _) = selfSubjIntro n
@@ -696,9 +744,9 @@ mutual
   eventIntro (Blocks _ (Just what)) = selfSubjIntro what
   eventIntro (BecomesBlocked n Nothing) = selfSubjIntro n
   eventIntro (BecomesBlocked _ (Just by)) = selfSubjIntro by
-  eventIntro (DealsCombatDamage n to) = selfSubjIntro to
-  eventIntro (DealsDamage n NoPatient) = selfSubjIntro n
-  eventIntro (DealsDamage _ (OnePatient m)) = selfSubjIntro m
+  eventIntro (DealsCombatDamage n to) = outcomeB DamageDealt :: selfSubjIntro to
+  eventIntro (DealsDamage n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
+  eventIntro (DealsDamage _ (OnePatient m)) = outcomeB DamageDealt :: selfSubjIntro m
   eventIntro (BeginningOf _ _) = bs
   eventIntro (Casts _ what _) = selfSubjIntro what
   eventIntro (BecomesTarget _ by) = selfSubjIntro by
@@ -736,6 +784,13 @@ mutual
   eventIntro (RollsDice who ManyDice _ _) = outcomeB DiceRolled :: selfSubjIntro who
   eventIntro (PaysCost _ _ whose _) = selfSubjIntro whose
   eventIntro (PaysLife who) = selfSubjIntro who
+  -- and the life change that WOULD happen leaves its amount for the same
+  -- reason: [CR#119.9] makes a 0-life gain no life gain event at all, so
+  -- the event a replacement reaches is one of a stated size, which is
+  -- what "If you would gain life, draw that many cards instead"
+  -- (Nefarious Lich) reads.
+  eventIntro (LifeChanges who dir) =
+    outcomeB (lifeMoveOutcome dir) :: selfSubjIntro who
   eventIntro (VerbedEvent who _ Nothing _) = agentIntro who
   eventIntro (VerbedEvent _ _ (Just what) _) = selfSubjIntro what
   eventIntro (NthOccurrence _ _ ev) = eventIntro ev
@@ -748,9 +803,9 @@ mutual
   eventAfter : {bs : Bindings} -> GameEvent bs -> Bindings
   eventAfter (Dies n) = moveIntro Nothing n (Just Graveyard)
   eventAfter (Leaves n _) = moveIntro Nothing n Nothing
-  eventAfter (IsDealtDamage {k = Object} to) =
+  eventAfter (IsDealtDamage {k = Object} _ to) =
     outcomeB DamageDealt :: selfSubjIntro to
-  eventAfter (IsDealtDamage to) = outcomeB DamageDealt :: nomIntro to
+  eventAfter (IsDealtDamage _ to) = outcomeB DamageDealt :: nomIntro to
   eventAfter (Draws who) = nomIntro who
   eventAfter (LosesGame who) = nomIntro who
   eventAfter (Enters n _) = moveIntro Nothing n (Just Battlefield)
@@ -801,6 +856,7 @@ mutual
   eventAfter (RollsDice who _ _ _) = outcomeB RollResult :: nomIntro who
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
   eventAfter (PaysLife who) = outcomeB LifeLost :: nomIntro who
+  eventAfter (LifeChanges who dir) = outcomeB (lifeMoveOutcome dir) :: nomIntro who
   eventAfter (VerbedEvent who _ Nothing _) = agentIntro who
   -- the act stamps its patient, so the body may name it back by its
   -- participle ("the milled card"), and leaves it where the act's own
@@ -819,7 +875,7 @@ mutual
   eventSubjectPlur : {bs : Bindings} -> GameEvent bs -> Plurality
   eventSubjectPlur (Dies n) = nounPlur n
   eventSubjectPlur (Leaves n _) = nounPlur n
-  eventSubjectPlur (IsDealtDamage to) = nounPlur to
+  eventSubjectPlur (IsDealtDamage _ to) = nounPlur to
   eventSubjectPlur (Draws who) = nounPlur who
   eventSubjectPlur (LosesGame who) = nounPlur who
   eventSubjectPlur (Enters n _) = nounPlur n
@@ -850,6 +906,7 @@ mutual
   -- is the already-singular bearer.
   eventSubjectPlur (PaysCost Nothing _ _ _) = OneOf
   eventSubjectPlur (PaysLife who) = nounPlur who
+  eventSubjectPlur (LifeChanges who _) = nounPlur who
   eventSubjectPlur (VerbedEvent (Just who) _ _ _) = nounPlur who
   eventSubjectPlur (VerbedEvent Nothing _ (Just what) _) = nounPlur what
   -- unreachable: `VerbedVoice` refuses an act with neither actor nor
