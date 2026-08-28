@@ -14,3 +14,8 @@ done/workbench-choice-{a,b,c,d,e}-*.md As-landed sections):
 - **Master Biomancer's entry-time type ascription** — `EntersRider` carries a
   `TokenRider` only; the entry-time ascription row is 1 measured line, plus
   its coordination with the counter clause.
+
+- **Routed from workbench-coordination-2-noun-and-phrase (close, 2026-08-27):**
+  the AMOUNT-PER-MENU-ARM — Inspirit / Flagship Vessel write menu arms
+  carrying different counter amounts; a coordination of counter clauses on
+  the menu shape, which is choice machinery.

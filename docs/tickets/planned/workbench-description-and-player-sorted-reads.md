@@ -367,3 +367,11 @@ Standard constraints apply.
 - **Routed from workbench-placement-and-origin-gates (close, 2026-08-27):** the bare CARD word — "a creature card" outside a determinate zone has no spelling (a zoneless head is battlefield-sorted), so Syr Konrad's arm 2, Disa the Restless and both Ultrons spell "a creature" where the printing writes "card". A description-head question, so it lands here. Also: `castComplementOk (Just Battlefield) = False` is the one battlefield refusal in the cast family that round did not re-ground — re-ground or retire it with its rule when the cast predicates are next open.
 
 - **Routed from workbench-anaphora-e-partitive-surfaces (close, 2026-08-27):** the OBJECT partitive over a described group (23 of the 42 described-group "from among" lines — a `groupMention`-widening decision deliberately not taken; E1's pin rests on the current gate); "all X from among them" (8 lines — "all" is not a `Quantity`); "a permanent card" — no predicate spells the permanent-card class off the battlefield (blocks 4 cards; pairs with the bare CARD word already routed here); and "their opponents" — `Predicate.Opponent` is of-`You` only (Shared Fate). All description/player-sorted heads, so they land here.
+
+- **Routed from workbench-coordination-2-noun-and-phrase (close, 2026-08-27):**
+  three description-head residues — `seedTy (HasSubtype s)` (a subtype head
+  seeds no type, so Rukarumel's left arm fails `HostedRead` and the card does
+  not bench); the characteristic LIST on `Compare` (Talion's three-way
+  disjunction; `seedsUniform`'s refusal is correct, the list is the fix); and
+  the distributive possessive ("each player … their own"). All description or
+  player-sorted reads, so they land here.

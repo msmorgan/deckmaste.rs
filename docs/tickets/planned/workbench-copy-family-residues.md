@@ -184,3 +184,11 @@ replacement and its riders), evidence bench
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-coordination-2-noun-and-phrase (close, 2026-08-27):**
+  Repeated Reverberation's two blockers — the family wants a discourse UNION
+  OF ALTERNATIVES (not a `Joined` payload; the join was REFUSED with
+  [CR#115.1,603.7b] — one arm's event causes the trigger, so "that spell"
+  must be able to name nothing) and `Effect.CopyStack` is not kind-indexed
+  (its `what` is gated `OnStack` at Object only). Copy machinery, so both
+  land here.

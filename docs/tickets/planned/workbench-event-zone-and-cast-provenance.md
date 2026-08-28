@@ -118,3 +118,8 @@ Standard constraints apply to every sub-ticket claimed off this split.
   so "Put a card exiled with this Saga into its owner's hand" (Roads Go Ever,
   Ever On chapters II/III) does not write. A move-destination gap, not a
   linkage one; the linkage read itself lands.
+
+- **Routed from workbench-coordination-2-noun-and-phrase (close, 2026-08-27):**
+  the WHICH-ZONE reader — after a multi-zone search (`SearchScope.SomeZones`,
+  landed) nothing reads which zone the found card came from, which blocks
+  every and/or-search card whole. A zone-provenance read, so it lands here.
