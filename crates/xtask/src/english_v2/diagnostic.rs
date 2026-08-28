@@ -1003,7 +1003,6 @@ enum NonterminalKind {
     QualityManaClauseCostKeywordLineItem,
     SubjectKeywordLineItem,
     KeywordQualityCoordination,
-    KeywordReminderText,
     KeywordLine,
     AbilityWordAbility,
     BareCopularPredicate,
@@ -1737,7 +1736,6 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::KeywordQualityCoordination => {
             NonterminalKind::KeywordQualityCoordination
         }
-        NonterminalCategory::KeywordReminderText => NonterminalKind::KeywordReminderText,
         NonterminalCategory::KeywordLine => NonterminalKind::KeywordLine,
         NonterminalCategory::AbilityWordAbility => NonterminalKind::AbilityWordAbility,
         NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,

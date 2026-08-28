@@ -260,6 +260,7 @@ mod tests {
             ),
         ] {
             let unit = unit(context, None, None, text);
+            let normalized = unit.text();
             let parse_context = ParseContext::new(
                 unit.context_name(),
                 unit.is_legendary(),
@@ -267,9 +268,10 @@ mod tests {
             )
             .unwrap();
             for limit in [0, 1, 256] {
-                let probe_trace = parser.trace(text, &parse_context, TraceLimits::new(limit));
-                let inspect_trace = parser.trace(text, &parse_context, TraceLimits::new(limit));
-                let probe = DiagnosticReport::from_probe(text, context, &probe_trace);
+                let probe_trace = parser.trace(normalized, &parse_context, TraceLimits::new(limit));
+                let inspect_trace =
+                    parser.trace(normalized, &parse_context, TraceLimits::new(limit));
+                let probe = DiagnosticReport::from_probe(normalized, context, &probe_trace);
                 let inspect = DiagnosticReport::from_corpus(&unit, &inspect_trace);
 
                 assert_eq!(probe.trace_payload(), inspect.trace_payload());
@@ -281,7 +283,7 @@ mod tests {
                 let probe_value: Value = serde_json::from_slice(&probe_json).unwrap();
                 let inspect_value: Value = serde_json::from_slice(&inspect_json).unwrap();
                 assert_eq!(probe_value["trace"], inspect_value["trace"]);
-                assert_eq!(inspect_value["source"]["text"], text);
+                assert_eq!(inspect_value["source"]["text"], normalized);
                 assert_eq!(inspect_value["source"]["context"], context);
             }
         }
@@ -530,7 +532,7 @@ mod tests {
             take_parser_entry_calls_for_test(),
             [(
                 ParserEntryPoint::TraceOracleText,
-                "Destroy target Forest.\nSecond complete line (reminder text).".to_owned(),
+                "Destroy target Forest.\nSecond complete line.".to_owned(),
                 "Seven Dwarves".to_owned(),
             )],
             "inspect must enter the real OracleText trace exactly once"

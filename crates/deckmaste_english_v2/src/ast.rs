@@ -382,8 +382,6 @@ pub use crate::constructions::KeywordQualityCoordination;
 pub use crate::constructions::KeywordQualityCoordinationValue;
 pub use crate::constructions::KeywordRelativeSubject;
 pub use crate::constructions::KeywordRelativeSubjectValue;
-pub use crate::constructions::KeywordReminderText;
-pub use crate::constructions::KeywordReminderTextValue;
 pub use crate::constructions::KeywordSubject;
 pub use crate::constructions::LandSubtypeModifier;
 pub use crate::constructions::LandSubtypeNoun;

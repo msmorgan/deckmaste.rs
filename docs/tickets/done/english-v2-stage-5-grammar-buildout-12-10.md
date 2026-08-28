@@ -27,3 +27,9 @@ Acceptance: gates green with the ratchet strictly up; zero ties and
 exceptions; byte-exact both directions with total ownership; no process
 artifacts in tracked source; genuine tie or contradiction = STOP-and-report.
 Standard constraints apply.
+
+Erratum (2026-08-28): the trailing-reminder portion of this ticket was
+superseded by the corpus-normalization ruling. English v2 now strips
+single-line reminder parentheticals before parsing, so the
+`KeywordReminderText` circumfix and its AST/traversal surface were deleted.
+Keyword-line block composition and the other opening fixes remain in force.

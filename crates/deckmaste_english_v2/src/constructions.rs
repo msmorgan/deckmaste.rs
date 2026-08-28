@@ -4751,17 +4751,12 @@ constructions! {
         }
         form keyword_relative_subject = nominal clause;
     }
-    construction keyword_reminder_text: KeywordReminderText {
-        element KeywordReminderTextValue { ability: Ability, }
-        form keyword_reminder_text = sentence_initial(" (") suffix(ability, ")");
-    }
     construction keyword_line: KeywordLine {
         element KeywordLineValue {
             items: seq KeywordLineItem separated by ", ",
-            reminder: opt KeywordReminderText,
         }
         require len(items) >= 1;
-        form keyword_line = items reminder;
+        form keyword_line = items;
     }
     construction ability_word_ability: AbilityWordAbility {
         element AbilityWordAbilityValue {

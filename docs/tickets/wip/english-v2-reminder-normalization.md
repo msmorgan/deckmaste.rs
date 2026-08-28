@@ -36,3 +36,33 @@ is the single restored piece.
 Expect a substantial coverage jump (the paren wall was ~9.7k units).
 Genuine tie or contradiction = STOP-and-report. Standard constraints
 apply.
+
+Completion (2026-08-28):
+- The Vintage snapshot audit found 10,333 parenthesis-bearing units and
+  11,136 affected lines. Every affected line had balanced, nonempty,
+  single-line groups; none had nested, empty, or cross-line parentheses,
+  and one line had two groups. Corpus normalization now ports the narrow
+  v1 behavior after the existing quote/dash normalization.
+- The one-time migration enumerated 561 old->new covered-identity pairs in
+  an untracked audit manifest. The old side exactly equalled the complete
+  lock loss set, every distinct new side selected with total ownership,
+  and the existing authenticated `coverage --bless --retire` gate accepted
+  the sorted old side. The ordinary post-migration `coverage --check`
+  passes without retirement input.
+- Coverage rose from 10,540 to 14,259 selected and covered units, a net
+  gain of 3,719. The schema-2 lock retains source fingerprint
+  `e85359d7b8c578df13dff2fdf7c743a520a5b367d5ed25ab0a5f03cb8b3637dd`
+  and has SHA-256
+  `4b51716ae555489ec6411ad6d60666e996387212c3bd6581105e7330e20730cf`.
+  Selected-uncovered units, ties, internal failures, exceptions,
+  round-trip mismatches, ownership failures, gaps, overlaps, synthetic
+  claims, and provenance mismatches are all zero.
+- End-to-end probes pin a reminder-only Plains as a selected, totally
+  owned empty document and A.I.M. Bot's keyword-plus-reminder text as
+  selected, totally owned `Flying`. The old "Don't strip" fixture and the
+  inspect/probe normalization fixtures now assert the stripping contract.
+- The dead `KeywordReminderText` construction, AST/traversal exports,
+  diagnostic category, and exact-reminder grammar test are deleted; the
+  12-10 ticket records the superseding erratum.
+- Unfiltered `deckmaste_english_v2` and `xtask` tests pass. Strict
+  all-target Clippy passes for both crates.

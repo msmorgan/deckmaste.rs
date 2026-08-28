@@ -364,8 +364,6 @@ pub use crate::constructions::walk_keyword_quality_coordination;
 pub use crate::constructions::walk_keyword_quality_coordination_value;
 pub use crate::constructions::walk_keyword_relative_subject;
 pub use crate::constructions::walk_keyword_relative_subject_value;
-pub use crate::constructions::walk_keyword_reminder_text;
-pub use crate::constructions::walk_keyword_reminder_text_value;
 pub use crate::constructions::walk_keyword_subject;
 pub use crate::constructions::walk_land_subtype_modifier;
 pub use crate::constructions::walk_land_subtype_noun;

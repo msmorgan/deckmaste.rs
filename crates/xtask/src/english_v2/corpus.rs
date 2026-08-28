@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use anyhow::Context;
 use anyhow::ensure;
@@ -9,6 +10,7 @@ use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v2::context::ParseContext;
 use macro_ron::v2::Onset;
 use rayon::prelude::*;
+use regex::Regex;
 use sha2::Digest;
 use sha2::Sha256;
 
@@ -291,7 +293,24 @@ fn corpus_sort_key(unit: &CorpusUnit) -> (&str, Option<&str>, Option<&str>, &str
 }
 
 fn normalize_oracle_text(text: &str) -> String {
-    normalize_roll_row_dashes(&deckmaste_data::academyruins::normalize_quotes(text))
+    let typography =
+        normalize_roll_row_dashes(&deckmaste_data::academyruins::normalize_quotes(text));
+    strip_reminder_text(&typography)
+}
+
+/// Removes nonempty, single-line parentheticals while retaining at most one
+/// surrounding space. A line containing only reminder text disappears.
+fn strip_reminder_text(text: &str) -> String {
+    static PARENTHETICAL: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r" ?\([^)\n]+\)( ?)").unwrap());
+
+    text.split('\n')
+        .filter_map(|line| {
+            let stripped = PARENTHETICAL.replace_all(line, "$1");
+            (!stripped.trim().is_empty() || line.is_empty()).then(|| stripped.into_owned())
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn normalize_roll_row_dashes(text: &str) -> String {
@@ -535,18 +554,88 @@ mod tests {
     }"#;
 
     #[test]
-    fn normalization_changes_only_quotes_and_roll_row_range_dashes() {
+    fn normalization_straightens_typography_and_strips_reminder_text() {
         let input = "‘Choose’.\n1—9 | Draw a card.\n2-10 | Don’t strip (reminder text.)\nDeal 3-4 damage.\n[-2]: Act.";
         assert_eq!(
             normalize_oracle_text(input),
-            "'Choose'.\n1–9 | Draw a card.\n2–10 | Don't strip (reminder text.)\nDeal 3-4 damage.\n[-2]: Act."
+            "'Choose'.\n1–9 | Draw a card.\n2–10 | Don't strip\nDeal 3-4 damage.\n[-2]: Act."
         );
     }
 
     #[test]
-    fn normalization_preserves_complete_document_structure() {
+    fn normalization_preserves_non_reminder_document_structure() {
         let input = "Choose one —\n• Draw a card.\n• Create a token.\n(Fixed reminder.)";
-        assert_eq!(normalize_oracle_text(input), input);
+        assert_eq!(
+            normalize_oracle_text(input),
+            "Choose one —\n• Draw a card.\n• Create a token."
+        );
+    }
+
+    #[test]
+    fn reminder_stripping_pins_surrounding_space_and_malformed_input_contracts() {
+        assert_eq!(
+            strip_reminder_text("Flying (This creature can't be blocked except by...)"),
+            "Flying"
+        );
+        assert_eq!(strip_reminder_text("(Reminder) Foo"), " Foo");
+        assert_eq!(strip_reminder_text("A (b) c"), "A c");
+        assert_eq!(strip_reminder_text("Choose (perhaps"), "Choose (perhaps");
+        assert_eq!(
+            strip_reminder_text("({R/P} can be paid with {R} or 2 life.)\nGain control."),
+            "Gain control."
+        );
+        assert_eq!(strip_reminder_text("(Reminder only.) "), "");
+    }
+
+    #[test]
+    fn whole_text_reminder_normalizes_to_an_empty_document() {
+        assert_eq!(normalize_oracle_text("(Basic land reminder text.)"), "");
+    }
+
+    #[test]
+    fn normalized_basic_land_and_french_vanilla_probes_select() {
+        let snapshot = br#"{"data":{
+            "A.I.M. Bot":[{
+                "name":"A.I.M. Bot", "layout":"normal", "types":["Creature"],
+                "supertypes":[], "subtypes":[],
+                "legalities":{"vintage":"Legal"},
+                "text":"Flying (This creature can't be blocked except by creatures with flying or reach.)"
+            }],
+            "Plains":[{
+                "name":"Plains", "layout":"normal", "types":["Land"],
+                "supertypes":["Basic"], "subtypes":["Plains"],
+                "legalities":{"vintage":"Legal"}, "text":"({T}: Add {W}.)"
+            }]
+        }}"#;
+        let onsets = explicit_onsets([("A.I.M. Bot", Onset::Vowel), ("Plains", Onset::Consonant)]);
+        let corpus = Corpus::from_bytes_with_context_onsets(snapshot, &onsets).unwrap();
+        let parser =
+            crate::english_v2::parser_from_builtin_v2().expect("probe grammar initializes");
+
+        for (name, text) in [("A.I.M. Bot", "Flying"), ("Plains", "")] {
+            let unit = corpus
+                .units()
+                .iter()
+                .find(|unit| unit.card_name() == name)
+                .expect("probe unit exists");
+            assert_eq!(unit.text(), text);
+            let context = ParseContext::new(
+                unit.context_name(),
+                unit.is_legendary(),
+                unit.context_onset(),
+            )
+            .expect("probe context is valid");
+            let analysis = parser.analyze_oracle_text(unit.text(), &context);
+            assert!(analysis.selected().is_some(), "{name} selects");
+            assert!(
+                analysis
+                    .ownership()
+                    .expect("selected probe has ownership")
+                    .summary()
+                    .covered(),
+                "{name} is totally owned",
+            );
+        }
     }
 
     #[test]

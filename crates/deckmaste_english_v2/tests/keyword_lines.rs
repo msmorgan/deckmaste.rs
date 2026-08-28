@@ -143,19 +143,6 @@ fn keyword_lines_compose_in_every_document_block_position() {
 }
 
 #[test]
-fn keyword_line_reminder_circumfix_is_owned_and_roundtrips_exactly() {
-    let environment = environment(declarations());
-    let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
-
-    for text in [
-        "Flying (This creature can't block.)",
-        "Flying (Draw a card.)\nTrample",
-    ] {
-        assert_exact_document(&parser, &environment, text);
-    }
-}
-
-#[test]
 fn attachment_participial_adjectives_remain_declaration_backed() {
     let environment = environment(declarations());
     let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
