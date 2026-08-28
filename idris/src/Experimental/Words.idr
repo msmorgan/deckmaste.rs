@@ -905,6 +905,17 @@ data Determiner = TargetD | AD | EachD | AllD | TheD | PartD
                 | CountD
                 | SelfD
 
+||| Which possessor a relational noun derives from an object. The two
+||| axes are the two the rules define over a card: [CR#108.3] gives every
+||| card an owner from the start of the game and never takes it away,
+||| and [CR#109.4] gives a controller only to objects on the stack or the
+||| battlefield. `ControllerOf` and `OwnerOf` predate this and stay two
+||| constructors; the axis is data because the MEMBER-WISE possessor
+||| reads one relation at either axis and would otherwise pay a second
+||| constructor's tables to say so.
+public export
+data PossessorAxis = OwnerAx | ControllerAx
+
 ||| [CR#400.1]'s seven zones. A sideboard is not among them and is not
 ||| added beside `Command`: [CR#400.11a] puts sideboard cards outside the
 ||| game, and [CR#400.11] states outright that outside the game is not a

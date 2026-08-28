@@ -397,15 +397,6 @@ badChapterReplacement : Unspellable (StaticEffect []) (\ok =>
 badChapterReplacement Oh impossible
 
 
-||| "You may cast creatures you control as though they had flash."
-||| A permission's complement is named by what the object will become [CR#701.5b], not by a battlefield word.
-public export
-badFlashPermissionOnPermanent : Unspellable (StaticEffect []) (\ok =>
-  MayPlay You (AllOf Macros.creatureYouControl) Cast Nothing
-          (Just (AsThoughOf (HasKeyword "Flash"))) Nothing Nothing False {pz = ok})
-badFlashPermissionOnPermanent MkPlaySource impossible
-
-
 ||| "You may look at your hand any time."
 ||| [CR#402.3] already lets a player look at their own hand at any time.
 public export

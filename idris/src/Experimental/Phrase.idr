@@ -2213,6 +2213,26 @@ mutual
                   {auto 0 mk : VerbedMarkingOk v marking} -> Noun bs (kindOfW w)
     ControllerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
     OwnerOf : (n : Noun bs Object) -> {auto 0 one : nounPlur n = OneOf} -> Noun bs Player
+    ||| "their owners' hands", "their controllers' graveyards", "their
+    ||| owners shuffle them into their libraries": the possessor derived
+    ||| MEMBER-WISE from a group, one referent per member.
+    ||| Its own row beside the two singular ones, and NOT a widening of
+    ||| them, because the two phrases are different English and only one
+    ||| of them denotes. "Their owner" asks for a single referent that
+    ||| two cards need not have -- [CR#108.3] gives each card its own
+    ||| owner and no rule makes two agree -- and that read still has no
+    ||| constructor, which is what `badGroupOwner` pins. "Their owners"
+    ||| asks for no such thing: it names the image of the group under the
+    ||| relation, which is as many players as the group has members, and
+    ||| the row says so by being plural.
+    ||| The base is gated PLURAL rather than merely admitted, so the
+    ||| singular spelling never reaches this row: a one-member group
+    ||| writes "its owner" through `OwnerOf` and nothing here.
+    ||| -- spelling: "their owners'"/"their controllers'" before a
+    ||| possessed zone, "their owners"/"their controllers" as a bare
+    ||| agent.
+    PossessorsOf : (ax : PossessorAxis) -> (grp : Noun bs Object) ->
+                   {auto 0 pl : nounPlur grp = ManyOf} -> Noun bs Player
     ||| "your commander" [CR#903.3]: the card-scope designation is an
     ||| attribute of the card itself, so the possessed noun reads it in
     ||| every zone. The possessive is the only determiner written.
@@ -2267,6 +2287,7 @@ mutual
   nounEqRef (ThoseVerbed _ _ _) _ = False
   nounEqRef (ControllerOf _) _ = False
   nounEqRef (OwnerOf _) _ = False
+  nounEqRef (PossessorsOf _ _) _ = False
   nounEqRef (Designated _ _) _ = False
 
   ||| Destination legality for the move primitive [CR#400.3]: an owned
@@ -2371,6 +2392,12 @@ mutual
     MkBinding TheD Player OneOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
   nounDelta (OwnerOf n) =
     MkBinding TheD Player OneOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
+  -- the same announcement the singular rows make, plural: the group's
+  -- image under the relation is as many players as the group has
+  -- members, so the mention it leaves is a group mention and "they"
+  -- reads it where "that player" does not.
+  nounDelta (PossessorsOf _ n) =
+    MkBinding TheD Player ManyOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
   nounDelta (Designated _ _) = []
 
   ||| What a per-member pass hands its body: ONE member of the group,
@@ -3268,6 +3295,7 @@ mutual
   anchorPhrase (ThoseVerbed _ _ _) = True
   anchorPhrase (ControllerOf _) = True
   anchorPhrase (OwnerOf _) = True
+  anchorPhrase (PossessorsOf _ _) = True
   anchorPhrase (Designated _ _) = True
 
   public export
@@ -3327,6 +3355,7 @@ mutual
   choosable (ThoseVerbed _ _ _) = False
   choosable (ControllerOf _) = False
   choosable (OwnerOf _) = False
+  choosable (PossessorsOf _ _) = False
   choosable (Designated _ _) = False
 
   public export
@@ -3385,6 +3414,10 @@ mutual
   groupMention (ThoseVerbed _ _ _) = True
   groupMention (ControllerOf _) = False
   groupMention (OwnerOf _) = False
+  -- a derived possessor is no printed group word, exactly as the
+  -- singular rows are no printed demonstrative; the partitive reads the
+  -- words a card writes and no line writes "one of their owners".
+  groupMention (PossessorsOf _ _) = False
   groupMention (Designated _ _) = False
 
   public export
@@ -4189,6 +4222,7 @@ mutual
   costNounOk (ThoseVerbed _ _ _) = False
   costNounOk (ControllerOf _) = True
   costNounOk (OwnerOf _) = True
+  costNounOk (PossessorsOf _ _) = True
   costNounOk (Designated _ _) = True
 
   public export
@@ -4229,6 +4263,7 @@ mutual
   nounIsYou (ThoseVerbed _ _ _) = False
   nounIsYou (ControllerOf _) = False
   nounIsYou (OwnerOf _) = False
+  nounIsYou (PossessorsOf _ _) = False
   nounIsYou (Designated _ _) = False
 
   public export
@@ -4269,6 +4304,7 @@ mutual
   nounTargeted (ThoseVerbed _ _ _) = False
   nounTargeted (ControllerOf _) = False
   nounTargeted (OwnerOf _) = False
+  nounTargeted (PossessorsOf _ _) = False
   nounTargeted (Designated _ _) = False
 
   public export
@@ -4556,6 +4592,7 @@ mutual
   moveIntro p They z = bs
   moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
   moveIntro p (OwnerOf n) z = nomIntro (OwnerOf n)
+  moveIntro p (PossessorsOf ax n) z = nomIntro (PossessorsOf ax n)
   moveIntro p (Designated d n) z = bs
 
   ||| The stamp the mention's antecedent carries, read like `nounZone`.
@@ -4624,6 +4661,7 @@ mutual
   nounZone (ThoseVerbed v w _) = zoneOfManyVerbed v w bs
   nounZone (ControllerOf n) = Nothing
   nounZone (OwnerOf n) = Nothing
+  nounZone (PossessorsOf _ n) = Nothing
   -- [CR#903.3]: the designation is an attribute of the card, so it
   -- survives a zone change and the noun names no zone.
   nounZone (Designated _ _) = Nothing
@@ -4666,6 +4704,7 @@ mutual
   nounTy (ThoseVerbed v w _) = tyOfManyVerbed v w bs
   nounTy (ControllerOf n) = Nothing
   nounTy (OwnerOf n) = Nothing
+  nounTy (PossessorsOf _ n) = Nothing
   nounTy (Designated _ _) = Nothing
 
   ||| `nounTy`'s per-half twin: the head type the phrase projects onto EACH
@@ -4729,6 +4768,7 @@ mutual
   nounPlur (ThoseVerbed v w _) = ManyOf
   nounPlur (ControllerOf n) = OneOf
   nounPlur (OwnerOf n) = OneOf
+  nounPlur (PossessorsOf _ _) = ManyOf
   nounPlur (Designated _ _) = OneOf
 
   ||| [CR#500.1] runs every phase and step on every turn, so a part in

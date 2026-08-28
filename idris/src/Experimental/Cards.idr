@@ -13991,3 +13991,45 @@ obeliskOfUndoing =
                    (Macros.returnTo
                       (Macros.target (And [Permanent, OwnedBy You, ControlledBy You]))
                       Macros.handZ)
+
+||| Blight Herder's cast trigger -- "you may put two cards your opponents
+||| own from exile into their owners' graveyards." The ownership
+||| PREDICATE over cards in exile, where [CR#109.4] leaves no controller
+||| to describe them by. Ulamog's Despoiler and Ulamog's Nullifier write
+||| the same sentence.
+||| -- spelling: the destination is the BARE graveyard zone. "Their
+||| owners' graveyards" needs no possessor here: `DestOk` already rules
+||| that a moved card is routed to its owner's zone regardless of the
+||| sentence [CR#400.3], so the bare zone IS the owner-rooted
+||| destination, plural possessor and all.
+public export
+blightHerderCast : Effect []
+blightHerderCast =
+  Macros.may You
+    (Macros.move (CountedGroup (Macros.exactly 2) Nothing
+                    (And [IsCard, OwnedBy (PlayerGroup YourOpponents),
+                          InZone Macros.exileZ]))
+                 Macros.graveyardZ)
+
+||| Open the Vaults -- "Return all artifact and enchantment cards from all
+||| graveyards to the battlefield under their owners' control." Two
+||| routed questions in one line.
+||| The ALL-GRAVEYARDS possessor wanted no new row: the possessive-zone
+||| reader already takes a plural player noun, so "all graveyards" is
+||| `PossessedBy (PlayerGroup AllPlayers)` and the bare zone is a
+||| separate spelling rather than the only one.
+||| The controller rider is the member-wise possessor's witness. Each
+||| returned card gets the one controller [CR#110.2] demands; the phrase
+||| is plural because the GROUP is, which is exactly what
+||| `PerMemberController` admits and what the singular-controller
+||| refusal never meant to catch.
+public export
+openTheVaults : Effect []
+openTheVaults =
+  Enact "Return"
+    (Move (AllOf (And [IsCard,
+                       Or [HasType Artifact, HasType Enchantment],
+                       InZone (ZoneAt Graveyard
+                                 (PossessedBy (PlayerGroup AllPlayers)))]))
+          Macros.battlefieldZ
+          (MkMoveRiders [] (Just (PossessorsOf OwnerAx Them)) Nothing))

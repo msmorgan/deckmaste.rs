@@ -1158,13 +1158,27 @@ mutual
     MkMoveRiders : (entry : List TokenRider) ->
                    (ctrl : Maybe (Noun bs Player)) ->
                    (counters : Maybe (CounterRider bs)) ->
-                   {auto 0 one : CtrlSingular ctrl} -> MoveRiders bs
+                   {auto 0 one : CtrlOverrideOk ctrl} -> MoveRiders bs
 
+  ||| Which written controller a move may name. [CR#110.2] gives a
+  ||| permanent ONE controller, so a plural player word in the slot names
+  ||| no controller for anything -- that is `OneController`, and the
+  ||| refusal it leaves is what `badMoveRidersPluralController` pins.
+  ||| The per-member possessor is not that. "Return the exiled cards to
+  ||| the battlefield under their owners' control" gives EACH card the
+  ||| one controller [CR#110.2] demands and is plural only because the
+  ||| moved group is; the rule it would break is broken by nothing here.
+  ||| (Named `CtrlSingular` while `OneController` was its only positive
+  ||| case; the name went with the case rather than the question.)
   public export
-  data CtrlSingular : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
-    NoOverride : CtrlSingular Nothing
+  data CtrlOverrideOk : {0 bs : Bindings} -> Maybe (Noun bs Player) -> Type where
+    NoOverride : CtrlOverrideOk Nothing
     OneController : {0 n : Noun bs Player} ->
-                    {auto 0 one : nounPlur n = OneOf} -> CtrlSingular (Just n)
+                    {auto 0 one : nounPlur n = OneOf} -> CtrlOverrideOk (Just n)
+    PerMemberController : {0 bs : Bindings} -> {0 ax : PossessorAxis} ->
+                          {0 grp : Noun bs Object} ->
+                          {0 pl : nounPlur grp = ManyOf} ->
+                          CtrlOverrideOk (Just (PossessorsOf ax grp {pl}))
 
   public export
   fieldRidersWritten : {0 bs : Bindings} -> MoveRiders bs -> Bool
