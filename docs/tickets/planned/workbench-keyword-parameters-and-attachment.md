@@ -402,3 +402,8 @@ Standard constraints apply.
   ability" (Market Gnome) wants a "Craft" row AND an ability described by a
   keyword, which `AbilityClass` does not spell. The arm itself is landed and
   witnessed at the scry (`Cards.whileScrying`).
+
+- **Routed from workbench-trigger-3 (close, 2026-08-28):** the REVERSE
+  attachment phrase — "an Aura attached TO a creature" (Kitsune Mystic's
+  whole-card blocker; `AttachedBy` landed the attacher side, this is the
+  host-from-the-attachment side). Attachment machinery, so it lands here.

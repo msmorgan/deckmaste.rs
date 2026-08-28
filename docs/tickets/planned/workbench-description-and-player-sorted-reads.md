@@ -375,3 +375,10 @@ Standard constraints apply.
   disjunction; `seedsUniform`'s refusal is correct, the list is the fix); and
   the distributive possessive ("each player … their own"). All description or
   player-sorted reads, so they land here.
+
+- **Routed from workbench-trigger-3 (close, 2026-08-28):** two player-word
+  gaps — the PLURAL possessor (`OwnerOf`/`ControllerOf` are gated `nounPlur n
+  = OneOf`; Don't Blink's last blocker) and the missing `Owner` possessor
+  values ("its controller's" as a window possessor, Freyalise's Winds; "each
+  of their turns", Valgavoth — trigger-1 declined it at 1 line). Player-sorted
+  vocabulary, so both land here.

@@ -17,3 +17,17 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   which actions have steps; an event naming a step is a different ask. 1
   supported card; wait for a second carrier or a rules argument before
   building.
+
+- **Routed from workbench-trigger-3 (close, 2026-08-28): the periphrastic
+  causer complex, still whole and still unlanded.** Its blocking members are
+  this ticket's region: the "would CAUSE X to Y" verb needs a GameEvent row
+  that WRAPS another event (`eventName` is total — the caused event's name is
+  the event-composition question), and the `Causer`-as-noun widening turns
+  the nullary `AnEffect` Bindings-indexed across `CreationVoice`/`CausedBy`/
+  `TokensCreated`/`CounterEvent` (+ pin `badCausedCounterWithAgent`). Riding
+  members, unwitnessable until those land: `Intercepts`' voice slot (Zabaz),
+  Modular as keywordFacts + AbilityClass, Crafty Cutpurse's `TokenPhrase
+  (Each _)` arm (cheap, deliberately held with the complex), Karmic Justice's
+  causer-voiced header, Cobra Trap's by-source agent. Land TOGETHER or not at
+  all — the parent round proved pieces buy zero cards. 3 supported "would
+  CAUSE" lines (re-measured down from 4).
