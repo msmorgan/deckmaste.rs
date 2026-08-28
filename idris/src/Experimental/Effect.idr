@@ -288,10 +288,31 @@ mutual
       DoesntUntap : (n : Noun bs Object) ->
                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                     StaticEffect bs
-      CantUntapMoreThan : (who : Noun bs Player) -> (k : Nat) ->
-                          (p : Predicate bs Object) ->
-                          {auto 0 zn : ZoneFits (seedZone p) (Just Battlefield)} ->
-                          StaticEffect bs
+      ||| "[who] can't [deed] more than [k] [p]": the COUNT CAP, and the
+      ||| one qualifier family the carrier's complement cannot say. A cap
+      ||| is a bound on how MANY times the deed may be done, not a
+      ||| description of what it is done to, so it is its own row rather
+      ||| than a noun in `DeonticCounterpart` -- and it is one row for
+      ||| every deed rather than one per verb: 9 supported lines cap
+      ||| untapping, 12 cap casting and 3 cap drawing (measured
+      ||| 2026-08-28).
+      |||
+      ||| The PERIOD is the deed's own and is never a slot. [CR#502.3]
+      ||| makes untapping a turn-based action of the untap step, so
+      ||| "more than one land during their untap steps" caps one step's
+      ||| worth; [CR#500.1] gives the turn to the deeds with no step of
+      ||| their own, which is what "more than one spell each turn" and
+      ||| "more than one card each turn" spell. The adverbial is
+      ||| SPELLING of the deed's recurrence, so a window slot here would
+      ||| admit periods no rule gives the deed.
+      ||| -- spelling: "[who] can't [deed] more than [k] [p]" then the
+      ||| deed's own period.
+      CantMoreThan : (who : Noun bs Player) -> (deed : VerbLabel) ->
+                     (k : Nat) -> (p : Predicate bs Object) ->
+                     {auto 0 kd : KnownDeed deed} ->
+                     {auto 0 pk : So (deedKindOk deed Patient Object)} ->
+                     {auto 0 zn : ZoneFits (seedZone p) (deedZoneOf deed Patient)} ->
+                     StaticEffect bs
       Skips : (who : Noun bs Player) -> (part : TurnPart) -> StaticEffect bs
       ||| The type ADDITION [CR#205.1b] at [CR#613.1d]'s layer 4, and the
       ||| colour addition [CR#613.1e] rides the same sentence: what the
@@ -930,7 +951,7 @@ mutual
   staticKind (Gains _ _) = KeywordGrant
   staticKind (Deontic _ _ _ _ _ _) = DeedRestriction
   staticKind (DoesntUntap _) = DeedRestriction
-  staticKind (CantUntapMoreThan _ _ _) = DeedRestriction
+  staticKind (CantMoreThan _ _ _ _) = DeedRestriction
   staticKind (Skips _ _) = TurnSkip
   staticKind (MayDeclineUntap _) = DeedRestriction
   staticKind (BecomesAlso _ _) = TypeAddition
@@ -982,7 +1003,7 @@ mutual
   staticIntro (Gains n _) = selfSubjIntro n
   staticIntro (Deontic n _ _ _ _ _) = selfSubjIntro n
   staticIntro (DoesntUntap n) = selfSubjIntro n
-  staticIntro (CantUntapMoreThan _ _ _) = bs
+  staticIntro (CantMoreThan _ _ _ _) = bs
   staticIntro (Skips _ _) = bs
   staticIntro (MayDeclineUntap n) = selfSubjIntro n
   staticIntro (BecomesAlso n _) = selfSubjIntro n

@@ -256,8 +256,8 @@ badBlockingGraveyardRelatum Oh impossible
 ||| [CR#502.3] untaps the permanents a player controls, which a graveyard phrase contradicts.
 public export
 badUntapCapGraveyardSet : Unspellable Ability (\ok =>
-  Static (CantUntapMoreThan (PlayerGroup AllPlayers) 1
-                            (And [Macros.creature, InZone (Macros.graveyardOf You)]) {zn = ok}))
+  Static (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1
+                         (And [Macros.creature, InZone (Macros.graveyardOf You)]) {zn = ok}))
 badUntapCapGraveyardSet Oh impossible
 
 

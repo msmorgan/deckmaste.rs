@@ -873,9 +873,23 @@ deedFacts =
       (MkDeedRole [Player] [] True Nothing) noRole
       False False False False
   -- [CR#121.1] has a player put the top card of their library into
-  -- their hand.
+  -- their hand, so the deed's patient is that card, read where the rule
+  -- finds it. The patient row exists for the COUNT CAP -- "can't draw
+  -- more than one card each turn" counts cards, and a cap needs a role
+  -- for what it counts.
   , MkDeedFacts "DrawCard"
-      (MkDeedRole [Player] [] True Nothing) noRole
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [] True (Just Library))
+      False False False False
+  -- [CR#502.3] has the active player untap the PERMANENTS THEY CONTROL
+  -- as a turn-based action, so both ends of the deed are named by that
+  -- one sentence: a player at the agent, a battlefield permanent at the
+  -- patient. The row exists for the count cap the untap step is the one
+  -- deed to have printed nine times.
+  , MkDeedFacts "Untap"
+      (MkDeedRole [Player] [] True Nothing)
+      (MkDeedRole [Object] [Creature, Artifact, Land, Enchantment,
+                            Planeswalker, Battle] True (Just Battlefield))
       False False False False
   -- [CR#701.23a] looks at all cards in a zone and finds one; what a
   -- printed line writes after the verb is the zone, which is no `Kind`

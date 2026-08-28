@@ -2988,9 +2988,18 @@ public export
 KeywordLabel : Type
 KeywordLabel = String
 
+||| The shape of the parameter a keyword's own rule writes after the
+||| word. `AbilityParam` is the one that names no value: [CR#702.142a],
+||| [CR#702.177a] and [CR#702.193a] each read "a keyword that adds
+||| additional rules to the activated ability that follows it", so what
+||| follows the word is an ABILITY and not a cost, a number or a
+||| quality. No `KeywordParam` produces that shape, which is what keeps
+||| such a word from ever being written as a keyword LINE -- none of the
+||| three ever stands alone -- while still letting `AbilityClass`'
+||| `KeywordClass` name it.
 public export
 data KeywordParamShape = NoParam | CostParam | QualityParam | SubjectParam
-                       | NumberParam
+                       | NumberParam | AbilityParam
 
 public export
 Eq KeywordParamShape where
@@ -3004,6 +3013,8 @@ Eq KeywordParamShape where
   (==) SubjectParam _ = False
   (==) NumberParam NumberParam = True
   (==) NumberParam _ = False
+  (==) AbilityParam AbilityParam = True
+  (==) AbilityParam _ = False
 
 ||| When a keyword's ability acts, for the keywords that act before the
 ||| object carrying them has resolved.
@@ -3109,6 +3120,20 @@ keywordFacts =
   , MkKeywordFacts "Ninjutsu"         CostParam    False Nothing             True  False False
   , MkKeywordFacts "Miracle"          CostParam    False Nothing             True  True  False
   , MkKeywordFacts "Warp"             CostParam    False (Just AtCasting)    True  True  False
+  -- The three ability-marker words, each naming a CLASS of activated
+  -- ability rather than an ability the object has: [CR#702.142a],
+  -- [CR#702.177a] and [CR#702.193a] all read "a keyword that adds
+  -- additional rules to the activated ability that follows it". They
+  -- earn their rows from the class-subject lines -- "Boast abilities you
+  -- activate cost {1} less to activate", "Exhaust abilities of other
+  -- permanents you control cost {2} less to activate", "Power-up
+  -- abilities of other creatures you control cost {3} less to activate"
+  -- and Kang the Conqueror's "power-up abilities can't be activated" --
+  -- which name the word where `KeywordClass` reads it. Cycling and
+  -- ninjutsu are the same cell at words that already had rows.
+  , MkKeywordFacts "Boast"            AbilityParam False Nothing             True  False False
+  , MkKeywordFacts "Exhaust"          AbilityParam False Nothing             True  False False
+  , MkKeywordFacts "PowerUp"          AbilityParam False Nothing             True  False False
   ]
 
 public export

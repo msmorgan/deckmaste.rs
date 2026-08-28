@@ -1190,23 +1190,52 @@ vertigoSpawn =
 
 
 munghaWurm : Ability
-munghaWurm = Static (CantUntapMoreThan You 1 Macros.land)
+munghaWurm = Static (CantMoreThan You "Untap" 1 Macros.land)
 
 dampingField : Ability
-dampingField = Static (CantUntapMoreThan (PlayerGroup AllPlayers) 1 Macros.artifact)
+dampingField = Static (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.artifact)
 
 smoke : Ability
-smoke = Static (CantUntapMoreThan (PlayerGroup AllPlayers) 1 Macros.creature)
+smoke = Static (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.creature)
 
 winterOrb : Ability
 winterOrb =
   Static (Macros.asLongAs (Matches Macros.thisArtifact Macros.untapped)
-                          (CantUntapMoreThan (PlayerGroup AllPlayers) 1 Macros.land))
+                          (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1 Macros.land))
 
 staticOrb : Ability
 staticOrb =
   Static (Macros.asLongAs (Matches Macros.thisArtifact Macros.untapped)
-                          (CantUntapMoreThan (PlayerGroup AllPlayers) 2 Permanent))
+                          (CantMoreThan (PlayerGroup AllPlayers) "Untap" 2 Permanent))
+
+||| Rule of Law, whole -- "Each player can't cast more than one spell
+||| each turn." The count cap at a SECOND deed, which is what generalised
+||| the untap cap into one row: 12 supported lines cap casting, 9 cap
+||| untapping and 3 cap drawing, and the three differ only in the label.
+||| The period is not written here: [CR#500.1] gives the turn to a deed
+||| with no step of its own, and the printed "each turn" spells that.
+public export
+ruleOfLaw : Card
+ruleOfLaw =
+  Macros.card "Rule of Law" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (CantMoreThan (PlayerGroup AllPlayers) "Cast" 1 Macros.spell) ]
+       Nothing
+
+||| Spirit of the Labyrinth, whole -- "Each player can't draw more than
+||| one card each turn." The count cap's third deed, and the reason
+||| `deedFacts "DrawCard"` gained a patient: [CR#121.1] has the drawn
+||| card come off the top of a library, so the thing counted has a role
+||| and a zone even though no printed line writes the object voice.
+||| `IsCard` is the bare word and seeds no zone [CR#109.2].
+public export
+spiritOfTheLabyrinth : Card
+spiritOfTheLabyrinth =
+  Macros.card "Spirit of the Labyrinth"
+       (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [creatureType "Spirit"] [Enchantment, Creature])
+       [ Static (CantMoreThan (PlayerGroup AllPlayers) "DrawCard" 1 IsCard) ]
+       (Just (3, 1))
 
 
 prologueToPhyresis : Effect []
@@ -1318,8 +1347,8 @@ furiousSpinesplitter =
 
 winterMoon : Ability
 winterMoon =
-  Static (CantUntapMoreThan (PlayerGroup AllPlayers) 1
-                            (And [Macros.land, Not (HasSupertype Basic)]))
+  Static (CantMoreThan (PlayerGroup AllPlayers) "Untap" 1
+                         (And [Macros.land, Not (HasSupertype Basic)]))
 
 cradleToGrave : Effect []
 cradleToGrave =
@@ -6846,6 +6875,59 @@ dampingMatrix =
                                                        Macros.creature]))
                                , Not IsManaAbility ]))) ]
        Nothing
+
+||| Fluctuator, whole -- "Cycling abilities you activate cost {2} less to
+||| activate." The ability-CLASS subject named by a KEYWORD, which is the
+||| cell the five catalog rows were owed for: `KeywordClass` reads the
+||| word and the row is what makes the word known. [CR#702.29a] makes
+||| cycling an activated ability, so the class word names a class of
+||| abilities and not a class of objects.
+public export
+fluctuator : Card
+fluctuator =
+  Macros.card "Fluctuator" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (CostsToCast
+                   (AllOf (And [AbilityHead (KeywordClass "Cycling"),
+                                ActivatedBy You]))
+                   (CostLess (Lit 2))) ]
+       Nothing
+
+||| Boom Scholar's first line -- "Exhaust abilities of other permanents
+||| you control cost {2} less to activate." The same cell at a word whose
+||| row this round added: [CR#702.177a] makes exhaust a keyword adding
+||| rules to the activated ability that follows it, so what the line
+||| narrows is that ability's class and the possessor rides `AbilityOf`.
+public export
+boomScholarExhaustDiscount : Ability
+boomScholarExhaustDiscount =
+  Static (CostsToCast
+            (AllOf (And [ AbilityHead (KeywordClass "Exhaust")
+                        , AbilityOf (AllOf (And [Permanent,
+                                                 OtherThan Macros.thisCreature,
+                                                 ControlledBy You])) ]))
+            (CostLess (Lit 2)))
+
+||| Hulk, Gamma Goliath's first line -- "Power-up abilities of other
+||| creatures you control cost {3} less to activate" [CR#702.193a].
+public export
+hulkPowerUpDiscount : Ability
+hulkPowerUpDiscount =
+  Static (CostsToCast
+            (AllOf (And [ AbilityHead (KeywordClass "PowerUp")
+                        , AbilityOf (AllOf (And [Macros.creature,
+                                                 OtherThan Macros.thisCreature,
+                                                 ControlledBy You])) ]))
+            (CostLess (Lit 3)))
+
+||| Kang the Conqueror's power-up rider -- "power-up abilities can't be
+||| activated." The ability-class PROHIBITION at a keyword-named class,
+||| which is the same row Pithing Needle writes at `AnyActivated`.
+public export
+kangPowerUpLock : StaticEffect []
+kangPowerUpLock =
+  Macros.objectCant "Activate"
+    (AllOf (AbilityHead (KeywordClass "PowerUp")))
 
 public export
 suppressionField : Card
