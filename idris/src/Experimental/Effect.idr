@@ -619,6 +619,24 @@ mutual
     ||| "[n] can [deed]", "you may have [n] [deed]". The optionality is
     ||| this row's own and needs no second carrier: a permission a player
     ||| declines is a permission unused.
+    |||
+    ||| WHOSE permission it is, decided here: the subject is the DEED'S
+    ||| ACTOR, never the player who chooses to apply it. [CR#609.4]
+    ||| bipartitions the surface into "a player MAY do something ... or a
+    ||| CREATURE CAN do something", and the 19 supported lines that read
+    ||| "You may have this creature assign its combat damage as though it
+    ||| weren't blocked" fall on the creature's side of it: [CR#510.1a]
+    ||| makes each attacking and blocking creature the thing that ASSIGNS
+    ||| combat damage, and [CR#510.1] gives the player only the
+    ||| announcement of how. The premise settles it independently -- "as
+    ||| though it weren't blocked" is a counterfactual about the creature,
+    ||| and [CR#609.4]'s "treat the game exactly as if the stated
+    ||| condition were true" has nothing to mean if the premise is
+    ||| predicated of a player who is not blocked in the first place. So
+    ||| the cell writes one carrier with the creature as subject; the
+    ||| printed "you may have" is this row spelling its own optionality on
+    ||| the controller, not a second subject and not the play
+    ||| permission's row.
     Permit : Compulsion bs
 
   ||| The deed's other participant, written or left out. Which arms a
@@ -643,11 +661,13 @@ mutual
     ||| WHAT may not target the subject: "spells or abilities your
     ||| opponents control", "nongreen spells or abilities from nongreen
     ||| sources", "Aura spells". The by-spell/by-source distinction the
-    ||| act vocabularies had no room for needs no slot of its own here --
-    ||| [CR#115.1a] describes a targeting SPELL by the stack object
-    ||| itself, while [CR#115.1c,115.1d] reach an ability through the
-    ||| object it came from, and `AbilityOf` is already the predicate
-    ||| that names that object. So the agent is ONE noun at the joined
+    ||| act vocabularies had no room for needs no slot of its own here.
+    ||| [CR#115.1a] makes a SPELL a targeter and [CR#115.1c,115.1d] make
+    ||| an ABILITY one, so a line naming both names two kinds of object;
+    ||| [CR#113.7] then gives an ability "the object that generated it",
+    ||| and [CR#109.2c] reads the word "source" in a description as
+    ||| exactly that object. `AbilityOf` is already the predicate that
+    ||| names it. So the agent is ONE noun at the joined
     ||| kind the printed line writes ("spells or abilities"), gated by
     ||| `Targeter`, and "nongreen spells or abilities from nongreen
     ||| sources" spells the colour twice because the rules make it two

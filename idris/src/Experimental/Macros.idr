@@ -777,32 +777,27 @@ cantAttackOrBlock n span =
 ||| counterfactual is present and none is needed -- [CR#609.4]'s slot is
 ||| a rider on this row, not the reason for it.
 public export
-canDo : (n : Noun bs Object) -> (deed : VerbLabel) ->
-        (span : Maybe (Duration (selfSubjIntro n))) ->
+canDo : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
         {auto 0 kd : KnownDeeds [deed]} ->
         {auto 0 zn : ZoneFits (nounZone n) (deedsZone [deed] Agent)} ->
-        {auto 0 dp : DeedParticipant [deed] Agent Object (nounTy n)} ->
-        {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-canDo n deed span =
-  Continuously (Deontic n Permit [deed] Agent NoDeonticPatient Nothing {kd} {zn} {dp})
-               span {sp}
+        {auto 0 dp : DeedParticipant [deed] Agent k (nounTy n)} ->
+        StaticEffect bs
+canDo n deed = Deontic n Permit [deed] Agent NoDeonticPatient Nothing {kd} {zn} {dp}
 
 ||| "[n] can [deed] as though [p]": the permission with [CR#609.4]'s
 ||| premise riding it. "This creature can attack as though it didn't have
 ||| defender" is `canDoAsThough n "Attack" (Not (HasKeyword "Defender"))`
 ||| -- 52 supported lines, the largest cell of the permission family.
 public export
-canDoAsThough : (n : Noun bs Object) -> (deed : VerbLabel) ->
+canDoAsThough : {k : Kind} -> (n : Noun bs k) -> (deed : VerbLabel) ->
                 (p : Predicate (nomIntro n) Object) ->
-                (span : Maybe (Duration (selfSubjIntro n))) ->
                 {auto 0 kd : KnownDeeds [deed]} ->
-                {auto 0 cf : So (deedCounterfactualOk deed)} ->
                 {auto 0 zn : ZoneFits (nounZone n) (deedsZone [deed] Agent)} ->
-                {auto 0 dp : DeedParticipant [deed] Agent Object (nounTy n)} ->
-                {auto 0 sp : SpanOk DeedRestriction span} -> Effect bs
-canDoAsThough n deed p span =
-  Continuously (Deontic n Permit [deed] Agent NoDeonticPatient (Just (AsThoughOf p))
-                  {kd} {zn} {dp}) span {sp}
+                {auto 0 dp : DeedParticipant [deed] Agent k (nounTy n)} ->
+                {auto 0 at : So (asThoughOk (Permit {bs}) [deed] (Just (AsThoughOf p)))} ->
+                StaticEffect bs
+canDoAsThough n deed p =
+  Deontic n Permit [deed] Agent NoDeonticPatient (Just (AsThoughOf p)) {kd} {zn} {dp} {at}
 
 ||| "[who] can't [deed]": the player-subject prohibition, `PlayerCant`'s
 ||| whole content as a spelling over the carrier.

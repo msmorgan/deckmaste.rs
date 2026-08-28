@@ -407,6 +407,26 @@ badForbidAttackWithPatient : Unspellable (Effect []) (\ok =>
 badForbidAttackWithPatient Oh impossible
 
 
+||| "Target creature blocks it this turn" -- with the pronoun resolving
+||| to the very creature the statement made block.
+||| A creature never blocks itself: [CR#509.1a] has the defending player
+||| choose the blockers from among the creatures they control and, for
+||| each, "one creature for it to block that's attacking that player",
+||| while [CR#508.1a] has the active player choose the attackers from
+||| among the creatures THEY control. The two participants are always
+||| under different controllers, so no game state satisfies the
+||| statement. A bare `It` is exactly that statement here: the
+||| counterpart is typed at the subject's output and the subject made the
+||| only Object announcement the pronoun could read. `ItOtherThan` is the
+||| positive path and is what `mustBlockIt` writes.
+public export
+badBlocksItself : Unspellable (Effect []) (\ok =>
+  Continuously (Macros.deontic (Macros.target Macros.creature) Require ["Block"] Agent
+                               (DeonticCounterpart It) {pt = ok})
+               (Just Macros.thisTurn))
+badBlocksItself Oh impossible
+
+
 ||| "As long as this creature is attacking, that creature gets +2/+0."
 ||| The demonstrative screen at the second minting site: it never picks out the sentence's own subject.
 public export

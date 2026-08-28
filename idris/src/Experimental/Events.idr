@@ -816,15 +816,16 @@ deedFacts =
   -- [CR#115.1] makes the targets "object(s) and/or player(s) the spell
   -- or ability will affect", and they are chosen wherever they are, so
   -- the patient's zone is unstated and its type is whatever the printed
-  -- description says. The agent is the stack object [CR#115.1a,115.1c,
-  -- 115.1d], which is what `deedTargeted` says of it.
+  -- description says. The agent is the stack object
+  -- [CR#115.1a,115.1c,115.1d], which is what `deedTargeted` says of it.
   , MkDeedFacts "Target"
       (MkDeedRole [] [] True (Just Stack))
       (MkDeedRole [Object, Player] [Creature, Artifact, Land, Enchantment, Instant, Sorcery,
                    Planeswalker, Battle, Kindred] True Nothing)
       False True True False
   -- [CR#601.2] takes the spell from where it is and puts it on the
-  -- stack; [CR#305.9] keeps a land off it. The agent is the player who
+  -- stack; [CR#305.1] keeps a land off it -- "Since the land doesn't go
+  -- on the stack, it is never a spell". The agent is the player who
   -- casts, in no zone [CR#400.1].
   , MkDeedFacts "Cast"
       (MkDeedRole [Player] [] True Nothing)
@@ -983,10 +984,11 @@ KnownDeeds ds = So (knownDeeds ds)
 
 ||| A coordination's shared zone: the zone every coordinated deed puts
 ||| the role's participant in, and `Nothing` where they disagree or
-||| where none states one. Disagreement answering `Nothing` is not a
-||| loosening -- `zoneFits` reads `Nothing` on the DESCRIPTION side as
-||| "the deed states no zone", and a coordination of two deeds that
-||| state different ones states none in common.
+||| where none states one. `zoneFits` reads `Nothing` on the DESCRIPTION
+||| side as "no zone stated", so a disagreeing coordination is not
+||| constrained by zone at all -- what refuses those is the KIND and TYPE
+||| gate, which `DeedParticipant` asks of EVERY deed in the list. No
+||| printed line coordinates deeds whose rules name different zones.
 public export
 deedsZone : Deeds -> Role -> Maybe Zone
 deedsZone [] r = Nothing

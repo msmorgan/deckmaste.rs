@@ -1460,6 +1460,95 @@ bloodshedFever =
                          Require ["Attack"] Agent NoDeonticPatient) ]
        Nothing
 
+||| Bristlepack Sentry, whole card -- "Defender / As long as you control
+||| a creature with power 4 or greater, this creature can attack as
+||| though it didn't have defender." The permission's largest cell: 52
+||| supported lines write "can attack as though it didn't have defender"
+||| (measured 2026-08-28), 45 of them this bare form under a condition or
+||| an activated cost. `Permit` is what makes the line writable and the
+||| [CR#609.4] premise rides it; before the row existed the sentence was
+||| unwritable before any counterfactual was reached.
+public export
+bristlepackSentry : Card
+bristlepackSentry =
+  Macros.card "Bristlepack Sentry" (Just [Macros.generic 1, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Plant", creatureType "Wolf"] [Creature])
+       [ Macros.keyword "Defender"
+       , Static (Macros.asLongAs
+                   (Exists (And [Macros.creature, ControlledBy You,
+                                 Compare Power AtLeast (Lit 4)]))
+                   (Macros.canDoAsThough Macros.thisCreature "Attack"
+                                         (Not (HasKeyword "Defender")))) ]
+       (Just (3, 3))
+
+||| Pacifism, whole card -- "Enchant creature / Enchanted creature can't
+||| attack or block." ONE subject, ONE modality, TWO deeds: the carrier's
+||| deed list, which is the coordination designed once rather than per
+||| family. 109 supported lines write "can't attack or block" (measured
+||| 2026-08-28).
+public export
+pacifism : Card
+pacifism =
+  Macros.card "Pacifism" (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (Macros.deontic (AttachHost Enchanted (TypeW Creature))
+                                Forbid ["Attack", "Block"] Agent NoDeonticPatient) ]
+       Nothing
+
+||| Everybody Lives!'s third conjunct -- "players can't lose the game or
+||| win the game this turn". TWO gate kinds under ONE subject, which the
+||| one-clause-one-gate row deliberately could not say; it elaborates
+||| through the SAME coordination Pacifism's two deeds do, because the
+||| outcome gates are deed labels of the one carrier. 1 supported card
+||| writes it (measured 2026-08-28; Abyssal Persecutor, Platinum Angel
+||| and their family write two SUBJECTS and are plain conjunctions).
+public export
+everybodyLivesGateLine : Effect []
+everybodyLivesGateLine =
+  Continuously (Macros.deontic (PlayerGroup AllPlayers) Forbid ["LoseGame", "WinGame"]
+                               Agent NoDeonticPatient)
+               (Just Macros.thisTurn)
+
+||| Gaea's Revenge, whole card -- "This spell can't be countered. / Haste
+||| / This creature can't be the target of nongreen spells or abilities
+||| from nongreen sources." The targeting deed's canonical carrier: 30
+||| supported sentences write the prohibition (measured 2026-08-28; a
+||| naive sweep returns 216, of which 186 sit inside the reminder text
+||| printed under hexproof and shroud and are no card's own line).
+||| The by-spell/by-source distinction needs no slot: [CR#115.1a]
+||| describes a targeting spell by the stack object itself, while
+||| [CR#115.1c,115.1d] reach an ability through the object it came from,
+||| so the colour is written twice because the rules make it two
+||| descriptions of two different objects, and `AbilityOf` is already the
+||| predicate that names the second.
+public export
+gaeasRevenge : Card
+gaeasRevenge =
+  Macros.card "Gaea's Revenge"
+       (Just [Macros.generic 5, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Elemental"] [Creature])
+       [ Static (Macros.objectCant "Counter" This)
+       , Macros.keyword "Haste"
+       , Static (Macros.cantBeTargetedBy Macros.thisCreature
+                   (AllOf (Joined (And [Macros.spell, Not (ColorIs Green)])
+                                  (AbilityOf (AllOf (And [IsSource,
+                                                          Not (ColorIs Green)])))))) ]
+       (Just (8, 5))
+
+||| Nowhere to Run's first line -- "Creatures your opponents control can
+||| be the targets of spells and abilities as though they didn't have
+||| hexproof." The targeting deed's PERMISSION, with [CR#609.4]'s premise
+||| riding it: one of the five supported lines that let an object be
+||| targeted despite hexproof or shroud, and the cell that composes the
+||| permission row, the premise slot and the targeting deed at once.
+public export
+nowhereToRunTargetLine : StaticEffect []
+nowhereToRunTargetLine =
+  Macros.canBeTargetedAsThough (AllOf Macros.creatureYourOpponentsControl)
+    (AllOf (Joined Macros.spell (AbilityHead AnyOnStack)))
+    (Not (HasKeyword "Hexproof"))
+
 brainwash : Card
 brainwash =
   Macros.card "Brainwash" (Just [Macros.pip White]) []

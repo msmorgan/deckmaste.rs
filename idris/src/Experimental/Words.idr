@@ -3067,6 +3067,11 @@ keywordFacts =
   , MkKeywordFacts "DoubleStrike"     NoParam      True  Nothing             True  False False
   , MkKeywordFacts "FirstStrike"      NoParam      True  Nothing             True  False False
   , MkKeywordFacts "Reach"            NoParam      True  Nothing             True  False False
+  -- [CR#702.3a] makes defender a static ability with no slot after the
+  -- word, and [CR#122.1b] does not name it among the keywords a keyword
+  -- counter can be. Only a creature has it [CR#702.3b], so it prints on
+  -- a permanent card alone.
+  , MkKeywordFacts "Defender"         NoParam      False Nothing             True  False False
   , MkKeywordFacts "Convoke"          NoParam      False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Improvise"        NoParam      False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Storm"            NoParam      False (Just AtCasting)    True  True  False
