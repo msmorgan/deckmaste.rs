@@ -897,7 +897,7 @@ counterspell = Macros.counterSpell (Macros.target Macros.spell)
 
 beastWhisperer : Ability
 beastWhisperer =
-  Macros.triggered Whenever (Casts You (Macros.a (And [Macros.creature, Macros.spell]))) Macros.drawACard
+  Macros.triggered Whenever (Casts You (Macros.a (And [Macros.creature, Macros.spell])) Nothing) Macros.drawACard
 
 skaabRuinator : Ability
 skaabRuinator =
@@ -2045,7 +2045,7 @@ youngPyromancer =
   Macros.card "Young Pyromancer" (Just [Macros.generic 1, Macros.pip Red]) []
        (MkTypeLine [creatureType "Human", creatureType "Shaman"] [Creature])
        [ Macros.triggered Whenever
-                          (Casts You (Macros.a (And [Macros.instantOrSorcery, Macros.spell])))
+                          (Casts You (Macros.a (And [Macros.instantOrSorcery, Macros.spell])) Nothing)
                           (Create You (Lit 1)
                             (TokenWritten (Macros.creatureTok 1 1 [Red] [creatureType "Elemental"])) []) ]
        (Just (2, 1))
@@ -2321,7 +2321,7 @@ curseOfVengeance =
        (MkTypeLine [enchantmentType "Aura", enchantmentType "Curse"] [Enchantment])
        [ Macros.keywordSubject "Enchant" AnyPlayer
        , Macros.triggered Whenever
-                          (Casts (AttachHost Enchanted PlayerW) (Macros.a Macros.spell))
+                          (Casts (AttachHost Enchanted PlayerW) (Macros.a Macros.spell) Nothing)
                           (PutCounters (Lit 1) (PrintedKind Spite) Macros.thisAura)
        , Macros.triggered When (LosesGame (AttachHost Enchanted PlayerW))
                           (Sequentially
@@ -3739,7 +3739,7 @@ tawnosTheToymaker =
        (MkTypeLine [creatureType "Human", creatureType "Artificer"] [Creature])
        [ Macros.triggered Whenever
                           (Casts You (Macros.a (And [Or [HasSubtype (creatureType "Beast"), HasSubtype (creatureType "Bird")],
-                                              Macros.creature, Macros.spell])))
+                                              Macros.creature, Macros.spell])) Nothing)
                           (Macros.may You
                       (CopyStack You It (Lit 1)
                                  [ExceptTypes (MkTypeLine [] [Artifact])])) ]
@@ -4934,7 +4934,7 @@ prismRing =
        (MkTypeLine [] [Artifact])
        [ Static (Macros.entersChoosing Macros.thisArtifact Color)
        , Macros.triggered Whenever
-                          (Casts You (Macros.a (And [Macros.spell, OfChosen Color])))
+                          (Casts You (Macros.a (And [Macros.spell, OfChosen Color])) Nothing)
                           (Macros.gainsLife You (Lit 1)) ]
        Nothing
 
@@ -5545,7 +5545,7 @@ silverquillSilencer =
                                            (NameOfCard (Not (HasType Land))))
        , Macros.triggered Whenever
            (Casts Macros.anOpponent
-                  (Macros.a (And [Macros.spell, Named ChosenName])))
+                  (Macros.a (And [Macros.spell, Named ChosenName])) Nothing)
            (Sequentially [ Macros.losesLife They (Lit 3), Macros.drawACard ]) ]
        (Just (3, 2))
 
@@ -5570,7 +5570,7 @@ avenShrine =
        (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
-           (Casts (Macros.a AnyPlayer) (Macros.a Macros.spell))
+           (Casts (Macros.a AnyPlayer) (Macros.a Macros.spell) Nothing)
            (Sequentially
               [ Macros.gainsLife They (LetterVal X)
               , Define X (CountOf (And [InZone Macros.graveyardZ,
@@ -7103,7 +7103,7 @@ rhysticStudy =
        (Just [Macros.generic 2, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
-           (Casts Macros.anOpponent (Macros.a Macros.spell))
+           (Casts Macros.anOpponent (Macros.a Macros.spell) Nothing)
            (Unless (Macros.may You Macros.drawACard)
                           (That PlayerW)
                           (Mana [Macros.generic 1])) ]
@@ -7234,7 +7234,7 @@ sarkhansUnsealingLine =
     (Casts You (Macros.a (And [Macros.creature, Macros.spell,
                                Or [Compare Power Eq (Lit 4),
                                    Compare Power Eq (Lit 5),
-                                   Compare Power Eq (Lit 6)]])))
+                                   Compare Power Eq (Lit 6)]])) Nothing)
     (DealDamage Macros.thisEnchantment (Lit 4) (Macros.target Macros.anyTarget))
 
 ||| Savage Swipe, both sentences -- "Target creature you control gets
@@ -7890,7 +7890,7 @@ secretsOfTheDead =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
-                                      CastFrom (Macros.graveyardOf You)])))
+                                      CastFrom (Macros.graveyardOf You)])) Nothing)
            Macros.drawACard ]
        Nothing
 
@@ -7903,7 +7903,7 @@ ashZealot =
        , Macros.keyword "Haste"
        , Macros.triggered Whenever
            (Casts (Macros.a AnyPlayer)
-                  (Macros.a (And [Macros.spell, CastFrom Macros.graveyardZ])))
+                  (Macros.a (And [Macros.spell, CastFrom Macros.graveyardZ])) Nothing)
            (DealDamage Macros.thisCreature (Lit 3) (That PlayerW)) ]
        (Just (2, 2))
 
@@ -7938,7 +7938,7 @@ vegaTheWatcher =
        [ Macros.keyword "Flying"
        , Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
-                                      Not (CastFrom (Macros.handOf You))])))
+                                      Not (CastFrom (Macros.handOf You))])) Nothing)
            Macros.drawACard ]
        (Just (2, 2))
 
@@ -7994,7 +7994,7 @@ gandalfWhiteRider =
   Macros.card "Gandalf, White Rider" (Just [Macros.generic 3, Macros.pip White])
        [Legendary] (MkTypeLine [creatureType "Avatar", creatureType "Wizard"] [Creature])
        [ Macros.keyword "Vigilance"
-       , Macros.triggered Whenever (Casts You (Macros.a Macros.spell))
+       , Macros.triggered Whenever (Casts You (Macros.a Macros.spell) Nothing)
                           (Sequentially
                       [ Macros.gets (Each Macros.creatureYouControl)
                                     (PtUp (Lit 1)) (PtUp (Lit 0))
@@ -9770,7 +9770,7 @@ public export
 wavebreakHippocamp : Ability
 wavebreakHippocamp =
   Macros.triggeredOnlyDuring Whenever
-    (NthOccurrence (Nth 1) Nothing (Casts You (Macros.a Macros.spell)))
+    (NthOccurrence (Nth 1) Nothing (Casts You (Macros.a Macros.spell) Nothing))
     (DuringWindow Turn (Just EachOpponents))
     Macros.drawACard
 
@@ -10281,7 +10281,7 @@ merfolkFalconer =
        [ Macros.keyword "Flying"
        , Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
-                                      PaidCost (ByKeyword "Kicker")])))
+                                      PaidCost (ByKeyword "Kicker")])) Nothing)
            (Macros.scry (Lit 2)) ]
        (Just (4, 4))
 
@@ -11055,7 +11055,7 @@ gnarlbackRhino =
        [ Macros.keyword "Trample"
        , Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
-                                      Targets Macros.thisCreature SomeTarget])))
+                                      Targets Macros.thisCreature SomeTarget])) Nothing)
            Macros.drawACard ]
        (Just (4, 4))
 
@@ -11325,7 +11325,7 @@ prismariPianist =
        (Just [Macros.generic 1, Macros.pip Red, Macros.pip Red]) []
        (MkTypeLine [creatureType "Djinn", creatureType "Bard"] [Creature])
        [ Macros.triggered Whenever
-           (Casts You (Macros.a (And [Macros.instantOrSorcery, Macros.spell])))
+           (Casts You (Macros.a (And [Macros.instantOrSorcery, Macros.spell])) Nothing)
            (InsteadOf
               (Create You (Lit 1)
                  (TokenWritten (Macros.creatureTok 1 1 [Blue, Red]
@@ -11771,12 +11771,15 @@ tourachDreadCantor =
                                                     (InZone Macros.handZ))) ]
        (Just (2, 1))
 
-||| Field of Dreams / Lantern of Insight / Wizened Snitches -- "the top
-||| card of their libraries". The slice over a distributive group
-||| possessor: [CR#400.1] gives each player their own library, so the
-||| phrase names one card in each and the ZONE word is what pluralises.
-||| The static that would consume it ("play with ... revealed") has no
-||| row, so the mention is benched and the cards are not.
+||| The slice over a distributive group possessor: [CR#400.1] gives each
+||| player their own library, so the phrase names one card in each and
+||| the ZONE word is what pluralises.
+||| It is NOT what Field of Dreams, Lantern of Insight and Wizened
+||| Snitches write, which this note used to say: "play with the top card
+||| of their libraries revealed" is the visibility RIDER, whose
+||| complement names the position and takes whose from the subject, and
+||| all three cards bench that way (`fieldOfDreams` below). The slice is
+||| the phrase an instruction names when it MOVES those cards.
 public export
 playersTopCardSlice : Noun [] Object
 playersTopCardSlice = LibrarySlice OnTop (Lit 1) (PlayerGroup AllPlayers)
@@ -12061,7 +12064,7 @@ public export
 summonEsperValigarmandaCast : StaticEffect []
 summonEsperValigarmandaCast =
   MayPlay You (Macros.a (And [Macros.instantOrSorcery, ExiledWith Macros.thisSaga]))
-          Cast Nothing Nothing Nothing Nothing
+          Cast Nothing Nothing Nothing Nothing False
 
 ||| Rogue Class's level-3 body -- "You may play cards exiled with this
 ||| Class." The `Class` word and the single line that writes its linkage,
@@ -12425,7 +12428,7 @@ troubleInPairsArms =
                  (CountedGroup (Macros.atLeast 2) Nothing Macros.creature))
     [ NthOccurrence (Nth 2) (Just Turn) (Draws (Macros.a Opponent))
     , NthOccurrence (Nth 2) (Just Turn)
-        (Casts (Macros.a Opponent) (Macros.a Macros.spell)) ]
+        (Casts (Macros.a Opponent) (Macros.a Macros.spell) Nothing) ]
     Nothing [] Nothing Nothing Nothing
     (Draw You (Lit 1))
 
@@ -13053,7 +13056,7 @@ upTheBeanstalk =
            (Enters This Nothing)
            [ Macros.joinedHead Whenever
                (Casts You (Macros.a (And [Macros.spell,
-                                          Compare ManaValue AtLeast (Lit 5)]))) ]
+                                          Compare ManaValue AtLeast (Lit 5)])) Nothing) ]
            Macros.drawACard ]
        Nothing
 
@@ -13292,7 +13295,7 @@ bonusRound =
        (MkTypeLine [] [Sorcery])
        [ Spell (Delayed (Casts (Macros.a AnyPlayer)
                                (Macros.a (And [Macros.instantOrSorcery,
-                                               Macros.spell])))
+                                               Macros.spell])) Nothing)
                         [] (Just Macros.untilEndOfTurn)
                         (Sequentially
                            [ CopyStack (That PlayerW) (That SpellW) (Lit 1) []
@@ -13332,3 +13335,206 @@ shelteredValley =
        , Macros.activated TapSymbol
                           (AddMana You (Lit 1) (Runs [[Colorless]]) []) ]
        Nothing
+
+
+-- ==== The play permission's remaining subjects, riders and complements,
+-- ==== and the game-outcome gates (prohibition-3)
+
+||| Field of Dreams -- "Players play with the top card of their libraries
+||| revealed." The GROUP possessor the family owed, and it is answered by
+||| the rider's own complement rather than by a slice: [CR#400.1] gives
+||| each player their own library, and `VisibleThing.TopOfLibrary` names
+||| the position while the subject supplies whose, so a plural subject
+||| pluralises the zone word with nothing added. The positioned SLICE
+||| (`playersTopCardSlice` below) is a different phrase that no line of
+||| this family writes.
+public export
+fieldOfDreams : Card
+fieldOfDreams =
+  Macros.card "Field of Dreams" (Just [Macros.pip Blue]) [World]
+       (MkTypeLine [] [Enchantment])
+       [ Static (Visibility Reveal (PlayerGroup AllPlayers) TopOfLibrary) ]
+       Nothing
+
+||| Lantern of Insight's first line, the same sentence at an artifact.
+public export
+lanternOfInsightRider : Ability
+lanternOfInsightRider =
+  Static (Visibility Reveal (PlayerGroup AllPlayers) TopOfLibrary)
+
+public export
+wizenedSnitches : Card
+wizenedSnitches =
+  Macros.card "Wizened Snitches"
+       (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Faerie", creatureType "Rogue"] [Creature])
+       [ Macros.keyword "Flying"
+       , Static (Visibility Reveal (PlayerGroup AllPlayers) TopOfLibrary) ]
+       (Just (1, 3))
+
+||| Revelation -- the same group subject at the hand surface, and the
+||| second World enchantment.
+public export
+revelation : Card
+revelation =
+  Macros.card "Revelation" (Just [Macros.pip Green]) [World]
+       (MkTypeLine [] [Enchantment])
+       [ Static (Visibility Reveal (PlayerGroup AllPlayers) WholeHand) ]
+       Nothing
+
+||| Keeper of the Lens, whole -- the face-down look-at rider.
+||| [CR#708.5] hides a face-down permanent by what it IS rather than by
+||| where it is ("you can't look at ... face-down spells or permanents
+||| controlled by another player"), so the complement is an object
+||| DESCRIPTION and the predicate is the status the grammar already
+||| carries.
+public export
+keeperOfTheLens : Card
+keeperOfTheLens =
+  Macros.card "Keeper of the Lens" (Just [Macros.generic 1]) []
+       (MkTypeLine [creatureType "Golem"] [Artifact, Creature])
+       [ Static (Visibility LookAt You
+                   (VisibleObjects
+                      (AllOf (And [Macros.creature, HasStatus FaceDown,
+                                   Not (ControlledBy You)])))) ]
+       (Just (1, 2))
+
+||| Lens of Clarity, whole -- the two surfaces of one rider coordinated
+||| in one sentence, which is what the shared row makes writable.
+public export
+lensOfClarity : Card
+lensOfClarity =
+  Macros.card "Lens of Clarity" (Just [Macros.generic 1]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (AndAlso
+           [ Visibility LookAt You TopOfLibrary
+           , Visibility LookAt You
+               (VisibleObjects
+                  (AllOf (And [Macros.creature, HasStatus FaceDown,
+                               Not (ControlledBy You)]))) ]) ]
+       Nothing
+
+||| Danitha, New Benalia's Light, whole -- the subtype-narrowed spell
+||| complement. `And [spell, Or [Aura, Equipment]]` is coherent: a
+||| subtype word presupposes a card TYPE and no zone (`seedZone` is
+||| silent for it), so the permanent-only reading never reached the
+||| conjunction's zone question at all and `ZoneCoherent` has nothing to
+||| refuse. The permission's own `complementLocates` answered the same
+||| question one level up for the same reason -- a word for what playing
+||| the object will MAKE it locates nothing.
+public export
+danithaNewBenaliasLight : Card
+danithaNewBenaliasLight =
+  Macros.card "Danitha, New Benalia's Light"
+       (Just [Macros.generic 1, Macros.pip Green, Macros.pip White]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Knight"] [Creature])
+       [ Macros.keyword "Vigilance"
+       , Macros.keyword "Trample"
+       , Macros.keyword "Lifelink"
+       , Static (Macros.mayCastFromLimited You
+                   (Macros.a (And [Macros.spell,
+                                   Or [HasSubtype (enchantmentType "Aura"),
+                                       HasSubtype (artifactType "Equipment")]]))
+                   (Macros.graveyardOf You) OnceEachYourTurn) ]
+       (Just (2, 2))
+
+||| Muldrotha, the Gravetide's window, first conjunct: "During each of
+||| your turns, you may play a land ... from your graveyard." The BARE
+||| window, permitting repeatedly inside a stretch of time where
+||| `PlayLimit` permits once. Its second conjunct wants "a permanent
+||| spell of each permanent type", a distributive over card types.
+public export
+muldrothaLandWindow : StaticEffect []
+muldrothaLandWindow =
+  Macros.mayPlayFromEachYourTurn You (Macros.a Macros.land) (Macros.graveyardOf You)
+
+||| Nahiri's Lithoforming's third sentence, "you may play X additional
+||| lands this turn" -- the one printed land allowance the literal bound
+||| refused. The letter is READ from the cost [CR#107.3i], so the
+||| quantity announces nothing and the widened gate admits it.
+public export
+nahiriExtraLands : StaticEffect (costLetters (Just [Variable]))
+nahiriExtraLands = MayPlayAdditionalLands You (ExactlyOf (LetterVal X))
+
+||| Phyrexian Unlife's first line -- the partial-cause outcome immunity.
+||| It carves out [CR#104.3b] and leaves [CR#104.3e] standing, which is
+||| what keeps it off the deontic carrier.
+public export
+phyrexianUnlifeImmunity : Ability
+phyrexianUnlifeImmunity = Static (NoLossFrom You ZeroOrLessLife)
+
+||| Haakon, Stromgald Scourge, whole -- the self-permission's EXCLUSION
+||| clause, "but not from anywhere else", which nothing else in the
+||| corpus writes. [CR#601.3] makes casting depend on a rule or effect
+||| allowing it, so the line grants one permission and revokes the
+||| default in one sentence.
+public export
+haakonStromgaldScourge : Card
+haakonStromgaldScourge =
+  Macros.card "Haakon, Stromgald Scourge"
+       (Just [Macros.generic 1, Macros.pip Black, Macros.pip Black]) [Legendary]
+       (MkTypeLine [creatureType "Zombie", creatureType "Knight"] [Creature])
+       [ Static (Macros.mayCastFromOnly You This (Macros.graveyardOf You))
+       , Static (Conditionally (Matches This (InZone Macros.battlefieldZ))
+                   (Macros.mayCastFrom You
+                      (AllOf (And [Macros.spell,
+                                   HasSubtype (creatureType "Knight")]))
+                      (Macros.graveyardOf You))
+                   AsLongAs)
+       , Macros.triggered When (Dies Macros.thisCreature)
+           (Macros.losesLife You (Lit 2)) ]
+       (Just (3, 3))
+
+||| Melek, Izzet Paragon, whole -- the cast watch's SOURCE phrase.
+||| "Whenever you cast an instant or sorcery spell FROM YOUR LIBRARY" was
+||| the card's only blocker; the phrase is a fact about the casting, not
+||| about the spell, which is on the stack [CR#112.1] however it got
+||| there.
+public export
+melekIzzetParagon : Card
+melekIzzetParagon =
+  Macros.card "Melek, Izzet Paragon"
+       (Just [Macros.generic 4, Macros.pip Blue, Macros.pip Red]) [Legendary]
+       (MkTypeLine [creatureType "Weird", creatureType "Wizard"] [Creature])
+       [ Static (Visibility Reveal You TopOfLibrary)
+       , Static (Macros.mayCastFrom You
+                   (AllOf (And [Macros.spell, Macros.instantOrSorcery]))
+                   Macros.onTopZ)
+       , Macros.triggered Whenever
+           (Casts You (Macros.a (And [Macros.instantOrSorcery, Macros.spell]))
+                  (Just Macros.yourLibrary))
+           (Sequentially
+              [ CopyStack You It (Lit 1) []
+              , Macros.may You (ChooseNewTargets (That CopyW)) ]) ]
+       (Just (2, 4))
+
+||| Hot Pursuit's intervening "if two or more players have lost the
+||| game" -- the player-set COUNT. The reader it wants was already
+||| there: `HappenedTo GameLoss ThisGame` at the player kind, which
+||| Rampant Frogantua's `+10/+10 for each player who has lost the game`
+||| already benches. The cell wanted no new predicate, only a witness
+||| that the second line reads the same one through `CountOf`.
+public export
+twoOrMorePlayersHaveLost : Condition []
+twoOrMorePlayersHaveLost =
+  CompareAmt (CountOf (And [AnyPlayer, Macros.happenedTo GameLoss ThisGame]))
+             AtLeast (Lit 2)
+
+||| Apex of Power's first line -- "Exile the top seven cards of your
+||| library. Until end of turn, you may cast spells from among them."
+||| The play permission's "from among" SOURCE, and the measurement's
+||| correction: the phrase is the COMPLEMENT's own partitive `SomeOf`,
+||| not a source-zone phrase at all. [CR#109.2a] locates a card-worded
+||| description by the zone the phrase states, and a partitive states a
+||| GROUP in that slot -- so "spells from among them" carries the
+||| exiled cards' zone on the mention and `MayPlay`'s `from` stays
+||| unwritten. The permission needed no mention-valued source slot.
+public export
+apexOfPowerCast : Effect []
+apexOfPowerCast =
+  Sequentially
+    [ Macros.exile (LibrarySlice OnTop (Lit 7) You)
+    , Continuously
+        (MayPlay You (Macros.fromAmong Macros.anyNumber Macros.spell Them)
+                 Cast Nothing Nothing Nothing Nothing False)
+        (Just ThisTurn) ]
