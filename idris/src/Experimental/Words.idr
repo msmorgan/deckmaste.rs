@@ -187,32 +187,6 @@ comparedType ManaValue = Nothing
 -- [CR#306.5]: loyalty is a characteristic only planeswalkers have.
 comparedType Loyalty = Just Planeswalker
 
-||| The type a LIST of characteristics presupposes, read disjunctively.
-||| A list holds a type only when every member presupposes that same one:
-||| "power or toughness" is still a creature's [CR#208.1], while "mana
-||| value, power, or toughness" may be asked of any object, since mana
-||| value presupposes nothing. A `joinSeed`-style collapse would answer
-||| the second wrongly, so the silent member is what empties the answer
-||| rather than what defers to its neighbours.
-public export
-allComparedType : CardType -> List Characteristic -> Bool
-allComparedType t [] = True
-allComparedType t (c :: cs) = case comparedType c of
-  Nothing => False
-  Just u => t == u && allComparedType t cs
-
-public export
-comparedTypes : List Characteristic -> Maybe CardType
-comparedTypes [] = Nothing
-comparedTypes (c :: cs) = case comparedType c of
-  Nothing => Nothing
-  Just t => if allComparedType t cs then Just t else Nothing
-
-public export
-sameChars : List Characteristic -> List Characteristic -> Bool
-sameChars [] [] = True
-sameChars (a :: as) (b :: bs) = a == b && sameChars as bs
-sameChars _ _ = False
 
 ||| The sorts a chosen or bound quality may take. A `Q` suffix marks the
 ||| three whose bare name is already the type of value they range over --
@@ -729,6 +703,54 @@ Eq ProjAxis where
   (==) (CharAxis _) _ = False
   (==) (PlayerStatAxis a) (PlayerStatAxis b) = a == b
   (==) (PlayerStatAxis _) _ = False
+
+
+||| The card type an axis presupposes. A characteristic's own answer
+||| [CR#208.1,306.5]; none for a player's number, since [CR#109.3] makes
+||| a characteristic a property of an OBJECT and a player is not one.
+public export
+axisType : ProjAxis -> Maybe CardType
+axisType (CharAxis c) = comparedType c
+axisType (PlayerStatAxis _) = Nothing
+
+||| The type a LIST of axes presupposes, read disjunctively.
+||| A list holds a type only when every member presupposes that same one:
+||| "power or toughness" is still a creature's [CR#208.1], while "mana
+||| value, power, or toughness" may be asked of any object, since mana
+||| value presupposes nothing. A `joinSeed`-style collapse would answer
+||| the second wrongly, so the silent member is what empties the answer
+||| rather than what defers to its neighbours.
+public export
+allAxisType : CardType -> List ProjAxis -> Bool
+allAxisType t [] = True
+allAxisType t (a :: as) = case axisType a of
+  Nothing => False
+  Just u => t == u && allAxisType t as
+
+public export
+axisTypes : List ProjAxis -> Maybe CardType
+axisTypes [] = Nothing
+axisTypes (a :: as) = case axisType a of
+  Nothing => Nothing
+  Just t => if allAxisType t as then Just t else Nothing
+
+public export
+sameAxes : List ProjAxis -> List ProjAxis -> Bool
+sameAxes [] [] = True
+sameAxes (a :: as) (b :: bs) = a == b && sameAxes as bs
+sameAxes _ _ = False
+
+||| The axes a comparison at kind `k` may read, and the ONLY gate the
+||| row needs: every member is scoped to `k` [CR#109.3], and the list is
+||| non-empty because there is no clause for the empty one. The scope is
+||| written as `projScope a` rather than checked against a Bool, so the
+||| kind is SOLVED from the axes at each call site exactly as
+||| `Superlative`'s own `projScope ax = k` solves it.
+public export
+data AxesAt : Kind -> List ProjAxis -> Type where
+  LastAxis : (0 a : ProjAxis) -> AxesAt (projScope a) [a]
+  NextAxis : (0 a : ProjAxis) -> AxesAt (projScope a) (b :: as) ->
+             AxesAt (projScope a) (a :: b :: as)
 
 ||| Which of a card type's subtypes a distinct-kind count runs over.
 ||| [CR#305.6] names the five basic land types and says an object writing
@@ -2915,8 +2937,18 @@ Eq EntryCounterMark where
   (==) Fewer Fewer = True
   (==) Fewer _ = False
 
+||| The named player groups a phrase may head.
+||| `YourTeam` is [CR#102.4]'s term, and the rule is what makes it a
+||| group VALUE rather than a spelling of `You`: it is "shorthand for
+||| 'you and/or your teammates'", which is more than one player whenever
+||| the game has teams [CR#102.3], and collapses to "you" only in a game
+||| that is not a multiplayer game between teams. A word whose denotation
+||| the rules give as a set of players belongs beside `AllPlayers` and
+||| `YourOpponents`; a spelling note on `You` would say the wrong thing
+||| in exactly the games the word exists for. 15 supported lines write
+||| "your team" (measured 2026-08-28).
 public export
-data PlayerGroupWord = AllPlayers | YourOpponents
+data PlayerGroupWord = AllPlayers | YourOpponents | YourTeam
 
 public export
 Eq PlayerGroupWord where
@@ -2924,6 +2956,8 @@ Eq PlayerGroupWord where
   (==) AllPlayers _ = False
   (==) YourOpponents YourOpponents = True
   (==) YourOpponents _ = False
+  (==) YourTeam YourTeam = True
+  (==) YourTeam _ = False
 
 public export
 data RoundMode = RoundUp | RoundDown

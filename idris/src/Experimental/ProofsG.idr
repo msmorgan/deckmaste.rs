@@ -1232,3 +1232,27 @@ badPlayerTargetingEvent : Unspellable (GameEvent []) (\ok =>
 badPlayerTargetingEvent SpellTargets impossible
 badPlayerTargetingEvent AbilityTargets impossible
 badPlayerTargetingEvent (EitherTargets _ _) impossible
+
+
+||| "Exchange life totals with target opponent" written with the opponent alone
+||| [CR#701.12c] settles an exchange by having each player equal "the other player's previous life total", so the clause needs two parties; one mention names no other, and [CR#701.12a] refuses an exchange that cannot be completed in full.
+public export
+badExchangeOneParty : Unspellable (Effect []) (\ok =>
+  ExchangeLife (Macros.target Opponent) {tp = ok})
+badExchangeOneParty Oh impossible
+
+
+||| "You and your opponents exchange life totals."
+||| [CR#701.12c]'s "the other player" is one player, so an exchange runs between two; a plural arm puts a whole group on one side and leaves that phrase with no other to equal.
+public export
+badExchangePluralParty : Unspellable (Effect []) (\ok =>
+  ExchangeLife (BothOf You (PlayerGroup YourOpponents)) {tp = ok})
+badExchangePluralParty Oh impossible
+
+
+||| "a creature with power or life total 3 or greater"
+||| [CR#109.3] makes a characteristic a property of an OBJECT and lists no life total among them, while [CR#119.1] gives the life total to each PLAYER, so one referent never has both; the comparison's axis list is scoped to one kind and a crossing list describes nothing.
+public export
+badMixedAxisComparison : Unspellable (Predicate [] Object) (\ok =>
+  Compare [CharAxis Power, PlayerStatAxis LifeTotal] Greater (Lit 1) {at = ok})
+badMixedAxisComparison (NextAxis _ (LastAxis _)) impossible

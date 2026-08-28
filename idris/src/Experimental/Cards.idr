@@ -261,20 +261,20 @@ blindingFlare = Macros.cantBlock (TargetGroup Macros.anyNumber Macros.creature) 
 
 
 defeat : Effect []
-defeat = Macros.destroy (Macros.target (And [Macros.creature, Compare [Power] AtMost (Lit 2)]))
+defeat = Macros.destroy (Macros.target (And [Macros.creature, Compare [CharAxis Power] AtMost (Lit 2)]))
 
 terashisVerdict : Effect []
 terashisVerdict =
-  Macros.destroy (Macros.target (And [Macros.creature, Attacking, Compare [Power] AtMost (Lit 3)]))
+  Macros.destroy (Macros.target (And [Macros.creature, Attacking, Compare [CharAxis Power] AtMost (Lit 3)]))
 
 pillarOfLight : Effect []
 pillarOfLight =
-  Macros.exile (Macros.target (And [Macros.creature, Compare [Toughness] AtLeast (Lit 4)]))
+  Macros.exile (Macros.target (And [Macros.creature, Compare [CharAxis Toughness] AtLeast (Lit 4)]))
 
 luckyOffering : Effect []
 luckyOffering =
   Sequentially [Macros.destroy (Macros.target (And [Macros.artifact,
-                                      Compare [ManaValue] AtMost (Lit 3)])),
+                                      Compare [CharAxis ManaValue] AtMost (Lit 3)])),
                 Macros.gainsLife You (Lit 3)]
 
 
@@ -296,7 +296,7 @@ flamesOfTheRazeBoar =
                 OnlyIf (DealDamage This (Lit 2)
                                    (Each (And [Macros.creature, Other, ControlledBy (That PlayerW)])))
                        (Exists (And [Macros.creature, ControlledBy You,
-                                     Compare [Power] AtLeast (Lit 4)]))
+                                     Compare [CharAxis Power] AtLeast (Lit 4)]))
                        Nothing]
 
 ||| Braids's Frightful Return
@@ -464,8 +464,8 @@ austereCommand : Effect []
 austereCommand =
   Macros.chooseTwo [Macros.destroy (AllOf Macros.artifact),
              Macros.destroy (AllOf Macros.enchantment),
-             Macros.destroy (AllOf (And [Macros.creature, Compare [ManaValue] AtMost (Lit 3)])),
-             Macros.destroy (AllOf (And [Macros.creature, Compare [ManaValue] AtLeast (Lit 4)]))]
+             Macros.destroy (AllOf (And [Macros.creature, Compare [CharAxis ManaValue] AtMost (Lit 3)])),
+             Macros.destroy (AllOf (And [Macros.creature, Compare [CharAxis ManaValue] AtLeast (Lit 4)]))]
 
 azulaAlwaysLies : Effect []
 azulaAlwaysLies =
@@ -712,7 +712,7 @@ bondersEnclave =
        , Macros.activatedOnlyIf (Compound [Mana [Macros.generic 3], TapSymbol])
                                 Macros.drawACard
                                 (Exists (And [Macros.creature, ControlledBy You,
-                                              Compare [Power] AtLeast (Lit 4)])) ]
+                                              Compare [CharAxis Power] AtLeast (Lit 4)])) ]
        Nothing
 
 woeleecher : Ability
@@ -1275,7 +1275,7 @@ orneryDilophosaur =
   Macros.triggeredIf Whenever
                      (Macros.attacks Macros.thisCreature)
                      (Exists (And [Macros.creature, ControlledBy You,
-                                   Compare [Power] AtLeast (Lit 4)]))
+                                   Compare [CharAxis Power] AtLeast (Lit 4)]))
                      (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 2)) (Just Macros.untilEndOfTurn))
 
 incisorGlider : Ability
@@ -1466,7 +1466,7 @@ hipparion =
   Static (Macros.deontic Macros.thisCreature (GatedBy (Mana [Macros.generic 1]))
                   ["Block"] Agent
                   (DeonticCounterpart (AllOf (And [Macros.creature,
-                                                   Compare [Power] AtLeast (Lit 3)]))))
+                                                   Compare [CharAxis Power] AtLeast (Lit 3)]))))
 
 
 frodoBaggins : Ability
@@ -1505,7 +1505,7 @@ bristlepackSentry =
        [ Macros.keyword "Defender"
        , Static (Macros.asLongAs
                    (Exists (And [Macros.creature, ControlledBy You,
-                                 Compare [Power] AtLeast (Lit 4)]))
+                                 Compare [CharAxis Power] AtLeast (Lit 4)]))
                    (Macros.canDoAsThough Macros.thisCreature "Attack"
                                          (Not (HasKeyword "Defender")))) ]
        (Just (3, 3))
@@ -1796,7 +1796,7 @@ ensnaringBridge =
   Macros.card "Ensnaring Bridge" (Just [Macros.generic 3]) []
        (MkTypeLine [] [Artifact])
        [ Static (Macros.deontic (AllOf (And [Macros.creature,
-                                      Compare [Power] Greater
+                                      Compare [CharAxis Power] Greater
                                               (CountOf (InZone (Macros.handOf You)))]))
                          Forbid ["Attack"] Agent NoDeonticPatient) ]
        Nothing
@@ -2769,7 +2769,7 @@ tocasiasWelcome =
        [ Macros.triggeredOnlyOnce Whenever
                                   (Enters (CountedGroup (Macros.atLeast 1) Nothing
                                                         (And [Macros.creature, ControlledBy You,
-                                                              Compare [ManaValue] AtMost (Lit 3)])) Nothing)
+                                                              Compare [CharAxis ManaValue] AtMost (Lit 3)])) Nothing)
                                   OncePerTurn
                                   Macros.drawACard ]
        Nothing
@@ -2941,8 +2941,11 @@ doublingSeason =
 ||| on a permanent you control, put that many plus one of each of those
 ||| kinds of counters on that permanent instead": the per-kind spelling
 ||| with its agent voiced. Pir, Imaginative Rascal writes the same clause
-||| over "a permanent your team controls" and waits on the team form
-||| [CR#102.3] alone.
+||| over "a permanent your team controls"; the team form landed
+||| ([CR#102.4], `PlayerGroup YourTeam`) and Pir's own clause is benched
+||| at `pirDistributive`, but the card is not whole -- it also prints
+||| "Partner with Toothy, Imaginary Friend", which no keyword row
+||| carries.
 docSamsonDistributive : Ability
 docSamsonDistributive =
   Static (Intercepts
@@ -3576,7 +3579,7 @@ elspethSunsChampion =
                           (Macros.create (Lit 3) (Macros.creatureTok 1 1 [White] [creatureType "Soldier"]))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 3))
                           (Macros.destroy (AllOf (And [Macros.creature,
-                                                Compare [Power] AtLeast (Lit 4)])))
+                                                Compare [CharAxis Power] AtLeast (Lit 4)])))
        , Macros.activated (LoyaltySymbol (LoyaltyDown 7))
                           (GetsEmblem You
                       [ Static (AndAlso [ Gets (AllOf Macros.creatureYouControl)
@@ -5695,7 +5698,7 @@ sanctumPrelate =
        [ Static (Macros.entersChoosing Macros.thisCreature Number)
        , Static (Macros.objectCant "Cast"
                    (AllOf (And [Macros.spell, Not (HasType Creature),
-                                Compare [ManaValue] Eq ChosenNumber]))) ]
+                                Compare [CharAxis ManaValue] Eq ChosenNumber]))) ]
        (Just (2, 2))
 
 ||| Nyxathid -- "As this creature enters, choose an opponent. / This
@@ -5750,7 +5753,7 @@ expelTheInterlopers =
            [ Macros.choose (Macros.a (Macros.qualityFrom Number
                                         (NumberBetween 0 10)))
            , Macros.destroy (AllOf (And [Macros.creature,
-                                         Compare [Power] AtLeast ChosenNumber])) ]) ]
+                                         Compare [CharAxis Power] AtLeast ChosenNumber])) ]) ]
        Nothing
 
 public export
@@ -5949,7 +5952,7 @@ abruptDecay =
        [ Static (Macros.objectCant "Counter" This)
        , Spell (Macros.destroy
                   (Macros.target (And [Permanent, Not (HasType Land),
-                                       Compare [ManaValue] AtMost (Lit 3)]))) ]
+                                       Compare [CharAxis ManaValue] AtMost (Lit 3)]))) ]
        Nothing
 
 public export
@@ -6003,7 +6006,7 @@ vault75MiddleSchool =
        (MkTypeLine [enchantmentType "Saga"] [Enchantment])
        [ Macros.triggered When (ChapterMark [ChapterI])
            (Macros.exile (AllOf (And [Macros.creature,
-                                      Compare [Power] AtLeast (Lit 4)])))
+                                      Compare [CharAxis Power] AtLeast (Lit 4)])))
        , Macros.triggered When (ChapterMark [ChapterII, ChapterIII])
            (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                         (Each Macros.creatureYouControl)) ]
@@ -6125,7 +6128,7 @@ castSmallCreatureFromTopOnceEachTurn : StaticEffect []
 castSmallCreatureFromTopOnceEachTurn =
   Macros.mayCastFromLimited You
                             (Macros.a (And [Macros.spell, HasType Creature,
-                                            Compare [Power] AtMost (Lit 2)]))
+                                            Compare [CharAxis Power] AtMost (Lit 2)]))
                             Macros.onTopZ
                             OnceEachTurn
 
@@ -7094,7 +7097,7 @@ gaddockTeeg =
        (MkTypeLine [creatureType "Kithkin", creatureType "Advisor"] [Creature])
        [ Static (Macros.objectCant "Cast"
                    (AllOf (And [Macros.spell, Not (HasType Creature),
-                                Compare [ManaValue] AtLeast (Lit 4)])))
+                                Compare [CharAxis ManaValue] AtLeast (Lit 4)])))
        , Static (Macros.objectCant "Cast"
                    (AllOf (And [Macros.spell, Not (HasType Creature),
                                 ManaCostHasX]))) ]
@@ -7453,7 +7456,7 @@ shiningShoal =
        (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs White,
-                                   Compare [ManaValue] Eq (LetterVal X),
+                                   Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
        , Spell (Continuously
                   (Redirects AnyDamage (TheNext (LetterVal X))
@@ -7473,7 +7476,7 @@ disruptingShoal =
        (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Blue,
-                                   Compare [ManaValue] Eq (LetterVal X),
+                                   Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
        , Spell (OnlyIf (Macros.counterSpell (Macros.target Macros.spell))
                        (CompareAmt (Macros.manaValueOf It) Eq (LetterVal X)) Nothing) ]
@@ -7514,7 +7517,7 @@ blazingShoal =
        (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Red,
-                                   Compare [ManaValue] Eq (LetterVal X),
+                                   Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
        , Spell (Macros.gets (Macros.target Macros.creature) (PtUp (LetterVal X))
                             (PtUp (Lit 0)) (Just Macros.untilEndOfTurn)) ]
@@ -7528,7 +7531,7 @@ sickeningShoal =
        (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Black,
-                                   Compare [ManaValue] Eq (LetterVal X),
+                                   Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
        , Spell (Macros.gets (Macros.target Macros.creature) (PtDown (LetterVal X))
                             (PtDown (LetterVal X)) (Just Macros.untilEndOfTurn)) ]
@@ -7542,7 +7545,7 @@ nourishingShoal =
        (MkTypeLine [spellType "Arcane"] [Instant])
        [ Static (AltCost (Just (Do (Macros.exile
                    (Macros.a (And [ColorIs Green,
-                                   Compare [ManaValue] Eq (LetterVal X),
+                                   Compare [CharAxis ManaValue] Eq (LetterVal X),
                                    InZone (Macros.handOf You)]))))))
        , Spell (ChangeLife You (Up (LetterVal X))) ]
        Nothing
@@ -7554,7 +7557,7 @@ spellSnare =
        (MkTypeLine [] [Instant])
        [ Spell (Macros.counterSpell
                   (Macros.target (And [Macros.spell,
-                                       Compare [ManaValue] Eq (Lit 2)]))) ]
+                                       Compare [CharAxis ManaValue] Eq (Lit 2)]))) ]
        Nothing
 
 public export
@@ -7564,7 +7567,7 @@ isolate =
        (MkTypeLine [] [Instant])
        [ Spell (Macros.exile
                   (Macros.target (And [Permanent,
-                                       Compare [ManaValue] Eq (Lit 1)]))) ]
+                                       Compare [CharAxis ManaValue] Eq (Lit 1)]))) ]
        Nothing
 
 public export
@@ -7574,7 +7577,7 @@ disembowel =
        (MkTypeLine [] [Instant])
        [ Spell (Macros.destroy
                   (Macros.target (And [Macros.creature,
-                                       Compare [ManaValue] Eq (LetterVal X)]))) ]
+                                       Compare [CharAxis ManaValue] Eq (LetterVal X)]))) ]
        Nothing
 
 public export
@@ -7584,7 +7587,7 @@ repeal =
        (MkTypeLine [] [Instant])
        [ Spell (Sequentially
                   [ Macros.move (Macros.target (And [Not Macros.land, Permanent,
-                                              Compare [ManaValue] Eq (LetterVal X)]))
+                                              Compare [CharAxis ManaValue] Eq (LetterVal X)]))
                                 Macros.handZ
                   , Draw You (Lit 1) ]) ]
        Nothing
@@ -7598,7 +7601,7 @@ entrancingMelody =
        [ Spell (Continuously
                   (GainsControl You
                      (Macros.target (And [Macros.creature,
-                                          Compare [ManaValue] Eq (LetterVal X)])))
+                                          Compare [CharAxis ManaValue] Eq (LetterVal X)])))
                   Nothing) ]
        Nothing
 
@@ -7612,7 +7615,7 @@ ratchetBomb =
        , Macros.activated (Compound [TapSymbol,
                               Do (Macros.sacrifice You Macros.thisArtifact)])
            (Macros.destroy (Each (And [Not Macros.land, Permanent,
-                                       Compare [ManaValue] Eq
+                                       Compare [CharAxis ManaValue] Eq
                                          (CountersOn Charge Macros.thisArtifact)]))) ]
        Nothing
 
@@ -7622,16 +7625,16 @@ entDraughtBasinAbility =
   Macros.activated (Compound [Mana [Variable], TapSymbol])
                    (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                (Macros.target (And [Macros.creatureYouControl,
-                                    Compare [Power] Eq (LetterVal X)])))
+                                    Compare [CharAxis Power] Eq (LetterVal X)])))
 
 public export
 sarkhansUnsealingLine : Ability
 sarkhansUnsealingLine =
   Macros.triggered Whenever
     (Casts You (Macros.a (And [Macros.creature, Macros.spell,
-                               Or [Compare [Power] Eq (Lit 4),
-                                   Compare [Power] Eq (Lit 5),
-                                   Compare [Power] Eq (Lit 6)]])) Nothing)
+                               Or [Compare [CharAxis Power] Eq (Lit 4),
+                                   Compare [CharAxis Power] Eq (Lit 5),
+                                   Compare [CharAxis Power] Eq (Lit 6)]])) Nothing)
     (DealDamage Macros.thisEnchantment (Lit 4) (Macros.target Macros.anyTarget))
 
 ||| Savage Swipe, both sentences -- "Target creature you control gets
@@ -9058,7 +9061,7 @@ public export
 nahiriLoyaltyRead : Predicate [] Object
 nahiriLoyaltyRead =
   And [ Macros.creature, InZone (Macros.graveyardOf You)
-      , Compare [ManaValue] Less (StatOf Loyalty This) ]
+      , Compare [CharAxis ManaValue] Less (StatOf Loyalty This) ]
 
 ||| Nahiri, the Unforgiving's compleated reminder -- "this planeswalker
 ||| enters with two fewer loyalty counters": the entry mark's subtracting
@@ -10134,7 +10137,7 @@ fellTheMighty : Effect []
 fellTheMighty =
   Macros.destroy
     (AllOf (And [Macros.creature,
-                 Compare [Power] Greater
+                 Compare [CharAxis Power] Greater
                          (Macros.powerOf (Macros.target Macros.creature))]))
 
 ||| Birthing Pod -- "{1}{G/P}, {T}, Sacrifice a creature: Search your library
@@ -10149,7 +10152,7 @@ birthingPodSearch =
                Do (Macros.sacrifice You (Macros.a Macros.creature))])
     (Macros.searchLibraryFor
        (And [Macros.creature,
-             Compare [ManaValue] Eq
+             Compare [CharAxis ManaValue] Eq
                      (Plus (Lit 1)
                            (Macros.manaValueOf
                               (Macros.theVerbed "Sacrifice"
@@ -10621,7 +10624,7 @@ hibernationsEndTrigger =
        (Sequentially
           [ Macros.searchLibraryFor
               (And [Macros.creature,
-                    Compare [ManaValue] Eq (CountersOn Age Macros.thisEnchantment)])
+                    Compare [CharAxis ManaValue] Eq (CountersOn Age Macros.thisEnchantment)])
           , Macros.putOntoBattlefield (That CardW)
           , Macros.shuffle ]))
 
@@ -11052,7 +11055,7 @@ celestialJudgmentPass : Effect []
 celestialJudgmentPass =
   ForEachKindOf (ValueAxis Power) (Just (AllOf Macros.creature)) Number
     (Macros.choose (Macros.a (And [Macros.creature,
-                                   Compare [Power] Eq ChosenNumber])))
+                                   Compare [CharAxis Power] Eq ChosenNumber])))
 
 ||| World Queller's upkeep trigger -- "you may choose a card type. If you
 ||| do, each player sacrifices a permanent of their choice of that type."
@@ -12081,7 +12084,7 @@ collectedCompany =
            [ Macros.lookAt (Macros.topCards 6)
            , Macros.move (Macros.fromAmong (Macros.upTo 2)
                                            (And [Macros.creature,
-                                                 Compare [ManaValue] AtMost (Lit 3)])
+                                                 Compare [CharAxis ManaValue] AtMost (Lit 3)])
                                            Them)
                          Macros.battlefieldZ
            , Macros.move TheRest (Macros.onBottomIn AnyOrder) ]) ]
@@ -12206,7 +12209,7 @@ public export
 companyDescribedSlice : Noun Cards.companyContext Object
 companyDescribedSlice =
   Macros.fromAmong (Macros.upTo 2)
-                   (And [Macros.creature, Compare [ManaValue] AtMost (Lit 3)])
+                   (And [Macros.creature, Compare [CharAxis ManaValue] AtMost (Lit 3)])
                    Them
 
 public export
@@ -12799,7 +12802,7 @@ deliveryMoogleSearch : Effect []
 deliveryMoogleSearch =
   Sequentially
     [ Macros.searchLibraryOrGraveyard
-        (And [Macros.artifact, Compare [ManaValue] AtMost (Lit 2)])
+        (And [Macros.artifact, Compare [CharAxis ManaValue] AtMost (Lit 2)])
     , Macros.revealCards It
     , Macros.move It Macros.handZ ]
 
@@ -13475,7 +13478,7 @@ upTheBeanstalk =
            (Enters This Nothing)
            [ Macros.joinedHead Whenever
                (Casts You (Macros.a (And [Macros.spell,
-                                          Compare [ManaValue] AtLeast (Lit 5)])) Nothing) ]
+                                          Compare [CharAxis ManaValue] AtLeast (Lit 5)])) Nothing) ]
            Macros.drawACard ]
        Nothing
 
@@ -14236,7 +14239,7 @@ talionTheKindlyLord =
        , Macros.triggered Whenever
            (Casts (Macros.a Opponent)
                   (Macros.a (And [Macros.spell,
-                                  Compare [ManaValue, Power, Toughness]
+                                  Compare [CharAxis ManaValue, CharAxis Power, CharAxis Toughness]
                                           Eq ChosenNumber]))
                   Nothing)
            (Sequentially [ Macros.losesLife (That PlayerW) (Lit 2)
@@ -14255,7 +14258,7 @@ cavalcadeOfCalamity : Ability
 cavalcadeOfCalamity =
   Macros.triggered Whenever
     (Macros.attacks (Macros.a (And [Macros.creature, ControlledBy You,
-                                    Compare [Power] AtMost (Lit 1)])))
+                                    Compare [CharAxis Power] AtMost (Lit 1)])))
     (DealDamage Macros.thisEnchantment (Lit 1)
        (Definite (And [Joined AnyPlayer (HasType Planeswalker),
                        AttackedBy (That (TypeW Creature))])))
@@ -14343,3 +14346,194 @@ public export
 permanentCardIsPlaceless :
   phraseZone (And {bs = []} [Permanent, IsCard]) = Nothing
 permanentCardIsPlaceless = Refl
+
+||| "target opponent who has more life than you do" (Keeper of the Flame,
+||| Keeper of the Light) -- the player-headed comparison, and the PLAYER
+||| CELL of `Compare`. The row was not duplicated to reach it: the axis
+||| slot is a `ProjAxis`, so the same constructor that reads an object's
+||| power reads a player's life total, and `AxesAt` scopes the list to
+||| the kind. What the condition frame already said with `CompareAmt`
+||| over `PlayerStatOf` the description frame now says of a referent it
+||| does not have to name.
+||| 18 supported lines write "has more life than" (measured 2026-08-28);
+||| 4 of them put the comparison on a DESCRIPTION -- the two Keepers,
+||| Oath of Mages and Namor, Atlantean King.
+||| Neither Keeper benches whole: both restrict the choice to the moment
+||| the ability is activated ("as you activate this ability"), for which
+||| this vocabulary has nothing.
+public export
+opponentWithMoreLifeThanYou : Predicate [] Player
+opponentWithMoreLifeThanYou =
+  And [Opponent, Compare [PlayerStatAxis LifeTotal] Greater
+                         (PlayerStatOf LifeTotal You)]
+
+||| Namor, Atlantean King's trigger head -- "a player who has more life
+||| than you". The same cell over the unnarrowed player noun, which is
+||| what says the narrowing rides the head and not the comparison.
+||| Namor does not bench whole: its body describes creatures by the
+||| defender they are attacking ("other creatures you control attacking
+||| that player"), the ATTACKER's voice of the row sub-round 1 built at
+||| the defender's (`AttackedBy`), and no predicate writes it -- 4 more
+||| supported lines want the same voice under "one of your opponents"
+||| (Martial Impetus, Oviya, Scriv, Seifer; measured 2026-08-28).
+public export
+playerWithMoreLifeThanYou : Predicate [] Player
+playerWithMoreLifeThanYou =
+  And [AnyPlayer, Compare [PlayerStatAxis LifeTotal] Greater
+                          (PlayerStatOf LifeTotal You)]
+
+||| The ability the Commander-grant family quotes -- "Whenever this
+||| creature attacks a player, if no opponent has more life than that
+||| player, put a +1/+1 counter on this creature" (Agent of the Shadow
+||| Thieves). The NEGATED EXISTENTIAL over players, 5 supported lines
+||| (Agent of the Shadow Thieves, Guild Artisan, Hardy Outlander, Sword
+||| Coast Sailor, Veteran Soldier -- re-measured 2026-08-28).
+||| The umbrella's premise is corrected rather than built on: the shape
+||| IS `NotCond`'s negation of a whole condition, because the existential
+||| is the whole condition. "No opponent has more life than that player"
+||| denies that any opponent answers the description, and `Exists` is
+||| what asks that question; putting `NotCond` outside it scopes the
+||| negation over exactly the quantifier.
+||| It needed the player cell of `Compare` and could not have used
+||| `CompareOver`: that row binds a member of its domain and reads it
+||| back as `They`, and this clause has a second singular player in scope
+||| (the attacked one), so the pronoun would resolve to neither.
+||| A FRAGMENT: all five carriers grant the ability with "Commander
+||| creatures you own have [...]", and the quoted grant has no
+||| vocabulary. The description they head is benched at
+||| `commanderCreaturesYouOwn`.
+public export
+agentOfTheShadowThievesGrantedTrigger : AbilityAt []
+agentOfTheShadowThievesGrantedTrigger =
+  Triggered Whenever
+    (Attacks Macros.thisCreature (OneDefender (Macros.a AnyPlayer)))
+    [] Nothing [] Nothing Nothing
+    (Just (NotCond (Exists (And [Opponent,
+             Compare [PlayerStatAxis LifeTotal] Greater
+                     (PlayerStatOf LifeTotal (That PlayerW))]))))
+    (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                 Macros.thisCreature)
+
+||| The three-way distinction the negated existential has to keep,
+||| measured at the bare context so the shapes stand side by side. This
+||| one is the negated existential itself: "no opponent has more life
+||| than you".
+public export
+noOpponentHasMoreLifeThanYou : Condition []
+noOpponentHasMoreLifeThanYou =
+  NotCond (Exists (And [Opponent, Compare [PlayerStatAxis LifeTotal] Greater
+                                          (PlayerStatOf LifeTotal You)]))
+
+||| ...beside `Exists (Not ...)`, which negates the DESCRIPTION and not
+||| the quantifier: "an opponent doesn't have more life than you" is true
+||| whenever any one opponent is at or below you and says nothing about
+||| the rest. A different condition, and the grammar keeps them apart by
+||| where the negation sits.
+public export
+someOpponentLacksMoreLifeThanYou : Condition []
+someOpponentLacksMoreLifeThanYou =
+  Exists (And [Opponent,
+               Not (Compare [PlayerStatAxis LifeTotal] Greater
+                            (PlayerStatOf LifeTotal You))])
+
+||| ...and beside the PLURAL player read, which tests the group rather
+||| than quantifying over its members: "your opponents have more life
+||| than you". `groupMention (PlayerGroup _)` is still False, so nothing
+||| partitive is reachable through this mention.
+public export
+yourOpponentsHaveMoreLifeThanYou : Condition []
+yourOpponentsHaveMoreLifeThanYou =
+  Matches (PlayerGroup YourOpponents)
+          (Compare [PlayerStatAxis LifeTotal] Greater
+                   (PlayerStatOf LifeTotal You))
+
+||| Mirror Universe, WHOLE CARD -- "{T}, Sacrifice this artifact:
+||| Exchange life totals with target opponent. Activate only during your
+||| upkeep." The life exchange's first witness, and the coordination
+||| spelling of the parties: the printed clause writes only the second
+||| party, and the first is the unwritten "you".
+||| Magus of the Mirror prints the same ability on a creature.
+public export
+mirrorUniverse : Card
+mirrorUniverse =
+  Macros.card "Mirror Universe" (Just [Macros.generic 6]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.activatedOnlyDuring
+           (Compound [TapSymbol, Do (Macros.sacrifice You Macros.thisArtifact)])
+           (ExchangeLife (BothOf You (Macros.target Opponent)))
+           (DuringPart Upkeep (Just Yours)) ]
+       Nothing
+
+||| Soul Conduit's ability -- "{6}, {T}: Two target players exchange life
+||| totals." The exchange's OTHER spelling: one mention counted at two,
+||| where Mirror Universe coordinates two mentions. Both fill the one
+||| party slot, which is what says the row asks for two players and not
+||| for a way of naming them. Axis of Mortality and Profane Transfusion
+||| write the same counted mention.
+public export
+soulConduitExchange : Ability
+soulConduitExchange =
+  Macros.activated (Compound [Mana [Macros.generic 6], TapSymbol])
+                   (ExchangeLife (TargetGroup (Macros.exactly 2) AnyPlayer))
+
+||| Frenzied Gorespawn's second line -- "Whenever one or more creatures
+||| attack one of your opponents, those creatures gain menace until end
+||| of turn." The witness for "one of your opponents": the phrase is the
+||| ordinary indefinite over the opponent head, and the spelling is the
+||| renderer's (`Macros.anOpponent`). Menace needed no data row -- its
+||| `keywordFacts` entry already stands.
+||| A FRAGMENT, and the umbrella's "one gap from whole" is corrected: the
+||| card's FIRST line is "for each opponent, goad target creature that
+||| player controls", and `ForEachOf` takes an OBJECT group, so a loop
+||| over a player group has no row here.
+public export
+frenziedGorespawnMenaceTrigger : AbilityAt []
+frenziedGorespawnMenaceTrigger =
+  Triggered Whenever
+    (Attacks (CountedGroup (Macros.atLeast 1) Nothing Macros.creature)
+             (OneDefender Macros.anOpponent))
+    [] Nothing [] Nothing Nothing Nothing
+    (Macros.gains (Those (TypeW Creature)) (Macros.keyword "Menace")
+                  (Just Macros.untilEndOfTurn))
+
+||| "Each player shuffles their hand and graveyard into their library" --
+||| the DISTRIBUTIVE POSSESSIVE, routed here from the coordination round
+||| as the dominant surface of Weftwalking's family. Re-measured
+||| 2026-08-28: 38 supported lines write a distributive possessive under
+||| "each player", 29 of them the shuffle family ("each player shuffles
+||| their hand and graveyard into their library", Commit // Memory,
+||| Day's Undoing, Diminishing Returns, Echo of Eons and their kin).
+||| It needed NO row: sub-round 1's `agentIntro` lift binds one member of
+||| an `Each` agent in place of the group mention, so the possessive
+||| inside the clause is the ordinary `They` reading that member, and the
+||| coordinated mass object is the one `weftwalkingShuffle` already
+||| wrote. The "your" spelling stays exactly as it was.
+public export
+eachPlayerShufflesTheirHandAndGraveyard : Effect []
+eachPlayerShufflesTheirHandAndGraveyard =
+  Macros.shufflesInto (Each AnyPlayer)
+    (BothOf (AllOf (InZone (Macros.handOf They)))
+            (AllOf (InZone (Macros.graveyardOf They))))
+
+||| Pir, Imaginative Rascal's replacement -- "If one or more counters
+||| would be put on a permanent your team controls, that many plus one of
+||| each of those kinds of counters are put on that permanent instead."
+||| The TEAM form, decided on [CR#102.4]: "your team" is a player-group
+||| VALUE and not a spelling of `You`, because the rule makes it
+||| shorthand for "you and/or your teammates" -- more than one player
+||| wherever the game has teams [CR#102.3] -- and collapses it to "you"
+||| only in a game that is not between teams. 15 supported lines write
+||| the phrase (measured 2026-08-28).
+||| A FRAGMENT: the card also has "Partner with Toothy, Imaginary
+||| Friend", and no keyword row carries a partner. Doc Samson's note that
+||| Pir waited on the team form ALONE is corrected by this.
+public export
+pirDistributive : Ability
+pirDistributive =
+  Static (Intercepts
+            (Macros.manyBareCountersPutBy You
+               (Macros.a (And [Permanent, ControlledBy (PlayerGroup YourTeam)])))
+            [] Nothing
+            (PutCountersOfThoseKinds (Plus ThatMuch (Lit 1)) (That PermanentW))
+            Repeatedly Nothing)
+

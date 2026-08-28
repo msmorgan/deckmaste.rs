@@ -352,7 +352,19 @@ mutual
     HasType : CardType -> Predicate bs Object            -- head noun "creature"/…
     HasSubtype : Subtype -> Predicate bs Object
     AnyPlayer : Predicate bs Player                      -- head noun "player" (any player, [CR#102.1])
-    Opponent : Predicate bs Player                       -- head noun "opponent" (of You — team form [CR#102.3] deferred)
+    ||| The head noun "opponent", of `You`. [CR#102.3] already gives the
+    ||| word its team reading -- "the player's opponents are all players
+    ||| not on their team" -- so nothing about teams is deferred in what
+    ||| this row DENOTES, and the team group itself now has a word
+    ||| (`PlayerGroup YourTeam`, [CR#102.4]).
+    ||| What stays of-`You` is the POSSESSOR: "one of THEIR opponents"
+    ||| (Shared Fate, Antagonism, Bend or Break, Necrotic Plague, Portal
+    ||| Manipulator -- 5 supported lines, measured 2026-08-28) reads the
+    ||| opponents of a player some earlier clause bound, and this row has
+    ||| no slot for that player.
+    ||| -- spelling: "an opponent", "one of your opponents"; see
+    ||| `Macros.anOpponent` for which environment writes which.
+    Opponent : Predicate bs Player
     ||| "the chosen player", "the last chosen player": the read of a
     ||| player an earlier chooser bound [CR#607.2d]. At this kind the
     ||| read IS the head noun, where the object-side `OfChosen` is a
@@ -644,26 +656,48 @@ mutual
                {auto 0 nc : PaidCostNamed which} -> Predicate bs Object
     -- the bound slot is open to any amount at every relation; see
     -- `CompareAmt`'s docstring for the recorded verdict.
-    ||| The characteristic slot is a LIST, read disjunctively: "a spell
-    ||| with mana value, power, or toughness equal to the chosen number"
-    ||| (Talion, the Kindly Lord) puts ONE bound to three characteristics
-    ||| and asks whether any of them meets it.
+    ||| The referent's own measured number against a bound: "a spell with
+    ||| mana value 3 or less", "target opponent who has more life than
+    ||| you do".
+    ||| The measure slot is a LIST of `ProjAxis`, read disjunctively: "a
+    ||| spell with mana value, power, or toughness equal to the chosen
+    ||| number" (Talion, the Kindly Lord) puts ONE bound to three
+    ||| measures and asks whether any of them meets it.
     ||| It is a list here rather than an `Or` of three comparisons
-    ||| because the disjunction the card writes is over CHARACTERISTICS
-    ||| and not over descriptions: [CR#109.3] lists them as properties of
-    ||| one object, and `seedsUniform` is right to refuse arms that
+    ||| because the disjunction the card writes is over MEASURES and not
+    ||| over descriptions: [CR#109.3] lists characteristics as properties
+    ||| of one object, and `seedsUniform` is right to refuse arms that
     ||| presuppose different card types -- power and toughness presuppose
     ||| a creature [CR#208.1] where mana value presupposes nothing, and
     ||| an `Or` of the three would be three heads rather than one.
     ||| Folding them into one row says what the card says: one referent,
     ||| one bound, several places to look. The presupposition is the
-    ||| list's own (`comparedTypes`): a list holds a type only when EVERY
+    ||| list's own (`axisTypes`): a list holds a type only when EVERY
     ||| member presupposes it, so mixing mana value in leaves none.
+    ||| The axis is `ProjAxis` and NOT `Characteristic`, which is what
+    ||| makes the row kind-INDEXED rather than object-only: [CR#109.3]
+    ||| makes a characteristic a property of an object and a player has
+    ||| none, so the player half's measure is a `PlayerStat` and the two
+    ||| halves share `Superlative`'s own axis vocabulary. `AxesAt` scopes
+    ||| the list to the kind exactly as `projScope ax = k` scopes that
+    ||| row's single axis, and no marked player twin is minted beside
+    ||| this one. The player cell says at the DESCRIPTION frame what
+    ||| `CompareAmt` over `PlayerStatOf` already says at the condition
+    ||| frame; it duplicates neither, since a description takes no
+    ||| subject and a condition names one.
+    ||| Not `CompareOver`, whose measure is an arbitrary amount taken on
+    ||| a bound MEMBER of the domain ("an opponent who controls more
+    ||| lands than you") and which therefore needs an element binder this
+    ||| row has no use for. That binder is why `CompareOver` cannot write
+    ||| the negated existential over players: its measured side reads the
+    ||| member as `They`, and "if no opponent has more life than that
+    ||| player" has a second singular player in scope.
     ||| -- spelling: "[n] with [c1], [c2], or [c3] [r] [bound]"; with one
-    ||| characteristic, the ordinary "[n] with [c] [r] [bound]".
-    Compare : (cs : List Characteristic) -> (r : Comparator) ->
+    ||| axis, the ordinary "[n] with [c] [r] [bound]" and, at the player
+    ||| kind, "[n] who has [r] life than [bound]".
+    Compare : {k : Kind} -> (axes : List ProjAxis) -> (r : Comparator) ->
               (bound : Amount bs) ->
-              {auto 0 ne : NonEmpty cs} -> Predicate bs Object
+              {auto 0 at : AxesAt k axes} -> Predicate bs k
     ||| The bound read of a counter-bearing description: the referent's own
     ||| count of [kind] counters on a comparison's left. At the kind index —
     ||| the poison lines are the player cells ([CR#122.1f] states the
@@ -990,7 +1024,7 @@ mutual
   -- [CR#115.1a,115.1c,115.1d] give the word to a spell and to an
   -- ability, neither of which is a card type the described thing has.
   seedType (Targets _ _) = Nothing
-  seedType (Compare cs _ _) = comparedTypes cs
+  seedType (Compare cs _ _) = axisTypes cs
   seedType (Superlative _ (CharAxis c) _) = comparedType c
   seedType (Superlative _ (PlayerStatAxis _) _) = Nothing
   seedType (CompareOver dom _ _ _) = seedType dom
@@ -1313,7 +1347,7 @@ mutual
   predEq (HasCounters _) _ = False
   predEq (PaidCost a) (PaidCost b) = a == b
   predEq (PaidCost _) _ = False
-  predEq (Compare cs r b) (Compare ds s e) = sameChars cs ds && r == s &&
+  predEq (Compare cs r b) (Compare ds s e) = sameAxes cs ds && r == s &&
                                            boundEq b e
   predEq (Compare _ _ _) _ = False
   predEq (CounterCompare Nothing r b) (CounterCompare Nothing s e) =
@@ -2779,6 +2813,26 @@ mutual
   public export
   data Amount : Bindings -> Type where
     Lit : Nat -> Amount bs
+    ||| "your life total", "that player's starting life total": a
+    ||| player's own number, read NOW.
+    ||| The point-in-time SNAPSHOT rider is absent, and named here rather
+    ||| than silently widened into this row: "that player's life total AS
+    ||| THE TURN BEGAN" (Sengir, the Dark Baron) reads the same number at
+    ||| a past moment, and the rules give the phrase no reading of its
+    ||| own: where they write it at all it marks a CONTINUITY span
+    ||| ([CR#302.6,508.1a], control held "continuously since the turn
+    ||| began"), never a value read at an instant.
+    ||| It is missing at BOTH layers -- this amount
+    ||| layer, and the condition layer, where Knights of the Black Rose
+    ||| writes "if you were the monarch as the turn began" of a
+    ||| designation `HasDesignation` also reads only in the present. 2
+    ||| supported lines over 2 cards write the rider (measured
+    ||| 2026-08-28), one at each layer. `Lookback` is not it and
+    ||| `EventSum` is not it: both scope an EVENT to a window, where this
+    ||| reads a STATE at an instant. Sengir's loss trigger and its life
+    ||| read both landed, so the rider is the whole of what stands
+    ||| between the card and a bench line.
+    ||| -- spelling: "[n]'s life total", "your starting life total".
     PlayerStatOf : (w : PlayerStat) -> (n : Noun bs Player) ->
                    {auto 0 one : nounPlur n = OneOf} -> Amount bs
     StatOf : (c : Characteristic) -> (n : Noun bs Object) ->

@@ -369,6 +369,30 @@ countedAtRandom : (q : Quantity bs) -> (p : Predicate bs k) ->
                   {auto 0 wf : WellFormedQ q} -> Noun bs k
 countedAtRandom q p = CountedGroup q (Just AtRandom) p {ph} {nz} {wf}
 
+||| "an opponent", "one of your opponents": ONE indefinite over the
+||| opponent head, and the two printed phrases are two SPELLINGS of it.
+||| The covariance is with the clause's own subject, not with anything
+||| the semantics records: where the subject is anchored to the reader
+||| ("you", "this creature", a permanent you control) English writes "an
+||| opponent"; where it is some other player's or a free one ("a
+||| creature", "a player", "one or more creatures"), it writes "one of
+||| your opponents". Re-measured 2026-08-28 over supported cards, each
+||| occurrence classified by the subject of the clause it completes: 32
+||| lines write "one of your opponents"; in the attack and
+||| damage-complement position all 67 you-anchored subjects write "an
+||| opponent", and of the 27 free subjects 24 write "one of your
+||| opponents".
+||| The renderer owes the rule; the grammar owes no determiner row and
+||| NO second environment. A partitive over `PlayerGroup YourOpponents`
+||| is not the analysis and was refused: `groupMention (PlayerGroup _)`
+||| is False, and the phrase names ONE opponent rather than a part of a
+||| named set.
+||| The three lines on the wrong side of the covariance -- Fiendish Duo,
+||| Gisela, Blade of Goldnight and Rem Karolus, Stalwart Slayer, all
+||| three writing "an opponent" under a bare "a source" or "a spell" in a
+||| REPLACEMENT static -- are exceptional card templating owned by an
+||| eventual RON macro that respells the same concept. The macro layer
+||| absorbs the exception; nothing is built here for them.
 public export
 anOpponent : Noun bs Player
 anOpponent = a Opponent

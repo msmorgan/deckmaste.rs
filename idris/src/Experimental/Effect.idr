@@ -38,6 +38,28 @@ data AsThough : Bindings -> Type where
   AsThoughOf : (p : Predicate bs Object) -> AsThough bs
 
 
+||| The pair an exchange runs between. [CR#701.12c] gives the effect
+||| exactly two participants -- "each player gains or loses the amount of
+||| life necessary to equal THE OTHER player's previous life total" -- and
+||| the corpus writes that pair two ways: as a coordination naming each
+||| party ("exchange life totals WITH target opponent", whose first party
+||| is the unwritten "you") and as one mention counted at two ("TWO TARGET
+||| PLAYERS exchange life totals"). One slot serves both, because the row
+||| asks for two players and not for a particular way of naming them.
+||| A coordination is admitted only when both arms are singular, since a
+||| plural arm would put more than two in the exchange; a counted mention
+||| is admitted only at an exactly-written two, since [CR#701.12a] refuses
+||| an exchange it cannot complete in full and a range states no pair.
+public export
+twoPartiesOk : {bs : Bindings} -> Noun bs Player -> Bool
+twoPartiesOk (BothOf l r) = case (nounPlur l, nounPlur {bs = nomIntro l} r) of
+  (OneOf, OneOf) => True
+  _ => False
+twoPartiesOk (TargetGroup q _) = quantExact q == Just 2
+twoPartiesOk (CountedGroup q _ _) = quantExact q == Just 2
+twoPartiesOk _ = False
+
+
 mutual
   public export
   record TokenChars (bs : Bindings) where
@@ -1516,6 +1538,33 @@ mutual
     ChooseNewTargets : (what : Noun bs Object) ->
                        {auto 0 zn : OnStack (nounZone what)} -> Effect bs
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Effect bs
+    ||| "Exchange life totals with target opponent" (Magus of the Mirror,
+    ||| Mirror Universe, Mister Negative), "Two target players exchange
+    ||| life totals" (Axis of Mortality, Profane Transfusion, Soul
+    ||| Conduit): the TWO-PARTICIPANT clause. 7 supported lines write it
+    ||| (measured 2026-08-28).
+    ||| The arithmetic is not what was missing: [CR#701.12c] settles each
+    ||| side by having each player "gain or lose the amount of life
+    ||| necessary to equal the other player's previous life total", which
+    ||| is `LifeOp.Set` twice over, once per party, from values read
+    ||| before either is written. What no row said is that ONE clause
+    ||| binds two players symmetrically -- `ChangeLife` names one player
+    ||| and writes one operation on them, and two of those would say
+    ||| something else, since the second would read a life total the
+    ||| first had already changed.
+    ||| So the parties ride one slot and the operation rides none: the
+    ||| row IS the exchange, and there is nothing left for an operand to
+    ||| choose. [CR#701.12g]'s other exchange -- a life total against a
+    ||| POWER or TOUGHNESS (Evra, Tree of Perdition, Tree of Redemption,
+    ||| 3 lines) -- is a different pair of values, one of them an
+    ||| object's, and is not this row.
+    ||| It announces the pair, which is what "those players' life totals"
+    ||| (Profane Transfusion) reads back.
+    ||| -- spelling: with a coordination whose first arm is "you",
+    ||| "exchange life totals with [r]"; otherwise "[parties] exchange
+    ||| life totals".
+    ExchangeLife : (parties : Noun bs Player) ->
+                   {auto 0 tp : So (twoPartiesOk parties)} -> Effect bs
     AddMana : (who : Noun bs Player) -> (amt : Amount (nomIntro who)) ->
               (prod : ProducedMana (amtIntro amt)) ->
               (riders : List (ManaRider (amtIntro amt))) ->
@@ -2128,6 +2177,7 @@ mutual
   heldUntilOk (ChooseNewTargets _) = False
   heldUntilOk (Choose _ _) = False
   heldUntilOk (Move _ _ _) = True
+  heldUntilOk (ExchangeLife _) = False
   heldUntilOk (ChangeLife _ _) = False
   heldUntilOk (AddMana _ _ _ _) = False
   heldUntilOk (Draw _ _) = False
@@ -2203,6 +2253,7 @@ mutual
   reflexEncloseUse (AdditionalPart _ _ _ _) = EncAgentless
   reflexEncloseUse (Distribute _ _ _) = EncAgentless
   reflexEncloseUse (Fights _ _) = EncAgentless
+  reflexEncloseUse (ExchangeLife _) = EncAgentless
   reflexEncloseUse (ChangeLife _ _) = EncAgentless
   reflexEncloseUse (Continuously (GainsControl _ _) _) = EncReflexive
   reflexEncloseUse (Continuously _ _) = EncAgentless
@@ -2338,6 +2389,7 @@ mutual
   thisWayOutcomeOk (ChooseNewTargets _) = True
   thisWayOutcomeOk (Choose _ _) = True
   thisWayOutcomeOk (Move _ _ _) = True
+  thisWayOutcomeOk (ExchangeLife _) = True
   thisWayOutcomeOk (ChangeLife _ _) = True
   thisWayOutcomeOk (AddMana _ _ _ _) = True
   thisWayOutcomeOk (Draw _ _) = True
@@ -2439,6 +2491,7 @@ mutual
   costActionOk (ChooseNewTargets what) = costNounOk what
   costActionOk (Choose n _) = costNounOk n
   costActionOk (Move what _ _) = costNounOk what
+  costActionOk (ExchangeLife parties) = costNounOk parties
   costActionOk (ChangeLife _ _) = True
   costActionOk (AddMana who _ _ _) = costNounOk who
   costActionOk (Draw _ _) = True
@@ -2579,6 +2632,8 @@ mutual
   effEq (Choose _ _) _ = False
   effEq (Move a s _) (Move b t _) = nounEqRef a b && zoneSort s == zoneSort t
   effEq (Move _ _ _) _ = False
+  effEq (ExchangeLife a) (ExchangeLife b) = nounEqRef a b
+  effEq (ExchangeLife _) _ = False
   effEq (ChangeLife _ _) _ = False
   effEq (AddMana _ _ _ _) _ = False
   effEq (Draw You a) (Draw You b) = boundEq a b
@@ -2703,6 +2758,8 @@ mutual
   -- it, exactly as the bare `Shuffle` does.
   effIntro (Move what to _) =
     afterMoveTo to (moveIntro Nothing what (Just (zoneSort to)))
+  effIntro (ExchangeLife parties) =
+    outcomeB LifeGained :: outcomeB LifeLost :: nomIntro parties
   effIntro (ChangeLife who (Up a)) = outcomeB LifeGained :: lifeIntro (Up a)
   effIntro (ChangeLife who (Down a)) = outcomeB LifeLost :: lifeIntro (Down a)
   effIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
@@ -2825,6 +2882,7 @@ mutual
   preIntro (ChooseNewTargets what) = nomIntro what
   preIntro (Choose n _) = chosenIntro n
   preIntro (Move what to _) = nomIntro what
+  preIntro (ExchangeLife parties) = nomIntro parties
   preIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
   preIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
   preIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
@@ -2961,6 +3019,7 @@ mutual
   annIntro (ChooseNewTargets what) = nomIntro what
   annIntro (Choose n _) = chosenIntro n
   annIntro (Move what to _) = nomIntro what
+  annIntro (ExchangeLife parties) = nomIntro parties
   annIntro (ChangeLife who (Up a)) = lifeIntro (Up a)
   annIntro (ChangeLife who (Down a)) = lifeIntro (Down a)
   annIntro (ChangeLife who (Set a)) = lifeIntro (Set a)
@@ -3101,6 +3160,10 @@ mutual
   deedDelta (ChooseNewTargets _) = []
   deedDelta (Choose n _) = []
   deedDelta (Move what to _) = []
+  -- [CR#701.12c] settles the exchange by having EACH player "gain or
+  -- lose the amount of life necessary", so both outcomes are readable and
+  -- neither is the clause's alone; Mister Negative reads the loss.
+  deedDelta (ExchangeLife _) = [outcomeB LifeGained, outcomeB LifeLost]
   deedDelta (ChangeLife who (Up a)) = [outcomeB LifeGained]
   deedDelta (ChangeLife who (Down a)) = [outcomeB LifeLost]
   deedDelta (ChangeLife who (Set a)) = []
