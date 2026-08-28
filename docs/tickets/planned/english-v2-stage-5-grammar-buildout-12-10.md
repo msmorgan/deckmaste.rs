@@ -1,16 +1,27 @@
 ---
 needs: [english-v2-stage-5-grammar-buildout-11-10]
 ---
-Reminder text. Scope: parenthetical reminder text as a document element —
-trailing reminders after keyword lines, inline sentence reminders, and
-whole-text reminders (basic lands' "({T}: Add {G}.)"), with parentheses and
-italics-boundary bytes owned exactly. Reminder content parses with the same
-grammar as rules text where it is rules-shaped; where it is not (informal
-phrasing), the reminder block's handling is a design decision to bring back
-as a STOP question with examples, not an improvised carve-out.
+Keyword-line block composition and trailing reminder text (split A of the
+former reminder-text chunk; inline reminders are 12b).
 
-This is the second mass unlock: any face with a parenthetical currently
-fails whole-document coverage regardless of its rules text.
+FIRST, the carried HIGH finding (keyword-landing-review.md): a keyword line
+currently terminates only at end of input — "Flying\nDraw a card." fails
+while the reverse order parses; 6,855 units (27.5% of remaining failures)
+die at first-newline+1. A keyword line must compose in any block position.
+This shipped without a STOP; for the record, a construction that cannot
+compose with sibling blocks is a contradiction-class STOP, not a detail.
+
+Then trailing reminder text: parenthetical reminders after keyword lines,
+parentheses and italics-boundary bytes owned exactly (2,317 further
+single-line failures are keyword-plus-reminder).
+
+Opening fixes carried from the review: un-narrow the keyword parameter
+categories (subject takes the general nominal category — "Enchant creature
+you control"; quality is open, not a 3-member sum — "Protection from
+everything"); delete the hardcoded vocab CounterfactualAbility and vocab
+Status keyword surfaces and route them through declarations; fill the
+Designation inventory toward the CR designation set before relying on it
+(counter kinds did this correctly: inventory first, then vocab deletion).
 
 Acceptance: gates green with the ratchet strictly up; zero ties and
 exceptions; byte-exact both directions with total ownership; no process
