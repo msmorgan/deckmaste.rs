@@ -94,3 +94,150 @@ index on `Effect`.
 - `idris/scripts/build` PASS; ProofsAnaphora prefix lemmas intact.
 
 Standard constraints apply.
+
+## As landed — round 1 of 2 (rows 1, 5, 6)
+
+Rows 2 (`ItRole`), 3 (co-argument exclusion) and 4 (previous-sibling
+delta) are NOT in this round and nothing here scaffolds for them.
+`idris/scripts/build`: **23/23, 0 errors, 0 warnings**; `cite check
+--list-noncompliant` empty; `cite check` 0 stale; `cite bless` registered
+no new rule (all 32 audited sites read against their rule text).
+
+### Re-measured counts (2026-08-27, `select(.supported)`, 32,568 faces)
+
+| Family | Ticket claimed | Re-measured | Verdict |
+|---|---|---|---|
+| shared-subject VP coordination | (unstated) | 922 faces — 435 "gets [pt] and gains [ab]", 487 "gets [pt] and has [ab]" | new |
+| "[X]'s controller sacrifices it" | 12/12 | **16/16** faces, pronoun = possessor in all 16 | ticket low by 4 |
+| "deals damage … equal to its [c]" | 204/204 | **275/275** faces source-bound (270 power, 3 mana value, 2 toughness); the 15 recipient-first lines ("deals damage to itself equal to its power") are source-bound too | ticket low by 71 |
+| "Return … to the battlefield. It …" | (unstated) | 93/93 faces producer-bound | new |
+| "Untap …. It …" | (unstated) | 99/99 faces producer-bound | new |
+| "Gain control of …. Untap it" | (unstated) | 19/19 faces | new |
+| "create … token. It …" | 70/70 | **170/170** faces token-bound | ticket low by 100 |
+
+### Row 1 — de-pronominalization templates
+
+Three constructions where the printed "it" is the construction's own
+earlier argument, so no gate exists to widen. Each is the ADR's
+clause 4, not clause 3; each is witnessed in `ProofsAnaphora` §4's new
+template block (`controllerSacrificesReadsNoPrefix`,
+`dealDamageOwnReadsNoPrefix`, `ofSubjectReadsNoPrefix`) as writable
+whatever else the prefix holds.
+
+- **`StaticEffect.OfSubject`** + `Shared.SubjectVP`/`SubjectVPs` +
+  `vpIntro`/`vpsIntro`/`vpOk`/`vpsOk` (`Effect.idr`), macro
+  `Macros.sharedSubject`. Two arms, `VPGets` and `VPGains` (the latter
+  spells both "gains" and "has"). Parts thread left to right on
+  `StaticParts`' model [CR#608.2c]; the per-part obligations are folded
+  and asked of the one shared subject, which needed `grantSubjectOk`
+  split into the index-free `grantSubjectFits`. §5 gains
+  `subjectVPsThreadPrefix`, `vpIntroIsDeltaThenPrefix`,
+  `vpGainsMintsNothing`.
+  **`itAsPermanent` retired at Ghor-Clan Rampager.** The macro STAYS:
+  `Macros.sacrificeIt` is its other call site and genuinely needs the
+  carrier-scoped read.
+- **`Effect.ControllerSacrifices`** — "[n]'s controller sacrifices it".
+  [CR#701.21a] makes the possessive subject and the object one referent
+  by the act's own definition. Announces the controller (Arcum Dagsson's
+  "That player" reads it back) and stamps/re-zones the patient exactly as
+  the labeled move does.
+- **`Effect.DealDamageOwn`** — "[src] deals damage equal to its [c] to
+  [to]". The possessor is the source slot [CR#120.1]. A sibling row and
+  NOT a widening of `DealDamage`: a written amount, an anaphoric one, and
+  a characteristic of something other than the source all stay there.
+  (Deviation from the obvious design: turning `DealDamage`'s amount slot
+  into a `DamageAmount` sum would have touched all 178 existing call
+  sites for no semantic gain.)
+
+`CopyExcept` / `CounterCompare` / `Bare` scope untouched, as briefed.
+
+### Row 5 — producer-label extensions
+
+- **`verbFacts` rows** for `"Untap"` ([CR#701.26b]; participle
+  "untapped", patient Object, zone Battlefield, no destination — `Tap`'s
+  row read the other way), `"Return"` ([CR#701.1] + [CR#400.1]; no
+  participle and no zones, on `"Put"`'s ground) and `"GainControl"`
+  ([CR#613.1b],[CR#110.2]; battlefield patient, no destination, no
+  participle). Macros `Macros.untap`, `Macros.returnTo`,
+  `Macros.returnToBattlefield`.
+- **`staticIntro (GainsControl who what)` now stamps** —
+  `stampIntro (Just "GainControl") what` rather than `selfSubjIntro
+  what`. The control change moves nothing, so there is no `Move` for
+  `Enact` to label; the constructor names its own act, on `Search`'s
+  precedent of a row that writes its own stamp. Only the stamp field
+  changes on the binding, so nothing that read it before reads
+  differently. `Macros.gainControl`/`gainsControl` had to move their
+  duration slot to `staticIntro` (it was written as `selfSubjIntro`).
+- **`Noun.ItToken`** + `Words.itTokenReaches`/`countItToken`/
+  `provOfItToken`/`zoneOfItToken`/`tyOfItToken`/`payloadOrig`,
+  `Phrase.setZoneItToken`, macro `Macros.itAsToken`. The origin-scoped
+  narrowing: the create clause already writes `Just TokenOrigin` on its
+  own mention [CR#111.1,111.2], and this counts over that. It is the
+  OBJECT reading of a create clause where `TokenAsThose` is the reading
+  of the DEFINITION [CR#111.3]; different counts, they do not compose.
+  Proof cost paid: `countItTokenIsFold` (§2),
+  `itTokenReadsOnlyPrefix` + `itTokenResolvesInPrefix` (§3).
+
+### Benches
+
+| Witness | Kind | What it proves |
+|---|---|---|
+| `ghorClanRampager` | Ability (rewritten) | `OfSubject`; `itAsPermanent` retired |
+| `aimHigh` | whole Card | `ItVerbed "Untap"` **and** `OfSubject` |
+| `hijack` | whole Card | `ItVerbed "GainControl"` then `ItVerbed "Untap"` |
+| `aggressiveInstinct` | whole Card | `DealDamageOwn` |
+| `bondOfRevival` | Effect (rewritten) | `ItVerbed "Return"` |
+| `arcumDagssonSacrifice` | Effect | `ControllerSacrifices` |
+| `harriedDronesmithToken` | Effect | `ItToken` |
+
+### Row 6 — the families that stay refused, and why
+
+Recorded per family. In each, the bare pronoun has two or more
+same-carrier candidates and the rules admit both, so a gate that picked
+one would be a preference. The explicit spelling (`That w` /
+`TheVerbed` / `This`) remains the authoring path in every case.
+
+- **Acolyte of the Inferno vs Basalt Golem.** Identical headers
+  ("Whenever this creature becomes blocked by a creature"), opposite
+  referents: Acolyte's "it deals 2 damage to that creature" is the
+  BLOCKED creature, Basalt Golem's "that creature's controller sacrifices
+  it" is the BLOCKER. English resolves this by knowing which of the two
+  each effect is about, which is play knowledge and nothing the header
+  says. Round 1 removes the pronoun from BOTH clauses structurally
+  (Basalt Golem writes `ControllerSacrifices`, Acolyte writes its damage
+  source as `This`), but a bare `It` written in either slot still counts
+  two and still refuses — correctly.
+- **Gaze of Pain.** "…you may choose to have it deal damage equal to its
+  power to a target creature. If you do, IT assigns no combat damage this
+  turn." The last "it" is the attacker, not the creature just damaged;
+  what picks it is knowing that assigning combat damage is the attacker's
+  business. `DealDamageOwn` retires the middle "its"; the first and last
+  stay bare reads over two battlefield candidates and stay refused.
+- **The Tamiyo shapes** (Tamiyo Meets the Story Circle I; Tamiyo,
+  Inquisitive Student // Seasoned Scholar [+2]). "Whenever a creature
+  attacks you or a planeswalker you control, IT gets -2/-0 until end of
+  turn." The header announces both the attacking creature and the
+  defending planeswalker; English reads the attacker because a pump is
+  aimed at a creature. That is NOT a rules narrowing available here:
+  [CR#208.3a] says an effect modifying a noncreature permanent's power or
+  toughness "is created even though it doesn't do anything", so the
+  planeswalker candidate is rules-meaningful and the pin doctrine forbids
+  excluding it. Permanently refused, by design.
+
+### Remainders (round 1's own; not routed as tickets)
+
+- The token self-word: "Sacrifice this token" / "this token gets …" has
+  no spelling — `AsType Creature This Nothing` spells "this creature".
+  This is why the `ItToken` witness is Harried Dronesmith's line rather
+  than Spawning Breath or Make Mischief, both of which would show the
+  gate refusing a bare `It` outright.
+- `Macros.searchLibraryFor` hardcodes `Search You`, so Arcum Dagsson's
+  second sentence ("That player may search THEIR library…") is unbenched
+  and its first sentence benches alone.
+- `SubjectVP` has two arms. The coordinations the corpus also writes —
+  `LosesEveryType` (Nameless Inversion, Ego Erasure) and
+  `LosesAllAbilities` — still write `AndAlso` with a pronoun second
+  subject. Adding an arm is a row here plus a clause in `vpOk` and
+  obliges nothing else.
+- The residue re-measurement across ALL rows (ticket acceptance) belongs
+  to round 2, after rows 2–4 land.
