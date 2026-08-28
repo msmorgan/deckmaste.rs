@@ -3,7 +3,7 @@ needs: []
 ---
 # Write the coordinations the grammar still refuses
 
-**SPLIT 2026-08-27 into two sub-tickets — claim those, not this.** This file
+**CLOSED 2026-08-27: BOTH SUB-ROUNDS DONE.** Remainders were routed to their bundles at each close (description-and-player-sorted-reads, copy-family, event-zone, choice-tail, mana-family); the Reverberation join was REFUSED with the rule. Originally split as: This file
 is the umbrella and stays authoritative:
 [1 condition disjunction](workbench-coordination-1-condition-disjunction.md),
 [2 noun and phrase coordinations](workbench-coordination-2-noun-and-phrase.md).
