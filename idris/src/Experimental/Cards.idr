@@ -12072,3 +12072,251 @@ contractualSafeguardPass =
     [ Macros.choose (Macros.a (CounterKindOn (Macros.a Macros.creatureYouControl)))
     , PutCounters (Lit 1) BoundKind
         (Each (Macros.otherCreatureYouControl It)) ]
+
+-- ---------------------------------------------------------------------------
+-- The noun coordinations
+-- ---------------------------------------------------------------------------
+
+||| Bile Blight, whole card -- "Target creature and all other creatures with
+||| the same name as that creature get -3/-3 until end of turn." The
+||| COORDINATED SUBJECT: one statement over two mentions at one kind, which
+||| `Both` could not write because a join of a kind with itself is not that
+||| kind. The co-referential name half was already spelled; the pair is what
+||| the cycle waited on. Echoing Decay writes the same sentence at -2/-2, and
+||| Echoing Truth, Echoing Calm, Echoing Return, Declaration in Stone,
+||| Deputy of Detention and Banishment write it under other verbs.
+public export
+bileBlight : Card
+bileBlight =
+  Macros.card "Bile Blight" (Just [Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Macros.gets
+                  (BothOf (Macros.target Macros.creature)
+                          (AllOf (And [ Macros.creature
+                                      , Named (SameNameAs (That (TypeW Creature)))
+                                      , OtherThan (That (TypeW Creature)) ])))
+                  (PtDown (Lit 3)) (PtDown (Lit 3))
+                  (Just Macros.untilEndOfTurn)) ]
+       Nothing
+
+||| Echoing Ruin, whole card -- "Destroy target artifact and all other
+||| artifacts with the same name as that artifact." The same coordination
+||| under a second verb, which is what makes it the phrase's row and not the
+||| statement's.
+public export
+echoingRuin : Card
+echoingRuin =
+  Macros.card "Echoing Ruin" (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Macros.destroy
+                  (BothOf (Macros.target Macros.artifact)
+                          (AllOf (And [ Macros.artifact
+                                      , Named (SameNameAs (That (TypeW Artifact)))
+                                      , OtherThan (That (TypeW Artifact)) ])))) ]
+       Nothing
+
+||| Stomp and Howl, whole card -- "Destroy target artifact and target
+||| enchantment." The HETEROGENEOUS DOUBLE TARGET, and the reason it is the
+||| noun coordination rather than a union head or a coordinating
+||| description: [CR#601.2c] lets a spell choose the same object once for
+||| each instance of the word "target", and gives "Destroy target artifact
+||| and target land" as its own example of a spell that may target one
+||| artifact land twice. The right arm is read in the left arm's discourse,
+||| so each writes the word once and the pair writes it twice.
+public export
+stompAndHowl : Card
+stompAndHowl =
+  Macros.card "Stomp and Howl" (Just [Macros.generic 2, Macros.pip Green]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Macros.destroy (BothOf (Macros.target Macros.artifact)
+                                       (Macros.target Macros.enchantment))) ]
+       Nothing
+
+||| Churning Eddy, whole card -- "Return target creature and target land to
+||| their owners' hands." The double target under a MOVE, where the two
+||| mentions share one destination.
+public export
+churningEddy : Card
+churningEddy =
+  Macros.card "Churning Eddy" (Just [Macros.generic 4, Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Macros.move (BothOf (Macros.target Macros.creature)
+                                    (Macros.target Macros.land))
+                            Macros.handZ) ]
+       Nothing
+
+||| Secret Rendezvous, whole card -- "You and target opponent each draw
+||| three cards." The PLAYER-PLUS-PLAYER DISTRIBUTIVE: the trailing "each"
+||| is the construction, not decoration, and every one of the family's
+||| printed lines writes it (the unmarked joint pair is a measured zero).
+||| Three cards apiece, never three between them.
+public export
+secretRendezvous : Card
+secretRendezvous =
+  Macros.card "Secret Rendezvous"
+       (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Draw (EachOfBoth (BothOf You (Macros.target Opponent))) (Lit 3)) ]
+       Nothing
+
+||| Mana Clash's first sentence -- "You and target opponent each flip a
+||| coin." The same distributive with a per-referent verb: the "each" is
+||| what makes it two coins rather than one, since [CR#705.2] gives a flip
+||| to the player who flipped it and each arm flips its own. The card's
+||| repeat-until clause is not taken here.
+public export
+manaClashFlip : Effect []
+manaClashFlip =
+  FlipCoins (EachOfBoth (BothOf You (Macros.target Opponent))) (FlipCount (Lit 1))
+
+||| Weftwalking's body -- "shuffle your hand and graveyard into your library,
+||| then draw seven cards." The COORDINATED MASS OBJECT: two whole-zone
+||| mentions under one move. The pair's own zone is neither arm's, so it
+||| projects none [CR#109.2a] and the destination is what places it.
+||| Midnight Clock and Trenzalore Clocktower write the same clause; the
+||| dominant surface of the family ("each player shuffles THEIR hand and
+||| graveyard") waits on a distributive possessive and not on this.
+public export
+weftwalkingShuffle : Effect []
+weftwalkingShuffle =
+  Sequentially
+    [ Macros.shuffleInto (BothOf (AllOf (InZone (Macros.handOf You)))
+                                 (AllOf (InZone (Macros.graveyardOf You))))
+    , Macros.drawCards 7 ]
+
+||| Sugar Coat, WHOLE CARD -- the kind-crossing disjunction, "Enchant
+||| creature or Food". One card TYPE crossed with an artifact SUBTYPE at one
+||| kind, which is a noun coordination and no union head: [CR#205.3c]
+||| correlates a subtype to its own card type, so a disjunct writing its own
+||| head presupposes that head and nothing shared. The rest of the card was
+||| already writable -- the flash line is a keyword row, the quoted payload
+||| rides `TokenChars`' abilities, and "loses all other card types and
+||| abilities" is the retention slot plus `LosesAllAbilities`.
+public export
+sugarCoat : Card
+sugarCoat =
+  Macros.card "Sugar Coat" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keyword "Flash"
+       , Macros.keywordSubject "Enchant"
+           (Or [HasType Creature, HasSubtype (artifactType "Food")])
+       , Static (AndAlso
+           [ SetsType (AttachHost Enchanted PermanentW)
+                      (MkToken Nothing []
+                               (MkTypeLine [artifactType "Food"] [Artifact])
+                               [ Macros.activated
+                                   (Compound [ Mana [Macros.generic 2]
+                                             , TapSymbol
+                                             , Do (Macros.sacrifice You Macros.thisArtifact) ])
+                                   (Macros.gainsLife You (Lit 3)) ]
+                               Nothing)
+                      Nothing
+           , LosesAllAbilities It ]) ]
+       Nothing
+
+||| Doc Aurlock, Grizzled Genius's first line -- "Spells you cast from your
+||| graveyard or from exile cost {2} less to cast." The CAST-ORIGIN
+||| disjunction, which needed nothing: [CR#601.2a] moves the card OUT of the
+||| zone it was in as it is cast, so an origin is history rather than a place
+||| the object is, `CastFrom` seeds no zone, and the arms are parallel
+||| already. The cross-zone refusal is `InZone`'s alone, where the two arms
+||| would project two places for one phrase. The card's plot line is not
+||| taken.
+public export
+docAurlockCost : StaticEffect []
+docAurlockCost =
+  CostsToCast (AllOf (And [Macros.spell, CastBy You,
+                           Or [ CastFrom (Macros.graveyardOf You)
+                              , CastFrom Macros.exileZ ]]))
+              (CostLess (Lit 2))
+
+-- ---------------------------------------------------------------------------
+-- "and/or": the zone coordination it earns, and the description it does not
+-- ---------------------------------------------------------------------------
+
+||| Agency Outfitter's search -- "search your graveyard, hand and/or library
+||| for a card named Magnifying Glass and/or a card named Thinking Cap". The
+||| word twice in one clause, at its two positions, and the round's verdict
+||| in one line: over ZONES it is the coordination `SomeZones` writes, and
+||| over the DESCRIPTION it is `Or`, which the grammar already had. The card
+||| is not whole -- "If you search your library this way, shuffle" reads
+||| back WHICH zone was searched, and no such reader exists.
+public export
+agencyOutfitterSearch : Effect []
+agencyOutfitterSearch =
+  Macros.searchZonesOf You
+    (Or [ Named (PrintedName "Magnifying Glass")
+        , Named (PrintedName "Thinking Cap") ])
+
+||| Delivery Moogle's search -- "search your library and/or graveyard for an
+||| artifact card with mana value 2 or less, reveal it, and put it into your
+||| hand." The family's commonest arity; Ajani's Aid, Finale of Devastation
+||| and the whole planeswalker-fetch cycle write the same two zones. Blocked
+||| whole by the same which-zone reader.
+public export
+deliveryMoogleSearch : Effect []
+deliveryMoogleSearch =
+  Sequentially
+    [ Macros.searchLibraryOrGraveyard
+        (And [Macros.artifact, Compare ManaValue AtMost (Lit 2)])
+    , Macros.revealCards It
+    , Macros.move It Macros.handZ ]
+
+||| Concussive Bolt, both paragraphs -- "deals 4 damage to target player or
+||| planeswalker. / Metalcraft — If you control three or more artifacts,
+||| creatures controlled by that player or by that planeswalker's controller
+||| can't block this turn." The repeated preposition is SPELLING and nothing
+||| more: "by X or by Y" and "X or Y" denote the same pair, so the split read
+||| the union round landed writes this line unchanged. The ability word is
+||| not taken here.
+public export
+concussiveBolt : Effect []
+concussiveBolt =
+  Sequentially
+    [ DealDamage This (Lit 4) Cards.targetPlayerOrPlaneswalker
+    , If (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
+                     AtLeast (Lit 3))
+         (Continuously
+            (Deontic (AllOf (And [Macros.creature,
+                                  ControlledBy Macros.splitOverPlaneswalker]))
+                     Forbid Block Agent NoDeonticPatient)
+            (Just Macros.thisTurn))
+         Nothing ]
+
+||| Trouble in Pairs' second and third arms -- "Whenever an opponent … draws
+||| their second card each turn, or casts their second spell each turn, you
+||| draw a card." The arms SHARE a subject in print and write their own in
+||| the semantics: English elides the repeated noun, and the elision is the
+||| spelling, not a mechanism. Nothing is lost here because the body reads
+||| no arm ("you draw a card"); a body naming "that player" would be reading
+||| one of three existentials and is what the seat's own whole-agreement
+||| rule already refuses. The card's first arm needs an attack header with a
+||| defender and a counted attacking group, which is not this ticket's.
+public export
+troubleInPairsArms : AbilityAt []
+troubleInPairsArms =
+  Triggered Whenever
+    (NthOccurrence (Nth 2) (Draws (Macros.a Opponent)))
+    [ NthOccurrence (Nth 2) (Casts (Macros.a Opponent) (Macros.a Macros.spell)) ]
+    Nothing Nothing Nothing
+    (Draw You (Lit 1))
+
+||| Gaea's Revenge's protection-shaped phrase -- "nongreen spells or
+||| abilities from nongreen sources", the described side alone. The colour
+||| is NOT one modifier distributed over two conjuncts: the spell arm tests
+||| the SPELL's own colour and the ability arm tests its SOURCE's, because
+||| an ability on the stack has no colour of its own and [CR#113.7] gives it
+||| a source instead. The card's own ruling states the pair in exactly those
+||| words. So the phrase is the landed cross-kind head with a different
+||| description per arm, and it writes today.
+||| What the eight printed sentences wait on is the TARGETING RESTRICTION
+||| and nothing else: no act row anywhere says "can't be the target of"
+||| ([CR#115.1] is where the relation lives, and the grammar's act
+||| vocabularies cover countering, casting, playing, copying, activating,
+||| regenerating, attacking and blocking).
+public export
+nongreenSpellsOrAbilities : Predicate [] (Object \/ Ability)
+nongreenSpellsOrAbilities =
+  Joined (And [Macros.spell, Not (ColorIs Green)])
+         (And [ AbilityHead AnyOnStack
+              , AbilityOf (Macros.a (And [Macros.source, Not (ColorIs Green)])) ])

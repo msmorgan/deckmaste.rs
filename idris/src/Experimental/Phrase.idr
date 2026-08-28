@@ -1435,12 +1435,43 @@ mutual
                                t == seedType p &&
                                seedsUniform z t ps
 
+  ||| `seedsUniform`'s zone half alone, for the arms that answer the type
+  ||| half with their own head word.
+  public export
+  zonesUniform : {0 bs : Bindings} -> {0 k : Kind} -> Maybe Zone ->
+                 List (Predicate bs k) -> Bool
+  zonesUniform z [] = True
+  zonesUniform z (p :: ps) = z == seedZone p && zonesUniform z ps
+
+  ||| The arms of a disjunction have to stand in one another's place, and
+  ||| the demand splits by whether they write their own head word.
+  |||
+  ||| The ZONE is demanded of every arm alike. It is not the head's
+  ||| content: [CR#109.2a] locates a card-worded description by the zone
+  ||| the phrase states, `phraseZone` defaults an unstated one to the
+  ||| battlefield, and the projection is single-valued -- so arms naming
+  ||| two zones would project none and be placed on the battlefield.
+  ||| That is `badCrossZoneDisjunction`, a representation limit and not a
+  ||| meaningless phrase.
+  |||
+  ||| The TYPE is demanded only of arms that write NO head. Such arms
+  ||| modify one head word shared between them, and the type each
+  ||| presupposes is that one head's, so a disagreement contradicts.
+  ||| Where every arm writes its own head the type it presupposes IS that
+  ||| head -- [CR#205.3c] correlates a subtype to its own card type -- so
+  ||| the alternatives are free to name different ones. "Enchant creature
+  ||| or Food" names a creature or an artifact and is one phrase all the
+  ||| same; "with mana value, power, or toughness equal to the chosen
+  ||| number" is headless and still refused, its arms disagreeing about
+  ||| what they are said of.
   public export
   parallelDisjuncts : {0 bs : Bindings} -> {0 k : Kind} ->
                       List (Predicate bs k) -> Bool
   parallelDisjuncts [] = True
-  parallelDisjuncts (p :: ps) = headsUniform (hasHead p) ps &&
-                                seedsUniform (seedZone p) (seedType p) ps
+  parallelDisjuncts (p :: ps) =
+    headsUniform (hasHead p) ps &&
+    (if hasHead p then zonesUniform (seedZone p) ps
+                  else seedsUniform (seedZone p) (seedType p) ps)
 
   public export
   ParallelDisjuncts : List (Predicate bs k) -> Type
@@ -1754,6 +1785,41 @@ mutual
     ||| -- spelling: the two arms joined by "or".
     EitherOf : (l : Noun bs k) -> (r : Noun bs k) ->
                {auto 0 ag : nounPlur l = nounPlur r} -> Noun bs k
+    ||| "target creature and all other creatures with the same name as
+    ||| that creature", "target artifact and target land", "their hand
+    ||| and graveyard": two mentions of the SAME kind coordinated by
+    ||| "and". The FIFTH coordination, completing the grid `EitherOf`'s
+    ||| docstring names -- the cross-kind noun conjunction is `Both`, the
+    ||| cross-kind head `Joined`, the same-kind predicate disjunction
+    ||| `Or`, the same-kind noun disjunction `EitherOf`.
+    ||| TWO MENTIONS and never one filter, which is why the right arm is
+    ||| read in the left arm's discourse rather than beside it:
+    ||| [CR#601.2c] says outright that where a spell "uses the word
+    ||| 'target' in multiple places, the same object or player can be
+    ||| chosen once for each instance", and gives "Destroy target
+    ||| artifact and target land" as its own example of a spell that may
+    ||| target one artifact land twice. A union head or a coordinating
+    ||| description writes the word once and cannot say that.
+    ||| It leaves NO joint referent, for `Both`'s reason: no constructor
+    ||| builds a `Payload k` out of an arbitrary mention. The zone and
+    ||| the head type project only where the arms agree, since a phrase
+    ||| naming two places names no one place [CR#109.2a].
+    ||| -- spelling: the two arms joined by "and".
+    BothOf : (l : Noun bs k) -> (r : Noun (nomIntro l) k) -> Noun bs k
+    ||| "You and target opponent EACH draw a card", "each opponent and
+    ||| you each create a Treasure token": the trailing "each" over a
+    ||| coordinated pair. The word IS the construction -- the effect is
+    ||| taken once per arm, so a per-referent quantity is minted twice --
+    ||| and it is a DISTINCT row from the joint pair rather than a
+    ||| marking on it, because the two say different things about the
+    ||| same coordination.
+    ||| It is not `EachOf`: that one partitions a group some mention
+    ||| already named (`GroupMention`), and a pair leaves no joint
+    ||| referent to partition. What this distributes over is the arms
+    ||| themselves.
+    ||| -- spelling: the pair's own two arms, then "each".
+    EachOfBoth : (pair : Noun bs k) ->
+                 {auto 0 pr : CoordinatedPair pair} -> Noun bs k
     ||| "the top [amt] cards of [whose] library": the end-anchored slice
     ||| [CR#401.2] keeps in order, named by a position and a count over
     ||| one player's pile. TWO surfaces, one cell, and which word
@@ -1919,6 +1985,8 @@ mutual
   nounEqRef (EachOf _) _ = False
   nounEqRef (Both _ _) _ = False
   nounEqRef (EitherOf _ _) _ = False
+  nounEqRef (BothOf _ _) _ = False
+  nounEqRef (EachOfBoth _) _ = False
   nounEqRef (LibrarySlice _ _ _) _ = False
   nounEqRef (SomeOf _ _ _) _ = False
   nounEqRef (NamesAgree _ _) _ = False
@@ -2004,6 +2072,8 @@ mutual
   nounDelta (EachOf grp) = nounDelta grp
   nounDelta (Both l r) = nounDelta r ++ nounDelta l
   nounDelta (EitherOf l r) = nounDelta l ++ nounDelta r
+  nounDelta (BothOf l r) = nounDelta r ++ nounDelta l
+  nounDelta (EachOfBoth p) = nounDelta p
   nounDelta (LibrarySlice pos amt whose) =
     MkBinding TheD Object (outputPlur (nounPlur whose) (amtPlur amt))
               (ObjectP Nothing (Just Library) Nothing Nothing)
@@ -2130,24 +2200,67 @@ mutual
   zoneDelta (LibraryAt pl _ _ (OwnedBy n)) = placeDelta pl ++ nounDelta n
   zoneDelta (LibraryAt pl _ _ Bare) = placeDelta pl
 
-  ||| What a search clause names: one zone, or the graveyard-hand-library
-  ||| sweep written once against its possessor and shared by both name
-  ||| families. Each named zone is searched per [CR#701.23a].
+  ||| Whether a coordinated search names more than one DISTINCT zone. A
+  ||| one-zone coordination is `OneZone` written twice over, and a repeated
+  ||| zone names the same pile twice.
+  public export
+  zonesDistinct : List Zone -> Bool
+  zonesDistinct [] = True
+  zonesDistinct (z :: zs) = not (elem z zs) && zonesDistinct zs
+
+  public export
+  atLeastTwoZones : List Zone -> Bool
+  atLeastTwoZones zs = case zs of
+    (_ :: _ :: _) => zonesDistinct zs
+    _ => False
+
+  public export
+  AtLeastTwoZones : List Zone -> Type
+  AtLeastTwoZones zs = So (atLeastTwoZones zs)
+
+  ||| What a search clause names: one zone, or a coordination of them.
+  ||| Each named zone is searched per [CR#701.23a].
+  |||
+  ||| The coordination is ORDINARY COORDINATION AT THE ZONE SORT and no
+  ||| marked union row, per
+  ||| `docs/decisions/kind-index-joins-union-marking-is-spelling.md` -- the
+  ||| same `List (ZoneExpr bs)` the event lookback's origin payload takes,
+  ||| and the reason the fixed graveyard-hand-library sweep is gone rather
+  ||| than kept beside it: that was a named row for one phrasing.
+  ||| It is where "and/or" earns a constructor. At an object DESCRIPTION
+  ||| the word coordinates alternatives one referent may answer, which is
+  ||| `Predicate.Or` and is already written ("search your library for up
+  ||| to two basic land cards and/or Gate cards" is one zone and a
+  ||| disjoined description); here the arms are PLACES, the clause looks
+  ||| in every one of them [CR#701.23a], and the count it finds is a count
+  ||| of CARDS rather than one per zone [CR#701.23d], so the list is the
+  ||| whole of the construction and no per-zone quantity rides it.
+  ||| "Search your graveyard, hand, and library" and "search your
+  ||| graveyard, hand and/or library" are one term under two spellings for
+  ||| exactly that reason.
+  ||| The possessor is written ONCE over the whole coordination -- "your
+  ||| graveyard, hand and/or library", "that player's graveyard, hand, and
+  ||| library" -- and every printed line shares it, so it sits beside the
+  ||| list and announces once. `Nothing` is the possessorless spelling; no
+  ||| supported line writes one, and it is the honest shape for a zone
+  ||| [CR#400.1] holds in common.
   public export
   data SearchScope : Bindings -> Type where
     OneZone : (z : ZoneExpr bs) -> SearchScope bs
-    GraveyardHandLibraryOf : (whose : Noun bs Player) -> SearchScope bs
+    SomeZones : (whose : Maybe (Noun bs Player)) -> (zs : List Zone) ->
+                {auto 0 tw : AtLeastTwoZones zs} -> SearchScope bs
 
-  ||| The sweep fixes no single zone for what it finds.
+  ||| A coordination fixes no single zone for what it finds.
   public export
   searchZone : {0 bs : Bindings} -> SearchScope bs -> Maybe Zone
   searchZone (OneZone z) = Just (zoneSort z)
-  searchZone (GraveyardHandLibraryOf _) = Nothing
+  searchZone (SomeZones _ _) = Nothing
 
   public export
   searchDelta : {bs : Bindings} -> SearchScope bs -> List Binding
   searchDelta (OneZone z) = zoneDelta z
-  searchDelta (GraveyardHandLibraryOf whose) = nounDelta whose
+  searchDelta (SomeZones Nothing _) = []
+  searchDelta (SomeZones (Just whose) _) = nounDelta whose
 
   public export
   nomIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
@@ -2867,6 +2980,8 @@ mutual
   anchorPhrase (EachOf _) = False
   anchorPhrase (Both _ _) = False
   anchorPhrase (EitherOf l r) = anchorPhrase l && anchorPhrase r
+  anchorPhrase (BothOf _ _) = False
+  anchorPhrase (EachOfBoth _) = False
   anchorPhrase (LibrarySlice _ _ _) = False
   anchorPhrase (SomeOf _ _ _) = False
   anchorPhrase (NamesAgree _ grp) = anchorPhrase grp
@@ -2921,6 +3036,8 @@ mutual
   choosable (EachOf _) = False
   choosable (Both _ _) = False
   choosable (EitherOf _ _) = False
+  choosable (BothOf _ _) = False
+  choosable (EachOfBoth _) = False
   choosable (LibrarySlice _ _ _) = False
   choosable (SomeOf _ _ _) = False
   choosable (NamesAgree _ grp) = choosable grp
@@ -2977,6 +3094,8 @@ mutual
   groupMention (EachOf _) = False
   groupMention (Both _ _) = False
   groupMention (EitherOf _ _) = False
+  groupMention (BothOf _ _) = False
+  groupMention (EachOfBoth _) = False
   groupMention (LibrarySlice _ _ _) = True
   groupMention (SomeOf _ _ _) = False
   groupMention (NamesAgree _ grp) = groupMention grp
@@ -2997,6 +3116,19 @@ mutual
   public export
   GroupMention : Noun bs k -> Type
   GroupMention {bs} {k} n = So (groupMention n)
+
+  ||| What the trailing "each" may distribute over: a coordinated pair
+  ||| and nothing else. The distributive reads the ARMS, so there has to
+  ||| be a written pair of them; every other mention names one referent
+  ||| or one group, and a group's distributive is `Each`/`EachOf`.
+  public export
+  coordinatedPair : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  coordinatedPair (BothOf _ _) = True
+  coordinatedPair _ = False
+
+  public export
+  CoordinatedPair : Noun bs k -> Type
+  CoordinatedPair {bs} {k} n = So (coordinatedPair n)
 
   ||| Which mentions write their own headcount: the two that carry a
   ||| `Quantity` over their own description. A partitive counts a slice of a
@@ -3698,6 +3830,8 @@ mutual
   costNounOk (NamesAgree _ grp) = costNounOk grp
   costNounOk (Both _ _) = False
   costNounOk (EitherOf l r) = costNounOk l && costNounOk r
+  costNounOk (BothOf _ _) = False
+  costNounOk (EachOfBoth _) = False
   costNounOk (LibrarySlice _ _ _) = True
   costNounOk (SomeOf _ _ grp) = costNounOk grp
   costNounOk TheRest = True
@@ -3733,6 +3867,8 @@ mutual
   nounIsYou (NamesAgree _ _) = False
   nounIsYou (Both _ _) = False
   nounIsYou (EitherOf _ _) = False
+  nounIsYou (BothOf _ _) = False
+  nounIsYou (EachOfBoth _) = False
   nounIsYou (LibrarySlice _ _ _) = False
   nounIsYou (SomeOf _ _ _) = False
   nounIsYou TheRest = False
@@ -3768,6 +3904,8 @@ mutual
   nounTargeted (NamesAgree _ grp) = nounTargeted grp
   nounTargeted (Both l r) = nounTargeted l || nounTargeted r
   nounTargeted (EitherOf l r) = nounTargeted l || nounTargeted r
+  nounTargeted (BothOf l r) = nounTargeted l || nounTargeted r
+  nounTargeted (EachOfBoth p) = nounTargeted p
   nounTargeted (LibrarySlice _ _ _) = False
   nounTargeted (SomeOf _ _ grp) = nounTargeted grp
   nounTargeted TheRest = False
@@ -3998,6 +4136,8 @@ mutual
   moveIntro p (NamesAgree _ grp) z = moveIntro p grp z
   moveIntro p nn@(Both _ _) z = nomIntro nn
   moveIntro p nn@(EitherOf _ _) z = nomIntro nn
+  moveIntro p nn@(BothOf _ _) z = nomIntro nn
+  moveIntro p nn@(EachOfBoth _) z = nomIntro nn
   moveIntro p nn@(LibrarySlice _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p nn@(SomeOf _ _ _) z = setZoneHead p z (nomIntro nn)
   moveIntro p TheRest z = groupSpent bs
@@ -4091,6 +4231,10 @@ mutual
   nounZone (NamesAgree _ grp) = nounZone grp
   nounZone (Both _ _) = Nothing
   nounZone (EitherOf _ _) = Nothing
+  -- the pair's place is its arms' where they agree; a phrase naming
+  -- two zones names no one zone [CR#109.2a].
+  nounZone (BothOf l r) = if nounZone l == nounZone r then nounZone l else Nothing
+  nounZone (EachOfBoth p) = nounZone p
   nounZone (LibrarySlice _ _ _) = Just Library
   nounZone (SomeOf _ _ grp) = nounZone grp
   nounZone TheRest = zoneOfGroup bs
@@ -4128,6 +4272,8 @@ mutual
   nounTy (NamesAgree _ grp) = nounTy grp
   nounTy (Both _ _) = Nothing
   nounTy (EitherOf _ _) = Nothing
+  nounTy (BothOf l r) = if nounTy l == nounTy r then nounTy l else Nothing
+  nounTy (EachOfBoth p) = nounTy p
   nounTy (LibrarySlice _ _ _) = Nothing
   nounTy (SomeOf _ d grp) = sliceTy d grp
   nounTy TheRest = tyOfGroup bs
@@ -4164,6 +4310,10 @@ mutual
   nounTys (NamesAgree _ grp) = nounTys grp
   nounTys (SomeOf _ d grp) = SoleTy (sliceTy d grp)
   nounTys (Both l r) = JoinTy (nounTys l) (nounTys r)
+  -- the pair is same-kinded and so names one description, its arms'
+  -- where they agree; `SoleTy`, never `JoinTy`, which indexes a join.
+  nounTys (BothOf l r) = SoleTy (if nounTy l == nounTy r then nounTy l else Nothing)
+  nounTys (EachOfBoth p) = nounTys p
   nounTys n = SoleTy (nounTy n)
 
   public export
@@ -4181,6 +4331,8 @@ mutual
   nounPlur (EachOf grp) = ManyOf
   nounPlur (NamesAgree _ grp) = nounPlur grp
   nounPlur (Both _ _) = ManyOf
+  nounPlur (BothOf _ _) = ManyOf
+  nounPlur (EachOfBoth _) = ManyOf
   nounPlur (EitherOf l r) = nounPlur l
   nounPlur (LibrarySlice _ amt whose) = outputPlur (nounPlur whose) (amtPlur amt)
   nounPlur (SomeOf q _ _) = quantPlur q

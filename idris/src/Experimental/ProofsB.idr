@@ -97,11 +97,40 @@ badHeadlessDisjunct Oh impossible
 
 
 ||| "in your hand or in your graveyard"
-||| The parallel demand about place: this projection names one zone for both alternatives.
+||| The parallel demand about place: this projection names one zone for both
+||| alternatives. It stands after the type half of the same demand was
+||| relaxed, and the two halves part for a reason. A head word carries the
+||| type it presupposes ([CR#205.3c] correlates a subtype to its own card
+||| type), so alternatives that each write a head may name different types
+||| and the phrase presupposes none. A head word does NOT carry a place:
+||| [CR#109.2a] locates a card-worded description by the zone the phrase
+||| states, and
+||| `phraseZone` defaults an unstated one to the battlefield -- so a pair of
+||| arms naming two zones would project none and be read onto the
+||| battlefield, which is a mis-placement and not a widening. Retiring it
+||| needs a union-valued `seedZone`, not a deleted gate.
+||| The same refusal answers "target spell or permanent" (the Lace cycle,
+||| Blind Seer, Aether Gust and kin): a spell is on the stack [CR#109.2b]
+||| and a permanent on the battlefield, so that phrase is this one wearing
+||| a different head. It does NOT answer "from your graveyard or from
+||| exile" (Doc Aurlock): casting is history rather than a location, so
+||| `CastFrom` seeds no zone and those arms are parallel already.
 public export
 badCrossZoneDisjunction : Unspellable (Predicate [] Object) (\ok =>
   Or [InZone Macros.handZ, InZone Macros.graveyardZ] {pd = ok})
 badCrossZoneDisjunction Oh impossible
+
+
+||| "spell or permanent"
+||| The cross-zone refusal at the union subject the Lace cycle wants: a
+||| spell is on the stack [CR#109.2b], a permanent on the battlefield, and
+||| one phrase names one place [CR#109.2a]. Not a kind question -- both arms
+||| are objects -- and not a headedness one; the projection is the whole of
+||| what refuses it.
+public export
+badSpellOrPermanentSubject : Unspellable (Predicate [] Object) (\ok =>
+  Or [Macros.spell, Permanent] {pd = ok})
+badSpellOrPermanentSubject Oh impossible
 
 
 

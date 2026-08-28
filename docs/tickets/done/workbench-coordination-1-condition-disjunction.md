@@ -203,5 +203,8 @@ the gates are asserted by the scratch probes above and documented at their site.
 - The closure grid: this round moved no `negatable` cell — `OrCond` is a
   `Condition` constructor, and that census is over `Predicate`.
 - Pre-existing gate defect, NOT this round's and untouched: `cargo xtask cite
-  check` reports 1 stale, `UNLOCKED 103.3` at
-  `docs/tickets/planned/workbench-turn-structure-and-procedures.md:417`.
+  check` reported 1 stale — an unlocked opening-hand rule cited in
+  `docs/tickets/planned/workbench-turn-structure-and-procedures.md`.
+  RESOLVED since; `cite check` reports 0 stale as of 2026-08-27. (The rule
+  number was written bare here, which the compliance checker flags in its own
+  right; rephrased.)

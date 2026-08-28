@@ -1050,11 +1050,21 @@ searchLibraryForCount : (q : Quantity bs) -> (p : Predicate bs Object) ->
 searchLibraryForCount q p = Search You (OneZone yourLibrary) q p {zf}
 
 ||| "Search <player>'s graveyard, hand, and library for …": the three-zone
-||| sweep, possessor-anchored [CR#701.23a].
+||| sweep, possessor-anchored [CR#701.23a], now written as the ordinary
+||| coordination the sort takes.
 public export
 searchZonesOf : (whose : Noun bs Player) -> (p : Predicate bs Object) ->
                 {auto 0 zf : ZoneFree p} -> Effect bs
-searchZonesOf whose p = Search You (GraveyardHandLibraryOf whose) (exactly 1) p {zf}
+searchZonesOf whose p =
+  Search You (SomeZones (Just whose) [Graveyard, Hand, Library]) (exactly 1) p {zf}
+
+||| "Search your library and/or graveyard for …": the two-zone
+||| coordination, the "and/or" family's commonest arity.
+public export
+searchLibraryOrGraveyard : (p : Predicate bs Object) ->
+                           {auto 0 zf : ZoneFree p} -> Effect bs
+searchLibraryOrGraveyard p =
+  Search You (SomeZones (Just You) [Library, Graveyard]) (exactly 1) p {zf}
 
 ||| "<player> puts <it> into/onto <zone>": the agentive placement clause.
 public export
