@@ -469,6 +469,16 @@ Standard constraints apply.
 
 ## Ruling (user, 2026-08-26): cross-ability chosen reads are a forward obligation, discharged at the card boundary
 
+**AMENDED (user, 2026-08-27, confirming choice-A's finding): the telescope IS
+the forward-obligation mechanism.** The face law and the `abIntro` collapse are
+retired unbuilt: the ruling's semantic content — a choice is forward, read by a
+later ability of the same card, [CR#607.2d]'s linkage — is already enforced in
+the forward direction by `staticChoiceIntro`'s export through the telescope,
+and the discharge half ("every chooser finds a later reader") refuses no rule
+([CR#607.5a]: an unlinked read is inert, not illegal; an unread choice is
+legal), so under pins-refuse-rules-impossibility-only it is unbuyable. The
+HYBRID pin stands; ProofsAnaphora stands; no card-boundary So-gate exists.
+
 The `EntersChoice → OfChosen` cross-ability linkage stops being telescope
 threading (`staticChoiceIntro`'s export through `abIntro` retires; `abIntro`
 collapses toward constant). Instead: the choice ability mints a FORWARD
