@@ -241,3 +241,199 @@ one would be a preference. The explicit spelling (`That w` /
   obliges nothing else.
 - The residue re-measurement across ALL rows (ticket acceptance) belongs
   to round 2, after rows 2–4 land.
+
+## As landed — round 2 of 2 (rows 2, 3, 4, and the closing re-measurement)
+
+`idris/scripts/build`: **23/23, 0 errors, 0 warnings** (clean `build/`).
+`cite check --list-noncompliant` empty; `cite check` 0 stale over 18,483
+citations; `cite bless` registered no new rule; all 11 audited sites read
+against their rule text. Every count below re-measured 2026-08-27 over
+`data/derived/cards.jsonl` filtered `select(.supported)` = 32,568 faces,
+reminder text stripped.
+
+### Row 2 — `ItRole`: the premise is wrong, and nothing lands
+
+**The damage-replacement family carries no pronoun read.** Re-measured:
+**60 faces / 62 occurrences** of "If [X] would deal damage …, IT deals …
+instead" (the ticket's 60 is exact), of which **42** have an
+object-compatible nearer mention in the recipient span and **0** are role
+reversals — all 60 distinct sentences read the pronoun as the source, and
+[CR#614.6] ("A modified event occurs instead", read verbatim from
+`data/rules/cr.txt`) is why.
+
+But the family is already spelled by `StaticEffect.Scales` /
+`Redirects` / `RedirectsFrom` / `PreventsFrom`, which write the source
+once as `src`/`by` and restate it in the replacement. The printed "it" is
+those constructors' own spelling — this is the ticket's ROW 1 shape (a
+de-pronominalization), landed long before this ticket, and `ProofsF`'s
+`badScaleShiftByThatMuch` already quotes it verbatim. There is no gate to
+narrow and no candidate set to count over, so **no `ItRole` constructor
+lands**: building one would be a constructor no printed line writes.
+
+Recorded instead as evidence: **Inquisitor's Flail** benches whole, both
+of its replacement rows (`Everywhere` scope and a named `AttachHost`
+recipient) plus `Equip {2}`, with zero pronoun reads in the term. City on
+Fire is the same `Multiplied Tripled` row `fieryEmancipation` already
+benches and was not duplicated; Blind Fury's first sentence ("All
+creatures lose trample until end of turn") wants a lose-one-named-ability
+row that does not exist, and is a remainder below.
+
+### Row 3 — `Noun.ItOtherThan`, the co-argument exclusion
+
+`ItOtherThan : (co : Bindings) -> (rest : Bindings) -> {auto 0 sp : bs =
+co ++ rest} -> {auto 0 ok : countOnes Object rest = 1} -> Noun bs Object`.
+`It`'s own count asked of a NAMED SEGMENT of the prefix, where the three
+existing narrowings ask a per-binding question of the whole of it. The
+segment is written as the split equation and never as a position, so
+nothing here indexes a slot list; `countBySplit` bounds the narrowed
+count by the whole prefix's.
+
+The exclusion is rules-entailed, not linguistic: [CR#509.1a] has the
+DEFENDING player choose blockers from among the creatures they control
+and, for each, a creature to block that is attacking that player, while
+[CR#508.1a] has the ACTIVE player choose attackers from among the
+creatures THEY control. A creature therefore never blocks itself.
+
+- **Landing site: the forced-block family**, re-measured at **6 faces**
+  (Avalanche Tusker, Feral Contest, Fighter Class, Impetuous Devils,
+  Monstrous Step, Tower Above). `Effect.Deontic`'s `DeonticCounterpart`
+  is a real constructor and consumes the narrowing directly; the macro
+  `Macros.mustBlockIt` owns the segment (`nounDelta n`), on `ItAt`'s
+  macro-only ground.
+- **Principle-B zero re-probed and holds.** 26 bare-"it" occurrences sit
+  in an object slot after a co-argument verb (block / attach / fight /
+  deal-damage-to) and in every one the pronoun names the other
+  participant, never the co-argument; reflexive coreference is spelled
+  "itself" throughout (23 occurrences over 22 faces). **0** supported
+  lines corefer a non-reflexive object with its own co-argument.
+- **The attach family does NOT land, and the reason is not the anaphor.**
+  Re-measured at **65 faces / 66 occurrences** (the ticket's 63 is low by
+  2–3; the `bare-it` ticket's 64/61 is the same frame). There is **no
+  attach EFFECT constructor in the grammar at all** — `AttachChoice` is
+  the as-becomes-attached chooser and `AttachHost` is the noun, and
+  neither is "attach [n] to [host]". Per the brief's own instruction the
+  narrowing was built where a real constructor can consume it, and the
+  missing constructor is a remainder. Note that when it lands, most of
+  the family is `ItToken`'s (the "create a token, then attach this
+  Equipment to it" subfamily) and only the rest is `ItOtherThan`'s.
+- Bruna, Light of Alabaster is the shape the exclusion must NOT reach:
+  "attach to IT any number of Auras" nests a description inside the
+  object, and that description is a different verb's argument. The
+  constructor takes its segment as a written term precisely so that a
+  nested description cannot inherit an enclosing clause's exclusion.
+
+### Row 4 — `Noun.ItPrior`, the previous-sibling delta
+
+`ItPrior : (made : Bindings) -> (before : Bindings) -> {auto 0 sp : bs =
+made ++ before} -> {auto 0 ok : countOnes Object made = 1} -> Noun bs
+Object` — `ItOtherThan`'s twin at the other end of the same split.
+`Effects` already hands each member `effIntro e = effDelta e ++ bs`, so
+the preceding member's delta is a segment the CONSTRUCTION names
+[CR#608.2c] (whose own example, "Destroy target creature. It can't be
+regenerated", is this very read). `Macros.itPrior` takes the preceding
+clause and reads `effDelta` off it; the clause is written twice and the
+two are held together by the type, since the pronoun's context is that
+member's `effIntro` and no other clause's. No reordering of `bs`.
+
+It is not clause recency: recency ranks the whole prefix and takes a
+winner, where this counts one segment and refuses a tie — two singular
+objects in `made` refuse, and a `made` holding none refuses too, leaving
+the bare `It` as the spelling. **The macro must be written for a
+coordination's own immediate neighbour and nothing else**; writing it
+across arbitrary sentence distance would be recency by the back door.
+
+Re-measured families: **38 faces** "tap [X] and put a stun counter on it"
+(Stunning Shot's), **31 faces** "create … token, then put a counter on
+it", **46 faces** for the tap-and-any-counter shape, and **24
+occurrences** of the label-free "[trigger], put [n] counters on target X.
+It [verb]s …" shape. The first two are also admitted by row 5's
+`ItVerbed "Tap"` and `ItToken`; what `ItPrior` adds is the LABEL-FREE
+case, where the producing clause leaves no stamp and no origin.
+
+### Benches
+
+| Witness | Kind | What it proves |
+|---|---|---|
+| `feralContest` | whole Card | `ItOtherThan` via `Macros.mustBlockIt`; the bare `It` there counts two battlefield creatures, one of them the blocker |
+| `thranduilsCompany` | whole Card | `ItPrior` at the LABEL-FREE case — both candidates battlefield, no stamp, no origin; nothing else in the grammar resolves it |
+| `stunningShot` | whole Card | `ItPrior` at the ticket's named within-sentence coordination |
+| `inquisitorsFlail` | whole Card | the damage-replacement family spelled with zero pronoun reads (row 2's finding) |
+
+### Closing re-measurement — the residue
+
+Re-derived from the method in `done/workbench-anaphora-a-bare-it.md`
+(reminder text stripped, scope = the ability paragraph up to the "it",
+candidate = a distinct singular object mention announced before it). The
+original round's evidence was session-local and deliberately not carried,
+so this is a re-derived frame and its raw totals differ from the
+original's by ~11%:
+
+| stage | this frame | original |
+|---|---|---|
+| bare-`it` occurrences | 7,755 | 8,724 |
+| ≥2 distinct singular object mentions before it | 2,467 | 3,105 |
+| different carrier → `ItAt` resolves | 1,282 | ≈1,656 |
+| **same carrier** | **1,185** (968 faces) | ≈886 after hand-verification |
+
+Classifying those 1,185 same-carrier occurrences against every gate the
+two rounds landed:
+
+| admitted by | occ |
+|---|---|
+| row 5 `ItVerbed` (all labels) | 297 |
+| row 4 `ItPrior` | 177 |
+| row 1 `CopyExcept` / `ControllerSacrifices` | 63 |
+| row 2 constructor spelling (`Scales`/`Redirects`/…) | 95 |
+| row 5 `ItToken` | 47 |
+| row 3 attach — narrowing ready, **constructor missing** | 41 |
+| **still REFUSED** | **442** (365 faces) |
+
+**442 same-carrier occurrences over 365 faces is the number this program
+leaves refused**, and it is an UPPER bound — the classifier is a regex and
+cannot see through a coordination whose last clause names no mention, so
+lines `ItVerbed`/`ItPrior` do admit (Alchemax Slayer-Bots is one) are
+counted here as refused. Applying the original round's hand-verified
+genuine-ambiguity rate (2,541 / 3,105 = 81.8%) puts the genuinely
+ambiguous remainder at **≈362 occurrences**, against the ADR's recorded
+**≈886**. The program removes roughly 60% of the residue it was sized
+against; the double-digit estimate in this ticket's body was optimistic
+by an order of magnitude.
+
+Named families inside the 442:
+
+- **185 — self-trigger header + a target in the same clause** (Perrie's
+  family). Refused BY DESIGN, row 6: both candidates are battlefield
+  creatures and the rules admit both. This is now the single largest
+  block and it is the one clause-recency was held in reserve for.
+- **44 — attach / equip.** Not an anaphora refusal: the narrowing exists
+  and the attach effect constructor does not.
+- **50 — counter-placement followed by a second mention**, where the
+  preceding clause names two mentions or none, so `ItPrior`'s segment
+  does not count to one.
+- **19 becomes-a-copy, 17 damage, 16 block relations, 7 exile-then-return,
+  2 fight, 102 other.**
+
+### Remainders
+
+- **No attach EFFECT constructor** ("attach [n] to [host]", 65 faces).
+  The largest single unwritable family in the residue and the biggest
+  single win available; `ItToken` and `ItOtherThan` are both already
+  waiting for it.
+- **`ItRole` is unbuilt and has no landing site.** The damage-replacement
+  family it was sized against is constructor-spelled. If a role read is
+  wanted later it needs a construction that announces two participants of
+  one event, and `eventIntro` announces exactly one per event today.
+- **A bare `It` in `DeonticCounterpart` can still resolve to the Deontic
+  subject** when the subject's delta is the only candidate — a residual
+  rules-impossible over-generation ("target creature blocks itself"), and
+  a pin round of its own. `Macros.mustBlockIt` is the correct spelling;
+  nothing on the bench writes the bad term.
+- **No lose-one-named-ability row** ("All creatures lose trample until
+  end of turn"), which is why Blind Fury is unbenched. `LosesAllAbilities`
+  and `LosesEveryType` are the neighbours.
+- **`remarkTest` answers `Nothing` for both segment reads.** A per-binding
+  test would reach the candidates the segment excludes, so a subject
+  written as a segment read tells its following clauses nothing. Widening
+  it needs a segment-aware remark, not a test.
+- **`Macros.itPrior` writes its neighbour clause twice.** Type-checked, so
+  it cannot drift, but a coordination macro would retire the duplication.
