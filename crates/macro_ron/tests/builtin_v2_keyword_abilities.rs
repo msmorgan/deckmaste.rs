@@ -2,10 +2,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::DeterminativeFusedHeadLicense;
-use macro_ron::v2::DeterminativeNominalLicense;
-use macro_ron::v2::DeterminativeNumberLicense;
-use macro_ron::v2::DeterminativePhraseNumber;
 use macro_ron::v2::GrammarRecipe;
 use macro_ron::v2::NormalizedDeclaration;
 use macro_ron::v2::SpellingPart;
@@ -140,7 +136,7 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
 }
 
 #[test]
-fn attachment_keywords_declare_their_participial_determinative_rows() {
+fn attachment_keywords_declare_their_participial_adjective_surfaces() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let declarations = read_builtin_v2(workspace_root.join("plugins/builtin_v2"))
         .expect("builtin-v2 declarations must load");
@@ -153,28 +149,10 @@ fn attachment_keywords_declare_their_participial_determinative_rows() {
             .grammar()
             .expect("keyword declaration contributes its primary grammar");
         assert_eq!(grammar.recipe(), &GrammarRecipe::FixedKeyword);
-        let determinative = grammar
-            .determinative()
-            .expect("attachment keyword contributes an open Determinative row");
-        assert_eq!(
-            determinative.number_license(),
-            DeterminativeNumberLicense::SingularOnly
-        );
-        assert_eq!(
-            determinative.nominal_license(),
-            DeterminativeNominalLicense::BareSingularNoun
-        );
-        assert_eq!(
-            determinative.fused_head_license(),
-            DeterminativeFusedHeadLicense::NominalOnly
-        );
-        let [realization] = determinative.realizations() else {
-            panic!("{name} contributes one participial realization")
-        };
-        assert_eq!(realization.surface(), surface);
-        assert_eq!(
-            realization.phrase_number(),
-            Some(DeterminativePhraseNumber::Singular)
-        );
+        let adjective = grammar
+            .participial_adjective()
+            .expect("attachment keyword contributes a participial adjective");
+        assert_eq!(adjective.feature(), SurfaceFeature::Participle);
+        assert_eq!(adjective.text(), surface, "{name}");
     }
 }

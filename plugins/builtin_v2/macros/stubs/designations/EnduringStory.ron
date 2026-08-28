@@ -1,0 +1,8 @@
+// An enduring story is a player designation that lasts for the rest of the game [CR#702.195a..702.195b].
+Designation(
+    name: "EnduringStory",
+    params: [],
+    spelling: "an enduring story",
+    grammar: FixedTerm(surface: "an enduring story"),
+    body: DesignationDecl(name: "EnduringStory", definition: Stored(scope: Player, shape: Flag, uniqueness: PerPlayer, persistence: Permanently)),
+)

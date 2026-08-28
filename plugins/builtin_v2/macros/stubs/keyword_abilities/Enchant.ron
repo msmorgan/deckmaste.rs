@@ -4,13 +4,6 @@ KeywordAbility(
     spelling: "enchant <Param(0)>",
     grammar: FixedKeyword(
         surface: "enchant",
-        determinative: (
-            number_license: SingularOnly,
-            nominal_license: BareSingularNoun,
-            fused_head_license: NominalOnly,
-            realizations: [
-                (surface: "enchanted", phrase_number: Singular),
-            ],
-        ),
+        participial_adjective: (surface: "enchanted",),
     ),
 )

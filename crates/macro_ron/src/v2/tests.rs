@@ -816,145 +816,55 @@ KeywordAction(
 }
 
 #[test]
-fn fixed_keyword_can_contribute_a_separate_determinative_row() {
+fn fixed_keyword_can_derive_a_separate_participial_adjective() {
     let declaration = read_str(
         source_path("Equip.ron"),
         r#"
 KeywordAbility(
-    name: "Equip",
-    spelling: "equip",
+    name: "Turn",
+    spelling: "turn",
     grammar: FixedKeyword(
-        surface: "equip",
-        determinative: (
-            number_license: SingularOnly,
-            nominal_license: BareSingularNoun,
-            fused_head_license: NominalOnly,
-            realizations: [(surface: "equipped", phrase_number: Singular)],
-        ),
+        surface: "turn",
+        participial_adjective: (),
     ),
 )
 "#,
     )
-    .expect("a keyword line may separately declare its participial determiner");
+    .expect("a keyword line may separately declare its participial adjective");
     let grammar = declaration.grammar().expect("grammar normalizes");
     assert_eq!(grammar.recipe(), &GrammarRecipe::FixedKeyword);
     assert_eq!(grammar.surfaces().len(), 1);
-    assert_eq!(grammar.surfaces()[0].text(), "equip");
-    let determinative = grammar
-        .determinative()
-        .expect("the supplemental row is retained separately from FixedKeyword");
-    assert_eq!(
-        determinative.number_license(),
-        DeterminativeNumberLicense::SingularOnly
-    );
-    assert_eq!(
-        determinative.nominal_license(),
-        DeterminativeNominalLicense::BareSingularNoun
-    );
-    assert_eq!(
-        determinative.fused_head_license(),
-        DeterminativeFusedHeadLicense::NominalOnly
-    );
-    let [realization] = determinative.realizations() else {
-        panic!("one participial realization is retained")
-    };
-    assert_eq!(realization.surface(), "equipped");
-    assert_eq!(
-        realization.phrase_number(),
-        Some(DeterminativePhraseNumber::Singular)
-    );
-    assert_eq!(realization.following_onset(), None);
-    assert_eq!(realization.onset(), Onset::Vowel);
+    assert_eq!(grammar.surfaces()[0].text(), "turn");
+    let adjective = grammar
+        .participial_adjective()
+        .expect("the supplemental adjective is retained separately from FixedKeyword");
+    assert_eq!(adjective.feature(), SurfaceFeature::Participle);
+    assert_eq!(adjective.text(), "turned");
+    assert_eq!(adjective.onset(), Onset::Consonant);
 }
 
 #[test]
-fn determinative_fused_head_license_is_required() {
-    let error = parse_error(
+fn fixed_keyword_participial_adjective_can_override_its_derived_surface() {
+    let declaration = read_str(
+        source_path("Custom.ron"),
         r#"
 KeywordAbility(
-    name: "Equip",
-    spelling: "equip",
+    name: "Custom",
+    spelling: "custom",
     grammar: FixedKeyword(
-        surface: "equip",
-        determinative: (
-            number_license: SingularOnly,
-            nominal_license: BareSingularNoun,
-            realizations: [(surface: "equipped", phrase_number: Singular)],
-        ),
+        surface: "custom",
+        participial_adjective: (surface: "custom-made",),
     ),
 )
 "#,
-    );
-    assert!(error.to_string().contains("fused_head_license"));
-}
-
-#[test]
-fn determinative_realizations_must_be_available_and_nonoverlapping() {
-    let empty = validation(
-        r#"
-KeywordAbility(
-    name: "Equip",
-    spelling: "equip",
-    grammar: FixedKeyword(
-        surface: "equip",
-        determinative: (
-            number_license: SingularOnly,
-            nominal_license: BareSingularNoun,
-            fused_head_license: NominalOnly,
-            realizations: [],
-        ),
-    ),
-)
-"#,
-    );
-    assert_eq!(empty, ValidationError::EmptyDeterminativeRealizations);
-
-    let incompatible = validation(
-        r#"
-KeywordAbility(
-    name: "Equip",
-    spelling: "equip",
-    grammar: FixedKeyword(
-        surface: "equip",
-        determinative: (
-            number_license: SingularOnly,
-            nominal_license: BareSingularNoun,
-            fused_head_license: NominalOnly,
-            realizations: [(surface: "equipped", phrase_number: Plural)],
-        ),
-    ),
-)
-"#,
-    );
-    assert!(matches!(
-        incompatible,
-        ValidationError::IncompatibleDeterminativeRealization { .. }
-    ));
-
-    let overlap = validation(
-        r#"
-KeywordAbility(
-    name: "Article",
-    spelling: "a",
-    grammar: FixedKeyword(
-        surface: "a",
-        determinative: (
-            number_license: SingularOnly,
-            nominal_license: CountNominal,
-            fused_head_license: FusedHead,
-            realizations: [
-                (surface: "a", phrase_number: Singular),
-                (surface: "an", following_onset: Vowel),
-            ],
-        ),
-    ),
-)
-"#,
-    );
-    assert!(matches!(
-        overlap,
-        ValidationError::OverlappingDeterminativeRealizations { .. }
-    ));
+    )
+    .expect("an authored participial adjective surface normalizes");
+    let adjective = declaration
+        .grammar()
+        .and_then(GrammarRow::participial_adjective)
+        .expect("the authored participial adjective is retained");
+    assert_eq!(adjective.feature(), SurfaceFeature::Participle);
+    assert_eq!(adjective.text(), "custom-made");
 }
 
 #[test]

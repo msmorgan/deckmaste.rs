@@ -4,13 +4,6 @@ KeywordAbility(
     spelling: "fortify <Param(0)>",
     grammar: FixedKeyword(
         surface: "fortify",
-        determinative: (
-            number_license: SingularOnly,
-            nominal_license: BareSingularNoun,
-            fused_head_license: NominalOnly,
-            realizations: [
-                (surface: "fortified", phrase_number: Singular),
-            ],
-        ),
+        participial_adjective: (surface: "fortified",),
     ),
 )

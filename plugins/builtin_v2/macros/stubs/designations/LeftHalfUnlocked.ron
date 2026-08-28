@@ -1,0 +1,8 @@
+// Left half unlocked is a permanent designation [CR#709.5c].
+Designation(
+    name: "LeftHalfUnlocked",
+    params: [],
+    spelling: "left half unlocked",
+    grammar: FixedTerm(surface: "left half unlocked"),
+    body: DesignationDecl(name: "LeftHalfUnlocked", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+)

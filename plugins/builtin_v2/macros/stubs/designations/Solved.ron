@@ -1,0 +1,8 @@
+// Solved is a permanent designation [CR#719.3b].
+Designation(
+    name: "Solved",
+    params: [],
+    spelling: "solved",
+    grammar: FixedTerm(surface: "solved"),
+    body: DesignationDecl(name: "Solved", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+)

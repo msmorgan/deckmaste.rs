@@ -1638,6 +1638,8 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
         let mut position_slots = Vec::new();
         let mut kind_slots = Vec::new();
         let mut param_slots = Vec::new();
+        let mut param_policy_slots = Vec::new();
+        let mut feature_slots = Vec::new();
         while !content.is_empty() {
             reject_doc_comment(&content)?;
             let slot = content.call(Ident::parse_any)?;
@@ -1655,24 +1657,33 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                     kind_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
                 }
                 "params" => {
-                    let params_content;
-                    bracketed!(params_content in content);
-                    let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
-                        &params_content,
-                        Ident::parse_any,
-                    )?
-                    .into_iter()
-                    .collect();
-                    param_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
+                    if content.peek(syn::token::Bracket) {
+                        let params_content;
+                        bracketed!(params_content in content);
+                        let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
+                            &params_content,
+                            Ident::parse_any,
+                        )?
+                        .into_iter()
+                        .collect();
+                        param_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
+                    } else {
+                        let value = content.call(Ident::parse_any)?;
+                        param_policy_slots.push(crate::model::GeneratedIdentSlot { slot, value });
+                    }
                 }
                 "position" => {
                     let value = content.call(Ident::parse_any)?;
                     position_slots.push(crate::model::GeneratedIdentSlot { slot, value });
                 }
+                "feature" => {
+                    let value = content.call(Ident::parse_any)?;
+                    feature_slots.push(crate::model::GeneratedIdentSlot { slot, value });
+                }
                 _ => {
                     return Err(syn::Error::new(
                         slot.span(),
-                        "declaration_term recipe accepts only `position`, `kinds`, and `params` fields",
+                        "declaration_term recipe accepts only `position`, `kinds`, `params`, and `feature` fields",
                     ));
                 }
             }
@@ -1684,6 +1695,8 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                 position_slots,
                 kind_slots,
                 param_slots,
+                param_policy_slots,
+                feature_slots,
             },
         ));
     }
@@ -1754,7 +1767,6 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
     }
     if recipe == "declaration_determinative" {
         let mut closed_slots = Vec::new();
-        let mut kind_slots = Vec::new();
         while !content.is_empty() {
             reject_doc_comment(&content)?;
             let slot = content.call(Ident::parse_any)?;
@@ -1821,21 +1833,10 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
                     closed_slots
                         .push(crate::model::DeclarationDeterminativeClosedSource { slot, members });
                 }
-                "kinds" => {
-                    let kinds_content;
-                    bracketed!(kinds_content in content);
-                    let kinds = Punctuated::<Ident, Token![,]>::parse_terminated_with(
-                        &kinds_content,
-                        Ident::parse_any,
-                    )?
-                    .into_iter()
-                    .collect();
-                    kind_slots.push(crate::model::DeclarationVerbKindsSource { slot, kinds });
-                }
                 _ => {
                     return Err(syn::Error::new(
                         slot.span(),
-                        "declaration_determinative recipe accepts only `closed` and `kinds` fields",
+                        "declaration_determinative recipe accepts only a `closed` field",
                     ));
                 }
             }
@@ -1845,7 +1846,6 @@ fn parse_generated_codec(input: ParseStream<'_>) -> syn::Result<GeneratedCodecRe
             crate::model::DeclarationDeterminativeSource {
                 recipe,
                 closed_slots,
-                kind_slots,
             },
         ));
     }
@@ -3994,6 +3994,7 @@ mod tests {
                         position = FixedKeyword;
                         kinds = [KeywordAbility];
                         params = [Cost, Quality];
+                        feature = Participle;
                     }
                 }
             ",
@@ -4008,6 +4009,7 @@ mod tests {
         };
         assert_eq!(source.position_slots[0].value, "FixedKeyword");
         assert_eq!(source.kind_slots[0].kinds[0], "KeywordAbility");
+        assert_eq!(source.feature_slots[0].value, "Participle");
         assert_eq!(
             source.param_slots[0]
                 .kinds

@@ -1,0 +1,9 @@
+// Ring-bearer is a permanent designation, one for each player
+// [CR#701.54a,701.54b].
+Designation(
+    name: "RingBearer",
+    params: [],
+    spelling: "Ring-bearer",
+    grammar: FixedTerm(surface: "Ring-bearer"),
+    body: DesignationDecl(name: "RingBearer", definition: Stored(scope: Object, shape: Relation, uniqueness: PerPlayer, persistence: EffectSupplied)),
+)

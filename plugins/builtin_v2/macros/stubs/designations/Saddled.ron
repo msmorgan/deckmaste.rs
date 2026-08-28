@@ -1,0 +1,8 @@
+// Saddled is a permanent designation until end of turn [CR#702.171b].
+Designation(
+    name: "Saddled",
+    params: [],
+    spelling: "saddled",
+    grammar: FixedTerm(surface: "saddled"),
+    body: DesignationDecl(name: "Saddled", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: UntilEndOfTurn)),
+)

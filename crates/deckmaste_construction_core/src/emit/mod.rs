@@ -34,6 +34,29 @@ pub(super) fn onset(value: macro_ron::v2::Onset) -> TokenStream {
     }
 }
 
+pub(super) fn surface_feature(value: macro_ron::v2::SurfaceFeature) -> TokenStream {
+    match value {
+        macro_ron::v2::SurfaceFeature::Bare => {
+            quote! { ::macro_ron::v2::SurfaceFeature::Bare }
+        }
+        macro_ron::v2::SurfaceFeature::ThirdPersonSingular => {
+            quote! { ::macro_ron::v2::SurfaceFeature::ThirdPersonSingular }
+        }
+        macro_ron::v2::SurfaceFeature::Participle => {
+            quote! { ::macro_ron::v2::SurfaceFeature::Participle }
+        }
+        macro_ron::v2::SurfaceFeature::Singular => {
+            quote! { ::macro_ron::v2::SurfaceFeature::Singular }
+        }
+        macro_ron::v2::SurfaceFeature::Plural => {
+            quote! { ::macro_ron::v2::SurfaceFeature::Plural }
+        }
+        macro_ron::v2::SurfaceFeature::Fixed => {
+            quote! { ::macro_ron::v2::SurfaceFeature::Fixed }
+        }
+    }
+}
+
 pub(super) fn emit_form_guard_expression<F>(
     construction: &crate::semantic::ConstructionPlan,
     form_index: usize,

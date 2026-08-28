@@ -413,7 +413,7 @@ fn declaration_determinative_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
             quote! { if let Some(end) = input.word_end(#surface, terminal.right_boundary) { matches.push(LexicalMatch { end, value: Leaf::#ty { value: #ty::Closed(#lemma::#member_name), onset: #onset, following_onset: #following_onset, number_license: #number, fused_head_license: #fused_head, nominal_license: #nominal }, owner: None }); } }
         }));
         {
-            quote! { Lexical::DeclarationDeterminative(#terminal_index) => { let mut matches = Vec::new(); #(#closed)* for (end, reading) in input.declaration_determinative_readings(terminal.right_boundary) { let Some(value) = #ty::declared(reading.id().clone()) else { continue; }; let number_license = match reading.phrase_number() { Some(::macro_ron::v2::DeterminativePhraseNumber::Singular) => DeterminerNumber::SingularOnly, Some(::macro_ron::v2::DeterminativePhraseNumber::Plural) => DeterminerNumber::PluralOnly, None => match reading.number_license() { ::macro_ron::v2::DeterminativeNumberLicense::SingularOnly => DeterminerNumber::SingularOnly, ::macro_ron::v2::DeterminativeNumberLicense::PluralOnly => DeterminerNumber::PluralOnly, ::macro_ron::v2::DeterminativeNumberLicense::Both => DeterminerNumber::Both } }; let following_onset = reading.following_onset().map_or(FeatureConstraint::Any, FeatureConstraint::Exact); let fused_head_license = match reading.fused_head_license() { ::macro_ron::v2::DeterminativeFusedHeadLicense::NominalOnly => FusedHeadLicense::NominalOnly, ::macro_ron::v2::DeterminativeFusedHeadLicense::FusedHead => FusedHeadLicense::FusedHead }; let nominal_license = match reading.nominal_license() { ::macro_ron::v2::DeterminativeNominalLicense::CountNominal => NominalLicense::CountNominal, ::macro_ron::v2::DeterminativeNominalLicense::BareSingularNoun => NominalLicense::BareSingularNoun, ::macro_ron::v2::DeterminativeNominalLicense::MassOrPluralCount => NominalLicense::MassOrPluralCount }; matches.push(LexicalMatch { end, value: Leaf::#ty { value, onset: reading.onset(), following_onset, number_license, fused_head_license, nominal_license }, owner: None }); } matches } }
+            quote! { Lexical::DeclarationDeterminative(#terminal_index) => { let mut matches = Vec::new(); #(#closed)* matches } }
         }
     }).collect()
 }
@@ -612,16 +612,23 @@ fn declaration_term_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                 .kinds()
                 .iter()
                 .map(|kind| crate::emit::declaration_kind(*kind));
-            let params = codec
-                .params()
-                .iter()
-                .map(|param| syn::LitStr::new(param, proc_macro2::Span::call_site()));
+            let params = codec.params().map_or_else(
+                || quote! { None },
+                |params| {
+                    let params = params
+                        .iter()
+                        .map(|param| syn::LitStr::new(param, proc_macro2::Span::call_site()));
+                    quote! { Some(&[#(#params),*]) }
+                },
+            );
+            let feature = crate::emit::surface_feature(codec.feature());
             quote! {
                 Lexical::DeclarationTerm(#terminal_index) => input
                     .declaration_term_readings(
                         #position,
                         &[#(#kinds),*],
-                        &[#(#params),*],
+                        #params,
+                        #feature,
                         terminal.right_boundary,
                     )
                     .into_iter()
@@ -1039,8 +1046,33 @@ mod tests {
             "the matched realization carries its erased right-context condition: {source}",
         );
         assert!(
-            source.contains("reading . following_onset () . map_or (FeatureConstraint :: Any , FeatureConstraint :: Exact)"),
-            "external readings carry the same declaration-data-driven condition: {source}",
+            !source.contains("declaration_determinative_readings"),
+            "a closed-only determinative must not scan undeclared open readings: {source}",
+        );
+    }
+
+    #[test]
+    fn declaration_determinative_rejects_open_declaration_kinds() {
+        let error = crate::generate(quote::quote! {
+            codec Head {
+                generate declaration_determinative {
+                    kinds = [KeywordAbility];
+                }
+            }
+            construction wrapper: Wrapper {
+                element WrapperValue { head: lex Head, }
+                derive number = Values::Singular;
+                derive onset = head.onset;
+                form wrapper = lex(head);
+            }
+            root Wrapper { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("declaration determinatives are closed-only");
+        assert!(
+            error
+                .to_string()
+                .contains("declaration_determinative recipe accepts only a `closed` field"),
+            "{error}",
         );
     }
 

@@ -968,6 +968,7 @@ mod tests {
         Nonterminal(Category),
         AdjacentNonterminal(Category),
         Lexical(Lexical),
+        DeclarationDeterminative,
         DeclarationVerb(FeatureConstraint<Agreement>),
         DeclarationNoun(FeatureConstraint<Number>),
     }
@@ -982,6 +983,9 @@ mod tests {
                 }
                 RulePosition::Lexical(Lexical::DeclarationVerb(_, feature)) => {
                     StableRulePosition::DeclarationVerb(*feature)
+                }
+                RulePosition::Lexical(Lexical::DeclarationDeterminative(_)) => {
+                    StableRulePosition::DeclarationDeterminative
                 }
                 RulePosition::Lexical(Lexical::DeclarationNoun(_, feature)) => {
                     StableRulePosition::DeclarationNoun(*feature)

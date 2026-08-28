@@ -8,10 +8,6 @@ use std::sync::Arc;
 use macro_ron::v2::CustomTailAtom;
 pub use macro_ron::v2::DeclarationIdentity as DeclarationId;
 use macro_ron::v2::DeclarationKind;
-use macro_ron::v2::DeterminativeFusedHeadLicense;
-use macro_ron::v2::DeterminativeNominalLicense;
-use macro_ron::v2::DeterminativeNumberLicense;
-use macro_ron::v2::DeterminativePhraseNumber;
 pub use macro_ron::v2::GrammarPosition;
 use macro_ron::v2::GrammarRecipe;
 use macro_ron::v2::NormalizedDeclaration;
@@ -32,7 +28,6 @@ pub struct DeclarationRecord {
     recipe: Option<GrammarRecipe>,
     surfaces: Vec<(SurfaceFeature, Onset, Arc<str>)>,
     params: Vec<Arc<str>>,
-    determinative: Option<DeterminativeRecord>,
     provenance: PathBuf,
 }
 
@@ -186,24 +181,6 @@ impl VerbInventoryReading {
     }
 }
 
-/// The normalized selection and realization facts for one declaration-backed
-/// Determinative lemma.
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct DeterminativeRecord {
-    number_license: DeterminativeNumberLicense,
-    nominal_license: DeterminativeNominalLicense,
-    fused_head_license: DeterminativeFusedHeadLicense,
-    realizations: Vec<DeterminativeRealizationRecord>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct DeterminativeRealizationRecord {
-    surface: Arc<str>,
-    onset: Onset,
-    phrase_number: Option<DeterminativePhraseNumber>,
-    following_onset: Option<Onset>,
-}
-
 impl DeclarationRecord {
     /// Returns this declaration's category-safe identity.
     #[must_use]
@@ -238,28 +215,6 @@ impl DeclarationRecord {
         }
     }
 
-    /// Returns the declaration's Determinative selection facts, when declared.
-    #[must_use]
-    pub fn determinative_number_license(&self) -> Option<DeterminativeNumberLicense> {
-        self.determinative.as_ref().map(|row| row.number_license)
-    }
-
-    /// Returns the nominal family selected by this declaration-backed
-    /// Determinative, when declared.
-    #[must_use]
-    pub fn determinative_nominal_license(&self) -> Option<DeterminativeNominalLicense> {
-        self.determinative.as_ref().map(|row| row.nominal_license)
-    }
-
-    /// Returns whether this declaration-backed Determinative may head a
-    /// fused partitive, when declared.
-    #[must_use]
-    pub fn determinative_fused_head_license(&self) -> Option<DeterminativeFusedHeadLicense> {
-        self.determinative
-            .as_ref()
-            .map(|row| row.fused_head_license)
-    }
-
     /// Returns the normalized declaration's source path.
     #[must_use]
     pub fn provenance(&self) -> &Path {
@@ -287,65 +242,6 @@ pub struct DeclarationReading {
     feature: SurfaceFeature,
     surface: Arc<str>,
     onset: Onset,
-}
-
-/// One exact surface reading of a declaration-backed Determinative.
-///
-/// The realization conditions are parser-private facts. Materialized syntax
-/// stores only the declaration identity; rendering derives this row again from
-/// the following nominal's number and effective onset.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeterminativeReading {
-    id: DeclarationId,
-    surface: Arc<str>,
-    onset: Onset,
-    number_license: DeterminativeNumberLicense,
-    nominal_license: DeterminativeNominalLicense,
-    fused_head_license: DeterminativeFusedHeadLicense,
-    phrase_number: Option<DeterminativePhraseNumber>,
-    following_onset: Option<Onset>,
-}
-
-impl DeterminativeReading {
-    #[must_use]
-    pub fn id(&self) -> &DeclarationId {
-        &self.id
-    }
-
-    #[must_use]
-    pub fn surface(&self) -> &str {
-        &self.surface
-    }
-
-    #[must_use]
-    pub const fn onset(&self) -> Onset {
-        self.onset
-    }
-
-    #[must_use]
-    pub const fn number_license(&self) -> DeterminativeNumberLicense {
-        self.number_license
-    }
-
-    #[must_use]
-    pub const fn nominal_license(&self) -> DeterminativeNominalLicense {
-        self.nominal_license
-    }
-
-    #[must_use]
-    pub const fn fused_head_license(&self) -> DeterminativeFusedHeadLicense {
-        self.fused_head_license
-    }
-
-    #[must_use]
-    pub const fn phrase_number(&self) -> Option<DeterminativePhraseNumber> {
-        self.phrase_number
-    }
-
-    #[must_use]
-    pub const fn following_onset(&self) -> Option<Onset> {
-        self.following_onset
-    }
 }
 
 impl DeclarationReading {
@@ -500,10 +396,6 @@ struct EnvironmentData {
     initial_readings: BTreeMap<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>,
     running_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
     initial_surface_byte_limits: BTreeMap<GrammarPosition, usize>,
-    determinative_readings: BTreeMap<Arc<str>, Vec<DeterminativeReading>>,
-    initial_determinative_readings: BTreeMap<Arc<str>, Vec<DeterminativeReading>>,
-    determinative_surface_byte_limit: usize,
-    initial_determinative_surface_byte_limit: usize,
     catalog_providers: BTreeMap<CatalogProvider, CatalogProviderData>,
     verb_inventory: BTreeMap<VerbInventoryRef, VerbInventoryRecord>,
     verb_inventory_readings: BTreeMap<Arc<str>, Vec<IndexedVerbInventoryReading>>,
@@ -543,10 +435,6 @@ impl ParserEnvironment {
     /// # Errors
     /// Returns a typed error for duplicate declaration identities, provider
     /// groups, provider identities, or provider surfaces.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "environment freezing validates and indexes every declaration-backed provider in one transaction"
-    )]
     pub fn try_from_parts(
         declarations: impl IntoIterator<Item = NormalizedDeclaration>,
         catalog_providers: impl IntoIterator<Item = CatalogProviderRows>,
@@ -571,35 +459,19 @@ impl ParserEnvironment {
                 });
             }
 
-            let (recipe, surfaces, determinative) = match declaration.grammar() {
-                Some(grammar) => {
-                    let determinative = grammar.determinative().map(|row| DeterminativeRecord {
-                        number_license: row.number_license(),
-                        nominal_license: row.nominal_license(),
-                        fused_head_license: row.fused_head_license(),
-                        realizations: row
-                            .realizations()
+            let (recipe, surfaces) = match declaration.grammar() {
+                Some(grammar) => (
+                    Some(grammar.recipe().clone()),
+                    collect_surfaces(
+                        &id,
+                        grammar
+                            .surfaces()
                             .iter()
-                            .map(|realization| DeterminativeRealizationRecord {
-                                surface: Arc::from(realization.surface()),
-                                onset: realization.onset(),
-                                phrase_number: realization.phrase_number(),
-                                following_onset: realization.following_onset(),
-                            })
-                            .collect(),
-                    });
-                    (
-                        Some(grammar.recipe().clone()),
-                        collect_surfaces(
-                            &id,
-                            grammar.surfaces().iter().map(|surface| {
-                                (surface.feature(), surface.onset(), surface.text())
-                            }),
-                        )?,
-                        determinative,
-                    )
-                }
-                None => (None, Vec::new(), None),
+                            .chain(grammar.participial_adjective())
+                            .map(|surface| (surface.feature(), surface.onset(), surface.text())),
+                    )?,
+                ),
+                None => (None, Vec::new()),
             };
             records_by_name.insert(
                 Arc::from(id.name()),
@@ -608,7 +480,6 @@ impl ParserEnvironment {
                     recipe,
                     surfaces,
                     params,
-                    determinative,
                     provenance,
                 },
             );
@@ -620,11 +491,6 @@ impl ParserEnvironment {
             BTreeMap::<GrammarPosition, BTreeMap<Arc<str>, Vec<DeclarationReading>>>::new();
         let mut running_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
         let mut initial_surface_byte_limits = BTreeMap::<GrammarPosition, usize>::new();
-        let mut determinative_readings = BTreeMap::<Arc<str>, Vec<DeterminativeReading>>::new();
-        let mut initial_determinative_readings =
-            BTreeMap::<Arc<str>, Vec<DeterminativeReading>>::new();
-        let mut determinative_surface_byte_limit = 0;
-        let mut initial_determinative_surface_byte_limit = 0;
         for records_by_name in records.values() {
             for record in records_by_name.values() {
                 if let Some(recipe) = &record.recipe {
@@ -658,33 +524,6 @@ impl ParserEnvironment {
                             .entry(position)
                             .and_modify(|limit| *limit = (*limit).max(initial.len()))
                             .or_insert(initial.len());
-                    }
-                }
-                if let Some(determinative) = &record.determinative {
-                    for realization in &determinative.realizations {
-                        let initial = initial_surface(&realization.surface);
-                        let reading = DeterminativeReading {
-                            id: record.id.clone(),
-                            surface: Arc::clone(&realization.surface),
-                            onset: realization.onset,
-                            number_license: determinative.number_license,
-                            nominal_license: determinative.nominal_license,
-                            fused_head_license: determinative.fused_head_license,
-                            phrase_number: realization.phrase_number,
-                            following_onset: realization.following_onset,
-                        };
-                        determinative_readings
-                            .entry(Arc::clone(&realization.surface))
-                            .or_default()
-                            .push(reading.clone());
-                        determinative_surface_byte_limit =
-                            determinative_surface_byte_limit.max(realization.surface.len());
-                        initial_determinative_readings
-                            .entry(Arc::from(initial.as_str()))
-                            .or_default()
-                            .push(reading);
-                        initial_determinative_surface_byte_limit =
-                            initial_determinative_surface_byte_limit.max(initial.len());
                     }
                 }
             }
@@ -739,10 +578,6 @@ impl ParserEnvironment {
                 initial_readings,
                 running_surface_byte_limits,
                 initial_surface_byte_limits,
-                determinative_readings,
-                initial_determinative_readings,
-                determinative_surface_byte_limit,
-                initial_determinative_surface_byte_limit,
                 catalog_providers: frozen_catalog_providers,
                 verb_inventory,
                 verb_inventory_readings,
@@ -929,59 +764,6 @@ impl ParserEnvironment {
             .get(&position)
             .and_then(|by_surface| by_surface.get(surface))
             .map_or(&[], Vec::as_slice)
-    }
-
-    /// Returns every declaration-backed Determinative reading for one exact
-    /// running-text surface.
-    #[must_use]
-    pub fn determinative_readings(&self, surface: &str) -> &[DeterminativeReading] {
-        self.data
-            .determinative_readings
-            .get(surface)
-            .map_or(&[], Vec::as_slice)
-    }
-
-    pub(crate) fn initial_determinative_readings(&self, surface: &str) -> &[DeterminativeReading] {
-        self.data
-            .initial_determinative_readings
-            .get(surface)
-            .map_or(&[], Vec::as_slice)
-    }
-
-    pub(crate) fn determinative_surface_byte_limit(&self) -> usize {
-        self.data.determinative_surface_byte_limit
-    }
-
-    pub(crate) fn initial_determinative_surface_byte_limit(&self) -> usize {
-        self.data.initial_determinative_surface_byte_limit
-    }
-
-    /// Derives the unique surface of a stored declaration-backed
-    /// Determinative lemma for the following phrase.
-    #[must_use]
-    pub fn determinative_surface(
-        &self,
-        id: &DeclarationId,
-        phrase_number: DeterminativePhraseNumber,
-        following_onset: Option<Onset>,
-    ) -> Option<&str> {
-        let row = self
-            .declaration(id.kind(), id.name())?
-            .determinative
-            .as_ref()?;
-        row.realizations
-            .iter()
-            .find(|realization| {
-                realization
-                    .phrase_number
-                    .is_none_or(|expected| expected == phrase_number)
-                    && match (following_onset, realization.following_onset) {
-                        (_, None) => true,
-                        (Some(actual), Some(expected)) => expected == actual,
-                        (None, Some(_)) => false,
-                    }
-            })
-            .map(|realization| realization.surface.as_ref())
     }
 
     pub(crate) fn running_surface_byte_limit(&self, position: GrammarPosition) -> usize {
@@ -1649,7 +1431,7 @@ fn core_verb_seed_records() -> Vec<VerbInventoryRecord> {
                 VerbFrameAtom::Literal("order"),
             ],
         ),
-        (CoreVerbIdentity::Have, vec![Role("CounterfactualAbility")]),
+        (CoreVerbIdentity::Have, vec![Role("KeywordAbility")]),
         (CoreVerbIdentity::Pay, vec![Role("ManaCostReference")]),
     ] {
         records
@@ -1951,7 +1733,7 @@ mod tests {
         ));
         assert!(environment.verb_frame_licenses(
             &core(CoreVerbIdentity::Have),
-            predicate(&[Role("CounterfactualAbility")]),
+            predicate(&[Role("KeywordAbility")]),
         ));
         assert!(environment.verb_frame_licenses(
             &core(CoreVerbIdentity::Pay),
@@ -2009,100 +1791,21 @@ mod tests {
     }
 
     #[test]
-    fn supplemental_determinative_rows_are_indexed_apart_from_keyword_surfaces() {
+    fn supplemental_participial_adjectives_are_indexed_by_their_own_feature() {
         let environment = canonical_test_environment();
         let keyword = environment.readings(GrammarPosition::FixedKeyword, "equip");
         assert_eq!(keyword.len(), 1);
         assert_eq!(keyword[0].feature(), SurfaceFeature::Fixed);
-        assert_eq!(
-            environment
-                .declaration(DeclarationKind::KeywordAbility, "Equip")
-                .expect("Equip declaration is retained")
-                .determinative_fused_head_license(),
-            Some(DeterminativeFusedHeadLicense::NominalOnly),
-        );
-
-        let [reading] = environment.determinative_readings("equipped") else {
-            panic!("Equip contributes one supplemental Determinative reading")
+        let [reading] = environment.readings(GrammarPosition::FixedKeyword, "equipped") else {
+            panic!("Equip contributes one supplemental participial-adjective reading")
         };
         assert_eq!(reading.id().kind(), DeclarationKind::KeywordAbility);
         assert_eq!(reading.id().name(), "Equip");
+        assert_eq!(reading.feature(), SurfaceFeature::Participle);
+        let id = DeclarationId::new(DeclarationKind::KeywordAbility, "Equip");
         assert_eq!(
-            reading.number_license(),
-            DeterminativeNumberLicense::SingularOnly
-        );
-        assert_eq!(
-            reading.nominal_license(),
-            DeterminativeNominalLicense::BareSingularNoun
-        );
-        assert_eq!(
-            reading.fused_head_license(),
-            DeterminativeFusedHeadLicense::NominalOnly
-        );
-        assert_eq!(
-            environment.determinative_surface(
-                reading.id(),
-                DeterminativePhraseNumber::Singular,
-                None,
-            ),
+            environment.surface(&id, SurfaceFeature::Participle),
             Some("equipped")
-        );
-        assert!(environment.determinative_readings("equip").is_empty());
-        assert!(
-            environment
-                .readings(GrammarPosition::FixedKeyword, "equipped")
-                .is_empty()
-        );
-    }
-
-    #[test]
-    fn determinative_surface_requires_an_onset_for_conditional_realizations() {
-        let declaration = macro_ron::v2::read_str(
-            "/synthetic/Article.ron",
-            r#"
-KeywordAbility(
-    name: "Article",
-    spelling: "a",
-    grammar: FixedKeyword(
-        surface: "a",
-        determinative: (
-            number_license: SingularOnly,
-            nominal_license: CountNominal,
-            fused_head_license: FusedHead,
-            realizations: [
-                (surface: "a", following_onset: Consonant),
-                (surface: "an", following_onset: Vowel),
-            ],
-        ),
-    ),
-)
-"#,
-        )
-        .expect("conditional article declaration is valid");
-        let environment = ParserEnvironment::try_from_declarations([declaration])
-            .expect("conditional article environment freezes");
-        let id = DeclarationId::new(DeclarationKind::KeywordAbility, "Article");
-
-        assert_eq!(
-            environment.determinative_surface(&id, DeterminativePhraseNumber::Singular, None,),
-            None,
-            "an unknown following onset never guesses a conditional surface",
-        );
-        assert_eq!(
-            environment.determinative_surface(
-                &id,
-                DeterminativePhraseNumber::Singular,
-                Some(Onset::Consonant),
-            ),
-            Some("a"),
-        );
-        assert_eq!(
-            environment.determinative_surface(
-                &id,
-                DeterminativePhraseNumber::Singular,
-                Some(Onset::Vowel),
-            ),
-            Some("an"),
         );
     }
 

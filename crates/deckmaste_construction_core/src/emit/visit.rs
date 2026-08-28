@@ -742,6 +742,7 @@ fn emit_declaration_noun_walker(codec: &DeclarationNounPlan) -> GeneratedItem {
 fn emit_declaration_determinative_walker(codec: &DeclarationDeterminativePlan) -> GeneratedItem {
     let ty = codec.codec_ident();
     let function = ident(&format!("walk_{}", snake_case(codec.codec_name())));
+    let closed_arm = quote! { #ty::Closed(_) => {}, };
     GeneratedItem::new(
         ItemKey::Named {
             kind: NamedKind::Function,
@@ -749,8 +750,8 @@ fn emit_declaration_determinative_walker(codec: &DeclarationDeterminativePlan) -
         },
         quote! {
             pub fn #function<V: Visitor + ?Sized>(visitor: &mut V, det: &#ty) {
-                if let #ty::Declared(id) = det {
-                    visitor.visit_declaration(id);
+                match det {
+                    #closed_arm
                 }
             }
         },
@@ -2130,7 +2131,7 @@ mod tests {
     }
 
     #[test]
-    fn declaration_determinative_walker_visits_children_without_reentering_itself() {
+    fn declaration_determinative_walker_is_closed_without_reentering_itself() {
         let expansion = crate::generate(quote::quote! {
             codec DeterminativeHead {
                 generate declaration_determinative {
@@ -2159,10 +2160,8 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
         assert!(
-            source.contains(
-                "if let DeterminativeHead :: Declared (id) = det { visitor . visit_declaration (id) ; }"
-            ),
-            "declared determinatives expose their declaration child: {source}",
+            !source.contains("DeterminativeHead :: Declared"),
+            "closed determinatives have no declaration child: {source}",
         );
         assert!(
             !source.contains("visitor . visit_determinative_head (det)"),

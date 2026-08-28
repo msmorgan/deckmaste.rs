@@ -1,0 +1,8 @@
+// Suspected is a permanent designation [CR#701.60b].
+Designation(
+    name: "Suspected",
+    params: [],
+    spelling: "suspected",
+    grammar: FixedTerm(surface: "suspected"),
+    body: DesignationDecl(name: "Suspected", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+)

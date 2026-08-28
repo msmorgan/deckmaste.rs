@@ -1,0 +1,8 @@
+// The city's blessing is a player designation that lasts for the rest of the game [CR#702.131a,702.131c].
+Designation(
+    name: "CitysBlessing",
+    params: [],
+    spelling: "the city's blessing",
+    grammar: FixedTerm(surface: "the city's blessing"),
+    body: DesignationDecl(name: "CitysBlessing", definition: Stored(scope: Player, shape: Flag, uniqueness: PerPlayer, persistence: Permanently)),
+)

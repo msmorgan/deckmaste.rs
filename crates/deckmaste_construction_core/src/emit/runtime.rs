@@ -1933,13 +1933,6 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                 });
                 quote! {
                     #(#closed)*
-                    (
-                        LexicalOwnerTemplate::DeclarationDeterminative(#terminal_index),
-                        Leaf::#ty { value: #ty::Declared(id), .. },
-                    ) => Some(LexicalOwner::declaration_owner(
-                        id.clone(),
-                        ::macro_ron::v2::SurfaceFeature::Fixed,
-                    )),
                 }
             });
     let declaration_verb_owner =
@@ -2019,21 +2012,26 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                     _ => unreachable!("validated declaration verb feature axis is closed"),
                 }
             });
-    let declaration_term_owner = (!inventory.declaration_terms.is_empty()).then(|| {
-        quote! {
-            (
-                LexicalOwnerTemplate::DeclarationTerm(expected_index),
-                Leaf::DeclarationTerm {
-                    terminal_index,
-                    id,
-                    ..
-                },
-            ) if expected_index == *terminal_index => Some(LexicalOwner::declaration_owner(
-                id.clone(),
-                ::macro_ron::v2::SurfaceFeature::Fixed,
-            )),
-        }
-    });
+    let declaration_term_owner =
+        inventory
+            .declaration_terms
+            .iter()
+            .map(|(terminal_index, codec)| {
+                let feature = crate::emit::surface_feature(codec.feature());
+                quote! {
+                    (
+                        LexicalOwnerTemplate::DeclarationTerm(#terminal_index),
+                        Leaf::DeclarationTerm {
+                            terminal_index: #terminal_index,
+                            id,
+                            ..
+                        },
+                    ) => Some(LexicalOwner::declaration_owner(
+                        id.clone(),
+                        #feature,
+                    )),
+                }
+            });
 
     vec![
         GeneratedItem::new(
@@ -2312,7 +2310,7 @@ fn emit_owner_impls(inventory: &RuntimeInventory<'_>) -> Vec<GeneratedItem> {
                             },
                             #(#declaration_noun_owner)*
                             #(#declaration_determinative_owner)*
-                            #declaration_term_owner
+                            #(#declaration_term_owner)*
                             #(#declaration_verb_owner)*
                             _ => None,
                         }

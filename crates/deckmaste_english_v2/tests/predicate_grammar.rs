@@ -98,6 +98,18 @@ fn environment() -> ParserEnvironment {
             r#"KeywordAction(name:"Vote",spelling:"vote",grammar:Verb(bare:"vote",valence:Custom(shapes:[[],[ObjectNounPhrase],[Literal("for"),ObjectNounPhrase]])))"#,
         ),
         (
+            "/synthetic/keyword_abilities/Flash.ron",
+            r#"KeywordAbility(name:"Flash",spelling:"flash",grammar:FixedKeyword(surface:"flash"))"#,
+        ),
+        (
+            "/synthetic/keyword_abilities/Hexproof.ron",
+            r#"KeywordAbility(name:"Hexproof",spelling:"hexproof",grammar:FixedKeyword(surface:"hexproof"))"#,
+        ),
+        (
+            "/synthetic/keyword_abilities/Equip.ron",
+            r#"KeywordAbility(name:"Equip",params:[Cost],spelling:"equip <Param(0)>",grammar:FixedKeyword(surface:"equip",participial_adjective:(surface:"equipped")))"#,
+        ),
+        (
             "/synthetic/types/Creature.ron",
             r#"Type(name:"Creature",spelling:"creature",grammar:Noun(singular:"creature"))"#,
         ),
@@ -6113,7 +6125,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
             (" have".to_owned(), "core-verb:Have".to_owned(),),
             (
                 " hexproof".to_owned(),
-                "vocab:CounterfactualAbility/Hexproof".to_owned(),
+                "lexeme:keyword_ability/Hexproof/fixed".to_owned(),
             ),
             (
                 ".".to_owned(),
@@ -6153,7 +6165,7 @@ fn as_though_owns_the_attested_counterfactual_finite_family() {
             ),
             (
                 " flash".to_owned(),
-                "vocab:CounterfactualAbility/Flash".to_owned(),
+                "lexeme:keyword_ability/Flash/fixed".to_owned(),
             ),
             (
                 ".".to_owned(),

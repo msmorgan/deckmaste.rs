@@ -106,7 +106,7 @@ fn fixed_declaration_term_codecs_reject_wrong_kinds_and_positions() {
         structured_counter_kinds, 2,
         "the two structured P/T identities stay grammar-less"
     );
-    assert_eq!(designations, 3, "two builtins plus one same-plugin row");
+    assert_eq!(designations, 20, "19 builtins plus one same-plugin row");
 
     let running_word = environment
         .declaration(DeclarationKind::KeywordAbility, "RunningWord")

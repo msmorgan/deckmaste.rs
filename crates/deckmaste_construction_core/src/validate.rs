@@ -2507,31 +2507,16 @@ fn validate_declaration_determinative_source(
             );
         }
     }
-    if source.kind_slots.len() > 1 {
-        for duplicate in &source.kind_slots[1..] {
-            combine(
-                errors,
-                syn::Error::new(
-                    duplicate.slot.span(),
-                    "duplicate declaration_determinative field `kinds`",
-                ),
-            );
-        }
-    }
     let has_closed = source
         .closed_slots
         .first()
         .is_some_and(|slot| !slot.members.is_empty());
-    let has_kinds = source
-        .kind_slots
-        .first()
-        .is_some_and(|slot| !slot.kinds.is_empty());
-    if !has_closed && !has_kinds {
+    if !has_closed {
         combine(
             errors,
             syn::Error::new(
                 source.recipe.span(),
-                "declaration_determinative requires a nonempty `closed` or `kinds` provider",
+                "declaration_determinative requires a nonempty `closed` provider",
             ),
         );
     }
@@ -2558,32 +2543,6 @@ fn validate_declaration_determinative_source(
                 );
             }
             validate_determinative_member(member, errors);
-        }
-    }
-    if let Some(kinds) = source.kind_slots.first() {
-        let mut seen = HashSet::new();
-        for kind in &kinds.kinds {
-            let name = identifier_key(kind);
-            if !matches!(
-                name.as_str(),
-                "KeywordAbility" | "CounterKind" | "Designation" | "KeywordAction" | "Type"
-            ) {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        kind.span(),
-                        "declaration_determinative kinds must be declaration kinds",
-                    ),
-                );
-            } else if !seen.insert(name.clone()) {
-                combine(
-                    errors,
-                    syn::Error::new(
-                        kind.span(),
-                        format!("duplicate declaration_determinative kind `{name}`"),
-                    ),
-                );
-            }
         }
     }
 }
@@ -2867,11 +2826,17 @@ fn validate_declaration_term_domains_are_pairwise_intentional(
             };
             let position = source.position_slots.first()?;
             let kinds = source.kind_slots.first()?;
-            let params = source
-                .param_slots
+            let params = source.param_policy_slots.is_empty().then(|| {
+                source
+                    .param_slots
+                    .first()
+                    .map(|slot| slot.kinds.iter().map(identifier_key).collect::<Vec<_>>())
+                    .unwrap_or_default()
+            });
+            let feature = source
+                .feature_slots
                 .first()
-                .map(|slot| slot.kinds.iter().map(identifier_key).collect::<Vec<_>>())
-                .unwrap_or_default();
+                .map_or_else(|| "Fixed".to_owned(), |slot| identifier_key(&slot.value));
             Some((
                 binding,
                 identifier_key(&position.value),
@@ -2881,12 +2846,21 @@ fn validate_declaration_term_domains_are_pairwise_intentional(
                     .map(identifier_key)
                     .collect::<BTreeSet<_>>(),
                 params,
+                feature,
             ))
         })
         .collect::<Vec<_>>();
-    for (index, (left, left_position, left_kinds, left_params)) in terms.iter().enumerate() {
-        for (right, right_position, right_kinds, right_params) in &terms[index + 1..] {
-            if left_position != right_position || left_params != right_params {
+    for (index, (left, left_position, left_kinds, left_params, left_feature)) in
+        terms.iter().enumerate()
+    {
+        for (right, right_position, right_kinds, right_params, right_feature) in &terms[index + 1..]
+        {
+            if left_position != right_position || left_feature != right_feature {
+                continue;
+            }
+            let params_overlap =
+                left_params.is_none() || right_params.is_none() || left_params == right_params;
+            if !params_overlap {
                 continue;
             }
             if let Some(kind) = left_kinds.intersection(right_kinds).next() {
@@ -2895,7 +2869,7 @@ fn validate_declaration_term_domains_are_pairwise_intentional(
                     syn::Error::new(
                         right.name.span(),
                         format!(
-                            "declaration_term domains `{}` and `{}` overlap at `{kind}/{left_position}/{left_params:?}`",
+                            "declaration_term domains `{}` and `{}` overlap at `{kind}/{left_position}/{left_feature}/{left_params:?}`",
                             left.name, right.name
                         ),
                     ),
@@ -2940,13 +2914,14 @@ fn validate_declaration_term_source(
             Some(slot)
         }
     };
-    if let [_, rest @ ..] = source.param_slots.as_slice() {
+    validate_declaration_term_params(source, errors);
+    if let [_, rest @ ..] = source.feature_slots.as_slice() {
         for duplicate in rest {
             combine(
                 errors,
                 syn::Error::new(
                     duplicate.slot.span(),
-                    "duplicate declaration_term field `params`",
+                    "duplicate declaration_term field `feature`",
                 ),
             );
         }
@@ -2963,6 +2938,35 @@ fn validate_declaration_term_source(
             syn::Error::new(
                 position.span(),
                 "declaration_term position must be `FixedTerm` or `FixedKeyword`",
+            ),
+        );
+    }
+
+    if let Some(feature) = source.feature_slots.first()
+        && !matches!(
+            identifier_key(&feature.value).as_str(),
+            "Fixed" | "Participle"
+        )
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                feature.value.span(),
+                "declaration_term feature must be `Fixed` or `Participle`",
+            ),
+        );
+    }
+    if position.is_some_and(|position| identifier_key(position) == "FixedTerm")
+        && source
+            .feature_slots
+            .first()
+            .is_some_and(|feature| identifier_key(&feature.value) != "Fixed")
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                source.feature_slots[0].value.span(),
+                "FixedTerm declaration_term codecs support only the `Fixed` feature",
             ),
         );
     }
@@ -3021,6 +3025,42 @@ fn validate_declaration_term_source(
                 );
             }
         }
+    }
+}
+
+fn validate_declaration_term_params(
+    source: &crate::model::DeclarationTermSource,
+    errors: &mut Option<syn::Error>,
+) {
+    let parameter_fields = source
+        .param_slots
+        .iter()
+        .map(|slot| slot.slot.span())
+        .chain(
+            source
+                .param_policy_slots
+                .iter()
+                .map(|slot| slot.slot.span()),
+        )
+        .collect::<Vec<_>>();
+    if let [_, rest @ ..] = parameter_fields.as_slice() {
+        for duplicate in rest {
+            combine(
+                errors,
+                syn::Error::new(*duplicate, "duplicate declaration_term field `params`"),
+            );
+        }
+    }
+    if let Some(policy) = source.param_policy_slots.first()
+        && identifier_key(&policy.value) != "Any"
+    {
+        combine(
+            errors,
+            syn::Error::new(
+                policy.value.span(),
+                "declaration_term params policy must be `Any`",
+            ),
+        );
     }
 }
 
@@ -11388,7 +11428,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn declaration_term_recipe_is_featureless_and_category_safe() {
+    fn declaration_term_recipe_is_feature_selective_and_category_safe() {
         let raw = crate::parse_declarations(quote! {
             codec KeywordAbility {
                 generate declaration_term {
@@ -11402,6 +11442,14 @@ pub(crate) mod tests {
                     position = FixedKeyword;
                     kinds = [KeywordAbility];
                     params = [Quality];
+                }
+            }
+            codec KeywordParticipialAdjective {
+                generate declaration_term {
+                    position = FixedKeyword;
+                    kinds = [KeywordAbility];
+                    params = Any;
+                    feature = Participle;
                 }
             }
             codec FixedTerm {
@@ -11444,6 +11492,31 @@ pub(crate) mod tests {
                 params = [Quality];
             })
             .contains("duplicate declaration_term field `params`")
+        );
+        assert!(
+            declaration_term_error(&quote! {
+                position = FixedTerm;
+                kinds = [Designation];
+                feature = Participle;
+            })
+            .contains("FixedTerm declaration_term codecs support only the `Fixed` feature")
+        );
+        assert!(
+            declaration_term_error(&quote! {
+                position = FixedKeyword;
+                kinds = [KeywordAbility];
+                params = Every;
+                feature = Participle;
+            })
+            .contains("declaration_term params policy must be `Any`")
+        );
+        assert!(
+            declaration_term_error(&quote! {
+                position = FixedKeyword;
+                kinds = [KeywordAbility];
+                feature = Plural;
+            })
+            .contains("declaration_term feature must be `Fixed` or `Participle`")
         );
     }
 

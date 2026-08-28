@@ -778,7 +778,6 @@ pub(crate) struct DeclarationDeterminativePlan {
     codec_ident: syn::Ident,
     lemma_ident: syn::Ident,
     closed: Vec<ClosedDeterminativePlan>,
-    kinds: Vec<macro_ron::v2::DeclarationKind>,
 }
 
 #[derive(Debug)]
@@ -804,7 +803,8 @@ pub(crate) struct DeclarationTermPlan {
     codec_ident: syn::Ident,
     position: macro_ron::v2::GrammarPosition,
     kinds: Vec<macro_ron::v2::DeclarationKind>,
-    params: Vec<String>,
+    params: Option<Vec<String>>,
+    feature: macro_ron::v2::SurfaceFeature,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -6170,21 +6170,6 @@ impl DeclarationDeterminativePlan {
                 }
             })
             .collect();
-        let kinds = recipe
-            .kind_slots
-            .first()
-            .into_iter()
-            .flat_map(|slot| &slot.kinds)
-            .map(|kind| match identifier_key(kind).as_str() {
-                "KeywordAbility" => macro_ron::v2::DeclarationKind::KeywordAbility,
-                "AbilityWord" => macro_ron::v2::DeclarationKind::AbilityWord,
-                "CounterKind" => macro_ron::v2::DeclarationKind::CounterKind,
-                "Designation" => macro_ron::v2::DeclarationKind::Designation,
-                "KeywordAction" => macro_ron::v2::DeclarationKind::KeywordAction,
-                "Type" => macro_ron::v2::DeclarationKind::Type,
-                _ => unreachable!("validated declaration determinative kind is closed"),
-            })
-            .collect();
         Self {
             source_index,
             origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
@@ -6194,7 +6179,6 @@ impl DeclarationDeterminativePlan {
                 source.name.span(),
             ),
             closed,
-            kinds,
         }
     }
 
@@ -6215,9 +6199,6 @@ impl DeclarationDeterminativePlan {
     }
     pub(crate) fn closed(&self) -> &[ClosedDeterminativePlan] {
         &self.closed
-    }
-    pub(crate) fn kinds(&self) -> &[macro_ron::v2::DeclarationKind] {
-        &self.kinds
     }
 }
 
@@ -6284,11 +6265,29 @@ impl DeclarationTermPlan {
                 _ => unreachable!("validated declaration_term kind is closed"),
             })
             .collect();
-        let params = recipe
-            .param_slots
-            .first()
-            .map(|slot| slot.kinds.iter().map(identifier_key).collect())
-            .unwrap_or_default();
+        let params = if recipe.param_policy_slots.is_empty() {
+            Some(
+                recipe
+                    .param_slots
+                    .first()
+                    .map(|slot| slot.kinds.iter().map(identifier_key).collect())
+                    .unwrap_or_default(),
+            )
+        } else {
+            None
+        };
+        let feature =
+            recipe
+                .feature_slots
+                .first()
+                .map_or(
+                    macro_ron::v2::SurfaceFeature::Fixed,
+                    |slot| match identifier_key(&slot.value).as_str() {
+                        "Fixed" => macro_ron::v2::SurfaceFeature::Fixed,
+                        "Participle" => macro_ron::v2::SurfaceFeature::Participle,
+                        _ => unreachable!("validated declaration_term feature is closed"),
+                    },
+                );
         Self {
             source_index,
             origin: DeclarationKey::new(DeclarationKind::Codec, identifier_key(&source.name)),
@@ -6296,6 +6295,7 @@ impl DeclarationTermPlan {
             position,
             kinds,
             params,
+            feature,
         }
     }
 
@@ -6323,8 +6323,12 @@ impl DeclarationTermPlan {
         &self.kinds
     }
 
-    pub(crate) fn params(&self) -> &[String] {
-        &self.params
+    pub(crate) fn params(&self) -> Option<&[String]> {
+        self.params.as_deref()
+    }
+
+    pub(crate) fn feature(&self) -> macro_ron::v2::SurfaceFeature {
+        self.feature
     }
 }
 

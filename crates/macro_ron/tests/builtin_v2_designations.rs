@@ -21,7 +21,27 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .iter()
             .map(|declaration| declaration.identity().name())
             .collect::<Vec<_>>(),
-        ["Commander", "Monarch"],
+        [
+            "CitysBlessing",
+            "Commander",
+            "DayNight",
+            "EnduringStory",
+            "Goaded",
+            "Harnessed",
+            "Initiative",
+            "LeftHalfUnlocked",
+            "Level",
+            "Monarch",
+            "Monstrous",
+            "Prepared",
+            "Renowned",
+            "RightHalfUnlocked",
+            "RingBearer",
+            "Saddled",
+            "Sector",
+            "Solved",
+            "Suspected",
+        ],
     );
     for declaration in &designations {
         assert_eq!(declaration.params(), Some([].as_slice()));
@@ -38,7 +58,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
         );
     }
 
-    let commander = &designations[0];
+    let commander = &designations[1];
     assert_eq!(
         commander.spelling(),
         [SpellingPart::Literal("commander".to_owned())]
@@ -50,7 +70,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .get_ron()
             .contains("scope: Object")
     );
-    let monarch = &designations[1];
+    let monarch = &designations[9];
     assert_eq!(
         monarch.spelling(),
         [SpellingPart::Literal("the monarch".to_owned())]
@@ -63,8 +83,79 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .get_ron()
             .contains("uniqueness: PerGame")
     );
+    let citys_blessing = &designations[0];
+    assert!(
+        citys_blessing
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("scope: Player")
+    );
+    assert!(
+        citys_blessing
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("uniqueness: PerPlayer")
+    );
+    assert!(
+        citys_blessing
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("persistence: Permanently")
+    );
 
-    let synthetic = read_str(
+    let day_night = &designations[2];
+    assert!(day_night.body().unwrap().get_ron().contains("scope: Game"));
+    assert!(
+        day_night
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("shape: Enum([Day, Night])")
+    );
+    assert!(
+        day_night
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("uniqueness: PerGame")
+    );
+
+    let goaded = &designations[4];
+    assert!(goaded.body().unwrap().get_ron().contains("shape: Relation"));
+    assert!(
+        goaded
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("persistence: EffectSupplied")
+    );
+
+    let level = &designations[8];
+    assert!(level.body().unwrap().get_ron().contains("shape: Number"));
+
+    let sector = &designations[16];
+    assert!(
+        sector
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("shape: Enum([Alpha, Beta, Gamma])")
+    );
+    assert!(
+        sector
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("persistence: EffectSupplied")
+    );
+}
+
+#[test]
+fn same_plugin_game_designation_can_retain_a_conferred_body() {
+    let declaration = read_str(
         "same-plugin/FeaturedGame.ron",
         r#"Designation(
             name: "FeaturedGame",
@@ -84,7 +175,13 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
         )"#,
     )
     .expect("a same-plugin game designation can retain a conferred body");
-    assert_eq!(synthetic.identity().kind(), DeclarationKind::Designation);
-    assert!(synthetic.body().unwrap().get_ron().contains("scope: Game"));
-    assert!(synthetic.body().unwrap().get_ron().contains("confers:"));
+    assert_eq!(declaration.identity().kind(), DeclarationKind::Designation);
+    assert!(
+        declaration
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("scope: Game")
+    );
+    assert!(declaration.body().unwrap().get_ron().contains("confers:"));
 }

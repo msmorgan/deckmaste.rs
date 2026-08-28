@@ -1,0 +1,8 @@
+// Monstrous is a permanent designation [CR#701.37b].
+Designation(
+    name: "Monstrous",
+    params: [],
+    spelling: "monstrous",
+    grammar: FixedTerm(surface: "monstrous"),
+    body: DesignationDecl(name: "Monstrous", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+)

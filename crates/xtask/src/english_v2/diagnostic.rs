@@ -977,6 +977,8 @@ enum NonterminalKind {
     PredicativeColorComplement,
     PredicativeDesignationComplement,
     PredicativeStatusComplement,
+    PredicativeParticipialAdjectiveComplement,
+    ParticipialAdjective,
     BlockedByStatusComplement,
     BlockedExceptByStatusComplement,
     PredicativeAbilityComplement,
@@ -984,13 +986,14 @@ enum NonterminalKind {
     PredicativeScalarComplement,
     KeywordLineItem,
     KeywordQuality,
+    KeywordSubject,
+    KeywordRelativeSubject,
     BareKeywordLineItem,
     CostedKeywordLineItem,
     QualifiedKeywordLineItem,
     SubjectKeywordLineItem,
-    KeywordColorQuality,
-    KeywordNominalQuality,
     KeywordQualityCoordination,
+    KeywordReminderText,
     KeywordLine,
     AbilityWordAbility,
     BareCopularPredicate,
@@ -1666,6 +1669,10 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PredicativeStatusComplement => {
             NonterminalKind::PredicativeStatusComplement
         }
+        NonterminalCategory::PredicativeParticipialAdjectiveComplement => {
+            NonterminalKind::PredicativeParticipialAdjectiveComplement
+        }
+        NonterminalCategory::ParticipialAdjective => NonterminalKind::ParticipialAdjective,
         NonterminalCategory::BlockedByStatusComplement => {
             NonterminalKind::BlockedByStatusComplement
         }
@@ -1683,15 +1690,16 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         }
         NonterminalCategory::KeywordLineItem => NonterminalKind::KeywordLineItem,
         NonterminalCategory::KeywordQuality => NonterminalKind::KeywordQuality,
+        NonterminalCategory::KeywordSubject => NonterminalKind::KeywordSubject,
+        NonterminalCategory::KeywordRelativeSubject => NonterminalKind::KeywordRelativeSubject,
         NonterminalCategory::BareKeywordLineItem => NonterminalKind::BareKeywordLineItem,
         NonterminalCategory::CostedKeywordLineItem => NonterminalKind::CostedKeywordLineItem,
         NonterminalCategory::QualifiedKeywordLineItem => NonterminalKind::QualifiedKeywordLineItem,
         NonterminalCategory::SubjectKeywordLineItem => NonterminalKind::SubjectKeywordLineItem,
-        NonterminalCategory::KeywordColorQuality => NonterminalKind::KeywordColorQuality,
-        NonterminalCategory::KeywordNominalQuality => NonterminalKind::KeywordNominalQuality,
         NonterminalCategory::KeywordQualityCoordination => {
             NonterminalKind::KeywordQualityCoordination
         }
+        NonterminalCategory::KeywordReminderText => NonterminalKind::KeywordReminderText,
         NonterminalCategory::KeywordLine => NonterminalKind::KeywordLine,
         NonterminalCategory::AbilityWordAbility => NonterminalKind::AbilityWordAbility,
         NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,

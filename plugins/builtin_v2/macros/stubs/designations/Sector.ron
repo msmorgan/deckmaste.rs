@@ -1,0 +1,8 @@
+// A sector designation is one of alpha, beta, or gamma [CR#702.158b].
+Designation(
+    name: "Sector",
+    params: [],
+    spelling: "sector designation",
+    grammar: FixedTerm(surface: "sector designation"),
+    body: DesignationDecl(name: "Sector", definition: Stored(scope: Object, shape: Enum([Alpha, Beta, Gamma]), uniqueness: None, persistence: EffectSupplied)),
+)

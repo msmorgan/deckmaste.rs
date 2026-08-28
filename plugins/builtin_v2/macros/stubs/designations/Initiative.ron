@@ -1,0 +1,9 @@
+// The initiative is a player designation, held by at most one player
+// [CR#726.1,726.3].
+Designation(
+    name: "Initiative",
+    params: [],
+    spelling: "the initiative",
+    grammar: FixedTerm(surface: "the initiative"),
+    body: DesignationDecl(name: "Initiative", definition: Stored(scope: Player, shape: Flag, uniqueness: PerGame, persistence: Permanently)),
+)

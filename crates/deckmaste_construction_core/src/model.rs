@@ -400,6 +400,8 @@ pub struct DeclarationTermSource {
     pub position_slots: Vec<GeneratedIdentSlot>,
     pub kind_slots: Vec<DeclarationVerbKindsSource>,
     pub param_slots: Vec<DeclarationVerbKindsSource>,
+    pub param_policy_slots: Vec<GeneratedIdentSlot>,
+    pub feature_slots: Vec<GeneratedIdentSlot>,
 }
 
 #[derive(Debug)]
@@ -415,7 +417,6 @@ pub struct DeclarationNounSource {
 pub struct DeclarationDeterminativeSource {
     pub recipe: Ident,
     pub closed_slots: Vec<DeclarationDeterminativeClosedSource>,
-    pub kind_slots: Vec<DeclarationVerbKindsSource>,
 }
 
 #[derive(Debug)]

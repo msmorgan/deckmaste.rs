@@ -86,7 +86,9 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
         ("Flying, haste", vec!["Flying", "Haste"]),
         ("Equip {2}", vec!["Equip"]),
         ("Ward {2}", vec!["Ward"]),
+        ("Enchant creature you control", vec!["Enchant"]),
         ("Protection from black", vec!["Protection"]),
+        ("Protection from everything", vec!["Protection"]),
         ("Protection from black and from red", vec!["Protection"]),
         (
             "Protection from Vampires, from Werewolves, and from Zombies",
@@ -116,6 +118,63 @@ fn declared_keyword_lines_parse_render_visit_and_own_exactly() {
                 .collect::<Vec<_>>();
             assert_eq!(creature_subtypes, ["Vampire", "Werewolf", "Zombie"]);
         }
+    }
+}
+
+#[test]
+fn keyword_lines_compose_in_every_document_block_position() {
+    let environment = environment(declarations());
+    let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
+
+    for text in [
+        "Flying\nDraw a card.",
+        "Draw a card.\nFlying",
+        "Draw a card.\nFlying\nDraw a card.",
+    ] {
+        assert_exact_document(&parser, &environment, text);
+    }
+}
+
+#[test]
+fn keyword_line_reminder_circumfix_is_owned_and_roundtrips_exactly() {
+    let environment = environment(declarations());
+    let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
+
+    for text in [
+        "Flying (This creature can't block.)",
+        "Flying (Draw a card.)\nTrample",
+    ] {
+        assert_exact_document(&parser, &environment, text);
+    }
+}
+
+#[test]
+fn attachment_participial_adjectives_remain_declaration_backed() {
+    let environment = environment(declarations());
+    let parser = Parser::new(environment.clone()).expect("keyword-line grammar initializes");
+
+    for (text, expected) in [
+        ("Enchanted creature has flying.", "Enchant"),
+        ("Enchanted creature can't block.", "Enchant"),
+        ("An enchanted creature can't block.", "Enchant"),
+        ("Target enchanted permanent can't block.", "Enchant"),
+        ("Enchanted creatures can't block.", "Enchant"),
+        ("This creature is enchanted.", "Enchant"),
+        ("Equipped creature has haste.", "Equip"),
+        ("Equipped creature can't block.", "Equip"),
+        ("Equipped creatures can't block.", "Equip"),
+        ("This creature is equipped.", "Equip"),
+    ] {
+        let parsed = assert_exact_document(&parser, &environment, text);
+        let mut visitor = DeclarationVisitor::default();
+        visitor.visit_oracle_text(&parsed);
+        assert!(
+            visitor
+                .0
+                .iter()
+                .any(|(kind, name)| *kind == DeclarationKind::KeywordAbility && name == expected),
+            "{text:?} visits its declaration-backed participial adjective",
+        );
     }
 }
 

@@ -486,22 +486,17 @@ pub(crate) fn emit(
                     .closed()
                     .iter()
                     .map(crate::semantic::ClosedDeterminativePlan::lemma);
-                let allowed = row
-                    .kinds()
-                    .iter()
-                    .map(|kind| crate::emit::declaration_kind(*kind));
+                let closed_variant = quote! { Closed(#lemma), };
                 items.push(GeneratedItem::new(ItemKey::named_type(lemma.to_string()), quote! {
                     #[derive(Debug, Clone, Copy, PartialEq, Eq)] pub enum #lemma { #(#variants),* }
                 }, vec![origin.clone()]));
-                items.push(GeneratedItem::new(ItemKey::named_type(ty.to_string()), quote! {
-                    #[derive(Debug, Clone, PartialEq, Eq)] pub enum #ty { Closed(#lemma), Declared(::macro_ron::v2::DeclarationIdentity) }
-                }, vec![origin.clone()]));
-                items.push(GeneratedItem::new(ItemKey::Impl {
-                    trait_name: None,
-                    self_ty: ty.to_string(),
-                }, quote! {
-                    impl #ty { pub(crate) fn declared(id: ::macro_ron::v2::DeclarationIdentity) -> Option<Self> { matches!(id.kind(), #(#allowed)|*).then_some(Self::Declared(id)) } }
-                }, vec![origin]));
+                items.push(GeneratedItem::new(
+                    ItemKey::named_type(ty.to_string()),
+                    quote! {
+                        #[derive(Debug, Clone, PartialEq, Eq)] pub enum #ty { #closed_variant }
+                    },
+                    vec![origin.clone()],
+                ));
             }
             TerminalPlan::DeclarationTerm(row) => {
                 let origin = row.origin().clone();
@@ -511,6 +506,7 @@ pub(crate) fn emit(
                     .iter()
                     .map(|kind| crate::emit::declaration_kind(*kind));
                 let position = crate::emit::grammar_position(row.position());
+                let feature = crate::emit::surface_feature(row.feature());
                 items.push(GeneratedItem::new(
                     ItemKey::named_type(row.codec_name()),
                     quote! {
@@ -537,7 +533,7 @@ pub(crate) fn emit(
                                     .then_some(())
                                     .and_then(|_| environment.surface(
                                         &id,
-                                        ::macro_ron::v2::SurfaceFeature::Fixed,
+                                        #feature,
                                     ))
                                     .and_then(|_| Self::from_reading(id))
                             }

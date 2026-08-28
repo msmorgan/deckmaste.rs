@@ -2657,11 +2657,12 @@ fn render_atom_statement(
                     locals,
                     &method_writer,
                 )
-            } else if validated.runtime_declaration_term_for(terminal).is_some() {
+            } else if let Some((_, codec)) = validated.runtime_declaration_term_for(terminal) {
+                let feature = crate::emit::surface_feature(codec.feature());
                 Ok(quote! {
                     #method_writer.word(
                         environment
-                            .surface((#value).id(), ::macro_ron::v2::SurfaceFeature::Fixed)
+                            .surface((#value).id(), #feature)
                             .expect("stored declaration term remains in its parser environment"),
                     );
                 })
@@ -2774,7 +2775,14 @@ fn category_contains_declaration_determinative(plan: &SemanticPlan, category: &s
                 field.kind() == ConstructionFieldKind::Lex
                     && plan
                         .runtime_declaration_determinative_for(field.terminal())
-                        .is_some()
+                        .is_some_and(|(_, codec)| {
+                            codec.closed().iter().any(|member| {
+                                member
+                                    .realizations()
+                                    .iter()
+                                    .any(|realization| realization.following_onset().is_some())
+                            })
+                        })
             })
         })
 }
@@ -3002,11 +3010,12 @@ fn render_owner(
                     locals,
                 );
             }
-            if validated.runtime_declaration_term_for(terminal).is_some() {
+            if let Some((_, codec)) = validated.runtime_declaration_term_for(terminal) {
+                let feature = crate::emit::surface_feature(codec.feature());
                 return Ok(quote! {
                     LexicalOwner::declaration_owner(
                         (#value).id().clone(),
-                        ::macro_ron::v2::SurfaceFeature::Fixed,
+                        #feature,
                     )
                 });
             }
@@ -3029,10 +3038,6 @@ fn render_owner(
                 return Ok(quote! {
                     match #value {
                         #(#closed,)*
-                        #ty::Declared(id) => LexicalOwner::declaration_owner(
-                            id.clone(),
-                            ::macro_ron::v2::SurfaceFeature::Fixed,
-                        ),
                     }
                 });
             }
@@ -3959,11 +3964,20 @@ fn declaration_determinative_surface_expr(
     locals: &RenderLocals,
     writer: Option<&TokenStream>,
 ) -> syn::Result<TokenStream> {
-    let following_role = form
-        .atoms()
-        .get(atom_index + 1)
-        .and_then(render_atom_role)
-        .filter(|following| *following != role);
+    let needs_following_onset = codec.closed().iter().any(|member| {
+        member
+            .realizations()
+            .iter()
+            .any(|realization| realization.following_onset().is_some())
+    });
+    let following_role = needs_following_onset
+        .then(|| {
+            form.atoms()
+                .get(atom_index + 1)
+                .and_then(render_atom_role)
+                .filter(|following| *following != role)
+        })
+        .flatten();
     let (number, following_onset) = if let Some(following) = following_role {
         let number = feature_expr(
             validated,
@@ -4053,16 +4067,18 @@ fn declaration_determinative_surface_expr(
             }
         }
     });
+    let closed_arm = (!codec.closed().is_empty()).then(|| {
+        quote! {
+            #ty::Closed(lemma) => match lemma {
+                #(#closed,)*
+            },
+        }
+    });
     Ok(quote! {{
         let phrase_number = #phrase_number;
         let following_onset = #following_onset;
         match #value {
-            #ty::Closed(lemma) => match lemma {
-                #(#closed,)*
-            },
-            #ty::Declared(id) => environment
-                .determinative_surface(id, phrase_number, following_onset)
-                .expect("stored declaration-backed determinative remains realizable"),
+            #closed_arm
         }
     }})
 }
@@ -4219,13 +4235,11 @@ fn lexical_onset_expr(
                 .expect("validated determinative realization has an onset")
         });
     }
-    if validated
-        .runtime_declaration_term_for(field.terminal())
-        .is_some()
-    {
+    if let Some((_, codec)) = validated.runtime_declaration_term_for(field.terminal()) {
+        let feature = crate::emit::surface_feature(codec.feature());
         return Ok(quote! {
             environment
-                .onset((#role_value).id(), ::macro_ron::v2::SurfaceFeature::Fixed)
+                .onset((#role_value).id(), #feature)
                 .expect("stored declaration term remains in its parser environment")
         });
     }
@@ -5337,10 +5351,15 @@ fn field_value(
         let role = field.name();
         Ok(quote! { &#whole.#role })
     } else {
-        let local = locals
-            .fields
-            .get(role)
-            .ok_or_else(|| internal("public render field lacks its allocated local"))?;
+        let local = locals.fields.get(role).ok_or_else(|| {
+            syn::Error::new(
+                construction.origin_span(),
+                format!(
+                    "public render field `{role}` in `{}` lacks its allocated local",
+                    construction.construction_id(),
+                ),
+            )
+        })?;
         Ok(quote! { #local })
     }
 }

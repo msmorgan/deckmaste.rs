@@ -1,0 +1,8 @@
+// Renowned is a permanent designation [CR#702.112b].
+Designation(
+    name: "Renowned",
+    params: [],
+    spelling: "renowned",
+    grammar: FixedTerm(surface: "renowned"),
+    body: DesignationDecl(name: "Renowned", definition: Stored(scope: Object, shape: Flag, uniqueness: None, persistence: ObjectLifetime)),
+)

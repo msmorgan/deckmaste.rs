@@ -1,0 +1,8 @@
+// A level is a designation any permanent can have [CR#716.2b].
+Designation(
+    name: "Level",
+    params: [],
+    spelling: "level",
+    grammar: FixedTerm(surface: "level"),
+    body: DesignationDecl(name: "Level", definition: Stored(scope: Object, shape: Number, uniqueness: None, persistence: ObjectLifetime)),
+)

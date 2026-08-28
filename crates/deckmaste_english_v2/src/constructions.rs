@@ -63,7 +63,6 @@ constructions! {
     vocab BareLocativeNoun { Exile = "exile", Hand = "hand", }
     vocab CostComparisonDirection { More = "more", Less = "less", }
     vocab DistributionReplacement { Instead = "instead", }
-    vocab CounterfactualAbility { Flash = "flash", Hexproof = "hexproof", }
     vocab CounterfactualNegativeAuxiliary { Didnt = "didn't", }
     vocab CounterfactualPastPossession { Had = "had", }
     vocab AtBoundary { Beginning = "the beginning of", End = "end of", }
@@ -139,11 +138,10 @@ constructions! {
         Attacking = "attacking",
         Blocked = "blocked",
         Blocking = "blocking",
-        Enchanted = "enchanted",
-        Equipped = "equipped",
         Tapped = "tapped",
         Untapped = "untapped",
     }
+    vocab IndefinitePronoun { Everything = "everything", }
     vocab SingularDemonstrative { This = "this", That = "that", }
     vocab ControllerNoun { Opponent = "opponent", Player = "player", }
     vocab FixedCostSymbol {
@@ -495,11 +493,11 @@ constructions! {
             feature = Agreement;
         }
     }
-    codec CounterfactualHaveVerb {
+    codec HaveKeywordAbilityVerb {
         generate declaration_verb {
             class = Predicate;
             position = Verb;
-            tail = [CounterfactualAbility];
+            tail = [KeywordAbility];
             feature = Agreement;
         }
     }
@@ -714,6 +712,14 @@ constructions! {
             kinds = [KeywordAbility];
         }
     }
+    codec DeclaredKeywordParticiple {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = Any;
+            feature = Participle;
+        }
+    }
     codec CostedKeywordAbility {
         generate declaration_term {
             position = FixedKeyword;
@@ -832,7 +838,6 @@ constructions! {
                     realizations = [{ surface = "target"; }];
                 },
             ];
-            kinds = [KeywordAbility];
         }
     }
     identity SelfReferenceSpelling {
@@ -1057,6 +1062,7 @@ constructions! {
     }
     abstract sum PredicativeStatus {
         Plain: PredicativeStatusComplement,
+        ParticipialAdjective: PredicativeParticipialAdjectiveComplement,
         BlockedBy: BlockedByStatusComplement,
         BlockedExceptBy: BlockedExceptByStatusComplement,
     }
@@ -1620,6 +1626,15 @@ constructions! {
         element PredicativeStatusValue { status: lex Status, }
         form predicative_status = lex(status);
     }
+    construction declared_participial_adjective: ParticipialAdjective {
+        element DeclaredParticipialAdjective { head: lex DeclaredKeywordParticiple, }
+        derive onset = head.onset;
+        form declared_participial_adjective = lex(head);
+    }
+    construction predicative_participial_adjective: PredicativeParticipialAdjectiveComplement {
+        element PredicativeParticipialAdjectiveValue { adjective: ParticipialAdjective, }
+        form predicative_participial_adjective = adjective;
+    }
     construction blocked_by_status: BlockedByStatusComplement {
         element BlockedByStatusValue { agent: Object, }
         form blocked_by_status = "blocked" "by" agent;
@@ -1813,8 +1828,8 @@ constructions! {
         element CounterfactualNegativeAbilityClauseValue {
             subject: Subject,
             auxiliary: lex CounterfactualNegativeAuxiliary,
-            head: lex CounterfactualHaveVerb,
-            ability: lex CounterfactualAbility,
+            head: lex HaveKeywordAbilityVerb,
+            ability: lex KeywordAbility,
         }
         derive head.agreement = Values::Bare;
         form counterfactual_negative_ability_clause =
@@ -1824,7 +1839,7 @@ constructions! {
         element CounterfactualPastAbilityClauseValue {
             subject: Subject,
             possession: lex CounterfactualPastPossession,
-            ability: lex CounterfactualAbility,
+            ability: lex KeywordAbility,
         }
         form counterfactual_past_ability_clause = subject lex(possession) lex(ability);
     }
@@ -2469,6 +2484,14 @@ constructions! {
         derive onset = status.onset;
         form status_modifier = lex(status);
     }
+    construction participial_adjective_modifier: NominalModifier {
+        element ParticipialAdjectiveModifier { adjective: ParticipialAdjective, }
+        derive modifier_license = Values::Unrestricted;
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive onset = adjective.onset;
+        form participial_adjective_modifier = adjective;
+    }
     construction reduced_relative_modifier: NominalModifier {
         element ReducedRelativeModifier { head: lex DeclaredTransitiveParticipleHead, }
         derive modifier_license = Values::Unrestricted;
@@ -2702,6 +2725,7 @@ constructions! {
         require value.modifier_license is Unrestricted;
         require any(
             value is AttributiveAdjectiveModifier,
+            value is ParticipialAdjectiveModifier,
             value is ColorModifier,
             value is CommonNounModifier,
             value is StatusModifier,
@@ -2823,6 +2847,31 @@ constructions! {
         derive nominal_form = Values::ModifiedSingularNoun;
         derive onset = Values::Consonant;
         form negative_modified_singular_nominal = leading modifiers head;
+    }
+    construction participial_singular_reference: UnqualifiedReference {
+        element ParticipialSingularReference {
+            adjective: ParticipialAdjective,
+            head: SingularHead,
+        }
+        derive agreement = head.agreement;
+        derive head.number = Values::Singular;
+        derive number = Values::Singular;
+        derive onset = adjective.onset;
+        form participial_singular_reference = adjective head;
+    }
+    construction premodified_participial_singular_reference: UnqualifiedReference {
+        element PremodifiedParticipialSingularReference {
+            first: NominalModifier,
+            rest: seq NominalModifier separated by " ",
+            adjective: ParticipialAdjective,
+            head: SingularHead,
+        }
+        require first.modifier_license is LocalDeterminer;
+        derive agreement = head.agreement;
+        derive head.number = Values::Singular;
+        derive number = Values::Singular;
+        derive onset = first.onset;
+        form premodified_participial_singular_reference = first rest adjective head;
     }
     construction bare_plural_nominal: PluralNominal {
         element BarePluralNominal { head: PluralHead, }
@@ -3894,6 +3943,22 @@ constructions! {
         derive onset = Values::Consonant;
         form common_noun_choice_list = choices;
     }
+    construction fused_color_nominal: Nominal {
+        element FusedColorNominal { color: lex Color, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive nominal_form = Values::BareSingularNoun;
+        derive onset = color.onset;
+        form fused_color_nominal = lex(color);
+    }
+    construction indefinite_pronoun_nominal: Nominal {
+        element IndefinitePronounNominal { pronoun: lex IndefinitePronoun, }
+        derive agreement = Values::ThirdPersonSingular;
+        derive number = Values::Singular;
+        derive nominal_form = Values::BareSingularNoun;
+        derive onset = pronoun.onset;
+        form indefinite_pronoun_nominal = lex(pronoun);
+    }
     construction possessive_self_reference: PossessiveOwner {
         element PossessiveSelfReference { spelling: identity SelfReferenceSpelling, }
         derive number = Values::Singular;
@@ -4397,6 +4462,11 @@ constructions! {
         derive agreement = head.agreement;
         form quoted_ability_predicate = verb(head) ability;
     }
+    construction have_keyword_ability: VerbPhrase {
+        element HaveKeywordAbility { head: lex HaveKeywordAbilityVerb, ability: lex KeywordAbility, }
+        derive agreement = head.agreement;
+        form have_keyword_ability = verb(head) lex(ability);
+    }
     construction quote_terminated_statement: AbilityBody {
         element QuoteTerminatedStatement {
             subject: Subject,
@@ -4501,9 +4571,12 @@ constructions! {
         Subject: SubjectKeywordLineItem,
     }
     abstract sum KeywordQuality {
-        Color: KeywordColorQuality,
-        Nominal: KeywordNominalQuality,
+        Reference: Nominal,
         Coordination: KeywordQualityCoordination,
+    }
+    abstract sum KeywordSubject {
+        Nominal: SingularNominal,
+        Relative: KeywordRelativeSubject,
     }
     construction bare_keyword_line_item: BareKeywordLineItem {
         element BareKeywordLineItemValue { keyword: lex KeywordAbility, }
@@ -4516,17 +4589,9 @@ constructions! {
         }
         form costed_keyword_line_item = lex(keyword) cost;
     }
-    construction keyword_color_quality: KeywordColorQuality {
-        element KeywordColorQualityValue { color: lex Color, }
-        form keyword_color_quality = lex(color);
-    }
-    construction keyword_nominal_quality: KeywordNominalQuality {
-        element KeywordNominalQualityValue { nominal: Nominal, }
-        form keyword_nominal_quality = nominal;
-    }
     construction keyword_quality_coordination: KeywordQualityCoordination {
         element KeywordQualityCoordinationValue {
-            members: seq KeywordQuality separated by position {
+            members: seq Nominal separated by position {
                 pair = " and from ";
                 first = ", from ";
                 middle = ", from ";
@@ -4546,16 +4611,28 @@ constructions! {
     construction subject_keyword_line_item: SubjectKeywordLineItem {
         element SubjectKeywordLineItemValue {
             keyword: lex SubjectKeywordAbility,
-            subject: SingularNominal,
+            subject: KeywordSubject,
         }
         form subject_keyword_line_item = lex(keyword) subject;
+    }
+    construction keyword_relative_subject: KeywordRelativeSubject {
+        element KeywordRelativeSubjectValue {
+            nominal: SingularNominal,
+            clause: ObjectGapRelativeClause,
+        }
+        form keyword_relative_subject = nominal clause;
+    }
+    construction keyword_reminder_text: KeywordReminderText {
+        element KeywordReminderTextValue { ability: Ability, }
+        form keyword_reminder_text = sentence_initial(" (") suffix(ability, ")");
     }
     construction keyword_line: KeywordLine {
         element KeywordLineValue {
             items: seq KeywordLineItem separated by ", ",
+            reminder: opt KeywordReminderText,
         }
         require len(items) >= 1;
-        form keyword_line = items;
+        form keyword_line = items reminder;
     }
     construction ability_word_ability: AbilityWordAbility {
         element AbilityWordAbilityValue {
@@ -4571,7 +4648,7 @@ constructions! {
         KeywordLine,
     }
     abstract product OracleText {
-        blocks: seq DocumentBlock separated by "\n",
+        blocks: seq DocumentBlock separated by sentence_initial("\n"),
     }
 
     root Ability { eoi = true; standalone_render = true; }
