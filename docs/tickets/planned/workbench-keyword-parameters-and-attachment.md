@@ -385,3 +385,20 @@ Standard constraints apply.
   two landed narrowings (`ItToken`, `ItOtherThan`) are already positioned to
   consume it. The biggest single anaphora win available; attachment machinery,
   so it lands here.
+
+- **Routed from workbench-trigger-2-while-join-readback (close, 2026-08-27):**
+  four keyword rows the trigger header's new slots ran into, each holding a
+  whole card off the bench while the standing scope fence keeps them here.
+  **Saddle** [CR#702.171a] — no `keywordFacts` row, so Autarch Mammoth (whose
+  header now writes, `Cards.autarchMammothLine`), Bridled Bighorn, Seraphic
+  Steed and the rest of the 26-line "attacks while saddled" family stay
+  ability-only; the DESIGNATION half is already there (`Saddled`,
+  `Macros.becomesSaddled`), only the word is missing. **Suspend** — Veiling
+  Oddity's other line ("Suspend 4—{1}{U}"), which keeps that card off the
+  bench though its trigger now writes (`Cards.veilingOddityLine`).
+  **Emerge** and **Craft** — the two remaining printed shapes of the
+  concurrent clause's ACT arm: "while casting a spell with emerge" (Foul
+  Emissary) wants `HasKeyword "Emerge"`, and "while you're activating a craft
+  ability" (Market Gnome) wants a "Craft" row AND an ability described by a
+  keyword, which `AbilityClass` does not spell. The arm itself is landed and
+  witnessed at the scry (`Cards.whileScrying`).

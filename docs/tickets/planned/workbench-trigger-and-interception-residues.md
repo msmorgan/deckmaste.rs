@@ -122,7 +122,19 @@ second row. Cards: Autarch Mammoth, Brinelin, Case File Auditor, Balemurk Leech,
 MACH-1, Exuberant Fuseling, Cryptid Inspector, Inspired Skypainter and fifty
 more; several are otherwise-writable whole cards.
 
-## The coordinated header's readback — 144 of 364
+## The coordinated header's readback — 144 of 364 — STRUCK, ALREADY LANDED
+
+**CORRECTED 2026-08-27 by sub-round 2.** The premise below is stale: the
+decidable `Bindings` comparison it asks for is `Words.sameBindings` (over
+`sameBinding`/`samePayload`), `Triggers.armsAgree`/`sharedCtx` is the
+common-announcement read built on it, and `headerCtx` IS `sharedCtx
+eventAfter` — so the same-phrase coordinations write and Aisling Leprechaun
+was already benched beside Chub Toad and Inferno Elemental. Re-measured:
+336 event-coordinated header lines, 134 reading a mention back, 44 of them
+"blocks or becomes blocked" (34 with a readback, all writing), ~100 still
+refused at `badAltHeaderMixedReadback`/`badThreeArmHeaderReadback`. Nothing
+here is owed. The section is kept only so the numbers are not re-derived.
+
 
 The tail the coordination round measured and did not pay: 144 of the 364
 coordinated headers read a mention back, and `headerCtx` answers the empty
