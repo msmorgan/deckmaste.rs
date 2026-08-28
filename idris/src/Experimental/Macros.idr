@@ -233,6 +233,30 @@ thisEquipment : Noun bs Object
 thisEquipment = AsType Artifact This (Just (artifactType "Equipment"))
 
 public export
+thisSaga : Noun bs Object
+thisSaga = AsType Enchantment This (Just (enchantmentType "Saga"))
+
+public export
+thisClass : Noun bs Object
+thisClass = AsType Enchantment This (Just (enchantmentType "Class"))
+
+public export
+thisCase : Noun bs Object
+thisCase = AsType Enchantment This (Just (enchantmentType "Case"))
+
+public export
+thisRoom : Noun bs Object
+thisRoom = AsType Enchantment This (Just (enchantmentType "Room"))
+
+public export
+thisVehicle : Noun bs Object
+thisVehicle = AsType Artifact This (Just (artifactType "Vehicle"))
+
+public export
+thisSpacecraft : Noun bs Object
+thisSpacecraft = AsType Artifact This (Just (artifactType "Spacecraft"))
+
+public export
 exiledWithThisArtifact : Predicate bs Object
 exiledWithThisArtifact = ExiledWith thisArtifact
 

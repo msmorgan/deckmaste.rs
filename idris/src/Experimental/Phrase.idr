@@ -1990,8 +1990,17 @@ mutual
   nounDelta (Those w) = []
   nounDelta (TheVerbed v w _) = []
   nounDelta (ThoseVerbed v w _) = []
-  nounDelta (ControllerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
-  nounDelta (OwnerOf n) = MkBinding TheD Player OneOf PlayerP :: nounDelta n
+  -- a possessive already announces whatever its base announces, so a
+  -- DESCRIBED base leaves the thing possessed readable ("target
+  -- creature's controller … it"). A deictic base has no `nounDelta` of
+  -- its own, and `selfSubjDelta`'s rows are exactly the announcement it
+  -- makes instead; threading them here is what keeps the two bases
+  -- parallel. The row it mints is `SelfD`, so "it" reaches the named
+  -- object and the demonstrative words still do not.
+  nounDelta (ControllerOf n) =
+    MkBinding TheD Player OneOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
+  nounDelta (OwnerOf n) =
+    MkBinding TheD Player OneOf PlayerP :: (selfSubjDelta n ++ nounDelta n)
   nounDelta (Designated _ _) = []
 
   ||| What a per-member pass hands its body: ONE member of the group,
@@ -2835,9 +2844,15 @@ mutual
   public export
   data LinkSource : Noun bs k -> Type where
     SelfLinked : LinkSource This
-    SortedSelfLinked : {0 t : CardType} -> {0 asc : Ascribable This} ->
-                       {0 way : So (ascriptionOk t Nothing)} ->
-                       LinkSource (AsType t This Nothing {asc} {way})
+    ||| The same self-link written at a type word rather than by name.
+    ||| The subtype slot rides along because [CR#205.3c] correlates a
+    ||| subtype word to its own card type, so "this Saga" names the
+    ||| linking object exactly as "this enchantment" does and the note
+    ||| [CR#406.6] hangs on the object, not on which word named it.
+    SortedSelfLinked : {0 t : CardType} -> {0 sub : Maybe Subtype} ->
+                       {0 asc : Ascribable This} ->
+                       {0 way : So (ascriptionOk t sub)} ->
+                       LinkSource (AsType t This sub {asc} {way})
 
   public export
   choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
@@ -3423,12 +3438,16 @@ mutual
                {auto 0 ok : So (seedsToken p)} ->
                TokenPhrase (Indefinite m p {ph})
 
-  ||| The announcement a DEICTIC subject makes on its own behalf: the
+  ||| The announcement a DEICTIC phrase makes on its own behalf: the
   ||| source, or an attachment's host, re-mentioned so a clause reading
-  ||| this one may say "it". A described subject names its referent
+  ||| this one may say "it". A described phrase names its referent
   ||| through its own `nounDelta` and needs no row here; a self-name and
   ||| an attach word have no delta of their own, which is the whole
   ||| reason the rows exist.
+  ||| Two seats read it: a clause's SUBJECT, through `selfSubjIntro`, and
+  ||| a possessive's BASE, through `nounDelta`'s relational rows -- the
+  ||| two places a deictic is named in full and a later pronoun can point
+  ||| back at it.
   public export
   selfSubjDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   selfSubjDelta (AsType t This _) =
