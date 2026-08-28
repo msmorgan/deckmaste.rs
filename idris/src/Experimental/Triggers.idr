@@ -157,6 +157,16 @@ mutual
   watchFitsDie d (ResultIn _) = dieHasResult d
   watchFitsDie d HighestNatural = dieHasResult d
 
+  ||| What a written defender has announced by the time the attackers are
+  ||| named. The English writes the defender FIRST -- "attacks you with
+  ||| two or more creatures" -- so the attacking group is described in a
+  ||| discourse the defender is already in; `agentIntro`'s shape at the
+  ||| defender seat.
+  public export
+  defenderIntro : {bs : Bindings} -> AttackDefender bs -> Bindings
+  defenderIntro NoDefender = bs
+  defenderIntro (OneDefender m) = nomIntro m
+
   ||| What an event has announced by the time its second slot is named:
   ||| the acting player when the clause writes one, and nothing when the
   ||| passive leaves it out. `mayCtx`'s shape at the event seat.
@@ -265,16 +275,26 @@ mutual
     ||| player subject is the rules' own reading and not a paraphrase of
     ||| `Attacks`.
     ||| A second row and not a `Kind` on `Attacks`'s subject: that
-    ||| subject carries a battlefield gate and threads an
-    ||| `AttackDefender` on its own `nomIntro`, and this one has neither.
-    ||| [CR#508.1b] announces a defender per attacking CREATURE, and this
-    ||| header names the attackers where that slot would go.
+    ||| subject carries a battlefield gate, and this one has none.
+    ||| The DEFENDER is written here as it is at `Attacks`, and for the
+    ||| same rule: [CR#508.1b] has the attacking player announce which
+    ||| player, planeswalker or battle each chosen creature is attacking,
+    ||| so a header read from that player's side may name it -- "attacks
+    ||| YOU with two or more creatures", "attacks A PLANESWALKER YOU
+    ||| CONTROL with one or more creatures". One `AttackDefender` and not
+    ||| one per attacker: the printed headers name a single defender for
+    ||| the whole declaration, and the rule's per-creature announcement is
+    ||| what makes that one defender true of each of them.
+    ||| It is threaded BEFORE the attackers because the English writes it
+    ||| there, so the attacking group is described in a discourse the
+    ||| defender is already in.
     ||| It announces those attackers, which the body reads back ("put a
     ||| +1/+1 counter on each of them", "untap up to X lands, where X is
     ||| the greatest power among those creatures").
-    ||| -- spelling: "[who] attack(s) with [attackers]"
+    ||| -- spelling: "[who] attack(s) [whom] with [attackers]"
     AttacksWith : (who : Noun bs Player) ->
-                  (attackers : Noun (nomIntro who) Object) ->
+                  (whom : AttackDefender (nomIntro who)) ->
+                  (attackers : Noun (defenderIntro whom) Object) ->
                   {auto 0 zn : ZoneFits (nounZone attackers) (Just Battlefield)} ->
                   GameEvent bs
     Blocks : (n : Noun bs Object) ->
@@ -513,10 +533,28 @@ mutual
     ||| ("the third first spell") is tolerated overgeneration. The trigger
     ||| word stays the header's own slot, unconstrained here: an ordinal
     ||| names WHICH occurrence, not how often the header may trigger.
+    ||| The RESET is the second slot: "your second card EACH TURN" says
+    ||| over what period the occurrences are counted, and the count starts
+    ||| again when that period does. It is NOT a `TriggerWindow` and could
+    ||| not be one -- a window says WHEN the header may trigger, and
+    ||| `windowOk` refuses a bare turn there for exactly the reason this
+    ||| slot exists ("during the turn" restricts nothing, because
+    ||| [CR#500.1] puts every moment of the game inside some turn). A
+    ||| period that bounds a COUNT is a different question from one that
+    ||| bounds a moment, and a bare turn answers the first.
+    ||| The period is a `TurnPart` and carries no possessor: the printed
+    ||| reset is the turn the occurrences fall in, whoever's it is, and a
+    ||| header that DOES narrow to some player's turns writes that as its
+    ||| window ("your first spell during each opponent's turn"), whose own
+    ||| "each" then does the resetting. `Nothing` is the count with no
+    ||| stated period, which the plan- and hour-counter headers write:
+    ||| [CR#714.2b]'s counters accumulate over the game and the ordinal
+    ||| picks one of them absolutely.
     ||| -- spelling: at a counter event, "When the [ord] [kind] counter is
     ||| put on [n]"; at a cast event, "Whenever [who] cast(s) [whose]
-    ||| [ord] spell [window]".
-    NthOccurrence : (ord : Ordinal) -> (ev : GameEvent bs) -> GameEvent bs
+    ||| [ord] spell [window]"; the reset, "each [part]".
+    NthOccurrence : (ord : Ordinal) -> (per : Maybe TurnPart) ->
+                    (ev : GameEvent bs) -> GameEvent bs
 
   public export
   eventName : {0 bs : Bindings} -> GameEvent bs -> EventName
@@ -527,7 +565,7 @@ mutual
   eventName (LosesGame _) = GameLoss
   eventName (Enters _ _) = Entry
   eventName (Attacks _ _) = AttackDeclaration
-  eventName (AttacksWith _ _) = AttackDeclaration
+  eventName (AttacksWith _ _ _) = AttackDeclaration
   eventName (Blocks _ _) = BlockDeclaration
   eventName (BecomesBlocked _ _) = BlockedDeclaration
   eventName (DealsCombatDamage _ _) = CombatDamage
@@ -550,7 +588,7 @@ mutual
   eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (PaysLife _) = LifePayment
   eventName (VerbedEvent _ v _) = VerbedAct v
-  eventName (NthOccurrence _ ev) = eventName ev
+  eventName (NthOccurrence _ _ ev) = eventName ev
 
   ||| What an event pattern contributes before it happens — its announced
   ||| subject phrase [CR#601.2c]. Read by an interception's replacement,
@@ -572,7 +610,7 @@ mutual
   eventIntro (Enters n _) = selfSubjIntro n
   eventIntro (Attacks n NoDefender) = selfSubjIntro n
   eventIntro (Attacks _ (OneDefender whom)) = selfSubjIntro whom
-  eventIntro (AttacksWith _ attackers) = selfSubjIntro attackers
+  eventIntro (AttacksWith _ _ attackers) = selfSubjIntro attackers
   eventIntro (Blocks n Nothing) = selfSubjIntro n
   eventIntro (Blocks _ (Just what)) = selfSubjIntro what
   eventIntro (BecomesBlocked n Nothing) = selfSubjIntro n
@@ -617,7 +655,7 @@ mutual
   eventIntro (PaysLife who) = selfSubjIntro who
   eventIntro (VerbedEvent who _ Nothing) = agentIntro who
   eventIntro (VerbedEvent _ _ (Just what)) = selfSubjIntro what
-  eventIntro (NthOccurrence _ ev) = eventIntro ev
+  eventIntro (NthOccurrence _ _ ev) = eventIntro ev
 
   ||| The discourse after the event has happened, read by a trigger's
   ||| effect body: it looks for the object in the zone it moved to
@@ -635,7 +673,10 @@ mutual
   eventAfter (Enters n _) = moveIntro Nothing n (Just Battlefield)
   eventAfter (Attacks n NoDefender) = selfSubjIntro n
   eventAfter (Attacks n (OneDefender whom)) = nounDelta whom ++ selfSubjIntro n
-  eventAfter (AttacksWith _ attackers) = nomIntro attackers
+  -- the defender stands after it too, on `Attacks`'s model: its mention
+  -- is already inside the attackers' own discourse, since the defender
+  -- is written first.
+  eventAfter (AttacksWith _ _ attackers) = nomIntro attackers
   eventAfter (Blocks n Nothing) = selfSubjIntro n
   eventAfter (Blocks _ (Just what)) = nomIntro what
   eventAfter (BecomesBlocked n Nothing) = selfSubjIntro n
@@ -682,7 +723,7 @@ mutual
   -- that rule moves nothing [CR#701.26a].
   eventAfter (VerbedEvent _ v (Just what)) =
     moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
-  eventAfter (NthOccurrence _ ev) = eventAfter ev
+  eventAfter (NthOccurrence _ _ ev) = eventAfter ev
 
   public export
   eventSubjectPlur : {bs : Bindings} -> GameEvent bs -> Plurality
@@ -693,7 +734,7 @@ mutual
   eventSubjectPlur (LosesGame who) = nounPlur who
   eventSubjectPlur (Enters n _) = nounPlur n
   eventSubjectPlur (Attacks n _) = nounPlur n
-  eventSubjectPlur (AttacksWith who _) = nounPlur who
+  eventSubjectPlur (AttacksWith who _ _) = nounPlur who
   eventSubjectPlur (Blocks n _) = nounPlur n
   eventSubjectPlur (BecomesBlocked n _) = nounPlur n
   eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
@@ -723,7 +764,7 @@ mutual
   -- unreachable: `VerbedVoice` refuses an act with neither actor nor
   -- patient written; folded here rather than left to a catch-all.
   eventSubjectPlur (VerbedEvent Nothing _ Nothing) = OneOf
-  eventSubjectPlur (NthOccurrence _ ev) = eventSubjectPlur ev
+  eventSubjectPlur (NthOccurrence _ _ ev) = eventSubjectPlur ev
 
   ||| Whether every arm of a coordination announces exactly what the head
   ||| event announces, under the reader its seat uses.

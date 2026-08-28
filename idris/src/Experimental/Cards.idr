@@ -9164,15 +9164,16 @@ netheresePuzzleWardIllumination =
 
 ||| Resolute Veggiesaur, second line: "Whenever you roll your third die
 ||| each turn, put a +1/+1 counter on this creature." No vocabulary of its
-||| own: the ordinal occurrence word over the roll event, under the window
-||| that resets it. "Each turn" is benched as the every-player window,
-||| which is the same span in the spelling `TriggerWindow` carries.
+||| own: the ordinal occurrence word over the roll event, with the period
+||| that resets its count. It was benched as an every-player WINDOW, which
+||| said the wrong thing: a window restricts when the header may trigger,
+||| and this header may trigger on any turn -- what "each turn" bounds is
+||| how many rolls have to have happened first.
 public export
 resoluteVeggiesaurThirdDie : Ability
 resoluteVeggiesaurThirdDie =
-  Macros.triggeredOnlyDuring Whenever
-    (NthOccurrence (Nth 3) Macros.youRollADie)
-    (DuringWindow Turn (Just EachPlayers))
+  Macros.triggered Whenever
+    (NthOccurrence (Nth 3) (Just Turn) Macros.youRollADie)
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                  Macros.thisCreature)
 
@@ -9683,7 +9684,7 @@ public export
 wavebreakHippocamp : Ability
 wavebreakHippocamp =
   Macros.triggeredOnlyDuring Whenever
-    (NthOccurrence (Nth 1) (Casts You (Macros.a Macros.spell)))
+    (NthOccurrence (Nth 1) Nothing (Casts You (Macros.a Macros.spell)))
     (DuringWindow Turn (Just EachOpponents))
     Macros.drawACard
 
@@ -9693,7 +9694,7 @@ wavebreakHippocamp =
 public export
 midnightClockHeader : GameEvent []
 midnightClockHeader =
-  NthOccurrence (Nth 12)
+  NthOccurrence (Nth 12) Nothing
     (Macros.singleCounterEvent CounterPut Hour Macros.thisArtifact)
 
 ||| Political Triumph -- "When the fourth plan counter is put on this
@@ -9702,7 +9703,7 @@ midnightClockHeader =
 public export
 politicalTriumphHeader : GameEvent []
 politicalTriumphHeader =
-  NthOccurrence (Nth 4)
+  NthOccurrence (Nth 4) Nothing
     (Macros.singleCounterEvent CounterPut Plan Macros.thisEnchantment)
 
 ||| Run the Play (Striding Shotcaller's other half), first clause -- "Put a
@@ -10723,7 +10724,8 @@ militaryIntelligence =
        (Just [Macros.generic 1, Macros.pip Blue]) []
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
-           (AttacksWith You (CountedGroup (Macros.atLeast 2) Nothing Macros.creature))
+           (AttacksWith You NoDefender
+                        (CountedGroup (Macros.atLeast 2) Nothing Macros.creature))
            Macros.drawACard ]
        Nothing
 
@@ -10743,11 +10745,11 @@ aureliaTheLawAbove =
        , Macros.keyword "Vigilance"
        , Macros.keyword "Haste"
        , Macros.triggered Whenever
-           (AttacksWith (Macros.a AnyPlayer)
+           (AttacksWith (Macros.a AnyPlayer) NoDefender
                         (CountedGroup (Macros.atLeast 3) Nothing Macros.creature))
            Macros.drawACard
        , Macros.triggered Whenever
-           (AttacksWith (Macros.a AnyPlayer)
+           (AttacksWith (Macros.a AnyPlayer) NoDefender
                         (CountedGroup (Macros.atLeast 5) Nothing Macros.creature))
            (Sequentially [ DealDamage This (Lit 3) (Each Opponent)
                          , Macros.gainsLife You (Lit 3) ]) ]
@@ -10764,7 +10766,7 @@ aureliaTheLawAbove =
 public export
 tahngarthHeader : GameEvent []
 tahngarthHeader =
-  AttacksWith Macros.anOpponent
+  AttacksWith Macros.anOpponent NoDefender
               (CountedGroup (Macros.atLeast 1) Nothing Macros.creature)
 
 ||| Myth Unbound's header -- "Whenever your commander is put into the
@@ -12300,21 +12302,30 @@ concussiveBolt =
             (Just Macros.thisTurn))
          Nothing ]
 
-||| Trouble in Pairs' second and third arms -- "Whenever an opponent … draws
-||| their second card each turn, or casts their second spell each turn, you
-||| draw a card." The arms SHARE a subject in print and write their own in
+||| Trouble in Pairs' whole header -- "Whenever an opponent attacks you
+||| with two or more creatures, draws their second card each turn, or casts
+||| their second spell each turn, you draw a card." All three arms now: the
+||| first wanted the defender the attacking player's header may name
+||| [CR#508.1b], and the other two wanted the period their ordinals are
+||| counted over. The arms SHARE a subject in print and write their own in
 ||| the semantics: English elides the repeated noun, and the elision is the
 ||| spelling, not a mechanism. Nothing is lost here because the body reads
 ||| no arm ("you draw a card"); a body naming "that player" would be reading
 ||| one of three existentials and is what the seat's own whole-agreement
-||| rule already refuses. The card's first arm needs an attack header with a
-||| defender and a counted attacking group, which is not this ticket's.
+||| rule already refuses.
+||| The card's OTHER line -- "If an opponent would begin an extra turn,
+||| that player skips that turn instead" -- is a replacement over a turn's
+||| beginning, which no event row spells, so the header is the witness and
+||| the card is not whole.
 public export
 troubleInPairsArms : AbilityAt []
 troubleInPairsArms =
   Triggered Whenever
-    (NthOccurrence (Nth 2) (Draws (Macros.a Opponent)))
-    [ NthOccurrence (Nth 2) (Casts (Macros.a Opponent) (Macros.a Macros.spell)) ]
+    (AttacksWith Macros.anOpponent (OneDefender You)
+                 (CountedGroup (Macros.atLeast 2) Nothing Macros.creature))
+    [ NthOccurrence (Nth 2) (Just Turn) (Draws (Macros.a Opponent))
+    , NthOccurrence (Nth 2) (Just Turn)
+        (Casts (Macros.a Opponent) (Macros.a Macros.spell)) ]
     Nothing Nothing Nothing
     (Draw You (Lit 1))
 
@@ -12570,3 +12581,31 @@ bioplasm =
                         (Just Macros.thisTurn))
                    Nothing ]) ]
        (Just (4, 4))
+
+||| Oath of Kaya, whole -- "When Oath of Kaya enters, it deals 3 damage to
+||| any target and you gain 3 life. / Whenever an opponent attacks a
+||| planeswalker you control with one or more creatures, Oath of Kaya
+||| deals 2 damage to that player and you gain 2 life." The corpus's one
+||| PLANESWALKER defender, and it is the player-side header that writes
+||| it: [CR#508.1b] has the attacking player announce which player,
+||| planeswalker or battle each creature attacks, so the defender is
+||| nameable from that side and the deed table already admits the type.
+||| The body reads the attacking player back as "that player".
+public export
+oathOfKaya : Card
+oathOfKaya =
+  Macros.card "Oath of Kaya"
+       (Just [Macros.generic 1, Macros.pip White, Macros.pip Black]) [Legendary]
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggered When
+           (Enters This Nothing)
+           (Sequentially [ DealDamage This (Lit 3) (Macros.target Macros.anyTarget)
+                         , Macros.gainsLife You (Lit 3) ])
+       , Macros.triggered Whenever
+           (AttacksWith Macros.anOpponent
+                        (OneDefender (Macros.a (And [HasType Planeswalker,
+                                                     ControlledBy You])))
+                        (CountedGroup (Macros.atLeast 1) Nothing Macros.creature))
+           (Sequentially [ DealDamage This (Lit 2) (That PlayerW)
+                         , Macros.gainsLife You (Lit 2) ]) ]
+       Nothing
