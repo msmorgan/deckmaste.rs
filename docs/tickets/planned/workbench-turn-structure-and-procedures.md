@@ -404,3 +404,9 @@ is separate work and is not this ticket's.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-choice-c-chooser-positions (close, 2026-08-27):** the
+  Lores' repeat-with-exclusion procedure — "repeat this process except that
+  opponent can't choose a card already chosen" (Forgotten Lore, Shrouded Lore).
+  A repeated procedure with memory of prior picks; procedure machinery, so it
+  lands here.

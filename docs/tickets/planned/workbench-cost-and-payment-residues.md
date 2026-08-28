@@ -422,3 +422,9 @@ Standard constraints apply.
   card's letter from inside the ability. 3 supported cards (Chamber Sentry,
   Defenders of Humanity, Wren's Run Hydra); the fix belongs to the ability's own
   telescope, which is this bundle's machinery.
+
+- **Routed from workbench-choice-c-chooser-positions (close, 2026-08-27):** the
+  ADDITIONAL-COST chooser position and its missing row — a chooser announced
+  from a spell's additional cost, one of the two positions the umbrella never
+  named (10 cards over 7 positions, recounted from 5). Cost machinery, so it
+  lands here.

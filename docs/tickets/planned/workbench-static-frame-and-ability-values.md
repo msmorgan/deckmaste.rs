@@ -257,3 +257,8 @@ vocabulary; the marker word and its gate),
 Standard constraints apply.
 
 - **Routed from workbench-anaphora-e-partitive-surfaces (close, 2026-08-27):** the "play with [slice] revealed" STATIC has no row ([CR#401.5,401.6] — the rules define the revealed-top state; Field of Dreams, Lantern of Insight, Wizened Snitches spell their slices and wait on it). A static row, so it lands here.
+
+- **Routed from workbench-choice-c-chooser-positions (close, 2026-08-27):**
+  Koh the Face Stealer's whole-ability-set grant (gaining all activated
+  abilities of the chosen card) — an ability-values grant; the chooser side
+  landed in choice-C.

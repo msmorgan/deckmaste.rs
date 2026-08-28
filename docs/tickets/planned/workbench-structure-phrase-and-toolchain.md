@@ -246,3 +246,8 @@ source, no grammar decision.
 - `idris/scripts/build` PASS, no witness lost, no pin silently passing.
 
 Standard constraints apply.
+
+- **Routed from workbench-choice-c-chooser-positions (close, 2026-08-27):**
+  FLAVOR WORDS — the italicized non-ability word before an ability (Beckoning
+  Will-o'-Wisp's carrier among them); no structure carries them. Surface
+  structure, so it lands here.

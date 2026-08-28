@@ -27,3 +27,7 @@ Pins:
 Acceptance: the umbrella's lines for the colour change, Ashes, Yedora, Indigo
 Faerie, the ordering sweep, the 6 loss sentences, Energybending and the
 choose-two lines. `idris/scripts/build` PASS. Standard constraints apply.
+
+Routed from choice-C (close, 2026-08-27): the TOKEN SPEC's chosen-quality
+cell — `TokenChars` cannot carry a chosen quality where a literal one stands;
+payload territory, so it lands here.
