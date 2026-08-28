@@ -1813,7 +1813,7 @@ mayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                                   (the (Maybe (ZoneExpr (nomIntro what))) Nothing)
                                   False} ->
           {auto 0 cv : CastableTy Play (nounTy what)} -> StaticEffect bs
-mayPlay who what = MayPlay who what Play Nothing Nothing Nothing Nothing {pz} {cv}
+mayPlay who what = MayPlay who what Play Nothing Nothing Nothing Nothing False {pz} {cv}
 
 ||| "You may cast <what> from <zone>."
 public export
@@ -1822,7 +1822,7 @@ mayCastFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
               {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
 mayCastFrom who what from =
-  MayPlay who what Cast (Just from) Nothing Nothing Nothing {pz} {cv}
+  MayPlay who what Cast (Just from) Nothing Nothing Nothing False {pz} {cv}
 
 ||| "You may play <what> from <zone>."
 public export
@@ -1831,7 +1831,7 @@ mayPlayFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
               {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
               {auto 0 cv : CastableTy Play (nounTy what)} -> StaticEffect bs
 mayPlayFrom who what from =
-  MayPlay who what Play (Just from) Nothing Nothing Nothing {pz} {cv}
+  MayPlay who what Play (Just from) Nothing Nothing Nothing False {pz} {cv}
 
 ||| "You may cast <what> from <zone>", under a play limit.
 public export
@@ -1840,7 +1840,39 @@ mayCastFromLimited : (who : Noun bs Player) -> (what : Noun (nomIntro who) Objec
                      {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
                      {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
 mayCastFromLimited who what from lim =
-  MayPlay who what Cast (Just from) Nothing (Just lim) Nothing {pz} {cv}
+  MayPlay who what Cast (Just from) Nothing (Just lim) Nothing False {pz} {cv}
+
+||| "You may cast <what> from <zone>, but not from anywhere else."
+||| Haakon, Stromgald Scourge's first line and the only one printed.
+public export
+mayCastFromOnly : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+                  (from : ZoneExpr (nomIntro what)) ->
+                  {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
+                  {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+mayCastFromOnly who what from =
+  MayPlay who what Cast (Just from) Nothing Nothing Nothing True {pz} {cv}
+
+||| "During each of your turns, you may play <what> from <zone>."
+public export
+mayPlayFromEachYourTurn : (who : Noun bs Player) ->
+                          (what : Noun (nomIntro who) Object) ->
+                          (from : ZoneExpr (nomIntro what)) ->
+                          {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
+                          {auto 0 cv : CastableTy Play (nounTy what)} -> StaticEffect bs
+mayPlayFromEachYourTurn who what from =
+  MayPlay who what Play (Just from) Nothing Nothing (Just DuringEachOfYourTurns)
+          False {pz} {cv}
+
+||| "During each of your turns, you may cast <what> from <zone>."
+public export
+mayCastFromEachYourTurn : (who : Noun bs Player) ->
+                          (what : Noun (nomIntro who) Object) ->
+                          (from : ZoneExpr (nomIntro what)) ->
+                          {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
+                          {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
+mayCastFromEachYourTurn who what from =
+  MayPlay who what Cast (Just from) Nothing Nothing (Just DuringEachOfYourTurns)
+          False {pz} {cv}
 
 ||| "You may cast <what> as though it had flash." The hardcoded
 ||| `PlayAsThough = HadFlash` retired: the premise is the carrier's
@@ -1854,7 +1886,7 @@ mayCastAsThough : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) 
                   {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
 mayCastAsThough who what =
   MayPlay who what Cast Nothing (Just (AsThoughOf (HasKeyword "Flash"))) Nothing Nothing
-          {pz} {cv}
+          False {pz} {cv}
 
 ||| "[n] leaves the battlefield": the zone the leaves-the-battlefield
 ||| ability names [CR#603.10a], written into the row's source slot.
@@ -2356,7 +2388,7 @@ mayCastFromWhileSearching : (who : Noun bs Player) -> (what : Noun (nomIntro who
                             {auto 0 pz : PlaySource (nounZone what) (Just from) False} ->
                             {auto 0 cv : CastableTy Cast (nounTy what)} -> StaticEffect bs
 mayCastFromWhileSearching who what from =
-  MayPlay who what Cast (Just from) Nothing Nothing (Just WhileSearchingLibrary) {pz} {cv}
+  MayPlay who what Cast (Just from) Nothing Nothing (Just WhileSearchingLibrary) False {pz} {cv}
 
 ||| "N1—N2": a results table's two-ended range [CR#706.3a].
 public export

@@ -86,7 +86,7 @@ badSliceOfCountedPossessor Oh impossible
 ||| names has a single spell and a plural complement names no casting.
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
-  Triggered Whenever (Casts You (AllOf Macros.spell) {one = ok}) [] Nothing [] Nothing Nothing Nothing
+  Triggered Whenever (Casts You (AllOf Macros.spell) Nothing {one = ok}) [] Nothing [] Nothing Nothing Nothing
             Macros.drawACard)
 badCastsPluralComplement Refl impossible
 

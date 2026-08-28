@@ -132,7 +132,7 @@ badCounterJoinedPlayer JoinCountered impossible
 ||| [CR#112.1] makes an object on the stack a spell, and a spell has already been cast.
 public export
 badPlayFromStack : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a Macros.spell) Play Nothing Nothing Nothing Nothing {pz = ok}) (Just Macros.thisTurn))
+  Continuously (MayPlay You (Macros.a Macros.spell) Play Nothing Nothing Nothing Nothing False {pz = ok}) (Just Macros.thisTurn))
 badPlayFromStack MkPlaySource impossible
 
 
@@ -140,7 +140,7 @@ badPlayFromStack MkPlaySource impossible
 ||| A land card "can be played only as a land. It can't be cast as a spell" [CR#305.9].
 public export
 badCastALand : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])) Cast Nothing Nothing Nothing Nothing {cv = ok})
+  Continuously (MayPlay You (Macros.a (And [Macros.land, InZone (Macros.graveyardOf You)])) Cast Nothing Nothing Nothing Nothing False {cv = ok})
                (Just Macros.thisTurn))
 badCastALand MkCastableTy impossible
 
@@ -149,7 +149,7 @@ badCastALand MkCastableTy impossible
 ||| A written source phrase must agree with the zone the complement already names.
 public export
 badPlayFromWrongZone : Unspellable (Effect []) (\ok =>
-  Continuously (MayPlay You (Macros.a (And [Macros.creature, InZone Macros.exileZ])) Play (Just (Macros.graveyardOf You)) Nothing Nothing Nothing {pz = ok})
+  Continuously (MayPlay You (Macros.a (And [Macros.creature, InZone Macros.exileZ])) Play (Just (Macros.graveyardOf You)) Nothing Nothing Nothing False {pz = ok})
                (Just Macros.thisTurn))
 badPlayFromWrongZone MkPlaySource impossible
 

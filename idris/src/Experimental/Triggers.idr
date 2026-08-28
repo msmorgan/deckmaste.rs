@@ -353,10 +353,28 @@ mutual
     BeginningOf : (part : TurnPart) -> (whose : HeaderPossessor bs) ->
                   {auto 0 pu : PartTriggerable part whose} ->
                   {auto 0 td : TurnDeixis (possessorWord whose) bs} -> GameEvent bs
+    ||| "Whenever [who] casts [what]", optionally "from [from]".
+    ||| The SOURCE phrase is a slot on the watch, not a description of the
+    ||| spell: [CR#601.2a] moves the card to the stack "from where it is",
+    ||| so where it came from is a fact about the casting and not about
+    ||| the object the casting produced, whose zone is the stack
+    ||| [CR#112.1] whatever the source was. That is also why the slot
+    ||| cannot be a `Predicate` on `what` -- the complement already
+    ||| answers the stack, and a zone word inside it would disagree.
+    ||| It admits exactly `playableFrom`'s zones and for the same reason
+    ||| the permission's own source slot does: nothing is cast from the
+    ||| stack [CR#112.1], because that is where a casting ENDS.
+    ||| Of 48 supported headers writing a source phrase, 29 write a
+    ||| positive zone (hand 18, graveyard 10, library 1); the other 19
+    ||| write "from anywhere other than [a] hand", a negative zone phrase
+    ||| this slot has no word for and which is not paid here.
+    ||| -- spelling: "[who] casts [what]", then " from [from]".
     Casts : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+            (from : Maybe (ZoneExpr (nomIntro what))) ->
             {auto 0 zn : OnStack (nounZone what)} ->
             {auto 0 one : nounPlur what = OneOf} ->
-            {auto 0 nt : Nontarget what} -> GameEvent bs
+            {auto 0 nt : Nontarget what} ->
+            {auto 0 pf : PlayableFrom (map Phrase.zoneSort from)} -> GameEvent bs
     ||| "When Fblthp becomes the target of a spell", "Whenever this
     ||| permanent becomes the target of a spell or ability an opponent
     ||| controls": the targeting relation read from the TARGETED side.
@@ -612,7 +630,7 @@ mutual
   eventName (DealsCombatDamage _ _) = CombatDamage
   eventName (DealsDamage _ _) = DamageDealing
   eventName (BeginningOf _ _) = PartBeginning
-  eventName (Casts _ _) = SpellCast
+  eventName (Casts _ _ _) = SpellCast
   eventName (BecomesTarget _ _) = BecomesTarget
   eventName (StatusEvent {c} _ _) = statusEventName c
   eventName DayNightShift = TimeShift
@@ -661,7 +679,7 @@ mutual
   eventIntro (DealsDamage n NoPatient) = selfSubjIntro n
   eventIntro (DealsDamage _ (OnePatient m)) = selfSubjIntro m
   eventIntro (BeginningOf _ _) = bs
-  eventIntro (Casts _ what) = selfSubjIntro what
+  eventIntro (Casts _ what _) = selfSubjIntro what
   eventIntro (BecomesTarget _ by) = selfSubjIntro by
   eventIntro (StatusEvent n _) = selfSubjIntro n
   eventIntro DayNightShift = bs
@@ -728,7 +746,7 @@ mutual
   eventAfter (DealsCombatDamage n to) = outcomeB DamageDealt :: nomIntro to
   eventAfter (DealsDamage n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
   eventAfter (DealsDamage _ (OnePatient m)) = outcomeB DamageDealt :: nomIntro m
-  eventAfter (Casts _ what) = nomIntro what
+  eventAfter (Casts _ what _) = nomIntro what
   -- both participants stand after it, on `Attacks`'s model: the tail
   -- reads back the targeter ("that spell's controller loses 5 life") and
   -- the thing targeted ("it phases out") alike.
@@ -786,7 +804,7 @@ mutual
   eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
   eventSubjectPlur (DealsDamage n _) = nounPlur n
   eventSubjectPlur (BeginningOf _ _) = OneOf
-  eventSubjectPlur (Casts _ what) = nounPlur what
+  eventSubjectPlur (Casts _ what _) = nounPlur what
   eventSubjectPlur (BecomesTarget n _) = nounPlur n
   eventSubjectPlur (StatusEvent n _) = nounPlur n
   eventSubjectPlur DayNightShift = OneOf

@@ -402,7 +402,7 @@ badChapterReplacement Oh impossible
 public export
 badFlashPermissionOnPermanent : Unspellable (StaticEffect []) (\ok =>
   MayPlay You (AllOf Macros.creatureYouControl) Cast Nothing
-          (Just (AsThoughOf (HasKeyword "Flash"))) Nothing Nothing {pz = ok})
+          (Just (AsThoughOf (HasKeyword "Flash"))) Nothing Nothing False {pz = ok})
 badFlashPermissionOnPermanent MkPlaySource impossible
 
 

@@ -1830,6 +1830,28 @@ publicZone Stack = True
 -- [CR#400.2] lists the command zone among the public zones.
 publicZone Command = True
 
+||| A state-based CAUSE of losing the game -- what a partial-cause
+||| immunity carves out. The frame is [CR#104.3]'s three state-based
+||| causes and only those: [CR#104.3b] "if a player's life total is 0 or
+||| less, that player loses the game"; [CR#104.3c] drawing from a library
+||| with too few cards; [CR#104.3d] ten or more poison counters. The
+||| other ways [CR#104.3] names are not causes an effect can carve out at
+||| all -- [CR#104.3a]'s concession is the one thing a card may never
+||| override [CR#101.1], and [CR#104.3e]'s effect-stated loss is what the
+||| immunity deliberately LEAVES standing.
+|||
+||| ONE row, because one is what is printed: all 7 supported lines write
+||| [CR#104.3b] (Phyrexian Unlife, Lich, Lich's Tomb, Soul Echo,
+||| Transcendence, Pact Weapon, Marina Vendrell's Grimoire). The other
+||| two cells of the frame are named here so a printing of either costs a
+||| row and nothing else; neither is held out by a rule.
+public export
+data LoseCause = ZeroOrLessLife
+
+public export
+Eq LoseCause where
+  (==) ZeroOrLessLife ZeroOrLessLife = True
+
 public export
 data ExposeVerb = LookAt | Reveal
 
@@ -1850,22 +1872,8 @@ public export
 ExposableZone : Zone -> Type
 ExposableZone z = So (exposableZone z)
 
-public export
-data VisibleThing = TopOfLibrary | WholeHand
-
-public export
-visibilityOk : ExposeVerb -> VisibleThing -> Bool
-visibilityOk Reveal TopOfLibrary = True
-visibilityOk Reveal WholeHand = True
-visibilityOk LookAt TopOfLibrary = True
--- [CR#402.3] already gives a player leave to look at their own hand any
--- time; "look at [subj]'s hand" can only agree with its own subject, so
--- the sentence would just restate the rule.
-visibilityOk LookAt WholeHand = False
-
-public export
-VisibilityOk : ExposeVerb -> VisibleThing -> Type
-VisibilityOk v w = So (visibilityOk v w)
+-- `VisibleThing` and `visibilityOk` moved to `Experimental.Phrase`:
+-- the complement gained an OBJECT arm, and a `Noun` is not in scope here.
 
 public export
 pubB : Binding -> Bool

@@ -1023,6 +1023,7 @@ data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition
                 | TypeSet | TypeLoss | ColorSet | AbilityLoss | Coordination
                 | CopyEffect
                 | VisibilityRider
+                | OutcomeImmunity
                 | LandAllowance
                 | TurnSkip
                 | LetterDefinition
@@ -1036,14 +1037,46 @@ data PlayVerb = Play | Cast
 public export
 data PlayLimit = OnceEachYourTurn | OnceEachTurn
 
-||| A moment a static play permission is confined to. The one arm is a
-||| library search [CR#701.23a], during which a card in that library may be
-||| cast by a permission that functions from the library [CR#113.6b]
-||| (Panglacial Wurm). No subrule of [CR#701.23] states that a player may
-||| cast a spell mid-search; the search action itself is what the window
-||| names.
+||| A stretch of time a static play permission is confined to. NOT
+||| `PlayLimit`: a limit caps HOW OFTEN the permission may be used inside
+||| whatever time it functions ("once during each of your turns"), while a
+||| window says WHEN it functions at all and caps nothing -- Muldrotha's
+||| "during each of your turns, you may play a land and cast a permanent
+||| spell of each permanent type" permits repeatedly inside the window
+||| where Danitha's "once during each of your turns" permits one. The two
+||| axes are written in the same sentence position and are not the same
+||| fact, which is why the "once" is not read off this vocabulary.
+||| [CR#601.3] gives the permission its own scope -- a player may begin to
+||| cast a spell only if a rule or effect allows it -- so an effect that
+||| allows within a stretch of time allows only there.
+||| Two arms:
+||| * a library search [CR#701.23a], during which a card in that library
+|||   may be cast by a permission that functions from the library
+|||   [CR#113.6b] (Panglacial Wurm). No subrule of [CR#701.23] states that
+|||   a player may cast a spell mid-search; the search action itself is
+|||   what the window names.
+||| * the controller's own turns, 2 supported lines (Muldrotha, the
+|||   Gravetide and Coram, the Undertaker).
+||| -- spelling: "while searching your library"; "during each of your
+||| turns, ".
 public export
-data PlayWindow = WhileSearchingLibrary
+data PlayWindow = WhileSearchingLibrary | DuringEachOfYourTurns
+
+||| Which limit and window may be written together. "Once during each of
+||| your turns" is `PlayLimit`'s own word for the composite, so writing
+||| the limit and the turn window together would spell the same turn
+||| phrase twice for one sentence. Every other pairing stands.
+public export
+playWindowOk : Maybe PlayLimit -> Maybe PlayWindow -> Bool
+-- the no-window case first, so a permission carrying only a limit
+-- reduces without the limit having to be known.
+playWindowOk _ Nothing = True
+playWindowOk (Just OnceEachYourTurn) (Just DuringEachOfYourTurns) = False
+playWindowOk _ _ = True
+
+public export
+PlayWindowOk : Maybe PlayLimit -> Maybe PlayWindow -> Type
+PlayWindowOk l w = So (playWindowOk l w)
 
 
 public export

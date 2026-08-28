@@ -4023,6 +4023,57 @@ mutual
   exposedIntro (ExposedCards n) = nomIntro n
   exposedIntro (ExposedZone z) = zoneDelta z ++ bs
 
+  ||| What a STANDING visibility rider exposes -- the complement of
+  ||| "play with [x] revealed" and "you may look at [x] any time". Two
+  ||| POSITIONED surfaces and one described GROUP, and the split is what
+  ||| the overridden rule is: [CR#401.2] and [CR#402.3] hide a library
+  ||| and a hand by their place, so the place arms name a position and
+  ||| nothing else and the possessive agrees with the subject; [CR#708.5]
+  ||| hides a face-down spell or permanent by what it IS -- "you can't
+  ||| look at ... face-down spells or permanents controlled by another
+  ||| player" -- and an object arm is the only way to say which ones.
+  ||| It is still not the exposure clause's `Exposed`: that one's zone
+  ||| arm is a whole `ZoneExpr` a one-shot instruction names, where the
+  ||| two place arms here are the standing rider's own two surfaces.
+  ||| -- spelling: "the top card of [subj]'s library", "[subj]'s hand",
+  ||| or the group's own phrase.
+  public export
+  data VisibleThing : Bindings -> Type where
+    TopOfLibrary : VisibleThing bs
+    WholeHand : VisibleThing bs
+    ||| "face-down creatures you don't control" (Keeper of the Lens):
+    ||| the group [CR#708.5] hides, described rather than placed.
+    VisibleObjects : (n : Noun bs Object) -> VisibleThing bs
+
+  public export
+  visibleIntro : {bs : Bindings} -> VisibleThing bs -> Bindings
+  visibleIntro TopOfLibrary = bs
+  visibleIntro WholeHand = bs
+  visibleIntro (VisibleObjects n) = nomIntro n
+
+  public export
+  visibilityOk : {0 bs : Bindings} -> ExposeVerb -> VisibleThing bs -> Bool
+  visibilityOk Reveal TopOfLibrary = True
+  visibilityOk Reveal WholeHand = True
+  visibilityOk LookAt TopOfLibrary = True
+  -- [CR#402.3] already gives a player leave to look at their own hand any
+  -- time; "look at [subj]'s hand" can only agree with its own subject, so
+  -- the sentence would just restate the rule.
+  visibilityOk LookAt WholeHand = False
+  -- [CR#708.5] states BOTH halves in one sentence: a player may look at
+  -- their own face-down spells and permanents at any time, and "can't
+  -- look at ... face-down spells or permanents controlled by another
+  -- player". The look-at arm is that second half's override, so it is
+  -- the one the corpus writes. Nothing closes the reveal cell -- a
+  -- standing "play with [group] revealed" restates no rule and breaks
+  -- none -- so it stands open at zero supported lines rather than
+  -- refusing on a count.
+  visibilityOk _ (VisibleObjects _) = True
+
+  public export
+  VisibilityOk : {0 bs : Bindings} -> ExposeVerb -> VisibleThing bs -> Type
+  VisibilityOk v w = So (visibilityOk v w)
+
   public export
   costNounOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   costNounOk This = True

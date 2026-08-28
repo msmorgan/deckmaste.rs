@@ -500,25 +500,74 @@ mutual
                   (marking : CondMarking) ->
                   {auto 0 nn : NotConditional se} ->
                   {auto 0 mk : MarkingOk marking c} -> StaticEffect bs
+      ||| THE static play permission: "[who] may play/cast [what]", with
+      ||| an optional source zone, a [CR#609.4] premise, a per-window
+      ||| count cap and a window.
+      ||| `exclusive` is the negative co-ordinate Haakon, Stromgald
+      ||| Scourge writes and nothing else does -- "you may cast this card
+      ||| from your graveyard, BUT NOT FROM ANYWHERE ELSE". [CR#601.3]
+      ||| makes casting depend on a rule or effect ALLOWING it, and the
+      ||| default is itself such a rule -- [CR#302.1] lets a player cast a
+      ||| creature card FROM THEIR HAND -- so a line may take it away;
+      ||| that is a second thing said about the
+      ||| same act in the same sentence, not a description of the object,
+      ||| which is why it rides here rather than being a `Predicate` or a
+      ||| second statement. It requires a written source: with no source
+      ||| phrase there is no "else" to exclude and the sentence would
+      ||| grant and revoke the same permission.
+      ||| -- spelling: ", but not from anywhere else" after the source.
       MayPlay : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                 (verb : PlayVerb) ->
                 (from : Maybe (ZoneExpr (nomIntro what))) ->
                 (asThough : Maybe (AsThough (nomIntro what))) ->
                 (limit : Maybe PlayLimit) ->
                 (window : Maybe PlayWindow) ->
+                (exclusive : Bool) ->
                 {auto 0 pz : PlaySource (nounZone what) from (isJust asThough)} ->
-                {auto 0 cv : CastableTy verb (nounTy what)} -> StaticEffect bs
+                {auto 0 cv : CastableTy verb (nounTy what)} ->
+                {auto 0 pw : PlayWindowOk limit window} ->
+                {auto 0 xo : So (not exclusive || isJust from)} -> StaticEffect bs
+      ||| The standing visibility rider: "[who] play(s) with [what]
+      ||| revealed", "[who] may look at [what] any time". One row for
+      ||| both audiences -- [CR#701.20e] makes looking revealing shown to
+      ||| one player -- over the three surfaces `VisibleThing` names.
+      ||| -- spelling: the verb, the subject and the complement's own
+      ||| phrase, with "any time" on the look-at side.
+      ||| "[who] don't lose the game for [cause]" -- Phyrexian Unlife's
+      ||| family, 7 supported lines. NOT the whole-gate refusal, and not
+      ||| the deontic carrier at the "LoseGame" label: [CR#104.3] names
+      ||| several ways to lose the game and this line carves out exactly
+      ||| ONE of them. [CR#104.3e]'s "an effect may state that a player
+      ||| loses the game" still reaches the subject afterwards -- a
+      ||| Phyrexian Unlife controller can still be made to lose by an
+      ||| effect -- where `Deontic who Forbid ["LoseGame"]` (Lich's
+      ||| Mastery, Platinum Angel) stops every cause at once. Two
+      ||| different sentences with two different meanings, so two rows.
+      ||| What it removes is one state-based action's application to one
+      ||| player, which is why the subject is a player and there is no
+      ||| modality slot: nothing here says "can't".
+      ||| -- spelling: "[who] don't lose the game for [cause]".
+      NoLossFrom : (who : Noun bs Player) -> (cause : LoseCause) ->
+                   StaticEffect bs
       Visibility : (v : ExposeVerb) -> (who : Noun bs Player) ->
-                   (what : VisibleThing) ->
+                   (what : VisibleThing (nomIntro who)) ->
                    {auto 0 vo : VisibilityOk v what} -> StaticEffect bs
-      ||| The land allowance keeps a literal bound: no printed line writes
-      ||| "up to [amt] additional lands", and the statement introduces no
-      ||| mention of its own, so an amount bound written here would be
-      ||| announced nowhere. Widening waits on a printed line.
+      ||| The land allowance, "[who] may play [q] additional land(s)".
+      ||| The bound was LITERAL, and the reason was never that literals
+      ||| are what the corpus writes -- the printed ceilings "up to two"
+      ||| and "up to three" (Journey of Discovery, Summer Bloom) are
+      ||| literal ranges and always passed. The reason was that the
+      ||| statement introduces no mention of its own, so an amount bound
+      ||| that ANNOUNCED one would be announced nowhere. That is what the
+      ||| gate now asks, and it is what the one blocked printing needed:
+      ||| Nahiri's Lithoforming's "you may play X additional lands this
+      ||| turn" reads a letter its own earlier sentence opened, so its
+      ||| quantity announces nothing and passes, while an amount bound
+      ||| that would introduce a mention still refuses.
       MayPlayAdditionalLands : (who : Noun bs Player) -> (q : Quantity bs) ->
                                {auto 0 nz : NonZeroQ q} ->
                                {auto 0 wf : WellFormedQ q} ->
-                               {auto 0 lt : So (quantLiteral q)} ->
+                               {auto 0 lt : So (isNil (quantDelta q))} ->
                                StaticEffect bs
       ||| [CR#506.3a] and [CR#508.4d] both say what happens when a
       ||| permanent enters attacking, so either rider is a real entry.
@@ -889,7 +938,8 @@ mutual
   staticKind (Conditionally _ _ _) = Conditional
   staticKind (OnlyWhile _ _ _) = Conditional
   staticKind (AlsoOffBattlefield se) = staticKind se
-  staticKind (MayPlay _ _ _ _ _ _ _) = PlayPermission
+  staticKind (MayPlay _ _ _ _ _ _ _ _) = PlayPermission
+  staticKind (NoLossFrom _ _) = OutcomeImmunity
   staticKind (Visibility _ _ _) = VisibilityRider
   staticKind (MayPlayAdditionalLands _ _) = LandAllowance
   staticKind (EntersRider _ _) = EntryRider
@@ -948,8 +998,9 @@ mutual
   staticIntro (Conditionally c se _) = staticIntro se
   staticIntro (OnlyWhile se c _) = staticIntro se
   staticIntro (AlsoOffBattlefield se) = staticIntro se
-  staticIntro (MayPlay who what _ _ _ _ _) = selfSubjIntro what
-  staticIntro (Visibility _ who _) = nomIntro who
+  staticIntro (MayPlay who what _ _ _ _ _ _) = selfSubjIntro what
+  staticIntro (NoLossFrom who _) = nomIntro who
+  staticIntro (Visibility _ who what) = visibleIntro what
   staticIntro (MayPlayAdditionalLands who _) = nomIntro who
   staticIntro (EntersRider n _) = selfSubjIntro n
   staticIntro (EntersWithCounters n amt _ _) = amtDelta amt ++ selfSubjIntro n
