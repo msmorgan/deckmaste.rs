@@ -13,3 +13,7 @@ one-cell round.
 Routed from description-2 (close, 2026-08-28): the ATTACKER-voice predicate
 ("the player who attacked that player" shape — Namor's 4 lines) joins this
 family's design; `AttackedBy` (description-1) covers the attacked side.
+
+Routed from damage-prevention (close, 2026-08-28): the `Unblocked` predicate
+("[creature] is unblocked" as a description) — Forcefield's last blocker;
+combat-role description, this family's design.
