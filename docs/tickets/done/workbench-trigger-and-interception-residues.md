@@ -3,7 +3,7 @@ needs: []
 ---
 # Close the trigger header's holes and pay the interception's owed bench
 
-**SPLIT 2026-08-27 into three sub-tickets — claim those, not this.** This
+**CLOSED 2026-08-28: ALL THREE SUB-ROUNDS DONE.** Remainders routed at each close (keyword-parameters, description-and-player-sorted-reads, event-disjunction-tail, prohibition); the causer complex waits whole in event-disjunction-tail; the by-source rider still waits at L1/OPEN-2. Originally split as: This
 file is the umbrella and stays authoritative:
 [1 heads and windows](workbench-trigger-1-heads-and-windows.md),
 [2 while, join, readback](workbench-trigger-2-while-join-readback.md),
