@@ -350,6 +350,32 @@ mutual
                      (dom : Maybe (ChoiceDomain q)) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                      StaticEffect bs
+      ||| "As [n] becomes attached to [host], choose [q]" -- the choice
+      ||| an ATTACHMENT replacement makes. A distinct row beside
+      ||| `EntersChoice` and never a relaxation of its gate: [CR#614.1c]
+      ||| names the entering event, while [CR#301.5b] says Equipment
+      ||| "enter the battlefield like other artifacts. They don't enter
+      ||| the battlefield attached to a creature", and [CR#701.3a]'s
+      ||| attaching takes the permanent "from where it currently is" and
+      ||| puts it onto its host. So the two riders are both replacement
+      ||| effects under [CR#614.1]'s general definition -- effects that
+      ||| "watch for a particular event that would happen" -- watching
+      ||| DIFFERENT events, which is also why this one re-fires on every
+      ||| re-equip where the other fires once per entry.
+      ||| The host phrase the line prints ("to a creature") is not
+      ||| carried: [CR#301.5] fixes an Equipment's host and [CR#301.6] a
+      ||| Fortification's outright, and [CR#303.4] hands an Aura's to its
+      ||| own enchant ability, so the phrase restates what the subject
+      ||| already carries and no line reads it back. No gate asks whether
+      ||| the subject CAN attach either:
+      ||| that is the `Subtype` catalog's vocabulary, and all three
+      ||| supported carriers write an Equipment ascription.
+      ||| -- spelling: "As [n] becomes attached to [host], choose [q]"
+      ||| (Sanctuary Blade, Psychic Paper).
+      AttachChoice : (n : Noun bs Object) -> (q : ChoiceSort) ->
+                     (dom : Maybe (ChoiceDomain q)) ->
+                     {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                     StaticEffect bs
       AndAlso : {0 n : Nat} -> StaticParts n bs ->
                 {auto 0 ne : IsSucc n} -> StaticEffect bs
 
@@ -508,6 +534,7 @@ mutual
   staticKind (EntersRider _ _) = EntryRider
   staticKind (EntersWithCounters _ _ _ _) = EntryRider
   staticKind (EntersChoice _ _ _) = EntryRider
+  staticKind (AttachChoice _ _ _) = Replacement
   staticKind (AndAlso _) = Coordination
 
 
@@ -557,12 +584,26 @@ mutual
   staticIntro (EntersRider n _) = selfSubjIntro n
   staticIntro (EntersWithCounters n amt _ _) = amtDelta amt ++ selfSubjIntro n
   staticIntro (EntersChoice n _ _) = selfSubjIntro n
+  staticIntro (AttachChoice n _ _) = selfSubjIntro n
   staticIntro (AndAlso parts) = partsIntro parts
+
+  ||| The choice a STATEMENT binds, for the abilities after it to read
+  ||| [CR#607.2d]. A delta rather than a context because a coordination
+  ||| binds as many as it has parts: "choose a color and a creature
+  ||| type" is ONE sentence of two choices (Riptide Replicator,
+  ||| Volrath's Laboratory; "choose a color and an opponent", Call to
+  ||| Arms), and what it wanted was the spelling of two choosers in one
+  ||| statement, not a second linkage mechanism.
+  public export
+  staticChoiceDelta : {0 bs : Bindings} -> StaticEffect bs -> List Binding
+  staticChoiceDelta (EntersChoice _ q _) = [choiceB q]
+  staticChoiceDelta (AttachChoice _ q _) = [choiceB q]
+  staticChoiceDelta (AndAlso parts) = partsChoiceDelta parts
+  staticChoiceDelta _ = []
 
   public export
   staticChoiceIntro : {bs : Bindings} -> StaticEffect bs -> Bindings
-  staticChoiceIntro (EntersChoice _ q _) = choiceB q :: bs
-  staticChoiceIntro _ = bs
+  staticChoiceIntro se = staticChoiceDelta se ++ bs
 
   public export
   data DividedVerb : Bindings -> Type where
@@ -2823,15 +2864,52 @@ mutual
   GrantSubject : {bs : Bindings} -> AbilityAt bs -> Noun bs Object -> Type
   GrantSubject {bs} ab n = So (grantSubjectOk ab n)
 
+  ||| The choice an EFFECT binds, for the abilities after it to read.
+  ||| `staticChoiceDelta`'s twin at the chooser positions the as-enters
+  ||| rider does not reach -- a combat or upkeep trigger, an activated
+  ||| ability, a Saga chapter -- and it is the CONTAINER those positions
+  ||| wanted: the `Choose` clause already spells the choice and already
+  ||| leaves the binding, and what was missing was the export across the
+  ||| ability boundary that [CR#607.2d] links over. It runs at every
+  ||| ability with a body, the spell ability included, because
+  ||| [CR#607.2d] links two abilities printed on one object and says
+  ||| nothing about their kinds; a keyword ability has no body to look
+  ||| at.
+  ||| Only the composition rows a printed chooser sits inside recurse:
+  ||| a coordination ("Put a sleight counter on this Aura and choose a
+  ||| color", Chromatic Armor) and an optional one ("you may choose a
+  ||| number between 0 and 7", Shapeshifter), the latter on
+  ||| `mayIntro`'s standing precedent that a may-body's announcements
+  ||| are what the clause leaves. A chooser under a CONDITION exports
+  ||| nothing, which is undergeneration and not a refusal; no supported
+  ||| line writes one.
+  ||| A PLURAL choice exports nothing either: `countChoice` counts
+  ||| singular bindings, the plural chooser's reads are a separate and
+  ||| declined cell, and exporting a singular binding for "choose two
+  ||| colors" would let the singular read name one of two.
+  public export
+  effChoiceDelta : {0 bs : Bindings} -> Effect bs -> List Binding
+  effChoiceDelta (Choose {k} (Indefinite _ _) _) = choiceDeltaAt k
+  effChoiceDelta (Choose _ _) = []
+  effChoiceDelta (Sequentially es) = effsChoiceDelta es
+  effChoiceDelta (May _ body _ _) = effChoiceDelta body
+  effChoiceDelta _ = []
+
+  public export
+  effsChoiceDelta : {0 n : Nat} -> {0 bs : Bindings} ->
+                    Effects n bs -> List Binding
+  effsChoiceDelta [] = []
+  effsChoiceDelta (e :: es) = effsChoiceDelta es ++ effChoiceDelta e
+
   public export
   abIntro : {bs : Bindings} -> AbilityAt bs -> Bindings
   abIntro (KeywordAbility _ _) = bs
-  abIntro (Activated _ _ _ _ _) = bs
-  abIntro (Triggered _ _ _ _ _ _ _) = bs
+  abIntro (Activated _ eff _ _ _) = effChoiceDelta eff ++ bs
+  abIntro (Triggered _ _ _ _ _ _ eff) = effChoiceDelta eff ++ bs
   abIntro (Static se) = staticChoiceIntro se
   abIntro (AlsoForKeywords ab _) = abIntro ab
   abIntro (AbilityWord _ ab) = abIntro ab
-  abIntro (Spell _) = bs
+  abIntro (Spell eff) = effChoiceDelta eff ++ bs
 
   namespace Coord
     public export
@@ -2862,6 +2940,16 @@ mutual
   partsIntro : {0 n : Nat} -> {bs : Bindings} -> StaticParts n bs -> Bindings
   partsIntro [] = bs
   partsIntro (se :: rest) = partsIntro rest
+
+  ||| Later parts bind NEARER, on `staticChoiceIntro`'s own order: a
+  ||| coordination is read left to right [CR#608.2c] and the bindings
+  ||| are nearest-first.
+  public export
+  partsChoiceDelta : {0 n : Nat} -> {0 bs : Bindings} ->
+                     StaticParts n bs -> List Binding
+  partsChoiceDelta [] = []
+  partsChoiceDelta (se :: rest) = partsChoiceDelta rest ++ staticChoiceDelta se
+
 
 
   public export

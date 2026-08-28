@@ -1877,6 +1877,13 @@ entersChoosingPlayer : (n : Noun bs Object) ->
                        StaticEffect bs
 entersChoosingPlayer n d = EntersChoice n PlayerC d {zn}
 
+||| "As this Equipment becomes attached to a creature, choose a color."
+public export
+attachChoosing : (n : Noun bs Object) -> (q : QualitySort) ->
+                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                 StaticEffect bs
+attachChoosing n q = AttachChoice n (QSort q) Nothing {zn}
+
 ||| "this Siege": the self-reference read at a subtype.
 public export
 thisSiege : Noun bs Object

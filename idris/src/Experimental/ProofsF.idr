@@ -514,7 +514,7 @@ badChosenColorNoChooser Refl impossible
 ||| The marked read demands that a choice stand at all, and zero is not one or more [CR#607.2d].
 public export
 badLastChosenColorNoChooser : Unspellable (Predicate [] Object) (\ok =>
-  OfLastChosenColor {ok = ok})
+  OfLastChosen Color {ok = ok})
 badLastChosenColorNoChooser ChoiceMade impossible
 
 
@@ -526,7 +526,7 @@ badLastChosenBeforeChooser : Unspellable Card (\ok =>
        [ Static (Prevents AnyDamage AllOfIt
                           (Macros.shieldingIt You)
                           (Just (AllOf (And [Macros.source,
-                                             OfLastChosenColor {ok = ok}])))
+                                             OfLastChosen Color {ok = ok}])))
                           Nothing)
        , Static (EntersChoice Macros.thisEnchantment (QSort Color) Nothing) ]
        Nothing)
@@ -542,7 +542,7 @@ badLastChosenWrongSort : Unspellable Card (\ok =>
        , Static (Prevents AnyDamage AllOfIt
                           (Macros.shieldingIt You)
                           (Just (AllOf (And [Macros.source,
-                                             OfLastChosenColor {ok = ok}])))
+                                             OfLastChosen Color {ok = ok}])))
                           Nothing) ]
        Nothing)
 badLastChosenWrongSort ChoiceMade impossible

@@ -1346,6 +1346,26 @@ choiceBinds (QSort q) k _ = kindLte (Quality q) k
 choiceBinds PlayerC _ ChosenPlayerP = True
 choiceBinds PlayerC _ _ = False
 
+||| Which sort a chooser at kind `k` binds, where the kind is one a
+||| choice can bind a VALUE at. [CR#607.2d]'s linkage runs over "a
+||| [value]", and the two kinds that carry one are the qualities
+||| [CR#109.3] and the player. Every other kind answers `Nothing`,
+||| the `Object` one included: "choose a creature card exiled with
+||| [this]" announces a MENTION, which the ordinary anaphora reads,
+||| and no chosen VALUE for a linked ability to name.
+public export
+choiceSortAt : Kind -> Maybe ChoiceSort
+choiceSortAt (Quality q) = Just (QSort q)
+choiceSortAt Player = Just PlayerC
+choiceSortAt _ = Nothing
+
+||| The choice binding a chooser at kind `k` leaves, as a delta.
+public export
+choiceDeltaAt : Kind -> List Binding
+choiceDeltaAt k = case choiceSortAt k of
+                    Nothing => []
+                    Just s => [choiceB s]
+
 public export
 countOnes : Kind -> Bindings -> Nat
 countOnes k [] = Z
@@ -3826,6 +3846,20 @@ data CounterKindSource : Bindings -> Type where
   ||| counters with the same name interchangeable.
   ChosenKind : (menu : List CounterKind) ->
                {auto 0 ne : NonEmpty menu} -> CounterKindSource bs
+  ||| "your choice of two different counters ... from among [k1], [k2],
+  ||| and [k3]" (Grimdancer): the same menu picked more than once, with
+  ||| no kind picked twice. Its own arm beside `ChosenKind` because the
+  ||| pick is a different SHAPE -- a subset of the menu where that one
+  ||| takes a member -- and because the word has to be said at all for
+  ||| the reason `ChosenKind` tolerates a repeated arm: [CR#122.1] makes
+  ||| counters of one name interchangeable, so nothing but the printed
+  ||| "different" stops one kind being picked twice.
+  ||| The COUNT stays on the clause's own amount slot, where the menu
+  ||| cannot see it; a pick wider than its menu is [CR#608.2d]'s
+  ||| impossible option and is recorded overgeneration, since the amount
+  ||| need not be literal.
+  DistinctChosenKinds : (menu : List CounterKind) ->
+                        {auto 0 ne : NonEmpty menu} -> CounterKindSource bs
   ||| "a counter of that kind": the kind an earlier clause BOUND, read
   ||| back [CR#607.2d]. Both binders write it -- the chooser ("choose a
   ||| kind of counter ... put a counter of that kind") and the
@@ -3833,14 +3867,19 @@ data CounterKindSource : Bindings -> Type where
   ||| counter of that kind on it") -- because both leave one
   ||| `Quality CounterKindQ` mention and the read asks only that there be
   ||| exactly one.
-  ||| MEASURED ZERO of benched carriers, and the blocker is never this
-  ||| arm: of the 13 supported lines, 4 give the counter to "that
-  ||| permanent or player" and `PutCounters` takes an object; 4 write a
-  ||| chooser this grammar cannot spell ("choose a COUNTER on a permanent
-  ||| you control", "at random ... from among [menu]"); 2 write "on it"
-  ||| where two permanents are in scope and the pronoun refuses; 1 puts
-  ||| the pass inside a static; 1 mixes a printed kind and a bound one in
-  ||| one menu; 1 needs a partitive holder. Each is somebody else's cell.
+  ||| ONE benched carrier of the 13 supported lines, and it is a
+  ||| paragraph rather than a whole card: Contractual Safeguard's second,
+  ||| which the board-read chooser `CounterKindOn` unblocked. For the
+  ||| other 12 the blocker is never this arm. 4 give the counter to "that
+  ||| permanent or player" and `PutCounters` takes an object; 2 write "on
+  ||| it" where two permanents are in scope and the pronoun refuses; 1
+  ||| puts the pass inside a static; 1 mixes a printed kind and a bound
+  ||| one in one menu; 1 needs a partitive holder. The last 3 are the
+  ||| board-read chooser's own remainder: a trailing "if it doesn't have
+  ||| a counter of that kind on it" (Aven Courier), a distributive
+  ||| chooser under a Saga chapter (The Caves of Androzani), and an
+  ||| at-random pick from a printed counter-kind menu with an exclusion
+  ||| rider (Crystalline Giant). Each is somebody else's cell.
   ||| RECORDED OVERGENERATION: `counterSourceScope` answers True at every
   ||| kind here, where a printed word answers [CR#122.1]'s own scope. A
   ||| bound kind's scope is whatever the binder drew it from and no slot
@@ -3856,6 +3895,7 @@ public export
 counterSourceScope : {0 bs : Bindings} -> CounterKindSource bs -> Kind -> Bool
 counterSourceScope (PrintedKind c) k = counterScope c == k
 counterSourceScope (ChosenKind menu) k = all (\c => counterScope c == k) menu
+counterSourceScope (DistinctChosenKinds menu) k = all (\c => counterScope c == k) menu
 counterSourceScope BoundKind k = True
 
 public export

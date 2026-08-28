@@ -368,15 +368,45 @@ mutual
     QualityNoun : (q : QualitySort) ->
                   (dom : Maybe (ChoiceDomain (QSort q))) ->
                   Predicate bs (Quality q)
+    ||| "a counter on [n]", "a kind of counter on [n]": the counter-kind
+    ||| noun whose range the BOARD fixes rather than a printed menu. ONE
+    ||| row for both spellings, and the rule is what merges them:
+    ||| [CR#122.1] makes "counters with the same name or description
+    ||| interchangeable", so pointing at a counter on a permanent picks
+    ||| out nothing but its kind -- a counter is not an object and has no
+    ||| characteristics to tell two of a name apart.
+    ||| It is a DESCRIPTION and not a `ChoiceDomain`: a domain is a
+    ||| bindingless narrowing of a sort ("a color other than red"), while
+    ||| this one names a permanent, and naming it is what lets the next
+    ||| sentence say "each OTHER creature you control" -- the mention the
+    ||| description leaves is the anchor that "other" is other than.
+    ||| The holder is an object; [CR#122.1]'s player holder ("a counter
+    ||| on target permanent or player", Animation Module) waits for a
+    ||| witness, that card being blocked on its union recipient.
+    ||| -- spelling: "a counter on [n]" (Aven Courier, Animation Module),
+    ||| "a kind of counter on [n]" (Contractual Safeguard).
+    CounterKindOn : (n : Noun bs Object) ->
+                    {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                    Predicate bs (Quality CounterKindQ)
     -- reads the unique chosen quality; the choice was made at
     -- resolution by another clause [CR#608.2d].
     OfChosen : (q : QualitySort) -> {auto 0 ok : countChoice (QSort q) bs = 1} ->
                {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
-    -- the marked read: existence rather than `OfChosen`'s uniqueness
-    -- [CR#607.2d]; bindings are nearest-first, so the latest choice is
-    -- what "the last chosen" reads.
-    OfLastChosenColor : {auto 0 ok : ChoiceStands (countChoice (QSort Color) bs)} ->
-                        Predicate bs Object
+    ||| The marked read, at every sort the plain one reads: existence
+    ||| rather than `OfChosen`'s uniqueness [CR#607.2d], since "the last
+    ||| chosen [value]" names the latest of however many the chooser
+    ||| made; bindings are nearest-first, so the latest choice is what it
+    ||| reads. Sorted for `OfChosen`'s reason -- [CR#607.2d] links the
+    ||| reader to a choice OF THAT VALUE -- and gated by the same
+    ||| `ChosenQualityRead`, because the two spellings match a chosen
+    ||| value against a characteristic in exactly the same way and
+    ||| differ only in which of the chooser's choices they name.
+    ||| -- spelling: "the last chosen color" (Sanctuary Blade), "the
+    ||| last chosen name", "the last chosen creature type" (Psychic
+    ||| Paper).
+    OfLastChosen : (q : QualitySort) ->
+                   {auto 0 ok : ChoiceStands (countChoice (QSort q) bs)} ->
+                   {auto 0 read : ChosenQualityRead q} -> Predicate bs Object
     -- the determiner that chooses in its own phrase, where `OfChosen`
     -- reads a choice made by some other clause [CR#607.2d] — there is
     -- no first ability for this one to be linked to.
@@ -837,8 +867,9 @@ mutual
   hasHead Opponent = True
   hasHead ChosenPlayer = True
   hasHead (QualityNoun _ _) = True
+  hasHead (CounterKindOn _) = True
   hasHead (OfChosen _) = False
-  hasHead OfLastChosenColor = False
+  hasHead (OfLastChosen _) = False
   hasHead (OfYourChoice _ _) = False
   hasHead (AbilityHead _) = True
   hasHead (AbilityOf _) = False
@@ -904,7 +935,7 @@ mutual
   public export
   qualityReadOk : {0 bs : Bindings} -> Predicate bs Object -> Bool
   qualityReadOk (OfChosen _) = True
-  qualityReadOk OfLastChosenColor = True
+  qualityReadOk (OfLastChosen _) = True
   qualityReadOk (OfYourChoice _ _) = True
   qualityReadOk (Named _) = True
   qualityReadOk _ = False
@@ -921,6 +952,7 @@ mutual
   public export
   qualityReadHost : {0 bs : Bindings} -> Predicate bs Object -> Maybe CardType
   qualityReadHost (OfChosen (SubtypeQ h)) = Just h
+  qualityReadHost (OfLastChosen (SubtypeQ h)) = Just h
   qualityReadHost (OfYourChoice (SubtypeQ h) _) = Just h
   qualityReadHost _ = Nothing
 
@@ -1008,10 +1040,12 @@ mutual
   predEq Opponent _ = False
   predEq (QualityNoun a d) (QualityNoun a e) = sameDomainOpt d e
   predEq (QualityNoun _ _) _ = False
+  predEq (CounterKindOn a) (CounterKindOn b) = nounEqRef a b
+  predEq (CounterKindOn _) _ = False
   predEq (OfChosen a) (OfChosen b) = a == b
   predEq (OfChosen _) _ = False
-  predEq OfLastChosenColor OfLastChosenColor = True
-  predEq OfLastChosenColor _ = False
+  predEq (OfLastChosen a) (OfLastChosen b) = a == b
+  predEq (OfLastChosen _) _ = False
   predEq (OfYourChoice a d) (OfYourChoice b e) = a == b && sameDomainOpt d e
   predEq (OfYourChoice _ _) _ = False
   predEq (AbilityHead a) (AbilityHead b) = a == b
@@ -1475,6 +1509,7 @@ mutual
   negatable AnyPlayer = False
   negatable ChosenPlayer = False
   negatable (QualityNoun _ _) = False
+  negatable (CounterKindOn _) = False
   negatable IsSource = False
   negatable _ = True
 
@@ -1490,8 +1525,9 @@ mutual
   predSays ChosenPlayer = True
   predSays Opponent = True
   predSays (QualityNoun _ _) = True
+  predSays (CounterKindOn _) = True
   predSays (OfChosen _) = True
-  predSays OfLastChosenColor = True
+  predSays (OfLastChosen _) = True
   predSays (OfYourChoice _ _) = True
   predSays (AbilityHead _) = True
   predSays (AbilityOf _) = True
@@ -1555,8 +1591,9 @@ mutual
   predNegFree ChosenPlayer = True
   predNegFree Opponent = True
   predNegFree (QualityNoun _ _) = True
+  predNegFree (CounterKindOn _) = True
   predNegFree (OfChosen _) = True
-  predNegFree OfLastChosenColor = True
+  predNegFree (OfLastChosen _) = True
   predNegFree (OfYourChoice _ _) = True
   predNegFree (AbilityHead _) = True
   predNegFree (AbilityOf _) = True
@@ -2043,6 +2080,7 @@ mutual
   predDelta (ControlledBy n) = nounDelta n
   predDelta (CastBy n) = nounDelta n
   predDelta (BlockerOf m) = nounDelta m
+  predDelta (CounterKindOn n) = nounDelta n
   predDelta (BlockedBy m) = nounDelta m
   predDelta (CouldBlock m) = nounDelta m
   predDelta (CouldBeBlockedBy m) = nounDelta m
@@ -2127,15 +2165,29 @@ mutual
   chosenDet PhObject _ = PartD
   chosenDet _ d = d
 
+  ||| `bindFor` for the mention a CHOICE clause leaves. The same binding
+  ||| in every respect but the player payload, which records that a
+  ||| CHOICE made this mention [CR#607.2d]: the player is the one kind
+  ||| whose chooser leaves a mention otherwise indistinguishable from
+  ||| "you" or "each opponent", so the mark is what `countChoice` reads
+  ||| there. What it mints is exactly `choiceB PlayerC`, so an
+  ||| effect-level chooser and the as-enters one leave one binding
+  ||| between them and a read cannot tell which position bound it.
+  public export
+  chosenBind : Determiner -> Plurality -> {k : Kind} ->
+               Phrasal k -> Predicate bs k -> Binding
+  chosenBind det plur PhPlayer p = MkBinding det Player plur ChosenPlayerP
+  chosenBind det plur ph p = bindFor det plur ph p
+
   ||| `nounDelta` for the mention a choice clause announces. A target is
   ||| not this: it was chosen as the spell was cast [CR#601.2c], so a
   ||| choice clause naming one partitions nothing and keeps its own
   ||| determiner.
   public export
   chosenDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
-  chosenDelta (Indefinite m p {ph}) = bindFor (chosenDet ph AD) OneOf ph p :: predDelta p
+  chosenDelta (Indefinite m p {ph}) = chosenBind (chosenDet ph AD) OneOf ph p :: predDelta p
   chosenDelta (CountedGroup q _ p {ph}) =
-    bindFor (chosenDet ph CountD) (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
+    chosenBind (chosenDet ph CountD) (quantPlur q) ph p :: (quantDelta q ++ predDelta p)
   chosenDelta (NamesAgree _ grp) = chosenDelta grp
   chosenDelta n = nounDelta n
 
