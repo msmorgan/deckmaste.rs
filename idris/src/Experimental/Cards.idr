@@ -15032,3 +15032,198 @@ akiriUnattachOffer =
                          , AttachedTo (Macros.a Macros.creatureYouControl) ])))
        (Just (SetStatus Tapped (That (TypeW Creature))))
        Nothing)
+
+||| Black Ward, whole -- "Enchant creature / Enchanted creature has
+||| protection from black. This effect doesn't remove this Aura."
+||| THE AURA CARVE-OUT, at the simplest of its four spellings. What the
+||| rider suspends is a state-based action: [CR#702.16c] puts an Aura of
+||| the stated quality attached to a protected permanent into its owner's
+||| graveyard, which is [CR#704.5m], and this Aura is black.
+public export
+blackWard : Card
+blackWard =
+  Macros.card "Black Ward" (Just [Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (DoesntRemove
+                   (Gains (AttachHost Enchanted (TypeW Creature))
+                          (Macros.keywordQuality "Protection" (ColorIs Black)))
+                   Macros.thisAura) ]
+       Nothing
+
+||| Cho-Manno's Blessing, whole -- "Flash / Enchant creature / As this
+||| Aura enters, choose a color. / Enchanted creature has protection from
+||| the chosen color. This effect doesn't remove this Aura."
+||| The carve-out over a CHOSEN quality [CR#607.2d], which is what eleven
+||| of its twelve siblings write.
+public export
+choMannosBlessing : Card
+choMannosBlessing =
+  Macros.card "Cho-Manno's Blessing" (Just [Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keyword "Flash"
+       , Macros.keywordSubject "Enchant" Macros.creature
+       , Static (Macros.entersChoosing Macros.thisAura Color)
+       , Static (DoesntRemove
+                   (Gains (AttachHost Enchanted (TypeW Creature))
+                          (Macros.keywordQuality "Protection" (OfChosen Color)))
+                   Macros.thisAura) ]
+       Nothing
+
+||| Tattoo Ward, whole -- "Enchant creature / Enchanted creature gets
+||| +1/+1 and has protection from enchantments. This effect doesn't remove
+||| this Aura. / Sacrifice this Aura: Destroy target enchantment."
+||| The carve-out over a CARD-TYPE quality, which [CR#702.16a] admits
+||| outright ("can be any characteristic value"), and over a coordinated
+||| verb phrase rather than a bare grant -- the rider names the whole
+||| statement either way.
+public export
+tattooWard : Card
+tattooWard =
+  Macros.card "Tattoo Ward" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (DoesntRemove
+                   (OfSubject (AttachHost Enchanted (TypeW Creature))
+                      [ VPGets (PtUp (Lit 1)) (PtUp (Lit 1))
+                      , VPGains (Macros.keywordQuality "Protection"
+                                   (HasType Enchantment)) ])
+                   Macros.thisAura)
+       , Macros.activated (Do (Macros.sacrifice You Macros.thisAura))
+           (Macros.destroy (Macros.target Macros.enchantment)) ]
+       Nothing
+
+||| Pentarch Ward, whole -- the same carve-out with an entry trigger
+||| beside the entry choice.
+public export
+pentarchWard : Card
+pentarchWard =
+  Macros.card "Pentarch Ward" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (Macros.entersChoosing Macros.thisAura Color)
+       , Macros.triggered When (Enters Macros.thisAura Nothing) (Macros.drawsACard You)
+       , Static (DoesntRemove
+                   (Gains (AttachHost Enchanted (TypeW Creature))
+                          (Macros.keywordQuality "Protection" (OfChosen Color)))
+                   Macros.thisAura) ]
+       Nothing
+
+||| Benevolent Blessing, whole -- "Flash / Enchant creature / As this Aura
+||| enters, choose a color. / Enchanted creature has protection from the
+||| chosen color. This effect doesn't remove Auras and Equipment you
+||| control that are already attached to it."
+||| The carve-out with its object DESCRIBED rather than named, which is
+||| what the other three spellings do -- and the description is the
+||| reverse attachment phrase, reading back the host the statement itself
+||| announced. "Already" is spelling: [CR#702.16c] and [CR#702.16d] act
+||| on attachments that are there when the protection applies, and the
+||| word says no more.
+public export
+benevolentBlessing : Card
+benevolentBlessing =
+  Macros.card "Benevolent Blessing" (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keyword "Flash"
+       , Macros.keywordSubject "Enchant" Macros.creature
+       , Static (Macros.entersChoosing Macros.thisAura Color)
+       , Static (DoesntRemove
+                   (Gains (AttachHost Enchanted (TypeW Creature))
+                          (Macros.keywordQuality "Protection" (OfChosen Color)))
+                   (AllOf (And [ Or [ HasSubtype (enchantmentType "Aura")
+                                    , HasSubtype (artifactType "Equipment") ]
+                               , ControlledBy You
+                               , AttachedTo It ]))) ]
+       Nothing
+
+||| Floating Shield, whole -- the chosen-colour carve-out plus "Sacrifice
+||| this Aura: Target creature gains protection from the chosen color
+||| until end of turn." The second ability reads the SAME chosen value the
+||| entry choice wrote [CR#607.2d], which is what makes this card the
+||| family's sixth whole one rather than a fifth twin.
+public export
+floatingShield : Card
+floatingShield =
+  Macros.card "Floating Shield" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (Macros.entersChoosing Macros.thisAura Color)
+       , Static (DoesntRemove
+                   (Gains (AttachHost Enchanted (TypeW Creature))
+                          (Macros.keywordQuality "Protection" (OfChosen Color)))
+                   Macros.thisAura)
+       , Macros.activated (Do (Macros.sacrifice You Macros.thisAura))
+           (Macros.gains (Macros.target Macros.creature)
+                         (Macros.keywordQuality "Protection" (OfChosen Color))
+                         (Just Macros.untilEndOfTurn)) ]
+       Nothing
+
+||| Summoning Materia's second line -- "As long as this Equipment is
+||| attached to a creature, you may cast creature spells from the top of
+||| your library." THE ATTACHMENT'S OWN DIRECTION in its printed
+||| position: the same `AttachedTo` Kitsune Mystic writes attributively,
+||| after a copula this time, which is the position finding 275's test
+||| calls spelling.
+||| A FRAGMENT: the card's third line grants the equipped creature a
+||| quoted mana ability, which the umbrella records as an unbuilt hole.
+public export
+summoningMateriaTopCast : Ability
+summoningMateriaTopCast =
+  Static (Macros.asLongAs
+            (Matches Macros.thisEquipment (AttachedTo (Macros.a Macros.creature)))
+            (Macros.mayCastFrom You
+               (AllOf (And [Macros.spell, HasType Creature])) Macros.onTopZ))
+
+||| Ghostfire Blade, whole -- "Equipped creature gets +2/+2. / Equip {3} /
+||| This Equipment's equip ability costs {2} less to activate if it
+||| targets a colorless creature."
+||| THE EQUIP COST REDUCTION, which is the cost-modification axis and not
+||| a variant of the equip row: [CR#702.6a] makes equip an activated
+||| ability, [CR#115.9b] gives the reading that describes one by what it
+||| targets, and `CostsToCast`'s ability seat was already open
+||| (`AbilityCostSubject`). Re-measured 2026-08-28: 10 supported lines
+||| write "equip abilities you activate … cost {N} less to activate", 6
+||| of them with a target restrictor; 5 more append the general
+||| activated-ability reduction to a bare equip line, which is a family of
+||| 46 faces and no part of the equip row either.
+||| The printed "if it targets a colorless creature" is written here as
+||| the described ability's own predicate, which is the same statement:
+||| the condition decides WHICH equip abilities the reduction applies to,
+||| and that is what a description of the subject says.
+public export
+ghostfireBlade : Card
+ghostfireBlade =
+  Macros.card "Ghostfire Blade" (Just [Macros.generic 1]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Static (Gets (AttachHost Equipped (TypeW Creature))
+                      (PtUp (Lit 2)) (PtUp (Lit 2)))
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 3])
+       , Static (CostsToCast
+                   (AllOf (And [ AbilityHead (KeywordClass "Equip")
+                               , AbilityOf This
+                               , Targets (Macros.a (And [Macros.creature, IsColorless]))
+                                         SomeTarget ]))
+                   (CostLess (Lit 2) Nothing)) ]
+       Nothing
+
+||| Luxior, Giada's Gift's second line -- "Equipped permanent isn't a
+||| planeswalker and is a creature in addition to its other types."
+||| THE NEGATED TYPE SETTING, and the line that spends
+||| `attachHeadOk Equipped PermanentW`. The two halves are why the card
+||| writes "permanent" and not "creature": [CR#301.5a] names the equipped
+||| CREATURE and [CR#702.6e]'s "equip planeswalker" attaches an Equipment
+||| to a planeswalker "as though that planeswalker were a creature", so
+||| the host word has to reach further than [CR#301.5] otherwise lets it.
+||| Written as two coordinated statements with the second reading the
+||| host back, on Darksteel Mutation's ground: `SubjectVPs` spells a
+||| shared subject only for a P/T shift and a grant, and neither half
+||| here is either.
+||| A FRAGMENT: the card's "Equip planeswalker {1}" wants the compound
+||| equip parameter, which this round did not mint.
+public export
+luxiorTypeSetting : Ability
+luxiorTypeSetting =
+  Static (AndAlso
+            [ LosesType (AttachHost Equipped PermanentW) Planeswalker
+            , BecomesAlso It (MkToken Nothing []
+                                      (MkTypeLine [] [Creature]) [] Nothing) ])

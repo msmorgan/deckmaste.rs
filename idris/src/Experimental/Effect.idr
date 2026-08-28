@@ -396,6 +396,34 @@ mutual
                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                        {auto 0 sh : SpaceHosted space (nounTy n)} ->
                        StaticEffect bs
+      ||| "Athreos isn't a creature", "Equipped permanent isn't a
+      ||| planeswalker", "target artifact creature becomes blue and isn't
+      ||| an artifact": ONE CARD TYPE taken off, [CR#613.1d]'s layer 4
+      ||| again. [CR#205.1a] is the rule that knows the operation --
+      ||| "if an object's card type is removed, the subtypes correlated
+      ||| with that card type will remain if they are also the subtypes
+      ||| of a card type the object currently has; otherwise, they are
+      ||| also removed" -- so a removed card type is a thing the rules
+      ||| state consequences for, not a paraphrase of a setting.
+      ||| A row beside the three type-changing rows and not a case of
+      ||| any of them: `SetsType` replaces a line, `BecomesAlso` adds to
+      ||| one [CR#205.1b], and `LosesEveryType` empties a SUBTYPE space,
+      ||| whose last sentence of [CR#205.1a] -- "removing an object's
+      ||| subtype doesn't affect its card types at all" -- is exactly why
+      ||| it cannot say this. None of the three can name a card type to
+      ||| take away.
+      ||| 28 supported lines write it (measured 2026-08-28), 21 of them
+      ||| the devotion cycle's "[God] isn't a creature". Its own row
+      ||| rather than a slot on `SetsType` because the two are printed
+      ||| apart as often as together: 26 of the 28 write no setting on
+      ||| the same statement.
+      ||| The zone demand is the type-line rows', for their reason: this
+      ||| is a permanent's type line and every supported line names a
+      ||| battlefield subject.
+      ||| -- spelling: "[n] isn't a [t]".
+      LosesType : (n : Noun bs Object) -> (t : CardType) ->
+                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                  StaticEffect bs
       ||| The literal colour change, [CR#613.1e]'s layer 5 under the
       ||| "becomes"/copular verb with no type word in the sentence ("that
       ||| creature becomes green", "All creatures are black"). Its OWN
@@ -453,6 +481,53 @@ mutual
                        StaticEffect bs
       AlsoOffBattlefield : (se : StaticEffect bs) ->
                            {auto 0 nx : NotExtended se} -> StaticEffect bs
+      ||| "This effect doesn't remove this Aura", "This effect doesn't
+      ||| remove Auras already attached to those artifacts": the trailing
+      ||| rider that carves a named object OUT of what the statement
+      ||| before it reaches.
+      ||| What "remove" names is a state-based action, and the rules say
+      ||| which one. [CR#702.16c] has a permanent with protection unable
+      ||| to be enchanted by Auras of the stated quality and "such Auras
+      ||| attached to the permanent or player with protection will be put
+      ||| into their owners' graveyards as a state-based action", which
+      ||| is [CR#704.5m]; [CR#702.16d] says the same of Equipment and
+      ||| Fortifications, which is [CR#704.5n]. The rider suspends that
+      ||| action for the object it names, and "remove" is the printed
+      ||| word for it.
+      ||| ITS OWN construction and not a sign flip on `AlsoForKeywords`.
+      ||| The two are both same-line trailers and they point opposite
+      ||| ways -- that one widens a statement across a list of WORDS,
+      ||| gated by `KeywordListOk`, this one narrows one statement by
+      ||| naming an OBJECT it does not reach, read in the statement's own
+      ||| context -- and no slot of either could carry the other's
+      ||| payload.
+      ||| It rides the STATEMENT, where the keyword trailer rides
+      ||| `AbilityAt`, because "this effect" names the sentence before it
+      ||| and not the line: Guardian Beast's rider trails a condition
+      ||| over three coordinated statements about one subject, where the
+      ||| twelve protection lines trail exactly one.
+      ||| No gate says WHICH statements may carry it. What makes the
+      ||| rider mean anything is that the statement makes a standing
+      ||| attachment illegal, and the corpus writes two such statements
+      ||| -- protection from a quality (14 of the 15 lines) and a plain
+      ||| "can't be enchanted" prohibition (Guardian Beast) -- neither of
+      ||| which is a computable property of the term, the deed
+      ||| vocabulary being open. So the only gate is against nesting, on
+      ||| `AlsoOffBattlefield`'s ground: a second rider repeats the
+      ||| first.
+      ||| 15 supported lines in four spellings, re-measured 2026-08-28:
+      ||| 12 write "This effect doesn't remove this Aura" (the five
+      ||| coloured Wards, Cho-Manno's Blessing, Flickering Ward, Floating
+      ||| Shield, Pentarch Ward, Pledge of Loyalty, Tattoo Ward, Ward of
+      ||| Lights), and the other three name the carved-out objects by
+      ||| description -- Spectra Ward's "Auras", Benevolent Blessing's
+      ||| "Auras and Equipment you control that are already attached to
+      ||| it", Guardian Beast's "Auras already attached to those
+      ||| artifacts".
+      ||| -- spelling: "[se] This effect doesn't remove [n]."
+      DoesntRemove : (se : StaticEffect bs) ->
+                     (n : Noun (staticIntro se) Object) ->
+                     {auto 0 nc : NotCarvedOut se} -> StaticEffect bs
       BecomesCopy : (n : Noun bs Object) -> (src : Noun (nomIntro n) Object) ->
                     (exc : List (CopyExcept (nomIntro src))) ->
                     {auto 0 pm : PerMember src} -> StaticEffect bs
@@ -1020,6 +1095,20 @@ mutual
   NotExtended : StaticEffect bs -> Type
   NotExtended {bs} se = So (notExtended se)
 
+  ||| "This effect doesn't remove [n]" carves ONE object out of ONE
+  ||| statement, so a second rider on the same statement says nothing the
+  ||| first did not -- `AlsoOffBattlefield`'s reason, at the other
+  ||| trailer. Nothing else is refused: which statements the rider means
+  ||| anything on is the carrier's business, not a rules impossibility.
+  public export
+  notCarvedOut : {0 bs : Bindings} -> StaticEffect bs -> Bool
+  notCarvedOut (DoesntRemove _ _) = False
+  notCarvedOut _ = True
+
+  public export
+  NotCarvedOut : StaticEffect bs -> Type
+  NotCarvedOut {bs} se = So (notCarvedOut se)
+
   public export
   staticKind : {0 bs : Bindings} -> StaticEffect bs -> StaticKind
   staticKind (Define _ _) = LetterDefinition
@@ -1038,6 +1127,7 @@ mutual
   staticKind (BecomesAlso _ _) = TypeAddition
   staticKind (AddsEveryType _ _) = TypeAddition
   staticKind (LosesEveryType _ _) = TypeLoss
+  staticKind (LosesType _ _) = TypeLoss
   staticKind (SetsColor _ _) = ColorSet
   staticKind (BecomesCopy _ _ _) = CopyEffect
   staticKind (SetsType _ _ _) = TypeSet
@@ -1057,6 +1147,7 @@ mutual
   staticKind (Conditionally _ _ _) = Conditional
   staticKind (OnlyWhile _ _ _) = Conditional
   staticKind (AlsoOffBattlefield se) = staticKind se
+  staticKind (DoesntRemove se _) = staticKind se
   staticKind (MayPlay _ _ _ _ _ _ _ _) = PlayPermission
   staticKind (NoLossFrom _ _) = OutcomeImmunity
   staticKind (Visibility _ _ _) = VisibilityRider
@@ -1091,6 +1182,7 @@ mutual
   staticIntro (BecomesAlso n _) = selfSubjIntro n
   staticIntro (AddsEveryType n _) = selfSubjIntro n
   staticIntro (LosesEveryType n _) = selfSubjIntro n
+  staticIntro (LosesType n _) = selfSubjIntro n
   staticIntro (SetsColor n _) = selfSubjIntro n
   staticIntro (BecomesCopy n _ _) = selfSubjIntro n
   staticIntro (SetsType n _ _) = selfSubjIntro n
@@ -1118,6 +1210,7 @@ mutual
   staticIntro (Conditionally c se _) = staticIntro se
   staticIntro (OnlyWhile se c _) = staticIntro se
   staticIntro (AlsoOffBattlefield se) = staticIntro se
+  staticIntro (DoesntRemove _ n) = nomIntro n
   staticIntro (MayPlay who what _ _ _ _ _ _) = selfSubjIntro what
   staticIntro (NoLossFrom who _) = nomIntro who
   staticIntro (Visibility _ who what) = visibleIntro what
