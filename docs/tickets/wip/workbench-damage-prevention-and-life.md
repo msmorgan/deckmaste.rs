@@ -326,3 +326,189 @@ evidence bench `idris/src/Experimental/Cards.idr`.
 Standard constraints apply.
 
 - **Routed from workbench-event-zone-2-event-subjects (close, 2026-08-26):** the PROSPECTIVE dealer-side damage row — "Whenever [source] deals damage to [X]" outside combat has no `GameEvent` row (`DamageDealing` landed retrospective-only; its `interceptOk`/`spanEventOk` cells are stated but unreached). Unmeasured; measure before minting. Missing damage GameEvent rows are this ticket's, so it lands here.
+
+## As landed (2026-08-28)
+
+Every count below is a fresh measurement over `data/derived/cards.jsonl`
+restricted to `select(.supported)` and deduplicated by card name. Where it
+differs from the count this ticket was written with, the ticket's figure was
+wrong and the deviation is named.
+
+### Built
+
+- **The damage magnitude a replacement reads.** `eventIntro` now announces
+  `outcomeB DamageDealt` at `IsDealtDamage`, `DealsCombatDamage` and
+  `DealsDamage`, on `RollsDice`' recorded model: [CR#614.6] keeps the replaced
+  event from happening, but [CR#614.1] has the replacement watch an event that
+  WOULD happen and [CR#120.8] makes that event one of a stated size. This is the
+  whole of what the "instead" bodies were blocked on. Witness: `phytohydra`.
+  **Re-measured: 10 sentences over 10 cards, not 16** — Crumbling Sanctuary,
+  Delaying Shield, Dralnu, Force Bubble, Lichenthrope, Nefarious Lich,
+  Phytohydra, Soul-Scar Mage, Szadek, Undead Alchemist. The other six the ticket
+  counted are damage-to-damage pumps, which are `DamageScale`'s own spelling and
+  need nothing (the ticket says so of the 22 "plus N" lines and the same applies
+  to "double"/"half"/"triple").
+
+- **The replacement side of the damage events was already open.** The ticket's
+  premise — "`eventUse DamageTaken` and `eventUse CombatDamage` are both
+  `TriggeredOnly`, so `Intercepts` cannot take either event" — is **stale**:
+  there is no `eventUse` table any more, and `interceptOk` answers `True` for
+  every name but `ChapterArrival`. The cell was blocked on the magnitude
+  announcement alone, and it is now witnessed.
+
+- **The anaphoric can't-be-prevented.** `CantPrevent` is restructured: its
+  subject is an `Unpreventable`, whose `DamageDescribed` arm carries the scope
+  and by-phrase the row used to take inline and whose `ThatDamage` arm names the
+  damage event the card's own previous clause described, gated by
+  `damageDealtInScope` on `DealtThisWay`'s existence-test model [CR#608.2c].
+  Witness: `pinpointAvalanche` (whole card).
+  **Re-measured: 9 sentences, not 10** — the ticket's list counted Lava Burst,
+  whose only prevention sentence is the conjoined one below. The other two
+  "can't be prevented" shapes need no anaphor and already landed: the bare
+  global (16 sentences, `flaringPain`) and the restricted static (4,
+  `excruciator`).
+
+- **The redirect immunity.** `CantPrevent` gained a `PreventionBan` slot:
+  `NoPreventionOnly` is [CR#615.12]'s plain refusal, `NoRedirectEither` adds
+  [CR#614.9]'s redirection under one negation. 2 sentences (Lava Burst,
+  Whippoorwill), both spelling it "can't be prevented or dealt instead to
+  another permanent or player" — note the corpus never writes "or redirected".
+  Witness: `whippoorwillImmunity` (fragment).
+
+- **The life-change event row.** `GameEvent.LifeChanges who dir` with a
+  `LifeMove` slot lifting through `lifeEventName` into the `LifeGain`/`LifeLoss`
+  names that already existed with no producer, on `FlipEvent`'s and
+  `PaysCost`'s model. [CR#119.9] writes the header in the rules' own words;
+  [CR#119.3] is what the change is. It announces the amount at both mouths, so
+  "that much life" reads it after the event and a replacement reads it before.
+  **Re-measured: 84 gain sentences over 83 cards and 20 loss/payment sentences
+  over 20 cards — not 14 and 8.** By a wide margin the round's biggest cell.
+  Witnesses: `sanguineBond`, `exquisiteBlood`, `agelessEntity` (whole cards),
+  `nefariousLichGain` (the replacement side).
+
+- **The damage kind at the event position.** `IsDealtDamage` gained a
+  `DamageKind` slot — the shield rows' own adjective at an event seat.
+  **Re-measured: 9 sentences over 9 cards, not 5** (Chandra's Spitfire, Lolth's
+  emblem, Mindblade Render, Pious Warrior, Smaug the Impenetrable, Souls of the
+  Faultless, Wall of Essence, Wall of Souls, Wildfire Elemental); a further 3
+  write "is dealt excess noncombat damage", which wants the excess read below.
+  Witnesses: `piousWarrior` (combat), `chandrasSpitfire` (noncombat).
+
+- **The complement cut, "all but [n]".** `PreventCut.CutAllBut`.
+  **Re-measured: 4 sentences over 4 cards, not 9 — and the shield determiner is
+  a measured ZERO.** Verified across the ENTIRE corpus, supported and
+  unsupported: only Ajani Steadfast's emblem, Forcefield, Hyperion Supreme Hero
+  and Temple Altisaur ever write "prevent all but", and all four are per-event
+  cuts (three if-would statics, one next-time). So the ticket's "4 are the
+  shield's determiner … build it once" is answered by the measurement rather
+  than by a shared value: `Shield` grows no arm, `PreventCut` grows one, and
+  there is one spelling because there is one seat. Witness: `templeAltisaur`.
+
+- **The halving cut.** `PreventCut.CutHalf r`, both rounding directions from one
+  arm; [CR#107.1a] is why the direction is obligatory. 2 sentences confirmed.
+  Witness: `darkSphere` (`RoundDown`); Gisela, Blade of Goldnight writes
+  `RoundUp` and is not benched (its other statement is a `Scales` doubling
+  outside this round).
+
+- **The source-qualified prevention container.** `Condition.PreventedFromSource
+  p` — `DealtThisWay`'s twin at the prevention outcome, ranging over the
+  damage's SOURCE ([CR#120.1]) because that is what [CR#615.2] and [CR#609.7]
+  narrow a prevention on. It is a condition the rider's existing `Effect` is
+  written under, not a second rider slot, which is what lets Comeuppance's two
+  differently qualified riders be two `If`s in one body. 6 sentences over 5
+  cards confirmed. Witness: `shadowbane`.
+
+- **Three new pins** in `ProofsF`: the anaphoric subject with no damage in scope
+  (twice, once after an unrelated life gain) and the container with no
+  prevention in scope.
+
+### Declined, with counts
+
+- **The [CR#615.13] prevention trigger: DECLINED.** **Re-measured at 5
+  sentences over 5 cards, not 4** — New Way Forward, Phyrexian Vindicator,
+  Judgment of Alexander, Samite Ministration, and **Selfless Squire**, which the
+  ticket's list missed and which is the only one that watches a prevention
+  generically rather than "this way". Five lines does not carry a `GameEvent`
+  row and the whole name-keyed table surface behind it, so the default stands
+  and is recorded here rather than left implied. **Phyrexian Vindicator's
+  status:** not benched, and it was named the cheapest whole card only on the
+  condition that the trigger were taken; its "any other target" is a separate
+  16-sentence family that does not depend on this decision.
+
+- **The excess-damage redirect: stays fenced.** 5 sentences over 5 cards (Flame
+  Spill, Gandalf's Sanction, Pigment Storm, Ram Through, Ravenous
+  Tyrannosaurus), plus Megatron's if-would spelling of the same semantics.
+  Blocker, stated precisely: the subject reads a PORTION of a described damage
+  event — [CR#120.10] computes excess damage against lethal damage, loyalty or
+  defense — and no `Amount` row spells a portion. This round mints none, per
+  the ticket's own fence. The 3 "is dealt excess noncombat damage" headers want
+  the same read at an event position.
+
+- **The source read: still declined, but the ledger entry is corrected.**
+  **Re-measured at 18 strict "that source"/"that source's controller" sentences,
+  plus 3 writing "the source's controller" — 21, not 13.** The ticket says none
+  of them needs the demonstrative re-sort. That is **wrong**: Honorable Passage
+  needs it. Its rider deals damage "to the source's controller" over a shield
+  whose recipient is "any target", so the generic pronoun Deflecting Palm uses
+  (`ControllerOf It`) has two object mentions to resolve against and refuses.
+  Honorable Passage is therefore the card that would justify the word, and it is
+  recorded in `Cards.idr` beside `shadowbane` as the one member of the container
+  family this round does not bench.
+
+- **The attack batch count: not this round's**, as the ticket says. Re-measured
+  at 7 "that many" sentences plus 12 "where X is the number of attacking
+  creatures" sentences — 19 across the two surfaces. The ticket's 12 is the
+  second list, not the first.
+
+- **The where-rider on a shift amount:** `WhereLetterStatic` does not exist
+  anywhere in the grammar, so the ticket's consumption boundary names a symbol
+  that was never built. Hawkeye's line remains unspellable. **Cover of Winter is
+  NOT blocked on it:** its "prevent X of that damage, where X is the number of
+  age counters on this enchantment" is `CutSome (CountersOn Age …)` today — the
+  cut takes any `Amount`, and the counter read is one — so only the "where X is"
+  SURFACE is unspelled, and the static `Define` row is where that surface would
+  be paid. No prevention size read off a count is missing.
+
+- **Forcefield is not benched** despite being the complement's next-time
+  witness: "an unblocked creature" needs an `Unblocked` predicate the grammar
+  does not have, which is a combat-description gap unrelated to this round.
+
+### Measured zeros and stale premises
+
+- **Life-gain suppression needs no row at all; the ticket's premise is stale.**
+  "22 supported lines and no channel at all … nothing in the grammar writes them
+  today" was true before the deontic carrier landed. All of it is the carrier at
+  the `"GainLife"` label today. **Re-measured at 23 sentences, not 22** — 10
+  "Players can't gain life", 9 "Your opponents can't", 3 singular subjects, and
+  Mornsong Aria's conjoined "Players can't draw cards or gain life", which the
+  ticket's count missed and which is already benched (`mornsongAriaLock`).
+  The cross-family measurement the ticket asked for, recorded before any
+  constructor was written: the carrier's deed LIST **is** the shared
+  suppressed-event row. `"DrawCard"` (6 sentences), `"SearchLibrary"` (4),
+  `"WinGame"`/`"LoseGame"` (8) all ride it already, and Mornsong Aria and
+  Everybody Lives! both conjoin across those events in a single static. No
+  suppression subsystem is minted; `opponentsCantGainLife` closes the one
+  unwitnessed subfamily. The outcome gate and `Prevents` keep their scopes.
+
+- **The scaling row's amount readback stays at 0 lines** — not re-bought.
+
+- **The two recorded prices stand as prices.** The double read (3 lines: Souls
+  of the Faultless; Kain; Neheb) is still refused by `ThatMuch`'s uniqueness
+  obligation and is not fixable without a second reader. The body-internal
+  announcement (60 lines over 59 cards) is still `GroupSize`'s family and was
+  not re-bought.
+
+- **The routed prospective dealer-side damage row is already landed.**
+  `GameEvent.DealsDamage` with its `DamagePatient` slot, `eventName` =
+  `DamageDealing`, and `interceptOk`/`spanEventOk` both reached. Hypnotic
+  Specter's header and the 42-card active-damage cell are that row; nothing was
+  owed here.
+
+### Gate evidence
+
+`idris/scripts/build` — 23/23, clean rebuild.
+`cargo xtask cite check --list-noncompliant` — 0 non-compliant.
+`cargo xtask cite check` — 0 stale (19652 citations).
+`cargo xtask cite bless` — one new rule registered, [CR#615.2].
+`jj diff --git | cargo xtask cite audit --diff` — 46 sites, each read against
+its rule.
