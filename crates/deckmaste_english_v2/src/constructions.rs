@@ -710,6 +710,13 @@ constructions! {
         generate declaration_term {
             position = FixedKeyword;
             kinds = [KeywordAbility];
+            params = Any;
+        }
+    }
+    codec BareKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
         }
     }
     codec DeclaredKeywordParticiple {
@@ -727,11 +734,32 @@ constructions! {
             params = [Cost];
         }
     }
+    codec AmountKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = [Amount];
+        }
+    }
+    codec AmountCostKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = [Amount, Cost];
+        }
+    }
     codec QualityKeywordAbility {
         generate declaration_term {
             position = FixedKeyword;
             kinds = [KeywordAbility];
             params = [Quality];
+        }
+    }
+    codec QualityCostKeywordAbility {
+        generate declaration_term {
+            position = FixedKeyword;
+            kinds = [KeywordAbility];
+            params = [Quality, Cost];
         }
     }
     codec SubjectKeywordAbility {
@@ -4566,8 +4594,17 @@ constructions! {
 
     abstract sum KeywordLineItem {
         Bare: BareKeywordLineItem,
-        Costed: CostedKeywordLineItem,
+        ManaCosted: ManaCostedKeywordLineItem,
+        ClauseCosted: ClauseCostedKeywordLineItem,
+        ManaClauseCosted: ManaClauseCostedKeywordLineItem,
+        Amounted: AmountKeywordLineItem,
+        AmountManaCosted: AmountManaCostKeywordLineItem,
+        AmountClauseCosted: AmountClauseCostKeywordLineItem,
+        AmountManaClauseCosted: AmountManaClauseCostKeywordLineItem,
         Qualified: QualifiedKeywordLineItem,
+        QualityManaCosted: QualityManaCostKeywordLineItem,
+        QualityClauseCosted: QualityClauseCostKeywordLineItem,
+        QualityManaClauseCosted: QualityManaClauseCostKeywordLineItem,
         Subject: SubjectKeywordLineItem,
     }
     abstract sum KeywordQuality {
@@ -4576,18 +4613,80 @@ constructions! {
     }
     abstract sum KeywordSubject {
         Nominal: SingularNominal,
+        Coordination: SingularNominalCoordination,
         Relative: KeywordRelativeSubject,
     }
     construction bare_keyword_line_item: BareKeywordLineItem {
-        element BareKeywordLineItemValue { keyword: lex KeywordAbility, }
+        element BareKeywordLineItemValue { keyword: lex BareKeywordAbility, }
         form bare_keyword_line_item = lex(keyword);
     }
-    construction costed_keyword_line_item: CostedKeywordLineItem {
-        element CostedKeywordLineItemValue {
+    construction mana_costed_keyword_line_item: ManaCostedKeywordLineItem {
+        element ManaCostedKeywordLineItemValue {
             keyword: lex CostedKeywordAbility,
             cost: ActivationCostComponent,
         }
-        form costed_keyword_line_item = lex(keyword) cost;
+        require cost is SymbolRun;
+        form mana_costed_keyword_line_item = lex(keyword) cost;
+    }
+    construction keyword_cost_predicate: KeywordCostPredicate {
+        element KeywordCostPredicateValue { predicate: Predicate, }
+        derive predicate.agreement = Values::Bare;
+        form keyword_cost_predicate = predicate ".";
+    }
+    construction clause_costed_keyword_line_item: ClauseCostedKeywordLineItem {
+        element ClauseCostedKeywordLineItemValue {
+            keyword: lex CostedKeywordAbility,
+            cost: KeywordCostPredicate,
+        }
+        form clause_costed_keyword_line_item =
+            lex(keyword) sentence_initial("—") cost;
+    }
+    construction mana_clause_costed_keyword_line_item: ManaClauseCostedKeywordLineItem {
+        element ManaClauseCostedKeywordLineItemValue {
+            keyword: lex CostedKeywordAbility,
+            mana: ActivationCostComponent,
+            cost: KeywordCostPredicate,
+        }
+        require mana is SymbolRun;
+        form mana_clause_costed_keyword_line_item = lex(keyword)
+            sentence_initial("—") mana sentence_initial(", ") cost;
+    }
+    construction amount_keyword_line_item: AmountKeywordLineItem {
+        element AmountKeywordLineItemValue {
+            keyword: lex AmountKeywordAbility,
+            amount: Amount,
+        }
+        form amount_keyword_line_item = lex(keyword) amount;
+    }
+    construction amount_mana_cost_keyword_line_item: AmountManaCostKeywordLineItem {
+        element AmountManaCostKeywordLineItemValue {
+            keyword: lex AmountCostKeywordAbility,
+            amount: Amount,
+            cost: ActivationCostComponent,
+        }
+        require cost is SymbolRun;
+        form amount_mana_cost_keyword_line_item =
+            lex(keyword) amount sentence_initial("—") cost;
+    }
+    construction amount_clause_cost_keyword_line_item: AmountClauseCostKeywordLineItem {
+        element AmountClauseCostKeywordLineItemValue {
+            keyword: lex AmountCostKeywordAbility,
+            amount: Amount,
+            cost: KeywordCostPredicate,
+        }
+        form amount_clause_cost_keyword_line_item = lex(keyword) amount
+            sentence_initial("—") cost;
+    }
+    construction amount_mana_clause_cost_keyword_line_item: AmountManaClauseCostKeywordLineItem {
+        element AmountManaClauseCostKeywordLineItemValue {
+            keyword: lex AmountCostKeywordAbility,
+            amount: Amount,
+            mana: ActivationCostComponent,
+            cost: KeywordCostPredicate,
+        }
+        require mana is SymbolRun;
+        form amount_mana_clause_cost_keyword_line_item = lex(keyword) amount
+            sentence_initial("—") mana sentence_initial(", ") cost;
     }
     construction keyword_quality_coordination: KeywordQualityCoordination {
         element KeywordQualityCoordinationValue {
@@ -4607,6 +4706,36 @@ constructions! {
             quality: KeywordQuality,
         }
         form qualified_keyword_line_item = lex(keyword) quality;
+    }
+    construction quality_mana_cost_keyword_line_item: QualityManaCostKeywordLineItem {
+        element QualityManaCostKeywordLineItemValue {
+            keyword: lex QualityCostKeywordAbility,
+            quality: KeywordQuality,
+            cost: ActivationCostComponent,
+        }
+        require cost is SymbolRun;
+        form quality_mana_cost_keyword_line_item =
+            lex(keyword) quality sentence_initial("—") cost;
+    }
+    construction quality_clause_cost_keyword_line_item: QualityClauseCostKeywordLineItem {
+        element QualityClauseCostKeywordLineItemValue {
+            keyword: lex QualityCostKeywordAbility,
+            quality: KeywordQuality,
+            cost: KeywordCostPredicate,
+        }
+        form quality_clause_cost_keyword_line_item = lex(keyword) quality
+            sentence_initial("—") cost;
+    }
+    construction quality_mana_clause_cost_keyword_line_item: QualityManaClauseCostKeywordLineItem {
+        element QualityManaClauseCostKeywordLineItemValue {
+            keyword: lex QualityCostKeywordAbility,
+            quality: KeywordQuality,
+            mana: ActivationCostComponent,
+            cost: KeywordCostPredicate,
+        }
+        require mana is SymbolRun;
+        form quality_mana_clause_cost_keyword_line_item = lex(keyword) quality
+            sentence_initial("—") mana sentence_initial(", ") cost;
     }
     construction subject_keyword_line_item: SubjectKeywordLineItem {
         element SubjectKeywordLineItemValue {

@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Companion",
+    params: [Condition],
     spelling: "companion",
     grammar: FixedKeyword(
         surface: "companion",

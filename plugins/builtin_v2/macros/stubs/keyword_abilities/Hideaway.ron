@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Hideaway",
+    params: [Amount],
     spelling: "hideaway",
     grammar: FixedKeyword(
         surface: "hideaway",

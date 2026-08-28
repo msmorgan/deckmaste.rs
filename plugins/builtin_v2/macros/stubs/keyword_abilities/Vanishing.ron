@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Vanishing",
+    params: [Amount],
     spelling: "vanishing",
     grammar: FixedKeyword(
         surface: "vanishing",

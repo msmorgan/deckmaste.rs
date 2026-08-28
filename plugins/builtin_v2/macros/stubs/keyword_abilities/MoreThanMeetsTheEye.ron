@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "MoreThanMeetsTheEye",
+    params: [Cost],
     spelling: "More Than Meets the Eye",
     grammar: FixedKeyword(
         surface: "More Than Meets the Eye",

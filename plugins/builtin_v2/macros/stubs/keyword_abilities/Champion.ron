@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Champion",
+    params: [Subject],
     spelling: "champion",
     grammar: FixedKeyword(
         surface: "champion",

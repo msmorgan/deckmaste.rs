@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Infinity",
+    params: [Ability],
     spelling: "∞",
     grammar: FixedKeyword(
         surface: "∞",

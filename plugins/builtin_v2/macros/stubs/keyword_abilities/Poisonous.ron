@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Poisonous",
+    params: [Amount],
     spelling: "poisonous",
     grammar: FixedKeyword(
         surface: "poisonous",

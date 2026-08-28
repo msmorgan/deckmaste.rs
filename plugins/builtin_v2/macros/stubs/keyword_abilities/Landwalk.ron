@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Landwalk",
+    params: [Quality],
     spelling: "landwalk",
     grammar: FixedKeyword(
         surface: "landwalk",

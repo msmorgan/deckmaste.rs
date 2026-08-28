@@ -2858,6 +2858,9 @@ fn validate_declaration_term_domains_are_pairwise_intentional(
             if left_position != right_position || left_feature != right_feature {
                 continue;
             }
+            if left_params.is_none() != right_params.is_none() {
+                continue;
+            }
             let params_overlap =
                 left_params.is_none() || right_params.is_none() || left_params == right_params;
             if !params_overlap {
@@ -11435,6 +11438,13 @@ pub(crate) mod tests {
                     position = FixedKeyword;
                     kinds = [KeywordAbility];
                     params = [Cost];
+                }
+            }
+            codec AnyKeywordAbility {
+                generate declaration_term {
+                    position = FixedKeyword;
+                    kinds = [KeywordAbility];
+                    params = Any;
                 }
             }
             codec QualityKeywordAbility {

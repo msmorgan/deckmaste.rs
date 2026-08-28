@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "Fortify",
     params: [Cost],
-    spelling: "fortify <Param(0)>",
+    spelling: "fortify",
     grammar: FixedKeyword(
         surface: "fortify",
         participial_adjective: (surface: "fortified",),

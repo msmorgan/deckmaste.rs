@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Solved",
+    params: [Ability],
     spelling: "solved",
     grammar: FixedKeyword(
         surface: "solved",

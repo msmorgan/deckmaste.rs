@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Modular",
+    params: [Amount],
     spelling: "modular",
     grammar: FixedKeyword(
         surface: "modular",

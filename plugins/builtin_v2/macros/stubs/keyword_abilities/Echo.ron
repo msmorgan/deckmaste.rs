@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Echo",
+    params: [Cost],
     spelling: "echo",
     grammar: FixedKeyword(
         surface: "echo",

@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Overload",
+    params: [Cost],
     spelling: "overload",
     grammar: FixedKeyword(
         surface: "overload",

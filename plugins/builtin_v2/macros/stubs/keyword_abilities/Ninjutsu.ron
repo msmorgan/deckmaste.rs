@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Ninjutsu",
+    params: [Cost],
     spelling: "ninjutsu",
     grammar: FixedKeyword(
         surface: "ninjutsu",

@@ -1169,10 +1169,14 @@ fn project_failure(
 }
 
 fn has_lexical_boundary(text: &str, end: usize) -> bool {
-    matches!(
-        text.as_bytes().get(end),
-        None | Some(b' ' | b'\n' | b',' | b'.' | b':' | b']' | b'}')
-    )
+    let Some(remainder) = text.get(end..) else {
+        return false;
+    };
+    remainder.is_empty()
+        || matches!(
+            remainder.chars().next(),
+            Some(' ' | '\n' | ',' | '.' | ':' | ']' | '}' | '—')
+        )
 }
 
 fn matches_feature(constraint: FeatureConstraint<SurfaceFeature>, feature: SurfaceFeature) -> bool {
@@ -1929,7 +1933,15 @@ mod tests {
     #[test]
     fn lexical_boundary_is_exactly_eoi_authored_spacing_transition_or_closing_circumfix() {
         for text in [
-            "word", "word ", "word\n", "word,", "word.", "word:", "word]", "word}",
+            "word",
+            "word ",
+            "word\n",
+            "word,",
+            "word.",
+            "word:",
+            "word]",
+            "word}",
+            "word—Next",
         ] {
             assert!(super::has_lexical_boundary(text, "word".len()), "{text:?}");
         }

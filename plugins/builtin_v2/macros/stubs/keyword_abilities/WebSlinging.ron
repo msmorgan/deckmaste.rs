@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "WebSlinging",
+    params: [Cost],
     spelling: "web-slinging",
     grammar: FixedKeyword(
         surface: "web-slinging",

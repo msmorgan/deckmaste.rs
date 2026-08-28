@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Splice",
+    params: [Quality, Cost],
     spelling: "splice",
     grammar: FixedKeyword(
         surface: "splice",

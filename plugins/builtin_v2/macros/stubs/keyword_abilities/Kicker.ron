@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Kicker",
+    params: [Cost],
     spelling: "kicker",
     grammar: FixedKeyword(
         surface: "kicker",

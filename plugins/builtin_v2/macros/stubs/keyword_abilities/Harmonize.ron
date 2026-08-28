@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Harmonize",
+    params: [Cost],
     spelling: "harmonize",
     grammar: FixedKeyword(
         surface: "harmonize",

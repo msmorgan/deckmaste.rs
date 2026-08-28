@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Eternalize",
+    params: [Cost],
     spelling: "eternalize",
     grammar: FixedKeyword(
         surface: "eternalize",

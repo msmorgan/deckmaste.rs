@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Freerunning",
+    params: [Cost],
     spelling: "freerunning",
     grammar: FixedKeyword(
         surface: "freerunning",

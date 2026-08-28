@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "PowerUp",
+    params: [Ability],
     spelling: "power-up",
     grammar: FixedKeyword(
         surface: "power-up",

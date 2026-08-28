@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Foretell",
+    params: [Cost],
     spelling: "foretell",
     grammar: FixedKeyword(
         surface: "foretell",

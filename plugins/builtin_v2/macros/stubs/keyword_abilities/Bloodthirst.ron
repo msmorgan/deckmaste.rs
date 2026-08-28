@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Bloodthirst",
+    params: [Amount],
     spelling: "bloodthirst",
     grammar: FixedKeyword(
         surface: "bloodthirst",

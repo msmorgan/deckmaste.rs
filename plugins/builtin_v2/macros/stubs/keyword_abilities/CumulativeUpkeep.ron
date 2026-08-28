@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "CumulativeUpkeep",
+    params: [Cost],
     spelling: "cumulative upkeep",
     grammar: FixedKeyword(
         surface: "cumulative upkeep",

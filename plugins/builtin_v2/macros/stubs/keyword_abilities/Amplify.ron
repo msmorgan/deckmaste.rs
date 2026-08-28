@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Amplify",
+    params: [Amount],
     spelling: "amplify",
     grammar: FixedKeyword(
         surface: "amplify",

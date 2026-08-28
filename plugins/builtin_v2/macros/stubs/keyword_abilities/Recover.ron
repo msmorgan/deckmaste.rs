@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Recover",
+    params: [Cost],
     spelling: "recover",
     grammar: FixedKeyword(
         surface: "recover",

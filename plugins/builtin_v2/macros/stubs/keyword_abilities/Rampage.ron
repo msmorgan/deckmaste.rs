@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Rampage",
+    params: [Amount],
     spelling: "rampage",
     grammar: FixedKeyword(
         surface: "rampage",

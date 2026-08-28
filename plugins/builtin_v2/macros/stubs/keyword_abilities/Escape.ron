@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Escape",
+    params: [Cost],
     spelling: "escape",
     grammar: FixedKeyword(
         surface: "escape",

@@ -988,9 +988,19 @@ enum NonterminalKind {
     KeywordQuality,
     KeywordSubject,
     KeywordRelativeSubject,
+    KeywordCostPredicate,
     BareKeywordLineItem,
-    CostedKeywordLineItem,
+    ManaCostedKeywordLineItem,
+    ClauseCostedKeywordLineItem,
+    ManaClauseCostedKeywordLineItem,
+    AmountKeywordLineItem,
+    AmountManaCostKeywordLineItem,
+    AmountClauseCostKeywordLineItem,
+    AmountManaClauseCostKeywordLineItem,
     QualifiedKeywordLineItem,
+    QualityManaCostKeywordLineItem,
+    QualityClauseCostKeywordLineItem,
+    QualityManaClauseCostKeywordLineItem,
     SubjectKeywordLineItem,
     KeywordQualityCoordination,
     KeywordReminderText,
@@ -1692,9 +1702,37 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::KeywordQuality => NonterminalKind::KeywordQuality,
         NonterminalCategory::KeywordSubject => NonterminalKind::KeywordSubject,
         NonterminalCategory::KeywordRelativeSubject => NonterminalKind::KeywordRelativeSubject,
+        NonterminalCategory::KeywordCostPredicate => NonterminalKind::KeywordCostPredicate,
         NonterminalCategory::BareKeywordLineItem => NonterminalKind::BareKeywordLineItem,
-        NonterminalCategory::CostedKeywordLineItem => NonterminalKind::CostedKeywordLineItem,
+        NonterminalCategory::ManaCostedKeywordLineItem => {
+            NonterminalKind::ManaCostedKeywordLineItem
+        }
+        NonterminalCategory::ClauseCostedKeywordLineItem => {
+            NonterminalKind::ClauseCostedKeywordLineItem
+        }
+        NonterminalCategory::ManaClauseCostedKeywordLineItem => {
+            NonterminalKind::ManaClauseCostedKeywordLineItem
+        }
+        NonterminalCategory::AmountKeywordLineItem => NonterminalKind::AmountKeywordLineItem,
+        NonterminalCategory::AmountManaCostKeywordLineItem => {
+            NonterminalKind::AmountManaCostKeywordLineItem
+        }
+        NonterminalCategory::AmountClauseCostKeywordLineItem => {
+            NonterminalKind::AmountClauseCostKeywordLineItem
+        }
+        NonterminalCategory::AmountManaClauseCostKeywordLineItem => {
+            NonterminalKind::AmountManaClauseCostKeywordLineItem
+        }
         NonterminalCategory::QualifiedKeywordLineItem => NonterminalKind::QualifiedKeywordLineItem,
+        NonterminalCategory::QualityManaCostKeywordLineItem => {
+            NonterminalKind::QualityManaCostKeywordLineItem
+        }
+        NonterminalCategory::QualityClauseCostKeywordLineItem => {
+            NonterminalKind::QualityClauseCostKeywordLineItem
+        }
+        NonterminalCategory::QualityManaClauseCostKeywordLineItem => {
+            NonterminalKind::QualityManaClauseCostKeywordLineItem
+        }
         NonterminalCategory::SubjectKeywordLineItem => NonterminalKind::SubjectKeywordLineItem,
         NonterminalCategory::KeywordQualityCoordination => {
             NonterminalKind::KeywordQualityCoordination

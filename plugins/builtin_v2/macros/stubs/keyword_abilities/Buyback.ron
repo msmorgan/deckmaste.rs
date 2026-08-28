@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Buyback",
+    params: [Cost],
     spelling: "buyback",
     grammar: FixedKeyword(
         surface: "buyback",

@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "Protection",
     params: [Quality],
-    spelling: "protection from <Param(0)>",
+    spelling: "protection from",
     grammar: FixedKeyword(
         surface: "protection from",
     ),

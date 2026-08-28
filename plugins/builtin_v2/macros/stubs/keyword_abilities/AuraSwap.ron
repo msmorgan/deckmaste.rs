@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "AuraSwap",
+    params: [Cost],
     spelling: "aura swap",
     grammar: FixedKeyword(
         surface: "aura swap",

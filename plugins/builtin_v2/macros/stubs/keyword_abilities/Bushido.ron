@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Bushido",
+    params: [Amount],
     spelling: "bushido",
     grammar: FixedKeyword(
         surface: "bushido",

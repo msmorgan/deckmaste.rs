@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "LevelUp",
+    params: [Cost],
     spelling: "level up",
     grammar: FixedKeyword(
         surface: "level up",

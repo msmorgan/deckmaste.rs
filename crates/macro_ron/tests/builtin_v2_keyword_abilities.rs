@@ -37,6 +37,124 @@ fn ability<'a>(declarations: &'a [NormalizedDeclaration], name: &str) -> &'a Nor
         .unwrap_or_else(|| panic!("missing keyword ability {name}"))
 }
 
+fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static str]> {
+    let mut parameterized = BTreeMap::<&str, &[&str]>::new();
+    for name in [
+        "Absorb",
+        "Afflict",
+        "Afterlife",
+        "Amplify",
+        "Annihilator",
+        "Backup",
+        "Bloodthirst",
+        "Bushido",
+        "Casualty",
+        "Crew",
+        "Devour",
+        "Dredge",
+        "Fabricate",
+        "Fading",
+        "Firebending",
+        "Frenzy",
+        "Graft",
+        "Hideaway",
+        "Mobilize",
+        "Modular",
+        "Poisonous",
+        "Rampage",
+        "Renown",
+        "Ripple",
+        "Saddle",
+        "Soulshift",
+        "Teamwork",
+        "Toxic",
+        "Tribute",
+        "Vanishing",
+    ] {
+        assert_eq!(parameterized.insert(name, &["Amount"]), None);
+    }
+    for name in [
+        "AuraSwap",
+        "Bestow",
+        "Blitz",
+        "Buyback",
+        "Cleave",
+        "Craft",
+        "CumulativeUpkeep",
+        "Cycling",
+        "Dash",
+        "Disguise",
+        "Disturb",
+        "Echo",
+        "Embalm",
+        "Emerge",
+        "Encore",
+        "Entwine",
+        "Equip",
+        "Escalate",
+        "Escape",
+        "Eternalize",
+        "Evoke",
+        "Flashback",
+        "Foretell",
+        "Fortify",
+        "Freerunning",
+        "Harmonize",
+        "Kicker",
+        "LevelUp",
+        "Madness",
+        "Mayhem",
+        "Miracle",
+        "MoreThanMeetsTheEye",
+        "Morph",
+        "Mutate",
+        "Ninjutsu",
+        "Offspring",
+        "Outlast",
+        "Overload",
+        "Plot",
+        "Prowl",
+        "Reconfigure",
+        "Recover",
+        "Replicate",
+        "Scavenge",
+        "Sneak",
+        "Spectacle",
+        "Squad",
+        "Surge",
+        "Transfigure",
+        "Transmute",
+        "Unearth",
+        "Ward",
+        "Warp",
+        "WebSlinging",
+    ] {
+        assert_eq!(parameterized.insert(name, &["Cost"]), None);
+    }
+    for name in ["Affinity", "Landwalk", "Offering", "Protection"] {
+        assert_eq!(parameterized.insert(name, &["Quality"]), None);
+    }
+    for name in ["Champion", "Enchant", "Gift"] {
+        assert_eq!(parameterized.insert(name, &["Subject"]), None);
+    }
+    for name in ["Awaken", "Impending", "Reinforce", "Suspend"] {
+        assert_eq!(parameterized.insert(name, &["Amount", "Cost"]), None);
+    }
+    assert_eq!(parameterized.insert("Splice", &["Quality", "Cost"]), None);
+    for name in [
+        "Boast", "Exhaust", "Forecast", "Infinity", "MaxSpeed", "PowerUp", "Solved", "Visit",
+    ] {
+        assert_eq!(parameterized.insert(name, &["Ability"]), None);
+    }
+    assert_eq!(parameterized.insert("Companion", &["Condition"]), None);
+    assert_eq!(
+        parameterized.insert("Prototype", &["Cost", "Power", "Toughness"]),
+        None
+    );
+    assert_eq!(parameterized.len(), 106);
+    parameterized
+}
+
 #[test]
 fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -54,16 +172,7 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
         .filter(|declaration| declaration.identity().kind() == DeclarationKind::KeywordAbility)
         .map(|declaration| (declaration.identity().name().to_owned(), declaration))
         .collect::<BTreeMap<_, _>>();
-    let parameterized = BTreeMap::from([
-        ("Enchant", ("Subject", "enchant ", "enchant")),
-        ("Equip", ("Cost", "equip ", "equip")),
-        ("Fortify", ("Cost", "fortify ", "fortify")),
-        (
-            "Protection",
-            ("Quality", "protection from ", "protection from"),
-        ),
-        ("Ward", ("Cost", "ward ", "ward")),
-    ]);
+    let parameterized = parameterized_keyword_params();
 
     assert_eq!(actual.len(), 195);
     assert_eq!(
@@ -89,32 +198,23 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
         assert_eq!(grammar.recipe(), &GrammarRecipe::FixedKeyword);
         assert_eq!(grammar.surfaces().len(), 1);
         assert_eq!(grammar.surfaces()[0].feature(), SurfaceFeature::Fixed);
-        if let Some((parameter, prefix, surface)) = parameterized.get(name.as_str()) {
+        if let Some(expected_params) = parameterized.get(name.as_str()) {
             let params = declaration.params().expect("parameterized row has params");
             assert_eq!(
                 params
                     .iter()
                     .map(macro_ron::v2::ParameterType::as_str)
                     .collect::<Vec<_>>(),
-                [*parameter],
+                *expected_params,
                 "{name}",
             );
-            assert_eq!(
-                declaration.spelling(),
-                [
-                    SpellingPart::Literal((*prefix).to_owned()),
-                    SpellingPart::Param(0)
-                ],
-                "{name}",
-            );
-            assert_eq!(grammar.surfaces()[0].text(), *surface, "{name}");
         } else {
             assert!(declaration.params().is_none(), "{name}");
-            let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
-                panic!("nullary keyword {name} has a parameter hole")
-            };
-            assert_eq!(grammar.surfaces()[0].text(), spelling);
         }
+        let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
+            panic!("keyword {name} declares compiler-owned layout in its spelling")
+        };
+        assert_eq!(grammar.surfaces()[0].text(), spelling, "{name}");
     }
 
     for (name, surface) in [

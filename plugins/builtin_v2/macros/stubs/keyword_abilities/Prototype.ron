@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Prototype",
+    params: [Cost, Power, Toughness],
     spelling: "prototype",
     grammar: FixedKeyword(
         surface: "prototype",

@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "Enchant",
     params: [Subject],
-    spelling: "enchant <Param(0)>",
+    spelling: "enchant",
     grammar: FixedKeyword(
         surface: "enchant",
         participial_adjective: (surface: "enchanted",),

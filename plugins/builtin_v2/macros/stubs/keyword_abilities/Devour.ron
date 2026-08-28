@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Devour",
+    params: [Amount],
     spelling: "devour",
     grammar: FixedKeyword(
         surface: "devour",

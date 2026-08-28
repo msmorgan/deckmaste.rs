@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Impending",
+    params: [Amount, Cost],
     spelling: "impending",
     grammar: FixedKeyword(
         surface: "impending",

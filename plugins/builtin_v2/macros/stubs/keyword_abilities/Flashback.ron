@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Flashback",
+    params: [Cost],
     spelling: "flashback",
     grammar: FixedKeyword(
         surface: "flashback",

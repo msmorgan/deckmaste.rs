@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Offering",
+    params: [Quality],
     spelling: "offering",
     grammar: FixedKeyword(
         surface: "offering",

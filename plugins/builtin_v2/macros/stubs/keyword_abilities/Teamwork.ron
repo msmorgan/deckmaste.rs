@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Teamwork",
+    params: [Amount],
     spelling: "teamwork",
     grammar: FixedKeyword(
         surface: "teamwork",

@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "Affinity",
+    params: [Quality],
     spelling: "affinity",
     grammar: FixedKeyword(
         surface: "affinity",

@@ -1,5 +1,6 @@
 KeywordAbility(
     name: "MaxSpeed",
+    params: [Ability],
     spelling: "max speed",
     grammar: FixedKeyword(
         surface: "max speed",
