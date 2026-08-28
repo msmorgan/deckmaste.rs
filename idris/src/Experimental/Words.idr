@@ -3018,6 +3018,19 @@ namespace Lookback
   data Lookback = ThisTurn | ThisCombat | LastTurn | ThisGame | ThisWay
                 | Triggering
 
+  ||| Structural agreement of two optional windows, for the reads that
+  ||| compare descriptions. No `Eq Lookback`: nothing else asks.
+  public export
+  sameWindow : Maybe Lookback -> Maybe Lookback -> Bool
+  sameWindow Nothing Nothing = True
+  sameWindow (Just ThisTurn) (Just ThisTurn) = True
+  sameWindow (Just ThisCombat) (Just ThisCombat) = True
+  sameWindow (Just LastTurn) (Just LastTurn) = True
+  sameWindow (Just ThisGame) (Just ThisGame) = True
+  sameWindow (Just ThisWay) (Just ThisWay) = True
+  sameWindow (Just Triggering) (Just Triggering) = True
+  sameWindow _ _ = False
+
 public export
 data OnStack : Maybe Zone -> Type where
   OnTheStack : OnStack (Just Stack)
@@ -3499,6 +3512,26 @@ keywordFacts =
   , MkKeywordFacts "Freerunning"      CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Sneak"            CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Mayhem"           CostParam    False Nothing             True  True  False
+  -- The two MODAL cost words, which are additional costs rather than
+  -- alternative ones and earn their rows from the keyword LINE alone: 32
+  -- supported entwine lines and 9 escalate lines, and ZERO readbacks
+  -- anywhere in the corpus for either -- no card asks whether an entwine
+  -- or escalate cost was paid, so `PaidCost` never names them and that
+  -- zero is the measurement, not a gap.
+  -- [CR#702.42a]: "Entwine [cost]" means "You may choose all modes of
+  -- this spell instead of just the number specified. If you do, you pay
+  -- an additional [cost]", a static ability of modal spells that
+  -- functions while the spell is on the stack. [CR#702.120a]: "Escalate
+  -- [cost]" means "For each mode you choose beyond the first as you cast
+  -- this spell, you pay an additional [cost]", the same shape at a
+  -- per-mode multiplier.
+  -- WHAT THE ROWS DO NOT BUY: the linkage to the modal clause. Both
+  -- rules speak of "modal spells" [CR#700.2] and nothing here checks
+  -- that the card writes a `Modal`; a card carrying the word with no
+  -- modes over-generates, recorded rather than gated, and the per-mode
+  -- multiplier escalate writes has no term at all.
+  , MkKeywordFacts "Entwine"          CostParam    False (Just AtCasting)    True  True  False
+  , MkKeywordFacts "Escalate"         CostParam    False (Just AtCasting)    True  True  False
   ]
 
 public export

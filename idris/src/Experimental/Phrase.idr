@@ -729,7 +729,14 @@ mutual
     ||| -- spelling: "[n] was kicked", "[n]'s [keyword] cost was paid",
     ||| "[n] was cast for its [keyword] cost"; with the ordinal, "[n] was
     ||| kicked with its [cost] [keyword]".
-    PaidCost : (which : PaidCostName) ->
+    ||| The `window` slot is Karai, Future of the Foot's, the corpus's
+    ||| one turn-scoped payment read -- "if her SNEAK cost was paid THIS
+    ||| TURN". The read is otherwise timeless because the payment is
+    ||| state the object carries from its casting [CR#707.2]; a permanent
+    ||| that has been on the battlefield since an earlier turn still
+    ||| answers yes, and Karai's line is the one that asks whether the
+    ||| casting was recent. `Nothing` is every other line, 299 of them.
+    PaidCost : (which : PaidCostName) -> (window : Maybe Lookback) ->
                {auto 0 nc : PaidCostNamed which} -> Predicate bs Object
     -- the bound slot is open to any amount at every relation; see
     -- `CompareAmt`'s docstring for the recorded verdict.
@@ -1015,7 +1022,7 @@ mutual
   seedZone (HasCounters _) = Nothing
   -- payment is history the object carries [CR#707.2], readable on the
   -- stack and on the permanent the spell became [CR#702.152a]
-  seedZone (PaidCost _) = Nothing
+  seedZone (PaidCost _ _) = Nothing
   seedZone (ControlledBy _) = Nothing
   -- Casting is history, not a location: [CR#400.7d] lets a permanent's
   -- ability reference the spell it was cast as, and [CR#702.40a] counts
@@ -1197,7 +1204,7 @@ mutual
   hasHead IsToken = True
   hasHead (HasStatus _) = False
   hasHead (HasCounters _) = False
-  hasHead (PaidCost _) = False
+  hasHead (PaidCost _ _) = False
   hasHead (Compare _ _ _) = False
   hasHead (CounterCompare _ _ _) = False
   hasHead (Superlative _ _ _) = False
@@ -1428,8 +1435,8 @@ mutual
   predEq (HasCounters Nothing) (HasCounters Nothing) = True
   predEq (HasCounters (Just a)) (HasCounters (Just b)) = a == b
   predEq (HasCounters _) _ = False
-  predEq (PaidCost a) (PaidCost b) = a == b
-  predEq (PaidCost _) _ = False
+  predEq (PaidCost a wa) (PaidCost b wb) = a == b && sameWindow wa wb
+  predEq (PaidCost _ _) _ = False
   predEq (Compare cs r b) (Compare ds s e) = sameAxes cs ds && r == s &&
                                            boundEq b e
   predEq (Compare _ _ _) _ = False
@@ -1955,7 +1962,7 @@ mutual
   predSays IsToken = True
   predSays (HasStatus _) = True
   predSays (HasCounters _) = True
-  predSays (PaidCost _) = True
+  predSays (PaidCost _ _) = True
   predSays (Compare _ _ _) = True
   predSays (CounterCompare _ _ _) = True
   predSays (Superlative _ _ _) = True
@@ -2030,7 +2037,7 @@ mutual
   predNegFree IsToken = True
   predNegFree (HasStatus _) = True
   predNegFree (HasCounters _) = True
-  predNegFree (PaidCost _) = True
+  predNegFree (PaidCost _ _) = True
   predNegFree (Compare _ _ _) = True
   predNegFree (CounterCompare _ _ _) = True
   predNegFree (Superlative _ _ _) = True

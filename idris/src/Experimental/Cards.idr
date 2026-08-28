@@ -10638,7 +10638,7 @@ krosanDruid =
        [ Macros.keywordCosting "Kicker"
            (Mana [Macros.generic 4, Macros.pip Green])
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Kicker")))
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Kicker") Nothing))
            (Macros.gainsLife You (Lit 10)) ]
        (Just (2, 3))
 
@@ -10673,7 +10673,7 @@ merfolkFalconer =
        [ Macros.keyword "Flying"
        , Macros.triggered Whenever
            (Casts You (Macros.a (And [Macros.spell,
-                                      PaidCost (ByKeyword "Kicker")])) Nothing)
+                                      PaidCost (ByKeyword "Kicker") Nothing])) Nothing)
            (Macros.scry (Lit 2)) ]
        (Just (4, 4))
 
@@ -10687,7 +10687,7 @@ ertaisTrickery =
   Macros.card "Ertai's Trickery" (Just [Macros.pip Blue]) []
        (MkTypeLine [] [Instant])
        [ Spell (OnlyIf (Macros.counterSpell (Macros.target Macros.spell))
-                       (Matches It (PaidCost (ByKeyword "Kicker"))) Nothing) ]
+                       (Matches It (PaidCost (ByKeyword "Kicker") Nothing)) Nothing) ]
        Nothing
 
 ||| Baleful Mastery's paid read -- "If the {1}{B} cost was paid, an
@@ -10700,7 +10700,7 @@ ertaisTrickery =
 public export
 balefulMasteryPaidRead : Ability
 balefulMasteryPaidRead =
-  Spell (If (Matches This (PaidCost TheAlternative))
+  Spell (If (Matches This (PaidCost TheAlternative Nothing))
             (Draw (Macros.a Opponent) (Lit 1)) Nothing)
 
 ||| Stormscape Battlemage's first kicker trigger -- "When this creature
@@ -10715,8 +10715,86 @@ public export
 stormscapeBattlemageFirstKicker : Ability
 stormscapeBattlemageFirstKicker =
   Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-    (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker")))
+    (Matches Macros.thisCreature (PaidCost (ByNthKeyword (Nth 1) "Kicker") Nothing))
     (Macros.gainsLife You (Lit 3))
+
+||| Karai, Future of the Foot's payment window -- "if her sneak cost was
+||| paid this turn". The corpus's ONE turn-scoped payment read, and the
+||| whole reason `PaidCost` has a window slot: every other read is
+||| timeless because the payment is casting state the object keeps
+||| [CR#707.2], and this one asks whether the casting was this turn.
+||| The rest of the card is not this row's -- its trigger returns a
+||| creature card from a graveyard to hand and this line replaces the
+||| destination.
+public export
+karaiSneakPaidThisTurn : Predicate [] Object
+karaiSneakPaidThisTurn = PaidCost (ByKeyword "Sneak") (Just ThisTurn)
+
+-- TWO PAYMENT READS THAT STILL DO NOT WRITE, with their exact blockers,
+-- so no later round re-derives them:
+--
+-- * VERRAK, WARPED SENGIR -- "Whenever you activate an ability that
+--   isn't a mana ability, IF LIFE WAS PAID to activate it, you may pay
+--   that much life again." The corpus's one true life-payment readback.
+--   Three things are wrong for `PaidCost`, not one: the read sorts by no
+--   cost NAME (there is no keyword and no written alternative, so no
+--   `PaidCostName` arm fits), it is anchored to an ABILITY where
+--   `PaidCost` is a `Predicate bs Object`, and it reads back an AMOUNT
+--   ("that much life") where `TimesPaid` reads a count of payments.
+--   `PaysLife` is an event header and not a state read, so it does not
+--   reach either.
+--
+-- * YIDARO, WANDERING MONSTER -- "If you've cycled a card named Yidaro,
+--   Wandering Monster four or more times this game". Cycling is not a
+--   keyword ACTION: [CR#702.29c] defines "when you cycle this card" as
+--   discarding it "to pay an activation cost of a cycling ability", so
+--   the count is a count of cost PAYMENTS. What refuses it is that the
+--   count runs over payment EVENTS across every copy of a named card in
+--   the game, where `TimesPaid` reads the state of ONE object as it was
+--   cast [CR#118.10] and `EventCount`'s complement has no way to name a
+--   keyword's cost. Adding a window to `TimesPaid` would not close it.
+
+-- THE MODAL COST WORDS. Entwine [CR#702.42a] and escalate [CR#702.120a]
+-- are additional costs a modal spell declares; both write ZERO readbacks
+-- in the corpus, so the keyword line itself is the whole surface.
+
+||| Borrowed Malevolence, whole -- "Escalate {2} / Choose one or both —
+||| • Target creature gets +1/+1 until end of turn. • Target creature
+||| gets -1/-1 until end of turn." The escalate line beside the modal
+||| clause it prices; the LINKAGE between them -- and the per-mode
+||| multiplier [CR#702.120a] writes -- is still unspelled, and no card
+||| reads the payment back.
+public export
+borrowedMalevolence : Card
+borrowedMalevolence =
+  Macros.card "Borrowed Malevolence" (Just [Macros.pip Black]) []
+       (MkTypeLine [] [Instant])
+       [ Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])
+       , Spell (Modal (Range (Just 1) (Just 2))
+                  [ Continuously
+                      (Gets (Macros.target Macros.creature)
+                            (PtUp (Lit 1)) (PtUp (Lit 1)))
+                      (Just Macros.untilEndOfTurn)
+                  , Continuously
+                      (Gets (Macros.target Macros.creature)
+                            (PtDown (Lit 1)) (PtDown (Lit 1)))
+                      (Just Macros.untilEndOfTurn) ]) ]
+       Nothing
+
+||| Korlash's grandeur ability -- "Grandeur — Discard another card named
+||| Korlash, Heir to Blackblade: Search your library for up to two Swamp
+||| cards, put them onto the battlefield tapped, then shuffle." The
+||| grandeur discard cost's shape, 7 supported lines: the cost names a
+||| card by its own PRINTED NAME [CR#201.4a] and excludes the object
+||| itself, which is `Named (PrintedName ...)` beside `Other` and needs
+||| nothing minted. Benched as the cost alone -- the body's
+||| search-and-put is not this row's.
+public export
+grandeurDiscardCost : Cost []
+grandeurDiscardCost =
+  Do (Macros.discards You
+        (Macros.a (And [Named (PrintedName "Korlash, Heir to Blackblade"),
+                        OtherThan This, InZone Macros.handZ])))
 
 ||| Invigorate, whole -- "If you control a Forest, rather than pay this
 ||| spell's mana cost, you may have an opponent gain 3 life. / Target
@@ -10871,7 +10949,7 @@ voltageSurgeAddedCost =
 public export
 requitingHexAdditionalRead : Ability
 requitingHexAdditionalRead =
-  Spell (If (Matches This (PaidCost TheAdditional))
+  Spell (If (Matches This (PaidCost TheAdditional Nothing))
             (Macros.gainsLife You (Lit 2)) Nothing)
 
 ||| Burn at the Stake's additional cost -- "As an additional cost to cast
@@ -10932,7 +11010,7 @@ latchkeyFaerie =
        , Macros.keywordCosting "Prowl"
            (Mana [Macros.generic 2, Macros.pip Blue])
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Prowl")))
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Prowl") Nothing))
            Macros.drawACard ]
        (Just (3, 1))
 
@@ -10949,7 +11027,7 @@ tyrantOfValakut =
            (Mana [Macros.generic 3, Macros.pip Red, Macros.pip Red])
        , Macros.keyword "Flying"
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Surge")))
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Surge") Nothing))
            (DealDamage Macros.thisCreature (Lit 3)
                        (Macros.target Macros.anyTarget)) ]
        (Just (5, 4))
@@ -10965,7 +11043,7 @@ rafterDemon =
        [ Macros.keywordCosting "Spectacle"
            (Mana [Macros.generic 3, Macros.pip Black, Macros.pip Red])
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Spectacle")))
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Spectacle") Nothing))
            (Macros.discardsACard (Each Opponent)) ]
        (Just (4, 2))
 
@@ -11969,7 +12047,7 @@ conquerorsPledge =
                   (Macros.create (Lit 6)
                      (Macros.creatureTok 1 1 [White]
                         [creatureType "Kor", creatureType "Soldier"]))
-                  (If (Matches This (PaidCost (ByKeyword "Kicker")))
+                  (If (Matches This (PaidCost (ByKeyword "Kicker") Nothing))
                       (Create You (Lit 12) TokenAsThose [])
                       Nothing)) ]
        Nothing
@@ -12430,7 +12508,7 @@ tourachDreadCantor =
        , Macros.keywordQuality "Protection" (ColorIs White)
        , Cards.tourachDiscardTrigger
        , Macros.triggeredIf When (Enters Macros.thisCreature Nothing)
-           (Matches Macros.thisCreature (PaidCost (ByKeyword "Kicker")))
+           (Matches Macros.thisCreature (PaidCost (ByKeyword "Kicker") Nothing))
            (Macros.discards (Macros.target Opponent)
                             (Macros.countedAtRandom (Macros.exactly 2)
                                                     (InZone Macros.handZ))) ]
