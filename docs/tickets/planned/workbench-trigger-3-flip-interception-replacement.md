@@ -25,3 +25,12 @@ X to Y" verb (4 lines), `Intercepts`' body VOICE slot, Modular as
 The energy replacement stays routed to the symbol round; the
 non-interceptable `eventUse` partition stays untouched — the umbrella lists
 it so it is not re-derived. Standard constraints apply.
+
+Routed from trigger-1 (close, 2026-08-27): the `Causer`-as-noun widening now
+carries THREE payers landing with the periphrastic complex — the umbrella's 4
+"would CAUSE" lines, Karmic Justice's causer-voiced header (1 line), and
+Cobra Trap's by-source lookback agent (1 line). And Fblthp, the Lost's cast
+disjunct is the agentless passive "was cast from your library"
+(`lookbackSubjectOk SpellCast Object` refuses) — the SAME cast-relation as
+this round's cast-history conjunct (b); 4 of the 9 windowless-lookback lines
+write it, so landing (b) should bench Fblthp too.

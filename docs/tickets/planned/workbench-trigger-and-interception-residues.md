@@ -47,7 +47,7 @@ and 6 "a card" put-into subjects counted alongside them.
   [CR#505.1]'s own sentence (the two main phases "are individually and
   collectively known as the main phase") and `headerWindowOk MainPhase (Just
   Yours)` is True, so all three lines write. **The pin
-  `badHeaderMainPhaseWindow` IS NOT RETIRED**: it refuses the SPECIFIC row,
+  `badHeaderBareTurnWindow` IS NOT RETIRED (the umbrella previously misnamed it `badHeaderMainPhaseWindow`; trigger-1 corrected the name)**: it refuses the SPECIFIC row,
   which is still the wrong row for a card that does not say which phase, and
   its docstring's argument is what the new row vindicates. Do not retire it.
   Landed with the row: `EachYours` triggers on it (Carpet of Flowers, Frontier
@@ -307,7 +307,7 @@ evidence bench `idris/src/Experimental/Cards.idr`. No Rust crate.
 
 - Stonebinder's Familiar benches, or the round records why the destination
   reading was refused.
-- `badHeaderMainPhaseWindow` still refuses the specific row after the round.
+- `badHeaderBareTurnWindow` still refuses the specific row after the round.
 - The declare-attackers part and the per-their-turn possessor are rowed, or
   declined with their counts on the record.
 - The six delayed main-phase headers stay `PartUnclaimed` — this round does not
