@@ -485,6 +485,21 @@ mutual
     IsAttached : (w : AttachWord) ->
                  {auto 0 ok : So (attachedCheckOk w)} -> Predicate bs Object
     Permanent : Predicate bs Object
+    ||| "a card", "one or more cards": the bare card head -- the word with
+    ||| no zone written beside it. [CR#109.2] names "card" among the four
+    ||| words that take a description OUT of the battlefield-permanent
+    ||| default, so the word heads a phrase on its own; [CR#108.2] is what
+    ||| it means, a Magic card or an object represented by one, and
+    ||| [CR#108.2b] keeps tokens out of it.
+    ||| Beside `InZone` and not instead of it: [CR#109.2a] is the reading
+    ||| of the word written TOGETHER with a zone, which is the zone
+    ||| clause's own head, and this is the same word where the clause
+    ||| writes no zone. So it seeds none: [CR#109.2a] fixes a zone only
+    ||| where the text states one, and "one or more cards are put into
+    ||| exile" (Stonebinder's Familiar) states the destination of the
+    ||| move, never a zone of the phrase.
+    ||| -- spelling: "card", "cards".
+    IsCard : Predicate bs Object
     IsToken : Predicate bs Object
     HasStatus : {c : StatusCat} -> (v : StatusVal c) -> Predicate bs Object
     HasCounters : (kind : Maybe CounterKind) ->
@@ -901,6 +916,7 @@ mutual
   hasHead (CoinCameUp _) = False
   hasHead (IsAttached _) = False
   hasHead Permanent = True
+  hasHead IsCard = True
   hasHead IsToken = True
   hasHead (HasStatus _) = False
   hasHead (HasCounters _) = False
@@ -1109,6 +1125,8 @@ mutual
   predEq (IsAttached _) _ = False
   predEq Permanent Permanent = True
   predEq Permanent _ = False
+  predEq IsCard IsCard = True
+  predEq IsCard _ = False
   predEq IsToken IsToken = True
   predEq IsToken _ = False
   predEq (HasStatus v) (HasStatus w) = sameStatusVal v w
@@ -1192,6 +1210,26 @@ mutual
   colorClashOf IsColorless (ColorIs _) = True
   colorClashOf (ColorIs _) IsColorless = True
   colorClashOf _ _ = False
+
+  ||| [CR#108.2b] says outright that tokens aren't cards, so a
+  ||| description conjoining the two words denotes nothing.
+  public export
+  cardTokenClashOf : {0 bs : Bindings} -> {0 k : Kind} ->
+                     Predicate bs k -> Predicate bs k -> Bool
+  cardTokenClashOf IsCard IsToken = True
+  cardTokenClashOf IsToken IsCard = True
+  cardTokenClashOf _ _ = False
+
+  public export
+  anyCardTokenClash : {0 bs : Bindings} -> {0 k : Kind} ->
+                      Predicate bs k -> List (Predicate bs k) -> Bool
+  anyCardTokenClash p [] = False
+  anyCardTokenClash p (q :: qs) = cardTokenClashOf p q || anyCardTokenClash p qs
+
+  public export
+  noCardTokenClash : {0 bs : Bindings} -> {0 k : Kind} -> List (Predicate bs k) -> Bool
+  noCardTokenClash [] = True
+  noCardTokenClash (p :: ps) = not (anyCardTokenClash p ps) && noCardTokenClash ps
 
   public export
   anyColorClash : {0 bs : Bindings} -> {0 k : Kind} ->
@@ -1280,6 +1318,7 @@ mutual
                                              (flattenPs ps)) &&
                          noStatusClash (flattenPs ps) &&
                          noColorClash (flattenPs ps) &&
+                         noCardTokenClash (flattenPs ps) &&
                          not (anyPermanentHead (flattenPs ps) &&
                               anyNonPermanentTy (flattenPs ps))
 
@@ -1589,6 +1628,7 @@ mutual
   predSays (CoinCameUp _) = True
   predSays (IsAttached _) = True
   predSays Permanent = True
+  predSays IsCard = True
   predSays IsToken = True
   predSays (HasStatus _) = True
   predSays (HasCounters _) = True
@@ -1655,6 +1695,7 @@ mutual
   predNegFree (CoinCameUp _) = True
   predNegFree (IsAttached _) = True
   predNegFree Permanent = True
+  predNegFree IsCard = True
   predNegFree IsToken = True
   predNegFree (HasStatus _) = True
   predNegFree (HasCounters _) = True

@@ -1973,6 +1973,19 @@ zoneOfThem (b :: bs) =
 public export
 data NounWord = TypeW CardType | CardW | SpellW | PlayerW
               | PermanentW | TokenW | CopyW | JoinW | AbilityJoinW
+              | ||| "the exiled creature card", "that land card": the type
+                ||| word and the card word written TOGETHER. [CR#109.2]
+                ||| makes the two readings different questions -- a
+                ||| description carrying a card type and NOTHING else
+                ||| means a permanent on the battlefield, which is what
+                ||| `TypeW` asks -- and [CR#109.2a] states this one: the
+                ||| word "card" beside a description names a card
+                ||| matching it, wherever that description's zone puts
+                ||| it. So this is not `TypeW` with a looser gate; it is
+                ||| the other rule's word, and it asks `isCardZone` where
+                ||| `TypeW` asks the battlefield.
+                ||| -- spelling: "[type] card".
+                TypedCardW CardType
 
 public export
 data VerbedMarking = Attributive | ThisWay
@@ -2158,6 +2171,17 @@ wordReaches CardW (MkBinding _ _ _ LetterP) = False
 wordReaches CardW (MkBinding _ _ _ TurnRefP) = False
 wordReaches CardW (MkBinding _ _ _ AbilityP) = False
 wordReaches CardW (MkBinding _ _ _ (JoinP _ _)) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ (ObjectP ty zn _ _)) =
+  isCardZone zn && tyIs t ty
+wordReaches (TypedCardW t) (MkBinding _ _ _ PlayerP) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ ChosenPlayerP) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ QualityP) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ (OutcomeP _)) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ GapP) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ LetterP) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ TurnRefP) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ AbilityP) = False
+wordReaches (TypedCardW t) (MkBinding _ _ _ (JoinP _ _)) = False
 wordReaches SpellW (MkBinding _ _ _ (ObjectP _ zn _ og)) =
   onStackZone zn && not (isCopyOrigin og)
 wordReaches SpellW (MkBinding _ _ _ PlayerP) = False
@@ -2238,6 +2262,7 @@ public export
 kindOfW : NounWord -> Kind
 kindOfW (TypeW _) = Object
 kindOfW CardW = Object
+kindOfW (TypedCardW _) = Object
 kindOfW SpellW = Object
 kindOfW PlayerW = Player
 kindOfW PermanentW = Object
@@ -2254,6 +2279,10 @@ public export
 verbedWordOk : NounWord -> Stamp -> Maybe CardType -> Maybe Zone -> Bool
 verbedWordOk (TypeW t) (MkStamp _ wasF _) ty zn = wasF && tyIs t ty
 verbedWordOk CardW st ty zn = isCardZone zn
+-- [CR#109.2a]'s reading, so the zone is the card word's question and
+-- the type is the mention's own; the battlefield stamp `TypeW` asks
+-- for is exactly what this word does not ask.
+verbedWordOk (TypedCardW t) st ty zn = isCardZone zn && tyIs t ty
 verbedWordOk SpellW st ty zn = onStackZone zn
 verbedWordOk PlayerW st ty zn = False
 verbedWordOk PermanentW (MkStamp _ wasF _) ty zn = wasF
@@ -3683,6 +3712,7 @@ attachHeadOk Equipped (TypeW Plane) = False
 attachHeadOk Equipped (TypeW Scheme) = False
 attachHeadOk Equipped (TypeW Vanguard) = False
 attachHeadOk Equipped CardW = False
+attachHeadOk Equipped (TypedCardW _) = False
 attachHeadOk Equipped SpellW = False
 attachHeadOk Equipped PlayerW = False
 attachHeadOk Equipped PermanentW = True
@@ -3706,6 +3736,7 @@ attachHeadOk Fortified (TypeW Plane) = False
 attachHeadOk Fortified (TypeW Scheme) = False
 attachHeadOk Fortified (TypeW Vanguard) = False
 attachHeadOk Fortified CardW = False
+attachHeadOk Fortified (TypedCardW _) = False
 attachHeadOk Fortified SpellW = False
 attachHeadOk Fortified PlayerW = False
 attachHeadOk Fortified PermanentW = False
@@ -3729,6 +3760,7 @@ attachHostZone : NounWord -> Maybe Zone
 attachHostZone PlayerW = Nothing
 attachHostZone (TypeW _) = Just Battlefield
 attachHostZone CardW = Just Battlefield
+attachHostZone (TypedCardW _) = Just Battlefield
 attachHostZone SpellW = Just Battlefield
 attachHostZone PermanentW = Just Battlefield
 attachHostZone TokenW = Just Battlefield
@@ -3740,6 +3772,7 @@ public export
 attachHostTy : NounWord -> Maybe CardType
 attachHostTy (TypeW t) = Just t
 attachHostTy CardW = Nothing
+attachHostTy (TypedCardW t) = Just t
 attachHostTy SpellW = Nothing
 attachHostTy PlayerW = Nothing
 attachHostTy PermanentW = Nothing

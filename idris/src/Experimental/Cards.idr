@@ -11487,14 +11487,23 @@ bioplasmTestKeepsCardSlot = Refl
 
 ||| The participle read at a TYPE word is still refused, and the re-mark
 ||| is not what refuses it: `verbedWordOk (TypeW t)` asks the stamp for
-||| `wasField`, and a card taken off a library carries none. Bioplasm's
-||| own "the exiled creature card's power" wants that read, so the whole
-||| card waits on the battlefield gate and on a head word for "creature
-||| card" -- neither of which is the knowledge a test leaves behind.
+||| `wasField`, and a card taken off a library carries none. That gate is
+||| RIGHT -- [CR#109.2] gives a bare type description the battlefield --
+||| so what was missing was never a looser `TypeW` but the other rule's
+||| word.
 public export
 bioplasmTypedReadStillRefused :
   countVerbed "Exile" (TypeW Creature) Cards.bioplasmAfterTest = 0
 bioplasmTypedReadStillRefused = Refl
+
+||| ...and "the exiled creature card" is that word: [CR#109.2a] reads a
+||| description carrying a card type AND the word "card" as a card
+||| matching it, which is what the exiled mention is. The re-mark is what
+||| supplies the type; the zone was always the exile the clause named.
+public export
+bioplasmTypedCardReadWrites :
+  countVerbed "Exile" (TypedCardW Creature) Cards.bioplasmAfterTest = 1
+bioplasmTypedCardReadWrites = Refl
 
 ||| Scapeshift's prefix after its first sentence -- "Sacrifice any number
 ||| of lands." One group mention stands there, which is what lets the
@@ -12514,3 +12523,50 @@ stunningShot =
                                       (And [Macros.creature,
                                             ControlledBy Macros.anOpponent])))) ]) ]
        Nothing
+
+||| Stonebinder's Familiar, whole -- "Whenever one or more cards are put
+||| into exile during your turn, put a +1/+1 counter on this creature.
+||| This ability triggers only once each turn." The subject is the bare
+||| card head: the line writes the word with no zone beside it, and the
+||| exile it names is the move's DESTINATION, not the phrase's zone.
+public export
+stonebindersFamiliar : Card
+stonebindersFamiliar =
+  Macros.card "Stonebinder's Familiar"
+       (Just [Macros.pip White]) []
+       (MkTypeLine [creatureType "Spirit", creatureType "Dog"] [Creature])
+       [ Triggered Whenever
+                   (PutInto (CountedGroup (Macros.atLeast 1) Nothing IsCard)
+                            Macros.exileZ Nothing)
+                   []
+                   (Just (DuringWindow Turn (Just Yours)))
+                   (Just OncePerTurn)
+                   Nothing
+                   (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
+                                Macros.thisCreature) ]
+       (Just (1, 1))
+
+||| Bioplasm, whole -- "Whenever this creature attacks, exile the top card
+||| of your library. If it's a creature card, this creature gets +X/+Y
+||| until end of turn, where X is the exiled creature card's power and Y
+||| is its toughness." The typed CARD word is what the last clause wanted:
+||| the type comes from the test's re-mark and the zone from the exile the
+||| clause named, which is [CR#109.2a]'s reading and never [CR#109.2]'s.
+public export
+bioplasm : Card
+bioplasm =
+  Macros.card "Bioplasm"
+       (Just [Macros.generic 3, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Ooze"] [Creature])
+       [ Macros.triggered Whenever
+           (Macros.attacks Macros.thisCreature)
+           (Sequentially
+              [ Macros.exile Macros.topCard
+              , If Cards.bioplasmCardTest
+                   (Macros.gets Macros.thisCreature
+                        (PtUp (Macros.powerOf
+                                 (Macros.theVerbed "Exile" (TypedCardW Creature))))
+                        (PtUp (Macros.toughnessOf (Macros.itVerbed "Exile")))
+                        (Just Macros.thisTurn))
+                   Nothing ]) ]
+       (Just (4, 4))
