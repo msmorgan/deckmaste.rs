@@ -5127,6 +5127,239 @@ encroachingMycosynth =
                                 (MkToken Nothing [] (MkTypeLine [] [Artifact]) [] Nothing))) ]
        Nothing
 
+||| Aisling Leprechaun -- "Whenever this creature blocks or becomes blocked
+||| by a creature, that creature becomes green." The literal colour change
+||| at the plainest read subject there is: Inferno Elemental's coordinated
+||| header, whose two arms announce the one creature the block pairs this
+||| creature with, and the tail sets that creature's colour [CR#613.1e].
+public export
+aislingLeprechaun : Card
+aislingLeprechaun =
+  Macros.card "Aisling Leprechaun" (Just [Macros.pip Green]) []
+       (MkTypeLine [creatureType "Faerie"] [Creature])
+       [ Macros.triggeredOr Whenever
+                            (Blocks Macros.thisCreature (Just (Macros.a Macros.creature)))
+                            [BecomesBlocked Macros.thisCreature
+                                            (Just (Macros.a Macros.creature))]
+                            (Macros.becomesColor (That (TypeW Creature)) (SomeColors [Green]) Nothing) ]
+       (Just (1, 1))
+
+||| Darkest Hour -- "All creatures are black." The whole family in one
+||| sentence: a universal subject, one colour, no duration.
+public export
+darkestHour : Card
+darkestHour =
+  Macros.card "Darkest Hour" (Just [Macros.pip Black]) []
+       (MkTypeLine [] [Enchantment])
+       [ Static (SetsColor (AllOf Macros.creature) (SomeColors [Black])) ]
+       Nothing
+
+||| Thran Lens -- "All permanents are colorless." The empty colour list is
+||| the word "colorless" [CR#105.2c], exactly as it is on a written token.
+public export
+thranLens : Card
+thranLens =
+  Macros.card "Thran Lens" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (SetsColor (AllOf Permanent) (SomeColors [])) ]
+       Nothing
+
+||| Ghostflame Sliver -- "All Slivers are colorless." The same setting at a
+||| subtype-named subject.
+public export
+ghostflameSliver : Card
+ghostflameSliver =
+  Macros.card "Ghostflame Sliver" (Just [Macros.pip Black, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Sliver"] [Creature])
+       [ Static (SetsColor (AllOf (HasSubtype (creatureType "Sliver"))) (SomeColors [])) ]
+       (Just (2, 2))
+
+||| Sinister Strength -- "Enchanted creature gets +3/+1 and is black." The
+||| copular spelling of the same statement, coordinated with a pump on the
+||| attach host.
+public export
+sinisterStrength : Card
+sinisterStrength =
+  Macros.card "Sinister Strength" (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
+                                (PtUp (Lit 3)) (PtUp (Lit 1))
+                         , SetsColor It (SomeColors [Black]) ]) ]
+       Nothing
+
+||| Crimson Wisps -- "Target creature becomes red and gains haste until end
+||| of turn. / Draw a card." The inchoative spelling with a duration, and
+||| the coordination with a keyword grant on one target.
+public export
+crimsonWisps : Card
+crimsonWisps =
+  Macros.card "Crimson Wisps" (Just [Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Continuously
+                      (AndAlso [ SetsColor (Macros.target Macros.creature) (SomeColors [Red])
+                               , Gains It (Macros.keyword "Haste") ])
+                      (Just Macros.untilEndOfTurn)
+                  , Macros.drawACard ]) ]
+       Nothing
+
+||| Nightcreep -- "Until end of turn, all creatures become black and all
+||| lands become Swamps." The colour setting coordinated with a type
+||| setting under one duration: two layers [CR#613.1d,613.1e] in one
+||| sentence, which is why the colour is its own row and not an empty type
+||| line on the second.
+public export
+nightcreep : Card
+nightcreep =
+  Macros.card "Nightcreep" (Just [Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Continuously
+                  (AndAlso [ SetsColor (AllOf Macros.creature) (SomeColors [Black])
+                           , SetsType (AllOf Macros.land)
+                                      (MkToken Nothing []
+                                               (Macros.basicLandLine [landType "Swamp"])
+                                               [] Nothing)
+                                      Nothing ])
+                  (Just Macros.untilEndOfTurn)) ]
+       Nothing
+
+||| Celestial Dawn's two ascription lines -- "Lands you control are Plains.
+||| / Nonland permanents you control are white. The same is true for spells
+||| you control and nonland cards you own that aren't on the battlefield."
+||| The literal colour setting under the off-battlefield extension, which
+||| is what the extension was waiting for. The whole card additionally
+||| wants the two mana-spending permissions, which `PlayAsThough` does not
+||| carry.
+public export
+celestialDawnAscriptions : AbilitySeq []
+celestialDawnAscriptions =
+  [ Static (SetsType (AllOf (And [Macros.land, ControlledBy You]))
+                     (MkToken Nothing [] (Macros.basicLandLine [landType "Plains"])
+                              [] Nothing)
+                     Nothing)
+  , Static (AlsoOffBattlefield
+              (SetsColor (AllOf (And [Permanent, Not (HasType Land), ControlledBy You]))
+                         (SomeColors [White]))) ]
+
+||| Ghoulflesh -- "Enchant creature / Enchanted creature gets -1/-1 and is
+||| a black Zombie in addition to its other colors and types." The whole
+||| card, and the plainest of the 19 lines that coordinate a P/T statement
+||| with the addition in one sentence.
+public export
+ghoulflesh : Card
+ghoulflesh =
+  Macros.card "Ghoulflesh" (Just [Macros.pip Black]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (AndAlso [ Gets (AttachHost Enchanted (TypeW Creature))
+                                (PtDown (Lit 1)) (PtDown (Lit 1))
+                         , BecomesAlso It
+                                       (MkToken Nothing [Black]
+                                                (MkTypeLine [creatureType "Zombie"] [])
+                                                [] Nothing) ]) ]
+       Nothing
+
+||| Blade of the Oni's static line -- "Equipped creature has base power and
+||| toughness 5/5, has menace, and is a black Demon in addition to its
+||| other colors and types." The BASE P/T rider coordinated with the
+||| addition in one sentence, which the ledger carried as unspelled and
+||| which `AndAlso` already writes: the same shape Darksteel Mutation
+||| writes at the setting. No new construction. The whole card wants
+||| reconfigure.
+public export
+bladeOfTheOniStatic : StaticEffect []
+bladeOfTheOniStatic =
+  AndAlso [ HasBasePt (AttachHost Equipped (TypeW Creature)) (Lit 5) (Lit 5)
+          , Gains It (Macros.keyword "Menace")
+          , BecomesAlso It
+                        (MkToken Nothing [Black]
+                                 (MkTypeLine [creatureType "Demon"] []) [] Nothing) ]
+
+||| Ersatz Gnomes -- "{T}: Target spell becomes colorless. / {T}: Target
+||| permanent becomes colorless until end of turn." The whole card, and
+||| the reason the colour row carries no subject-zone demand: its first
+||| ability sets the colour of an object on the STACK.
+public export
+ersatzGnomes : Card
+ersatzGnomes =
+  Macros.card "Ersatz Gnomes" (Just [Macros.generic 3]) []
+       (MkTypeLine [creatureType "Gnome"] [Artifact, Creature])
+       [ Macros.activated TapSymbol
+           (Continuously (SetsColor (Macros.target Macros.spell) (SomeColors []))
+                         Nothing)
+       , Macros.activated TapSymbol
+           (Macros.becomesColor (Macros.target Permanent) (SomeColors [])
+                                (Just Macros.untilEndOfTurn)) ]
+       (Just (1, 1))
+
+||| Missy's first trigger -- "Whenever another nonartifact creature dies,
+||| return it to the battlefield under your control face down and tapped.
+||| It's a 2/2 Cyberman artifact creature." TWO arrival riders in one
+||| sentence, one of them the face-down word, which is the whole of what
+||| indexing the rider vocabulary over `StatusVal` buys. The `Cyberman`
+||| word costs nothing: subtypes are labels. The whole card wants the
+||| villainous choice.
+public export
+missyFaceDownReturn : Ability
+missyFaceDownReturn =
+  Macros.triggered Whenever
+    (Dies (Macros.a (And [Macros.creature, Not (HasType Artifact),
+                          OtherThan Macros.thisCreature])))
+    (Sequentially
+       [ Move It Macros.battlefieldZ
+              (MkMoveRiders [EntersAs FaceDown, EntersTapped] (Just You) Nothing)
+       , Continuously
+           (SetsType It
+                     (MkToken (Just (Lit 2 ** Lit 2)) []
+                              (MkTypeLine [creatureType "Cyberman"] [Artifact, Creature])
+                              [] Nothing)
+                     Nothing)
+           Nothing ])
+
+||| Transguild Courier -- "Transguild Courier is all colors." The colour
+||| SPACE's quantifier at the same position the enumerated list sits, and
+||| the whole card. The word is not a five-way list for `AddsEveryType`'s
+||| own reason: "all colors" is one printed quantifier [CR#105.1].
+public export
+transguildCourier : Card
+transguildCourier =
+  Macros.card "Transguild Courier" (Just [Macros.generic 4]) []
+       (MkTypeLine [creatureType "Golem"] [Artifact, Creature])
+       [ Static (SetsColor Macros.thisCreature EveryColor) ]
+       (Just (3, 3))
+
+||| Scrapbasket -- "{1}: This creature becomes all colors until end of
+||| turn." The same quantifier with a duration, and the whole card.
+public export
+scrapbasket : Card
+scrapbasket =
+  Macros.card "Scrapbasket" (Just [Macros.generic 4]) []
+       (MkTypeLine [creatureType "Scarecrow"] [Artifact, Creature])
+       [ Macros.activated (Mana [Macros.generic 1])
+                          (Macros.becomesColor Macros.thisCreature EveryColor
+                                               (Just Macros.untilEndOfTurn)) ]
+       (Just (3, 2))
+
+||| Indigo Faerie -- "{U}: Target permanent becomes blue in addition to its
+||| other colors until end of turn." The colour-only ADDITION, which is one
+||| printed line and so buys no row of its own: `BecomesAlso`'s bundle
+||| carries the colour and the bundle-level gate is what lets its type line
+||| be absent. The other line of the shape is Painter's Servant's chosen
+||| colour, which `AddsChosenQuality` already writes.
+public export
+indigoFaerie : Card
+indigoFaerie =
+  Macros.card "Indigo Faerie" (Just [Macros.generic 1, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Faerie", creatureType "Wizard"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.activated (Mana [Macros.pip Blue])
+                          (Macros.becomesAs (Macros.target Permanent)
+                                            (MkToken Nothing [Blue] (MkTypeLine [] [])
+                                                     [] Nothing)
+                                            (Just Macros.untilEndOfTurn)) ]
+       (Just (1, 1))
+
 public export
 declarationOfNaught : Card
 declarationOfNaught =
@@ -5935,6 +6168,139 @@ volatileClaws =
            (Just Macros.untilEndOfTurn)) ]
        Nothing
 
+
+||| Amoeboid Changeling's two type abilities -- "{T}: Target creature gains
+||| all creature types until end of turn. / {T}: Target creature loses all
+||| creature types until end of turn." The quantifier's two poles printed
+||| on one card, which is the minimal pair `LosesEveryType` is paid for by.
+||| The whole card wants the Changeling keyword, which the catalog does not
+||| carry.
+public export
+amoeboidChangelingTypeAbilities : AbilitySeq []
+amoeboidChangelingTypeAbilities =
+  [ Macros.activated TapSymbol
+      (Continuously (AddsEveryType (Macros.target Macros.creature) CreatureSpace)
+                    (Just Macros.untilEndOfTurn))
+  , Macros.activated TapSymbol
+      (Continuously (LosesEveryType (Macros.target Macros.creature) CreatureSpace)
+                    (Just Macros.untilEndOfTurn)) ]
+
+||| Nameless Inversion's body -- "Target creature gets +3/-3 and loses all
+||| creature types until end of turn." The loss coordinated with a pump on
+||| one target. Its whole card wants the Changeling keyword.
+public export
+namelessInversionBody : Effect []
+namelessInversionBody =
+  Continuously (AndAlso [ Gets (Macros.target Macros.creature)
+                               (PtUp (Lit 3)) (PtDown (Lit 3))
+                        , LosesEveryType It CreatureSpace ])
+               (Just Macros.untilEndOfTurn)
+
+||| Ego Erasure's body -- "Creatures target player controls get -2/-0 and
+||| lose all creature types until end of turn." The same coordination at a
+||| controlled group. Its whole card wants the Changeling keyword.
+public export
+egoErasureBody : Effect []
+egoErasureBody =
+  Continuously (AndAlso [ Gets (AllOf (And [Macros.creature,
+                                            ControlledBy (Macros.target AnyPlayer)]))
+                               (PtDown (Lit 2)) (PtUp (Lit 0))
+                        , LosesEveryType Them CreatureSpace ])
+               (Just Macros.untilEndOfTurn)
+
+||| Curse of Conformity -- "Enchant player / Nonlegendary creatures
+||| enchanted player controls have base power and toughness 3/3 and lose
+||| all creature types." The standing (undurated) loss, at the enchanted
+||| player's creatures.
+public export
+curseOfConformity : Card
+curseOfConformity =
+  Macros.card "Curse of Conformity" (Just [Macros.generic 4, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura", enchantmentType "Curse"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" AnyPlayer
+       , Static (AndAlso
+           [ HasBasePt (AllOf (And [Macros.creature, Not (HasSupertype Legendary),
+                                    ControlledBy (AttachHost Enchanted PlayerW)]))
+                       (Lit 3) (Lit 3)
+           , LosesEveryType Them CreatureSpace ]) ]
+       Nothing
+
+||| Lithoform Blight's third line, in part -- "Enchanted land loses all land
+||| types and abilities …". The type-loss/ability-loss coordination decided
+||| ONE way: two statements under `AndAlso`, not one row with an ability
+||| rider, because [CR#613.1d] applies the type loss at layer 4 and
+||| [CR#613.1f] the ability loss at layer 6. All three printed land-type
+||| loss lines coordinate this way; none writes the type loss alone. The
+||| rest of the line grants two mana abilities and is not this cell's.
+public export
+lithoformBlightLoss : StaticEffect []
+lithoformBlightLoss =
+  AndAlso [ LosesEveryType (AttachHost Enchanted (TypeW Land)) LandSpace
+          , LosesAllAbilities It ]
+
+||| Energybending -- "Lands you control gain all basic land types until end
+||| of turn. / Draw a card." The basic-land grant cell, which needed only
+||| the Lesson spell type [CR#205.3k]; subtypes are labels, so the word cost
+||| nothing to write.
+public export
+energybending : Card
+energybending =
+  Macros.card "Energybending" (Just [Macros.generic 2]) []
+       (MkTypeLine [spellType "Lesson"] [Instant])
+       [ Spell (Sequentially
+                  [ Continuously
+                      (AddsEveryType (AllOf (And [Macros.land, ControlledBy You]))
+                                     BasicLandSpace)
+                      (Just Macros.untilEndOfTurn)
+                  , Macros.drawACard ]) ]
+       Nothing
+
+||| Ashes of the Fallen -- "As this artifact enters, choose a creature type.
+||| / Each creature card in your graveyard has the chosen creature type in
+||| addition to its other types." The chosen-quality ascription at a
+||| GRAVEYARD subject, which is why the two chosen-quality rows carry no
+||| subject-zone demand: the layers apply to an object's characteristics
+||| [CR#613.1] and a card in a graveyard is an object [CR#109.1].
+public export
+ashesOfTheFallen : Card
+ashesOfTheFallen =
+  Macros.card "Ashes of the Fallen" (Just [Macros.generic 2]) []
+       (MkTypeLine [] [Artifact])
+       [ Static (Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature))
+       , Static (AddsChosenQuality
+                   (Each (And [Macros.creature, InZone (Macros.graveyardOf You)]))
+                   (OfChosen (SubtypeQ Creature))) ]
+       Nothing
+
+||| Yedora, Grave Gardener -- "Whenever another nontoken creature you
+||| control dies, you may return it to the battlefield face down under its
+||| owner's control. It's a Forest land." The face-down ARRIVAL rider, the
+||| cheapest of the seven lines that place their object face down before
+||| ascribing to it. [CR#708.3] turns the object face down before it
+||| enters, so the word is a rider on the arrival; [CR#708.2a]'s "unless
+||| otherwise specified" is what licenses the type line the next sentence
+||| writes.
+public export
+yedoraGraveGardener : Card
+yedoraGraveGardener =
+  Macros.card "Yedora, Grave Gardener"
+       (Just [Macros.generic 4, Macros.pip Green]) [Legendary]
+       (MkTypeLine [creatureType "Treefolk", creatureType "Druid"] [Creature])
+       [ Macros.triggered Whenever
+           (Dies (Macros.a (And [Macros.nontoken, Macros.creatureYouControl,
+                                 OtherThan Macros.thisCreature])))
+           (Macros.may You
+              (Sequentially
+                 [ Move It Macros.battlefieldZ
+                        (MkMoveRiders [EntersAs FaceDown] (Just (OwnerOf It)) Nothing)
+                 , Continuously
+                     (SetsType It
+                               (MkToken Nothing []
+                                        (MkTypeLine [landType "Forest"] [Land])
+                                        [] Nothing)
+                               Nothing)
+                     Nothing ])) ]
+       (Just (5, 5))
 
 
 public export
