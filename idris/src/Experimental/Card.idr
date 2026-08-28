@@ -103,14 +103,14 @@ public export
 classAbilityOk : {0 bs : Bindings} -> CardClass -> AbilityAt bs -> Bool
 classAbilityOk PermanentCard (KeywordAbility k _) = keywordCardOk PermanentCard k
 classAbilityOk PermanentCard (Activated _ _ _ _ _) = True
-classAbilityOk PermanentCard (Triggered _ _ _ _ _ _ _) = True
+classAbilityOk PermanentCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk PermanentCard (Static _) = True
 classAbilityOk PermanentCard (AlsoForKeywords ab _) = classAbilityOk PermanentCard ab
 classAbilityOk PermanentCard (Spell _) = False
 classAbilityOk PermanentCard (AbilityWord _ ab) = classAbilityOk PermanentCard ab
 classAbilityOk SpellCard (KeywordAbility k _) = keywordCardOk SpellCard k
 classAbilityOk SpellCard (Activated c _ _ _ _) = costOffBattlefield c
-classAbilityOk SpellCard (Triggered _ _ _ _ _ _ _) = True
+classAbilityOk SpellCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk SpellCard (Static se) = staticOnSpellCardOk se
 classAbilityOk SpellCard (AlsoForKeywords ab _) = classAbilityOk SpellCard ab
 classAbilityOk SpellCard (Spell _) = True
@@ -125,7 +125,7 @@ classAbilityOk SpellCard (AbilityWord _ ab) = classAbilityOk SpellCard ab
 -- says so, and `cardAbilityOk` asks both.
 classAbilityOk CommandZoneCard (KeywordAbility k _) = keywordCardOk CommandZoneCard k
 classAbilityOk CommandZoneCard (Activated c _ _ _ _) = costOffBattlefield c
-classAbilityOk CommandZoneCard (Triggered _ _ _ _ _ _ _) = True
+classAbilityOk CommandZoneCard (Triggered _ _ _ _ _ _ _ _ _) = True
 classAbilityOk CommandZoneCard (Static _) = True
 classAbilityOk CommandZoneCard (AlsoForKeywords ab _) = classAbilityOk CommandZoneCard ab
 classAbilityOk CommandZoneCard (Spell _) = False
@@ -194,7 +194,7 @@ cardTextOk tys (a :: as) = cardAbilityOk tys a && cardTextOk tys as
 
 public export
 chapterLineOk : {0 bs : Bindings} -> List Subtype -> AbilityAt bs -> Bool
-chapterLineOk subs (Triggered _ (ChapterMark _) _ _ _ _ _) = elem (enchantmentType "Saga") subs
+chapterLineOk subs (Triggered _ (ChapterMark _) _ _ _ _ _ _ _) = elem (enchantmentType "Saga") subs
 chapterLineOk subs (AbilityWord _ ab) = chapterLineOk subs ab
 chapterLineOk subs (AlsoForKeywords ab _) = chapterLineOk subs ab
 chapterLineOk _ _ = True

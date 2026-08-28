@@ -450,7 +450,7 @@ badUnlessTapSymbol Oh impossible
 ||| An ordinary trigger's header announces no target: [CR#115.1d] chooses them after the event.
 public export
 badTargetedDeathHeader : Unspellable Ability (\ok =>
-  Triggered Whenever (Dies (Macros.target Macros.creature)) [] Nothing Nothing Nothing Macros.drawACard {hn = ok})
+  Triggered Whenever (Dies (Macros.target Macros.creature)) [] Nothing [] Nothing Nothing Nothing Macros.drawACard {hn = ok})
 badTargetedDeathHeader Oh impossible
 
 
@@ -458,7 +458,7 @@ badTargetedDeathHeader Oh impossible
 ||| [CR#603.2b] triggers on a phase or step beginning; a turn is neither [CR#500.1].
 public export
 badTriggerAtYourTurn : Unspellable Ability (\ok =>
-  Triggered At (BeginningOf Turn (ByWord Yours) {pu = ok}) [] Nothing Nothing Nothing Macros.drawACard)
+  Triggered At (BeginningOf Turn (ByWord Yours) {pu = ok}) [] Nothing [] Nothing Nothing Nothing Macros.drawACard)
 badTriggerAtYourTurn Oh impossible
 
 
@@ -466,7 +466,7 @@ badTriggerAtYourTurn Oh impossible
 ||| [CR#603.6] looks for the object in the zone it moved to: a card in a graveyard [CR#701.26a].
 public export
 badTriggerTapsDeadCreature : Unspellable Ability (\ok =>
-  Triggered Whenever (Dies (Macros.a Macros.creature)) [] Nothing Nothing Nothing (SetStatus Tapped It {ok}))
+  Triggered Whenever (Dies (Macros.a Macros.creature)) [] Nothing [] Nothing Nothing Nothing (SetStatus Tapped It {ok}))
 badTriggerTapsDeadCreature OnField impossible
 
 
@@ -474,7 +474,7 @@ badTriggerTapsDeadCreature OnField impossible
 ||| [CR#603.6c] checks the object only in the first zone it went to, which the sentence never names.
 public export
 badLeavesThenTap : Unspellable Ability (\ok =>
-  Triggered Whenever (Macros.leavesBattlefield (Macros.a Macros.creature)) [] Nothing Nothing Nothing (SetStatus Tapped It {ok}))
+  Triggered Whenever (Macros.leavesBattlefield (Macros.a Macros.creature)) [] Nothing [] Nothing Nothing Nothing (SetStatus Tapped It {ok}))
 badLeavesThenTap OnField impossible
 
 

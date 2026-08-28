@@ -128,7 +128,7 @@ badScaleToArtifact ObjectTakes impossible
 ||| The phrase names a prevention, and no prevention happened at a damage event either.
 public export
 badPreventedThisWayAfterDamageEvent : Unspellable Ability (\ok =>
-  Triggered Whenever (IsDealtDamage Macros.thisCreature) [] Nothing Nothing Nothing
+  Triggered Whenever (IsDealtDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
             (DealDamage It (PreventedThisWay {ok = ok}) (Macros.target Macros.anyTarget)))
 badPreventedThisWayAfterDamageEvent Refl impossible
 
@@ -137,7 +137,7 @@ badPreventedThisWayAfterDamageEvent Refl impossible
 ||| A death announces no magnitude, so the anaphor has nothing to point at.
 public export
 badThatMuchAfterDeath : Unspellable Ability (\ok =>
-  Triggered Whenever (Dies (Macros.a Macros.creature)) [] Nothing Nothing Nothing
+  Triggered Whenever (Dies (Macros.a Macros.creature)) [] Nothing [] Nothing Nothing Nothing
             (DealDamage Macros.thisCreature (ThatMuch {ok = ok})
                         (Macros.target Macros.anyTarget)))
 badThatMuchAfterDeath Refl impossible
@@ -147,7 +147,7 @@ badThatMuchAfterDeath Refl impossible
 ||| The demonstrative screen at a fourth minting site: it never picks out the speaker.
 public export
 badThatCreatureIsDamagedSelf : Unspellable Ability (\ok =>
-  Triggered Whenever (IsDealtDamage Macros.thisCreature) [] Nothing Nothing Nothing
+  Triggered Whenever (IsDealtDamage Macros.thisCreature) [] Nothing [] Nothing Nothing Nothing
             (DealDamage (That (TypeW Creature) {ok = ok}) ThatMuch
                         (Macros.target Macros.anyTarget)))
 badThatCreatureIsDamagedSelf Refl impossible
@@ -324,7 +324,7 @@ badCounteredInGraveyard Oh impossible
 public export
 badChapterOnNonSaga : Unspellable Card (\ok =>
   Macros.card "" (Just [Macros.pip White]) [] (MkTypeLine [] [Enchantment])
-       [ Triggered When (ChapterMark [ChapterI]) [] Nothing Nothing Nothing Macros.drawACard ]
+       [ Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing Nothing Macros.drawACard ]
        Nothing {ch = ok})
 badChapterOnNonSaga Oh impossible
 
@@ -333,7 +333,7 @@ badChapterOnNonSaga Oh impossible
 ||| A chapter symbol is its numeral [CR#107.15], so a marker with none is no marker.
 public export
 badEmptyChapterMark : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [] {cm = ok}) [] Nothing Nothing Nothing Macros.drawACard)
+  Triggered When (ChapterMark [] {cm = ok}) [] Nothing [] Nothing Nothing Nothing Macros.drawACard)
 badEmptyChapterMark Oh impossible
 
 
@@ -341,7 +341,7 @@ badEmptyChapterMark Oh impossible
 ||| [CR#107.15b] expands the joined marker into one ability per numeral, so a repeat prints one twice.
 public export
 badRepeatedChapterMark : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterII, ChapterII] {cm = ok}) [] Nothing Nothing Nothing Macros.drawACard)
+  Triggered When (ChapterMark [ChapterII, ChapterII] {cm = ok}) [] Nothing [] Nothing Nothing Nothing Macros.drawACard)
 badRepeatedChapterMark Oh impossible
 
 
@@ -349,7 +349,7 @@ badRepeatedChapterMark Oh impossible
 ||| [CR#714.2b] writes the whole header, so the printed line has nowhere for a rider.
 public export
 badChapterLimit : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterI]) [] Nothing (Just OncePerTurn) Nothing
+  Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing (Just OncePerTurn) Nothing
     Macros.drawACard {cd = ok})
 badChapterLimit Oh impossible
 
@@ -358,7 +358,7 @@ badChapterLimit Oh impossible
 ||| [CR#714.2b]'s expansion already carries the intervening "if" over the lore tally.
 public export
 badChapterIntervening : Unspellable Ability (\ok =>
-  Triggered When (ChapterMark [ChapterI]) [] Nothing Nothing (Just (Exists (And [Macros.creature, ControlledBy You])))
+  Triggered When (ChapterMark [ChapterI]) [] Nothing [] Nothing Nothing (Just (Exists (And [Macros.creature, ControlledBy You])))
     Macros.drawACard {cd = ok})
 badChapterIntervening Oh impossible
 

@@ -1020,6 +1020,16 @@ record VerbFacts where
   ||| permanent sideways) or states no destination of its own, in which
   ||| case the patient stays in the zone it was named in.
   actDest : Maybe Zone
+  ||| whether the action's own rule performs it in ORDERED STEPS, so that
+  ||| there is a moment INSIDE the act for a clause to name -- [CR#701.22a]
+  ||| looks at the top N cards and THEN puts them, and [CR#701.25a] writes
+  ||| the same two steps, which is what "while scrying" names. False where
+  ||| the rule states the act as one change ([CR#701.8a], [CR#701.9a]),
+  ||| leaving nothing between a beginning and an end to stand in. Read by
+  ||| the header's concurrent clause through `eventUnderwayOk`, and by
+  ||| nothing else: the act still HAPPENS at one moment for every
+  ||| retrospective reader [CR#603.2].
+  actStepwise : Bool
 
 ||| The label vocabulary, open by construction: a row is a name, its
 ||| participle and what its own rule says about the act, and adding one
@@ -1030,35 +1040,39 @@ verbFacts =
   --                            participle       patient
   --                            zone             destination
   [ MkVerbFacts "Destroy"     (Just "destroyed") (Just Object)
-                              (Just Battlefield) (Just Graveyard)
+                              (Just Battlefield) (Just Graveyard) False
   , MkVerbFacts "Sacrifice"   (Just "sacrificed") (Just Object)
-                              (Just Battlefield) (Just Graveyard)
+                              (Just Battlefield) (Just Graveyard) False
   -- [CR#701.13a] exiles an object from wherever it is, so the act names
   -- no zone to take it from.
   , MkVerbFacts "Exile"       (Just "exiled")    (Just Object)
-                              Nothing            (Just Exile)
+                              Nothing            (Just Exile) False
   , MkVerbFacts "Discard"     (Just "discarded") (Just Object)
-                              (Just Hand)        (Just Graveyard)
+                              (Just Hand)        (Just Graveyard) False
   , MkVerbFacts "Mill"        (Just "milled")    (Just Object)
-                              (Just Library)     (Just Graveyard)
+                              (Just Library)     (Just Graveyard) False
   -- [CR#701.22b] and [CR#701.25c] both name a trigger on the act, and
   -- both rules write a NUMBER of cards looked at rather than a patient
   -- the act carries off, so the event announces no such thing.
+  -- [CR#701.22a] looks at the top N cards, THEN puts any number of them
+  -- on the bottom: two ordered steps, so the act has a moment inside it
+  -- and "while scrying" names one.
   , MkVerbFacts "Scry"        Nothing            Nothing
-                              Nothing            Nothing
+                              Nothing            Nothing True
+  -- [CR#701.25a] writes the same two steps into the graveyard.
   , MkVerbFacts "Surveil"     Nothing            Nothing
-                              Nothing            Nothing
+                              Nothing            Nothing True
   -- [CR#701.26a] turns a PERMANENT sideways and leaves it where it is:
   -- a zone to find the patient in, and no destination.
   , MkVerbFacts "Tap"         (Just "tapped")    (Just Object)
-                              (Just Battlefield) Nothing
+                              (Just Battlefield) Nothing False
   -- [CR#701.26b] rotates a PERMANENT back upright and leaves it where
   -- it is: `Tap`'s row read the other way, and the participle is that
   -- row's too. It is what "Untap target creature. It gains haste until
   -- end of turn" reads back -- 99 supported faces, every one of them
   -- naming the permanent the untap acted on.
   , MkVerbFacts "Untap"       (Just "untapped")  (Just Object)
-                              (Just Battlefield) Nothing
+                              (Just Battlefield) Nothing False
   -- "Return" is no [CR#701] keyword action, and stands here on "Put"'s
   -- ground: [CR#701.1] leaves an unkeyworded verb its standard English
   -- meaning and the body says the rest. Both ends are the clause's --
@@ -1069,7 +1083,7 @@ verbFacts =
   -- from your graveyard to the battlefield. It gains haste" reads back
   -- (93 supported faces, all producer-bound).
   , MkVerbFacts "Return"      Nothing            (Just Object)
-                              Nothing            Nothing
+                              Nothing            Nothing False
   -- "Gain control" is no keyword action either, and moves nothing:
   -- [CR#613.1b] applies a control change in layer 2 and [CR#110.2] makes
   -- the controller a property of the permanent, which stays on the
@@ -1078,28 +1092,28 @@ verbFacts =
   -- printed line spells. The stamp is read by "Gain control of target
   -- creature until end of turn. Untap it" (19 supported faces).
   , MkVerbFacts "GainControl" Nothing            (Just Object)
-                              (Just Battlefield) Nothing
+                              (Just Battlefield) Nothing False
   -- "Put" is no [CR#701] keyword action, and under labels that is
   -- unremarkable: a label needs no rules entry of its own, because its
   -- body speaks for it [CR#701.1]. Both ends are the clause's, so the
   -- label states neither -- which is why the EVENT reading of this label
   -- is the poorer term beside `PutInto` and is left at its printed zero.
   , MkVerbFacts "Put"         Nothing            (Just Object)
-                              Nothing            Nothing
+                              Nothing            Nothing False
   -- the stamp a search leaves is read by the shuffle gate, not by a
   -- participle anaphor: no printed line names a search's patient that
   -- way, and "the searched card" is not what English would spell. What a
   -- printed line writes after the verb is the ZONE [CR#701.23a] has the
   -- act look in; the card it finds is named by the instructing clause.
   , MkVerbFacts "Search"      Nothing            Nothing
-                              Nothing            Nothing
+                              Nothing            Nothing False
   -- [CR#701.24a] shuffles a LIBRARY, and what a printed line writes
   -- after the verb is that pile or the cards the instructing clause
   -- names -- no patient the act itself carries off. The participle is
   -- absent for "put onto the battlefield"'s reason: "cards shuffled into
   -- your library this way" would have to name the destination too.
   , MkVerbFacts "Shuffle"     Nothing            Nothing
-                              Nothing            Nothing
+                              Nothing            Nothing False
   -- [CR#701.34a] has the ACT make its own choice -- "choose any number
   -- of permanents and/or players that have a counter" -- rather than
   -- take a patient from the instructing clause, so every printed line
@@ -1108,7 +1122,7 @@ verbFacts =
   -- destination either, and no printed line names a proliferated
   -- permanent by participle.
   , MkVerbFacts "Proliferate" Nothing            Nothing
-                              Nothing            Nothing
+                              Nothing            Nothing False
   -- [CR#701.54] makes the Ring's temptation a keyword action, and
   -- [CR#701.54d] names the trigger on it outright -- "Some abilities
   -- trigger 'Whenever the Ring tempts you'" -- exactly as [CR#701.22b]
@@ -1122,7 +1136,7 @@ verbFacts =
   -- after the verb is the label's own spelling, which is why the label
   -- is the whole printed phrase.
   , MkVerbFacts "The Ring Tempts You" Nothing    Nothing
-                              Nothing            Nothing
+                              Nothing            Nothing False
   ]
 public export
 factsIn : VerbLabel -> List VerbFacts -> Maybe VerbFacts
@@ -1169,6 +1183,13 @@ actZoneOf v = verbFactsFor v >>= actZone
 public export
 actDestOf : VerbLabel -> Maybe Zone
 actDestOf v = verbFactsFor v >>= actDest
+
+||| Whether the action's own rule performs it in ordered steps. An
+||| unknown label answers False, which is the same answer `KnownVerb`
+||| already refuses at every seat that writes one.
+public export
+actStepwiseOf : VerbLabel -> Bool
+actStepwiseOf v = maybe False actStepwise (verbFactsFor v)
 
 ||| What a labeled action left on the mention it acted on: WHICH label
 ||| acted, whether it found the referent on the battlefield, and whether

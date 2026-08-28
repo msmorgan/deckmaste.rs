@@ -2872,15 +2872,24 @@ mutual
                 (limit : Maybe UsageLimit) ->
                 (guard : Maybe (Condition bs)) ->
                 AbilityAt bs
+    ||| The trigger header, its concurrent clause, and its joined second
+    ||| header. `while` belongs to the head event [CR#603.1,603.2] and
+    ||| `joins` is a second whole header over this one effect; both sit
+    ||| BEFORE the intervening slot, which [CR#603.4] places after the
+    ||| whole trigger condition and which is checked again on resolution.
     Triggered : (word : TriggerWord) -> (ev : GameEvent bs) ->
                 (alts : List (GameEvent bs)) ->
+                (while : Maybe (Concurrent (headerCtx alts ev))) ->
+                (joins : List (JoinedHeader bs)) ->
                 (window : Maybe TriggerWindow) ->
                 (limit : Maybe UsageLimit) ->
-                (intervening : Maybe (Condition (headerCtx alts ev))) ->
+                (intervening :
+                   Maybe (Condition (joinedCtx joins (headerCtx alts ev)))) ->
                 (eff : Effect (interveningIntro intervening)) ->
                 {auto 0 hn : HeaderNontarget ev} ->
                 {auto 0 ae : AltEvent word alts} ->
-                {auto 0 cd : ChapterDefaults ev alts window limit intervening} ->
+                {auto 0 cd :
+                   ChapterDefaults ev alts while joins window limit intervening} ->
                 AbilityAt bs
     Static : (se : StaticEffect bs) ->
              {auto 0 ut : Untargeting se} -> AbilityAt bs
@@ -2922,7 +2931,7 @@ mutual
   public export
   lineKeyword : {0 bs : Bindings} -> AbilityAt bs -> Maybe KeywordLabel
   lineKeyword (Static se) = statKeyword se
-  lineKeyword (Triggered _ _ _ _ _ _ eff) = effKeyword eff
+  lineKeyword (Triggered _ _ _ _ _ _ _ _ eff) = effKeyword eff
   lineKeyword _ = Nothing
 
   public export
@@ -2991,7 +3000,7 @@ mutual
   grantableAb : {0 bs : Bindings} -> AbilityAt bs -> Bool
   grantableAb (KeywordAbility _ _) = True
   grantableAb (Activated _ _ _ _ _) = True
-  grantableAb (Triggered _ _ _ _ _ _ _) = True
+  grantableAb (Triggered _ _ _ _ _ _ _ _ _) = True
   grantableAb (Static _) = True
   grantableAb (Spell _) = False
   grantableAb (AlsoForKeywords _ _) = False
@@ -3005,7 +3014,7 @@ mutual
   emblemAbilityOk : AbilityAt [] -> Bool
   emblemAbilityOk (KeywordAbility _ _) = False
   emblemAbilityOk (Activated _ _ _ _ _) = True
-  emblemAbilityOk (Triggered _ _ _ _ _ _ _) = True
+  emblemAbilityOk (Triggered _ _ _ _ _ _ _ _ _) = True
   emblemAbilityOk (Static _) = True
   emblemAbilityOk (AlsoForKeywords _ _) = False
   emblemAbilityOk (AbilityWord _ ab) = emblemAbilityOk ab
@@ -3071,7 +3080,7 @@ mutual
   abRegime : {0 bs : Bindings} -> AbilityAt bs -> Maybe StackRegime
   abRegime (KeywordAbility k _) = keywordStackRegime k
   abRegime (Activated _ _ _ _ _) = Nothing
-  abRegime (Triggered _ _ _ _ _ _ _) = Nothing
+  abRegime (Triggered _ _ _ _ _ _ _ _ _) = Nothing
   abRegime (Static _) = Nothing
   abRegime (AlsoForKeywords ab _) = abRegime ab
   abRegime (AbilityWord _ ab) = abRegime ab
@@ -3152,7 +3161,7 @@ mutual
   abIntro : {bs : Bindings} -> AbilityAt bs -> Bindings
   abIntro (KeywordAbility _ _) = bs
   abIntro (Activated _ eff _ _ _) = effChoiceDelta eff ++ bs
-  abIntro (Triggered _ _ _ _ _ _ eff) = effChoiceDelta eff ++ bs
+  abIntro (Triggered _ _ _ _ _ _ _ _ eff) = effChoiceDelta eff ++ bs
   abIntro (Static se) = staticChoiceIntro se
   abIntro (AlsoForKeywords ab _) = abIntro ab
   abIntro (AbilityWord _ ab) = abIntro ab

@@ -962,17 +962,125 @@ mutual
   headerCtx : {bs : Bindings} -> List (GameEvent bs) -> GameEvent bs -> Bindings
   headerCtx alts ev = sharedCtx eventAfter alts ev
 
+  ||| The header's CONCURRENT clause: "Whenever this creature attacks
+  ||| WHILE SADDLED", "When a time counter is removed from this card
+  ||| WHILE IT'S EXILED", "When you sacrifice this creature WHILE CASTING
+  ||| A SPELL WITH EMERGE".
+  |||
+  ||| It belongs to the trigger EVENT and not to the intervening slot.
+  ||| [CR#603.1] writes a header as "[When/Whenever/At] [trigger condition
+  ||| or event], [effect]" -- the slot before the comma admits a
+  ||| CONDITION as readily as an event -- and [CR#603.2] triggers an
+  ||| ability whenever a game event "or game state" matches that trigger
+  ||| event. So a state named inside the header narrows what the ability
+  ||| watches. [CR#603.4] reaches none of this and says so outright: its
+  ||| rule "only applies to an `if` that immediately follows a trigger
+  ||| condition", and "the word `if` has only its normal English meaning
+  ||| anywhere else in the text of a card". The two clauses differ in
+  ||| rules content, not only in spelling: the intervening condition is
+  ||| checked a second time on resolution [CR#603.4] and this one is not,
+  ||| because it is part of what triggered.
+  ||| The corpus keeps them apart in print as well: not one of the 61
+  ||| supported header-internal "while" lines marks the clause off with a
+  ||| comma, where the intervening clause is always comma-marked. That
+  ||| zero is measured, not assumed, and it is why this is a slot of its
+  ||| own rather than a marking word on `Condition`.
+  |||
+  ||| Two arms, because the corpus writes two things after the word. A
+  ||| STATE is an ordinary condition -- 58 of the 61 lines, whose shapes
+  ||| are the ones `Condition` already spells (a designation for "while
+  ||| saddled", a zone for "while it's exiled", a controlled description,
+  ||| a counter, a comparison). An ACT IN PROGRESS is the other three,
+  ||| and no condition says it: "while you're activating a craft ability",
+  ||| "while casting a spell with emerge" and "while scrying" name an act
+  ||| the player is PARTWAY THROUGH, which is a moment inside an event
+  ||| rather than a fact about the game state. That arm takes the event
+  ||| vocabulary whole rather than restating three acts as rows of its
+  ||| own, and `eventUnderwayOk` is the gate deciding which events have an
+  ||| inside to be partway through.
+  ||| It announces nothing either way: a condition names no referent, and
+  ||| an event still underway has produced none [CR#603.2].
+  ||| -- spelling: "[header] while [c]" / "while [subject] [verb]ing
+  ||| [object]", inside the header's own comma.
   public export
-  chapterDefaultsOk : {bs : Bindings} -> (ev : GameEvent bs) ->
-                      (alts : List (GameEvent bs)) -> Maybe TriggerWindow ->
-                      Maybe UsageLimit -> Maybe (Condition (headerCtx alts ev)) -> Bool
-  chapterDefaultsOk (ChapterMark _) [] Nothing Nothing Nothing = True
-  chapterDefaultsOk (ChapterMark _) _ _ _ _ = False
-  chapterDefaultsOk _ _ _ _ _ = True
+  data Concurrent : Bindings -> Type where
+    WhileTrue : (c : Condition bs) -> Concurrent bs
+    WhileDoing : (ev : GameEvent bs) ->
+                 {auto 0 up : So (eventUnderwayOk (eventName ev))} ->
+                 Concurrent bs
+
+  ||| A SECOND WHOLE HEADER over one effect: "When this creature enters
+  ||| AND WHENEVER IT ATTACKS WHILE SADDLED, create a 3/3 green Elephant
+  ||| creature token" (Autarch Mammoth). 59 supported lines.
+  |||
+  ||| Not `AltEvent`, and the corpus tells the two apart by the surface:
+  ||| "Whenever X or Y" NEVER writes a second trigger word, and "When X
+  ||| and whenever Y" ALWAYS does. What forces a whole header rather than
+  ||| one more arm is what the printed second half CARRIES. An `AltEvent`
+  ||| arm is a bare event -- the trigger word, the window and the
+  ||| concurrent clause are the header's, stated once for every arm -- and
+  ||| the joined half writes all three for itself: its own word (measured
+  ||| 11 "and when", 38 "and whenever", 10 "and at", against every first
+  ||| word), its own window ("Whenever an opponent casts a spell DURING
+  ||| YOUR TURN and when this creature dies", Voice of Resurgence), and
+  ||| its own concurrent clause (Autarch Mammoth's "while saddled", which
+  ||| qualifies the attack alone).
+  ||| It is ONE ability and not two: [CR#603.1] gives an ability one
+  ||| effect, the printed line writes one after both headers, and MACH-1's
+  ||| "This ability triggers only once each turn" says "ability" in the
+  ||| singular over a two-headed line. So the usage limit, the intervening
+  ||| clause and the effect stay the ability's and are not joined here.
+  ||| A LIST on `AltEvent`'s model rather than a `Maybe`, so the two
+  ||| coordination seats read alike; no supported line writes a third
+  ||| header, and that zero is recorded rather than gated.
+  ||| -- spelling: "[head header] and [word] [ev][alts][while][window],
+  ||| [effect]"
+  public export
+  data JoinedHeader : Bindings -> Type where
+    MkJoinedHeader : (word : TriggerWord) -> (ev : GameEvent bs) ->
+                     (alts : List (GameEvent bs)) ->
+                     (while : Maybe (Concurrent (headerCtx alts ev))) ->
+                     (window : Maybe TriggerWindow) ->
+                     {auto 0 hn : HeaderNontarget ev} ->
+                     {auto 0 ae : AltEvent word alts} ->
+                     JoinedHeader bs
+
+  ||| What a joined header announces once its own event has happened: the
+  ||| same reader the head header uses, over the joined header's own
+  ||| coordination.
+  public export
+  joinedAfter : {bs : Bindings} -> JoinedHeader bs -> Bindings
+  joinedAfter (MkJoinedHeader _ ev alts _ _) = headerCtx alts ev
+
+  ||| What the ability's own clauses read when the headers are joined.
+  ||| The ability fires on ONE of its headers, so what follows may name
+  ||| only what they say alike -- `sharedCtx`'s rule at the second
+  ||| coordination seat, decided by the same `sameBindings` comparison and
+  ||| for the same reason: under partial agreement the sentence still
+  ||| cannot say which header fired.
+  ||| With no header joined it is the head's own discourse unchanged,
+  ||| which is what keeps every unjoined trigger reading exactly as
+  ||| before.
+  public export
+  joinedCtx : {bs : Bindings} -> List (JoinedHeader bs) -> Bindings -> Bindings
+  joinedCtx [] ds = ds
+  joinedCtx (j :: js) ds =
+    if sameBindings ds (joinedAfter j) then joinedCtx js ds else bs
 
   public export
-  ChapterDefaults : {bs : Bindings} -> (ev : GameEvent bs) -> (alts : List (GameEvent bs)) -> Maybe TriggerWindow -> Maybe UsageLimit -> Maybe (Condition (headerCtx alts ev)) -> Type
-  ChapterDefaults {bs} ev alts w l i = So (chapterDefaultsOk ev alts w l i)
+  chapterDefaultsOk : {bs : Bindings} ->
+                      (ev : GameEvent bs) -> (alts : List (GameEvent bs)) ->
+                      Maybe (Concurrent (headerCtx alts ev)) ->
+                      (joins : List (JoinedHeader bs)) ->
+                      Maybe TriggerWindow -> Maybe UsageLimit ->
+                      Maybe (Condition (joinedCtx joins (headerCtx alts ev))) -> Bool
+  chapterDefaultsOk (ChapterMark _) [] Nothing [] Nothing Nothing Nothing = True
+  chapterDefaultsOk (ChapterMark _) _ _ _ _ _ _ = False
+  chapterDefaultsOk _ _ _ _ _ _ _ = True
+
+  public export
+  ChapterDefaults : {bs : Bindings} -> (ev : GameEvent bs) -> (alts : List (GameEvent bs)) -> Maybe (Concurrent (headerCtx alts ev)) -> (joins : List (JoinedHeader bs)) -> Maybe TriggerWindow -> Maybe UsageLimit -> Maybe (Condition (joinedCtx joins (headerCtx alts ev))) -> Type
+  ChapterDefaults {bs} ev alts wh js w l i = So (chapterDefaultsOk ev alts wh js w l i)
 
   public export
   HeaderNontarget : {bs : Bindings} -> GameEvent bs -> Type

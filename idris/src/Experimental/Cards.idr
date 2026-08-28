@@ -12326,7 +12326,7 @@ troubleInPairsArms =
     [ NthOccurrence (Nth 2) (Just Turn) (Draws (Macros.a Opponent))
     , NthOccurrence (Nth 2) (Just Turn)
         (Casts (Macros.a Opponent) (Macros.a Macros.spell)) ]
-    Nothing Nothing Nothing
+    Nothing [] Nothing Nothing Nothing
     (Draw You (Lit 1))
 
 ||| Gaea's Revenge's protection-shaped phrase -- "nongreen spells or
@@ -12550,6 +12550,8 @@ stonebindersFamiliar =
                    (PutInto (CountedGroup (Macros.atLeast 1) Nothing IsCard)
                             Macros.exileZ Nothing)
                    []
+                   Nothing
+                   []
                    (Just (DuringWindow Turn (Just Yours)))
                    (Just OncePerTurn)
                    Nothing
@@ -12752,3 +12754,95 @@ hostileInvestigatorHeader =
   VerbedEvent (Just (CountedGroup (Macros.atLeast 1) Nothing AnyPlayer))
               "Discard"
               (Just (CountedGroup (Macros.atLeast 1) Nothing IsCard))
+
+||| Seasoned Warrenguard, whole -- "Whenever this creature attacks while
+||| you control a token, this creature gets +2/+0 until end of turn."
+||| The header's concurrent clause in its commonest shape: a state named
+||| INSIDE the trigger condition [CR#603.1,603.2], with no comma marking
+||| it off, so it is what triggered rather than [CR#603.4]'s intervening
+||| "if" -- which is checked a second time on resolution and this is not.
+public export
+seasonedWarrenguard : Card
+seasonedWarrenguard =
+  Macros.card "Seasoned Warrenguard" (Just [Macros.pip White]) []
+       (MkTypeLine [creatureType "Rabbit", creatureType "Warrior"] [Creature])
+       [ Macros.triggeredWhile Whenever
+           (Macros.attacks Macros.thisCreature)
+           (Macros.whileState (Exists (And [IsToken, ControlledBy You])))
+           (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 0))
+                        (Just Macros.untilEndOfTurn)) ]
+       (Just (1, 2))
+
+||| Brazen Blademaster, whole -- "Whenever this creature attacks while you
+||| control two or more artifacts, it gets +2/+1 until end of turn." The
+||| same slot over a counted condition, and the tail's "it" reads the
+||| header's own subject: the concurrent clause announces nothing, so what
+||| the effect sees is what the event left.
+public export
+brazenBlademaster : Card
+brazenBlademaster =
+  Macros.card "Brazen Blademaster"
+       (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Orc", creatureType "Pirate"] [Creature])
+       [ Macros.triggeredWhile Whenever
+           (Macros.attacks Macros.thisCreature)
+           (Macros.whileState
+              (CompareAmt (CountOf (And [Macros.artifact, ControlledBy You]))
+                          AtLeast (Lit 2)))
+           (Macros.gets It (PtUp (Lit 2)) (PtUp (Lit 1))
+                        (Just Macros.untilEndOfTurn)) ]
+       (Just (2, 3))
+
+||| Up the Beanstalk, whole -- "When this enchantment enters and whenever
+||| you cast a spell with mana value 5 or greater, draw a card." The
+||| two-header join: two trigger WORDS over one effect, told apart from
+||| the coordination by that second word.
+public export
+upTheBeanstalk : Card
+upTheBeanstalk =
+  Macros.card "Up the Beanstalk" (Just [Macros.generic 1, Macros.pip Green]) []
+       (MkTypeLine [] [Enchantment])
+       [ Macros.triggeredJoined When
+           (Enters This Nothing)
+           [ Macros.joinedHead Whenever
+               (Casts You (Macros.a (And [Macros.spell,
+                                          Compare ManaValue AtLeast (Lit 5)]))) ]
+           Macros.drawACard ]
+       Nothing
+
+||| Autarch Mammoth's printed line -- "When this creature enters and
+||| whenever it attacks while saddled, create a 3/3 green Elephant
+||| creature token." The join and the concurrent clause in one header:
+||| the "while saddled" qualifies the ATTACK alone, which is why the
+||| joined half is a whole header and not one more `AltEvent` arm.
+||| The card is not whole: its second line is "Saddle 5", and no
+||| `keywordFacts` row writes the word [CR#702.171a].
+public export
+autarchMammothLine : Ability
+autarchMammothLine =
+  Macros.triggeredJoined When
+    (Enters Macros.thisCreature Nothing)
+    [ Macros.joinedHeadWhile Whenever
+        (Macros.attacks Macros.thisCreature)
+        (Macros.whileState
+           (Matches Macros.thisCreature (HasDesignation Saddled))) ]
+    (Macros.create (Lit 1)
+       (Macros.creatureTok 3 3 [Green] [creatureType "Elephant"]))
+
+||| Veiling Oddity's second line -- "When the last time counter is removed
+||| from this card while it's exiled, creatures can't be blocked this
+||| turn." The last-removal event's first reachable bench line, and what
+||| reached it is the concurrent clause: the zone is named INSIDE the
+||| trigger condition, unmarked by a comma, so it is part of what
+||| triggered [CR#603.1,603.2] rather than [CR#603.4]'s intervening "if".
+||| The card is not whole: its other line is "Suspend 4—{1}{U}", which no
+||| `keywordFacts` row writes.
+public export
+veilingOddityLine : Ability
+veilingOddityLine =
+  Macros.triggeredWhile When
+    (LastCounterRemoved Time This Nothing)
+    (Macros.whileState (Matches This (InZone Macros.exileZ)))
+    (Continuously (Deontic (AllOf Macros.creature) Forbid Block Patient
+                           NoDeonticPatient)
+                  (Just Macros.thisTurn))

@@ -1538,10 +1538,10 @@ triggered : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
             (eff : Effect (eventAfter ev)) ->
             {auto 0 hn : HeaderNontarget ev} ->
             {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
-            {auto 0 cd : ChapterDefaults ev [] Nothing Nothing Nothing} ->
+            {auto 0 cd : ChapterDefaults ev [] Nothing [] Nothing Nothing Nothing} ->
             AbilityAt bs
 triggered word ev eff =
-  Triggered word ev [] Nothing Nothing Nothing eff {hn} {ae} {cd}
+  Triggered word ev [] Nothing [] Nothing Nothing Nothing eff {hn} {ae} {cd}
 
 ||| "Whenever …, if <condition>, …": a trigger with an intervening-if clause.
 public export
@@ -1550,10 +1550,10 @@ triggeredIf : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
               (eff : Effect (interveningIntro (Just cond))) ->
               {auto 0 hn : HeaderNontarget ev} ->
               {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
-              {auto 0 cd : ChapterDefaults ev [] Nothing Nothing (Just cond)} ->
+              {auto 0 cd : ChapterDefaults ev [] Nothing [] Nothing Nothing (Just cond)} ->
               AbilityAt bs
 triggeredIf word ev cond eff =
-  Triggered word ev [] Nothing Nothing (Just cond) eff {hn} {ae} {cd}
+  Triggered word ev [] Nothing [] Nothing Nothing (Just cond) eff {hn} {ae} {cd}
 
 ||| "Whenever X, Y, or Z, …": a trigger whose header coordinates further
 ||| events. The arms are a list, so the same macro writes the two-armed
@@ -1564,10 +1564,10 @@ triggeredOr : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
               (eff : Effect (headerCtx alts ev)) ->
               {auto 0 hn : HeaderNontarget ev} ->
               {auto 0 ae : AltEvent word alts} ->
-              {auto 0 cd : ChapterDefaults ev alts Nothing Nothing Nothing} ->
+              {auto 0 cd : ChapterDefaults ev alts Nothing [] Nothing Nothing Nothing} ->
               AbilityAt bs
 triggeredOr word ev alts eff =
-  Triggered word ev alts Nothing Nothing Nothing eff {hn} {ae} {cd}
+  Triggered word ev alts Nothing [] Nothing Nothing Nothing eff {hn} {ae} {cd}
 
 ||| "Whenever …, during <window>, …": a trigger confined to a window.
 public export
@@ -1576,10 +1576,61 @@ triggeredOnlyDuring : {bs : Bindings} -> (word : TriggerWord) ->
                       (eff : Effect (eventAfter ev)) ->
                       {auto 0 hn : HeaderNontarget ev} ->
                       {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
-                      {auto 0 cd : ChapterDefaults ev [] (Just w) Nothing Nothing} ->
+                      {auto 0 cd : ChapterDefaults ev [] Nothing [] (Just w) Nothing Nothing} ->
                       AbilityAt bs
 triggeredOnlyDuring word ev w eff =
-  Triggered word ev [] (Just w) Nothing Nothing eff {hn} {ae} {cd}
+  Triggered word ev [] Nothing [] (Just w) Nothing Nothing eff {hn} {ae} {cd}
+
+||| "Whenever <event> while <state>, <effect>": the header's concurrent
+||| clause on a bare trigger [CR#603.1,603.2].
+public export
+triggeredWhile : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
+                 (wh : Concurrent (headerCtx (the (List (GameEvent bs)) []) ev)) ->
+                 (eff : Effect (eventAfter ev)) ->
+                 {auto 0 hn : HeaderNontarget ev} ->
+                 {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
+                 {auto 0 cd : ChapterDefaults ev [] (Just wh) [] Nothing Nothing Nothing} ->
+                 AbilityAt bs
+triggeredWhile word ev wh eff =
+  Triggered word ev [] (Just wh) [] Nothing Nothing Nothing eff {hn} {ae} {cd}
+
+||| "While <state>": the concurrent clause naming a game state.
+public export
+whileState : {0 bs : Bindings} -> Condition bs -> Concurrent bs
+whileState c = WhileTrue c
+
+||| "When <event1> and <word> <event2>, <effect>": two whole headers over
+||| one effect. The effect reads what the headers announce alike
+||| (`joinedCtx`).
+public export
+triggeredJoined : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
+                  (joins : List (JoinedHeader bs)) ->
+                  (eff : Effect (joinedCtx joins (headerCtx (the (List (GameEvent bs)) []) ev))) ->
+                  {auto 0 hn : HeaderNontarget ev} ->
+                  {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
+                  {auto 0 cd : ChapterDefaults ev [] Nothing joins Nothing Nothing Nothing} ->
+                  AbilityAt bs
+triggeredJoined word ev joins eff =
+  Triggered word ev [] Nothing joins Nothing Nothing Nothing eff {hn} {ae} {cd}
+
+||| A joined header with no coordination, no concurrent clause and no
+||| window of its own.
+public export
+joinedHead : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
+             {auto 0 hn : HeaderNontarget ev} ->
+             {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
+             JoinedHeader bs
+joinedHead word ev = MkJoinedHeader word ev [] Nothing Nothing {hn} {ae}
+
+||| A joined header carrying its own concurrent clause -- Autarch
+||| Mammoth's "and whenever it attacks while saddled".
+public export
+joinedHeadWhile : {bs : Bindings} -> (word : TriggerWord) -> (ev : GameEvent bs) ->
+                  (wh : Concurrent (headerCtx (the (List (GameEvent bs)) []) ev)) ->
+                  {auto 0 hn : HeaderNontarget ev} ->
+                  {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
+                  JoinedHeader bs
+joinedHeadWhile word ev wh = MkJoinedHeader word ev [] (Just wh) Nothing {hn} {ae}
 
 ||| "Whenever …, … . This triggers only once each turn."
 public export
@@ -1588,10 +1639,10 @@ triggeredOnlyOnce : {bs : Bindings} -> (word : TriggerWord) ->
                     (eff : Effect (eventAfter ev)) ->
                     {auto 0 hn : HeaderNontarget ev} ->
                     {auto 0 ae : AltEvent word (the (List (GameEvent bs)) [])} ->
-                    {auto 0 cd : ChapterDefaults ev [] Nothing (Just lim) Nothing} ->
+                    {auto 0 cd : ChapterDefaults ev [] Nothing [] Nothing (Just lim) Nothing} ->
                     AbilityAt bs
 triggeredOnlyOnce word ev lim eff =
-  Triggered word ev [] Nothing (Just lim) Nothing eff {hn} {ae} {cd}
+  Triggered word ev [] Nothing [] Nothing (Just lim) Nothing eff {hn} {ae} {cd}
 
 ||| "<cost>: <effect>": the bare activated ability — no window, usage limit
 ||| or activation condition written.

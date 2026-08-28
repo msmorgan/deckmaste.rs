@@ -292,6 +292,29 @@ spanEventOk DamageDealing = True
 spanEventOk BecomesTarget = True
 spanEventOk _ = True
 
+||| Which events have an INSIDE -- a span of ordered steps a player is
+||| partway through, which is what the header's concurrent clause names
+||| when it names an act rather than a state ("while you're activating a
+||| craft ability", "while casting a spell with emerge", "while
+||| scrying").
+||| Three rules open the cells and no fourth is claimed. [CR#601.2] has a
+||| player cast a spell by following "the steps listed below, in order",
+||| so a spell being cast is a process with moments inside it;
+||| [CR#602.2] says the same of activating an ability in the same words.
+||| The keyword actions answer for themselves through `actStepwiseOf`:
+||| [CR#701.22a] looks and THEN puts, which is the moment "while
+||| scrying" names, while [CR#701.8a]'s destruction states one change and
+||| leaves nothing between a beginning and an end.
+||| Everything else is False, and the argument is [CR#603.2]'s: a game
+||| event MATCHES a trigger event when it occurs, at a moment, and a
+||| moment has no inside for "while" to name.
+public export
+eventUnderwayOk : EventName -> Bool
+eventUnderwayOk SpellCast = True
+eventUnderwayOk AbilityActivation = True
+eventUnderwayOk (VerbedAct v) = actStepwiseOf v
+eventUnderwayOk _ = False
+
 ||| Which events HAPPEN in an amount, for the summed lookback to read:
 ||| damage is dealt in a number ([CR#120.8] makes a 0-damage deal no damage
 ||| event at all), life is gained in one ([CR#119.9] makes a 0-life gain no

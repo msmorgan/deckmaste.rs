@@ -86,7 +86,7 @@ badSliceOfCountedPossessor Oh impossible
 ||| names has a single spell and a plural complement names no casting.
 public export
 badCastsPluralComplement : Unspellable (Ability) (\ok =>
-  Triggered Whenever (Casts You (AllOf Macros.spell) {one = ok}) [] Nothing Nothing Nothing
+  Triggered Whenever (Casts You (AllOf Macros.spell) {one = ok}) [] Nothing [] Nothing Nothing Nothing
             Macros.drawACard)
 badCastsPluralComplement Refl impossible
 
@@ -669,7 +669,7 @@ badAltHeaderMixedReadback : Unspellable Ability (\ok =>
   Triggered Whenever (Blocks Macros.thisCreature Nothing)
             [BecomesBlocked Macros.thisCreature
                             (Just (Macros.a Macros.creature))]
-            Nothing Nothing Nothing
+            Nothing [] Nothing Nothing Nothing
             (Macros.gets (That (TypeW Creature) {ok = ok}) (PtDown (Lit 1))
                          (PtDown (Lit 1)) (Just Macros.untilEndOfTurn)))
 badAltHeaderMixedReadback Refl impossible
@@ -689,7 +689,7 @@ badThreeArmHeaderReadback : Unspellable Ability (\ok =>
   Triggered Whenever (Macros.attacks Macros.thisCreature)
             [ Blocks Macros.thisCreature Nothing
             , BecomesTarget Macros.thisCreature (Macros.a Macros.spell) ]
-            Nothing Nothing Nothing
+            Nothing [] Nothing Nothing Nothing
             (DealDamage Macros.thisCreature (Macros.powerOf (It {ok = ok}))
                         (Each Opponent)))
 badThreeArmHeaderReadback Refl impossible

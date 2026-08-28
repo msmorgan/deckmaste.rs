@@ -292,7 +292,7 @@ badPlacementLookback Oh impossible
 ||| A window with no possessor restricts nothing.
 public export
 badHeaderBareTurnWindow : Unspellable Ability (\ok =>
-  Triggered Whenever (Enters (Macros.a Macros.creature) Nothing) [] (Just (DuringWindow Turn Nothing {hw = ok})) Nothing Nothing
+  Triggered Whenever (Enters (Macros.a Macros.creature) Nothing) [] Nothing [] (Just (DuringWindow Turn Nothing {hw = ok})) Nothing Nothing
             Macros.drawACard)
 badHeaderBareTurnWindow Oh impossible
 
