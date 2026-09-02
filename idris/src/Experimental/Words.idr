@@ -4093,11 +4093,18 @@ keywordFacts =
   -- [cost]" means "For each mode you choose beyond the first as you cast
   -- this spell, you pay an additional [cost]", the same shape at a
   -- per-mode multiplier.
-  -- WHAT THE ROWS DO NOT BUY: the linkage to the modal clause. Both
-  -- rules speak of "modal spells" [CR#700.2] and nothing here checks
-  -- that the card writes a `Modal`; a card carrying the word with no
-  -- modes over-generates, recorded rather than gated, and the per-mode
-  -- multiplier escalate writes has no term at all.
+  -- THE MODAL LINKAGE IS BUILT, and not here: `Card.idr`'s
+  -- `modalFrameOk` refuses a card that prints either word without also
+  -- writing its modes, which is a FRAME law -- a demand one line makes
+  -- on the rest of the card, `chapterLineOk`'s shape -- rather than a
+  -- fact about the word. Re-measured 2026-09-02 with reminders
+  -- stripped: 30 entwine keyword lines and 7 escalate ones, and every
+  -- carrier writes its modes.
+  -- ESCALATE'S PER-MODE MULTIPLIER IS A MEASURED ZERO, recorded and not
+  -- minted: ZERO supported lines write "for each mode" outside the
+  -- word's own reminder text, so the multiplier is stated by
+  -- [CR#702.120a] and by nothing a card prints. A keyword ability is a
+  -- label plus its parameter, and the rule is what expands it.
   , MkKeywordFacts "Entwine"          CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Escalate"         CostParam    False (Just AtCasting)    True  True  False
   -- [CR#702.102a]: "Fuse is a static ability found on some split cards

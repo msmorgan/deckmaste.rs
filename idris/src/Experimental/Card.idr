@@ -338,9 +338,56 @@ data CardLine : TypeLine -> Type where
                {auto 0 cmb : So (typesCombinable l.tys)} ->
                {auto 0 sf : So (subsFitLine l.subs l.tys)} -> CardLine l
 
+||| Which words their own rule confines to a MODAL spell. Two, and both
+||| say so in their first sentence: [CR#702.42a] makes entwine "a static
+||| ability of modal spells (see rule 700.2)" whose meaning is "You may
+||| choose all modes of this spell instead of just the number
+||| specified", and [CR#702.120a] makes escalate the same for "each mode
+||| you choose beyond the first". A card printing either with no modes
+||| would carry an ability whose own text names something the card never
+||| wrote.
+||| Written here rather than as a `keywordFacts` column, for
+||| `chapterLineOk`'s reason: this is a FRAME law -- a demand one line
+||| makes on the rest of the card -- and the catalog's rows say what a
+||| word is, not what must stand beside it.
+public export
+keywordWantsModes : {0 bs : Bindings} -> AbilityAt bs -> Bool
+keywordWantsModes (KeywordAbility k _) = k == "Entwine" || k == "Escalate"
+keywordWantsModes (ItalicHead _ ab) = keywordWantsModes ab
+keywordWantsModes (AlsoForKeywords ab _) = keywordWantsModes ab
+keywordWantsModes _ = False
+
+||| [CR#700.2] makes a spell modal when its text "contains two or more
+||| instructions preceded by bullet points" that a mode instruction
+||| chooses among, which is exactly what `Modal` is.
+public export
+abilityWritesModes : {0 bs : Bindings} -> AbilityAt bs -> Bool
+abilityWritesModes (Spell (Modal _ _)) = True
+abilityWritesModes (ItalicHead _ ab) = abilityWritesModes ab
+abilityWritesModes (AlsoForKeywords ab _) = abilityWritesModes ab
+abilityWritesModes _ = False
+
+public export
+anyWantsModes : {0 bs : Bindings} -> AbilitySeq bs -> Bool
+anyWantsModes [] = False
+anyWantsModes (a :: as) = keywordWantsModes a || anyWantsModes as
+
+public export
+anyWritesModes : {0 bs : Bindings} -> AbilitySeq bs -> Bool
+anyWritesModes [] = False
+anyWritesModes (a :: as) = abilityWritesModes a || anyWritesModes as
+
+||| The modal linkage the entwine and escalate rows were landed without.
+||| 30 supported entwine keyword lines and 7 escalate ones (re-measured
+||| 2026-09-02, reminders stripped), and every one of them stands on a
+||| card that also writes its modes.
+public export
+modalFrameOk : {0 bs : Bindings} -> AbilitySeq bs -> Bool
+modalFrameOk as = not (anyWantsModes as) || anyWritesModes as
+
 public export
 CardText : {0 bs : Bindings} -> TypeLine -> AbilitySeq bs -> Type
-CardText l as = So (cardTextOk l.tys as)
+CardText l as = So (cardTextOk l.tys as && modalFrameOk as)
 
 public export
 CardChapters : {0 bs : Bindings} -> TypeLine -> AbilitySeq bs -> Type

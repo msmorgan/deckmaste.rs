@@ -528,6 +528,24 @@ badAltCostLoyaltySymbol NoAltPayment impossible
 badAltCostLoyaltySymbol AltPaymentWritten impossible
 
 
+||| "Escalate {2}" printed on a spell that writes no modes.
+||| [CR#702.120a] makes escalate "a static ability of modal spells" meaning "for each mode you choose beyond the first ... pay an additional [cost]", and [CR#700.2] gives a spell modes only where its text writes them.
+public export
+badEscalateWithoutModes : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.pip Black]) [] (MkTypeLine [] [Instant])
+       [Macros.keywordCosting "Escalate" (Mana [Macros.generic 2])] Nothing {tx = ok})
+badEscalateWithoutModes Oh impossible
+
+
+||| "Entwine {2}" printed on a spell that writes no modes.
+||| [CR#702.42a] makes entwine "a static ability of modal spells" meaning "You may choose all modes of this spell instead of just the number specified"; a spell with no modes has none to choose.
+public export
+badEntwineWithoutModes : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.pip Green]) [] (MkTypeLine [] [Sorcery])
+       [Macros.keywordCosting "Entwine" (Mana [Macros.generic 2])] Nothing {tx = ok})
+badEntwineWithoutModes Oh impossible
+
+
 ||| "You may cast this card from your graveyard by {T} rather than paying its mana cost."
 ||| A licence's alternative cost is paid as the card is cast [CR#601.2f..601.2h], from the zone it is in [CR#601.2a]; [CR#107.5]'s "{T}" taps a permanent.
 public export

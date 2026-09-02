@@ -469,12 +469,23 @@ mutual
     ||| NO FLOOR ARM: no supported line pairs a run payload with the
     ||| "can't reduce ... to less than" rider, so the floor stays where
     ||| its ten cards write it.
-    ||| WHAT A RUN PAYLOAD STILL MAY NOT SAY: Bard Class and Edgewalker
-    ||| print "This effect reduces only the amount of colored mana you
-    ||| pay" beside the run -- 2 lines, a rider on the reduction and not
-    ||| a floor, recorded here and not minted.
-    ||| -- spelling: "[n] cost[s] [run] more/less to cast".
+    ||| THE COLOURED-ONLY RIDER is the third slot. "This effect reduces
+    ||| only the amount of colored mana you pay" -- 4 supported lines,
+    ||| re-measured 2026-09-02 (Bard Class, Edgewalker, Morophon,
+    ||| Ragemonger), not the 2 the gate round counted. It is written as a
+    ||| second sentence and is a rider all the same, because it states
+    ||| nothing on its own: what it bounds is the run in the sentence
+    ||| before it. And it says something NO RULE says -- [CR#601.2f]
+    ||| subtracts cost reductions from the total cost and stops only at
+    ||| {0}, and no rule anywhere confines a coloured reduction to the
+    ||| coloured part -- so it is a term and not a reminder.
+    ||| `False` is the ordinary run's answer, which every rise writes:
+    ||| the 25 strive lines and the leeches say nothing about which part
+    ||| of the payment moves.
+    ||| -- spelling: "[n] cost[s] [run] more/less to cast", then "This
+    ||| effect reduces only the amount of colored mana you pay".
     CostShiftRun : (run : ManaCost) -> (rises : Bool) ->
+                   (coloredOnly : Bool) ->
                    {auto 0 wr : ManaRun run} -> CostShift bs
 
   ||| The letters a shift's payload opens. A run opens none: a mana run
@@ -483,7 +494,7 @@ mutual
   costShiftDelta : {bs : Bindings} -> CostShift bs -> List Binding
   costShiftDelta (CostLess a _) = amtDelta a
   costShiftDelta (CostMore a) = amtDelta a
-  costShiftDelta (CostShiftRun _ _) = []
+  costShiftDelta (CostShiftRun _ _ _) = []
 
   namespace Static
     public export

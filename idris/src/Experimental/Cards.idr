@@ -17566,8 +17566,25 @@ alabasterLeech =
   Macros.card "Alabaster Leech" (Just [Macros.pip White]) []
        (MkTypeLine [creatureType "Leech"] [Creature])
        [ Static (CostsToCast (AllOf (And [Macros.spell, ColorIs White, CastBy You]))
-                             (CostShiftRun [Macros.pip White] True)) ]
+                             (CostShiftRun [Macros.pip White] True False)) ]
        (Just (1, 3))
+
+||| Edgewalker, whole -- the coloured payload at a REDUCTION, with the
+||| coloured-only rider. "Cleric spells you cast cost {W}{B} less to
+||| cast. This effect reduces only the amount of colored mana you pay."
+||| Bard Class, Morophon and Ragemonger write the same pair; the
+||| parenthetical worked example is reminder text.
+public export
+edgewalker : Card
+edgewalker =
+  Macros.card "Edgewalker"
+       (Just [Macros.generic 1, Macros.pip White, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
+       [ Static (CostsToCast (AllOf (And [HasSubtype (creatureType "Cleric"),
+                                          Macros.spell, CastBy You]))
+                             (CostShiftRun [Macros.pip White, Macros.pip Black]
+                                           False True)) ]
+       (Just (2, 2))
 
 ||| Cavern-Hoard Dragon's cost rider, written -- "This spell costs {X}
 ||| less to cast, where X is the greatest number of artifacts an opponent
