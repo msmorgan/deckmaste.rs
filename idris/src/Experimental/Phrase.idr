@@ -2190,6 +2190,39 @@ mutual
     ||| -- spelling: "this [m]".
     AsMarker : (m : MarkerWord) -> (n : Noun bs Object) ->
                {auto 0 asc : Ascribable n} -> Noun bs Object
+    ||| "that creature enters with an additional +1/+1 counter on it",
+    ||| "it gains haste until end of turn": the PERMANENT a permanent
+    ||| spell becomes as it resolves. [CR#608.3a] is the whole of it --
+    ||| a resolving permanent spell "becomes a permanent and enters the
+    ||| battlefield under the control of the spell's controller" -- and
+    ||| the two are one object across a zone change, which is why the row
+    ||| WRAPS the spell mention instead of minting a referent of its own:
+    ||| [CR#400.7a] has effects that changed the spell keep applying to
+    ||| the permanent, so the sentence is speaking of the same thing
+    ||| throughout.
+    ||| It is not `AsType`. That row ascribes a type to the source and
+    ||| leaves the referent alone; this one names the same referent in
+    ||| ANOTHER ZONE, which is why `Ascribable` does not widen to admit
+    ||| it and why the base is gated on the stack rather than on `This`.
+    ||| Nor is it a `Predicate`: no description can say a stack object is
+    ||| on the battlefield, and it is the grant's landing place that the
+    ||| clause needs -- "gains haste" and "enters with a counter" are
+    ||| battlefield facts about a stack mention's referent, which is
+    ||| exactly what the grammar refused before this row.
+    ||| The gates are the rule's two halves: the base is a spell, so it
+    ||| is on the stack [CR#601.2a,112.1], and it is a PERMANENT spell,
+    ||| [CR#110.4b]'s list, since an instant or sorcery goes to its
+    ||| owner's graveyard as the last part of resolving [CR#608.2n] and
+    ||| leaves no permanent to name.
+    ||| A COPY of a permanent spell becomes a token permanent
+    ||| [CR#111.13] rather than nothing, so no copy gate is owed.
+    ||| -- spelling: "that [type]" where the clause writes the type word,
+    ||| "it" where it writes the pronoun; the corpus writes both and the
+    ||| choice states no fact the row does not.
+    ResolvedPermanent : (spell : Noun bs Object) ->
+                        {auto 0 zn : OnStack (nounZone spell)} ->
+                        {auto 0 pm : So (permanentSpellType (nounTy spell))} ->
+                        Noun bs Object
     ||| The GRANTOR named from inside the quotation, [CR#201.5a]'s own
     ||| reference: "if an ability's effect grants another ability to an
     ||| object, and that second ability refers to that first ability's
@@ -2589,6 +2622,7 @@ mutual
   nounEqRef This This = True
   nounEqRef This _ = False
   nounEqRef (AsType _ _ _) _ = False
+  nounEqRef (ResolvedPermanent _) _ = False
   nounEqRef (AsMarker _ _) _ = False
   -- [CR#201.5a] fixes the grantor to one object, so two occurrences of
   -- the word inside one phrase denote the same thing -- `This`' own
@@ -2686,6 +2720,9 @@ mutual
   nounDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   nounDelta This = []
   nounDelta (AsType t n _) = nounDelta n
+  -- the permanent and the spell are one object across the change
+  -- [CR#400.7a], so the phrase announces exactly what its base did.
+  nounDelta (ResolvedPermanent n) = nounDelta n
   nounDelta (AsMarker _ n) = nounDelta n
   nounDelta TheGrantor = []
   nounDelta You = []
@@ -3823,6 +3860,7 @@ mutual
   anchorPhrase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   anchorPhrase This = True
   anchorPhrase (AsType t n _) = anchorPhrase n
+  anchorPhrase (ResolvedPermanent n) = anchorPhrase n
   anchorPhrase (AsMarker _ n) = anchorPhrase n
   anchorPhrase TheGrantor = True
   anchorPhrase You = True
@@ -3886,6 +3924,7 @@ mutual
   choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   choosable This = False
   choosable (AsType _ _ _) = False
+  choosable (ResolvedPermanent _) = False
   choosable (AsMarker _ _) = False
   choosable TheGrantor = False
   choosable You = False
@@ -3952,6 +3991,7 @@ mutual
   groupMention (Those _) = True
   groupMention This = False
   groupMention (AsType _ _ _) = False
+  groupMention (ResolvedPermanent _) = False
   groupMention (AsMarker _ _) = False
   groupMention TheGrantor = False
   groupMention You = False
@@ -4935,6 +4975,7 @@ mutual
   costNounOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   costNounOk This = True
   costNounOk (AsType t n _) = costNounOk n
+  costNounOk (ResolvedPermanent n) = costNounOk n
   costNounOk (AsMarker _ n) = costNounOk n
   costNounOk TheGrantor = True
   costNounOk You = True
@@ -4981,6 +5022,7 @@ mutual
   nounIsYou (PlayerGroup _) = False
   nounIsYou This = False
   nounIsYou (AsType _ _ _) = False
+  nounIsYou (ResolvedPermanent _) = False
   nounIsYou (AsMarker _ _) = False
   nounIsYou TheGrantor = False
   nounIsYou (Each _) = False
@@ -5025,6 +5067,7 @@ mutual
   nounTargeted (CountedGroup _ _ _) = False
   nounTargeted This = False
   nounTargeted (AsType _ n _) = nounTargeted n
+  nounTargeted (ResolvedPermanent n) = nounTargeted n
   nounTargeted (AsMarker _ n) = nounTargeted n
   nounTargeted TheGrantor = False
   nounTargeted You = False
@@ -5347,6 +5390,12 @@ mutual
       :: bs
   -- the marker word names no type, so its mention carries none; the
   -- determiner is the ascribed self's, on `AsType`'s rows.
+  moveIntro p (ResolvedPermanent n) z =
+    MkBinding TheD Object (nounPlur n)
+              (ObjectP (nounTy n) z (mkStamp p (Just Battlefield)
+                                              (not (z == Just Battlefield)))
+                       Nothing Nothing)
+      :: bs
   moveIntro p (AsMarker _ This) z =
     MkBinding SelfD Object OneOf
               (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
@@ -5399,6 +5448,10 @@ mutual
   nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
   nounZone This = Nothing
   nounZone (AsType t n _) = Just Battlefield
+  -- [CR#608.3a] puts the permanent onto the battlefield, which is the
+  -- whole point of the read: the base's stack zone is what refused the
+  -- grant.
+  nounZone (ResolvedPermanent _) = Just Battlefield
   -- and the zone IS the marker's own rule: [CR#111.1] puts a token onto
   -- the battlefield, [CR#114.2] an emblem into the command zone.
   nounZone (AsMarker m _) = Just (markerZone m)
@@ -5456,6 +5509,8 @@ mutual
   nounTy : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe CardType
   nounTy This = Nothing
   nounTy (AsType t n _) = Just t
+  -- the permanent has the spell's types [CR#400.7a].
+  nounTy (ResolvedPermanent n) = nounTy n
   -- the marker word ascribes NO type: [CR#111.1] makes a token a marker
   -- for a permanent rather than a type it has, and [CR#114.3] leaves an
   -- emblem none at all. So the phrase carries whatever its inner noun
@@ -5527,6 +5582,7 @@ mutual
   nounPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
   nounPlur This = OneOf
   nounPlur (AsType t n _) = nounPlur n
+  nounPlur (ResolvedPermanent n) = nounPlur n
   nounPlur (AsMarker _ n) = nounPlur n
   nounPlur TheGrantor = OneOf
   nounPlur You = OneOf

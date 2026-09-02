@@ -281,6 +281,22 @@ badShuffleLocusAtGraveyard : Unspellable (Condition []) (\ok =>
 badShuffleLocusAtGraveyard Oh impossible
 
 
+||| "If that mana is spent on an instant spell, it gains haste until end of turn."
+||| [CR#110.4b] lists the five spell types that become permanents and an instant is not among them; [CR#608.2n] puts it into its owner's graveyard as the last part of resolving, so there is no permanent for the clause to name.
+public export
+badResolvedInstant : Unspellable (Noun [] Object) (\ok =>
+  ResolvedPermanent (Macros.a (And [HasType Instant, Macros.spell])) {pm = ok})
+badResolvedInstant Oh impossible
+
+
+||| "this creature, once it resolves"
+||| The read is the stack-to-battlefield transition [CR#608.3a]; a mention already on the battlefield has made it, and naming what it becomes names nothing further.
+public export
+badResolvedOnBattlefield : Unspellable (Noun [] Object) (\ok =>
+  ResolvedPermanent Macros.thisCreature {zn = ok})
+badResolvedOnBattlefield OnTheStack impossible
+
+
 ||| "if it entered from the battlefield"
 ||| [CR#400.7] makes a zone change a move from one zone to ANOTHER, so the battlefield is the one zone a permanent cannot enter it from.
 public export

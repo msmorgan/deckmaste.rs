@@ -17043,11 +17043,11 @@ delightedHalflingMana =
 ||| speak of the permanent the spell becomes -- "it gains haste until end
 ||| of turn" (Arena of Glory, Generator Servant, Hall of the Bandit Lord),
 ||| "that creature enters with an additional +1/+1 counter on it" (Animal
-||| Attendant, Biophagus, Guildmages' Forum) -- and that read is this
-||| round's remaining gap, not this row's: the mention is a spell on the
-||| stack [CR#601.2a] and the grant lands on what it resolves into, a
-||| transition no noun here spells. `OnSpent` carries all 11 either way;
-||| what the 9 wait on is a spell-to-permanent read.
+||| Attendant, Biophagus, Guildmages' Forum) -- which `ResolvedPermanent`
+||| now writes, Generator Servant and Animal Attendant benching the two
+||| spellings. `OnSpent` carried all 11 either way; the step the 9 waited
+||| on was from the stack mention [CR#601.2a] to what it resolves into
+||| [CR#608.3a].
 public export
 boseijuMana : Ability
 boseijuMana =
@@ -17057,6 +17057,55 @@ boseijuMana =
                 (Macros.a (And [Macros.instantOrSorcery, Macros.spell]))
                 (Continuously (Macros.objectCant "Counter" (That SpellW))
                               Nothing) ])
+
+||| Generator Servant, whole -- "{T}, Sacrifice this creature: Add
+||| {C}{C}. If that mana is spent on a creature spell, it gains haste
+||| until end of turn." The SPELL-TO-PERMANENT read's witness, and the
+||| cell Boseiju's comment named as the remaining gap: the mention
+||| `OnSpent` binds is a spell on the stack [CR#601.2a], the grant lands
+||| on the permanent it becomes [CR#608.3a], and `ResolvedPermanent` is
+||| the one step between them. Nine of the eleven paid-for-object cells
+||| were waiting on it.
+public export
+generatorServant : Card
+generatorServant =
+  Macros.card "Generator Servant"
+       (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Elemental"] [Creature])
+       [ Macros.activated
+           (Compound [TapSymbol, Do (Macros.sacrifice You Macros.thisCreature)])
+           (AddMana You (Lit 1) (Runs [[Colorless, Colorless]])
+             [ OnSpent AffectsIt False
+                       (Macros.a (And [Macros.creature, Macros.spell]))
+                       (Macros.gainsHaste (ResolvedPermanent (That SpellW))
+                                          (Just Macros.untilEndOfTurn)) ]) ]
+       (Just (2, 1))
+
+||| Animal Attendant, whole -- "{T}: Add one mana of any color. If that
+||| mana is spent to cast a non-Human creature spell, that creature
+||| enters with an additional +1/+1 counter on it." The same read in its
+||| OTHER printed spelling, "that creature" where Generator Servant
+||| writes "it", and at the other body the nine cells split between: an
+||| entry rider rather than a keyword grant. One row serves both, since
+||| the choice of pronoun or type word states no fact about the referent.
+public export
+animalAttendant : Card
+animalAttendant =
+  Macros.card "Animal Attendant"
+       (Just [Macros.generic 1, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Human", creatureType "Citizen"] [Creature])
+       [ Macros.activated TapSymbol
+           (AddMana You (Lit 1) (AnyColor SameColor)
+             [ OnSpent AffectsIt False
+                       (Macros.a (And [Not (HasSubtype (creatureType "Human")),
+                                       Macros.creature, Macros.spell]))
+                       (Continuously
+                          (EntersWithCounters (ResolvedPermanent (That SpellW))
+                                              (Lit 1)
+                                              (PrintedKind Macros.plusOnePlusOne)
+                                              Additional)
+                          Nothing) ]) ]
+       (Just (2, 2))
 
 ||| Pyromancer's Goggles' mana ability -- "{T}: Add {R}. When that mana
 ||| is spent to cast a red instant or sorcery spell, copy that spell and
