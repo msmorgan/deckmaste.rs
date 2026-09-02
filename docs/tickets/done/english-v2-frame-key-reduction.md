@@ -75,3 +75,14 @@ Coordinator amendments (modal landing review, 2026-09-02):
   rejects parallel declaration-noun providers.
 - The frame-key-reduction -> 14-10 needs edge is RATIFIED by the
   coordinator: dissolution precedes the long-tail loop by design.
+
+## Landing record (coordinator, from dissolution-landing-review.md, 2026-09-02)
+
+The round shipped no landing record; this is it. Coverage 14,789 -> 15,886
+(+1,097, zero lost; lock blessed separately afterward). Constructions
+463 -> 399. Form-literal bytes -8.5% abs, vocab -13.0%, lexeme +27%.
+27 of 34 cop-out constructors deleted; Rust verb seed table replaced by
+core_verbs.ron; at_phrase census require and vocabs gone; five shadowers
+gone; TemporalNoun family zero occurrences; one Noun codec with kinds
+[Type, Subtype, TurnPart]. Residue routed: english-v2-dissolution-residue
+(F3/F5/F6), english-v2-gate-collision-metric (F1).

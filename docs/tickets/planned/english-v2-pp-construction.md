@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-frame-key-reduction]
+needs: [english-v2-dissolution-residue]
 ---
 One prepositional-phrase construction (taxonomy audit A1). RULING FIRST
 (recorded in the rewrite ADR before grammar changes): the derived attachment
@@ -8,7 +8,7 @@ other PP attaches to the nearest constituent that licenses it (low
 attachment: NP postmodifier when the nominal licenses that preposition class,
 otherwise predicate adjunct); two surviving readings for the same bytes is a
 genuine tie and a STOP, never a preference weight. Then: ONE PP construction
-with a preposition lexical slot replacing the 13 per-preposition categories.
+with a preposition lexical slot replacing the ~15 per-preposition categories (at_phrase joined the family in the dissolution).
 Temporal/locative/manner are values, not categories.
 
 Acceptance: coupled replacement (each per-X family deleted with its general
