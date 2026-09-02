@@ -20007,3 +20007,88 @@ emissaryOfGrudgesReveal =
 -- Decision, Trial of a Time Lord, Galadriel, Elven-Queen and Tivit, Seller
 -- of Secrets. Every one of them writes its vote sentence with the rows this
 -- round landed; what each is missing is its own payload.
+
+
+||| Fact or Fiction, whole card -- "Reveal the top five cards of your
+||| library. An opponent separates those cards into two piles. Put one
+||| pile into your hand and the other into your graveyard."
+||| The partition's marquee bench, and [CR#700.3c]'s own worked example:
+||| the rule quotes this card to say the revealed cards stay in the
+||| library until a pile is put somewhere, which is why the mention the
+||| separation leaves denotes the CARDS and sits at the object kind while
+||| `PileP` keeps the card words off it.
+||| Three things the sentence needs and the round supplies: a separator
+||| that is not the clause's own agent, a partitive over the piles rather
+||| than over the revealed cards ("one pile", not "one of them"), and the
+||| subset complement counted in PILES -- `TheOther` is unchanged and
+||| reads a partition of two exactly as it reads a two-card look.
+||| The group it partitions is SPENT [CR#700.3a], which is what leaves the
+||| piles as the one group mention standing and lets "the other" ask.
+public export
+factOrFiction : Card
+factOrFiction =
+  Macros.card "Fact or Fiction" (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , SeparateIntoPiles Macros.anOpponent Them 2
+                  , Macros.move Macros.onePile Macros.handZ
+                  , Macros.move TheOther Macros.graveyardZ ]) ]
+       Nothing
+
+||| Death or Glory, whole card -- "Separate all creature cards in your
+||| graveyard into two piles. Exile the pile of an opponent's choice and
+||| return the other to the battlefield."
+||| The partition's other marquee bench, and the one that fixes two
+||| things Fact or Fiction leaves open. Its piles are in the GRAVEYARD,
+||| which [CR#700.3c] says they never leave until a disposal moves them,
+||| so this is not the library-search gap; and its chooser is written
+||| INSIDE the phrase rather than in a clause of its own, which is the
+||| `by` slot on `PileOf` -- 6 supported lines spell a pile that way
+||| against 11 that spell the choice as its own sentence.
+||| The separator here is the clause's own agent and the chooser is an
+||| opponent; Fact or Fiction has them the other way round. That is the
+||| divide-and-choose pair, and it is why the separator is a slot.
+public export
+deathOrGlory : Card
+deathOrGlory =
+  Macros.card "Death or Glory"
+       (Just [Macros.generic 3, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Sequentially
+                  [ SeparateIntoPiles You
+                      (AllOf (And [Macros.creature,
+                                   InZone (Macros.graveyardOf You)])) 2
+                  , Macros.exile (Macros.pileOfChoice Macros.anOpponent)
+                  , Macros.move TheOther Macros.battlefieldZ ]) ]
+       Nothing
+
+||| Steam Augury, whole card -- "Reveal the top five cards of your
+||| library and separate them into two piles. An opponent chooses one of
+||| those piles. Put that pile into your hand and the other into your
+||| graveyard."
+||| The THIRD spelling of the same procedure and the commonest: the
+||| choice as its own sentence, read back by the pile demonstrative. 11
+||| supported lines write "chooses one of those piles" and 7 read the
+||| result as "that pile"; Epiphany at the Drownyard, Intrude on the
+||| Mind, Riddles in the Dark, Split the Spoils and Truth or Tale write
+||| the same two sentences.
+||| Nothing new is minted for it. `Choose`'s agent slot takes the
+||| partitive because `agentChoosable` admits `PileOf` where `choosable`
+||| refuses it -- no printed line writes the bare "choose one of those
+||| piles" -- and `chosenDelta` falls through to `nounDelta`, so the
+||| choice leaves the `PartD` pile mention that `That PileW` reads and
+||| that "the other" counts against.
+public export
+steamAugury : Card
+steamAugury =
+  Macros.card "Steam Augury"
+       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Red]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , SeparateIntoPiles You Them 2
+                  , Macros.chooses Macros.anOpponent Macros.onePile
+                  , Macros.move (That PileW) Macros.handZ
+                  , Macros.move TheOther Macros.graveyardZ ]) ]
+       Nothing

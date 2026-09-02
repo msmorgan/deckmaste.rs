@@ -1438,3 +1438,36 @@ badTransformedArrivalOffField : Unspellable (Effect []) (\ok =>
   Move (Macros.target (And [Macros.creature, InZone (Macros.graveyardOf You)]))
        Macros.handZ (MkMoveRiders [EntersTransformed] Nothing Nothing) {rf = ok})
 badTransformedArrivalOffField Oh impossible
+
+
+||| "Reveal the top five cards of your library. An opponent separates those cards into two piles. Put those cards into your hand."
+||| [CR#700.3b] makes the pile no object, so the group mention the separation left is not a group of cards for the card word to reach; and [CR#700.3a] put each of the revealed cards into exactly one pile, so the undivided group the reveal named is gone. Nothing in the prefix answers "those cards".
+public export
+badCardWordReadsPiles : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , SeparateIntoPiles Macros.anOpponent Them 2
+                  , Macros.move (Those CardW {ok = ok}) Macros.handZ ]) ]
+       Nothing)
+badCardWordReadsPiles Refl impossible
+
+
+||| "Reveal the top five cards of your library. Put those piles into your hand."
+||| The converse of the same sentence: [CR#700.3b] leaves each object in a pile an individual object, so a group of objects is not a pile, and a reveal that grouped nothing left no pile for the word to name. Only a clause that groups them [CR#700.3] does.
+public export
+badPileWordWithoutAPartition : Unspellable Card (\ok =>
+  Macros.card "" Nothing [] (MkTypeLine [] [Instant])
+       [ Spell (Sequentially
+                  [ Macros.revealCards (Macros.topSlice (Lit 5))
+                  , Macros.move (Those PileW {ok = ok}) Macros.handZ ]) ]
+       Nothing)
+badPileWordWithoutAPartition Refl impossible
+
+
+||| "Put one pile into your hand."
+||| The partitive asks the same question its demonstrative does: [CR#700.3] makes piles only where a clause groups objects into them, and a card that groups nothing has no parts for "one pile" to take one of.
+public export
+badPilePartitiveWithoutAPartition : Unspellable (Effect []) (\ok =>
+  Macros.move (Macros.onePile {ok = ok}) Macros.handZ)
+badPilePartitiveWithoutAPartition Refl impossible

@@ -4573,6 +4573,11 @@ mutual
   public export
   agentChoosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   agentChoosable (SomeOf _ _ _) = True
+  -- "An opponent chooses one of those piles", "Defending player chooses
+  -- one of those piles": 11 supported lines, every one of them with an
+  -- agent. None writes the bare "choose one of those piles", which is
+  -- `SomeOf`'s split exactly.
+  agentChoosable (PileOf _ _) = True
   agentChoosable n = choosable n
 
   public export

@@ -1420,6 +1420,19 @@ public export
 oneOf : (grp : Noun bs Object) -> {auto 0 gm : PartitiveBase grp} -> Noun bs Object
 oneOf grp = SomeOf (CountedSlice (exactly 1)) Nothing grp {gm}
 
+||| "one of those piles", "one pile": the partitive with no chooser
+||| written.
+public export
+onePile : {auto 0 ok : countManyWord PileW bs = 1} -> Noun bs Object
+onePile = PileOf (CountedSlice (exactly 1)) Nothing {ok}
+
+||| "the pile of an opponent's choice", "the pile of your choice": the
+||| same part, with the chooser named in the phrase.
+public export
+pileOfChoice : (by : Noun bs Player) ->
+               {auto 0 ok : countManyWord PileW bs = 1} -> Noun bs Object
+pileOfChoice by = PileOf (CountedSlice (exactly 1)) (Just by) {ok}
+
 public export
 someOf : (n : Nat) -> (grp : Noun bs Object) -> {auto 0 gm : PartitiveBase grp} ->
          {auto 0 nz : NonZeroQ (exactly {bs} n)} ->
