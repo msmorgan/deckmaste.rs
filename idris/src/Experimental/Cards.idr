@@ -4030,6 +4030,42 @@ chameleonCopy =
                        (Macros.a (And [Macros.creature, ControlledBy You]))
                        [ExceptName "Chameleon, Master of Disguise"])
 
+||| Repeated Reverberation, whole card -- "When you next cast an instant
+||| spell, cast a sorcery spell, or activate a loyalty ability this turn,
+||| copy that spell or ability twice. You may choose new targets for the
+||| copies."
+||| THE UNION OF ALTERNATIVES, and its own mechanism rather than a join
+||| of phrases. The join was refused here and stays refused: [CR#115.1]
+||| gives a `Joined` head one phrase naming either half of ONE event,
+||| where this card's arms are three separate events with three separate
+||| verbs, and [CR#603.7b] fires the delayed ability on whichever of them
+||| happens -- so "that spell" has to be able to name nothing when the
+||| ability arm was the one that fired.
+||| What answers it is at the DISCOURSE: `sharedCtx` unions what the arms
+||| announce instead of refusing them, pairing the spell and the ability
+||| into the payload [CR#115.2]'s "spell or ability" already had, and
+||| forgetting the instant/sorcery difference the two cast arms disagree
+||| on -- which is exactly what the card's own next word calls it.
+||| `AbilityJoinW` reads that union back; the copy of it is a union too,
+||| and `CopyJoinW` reads that.
+||| 5 supported lines write the construction and all 5 are copy lines
+||| (re-measured 2026-09-02).
+public export
+repeatedReverberation : Card
+repeatedReverberation =
+  Macros.card "Repeated Reverberation"
+       (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [] [Sorcery])
+       [ Spell (Delayed
+                  (Casts You (Macros.a (And [Macros.instant, Macros.spell])) Nothing)
+                  [ Casts You (Macros.a (And [Macros.sorcery, Macros.spell])) Nothing
+                  , Activates You (Macros.a (AbilityHead LoyaltyClass)) ]
+                  (Just Macros.thisTurn)
+                  (Sequentially
+                     [ CopyStack You (That AbilityJoinW) (Lit 2) []
+                     , Macros.may You (ChooseNewTargets (Those CopyJoinW)) ])) ]
+       Nothing
+
 public export
 twincast : Card
 twincast =

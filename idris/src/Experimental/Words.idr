@@ -2069,6 +2069,86 @@ sameBindings (b :: bs) (c :: cs) = sameBinding b c && sameBindings bs cs
 sameBindings [] (_ :: _) = False
 sameBindings (_ :: _) [] = False
 
+||| A field two alternatives BOTH state, kept only where they state the
+||| same thing. Where they differ the union has forgotten it, which is
+||| not a loss of information but the mention's own content: the sentence
+||| cannot say which alternative happened, so it may not claim what only
+||| one of them said.
+public export
+agreedField : (a -> a -> Bool) -> Maybe a -> Maybe a -> Maybe a
+agreedField f (Just x) (Just y) = if f x y then Just x else Nothing
+agreedField f _ _ = Nothing
+
+||| The UNION OF ALTERNATIVES over two payloads: what a mention names
+||| when either of two announcements may have been the one that happened.
+|||
+||| Two shapes, and they are one operation seen at two kinds. Payloads of
+||| the SAME sort keep the fields they agree on and forget the rest --
+||| "cast an instant spell" beside "cast a sorcery spell" leaves a spell
+||| on the stack whose type the sentence cannot state, which is exactly
+||| what its own text calls it afterwards ("that spell"). Payloads of
+||| DIFFERENT sorts pair into `JoinP`, the union family's own payload:
+||| "cast a spell" beside "activate an ability" leaves the pair
+||| [CR#115.2] names, read back by `AbilityJoinW`.
+|||
+||| The object half is always written LEFT, whatever order the arms came
+||| in. The union is commutative and English is not: every printed line
+||| writes "that spell or ability" and none writes the halves the other
+||| way round.
+|||
+||| `Nothing` where no union exists -- a sort with no union word behind
+||| it, or a pair the corpus never writes. A union that cannot be named
+||| is not one the discourse may carry.
+public export
+unionPayload : {j : Kind} -> {k : Kind} -> Payload j -> Payload k ->
+               Maybe (m : Kind ** Payload m)
+unionPayload (ObjectP t1 z1 v1 o1 s1) (ObjectP t2 z2 v2 o2 s2) =
+  Just (Object ** ObjectP (agreedField (==) t1 t2) (agreedField (==) z1 z2)
+                          (agreedField sameStamp v1 v2)
+                          (agreedField sameOrigin o1 o2)
+                          (agreedField (==) s1 s2))
+unionPayload (AbilityP o1) (AbilityP o2) =
+  Just (Ability ** AbilityP (agreedField sameOrigin o1 o2))
+unionPayload PlayerP PlayerP = Just (Player ** PlayerP)
+unionPayload ChosenPlayerP ChosenPlayerP = Just (Player ** ChosenPlayerP)
+unionPayload p@(ObjectP _ _ _ _ _) q@(AbilityP _) =
+  Just (Object \/ Ability ** JoinP p q)
+unionPayload p@(AbilityP _) q@(ObjectP _ _ _ _ _) =
+  Just (Object \/ Ability ** JoinP q p)
+unionPayload p@(ObjectP _ _ _ _ _) PlayerP = Just (Object \/ Player ** JoinP p PlayerP)
+unionPayload PlayerP q@(ObjectP _ _ _ _ _) = Just (Object \/ Player ** JoinP q PlayerP)
+unionPayload _ _ = Nothing
+
+||| Two announcements unioned. The DETERMINER and the PLURALITY must
+||| agree outright: those are what the reading word asks before it looks
+||| at the payload, and a union that had forgotten them would name
+||| something no word could reach. Identical announcements union to
+||| themselves, which is what carries a coordination's shared prefix
+||| through unchanged.
+public export
+unionBinding : Binding -> Binding -> Maybe Binding
+unionBinding b c =
+  if sameBinding b c then Just b
+  else case (b, c) of
+         (MkBinding d1 _ p1 pl1, MkBinding d2 _ p2 pl2) =>
+           if sameDet d1 d2 && samePlur p1 p2
+             then map (\(m ** pl) => MkBinding d1 m p1 pl) (unionPayload pl1 pl2)
+             else Nothing
+
+||| The union pointwise. Lists of different lengths have none: a
+||| coordination whose arms announce different NUMBERS of things says
+||| nothing determinate at any position, which is the reading the whole
+||| agreement rule already gave them.
+public export
+unionBindings : Bindings -> Bindings -> Maybe Bindings
+unionBindings [] [] = Just []
+unionBindings (b :: bs) (c :: cs) =
+  case (unionBinding b c, unionBindings bs cs) of
+    (Just u, Just us) => Just (u :: us)
+    _ => Nothing
+unionBindings [] (_ :: _) = Nothing
+unionBindings (_ :: _) [] = Nothing
+
 public export
 publicZone : Zone -> Bool
 publicZone Battlefield = True

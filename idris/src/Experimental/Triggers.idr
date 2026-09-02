@@ -922,15 +922,43 @@ mutual
   armsAgree read ds [] = True
   armsAgree read ds (a :: as) = sameBindings ds (read a) && armsAgree read ds as
 
+  ||| The UNION OF ALTERNATIVES over an arm list: what the coordination
+  ||| announces when its arms announce different things. Folded pointwise
+  ||| from the head's own reading, and undefined as soon as one arm will
+  ||| not union with what stands.
+  public export
+  unionArms : {bs : Bindings} -> (read : GameEvent bs -> Bindings) ->
+              Bindings -> List (GameEvent bs) -> Maybe Bindings
+  unionArms read ds [] = Just ds
+  unionArms read ds (a :: as) =
+    case unionBindings ds (read a) of
+      Just u => unionArms read u as
+      Nothing => Nothing
+
   ||| What a coordinated event seat hands the clause that reads it. A lone
   ||| event hands its whole discourse. A coordination fires on ANY arm, so
   ||| its reader may take only what the arms say alike: where every arm
   ||| agrees outright with the head that common announcement is the
-  ||| context, and where any differs the sentence cannot say which arm
-  ||| happened, so the reader takes the outer discourse bare. Whole
-  ||| agreement (`sameBindings`), not a meet: under partial agreement the
-  ||| sentence still cannot say which arm happened, so the shared prefix
-  ||| names nothing determinate.
+  ||| context.
+  |||
+  ||| Where they DIFFER the reader takes their UNION, and falls back to
+  ||| the outer discourse bare where no union exists. The union is not
+  ||| the meet this rule used to refuse: that one would have taken a
+  ||| shared PREFIX of two announcement lists, dropping mentions and
+  ||| shifting every index behind them, which names nothing determinate.
+  ||| A union drops nothing. It stands at every position, keeps the
+  ||| fields the arms agree on, and pairs the sorts they do not
+  ||| ([CR#115.2]'s spell-or-ability being the pair the corpus writes),
+  ||| so the mention names a determinate referent -- whichever arm fired
+  ||| -- about which the sentence claims only what every arm guaranteed.
+  ||| That is a thing English has words for, which is the test: `JoinW`
+  ||| and `AbilityJoinW` read exactly these mentions back, and a union
+  ||| with no word behind it is refused in `unionPayload` rather than
+  ||| carried.
+  ||| 5 supported lines want it, all of them in the copy family
+  ||| (re-measured 2026-09-02): Repeated Reverberation, Bill Potts's
+  ||| sibling, Psychic Stimulus and two more write "cast … or activate …,
+  ||| copy that spell or ability".
   ||| The reader is the seat's own: `eventAfter` where the event happened
   ||| [CR#603.6], `eventIntro` where a replacement keeps it from happening
   ||| [CR#614.6].
@@ -938,7 +966,10 @@ mutual
   sharedCtx : {bs : Bindings} -> (read : GameEvent bs -> Bindings) ->
               List (GameEvent bs) -> GameEvent bs -> Bindings
   sharedCtx read alts ev =
-    if armsAgree read (read ev) alts then read ev else bs
+    if armsAgree read (read ev) alts then read ev
+    else case unionArms read (read ev) alts of
+           Just u => u
+           Nothing => bs
 
   ||| The context a delayed body reads: the coordination's shared
   ||| after-discourse with the outer clause's targets settled
