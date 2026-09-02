@@ -402,17 +402,19 @@ mutual
     ||| moment that act completes, which `AttachTo` writes as an
     ||| instruction and this row watches for.
     ||| 10 supported lines write it (measured 2026-09-02): 7 as this
-    ||| trigger header and 3 as the replacement-shaped "As this Equipment
-    ||| becomes attached to a creature, choose ..." that no header seat
-    ||| takes -- the "as" clause is [CR#614.12]'s business and is not
-    ||| this row's, so it stays unbuilt and is recorded rather than
-    ||| folded in.
+    ||| trigger header and 3 as "As this Equipment becomes attached to a
+    ||| creature, choose ..." (Psychic Paper, Sanctuary Blade,
+    ||| Paleontologist's Pick-Axe), which is no header at all. That
+    ||| clause is the "as" family [CR#614.1c] and [CR#614.1e] enumerate
+    ||| -- entry and turning face up -- written at an event neither of
+    ||| them names, so what it wants is a replacement seat and a choice,
+    ||| not this row with a different word in front. Recorded, unbuilt.
     ||| The HOST is an argument at every one of them, kind-indexed on
-    ||| [CR#701.3a]'s own words ("onto that object") widened as `AttachTo`
-    ||| widens them: [CR#303.4] attaches an Aura to an object OR a
-    ||| player. No supported header names a player host (0 lines), and
-    ||| the slot is written to the rule rather than to that zero for the
-    ||| effect row's reason.
+    ||| [CR#701.3a]'s own words: the act puts the attachment "onto that
+    ||| object or player", which is the pair `AttachTo` already takes.
+    ||| No supported header names a player host (0 lines), and the slot
+    ||| is written to the rule rather than to that zero for the effect
+    ||| row's reason.
     ||| The host is what the body reads back -- "tap that creature", "for
     ||| as long as this Equipment remains attached to it" -- so it is
     ||| threaded through `nomIntro` and announced.
@@ -435,9 +437,14 @@ mutual
     ||| own predicate, while this one names a participant the body then
     ||| reads back -- "that permanent" at all 4 lines. An event announces
     ||| what it happened to; an instruction describes what to do it to.
-    ||| The host is `Object` and not kind-indexed: [CR#701.3d] states the
-    ||| act of an Equipment leaving a creature, and no supported line
-    ||| unattaches from a player.
+    ||| The host is `Object` and not kind-indexed, and that narrowing is
+    ||| the CORPUS's and not the rule's: [CR#701.3d]'s last sentence
+    ||| reaches a player outright -- "if an Aura, Equipment, or
+    ||| Fortification that was attached to an object or player ceases to
+    ||| be attached to it, that counts as 'becoming unattached [from that
+    ||| object or player]'" -- and all 4 printed headers name a
+    ||| permanent. Widening the slot to `BecomesAttached`'s pair is a
+    ||| one-line change the day a line writes one.
     ||| -- spelling: "[n] becomes unattached from [host]".
     BecomesUnattached : (n : Noun bs Object) ->
                         (host : Noun (nomIntro n) Object) ->

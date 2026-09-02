@@ -18803,3 +18803,73 @@ alluringSuitorPump =
 -- entry rider and a follow-up) and Quicksilver, Brash Blur (its own name
 -- and "him" for "this card" and "it"). Both sit beside the 17 Leylines the
 -- landed row spells and neither is a slot on it.
+
+-- ---------------------------------------------------------------------------
+-- The Room door, and the keyword umbrella's fence-deferred sub-machinery.
+-- Re-measured 2026-09-02 and NOT built.
+-- ---------------------------------------------------------------------------
+--
+-- THE DOOR NOUN, [CR#709.5j]. Declined, and the rule is what declines it: "a
+-- door is a half of that permanent". A half is no object -- [CR#709.5b] makes
+-- "the existence of each half of an object with a shared type line" part of
+-- THAT OBJECT's copiable values, so the halves are values one object has and
+-- not two objects -- and a `NounWord` at kind `Object` would say the
+-- opposite. Nor can the locked/unlocked adjective be a `HasDesignation` read
+-- on the door: [CR#709.5c] gives "left half unlocked" and "right half
+-- unlocked" to the PERMANENT and names the half inside the designation, so
+-- "an unlocked door" is a question about a permanent AND which half, which no
+-- predicate over one referent asks. What the noun costs is therefore a
+-- half-level referent, its relation to the permanent whose half it is, and a
+-- designation read keyed by that half -- the scope fence's own subject and
+-- not a subtype-word-like noun.
+-- The reads waiting on it, re-measured: 4 unlock/lock INSTRUCTIONS ("unlock a
+-- locked door of a Room you control", "unlock a locked door of up to one
+-- target Room you control", and two "Lock or unlock a door of target Room you
+-- control") -- the standing pins at `SpecialAction`'s `UnlockDoor` and at the
+-- `Designation` unlocked pair both say 2 and are SHORT; 2 counting reads
+-- ("two or more unlocked doors among Rooms you control", "eight or more
+-- different names among unlocked doors of Rooms you control"), where the
+-- pins say 3; and 2 mana-spend restrictions naming the act ("unlock a door",
+-- "unlock doors"), which `SpecialAction`'s row already spells.
+--
+-- THE UNLOCK TRIGGER HEADER, [CR#709.5h], 28 lines -- all 28 the identical
+-- string "When you unlock this door,". Declined WITH the noun, on two counts.
+-- Its patient is that same half-level referent, and it is a DEIXIS on it:
+-- "this door" is the half the ability is printed on, so what fixes the
+-- appropriate designation [CR#709.5h] reads is the ability's position and not
+-- a written noun. And it has no carrier to be printed on -- `SplitCard` is
+-- [CR#709.1]'s ordinary split card, where [CR#709.5] describes a permanent
+-- card with a SHARED type line whose two static abilities, shared subtypes
+-- [CR#709.5a] and copiable half existence [CR#709.5b] the card layer does not
+-- model. A header row no card can carry is what the open-catalog ruling
+-- refuses. The neighbouring [CR#709.5i] header ("whenever you fully unlock a
+-- Room", 16 lines, every one of them an Eerie ability word) waits on exactly
+-- the same two things.
+-- Landed already and not re-litigated: the two designations [CR#709.5c] and
+-- `SpecialAction`'s `UnlockDoor` [CR#116.2m,709.5e]; `Macros.thisRoom` and
+-- the `Room` word (`glassworksTrigger`).
+--
+-- THE FENCE-DEFERRED FOUR, re-recorded with fresh counts and no design:
+--
+-- CREW's full crewing, 180 "Crew N" lines. [CR#702.122a] expands the word
+-- into an activated ability whose cost is "Tap any number of other untapped
+-- creatures you control with total power N or greater" -- a chosen-set
+-- payment sized by an aggregate over the set it chooses, which is a cost
+-- shape and not a keyword row.
+--
+-- STATION's symbols, 31 "Station" lines and 46 symbol rows ("N+", from "1+"
+-- to "20+"). [CR#702.184b] makes each symbol its own keyword ability on a
+-- nonstandard layout, so no station card comes whole with the word alone --
+-- which is why `keywordFacts` still has no "Station" row. This grammar's
+-- `ChapterMark` question asked again, one ladder up.
+--
+-- THE CLASS LEVEL LADDER, 68 "{cost}: Level N" bars. [CR#716.2] makes the
+-- level bar a keyword ability stated outside [CR#702] -- the same standing
+-- the `KeywordLabel` docstring cites for `ChapterMark` -- and what it needs
+-- is the level counter's ladder, not a catalog row.
+--
+-- THE CASE PAIR, 13 "To solve --" lines and 13 "Solved --". [CR#719.3] gives
+-- a Case card "two special keyword abilities that appear before a long dash
+-- and represent a triggered ability and an ability that may be static,
+-- triggered, or activated", and [CR#702.169a] makes "Solved" the second of
+-- them. Two ability seats on one card's own layout, not one word.

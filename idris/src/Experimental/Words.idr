@@ -4606,11 +4606,14 @@ data ManaUnit : Type where
 ||| `LeftHalfUnlocked` and `RightHalfUnlocked`. The action is named at
 ||| this seat and nowhere else -- it is not taken, because taking one is
 ||| a player's choice in play and no card face writes an instruction to
-||| take it. The 2 supported lines that instruct an unlock ("unlock a
-||| locked door of up to one target Room you control", "Lock or unlock a
-||| door of target Room you control") are [CR#709.5f]/[CR#709.5g]
-||| EFFECTS rather than this special action, and they wait on the door
-||| noun [CR#709.5j] the Room scope fence left out.
+||| take it. The 4 supported lines that instruct an unlock (re-measured
+||| 2026-09-02; the count was 2) are [CR#709.5f]/[CR#709.5g] EFFECTS
+||| rather than this special action -- two "unlock a locked door of ... a
+||| Room you control" and two "Lock or unlock a door of target Room you
+||| control" -- and they wait on the door noun [CR#709.5j] the Room scope
+||| fence left out. Two further lines name the ACT inside a mana-spend
+||| restriction ("unlock a door", "unlock doors"), which is this row's
+||| own reading and needs no noun.
 ||| -- spelling: "to turn permanents face up", "to foretell cards", "to
 ||| unlock doors".
 public export
