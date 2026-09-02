@@ -15308,14 +15308,12 @@ autarchMammothLine =
 ||| reached it is the concurrent clause: the zone is named INSIDE the
 ||| trigger condition, unmarked by a comma, so it is part of what
 ||| triggered [CR#603.1,603.2] rather than [CR#603.4]'s intervening "if".
-||| The card is still not whole, and its blocker moved rather than
-||| cleared: "Suspend 4—{1}{U}" has no `keywordFacts` row because
-||| [CR#702.62a]'s "Suspend N—[cost]" writes a COMPOUND parameter -- a
-||| count of time counters beside a cost, and a counter count is no
-||| component of one -- where craft's two printed slots are two
-||| components of the one activation cost [CR#702.167a] writes out.
-||| `KeywordParamShape` has no compound arm, and minting one is the
-||| restricted equip line's decision [CR#702.6c], not this row's.
+||| The card is WHOLE at `veilingOddity` now that the compound parameter
+||| has a shape and "Suspend" a row; this name stays because the
+||| concurrent clause is what the trigger round bought. Craft is still
+||| not that shape and never was: [CR#702.167a]'s two printed slots are
+||| two components of the one activation cost [CR#118.1] describes,
+||| where [CR#702.62a] writes a counter count BESIDE a cost.
 public export
 veilingOddityLine : Ability
 veilingOddityLine =
@@ -16772,6 +16770,133 @@ embercleave =
                          , Gains (AttachHost Equipped (TypeW Creature))
                                  (Macros.keyword "Trample") ])
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
+       Nothing
+
+||| Steelclaw Lance, whole -- "Equipped creature gets +2/+2. / Equip
+||| Knight {1} / Equip {3}". THE COMPOUND KEYWORD PARAMETER's first
+||| witness, and the one that shows why the head is optional rather than
+||| a second word: [CR#702.6c]'s restriction and [CR#702.6a]'s bare cost
+||| are printed on ONE card, one under the other, and `paramShapeFits`
+||| is what admits both against the single "Equip" row.
+public export
+steelclawLance : Card
+steelclawLance =
+  Macros.card "Steelclaw Lance" (Just [Macros.pip Black, Macros.pip Red]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Static (Gets (AttachHost Equipped (TypeW Creature))
+                      (PtUp (Lit 2)) (PtUp (Lit 2)))
+       , Macros.keywordQualityCosting "Equip"
+           (HasSubtype (creatureType "Knight")) (Mana [Macros.generic 1])
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
+       Nothing
+
+||| Commander's Plate's equip lines -- "Equip commander {3} / Equip
+||| {5}". The compound head at the one printed spelling that is no
+||| creature type: [CR#903.3] makes the commander designation "an
+||| attribute of the card itself", which `HasCardDesignation` reads and
+||| [CR#702.6c] admits as the quality the ability's target must have.
+||| The card is not whole for its other line -- "protection from each
+||| color that's not in your commander's color identity" quantifies
+||| protection over a colour set read off another object, which is the
+||| keyword CLASS term's parameter left open per member rather than
+||| narrowed by a sort, and no seat spells that.
+public export
+commandersPlateEquip : List Ability
+commandersPlateEquip =
+  [ Macros.keywordQualityCosting "Equip"
+      (HasCardDesignation CommanderD) (Mana [Macros.generic 3])
+  , Macros.keywordCosting "Equip" (Mana [Macros.generic 5]) ]
+
+||| Luxior, Giada's Gift's equip lines -- "Equip planeswalker {1} /
+||| Equip {3}". [CR#702.6e]'s VARIANT at the same printed shape:
+||| "'Equip planeswalker [cost]' means '[Cost]: Attach this permanent to
+||| target planeswalker you control as though that planeswalker were a
+||| creature'", which is a different ability from [CR#702.6c]'s target
+||| restriction and not a narrowing of it. It is written with the same
+||| parameter anyway, on the catalog's founding principle: a row records
+||| what the card PRINTS after the word, and which rule reads the head
+||| is the word's own business. The card's remaining line
+||| (`luxiorTypeSetting`) is benched on its own.
+public export
+luxiorEquipLines : List Ability
+luxiorEquipLines =
+  [ Macros.keywordQualityCosting "Equip"
+      (HasType Planeswalker) (Mana [Macros.generic 1])
+  , Macros.keywordCosting "Equip" (Mana [Macros.generic 3]) ]
+
+||| Veiling Oddity, WHOLE -- "Suspend 4--{1}{U} / When the last time
+||| counter is removed from this card while it's exiled, creatures can't
+||| be blocked this turn." The compound's second payer, and the card
+||| whose last blocker it was: [CR#702.62a]'s count and cost, written as
+||| the two things they are.
+public export
+veilingOddity : Card
+veilingOddity =
+  Macros.card "Veiling Oddity"
+       (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Illusion"] [Creature])
+       [ Macros.keywordNumberCosting "Suspend" (Lit 4)
+           (Mana [Macros.generic 1, Macros.pip Blue])
+       , veilingOddityLine ]
+       (Just (2, 3))
+
+||| Enormous Energy Blade, whole -- "Equipped creature gets +4/+0. /
+||| Whenever this Equipment becomes attached to a creature, tap that
+||| creature. / Equip {2}". THE ATTACHMENT EVENT's first witness, and the
+||| shortest one: [CR#701.3a]'s act watched for rather than instructed,
+||| with the host read straight back by the body.
+public export
+enormousEnergyBlade : Card
+enormousEnergyBlade =
+  Macros.card "Enormous Energy Blade"
+       (Just [Macros.generic 2, Macros.pip Black]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Static (Gets (AttachHost Equipped (TypeW Creature))
+                      (PtUp (Lit 4)) (PtUp (Lit 0)))
+       , Macros.triggered Whenever
+           (BecomesAttached Macros.thisEquipment (Macros.a Macros.creature))
+           (Macros.tap (That (TypeW Creature)))
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
+       Nothing
+
+||| Bramble Elemental, whole -- "Whenever an Aura becomes attached to
+||| this creature, create two 1/1 green Saproling creature tokens." The
+||| same event read from the HOST's side: what becomes attached is
+||| described and the host is this creature, which is the reverse of the
+||| Equipment lines' arrangement and the same row. [CR#303.4] is why an
+||| Aura stands at the subject seat that [CR#701.3a] opens to "an Aura,
+||| Equipment, or Fortification".
+public export
+brambleElemental : Card
+brambleElemental =
+  Macros.card "Bramble Elemental"
+       (Just [Macros.generic 3, Macros.pip Green, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Elemental"] [Creature])
+       [ Macros.triggered Whenever
+           (BecomesAttached (Macros.a (HasSubtype (enchantmentType "Aura")))
+                            Macros.thisCreature)
+           (Macros.create (Lit 2)
+              (Macros.creatureTok 1 1 [Green] [creatureType "Saproling"])) ]
+       (Just (4, 4))
+
+||| Grafted Wargear, whole -- "Equipped creature gets +3/+2. / Whenever
+||| this Equipment becomes unattached from a permanent, sacrifice that
+||| permanent. / Equip {0}". THE UNATTACHMENT EVENT's witness.
+||| [CR#701.3d] names the act and its last sentence is the event this
+||| header watches; the host is a slot here because "that permanent" is
+||| what the body then destroys, where `Unattach`'s printed "from"
+||| phrase describes which attachment to move and announces nothing.
+public export
+graftedWargear : Card
+graftedWargear =
+  Macros.card "Grafted Wargear" (Just [Macros.generic 3]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Static (Gets (AttachHost Equipped (TypeW Creature))
+                      (PtUp (Lit 3)) (PtUp (Lit 2)))
+       , Macros.triggered Whenever
+           (BecomesUnattached Macros.thisEquipment (Macros.a Permanent))
+           (Macros.sacrifice You (That PermanentW))
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 0]) ]
        Nothing
 
 ||| Stone Haven Outfitter, whole -- "Equipped creatures you control get

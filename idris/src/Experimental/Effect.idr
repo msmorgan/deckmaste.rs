@@ -4971,8 +4971,28 @@ mutual
                    {auto 0 pk : So (qualityParamKind k)} ->
                    KeywordParam bs
     ParamSubject : {k : Kind} -> (p : Predicate [] k) -> KeywordParam bs
-    ParamNumber : (amt : Amount []) -> 
+    ParamNumber : (amt : Amount []) ->
                   KeywordParam bs
+    ||| "Equip Knight {1}", "Equip commander {3}", "Equip planeswalker
+    ||| {1}": the head [CR#702.6c] writes before the cost. The predicate
+    ||| is fixed at `Object` where `ParamQuality`'s is kind-indexed, and
+    ||| the rule is why: [CR#702.6c] restricts "what creatures may be
+    ||| chosen as legal targets", and [CR#702.6e]'s variant names a
+    ||| planeswalker -- both objects, where [CR#702.16k]'s
+    ||| protection-from-a-player has no counterpart here.
+    ||| It does NOT compose with the attachment. [CR#702.6c]'s last
+    ||| sentence -- "Additional restrictions for an equip ability don't
+    ||| restrict what the Equipment may be attached to" -- makes the head
+    ||| the ability's TARGET restriction and nothing the attach step
+    ||| reads, which is why it rides here and not on `AttachTo`.
+    ParamQualityCost : (p : Predicate bs Object) -> (cost : Cost []) ->
+                       KeywordParam bs
+    ||| "Suspend 4--{1}{U}", "Suspend X--{X}{W}{W}": [CR#702.62a]'s count
+    ||| beside its cost. The count is the number of time counters the
+    ||| card is exiled with, so it is no component of the cost paid to
+    ||| exile it, and the two are written as two.
+    ParamNumberCost : (amt : Amount []) -> (cost : Cost []) ->
+                      KeywordParam bs
 
   public export
   paramShapeOf : {0 bs : Bindings} -> Maybe (KeywordParam bs) -> KeywordParamShape
@@ -4981,12 +5001,19 @@ mutual
   paramShapeOf (Just (ParamQuality _)) = QualityParam
   paramShapeOf (Just (ParamSubject _)) = SubjectParam
   paramShapeOf (Just (ParamNumber _)) = NumberParam
+  paramShapeOf (Just (ParamQualityCost _ _)) = CompoundParam QualityHead
+  paramShapeOf (Just (ParamNumberCost _ _)) = CompoundParam NumberHead
 
   public export
   keywordParamFits : {0 bs : Bindings} -> KeywordLabel -> Maybe (KeywordParam bs) -> Bool
   -- Knownness is folded in, so this ONE gate refuses a typo as well as a
   -- mismatched parameter: an unknown word has no parameter shape to fit.
-  keywordParamFits k p = knownKeyword k && keywordParamShape k == paramShapeOf p
+  -- The comparison is `paramShapeFits` and not equality for one word's
+  -- sake: [CR#702.6c] makes equip's head a restriction an ability MAY
+  -- write, so "Equip {3}" and "Equip Knight {1}" are one row's two
+  -- spellings.
+  keywordParamFits k p =
+    knownKeyword k && paramShapeFits (keywordParamShape k) (paramShapeOf p)
 
   public export
   KeywordParamFits : KeywordLabel -> Maybe (KeywordParam bs) -> Type
@@ -5406,6 +5433,12 @@ mutual
   ||| Fallen and Infantry Shield. Only the number parameter can carry a
   ||| letter -- a cost's {X} is announced as the spell is cast
   ||| [CR#107.3a] and is not this text's to define.
+  ||| The COMPOUND's count is not this slot, and the same sentence says
+  ||| why. 5 supported lines write "Suspend X--[cost]" (measured
+  ||| 2026-09-02) and every one of them writes {X} in the cost beside it,
+  ||| so the letter is the COST's announcement [CR#107.3a] and the count
+  ||| reads the value it was paid at -- a read, never a definition. So
+  ||| the compound arms open no letter and the catch-all answers them.
   ||| Monstrosity's five "{X}{X}{G}: Monstrosity X" lines are NOT this:
   ||| there the letter is the activation cost's, and [CR#701.37c] makes
   ||| the permanent's other abilities read the value X had as it became

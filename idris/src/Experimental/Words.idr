@@ -3552,6 +3552,44 @@ public export
 KeywordLabel : Type
 KeywordLabel = String
 
+||| What a COMPOUND keyword parameter writes BEFORE its cost. The two
+||| words whose rules write one disagree on the head's sort and on
+||| nothing else, so the sort is the arm and the rest of the compound --
+||| a cost, always -- is the shape's own.
+|||
+||| [CR#702.6c] is the quality head: "Equip abilities may further
+||| restrict what creatures may be chosen as legal targets. Such
+||| restrictions usually appear in the form 'Equip [quality]' or 'Equip
+||| [quality] creature.'" The same rule's last sentence is why the head
+||| is no part of the attachment -- "Additional restrictions for an
+||| equip ability don't restrict what the Equipment may be attached to"
+||| -- so it narrows the TARGET and composes with nothing below.
+||| [CR#702.62a] is the number head: "Suspend N--[cost]" exiles the card
+||| "with N time counters on it" after [cost] is paid, so the count sits
+||| beside the cost and is no component of one.
+public export
+data CompoundHead = QualityHead | NumberHead
+
+public export
+Eq CompoundHead where
+  (==) QualityHead QualityHead = True
+  (==) QualityHead _ = False
+  (==) NumberHead NumberHead = True
+  (==) NumberHead _ = False
+
+||| Whether the word's own rule makes the head a CHOICE, so that a line
+||| writing the cost alone still writes that word's parameter.
+||| [CR#702.6c] says equip abilities "MAY further restrict" their
+||| targets, and the corpus writes both forms on one card -- Steelclaw
+||| Lance prints "Equip Knight {1}" and "Equip {3}", Commander's Plate
+||| "Equip commander {3}" and "Equip {5}". [CR#702.62a] states "Suspend
+||| N--[cost]" as the whole of what the word means, so no line writes
+||| suspend without its count.
+public export
+compoundHeadOptional : CompoundHead -> Bool
+compoundHeadOptional QualityHead = True
+compoundHeadOptional NumberHead = False
+
 ||| The shape of the parameter a keyword's own rule writes after the
 ||| word. `AbilityParam` is the one that names no value: [CR#702.142a],
 ||| [CR#702.177a] and [CR#702.193a] each read "a keyword that adds
@@ -3561,9 +3599,21 @@ KeywordLabel = String
 ||| such a word from ever being written as a keyword LINE -- none of the
 ||| three ever stands alone -- while still letting `AbilityClass`'
 ||| `KeywordClass` name it.
+|||
+||| `CompoundParam` is the one arm that is not a single value: a head
+||| and a cost, written side by side. ONE arm and not one per word,
+||| because the two rules that write a compound write the SAME compound
+||| and differ only in the head's sort, which the arm carries as data --
+||| the same reading that makes `keywordFacts` one table and not one
+||| type per word. What it is NOT is craft: [CR#702.167a] writes "Craft
+||| with [materials] [cost]" and expands it to an activated ability
+||| whose cost is "[Cost], Exile this permanent, Exile [materials] ...",
+||| so both printed slots are components of the ONE activation cost
+||| [CR#118.1] describes, and craft's row stays `CostParam`.
 public export
 data KeywordParamShape = NoParam | CostParam | QualityParam | SubjectParam
                        | NumberParam | AbilityParam
+                       | CompoundParam CompoundHead
 
 public export
 Eq KeywordParamShape where
@@ -3579,6 +3629,20 @@ Eq KeywordParamShape where
   (==) NumberParam _ = False
   (==) AbilityParam AbilityParam = True
   (==) AbilityParam _ = False
+  (==) (CompoundParam a) (CompoundParam b) = a == b
+  (==) (CompoundParam _) _ = False
+
+||| Whether the parameter a LINE writes fits the shape the word's own
+||| rule states. Equality everywhere but one cell: a compound whose head
+||| the rule makes optional is also written as the bare cost, and both
+||| spellings are that word's parameter rather than two words' -- which
+||| is why this is a relation between shapes and not a second
+||| `keywordFacts` row per spelling (`keywordFactsIn` takes the first
+||| row a word has, so a word has exactly one).
+public export
+paramShapeFits : KeywordParamShape -> KeywordParamShape -> Bool
+paramShapeFits (CompoundParam h) CostParam = compoundHeadOptional h
+paramShapeFits want got = want == got
 
 ||| Which KINDS a quality parameter may describe. [CR#702.16a] writes
 ||| the quality as "any characteristic value or information", which
@@ -3680,13 +3744,6 @@ record KeywordFacts where
 |||   consumer ("if its prowl cost was paid", 4 lines; "if its
 |||   freerunning cost was paid", 1), and `PaidCost` reaches a word
 |||   through `keywordCosts` and not through a macro below.
-||| * SUSPEND, whose parameter is COMPOUND. [CR#702.62a] writes
-|||   "Suspend N--[cost]" and expands it to an exile "with N time
-|||   counters on it" after paying [cost]: a counter count beside a cost,
-|||   and a counter count is no component of one. `KeywordParamShape` has
-|||   no compound arm, and minting one is the same decision the
-|||   restricted equip line's "[quality] [cost]" [CR#702.6c] asks -- one
-|||   decision for both, taken with a witness or not at all.
 ||| * STATION. [CR#702.184a]'s "Station" takes no parameter and would be
 |||   a bare row, but every printed station card also writes the station
 |||   SYMBOLS [CR#702.184b] -- themselves keyword abilities, on a
@@ -3724,7 +3781,34 @@ keywordFacts =
   , MkKeywordFacts "Ward"             CostParam    False Nothing             True  False False
   , MkKeywordFacts "Protection"       QualityParam False Nothing             True  False False
   , MkKeywordFacts "Enchant"          SubjectParam False Nothing             True  False False
-  , MkKeywordFacts "Equip"            CostParam    False Nothing             True  False False
+  -- THE COMPOUND PARAMETER's first payer. [CR#702.6a] writes "Equip
+  -- [cost]" and [CR#702.6c] lets the ability "further restrict what
+  -- creatures may be chosen as legal targets", printed as "Equip
+  -- [quality] [cost]". Re-measured 2026-09-02: 21 supported lines write
+  -- a head, over 19 distinct spellings -- 20 of them [CR#702.6c]'s
+  -- quality (Steelclaw Lance's "Equip Knight {1}", Commander's Plate's
+  -- "Equip commander {3}", "Equip legendary creature" at 5) and one
+  -- [CR#702.6e]'s "Equip planeswalker {1}" (Luxior, Giada's Gift). That
+  -- last is a VARIANT ability and not a target restriction, and it is
+  -- written here anyway on the catalog's own principle: the row records
+  -- the printed parameter's SHAPE, and which rule reads the head is the
+  -- word's business, exactly as `KeywordLabel` leaves flying's meaning
+  -- to [CR#702.9a].
+  , MkKeywordFacts "Equip"            (CompoundParam QualityHead)
+                                                   False Nothing             True  False False
+  -- The compound's second payer, and the arm that made the row
+  -- writable: [CR#702.62a]'s "Suspend N--[cost]". 70 supported lines
+  -- print it over 53 distinct N-and-cost pairs (measured 2026-09-02), 5
+  -- of them with the count at {X} ("Suspend X--{X}{W}{W}").
+  -- [CR#702.62a] makes the first of suspend's three abilities a static
+  -- ability functioning in the HAND, and the exile action it grants
+  -- "doesn't use the stack" -- so the word acts before its object is
+  -- ever cast, and the stack question `regime` asks does not arise.
+  -- Both card classes print it: a creature card (Deep-Sea Kraken) and
+  -- an instant or sorcery (Ancestral Vision) alike, since the ability
+  -- that reads the word functions where the card is.
+  , MkKeywordFacts "Suspend"          (CompoundParam NumberHead)
+                                                   False Nothing             True  True  False
   , MkKeywordFacts "Ascend"           NoParam      False Nothing             True  True  False
   , MkKeywordFacts "Storied"          NoParam      False Nothing             True  False True
   , MkKeywordFacts "Renown"           NumberParam  False Nothing             True  False False
@@ -3811,6 +3895,22 @@ keywordFacts =
   -- rule speaks of a permanent.
   , MkKeywordFacts "Fear"             NoParam      False Nothing             True  False False
   , MkKeywordFacts "Shroud"           NoParam      False Nothing             True  False False
+  -- The combat pair the ability LOSS buys. [CR#702.22a] makes banding "a
+  -- static ability that modifies the rules for combat" and writes no
+  -- slot after the word; 40 supported lines print or grant it.
+  -- [CR#702.22b] makes "bands with other" "a special form of banding",
+  -- and [CR#702.22c] writes it with a slot -- "bands with other
+  -- [quality]" -- which is the quality payload and not a second bare
+  -- word: 8 supported lines write it, 6 granting it in a quotation
+  -- ("bands with other legendary creatures" at 5, "bands with other
+  -- creatures named Wolves of the Hunt" at 1) and 2 taking it away
+  -- (re-measured 2026-09-02). The same [CR#702.22b] is
+  -- why Tolaria's line names both -- "If an effect causes a permanent
+  -- to lose banding, the permanent loses all 'bands with other'
+  -- abilities as well" -- and neither is named by [CR#122.1b]'s
+  -- keyword-counter list.
+  , MkKeywordFacts "Banding"          NoParam      False Nothing             True  False False
+  , MkKeywordFacts "BandsWithOther"   QualityParam False Nothing             True  False False
   -- [CR#702.14a] makes landwalk "a generic term that appears within an
   -- object's rules text as '[type]walk'", and [CR#702.14c] reads the
   -- ability off "the specified land type". So the LAND TYPE is the
@@ -4022,9 +4122,15 @@ keywordParamShape k = maybe NoParam paramShape (keywordFactsFor k)
 ||| Whether the word names a cost -- its rule writes a cost where another
 ||| word writes a number or nothing [CR#118.1]. Fail-closed through
 ||| `keywordParamShape`, so an unknown word names no cost.
+||| A compound parameter names one too: its head is written BESIDE a
+||| cost, never instead of one, so both arms answer the same question
+||| the same way.
 public export
 keywordCosts : KeywordLabel -> Bool
-keywordCosts k = keywordParamShape k == CostParam
+keywordCosts k = case keywordParamShape k of
+  CostParam => True
+  CompoundParam _ => True
+  _ => False
 
 ||| Known AND written bare: an unknown word is not a parameterless
 ||| keyword, it is no keyword.

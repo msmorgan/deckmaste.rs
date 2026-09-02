@@ -392,6 +392,57 @@ mutual
                      (by : Maybe (Noun (nomIntro n) Object)) ->
                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                      {auto 0 bp : BlockPartner by} -> GameEvent bs
+    ||| "Whenever this Equipment becomes attached to a creature",
+    ||| "Whenever an Aura becomes attached to this creature", "Whenever
+    ||| an Aura you control becomes attached to a nonland permanent an
+    ||| opponent controls ...": the attachment read as the EVENT it is.
+    ||| [CR#701.3a] states the act -- "to attach an Aura, Equipment, or
+    ||| Fortification to an object means to take it from where it
+    ||| currently is and put it onto that object" -- and this is the
+    ||| moment that act completes, which `AttachTo` writes as an
+    ||| instruction and this row watches for.
+    ||| 10 supported lines write it (measured 2026-09-02): 7 as this
+    ||| trigger header and 3 as the replacement-shaped "As this Equipment
+    ||| becomes attached to a creature, choose ..." that no header seat
+    ||| takes -- the "as" clause is [CR#614.12]'s business and is not
+    ||| this row's, so it stays unbuilt and is recorded rather than
+    ||| folded in.
+    ||| The HOST is an argument at every one of them, kind-indexed on
+    ||| [CR#701.3a]'s own words ("onto that object") widened as `AttachTo`
+    ||| widens them: [CR#303.4] attaches an Aura to an object OR a
+    ||| player. No supported header names a player host (0 lines), and
+    ||| the slot is written to the rule rather than to that zero for the
+    ||| effect row's reason.
+    ||| The host is what the body reads back -- "tap that creature", "for
+    ||| as long as this Equipment remains attached to it" -- so it is
+    ||| threaded through `nomIntro` and announced.
+    ||| -- spelling: "[n] becomes attached to [host]".
+    BecomesAttached : {k : Kind} -> (n : Noun bs Object) ->
+                      (host : Noun (nomIntro n) k) ->
+                      {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                      {auto 0 hk : So (kindLte k (Object \/ Player))} ->
+                      GameEvent bs
+    ||| "Whenever this Equipment becomes unattached from a permanent,
+    ||| sacrifice that permanent" (3 lines) and "... destroy that
+    ||| permanent" (1): [CR#701.3d]'s act read as an event -- "to
+    ||| 'unattach' an Equipment from a creature means to move it away
+    ||| from that creature so the Equipment is on the battlefield but is
+    ||| not equipping anything". 4 supported lines, all of them this
+    ||| header, all naming the host (measured 2026-09-02).
+    ||| The HOST IS A SLOT HERE where `Unattach` has none, and the two
+    ||| are not in tension: the effect's printed "from [host]" phrase
+    ||| narrows WHICH attachment to move and is the described object's
+    ||| own predicate, while this one names a participant the body then
+    ||| reads back -- "that permanent" at all 4 lines. An event announces
+    ||| what it happened to; an instruction describes what to do it to.
+    ||| The host is `Object` and not kind-indexed: [CR#701.3d] states the
+    ||| act of an Equipment leaving a creature, and no supported line
+    ||| unattaches from a player.
+    ||| -- spelling: "[n] becomes unattached from [host]".
+    BecomesUnattached : (n : Noun bs Object) ->
+                        (host : Noun (nomIntro n) Object) ->
+                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                        GameEvent bs
     DealsCombatDamage : {k : Kind} -> (n : Noun bs Object) ->
                         (to : Noun (nomIntro n) k) ->
                         {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -782,6 +833,8 @@ mutual
   eventName (AttacksWith _ _ _) = AttackDeclaration
   eventName (Blocks _ _) = BlockDeclaration
   eventName (BecomesBlocked _ _) = BlockedDeclaration
+  eventName (BecomesAttached _ _) = Attachment
+  eventName (BecomesUnattached _ _) = Unattachment
   eventName (DealsCombatDamage _ _) = CombatDamage
   eventName (DealsDamage _ _) = DamageDealing
   eventName (BeginningOf _ _) = PartBeginning
@@ -841,6 +894,14 @@ mutual
   eventIntro (Blocks _ (Just what)) = selfSubjIntro what
   eventIntro (BecomesBlocked n Nothing) = selfSubjIntro n
   eventIntro (BecomesBlocked _ (Just by)) = selfSubjIntro by
+  -- the HOST is what the body names -- "tap that creature", "sacrifice
+  -- that permanent", "for as long as this Equipment remains attached to
+  -- it" -- and it is written last, so it stands where the clause left
+  -- off. The attached object stays reachable through it: `host` is
+  -- described at `nomIntro n`, so the subject's own mention is already
+  -- inside the discourse this chains from.
+  eventIntro (BecomesAttached _ host) = selfSubjIntro host
+  eventIntro (BecomesUnattached _ host) = selfSubjIntro host
   eventIntro (DealsCombatDamage n to) = outcomeB DamageDealt :: selfSubjIntro to
   eventIntro (DealsDamage n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
   eventIntro (DealsDamage _ (OnePatient m)) = outcomeB DamageDealt :: selfSubjIntro m
@@ -918,6 +979,8 @@ mutual
   eventAfter (Blocks _ (Just what)) = nomIntro what
   eventAfter (BecomesBlocked n Nothing) = selfSubjIntro n
   eventAfter (BecomesBlocked _ (Just by)) = nomIntro by
+  eventAfter (BecomesAttached _ host) = nomIntro host
+  eventAfter (BecomesUnattached _ host) = nomIntro host
   eventAfter (DealsCombatDamage n to) = outcomeB DamageDealt :: nomIntro to
   eventAfter (DealsDamage n NoPatient) = outcomeB DamageDealt :: selfSubjIntro n
   eventAfter (DealsDamage _ (OnePatient m)) = outcomeB DamageDealt :: nomIntro m
@@ -983,6 +1046,8 @@ mutual
   eventSubjectPlur (AttacksWith who _ _) = nounPlur who
   eventSubjectPlur (Blocks n _) = nounPlur n
   eventSubjectPlur (BecomesBlocked n _) = nounPlur n
+  eventSubjectPlur (BecomesAttached n _) = nounPlur n
+  eventSubjectPlur (BecomesUnattached n _) = nounPlur n
   eventSubjectPlur (DealsCombatDamage n _) = nounPlur n
   eventSubjectPlur (DealsDamage n _) = nounPlur n
   eventSubjectPlur (BeginningOf _ _) = OneOf

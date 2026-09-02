@@ -22,6 +22,13 @@ data EventName = Death | Departure | DamageTaken
                | CardDrawn | Entry | AttackDeclaration | BlockDeclaration
                | CombatDamage | PartBeginning | SpellCast | StatusChange
                | TurnedFaceUp | PhasingChange | BlockedDeclaration
+               -- the two ends of an attachment, as two names on
+               -- `CounterPlacement`/`CounterRemoval`'s model: [CR#701.3a]
+               -- puts an Aura, Equipment or Fortification onto an object
+               -- and [CR#701.3d] moves an Equipment away from one, and a
+               -- name-keyed table has to be able to answer about each on
+               -- its own.
+               | Attachment | Unattachment
                | LastCounterRemoval | LifeGain | LifeLoss | TimeShift
                | Placement
                | CounterPlacement | CounterRemoval
@@ -223,6 +230,10 @@ sameEventName PhasingChange PhasingChange = True
 sameEventName PhasingChange _ = False
 sameEventName BlockedDeclaration BlockedDeclaration = True
 sameEventName BlockedDeclaration _ = False
+sameEventName Attachment Attachment = True
+sameEventName Attachment _ = False
+sameEventName Unattachment Unattachment = True
+sameEventName Unattachment _ = False
 sameEventName LastCounterRemoval LastCounterRemoval = True
 sameEventName LastCounterRemoval _ = False
 sameEventName Placement Placement = True
@@ -388,6 +399,10 @@ eventHasMagnitude StatusChange = False
 eventHasMagnitude TurnedFaceUp = False
 eventHasMagnitude PhasingChange = False
 eventHasMagnitude BlockedDeclaration = False
+-- [CR#701.3a] and [CR#701.3d] each move ONE object onto or away from
+-- one other; neither states a number, so neither happens in an amount.
+eventHasMagnitude Attachment = False
+eventHasMagnitude Unattachment = False
 eventHasMagnitude LastCounterRemoval = False
 eventHasMagnitude TimeShift = False
 eventHasMagnitude Placement = False
@@ -500,6 +515,14 @@ lookbackSubjectOk PhasingChange Object = False
 lookbackSubjectOk PhasingChange Player = False
 lookbackSubjectOk BlockedDeclaration Object = True
 lookbackSubjectOk BlockedDeclaration Player = False
+-- what becomes attached or unattached is an Aura, Equipment or
+-- Fortification [CR#701.3a] -- an object, never a player. Both cells are
+-- at zero in the corpus and the object cell is opened by the rule
+-- rather than by a line, exactly as `Placement`'s is.
+lookbackSubjectOk Attachment Object = True
+lookbackSubjectOk Attachment Player = False
+lookbackSubjectOk Unattachment Object = True
+lookbackSubjectOk Unattachment Player = False
 lookbackSubjectOk LastCounterRemoval Object = False
 lookbackSubjectOk LastCounterRemoval Player = False
 -- "a creature card was put into your graveyard from anywhere this turn":

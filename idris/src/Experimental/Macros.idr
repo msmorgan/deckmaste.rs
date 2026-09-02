@@ -1922,6 +1922,26 @@ keywordNumber : {0 bs : Bindings} -> (kw : KeywordLabel) -> (amt : Amount []) ->
                 AbilityAt bs
 keywordNumber kw amt = KeywordAbility kw (Just (ParamNumber amt)) {pf}
 
+||| "Equip Knight {1}", "Equip planeswalker {1}": a keyword whose
+||| parameter is [CR#702.6c]'s restricting quality and then the cost.
+public export
+keywordQualityCosting : {0 bs : Bindings} -> (kw : KeywordLabel) ->
+                        (q : Predicate bs Object) -> (c : Cost []) ->
+                        {auto 0 pf : KeywordParamFits kw
+                                       (Just (ParamQualityCost q c))} ->
+                        AbilityAt bs
+keywordQualityCosting kw q c = KeywordAbility kw (Just (ParamQualityCost q c)) {pf}
+
+||| "Suspend 4--{1}{U}": a keyword whose parameter is [CR#702.62a]'s
+||| count and then the cost.
+public export
+keywordNumberCosting : {0 bs : Bindings} -> (kw : KeywordLabel) ->
+                       (amt : Amount []) -> (c : Cost []) ->
+                       {auto 0 pf : KeywordParamFits {bs} kw
+                                      (Just (ParamNumberCost {bs} amt c))} ->
+                       AbilityAt bs
+keywordNumberCosting kw amt c = KeywordAbility kw (Just (ParamNumberCost amt c)) {pf}
+
 ||| "[word] — [ab]" where the word is one of [CR#207.2c]'s enumerated
 ||| ability words. The phrase name over `ItalicHead`.
 public export
