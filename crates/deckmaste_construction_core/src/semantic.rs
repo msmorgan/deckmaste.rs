@@ -2262,8 +2262,7 @@ impl SemanticPlan {
                     };
                     construction
                         .field(&identifier_key(field))
-                        .ok()
-                        .is_some_and(|field| {
+                        .is_ok_and(|field| {
                             field.kind() == ConstructionFieldKind::Category
                                 && (self.sum_carries_agreement(field.terminal())
                                     || self.category_carries_agreement(field.terminal()))
