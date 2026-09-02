@@ -18850,8 +18850,8 @@ cloudspireCaptainCrewLine =
 
 ||| Revoke Privileges, whole card -- "Enchant creature / Enchanted
 ||| creature can't attack, block, or crew Vehicles." The PER-DEED
-||| complement's own sentence, 4 supported lines over 3 cards (this,
-||| Bound in Gold, Intercessor's Arrest, the last two writing "enchanted
+||| complement's own sentence, 3 supported lines over 3 cards (this,
+||| Bound in Gold, Intercessor's Arrest; the last two write "enchanted
 ||| permanent" and a second clause about activated abilities).
 ||| [CR#506.3] admits only a planeswalker or a battle at an attack's
 ||| patient, so "Vehicles" checked against every coordinated deed fails
@@ -18966,3 +18966,82 @@ harriedSpearguard =
 -- and represent a triggered ability and an ability that may be static,
 -- triggered, or activated", and [CR#702.169a] makes "Solved" the second of
 -- them. Two ability seats on one card's own layout, not one word.
+
+
+||| Arrest, whole card -- "Enchant creature / Enchanted creature can't
+||| attack or block, and its activated abilities can't be activated."
+||| THE AURA COORDINATION's anaphoric subject, and the routed item's
+||| answer: nothing was owed. The second conjunct's subject is not an
+||| elided one -- it is the host's abilities, read back with a
+||| possessive -- so `SubjectVP` was never the shape, and `AbilityOf It`
+||| over the mention the first conjunct announced is what the English
+||| writes. [CR#602.2] is the deed and [CR#109.1] leaves an ability no
+||| card type, which is why the second conjunct's subject is bare at the
+||| `Ability` kind.
+||| The `AndAlso` writes the coordination because the two conjuncts share
+||| no verb phrase: one is a restriction on the creature, the other on a
+||| set of abilities it holds.
+public export
+arrest : Card
+arrest =
+  Macros.card "Arrest" (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (AndAlso
+                   [ Macros.deontic (AttachHost Enchanted (TypeW Creature))
+                       Forbid ["Attack", "Block"] Agent NoDeonticPatient
+                   , Macros.deontic (AllOf (And [AbilityHead AnyActivated,
+                                                 AbilityOf It]))
+                       Forbid ["Activate"] Patient NoDeonticPatient ]) ]
+       Nothing
+
+||| Conqueror's Flail's second line -- "As long as this Equipment is
+||| attached to a creature, your opponents can't cast spells during your
+||| turn." The routed TEMPORAL WINDOW, probed before any edit and
+||| MEASURED ZERO: `OnlyDuring Turn (Just Yours)` already carried it, as
+||| Grand Abolisher's identical prohibition shows, and the routing note
+||| that sent it here was right to say so. What the line still needed was
+||| the leading attachment condition, which `Conditionally` and
+||| `AttachedTo` both already spelled.
+||| The card's first line ("gets +1/+1 for each color among permanents
+||| you control") waits on a count over a COLOUR axis and is no part of
+||| this region.
+public export
+conquerorsFlailProhibition : StaticEffect []
+conquerorsFlailProhibition =
+  Macros.asLongAs (Matches This (AttachedTo (Macros.a Macros.creature)))
+    (OnlyDuring Turn (Just Yours)
+       (Macros.cantDoTo "Cast" (PlayerGroup YourOpponents) (AllOf Macros.spell)))
+
+
+||| Keeper of the Flame, whole card -- "{R}, {T}: Choose target opponent
+||| who has more life than you do as you activate this ability. This
+||| creature deals 2 damage to that player."
+||| THE AS-YOU-ACTIVATE targeting restriction, routed here from the
+||| description round and MEASURED ZERO: nothing is minted. The
+||| restriction is the target noun's OWN predicate -- a comparison of the
+||| opponent's life total against yours, which `Compare` already spells
+||| over the player axis -- and the adverbial is spelling of the step the
+||| rules already put the choice in. [CR#602.2b] hands activating the
+||| whole of [CR#601.2b..601.2i], whose [CR#601.2c] is "the player
+||| announces their choice of an appropriate object or player for each
+||| target", so "as you activate this ability" names that announcement
+||| rather than scoping the restriction to it; [CR#608.2b] rechecks every
+||| target's legality on resolution whatever the line says, so no
+||| activation-only scope could be what the phrase means.
+||| Keeper of the Light is the second of the two, at a life gain whose
+||| clause never reads the target it announced.
+public export
+keeperOfTheFlame : Card
+keeperOfTheFlame =
+  Macros.card "Keeper of the Flame" (Just [Macros.generic 1, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
+       [ Macros.activated (Compound [Mana [Macros.pip Red], TapSymbol])
+           (Sequentially
+              [ Macros.choose
+                  (Macros.target
+                     (And [ Opponent
+                          , Compare [PlayerStatAxis LifeTotal] Greater
+                                    (PlayerStatOf LifeTotal You) ]))
+              , DealDamage Macros.thisCreature (Lit 2) (That PlayerW) ]) ]
+       (Just (1, 1))

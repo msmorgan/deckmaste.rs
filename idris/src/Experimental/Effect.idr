@@ -1444,9 +1444,9 @@ mutual
                  DeonticPatient {bs} ds r
     ||| The complement written at ONE deed of a coordination: "enchanted
     ||| permanent can't attack, block, or CREW VEHICLES" (Revoke
-    ||| Privileges, Bound in Gold, Intercessor's Arrest -- 4 supported
+    ||| Privileges, Bound in Gold, Intercessor's Arrest -- 3 supported
     ||| lines over 3 cards), "this creature saddles MOUNTS and crews
-    ||| VEHICLES".
+    ||| VEHICLES" (13 of the 18 counterfactual-value lines).
     |||
     ||| A SECOND complement arm and not a widening of the first, because
     ||| the two are different sentences and `deonticPatientOk` asks a
