@@ -14743,15 +14743,6 @@ caseOfTheCrimsonPulseTrigger =
   Macros.triggered When (Enters Macros.thisCase Nothing)
     (Sequentially [Macros.discardsACard You, Macros.drawCards 2])
 
-||| Glassworks' end-step trigger -- "At the beginning of your end step,
-||| this Room deals 1 damage to each opponent." The `Room` word's witness;
-||| the whole card waits on the door machinery.
-public export
-glassworksTrigger : Ability
-glassworksTrigger =
-  Macros.triggered At (BeginningOf EndStep (ByWord Yours))
-    (DealDamage Macros.thisRoom (Lit 1) (Each Opponent))
-
 ||| Ferocious Pup, whole -- "When this creature enters, create a 2/2 green
 ||| Wolf creature token." The `Wolf` word, on the type line and on the
 ||| token, for the row Arlinn, Voice of the Pack asked for.
@@ -19601,49 +19592,156 @@ harriedSpearguard =
        (Just (1, 1))
 
 -- ---------------------------------------------------------------------------
--- The Room door, and the keyword umbrella's fence-deferred sub-machinery.
--- Re-measured 2026-09-02 and NOT built.
+-- The Room half-referent programme, and the keyword umbrella's
+-- fence-deferred sub-machinery.
 -- ---------------------------------------------------------------------------
 --
--- THE DOOR NOUN, [CR#709.5j]. Declined, and the rule is what declines it: "a
--- door is a half of that permanent". A half is no object -- [CR#709.5b] makes
--- "the existence of each half of an object with a shared type line" part of
--- THAT OBJECT's copiable values, so the halves are values one object has and
--- not two objects -- and a `NounWord` at kind `Object` would say the
--- opposite. Nor can the locked/unlocked adjective be a `HasDesignation` read
--- on the door: [CR#709.5c] gives "left half unlocked" and "right half
--- unlocked" to the PERMANENT and names the half inside the designation, so
--- "an unlocked door" is a question about a permanent AND which half, which no
--- predicate over one referent asks. What the noun costs is therefore a
--- half-level referent, its relation to the permanent whose half it is, and a
--- designation read keyed by that half -- the scope fence's own subject and
--- not a subtype-word-like noun.
--- The reads waiting on it, re-measured: 4 unlock/lock INSTRUCTIONS ("unlock a
--- locked door of a Room you control", "unlock a locked door of up to one
--- target Room you control", and two "Lock or unlock a door of target Room you
--- control") -- the standing pins at `SpecialAction`'s `UnlockDoor` and at the
--- `Designation` unlocked pair both say 2 and are SHORT; 2 counting reads
--- ("two or more unlocked doors among Rooms you control", "eight or more
--- different names among unlocked doors of Rooms you control"), where the
--- pins say 3; and 2 mana-spend restrictions naming the act ("unlock a door",
--- "unlock doors"), which `SpecialAction`'s row already spells.
+-- THE DOOR NOUN, [CR#709.5j], IS BUILT (2026-09-02), and on the shape the
+-- decline of 2026-09-02 had already derived: a half-level referent, its
+-- relation to the permanent whose half it is, and a designation read keyed
+-- by that half. `Door` is the referent and the relation -- `ThisDoor`, the
+-- deixis on the half an ability is printed on, and `DoorOf`, an indefinite
+-- half of a described permanent with [CR#709.5c]'s lock adjective; the read
+-- is `halfDesignation`, over the `RoomHalf` sort. The two declines the old
+-- record made both stand: a `NounWord` at kind `Object` would contradict
+-- [CR#709.5b], and the lock adjective is no `HasDesignation` on one
+-- referent, which is exactly why it sits on `Door` beside the permanent
+-- rather than inside it.
 --
--- THE UNLOCK TRIGGER HEADER, [CR#709.5h], 28 lines -- all 28 the identical
--- string "When you unlock this door,". Declined WITH the noun, on two counts.
--- Its patient is that same half-level referent, and it is a DEIXIS on it:
--- "this door" is the half the ability is printed on, so what fixes the
--- appropriate designation [CR#709.5h] reads is the ability's position and not
--- a written noun. And it has no carrier to be printed on -- `SplitCard` is
--- [CR#709.1]'s ordinary split card, where [CR#709.5] describes a permanent
--- card with a SHARED type line whose two static abilities, shared subtypes
--- [CR#709.5a] and copiable half existence [CR#709.5b] the card layer does not
--- model. A header row no card can carry is what the open-catalog ruling
--- refuses. The neighbouring [CR#709.5i] header ("whenever you fully unlock a
--- Room", 16 lines, every one of them an Eerie ability word) waits on exactly
--- the same two things.
--- Landed already and not re-litigated: the two designations [CR#709.5c] and
--- `SpecialAction`'s `UnlockDoor` [CR#116.2m,709.5e]; `Macros.thisRoom` and
--- the `Room` word (`glassworksTrigger`).
+-- THE UNLOCK TRIGGER HEADER, [CR#709.5h], IS BUILT: `UnlocksDoor`, 28
+-- supported lines, all 28 the identical string "When you unlock this
+-- door,". Its carrier is built with it -- `SharedLineSplit`, [CR#709.5]'s
+-- permanent card with a single shared type line, which the card layer had
+-- not modelled and whose absence was half the old decline. 56 supported
+-- faces carry the Room subtype and all 56 print the layout's reminder text
+-- ("You may cast either half. That door unlocks on the battlefield. ..."),
+-- which is reminder for [CR#715.3d]'s reason and not a line.
+-- Glassworks // Shattered Yard is the whole card (`glassworksShatteredYard`);
+-- the `Room` word's witness moved there from the retired part-bench.
+--
+-- THE FULLY-UNLOCK HEADER, [CR#709.5i], IS BUILT and needed no door at all.
+-- 16 supported lines, every one of them an Eerie ability word and every one
+-- of them "and whenever you fully unlock A ROOM" -- a PERMANENT, not a
+-- half, because [CR#709.5i] triggers on the permanent's second unlocked
+-- designation rather than on either one of them. So it is `VerbedEvent` at
+-- the "Fully Unlock" label, one `verbFacts` row and no event constructor;
+-- the second trigger word makes it a `JoinedHeader` and not an `AltEvent`
+-- arm, on that type's own surface test. Balemurk Leech is the carrier
+-- (`balemurkLeech`).
+--
+-- THE INSTRUCTION, [CR#709.5f], IS BUILT: `Unlock`, over a door that names
+-- its permanent. 2 of the 4 supported unlock/lock instruction lines are
+-- this row bare -- Ghostly Keybearer's "unlock a locked door of up to one
+-- target Room you control" (`ghostlyKeybearer`, whole) and Ghostly Dancers'
+-- half of a disjunction.
+--
+-- WHAT STILL WAITS, re-measured 2026-09-02, and none of it on the half
+-- referent:
+--   * 2 "Lock or unlock a door of target Room you control" (Keys to the
+--     House, Marina Vendrell) want an EFFECT-LEVEL DISJUNCTION of two acts
+--     over one door -- and Ghostly Dancers' "return an enchantment card
+--     from your graveyard to your hand or unlock a locked door of a Room
+--     you control" wants the same shape over two unlike acts. [CR#709.5g]'s
+--     lock is the second act and would be one more `verbFacts`-shaped row;
+--     what neither has is a seat, `Modal` being [CR#700.2]'s bulleted
+--     spell and these being one unbulleted sentence.
+--   * 3 counting reads ("the number of unlocked doors among Rooms you
+--     control", "two or more unlocked doors among Rooms you control",
+--     "eight or more different names among unlocked doors of Rooms you
+--     control") want a PLURAL door -- halves of a described GROUP of
+--     permanents, counted -- where `Door` names one half of one permanent.
+--     That is a real widening and not a slot: the count ranges over pairs,
+--     and the third line counts distinct NAMES among them, which
+--     [CR#709.5] puts in the halves ("it doesn't have the name ... of this
+--     object's left half").
+--   * 2 mana-spend restrictions naming the act ("unlock a door", "unlock
+--     doors"), which `SpecialAction`'s `UnlockDoor` row already spells.
+--
+-- Landed earlier and not re-litigated: the two designations [CR#709.5c] and
+-- `SpecialAction`'s `UnlockDoor` [CR#116.2m,709.5e]; `Macros.thisRoom`.
+
+||| Glassworks // Shattered Yard, whole -- a permanent card with a single
+||| shared type line [CR#709.5], "Enchantment -- Room" over both halves
+||| [CR#709.5a]. Glassworks {2}{R}: "When you unlock this door, this Room
+||| deals 4 damage to target creature an opponent controls." Shattered Yard
+||| {4}{R}: "At the beginning of your end step, this Room deals 1 damage to
+||| each opponent."
+|||
+||| The marquee of [CR#709.5h]'s 28-line template and the carrier that
+||| template had none of. "This door" is the DEIXIS: [CR#709.5h] triggers
+||| the ability when the permanent "is given the appropriate unlocked
+||| designation", and what makes one appropriate is which half the ability
+||| is printed on -- which is why the left half's header names no half and
+||| why `doorFrameOk` refuses the same header on every other layout's face.
+||| The reminder text both halves print is not written, for the reason
+||| [CR#715.3d]'s adventure rider is not.
+public export
+glassworksShatteredYard : Card
+glassworksShatteredYard =
+  SharedLineSplit (MkTypeLine [enchantmentType "Room"] [Enchantment]) [] Nothing
+    (MkSharedHalf "Glassworks" (Just [Macros.generic 2, Macros.pip Red])
+       [ Macros.triggered When (UnlocksDoor You ThisDoor)
+           (DealDamage Macros.thisRoom (Lit 4)
+              (Macros.target (And [Macros.creature,
+                                   ControlledBy Macros.anOpponent]))) ])
+    (MkSharedHalf "Shattered Yard" (Just [Macros.generic 4, Macros.pip Red])
+       [ Macros.triggered At (BeginningOf EndStep (ByWord Yours))
+           (DealDamage Macros.thisRoom (Lit 1) (Each Opponent)) ])
+
+||| Balemurk Leech, whole -- "Eerie -- Whenever an enchantment you control
+||| enters and whenever you fully unlock a Room, each opponent loses 1
+||| life." [CR#709.5i]'s carrier, and the whole of that header's 16
+||| supported lines is this shape: an Eerie ability word over two joined
+||| headers whose second is the fully-unlock.
+|||
+||| It needs no door, which is the finding. [CR#709.5i] triggers "when that
+||| permanent has one of the two unlocked designations and gets the other,
+||| or when it has neither designation and gains both" -- a fact about the
+||| PERMANENT, which is why the printed phrase is "a Room" and not "a door"
+||| and why the label's `actPatient` is `Just Object` where the unlock's is
+||| absent.
+||| Two whole headers and not a coordination: the second writes its own
+||| trigger word, which is `JoinedHeader`'s own test. The two announce
+||| different referents -- an enchantment and a Room -- so `joinedCtx`
+||| hands the body nothing, and the body reads nothing back.
+public export
+balemurkLeech : Card
+balemurkLeech =
+  Macros.card "Balemurk Leech" (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Leech"] [Creature])
+       [ Macros.abilityWord Eerie
+           (Macros.triggeredJoined Whenever
+              (Enters (Macros.a (And [Macros.enchantment, ControlledBy You]))
+                      Nothing)
+              [ Macros.joinedHead Whenever
+                  (VerbedEvent (Just You) "Fully Unlock"
+                     (Just (Macros.a (HasSubtype (enchantmentType "Room"))))
+                     Nothing False) ]
+              (Macros.losesLife (Each Opponent) (Lit 1))) ]
+       (Just (2, 2))
+
+||| Ghostly Keybearer, whole -- "Flying / Whenever this creature deals
+||| combat damage to a player, unlock a locked door of up to one target
+||| Room you control." [CR#709.5f]'s instruction, and `DoorOf`'s witness:
+||| the door names the permanent whose half is chosen, because the act
+||| chooses "a locked half of THAT PERMANENT" and the deixis names none.
+||| The printed "locked" is the rule's own restriction restated, which is
+||| redundant rather than meaningless -- the sibling lines write the door
+||| bare.
+public export
+ghostlyKeybearer : Card
+ghostlyKeybearer =
+  Macros.card "Ghostly Keybearer" (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Spirit"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggered Whenever
+           (DealsCombatDamage Macros.thisCreature (Macros.a AnyPlayer))
+           (Unlock (DoorOf (Just Locked)
+                      (TargetGroup (Macros.upTo 1)
+                         (And [HasSubtype (enchantmentType "Room"),
+                               ControlledBy You])))) ]
+       (Just (3, 3))
+
 --
 -- THE FENCE-DEFERRED FOUR, re-recorded with fresh counts and no design:
 --

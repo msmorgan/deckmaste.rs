@@ -1492,6 +1492,36 @@ badMultipliedNonTrigger : Unspellable (StaticEffect []) (\ok =>
 badMultipliedNonTrigger Oh impossible
 
 
+||| "unlock this door" as an INSTRUCTION.
+||| [CR#709.5f] states the act as a choice made among the halves of a named permanent -- "to unlock half of a permanent, a player chooses a locked half of THAT PERMANENT" -- and the deixis names no permanent for the choice to range over. Its 28 printed occurrences are all [CR#709.5h] headers, where the ability's own position fixes the half instead; 0 supported lines write it after an instruction.
+public export
+badUnlockThisDoor : Unspellable (Effect []) (\ok =>
+  Unlock ThisDoor {nh = ok})
+badUnlockThisDoor Oh impossible
+
+
+||| "When you unlock this door, this Room deals 1 damage to each opponent." -- on an ordinary one-faced card.
+||| [CR#709.5j] makes a door "a half of that permanent", and a one-faced card has no half at all. Nor would the Room subtype supply one: [CR#709.5a] has the halves of a shared-line card SHARE that line's subtypes, so the subtype is read off the halves and is not what creates them, and [CR#709.5c] gives the unlocked designations the deixis asks about only to a permanent with such a line [CR#709.5].
+public export
+badDoorHeaderOffSharedLine : Unspellable Card (\ok =>
+  Macros.card "" (Just [Macros.pip Red]) []
+       (MkTypeLine [enchantmentType "Room"] [Enchantment])
+       [ Macros.triggered When (UnlocksDoor You ThisDoor)
+           (DealDamage Macros.thisRoom (Lit 1) (Each Opponent)) ]
+       Nothing {dr = ok})
+badDoorHeaderOffSharedLine Oh impossible
+
+
+||| "unlock a locked door of a Room card in your graveyard"
+||| [CR#709.5c] gives the unlocked designations to "a permanent on the battlefield", so a half off the battlefield has no designation to be given and no lock state to be in.
+public export
+badUnlockDoorOffBattlefield : Unspellable (Effect []) (\ok =>
+  Unlock (DoorOf (Just Locked)
+            (Macros.a (And [HasSubtype (enchantmentType "Room"),
+                            InZone Macros.graveyardZ])) {zn = ok}))
+badUnlockDoorOffBattlefield Oh impossible
+
+
 ||| "Sacrifice a creature."
 ||| A mandatory clause with neither continuation denotes exactly its body, and the row is the two arms.
 public export
