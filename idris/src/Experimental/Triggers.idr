@@ -1243,8 +1243,40 @@ mutual
     BeforePoint : (pt : TurnPoint) -> (w : Maybe Owner) ->
                   {auto 0 pk : PointWindowOk pt w} -> Timing
 
+  ||| How often an ability may be used, as the ability itself says.
+  ||| The first two are the ABILITY's own cap, spelled "This ability
+  ||| triggers only once each turn" at a header (122 supported lines) and
+  ||| "Activate only … once each turn" at an activated ability (125).
+  ||| The third is a different rule with a different spelling, and the
+  ||| two are not interchangeable: [CR#603.2h] gives "Do this only once
+  ||| each turn" its own reading -- "this ability triggers only if its
+  ||| source's controller has not yet taken the indicated ACTION that
+  ||| turn" -- so what is capped is the deed the sentence before it
+  ||| offered, and a turn in which the controller declined that deed
+  ||| leaves the ability free to trigger again. `OncePerTurn` stops the
+  ||| trigger either way. 32 supported lines write it and all 32 write
+  ||| the deed as a MAY (measured 2026-09-02), which is what makes the
+  ||| difference visible on the table; the rule states no such
+  ||| requirement, so the covariance is recorded and not gated.
   public export
-  data UsageLimit = OncePerTurn | OncePerGame
+  data UsageLimit = OncePerTurn | OncePerGame | ActionOncePerTurn
+
+  ||| Which limits an ability that is NOT triggered may write.
+  ||| [CR#603.2h] states its rider of a triggered ability in as many
+  ||| words, and its whole content is about when the ability triggers, so
+  ||| it has no reading at an activated ability or at a replacement.
+  ||| 0 supported lines write "Do this only once each turn" on either
+  ||| (measured 2026-09-02). 31 of the 32 sit under a `When` or
+  ||| `Whenever` header; the thirty-second (Night Shift of the Living
+  ||| Dead) writes "After you roll a die", a word [CR#603.1] does not
+  ||| list and `TriggerWord` therefore does not carry -- recorded here
+  ||| because it is the rider's only carrier outside the three words.
+  public export
+  untriggeredLimitOk : Maybe UsageLimit -> Bool
+  untriggeredLimitOk Nothing = True
+  untriggeredLimitOk (Just OncePerTurn) = True
+  untriggeredLimitOk (Just OncePerGame) = True
+  untriggeredLimitOk (Just ActionOncePerTurn) = False
 
   ||| The header's coordinated further events: an arm LIST, because the
   ||| English is n-ary -- "attacks, blocks, or becomes the target of a

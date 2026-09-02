@@ -1280,6 +1280,32 @@ itsACard : (p : Predicate bs Object) ->
            Condition bs
 itsACard p = Matches (itAsCard {ok}) p {sy} {zc}
 
+||| "if it's a mana ability, …": the copula over the ABILITY pronoun.
+||| The header the five carriers write announces one ability and one
+||| player ("Whenever you activate an ability"), so the pronoun's
+||| candidate set at this kind has exactly one member and the player is
+||| not in it.
+public export
+itsAnAbility : (p : Predicate bs Ability) ->
+               {auto 0 ok : countOnes Ability bs = 1} ->
+               {auto 0 sy : PredSays p} ->
+               {auto 0 bl : TestSubject (ItAbility {bs} {ok})} ->
+               {auto 0 zc : ZoneFits (the (Maybe Zone) Nothing) (seedZone p)} ->
+               Condition bs
+itsAnAbility p = Matches (ItAbility {ok}) p {sy} {bl} {zc}
+
+||| "…, if it isn't a mana ability, …" -- the whole of what the five
+||| copy-that-ability carriers write [CR#605.1a], and `itIsntA`'s shape
+||| at the ability kind.
+public export
+itIsntAnAbility : (p : Predicate bs Ability) ->
+                  {auto 0 ok : countOnes Ability bs = 1} ->
+                  {auto 0 sy : PredSays p} ->
+                  {auto 0 bl : TestSubject (ItAbility {bs} {ok})} ->
+                  {auto 0 zc : ZoneFits (the (Maybe Zone) Nothing) (seedZone p)} ->
+                  Condition bs
+itIsntAnAbility p = NotCond (itsAnAbility p {ok} {sy} {bl} {zc})
+
 
 public export
 libraryOf : (n : Noun bs Player) -> ZoneExpr bs
@@ -2053,8 +2079,10 @@ activatedOnlyOnce : (cost : Cost (dropLetter X bs)) ->
                     (lim : UsageLimit) ->
                     {auto 0 tp : CostTapOnce cost} ->
                     {auto 0 py : CostPaidByYou cost} ->
+                    {auto 0 ul : So (untriggeredLimitOk (Just lim))} ->
                     AbilityAt bs
-activatedOnlyOnce cost eff lim = Activated cost eff Nothing (Just lim) Nothing Nothing {tp} {py}
+activatedOnlyOnce cost eff lim =
+  Activated cost eff Nothing (Just lim) Nothing Nothing {tp} {py} {ul}
 
 ||| "Activate only if <condition>."
 public export
@@ -2073,9 +2101,10 @@ activatedOnlyOnceIf : (cost : Cost (dropLetter X bs)) ->
                       (lim : UsageLimit) -> (g : Condition bs) ->
                       {auto 0 tp : CostTapOnce cost} ->
                       {auto 0 py : CostPaidByYou cost} ->
+                      {auto 0 ul : So (untriggeredLimitOk (Just lim))} ->
                       AbilityAt bs
 activatedOnlyOnceIf cost eff lim g =
-  Activated cost eff Nothing (Just lim) (Just g) Nothing {tp} {py}
+  Activated cost eff Nothing (Just lim) (Just g) Nothing {tp} {py} {ul}
 
 ||| "You may play <what>."
 public export

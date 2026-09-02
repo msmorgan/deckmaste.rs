@@ -2379,6 +2379,15 @@ public export
 itReaches : Plurality -> Binding -> Bool
 itReaches pl b = kindLte Object b.kind && isOne pl == isOne b.plur
 
+||| `itReaches` at the ABILITY kind: the ability pronoun's candidates.
+||| [CR#109.1] makes an ability on the stack an object, so the printed
+||| "it" is one word; this grammar indexes the two kinds apart so that
+||| the ability predicates can be typed, and the pronoun therefore counts
+||| its own mentions at each.
+public export
+itAbilityReaches : Plurality -> Binding -> Bool
+itAbilityReaches pl b = kindLte Ability b.kind && isOne pl == isOne b.plur
+
 public export
 provOfIt : Bindings -> Maybe Stamp
 provOfIt [] = Nothing

@@ -2501,6 +2501,31 @@ mutual
     ||| other [card]".
     TheOther : {auto 0 ok : So (theOtherOk bs)} -> Noun bs Object
     It : {auto 0 ok : countOnes Object bs = 1} -> Noun bs Object
+    ||| "it" naming an ABILITY the clause announced: "Whenever you
+    ||| activate an ability, IF IT ISN'T A MANA ABILITY, …" (5 supported
+    ||| lines -- Battlemage's Bracers, Harsh Mentor, Illusionist's
+    ||| Bracers, Kurkesh, Onakke Ancient, Rings of Brighthearth, measured
+    ||| 2026-09-02).
+    |||
+    ||| The printed word is `It`'s exactly, and the rules make the two
+    ||| one thing: [CR#109.1] lists what an object is -- "an ability on
+    ||| the stack, a card, a copy of a card, a token, a spell, a
+    ||| permanent, or an emblem" -- so an ability is an object and "it"
+    ||| reaches it for the same reason it reaches a permanent. What
+    ||| forces a SECOND ROW is this grammar's own indexing, which keeps
+    ||| `Ability` apart from `Object` so that the ability predicates
+    ||| (`AbilityHead`, `IsManaAbility`, `AbilityOf`) can be typed; a
+    ||| kind-polymorphic `It` was tried instead and is not viable, the
+    ||| join constructor making `Kind` an unbounded search space for the
+    ||| pronoun's own kind wherever the consuming term is polymorphic.
+    |||
+    ||| The gate is `It`'s at the ability kind: counted uniqueness, so
+    ||| two announced abilities refuse exactly as two announced objects
+    ||| do. A PLAYER gets no such row -- English reads a player mention
+    ||| with "they" and "that player", and no supported line writes "it"
+    ||| of one.
+    ||| -- spelling: "it", exactly as `It` spells.
+    ItAbility : {auto 0 ok : countOnes Ability bs = 1} -> Noun bs Ability
     ||| "it", read at the carrier the CONSUMING VERB's rule admits
     ||| rather than across every singular object mention. [CR#109.2]
     ||| gives a verb slot its carrier and [CR#701.21a] lets a player
@@ -2724,6 +2749,8 @@ mutual
   nounEqRef TheOther _ = False
   nounEqRef It It = True
   nounEqRef It _ = False
+  nounEqRef ItAbility ItAbility = True
+  nounEqRef ItAbility _ = False
   nounEqRef (ItAt _) _ = False
   nounEqRef (ItVerbed _) _ = False
   nounEqRef (ItToken) _ = False
@@ -2829,6 +2856,7 @@ mutual
   nounDelta TheRest = []
   nounDelta TheOther = []
   nounDelta It = []
+  nounDelta ItAbility = []
   nounDelta (ItAt _) = []
   nounDelta (ItVerbed _) = []
   nounDelta ItToken = []
@@ -3976,6 +4004,7 @@ mutual
   anchorPhrase TheRest = False
   anchorPhrase TheOther = False
   anchorPhrase It = True
+  anchorPhrase ItAbility = True
   anchorPhrase (ItAt _) = True
   anchorPhrase (ItVerbed _) = True
   anchorPhrase ItToken = True
@@ -4040,6 +4069,7 @@ mutual
   choosable TheRest = False
   choosable TheOther = False
   choosable It = False
+  choosable ItAbility = False
   choosable (ItAt _) = False
   choosable (ItVerbed _) = False
   choosable ItToken = False
@@ -4106,6 +4136,7 @@ mutual
   groupMention TheRest = False
   groupMention TheOther = False
   groupMention It = False
+  groupMention ItAbility = False
   groupMention (ItAt _) = False
   groupMention (ItVerbed _) = False
   groupMention ItToken = False
@@ -4907,6 +4938,7 @@ mutual
   remarkTest : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k ->
                Maybe (Binding -> Bool)
   remarkTest It = Just (itReaches OneOf)
+  remarkTest ItAbility = Just (itAbilityReaches OneOf)
   remarkTest (ItAt sl) = Just (itAtReaches sl)
   remarkTest (ItVerbed v) = Just (itVerbedReaches v)
   remarkTest ItToken = Just itTokenReaches
@@ -5091,6 +5123,7 @@ mutual
   costNounOk TheRest = True
   costNounOk TheOther = True
   costNounOk It = True
+  costNounOk ItAbility = True
   costNounOk (ItAt _) = True
   costNounOk (ItVerbed _) = True
   costNounOk ItToken = True
@@ -5136,6 +5169,7 @@ mutual
   nounIsYou TheRest = False
   nounIsYou TheOther = False
   nounIsYou It = False
+  nounIsYou ItAbility = False
   nounIsYou (ItAt _) = False
   nounIsYou (ItVerbed _) = False
   nounIsYou ItToken = False
@@ -5181,6 +5215,7 @@ mutual
   nounTargeted TheRest = False
   nounTargeted TheOther = False
   nounTargeted It = False
+  nounTargeted ItAbility = False
   nounTargeted (ItAt _) = False
   nounTargeted (ItVerbed _) = False
   nounTargeted ItToken = False
@@ -5212,6 +5247,10 @@ mutual
   public export
   counterMemoryOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   counterMemoryOk It = not (stampMoves (provOfIt bs))
+  -- [CR#122.1] places a counter on an object or player; nothing puts
+  -- one on an ability on the stack, so the pronoun carries no counter
+  -- memory to lose.
+  counterMemoryOk ItAbility = True
   counterMemoryOk (ItAt sl) = not (stampMoves (provOfItAt sl bs))
   counterMemoryOk (ItVerbed v) = not (stampMoves (provOfVerbedIt v bs))
   counterMemoryOk ItToken = not (stampMoves (provOfItToken bs))
@@ -5236,6 +5275,7 @@ mutual
   public export
   moveDestOk : {bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   moveDestOk It = False
+  moveDestOk ItAbility = False
   moveDestOk (ItAt _) = False
   moveDestOk (ItVerbed _) = False
   moveDestOk ItToken = False
@@ -5432,6 +5472,9 @@ mutual
   moveIntro p TheRest z = groupSpent bs
   moveIntro p TheOther z = groupSpent bs
   moveIntro p It z = setZoneIt p z bs
+  -- a move names a `Noun bs Object`, so this pronoun is never what is
+  -- moved; nothing is restated.
+  moveIntro p ItAbility z = bs
   moveIntro p (ItAt sl) z = setZoneItAt sl p z bs
   moveIntro p (ItVerbed v) z = setZoneVerbedIt v p z bs
   moveIntro p ItToken z = setZoneItToken p z bs
@@ -5521,6 +5564,9 @@ mutual
   nounProv : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Stamp
   nounProv TheRest = provOfGroup bs
   nounProv It = provOfIt bs
+  -- an ability is stamped by no keyword action, named a zone by no
+  -- clause, and is no card type: the three reads answer nothing.
+  nounProv ItAbility = Nothing
   nounProv (ItAt sl) = provOfItAt sl bs
   nounProv (ItVerbed v) = provOfVerbedIt v bs
   nounProv ItToken = provOfItToken bs
@@ -5578,6 +5624,7 @@ mutual
   nounZone TheRest = zoneOfGroup bs
   nounZone TheOther = zoneOfGroup bs
   nounZone It = zoneOfIt bs
+  nounZone ItAbility = Nothing
   nounZone (ItAt sl) = zoneOfItAt sl bs
   nounZone (ItVerbed v) = zoneOfVerbedIt v bs
   nounZone ItToken = zoneOfItToken bs
@@ -5631,6 +5678,7 @@ mutual
   nounTy TheRest = tyOfGroup bs
   nounTy TheOther = tyOfGroup bs
   nounTy It = tyOfIt bs
+  nounTy ItAbility = Nothing
   nounTy (ItAt sl) = tyOfItAt sl bs
   nounTy (ItVerbed v) = tyOfVerbedIt v bs
   nounTy ItToken = tyOfItToken bs
@@ -5701,6 +5749,7 @@ mutual
   -- singular and a singular destination or verb takes it.
   nounPlur TheOther = OneOf
   nounPlur It = OneOf
+  nounPlur ItAbility = OneOf
   nounPlur (ItAt _) = OneOf
   nounPlur (ItVerbed _) = OneOf
   nounPlur ItToken = OneOf

@@ -4350,6 +4350,92 @@ rowansTalentCopy =
        [ CopyStack You (That AbilityW) (Lit 1) []
        , Macros.may You (ChooseNewTargets (That AbilityCopyW)) ])
 
+||| Rings of Brighthearth, whole -- "Whenever you activate an ability, if
+||| it isn't a mana ability, you may pay {2}. If you do, copy that
+||| ability. You may choose new targets for the copy." The ABILITY
+||| PRONOUN, which is what the copy round left owed here.
+||| [CR#109.1] makes an ability on the stack an object, so the printed
+||| "it" is `It`'s own word; this grammar indexes `Ability` apart from
+||| `Object` so the ability predicates can be typed, and `ItAbility` is
+||| the pronoun at that index. The header announces one ability and one
+||| player, so the candidate set has exactly one member.
+||| 5 of the 15 "copy that ability" lines carry this intervening clause
+||| (Battlemage's Bracers, Harsh Mentor, Illusionist's Bracers, Kurkesh,
+||| Onakke Ancient and this card; re-measured 2026-09-02), and
+||| `rowansTalentCopy` above is the shape without one.
+||| The clause is INTERVENING and not concurrent: it is comma-marked
+||| after the trigger condition, which is [CR#603.4]'s own shape, and
+||| [CR#605.1a]'s mana-ability test is a fact about the ability rather
+||| than an act it is partway through.
+public export
+ringsOfBrighthearth : Card
+ringsOfBrighthearth =
+  Macros.card "Rings of Brighthearth" (Just [Macros.generic 3]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.triggeredIf Whenever
+           (Activates You (Macros.a (AbilityHead AnyActivated)))
+           (Macros.itIsntAnAbility IsManaAbility)
+           (Macros.mayThen You
+              (Pay You (Mana [Macros.generic 2]) PaidOnce)
+              (Sequentially
+                 [ CopyStack You (That AbilityW) (Lit 1) []
+                 , Macros.may You (ChooseNewTargets (That AbilityCopyW)) ])) ]
+       Nothing
+
+||| Iron Man, Bleeding Edge, whole -- "Flying / Whenever you cast an
+||| artifact spell, you may copy it, except the copy isn't legendary. DO
+||| THIS ONLY ONCE EACH TURN."
+|||
+||| [CR#603.2h]'s rider, which is a different limit from the one the
+||| header already had: "this ability triggers only if its source's
+||| controller has not yet taken the indicated action that turn", so what
+||| is capped is the DEED the may-clause offered and a turn in which the
+||| controller declined it leaves the ability free to trigger again.
+||| `UsageLimit.ActionOncePerTurn` is that reading, in the slot
+||| `OncePerTurn` already sits in, and `untriggeredLimitOk` keeps it off
+||| an activated ability and a replacement -- [CR#603.2h] states it of a
+||| triggered ability in as many words. 32 supported lines write it.
+public export
+ironManBleedingEdge : Card
+ironManBleedingEdge =
+  Macros.card "Iron Man, Bleeding Edge"
+       (Just [Macros.generic 3, Macros.pip Blue, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Hero"]
+                   [Artifact, Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggeredOnlyOnce Whenever
+           (Casts You (Macros.a (And [Macros.artifact, Macros.spell])) Nothing)
+           ActionOncePerTurn
+           (Macros.may You (CopyStack You It (Lit 1) [ExceptNonlegendary])) ]
+       (Just (3, 5))
+
+||| Donal, Herald of Wings, whole -- "Whenever you cast a nonlegendary
+||| creature spell with flying, you may copy it, except the copy is a 1/1
+||| Spirit in addition to its other types. Do this only once each turn."
+||| The same rider over a bundle exception rather than a bare one, and
+||| the second of the two cards the trigger round named as blocked on
+||| nothing else.
+public export
+donalHeraldOfWings : Card
+donalHeraldOfWings =
+  Macros.card "Donal, Herald of Wings"
+       (Just [Macros.generic 2, Macros.pip Blue, Macros.pip Blue]) [Legendary]
+       (MkTypeLine [creatureType "Human", creatureType "Wizard"] [Creature])
+       [ Macros.triggeredOnlyOnce Whenever
+           (Casts You
+              (Macros.a (And [ Macros.creature, Macros.spell
+                             , Not (HasSupertype Legendary)
+                             , HasKeyword (TheKeyword "Flying") ]))
+              Nothing)
+           ActionOncePerTurn
+           (Macros.may You
+              (CopyStack You It (Lit 1)
+                 [ExceptChars (MkToken (Just (Lit 1 ** Lit 1)) []
+                                       (MkTypeLine [creatureType "Spirit"] [])
+                                       [] Nothing)
+                              True])) ]
+       (Just (3, 3))
+
 public export
 tawnosTheToymaker : Card
 tawnosTheToymaker =
@@ -18235,13 +18321,10 @@ alluringSuitorPump =
 -- you control" and 15 write "copy that ability", which is the 15 the
 -- ledger carried plus the targeted half it had merged with them.
 --
--- WHAT IS STILL OWED at this kind, and it is not the copy verb's: the
--- ability PRONOUN. `It` is `Noun bs Object` and `itReaches` asks
--- `kindLte Object`, so "…, if IT isn't a mana ability" (Rings of
--- Brighthearth, Illusionist's Bracers and 3 more of the 15) has no
--- carrier. That is the noun vocabulary's row, not this family's, and it
--- is why the anaphoric bench above is one of the lines with no
--- intervening clause on it.
+-- The ability PRONOUN, which that round left owed at this kind, is now
+-- landed as `ItAbility` -- see `ringsOfBrighthearth` below. It is the
+-- noun vocabulary's row and not this family's, exactly as the note here
+-- said.
 
 -- ---------------------------------------------------------------------------
 -- Measured, and deliberately not built.

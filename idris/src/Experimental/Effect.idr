@@ -914,6 +914,7 @@ mutual
                    (repl : Effect (interceptCtx alts ev)) ->
                    (use : ReplUse) ->
                    (limit : Maybe UsageLimit) ->
+                   {auto 0 ul : So (untriggeredLimitOk limit)} ->
                    {auto 0 ok : Interceptable ev} ->
                    {auto 0 oks : InterceptableArms alts} -> StaticEffect bs
       ||| The four prevention/redirection rows are two pairs, and the
@@ -5021,6 +5022,7 @@ mutual
                 {auto 0 py : CostPaidByYou cost} ->
                 (window : Maybe Timing) ->
                 (limit : Maybe UsageLimit) ->
+                {auto 0 ul : So (untriggeredLimitOk limit)} ->
                 (guard : Maybe (Condition bs)) ->
                 -- WHO may activate it, where the object says otherwise.
                 -- [CR#602.2] states the default and its exception in one

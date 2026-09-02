@@ -394,6 +394,15 @@ badChapterIntervening : Unspellable Ability (\ok =>
 badChapterIntervening Oh impossible
 
 
+||| "{T}: Draw a card. Do this only once each turn."
+||| [CR#603.2h] states the rider of a TRIGGERED ability and states it as a rule about triggering -- "this ability triggers only if its source's controller has not yet taken the indicated action that turn" -- so it says nothing an activated ability could obey. [CR#602.2] puts an activated ability on the stack when its controller pays its cost, which no such rule gates; the cap an activated ability writes is "Activate only once each turn", which is `OncePerTurn`.
+public export
+badActionLimitOnActivated : Unspellable Ability (\ok =>
+  Activated TapSymbol Macros.drawACard Nothing (Just ActionOncePerTurn) Nothing
+            Nothing {ul = ok})
+badActionLimitOnActivated Oh impossible
+
+
 ||| "I — while you control a creature, draw a card."
 ||| [CR#714.2b] writes the chapter header whole -- "When one or more lore
 ||| counters are put onto this Saga, if …" -- so the printed line has
