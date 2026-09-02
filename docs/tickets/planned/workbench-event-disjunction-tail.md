@@ -98,3 +98,7 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   Malik; a structural gap, not the protocol's); and the cross-kind
   you-or-description join ("if it targets you or a permanent you control" —
   Emissary of Grudges; no joined head takes "you").
+
+- **Routed from pile-partitions (close, 2026-09-02):** the PER-PLAYER
+  partition (6 lines / 5 cards — element-scoping on `ForEachOf`, not a slot
+  on the partition row).
