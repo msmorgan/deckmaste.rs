@@ -5288,10 +5288,20 @@ mutual
   ||| The context a may's body and its declined arm are typed in: an
   ||| offered may writes its decider first [CR#118.12], so the body reads
   ||| it; the mandatory form writes none.
+  ||| The decider takes `agentIntro`, not `nomIntro`, for `Does`'s reason
+  ||| and on the same evidence. An offer is DECIDED per player --
+  ||| [CR#101.4] has each of several players make their own choice -- so a
+  ||| distributive decider hands its body the one member the offer is on,
+  ||| and the body's own words are that member's: "each player may search
+  ||| THEIR library", "each player may put two +1/+1 counters on a
+  ||| creature THEY control", "each opponent may sacrifice a permanent of
+  ||| THEIR choice". Measured 2026-09-02: 79 supported sentences write
+  ||| "each player/opponent may [verb]" and 46 of them read the member
+  ||| back. Every other decider is `nomIntro`'s own answer, unchanged.
   public export
   mayCtx : {bs : Bindings} -> Maybe (Noun bs Player) -> Bindings
   mayCtx Nothing = bs
-  mayCtx (Just d) = nomIntro d
+  mayCtx (Just d) = agentIntro d
 
   public export
   mayIntro : {bs : Bindings} -> (body : Effect bs) ->

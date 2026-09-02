@@ -1110,26 +1110,30 @@ gainsLife : (who : Noun bs Player) -> Amount (nomIntro who) -> Effect bs
 gainsLife who amt = ChangeLife who (Up amt)
 
 
+-- the decider seats its body at `agentIntro`, so a distributive offer
+-- ("each player may …") hands the body the member the offer is decided
+-- on; see `mayCtx`.
 public export
-may : (decider : Noun bs Player) -> Effect (nomIntro decider) -> Effect bs
+may : (decider : Noun bs Player) -> Effect (agentIntro decider) -> Effect bs
 may d body = May (Just d) body Nothing Nothing
 
 public export
-mayThen : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
+mayThen : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
           Effect (effIntro body) -> Effect bs
 mayThen d body did = May (Just d) body (Just did) Nothing
 
 public export
-mayElse : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
-          Effect (nomIntro decider) -> Effect bs
+mayElse : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
+          Effect (agentIntro decider) -> Effect bs
 mayElse d body notd = May (Just d) body Nothing (Just notd)
 
 public export
 -- the did-branch reads everything the body introduced (it only runs if
 -- the body did); the didn't-branch reads only what preceded the offer,
 -- since the body never ran.
-mayThenElse : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
-              Effect (effIntro body) -> Effect (nomIntro decider) -> Effect bs
+mayThenElse : (decider : Noun bs Player) ->
+              (body : Effect (agentIntro decider)) ->
+              Effect (effIntro body) -> Effect (agentIntro decider) -> Effect bs
 mayThenElse d body did notd = May (Just d) body (Just did) (Just notd)
 
 
@@ -1665,7 +1669,7 @@ public export
 -- a reflexive trigger waits on the stack rather than continuing in the
 -- same resolution as mayThen's arm [CR#603.3], so its bindings are
 -- settled here first.
-mayWhen : (decider : Noun bs Player) -> (body : Effect (nomIntro decider)) ->
+mayWhen : (decider : Noun bs Player) -> (body : Effect (agentIntro decider)) ->
           Effect (settleTargets (effIntro body)) ->
           {auto 0 ok : So (admitsReflexEnclosure (reflexEncloseUse body))} ->
           Effect bs
@@ -1819,6 +1823,61 @@ playerSurveils agent amt =
                             graveyardZ {ok = GraveyardOkBare} {arr = Oh} {pl = ps}
                      , move (TheRest {ok = tr})
                             (onTopIn AnyOrder {af = Oh}) {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pr} ])
+
+||| The context an agent-seated one-card scry or surveil splits: the top
+||| card of the SUBJECT's own library, the slice read back off the player
+||| the clause has already named. `lookedTop`'s twin at the anaphor.
+public export
+theirTopCard : (bs : Bindings) -> (0 an : countOnes Player bs = 1) -> Bindings
+theirTopCard bs an = nomIntro (LibrarySlice {bs} OnTop (Lit 1) (They {ok = an}))
+
+||| "[player] scries 1": [CR#701.22a] over a one-card slice at a WRITTEN
+||| agent -- `scryOne`'s spelling with the looked-at library, the offer
+||| and the destination all read back off the subject instead of off the
+||| reader. This is the seat "each player may scry 1" wants: the offer
+||| inside the keyword action is the SUBJECT's, because [CR#101.4] has
+||| each player make their own choice, so writing it at `You` would put
+||| the reader in charge of a member's decision.
+public export
+playerScriesOne : {bs : Bindings} -> (agent : Noun bs Player) ->
+                  {auto 0 an : countOnes Player (agentIntro agent) = 1} ->
+                  {auto 0 ap : countOnes Player (Macros.theirTopCard (agentIntro agent) an) = 1} ->
+                  {auto 0 iw : countWord CardW (Macros.theirTopCard (agentIntro agent) an) = 1} ->
+                  {auto 0 pi : Placeable (tyOfThat CardW (Macros.theirTopCard (agentIntro agent) an)) Library} ->
+                  Effect bs
+playerScriesOne agent =
+  Does agent "Scry" {kn = Oh}
+       (Sequentially [ theyLookAtTop (Lit 1) {an}
+                     , may (They {ok = ap})
+                           (move (That CardW {ok = iw}) onBottomZ
+                                 {ok = LibraryPosOk {af = Oh} {nf = Oh}} {arr = Oh} {pl = pi}) ])
+
+||| "[player] surveils 1": `playerScriesOne`'s twin at [CR#701.25a], with
+||| the graveyard as the offered destination.
+public export
+playerSurveilsOne : {bs : Bindings} -> (agent : Noun bs Player) ->
+                    {auto 0 an : countOnes Player (agentIntro agent) = 1} ->
+                    {auto 0 ap : countOnes Player (Macros.theirTopCard (agentIntro agent) an) = 1} ->
+                    {auto 0 iw : countWord CardW (Macros.theirTopCard (agentIntro agent) an) = 1} ->
+                    {auto 0 pi : Placeable (tyOfThat CardW (Macros.theirTopCard (agentIntro agent) an)) Graveyard} ->
+                    Effect bs
+playerSurveilsOne agent =
+  Does agent "Surveil" {kn = Oh}
+       (Sequentially [ theyLookAtTop (Lit 1) {an}
+                     , may (They {ok = ap})
+                           (move (That CardW {ok = iw}) graveyardZ
+                                 {ok = GraveyardOkBare} {arr = Oh} {pl = pi}) ])
+
+||| "[player] searches their library for [description]":
+||| `searchLibraryFor` at a WRITTEN agent [CR#701.23a], the searched zone
+||| read back off the subject as the possessive the printed text writes.
+public export
+playerSearchesTheirLibraryFor : (who : Noun bs Player) ->
+                                {auto 0 an : countOnes Player (nomIntro who) = 1} ->
+                                (p : Predicate (nomIntro who) Object) ->
+                                {auto 0 zf : ZoneFree p} -> Effect bs
+playerSearchesTheirLibraryFor who p =
+  Search who (OneZone (libraryOf (They {ok = an}))) (exactly 1) p {zf}
 
 ||| "permanents and/or players that have a counter": the description
 ||| [CR#701.34a] has proliferate choose from. The object half asks for a

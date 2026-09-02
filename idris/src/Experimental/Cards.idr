@@ -3800,6 +3800,24 @@ nefariousImp =
                           (Macros.scryOne) ]
        (Just (2, 1))
 
+||| Eager Construct, WHOLE -- "When this creature enters, each player may
+||| scry 1." The distributive offer's own witness, and it needs both
+||| halves of the each-player binder: `mayCtx` seats the body at
+||| `agentIntro`, so the offer binds the one player it is decided by
+||| [CR#101.4], and `playerScriesOne` writes [CR#701.22a]'s one-card look
+||| over that member's library rather than over the reader's. Written at
+||| `You`, the keyword action would have made the controller look at their
+||| own library once per opponent.
+public export
+eagerConstruct : Card
+eagerConstruct =
+  Macros.card "Eager Construct" (Just [Macros.generic 2]) []
+       (MkTypeLine [creatureType "Construct"] [Artifact, Creature])
+       [ Macros.triggered When (Enters Macros.thisCreature Nothing)
+                          (Macros.may (Each AnyPlayer)
+                                      (Macros.playerScriesOne They)) ]
+       (Just (2, 2))
+
 saheeliFiligreeMaster : Card
 saheeliFiligreeMaster =
   Macros.cardOf "Saheeli, Filigree Master"
@@ -12117,6 +12135,9 @@ balduvianFallenHeader =
 ||| payment header over the second keyword whose parameter is a cost
 ||| [CR#702.30a], and the ceiling draw: the `may` offers the action, the
 ||| `UpTo` offers the number, and both belong to the opponent.
+||| The draw's subject is the MEMBER the offer is decided on, not the
+||| group: [CR#101.4] has each opponent choose separately and take their
+||| own ceiling, which is what `mayCtx`'s `agentIntro` seat binds.
 public export
 shahOfNaarIsle : Card
 shahOfNaarIsle =
@@ -12127,7 +12148,7 @@ shahOfNaarIsle =
        , Macros.keywordCosting "Echo" (Mana [Macros.generic 0])
        , Macros.triggered When (PaysCost Nothing Paid Macros.thisCreature "Echo")
                           (Macros.may (Each Opponent)
-                                      (Draw (Those PlayerW) (UpTo (Lit 3)))) ]
+                                      (Draw They (UpTo (Lit 3)))) ]
        (Just (6, 6))
 
 ||| Font of Agonies -- "Whenever you pay life, put that many blood
@@ -13884,25 +13905,25 @@ discardUpToTwoThenDrawThatMany =
   Sequentially [ Macros.discardN (UpTo (Lit 2))
                , Draw You GroupSize ]
 
-||| Truce and Temporary Truce's two clauses -- "Each player may draw up to
-||| two cards. For each card less than two a player draws this way, that
-||| player gains 2 life" -- with the SHORTFALL read written and the card's
-||| per-player distribution not. 2 supported cards write it and they write
-||| it identically (measured 2026-09-02).
+||| Truce and Temporary Truce, WHOLE -- "Each player may draw up to two
+||| cards. For each card less than two a player draws this way, that
+||| player gains 2 life." 2 supported cards write it and they write it
+||| identically (re-measured 2026-09-02).
 ||| The ceiling announces under [CR#608.2d] and `ShortOfCeiling` reads the
 ||| half the announcer declined; the `may` offers the action and the
 ||| `UpTo` the number, as on Shah of Naar Isle.
-||| What the fragment cannot spell is the printed "that player". That word
-||| asks a distributive pass's MEMBER to be readable in the sentence AFTER
-||| the pass, and `agentIntro`'s note settles the other way on purpose --
-||| the member is the agent seat's, and what stands for the clauses after
-||| the pass is the group mention "those players". So the gain is written
-||| over the group here, and the whole card is the ticket's remainder.
+||| The printed "that player" is the offer's MEMBER, and it stands in the
+||| sentence after the offer because `mayCtx` seats the body at
+||| `agentIntro`: the shortfall is one player's declined half and the life
+||| is paid to that same player, which is [CR#101.4]'s per-player choice
+||| read back. The earlier verdict here -- gain written over the group as
+||| "those players" -- was the seat's, not the card's, and both sentences
+||| now name the one member the printed text names.
 public export
 drawUpToTwoThenGainPerShortfall : Effect []
 drawUpToTwoThenGainPerShortfall =
-  Sequentially [ Macros.may (Each AnyPlayer) (Draw (Those PlayerW) (UpTo (Lit 2)))
-               , Macros.gainsLife (Those PlayerW) (Times 2 ShortOfCeiling) ]
+  Sequentially [ Macros.may (Each AnyPlayer) (Draw They (UpTo (Lit 2)))
+               , Macros.gainsLife They (Times 2 ShortOfCeiling) ]
 
 ||| Soul of Emancipation, whole -- "When this creature enters, destroy up
 ||| to three other target nonland permanents. For each of those
@@ -14411,16 +14432,9 @@ greatestCardsAPlayerDiscardedThisWay =
 -- The plural read-back mention, measured.
 --------------------------------------------------------------------------------
 
-||| "Each player may scry 1" (Eager Construct) is still unwritable, and the
-||| measurement says why: `Each` mints its member set at `EachD ManyOf`, so
-||| the prefix a distributed body reads holds NO singular player mention,
-||| and every keyword action whose rule reads one player's own library
-||| gates on exactly that count ([CR#701.22a]'s scry, [CR#701.25a]'s
-||| surveil). The binder shape that answers it is the one
-||| `greatestCardsAnOpponentDrew` above uses -- a member bound at `TheD
-||| OneOf` for the body to read back -- lifted from the AMOUNT sort, where
-||| it works today, to the EFFECT sort, where a distributive agent's body
-||| is typed.
+||| The GROUP mention `Each` mints, unchanged: a plural set at `EachD
+||| ManyOf` and no singular member, which is what "those players" reads
+||| and what every clause naming the group as a patient still gets.
 public export
 eachPlayerBindsNoSingular : countOnes Player (nomIntro (Each {bs = []} AnyPlayer)) = 0
 eachPlayerBindsNoSingular = Refl
@@ -14428,6 +14442,26 @@ eachPlayerBindsNoSingular = Refl
 public export
 eachPlayerBindsAGroup : countManys Player (nomIntro (Each {bs = []} AnyPlayer)) = 1
 eachPlayerBindsAGroup = Refl
+
+||| ...and what a distributive OFFER hands its body instead. "Each player
+||| may scry 1" (Eager Construct) used to be unwritable because `mayCtx`
+||| took `nomIntro`, so the prefix a distributed body read held no
+||| singular player mention while every keyword action whose rule reads
+||| one player's own library gates on exactly that count ([CR#701.22a]'s
+||| scry, [CR#701.25a]'s surveil). `mayCtx` now takes the agent seat, as
+||| `Does` does, and the two counts swap: one member, no group. Both
+||| halves are pinned, because the second is what the choice COSTS -- a
+||| clause after a distributive offer can no longer say "those players",
+||| and 0 supported cards ask it to.
+public export
+eachPlayerOfferBindsOneMember :
+  countOnes Player (mayCtx (Just (Each {bs = []} AnyPlayer))) = 1
+eachPlayerOfferBindsOneMember = Refl
+
+public export
+eachPlayerOfferDropsTheGroup :
+  countManys Player (mayCtx (Just (Each {bs = []} AnyPlayer))) = 0
+eachPlayerOfferDropsTheGroup = Refl
 
 --------------------------------------------------------------------------------
 -- The card's own cost letters, in the telescope its text elaborates against.
@@ -15014,6 +15048,34 @@ vraskasScorn =
                                    Macros.yourLibrary)
                 Macros.shuffle Nothing ]) ]
        Nothing
+
+||| Old-Growth Dryads, WHOLE -- "When this creature enters, each opponent
+||| may search their library for a basic land card, put it onto the
+||| battlefield tapped, then shuffle." The distributive offer's SEARCH
+||| witness: every word after "may" is the member's, and all three reach
+||| the member because `mayCtx` seats the body at `agentIntro`. The
+||| searcher and the searched zone are written off the same member:
+||| [CR#701.23a]'s search names a ZONE and no possessor for it, and
+||| [CR#400.1] gives each player a library of their own, so the printed
+||| possessive is the deciding member's and so is the shuffle after it.
+||| 9 supported lines write "each player/opponent may search
+||| their library" (re-measured 2026-09-02); the six of them that go on to
+||| say "then each player who searched their library this way shuffles"
+||| are still fragments, on the description-layer gap this round did not
+||| close.
+public export
+oldGrowthDryads : Card
+oldGrowthDryads =
+  Macros.card "Old-Growth Dryads" (Just [Macros.pip Green]) []
+       (MkTypeLine [creatureType "Dryad"] [Creature])
+       [ Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Macros.may (Each Opponent)
+              (Sequentially
+                 [ Macros.playerSearchesTheirLibraryFor They
+                     (And [Macros.land, HasSupertype Basic])
+                 , Macros.putOntoBattlefieldTapped Macros.foundCard
+                 , Shuffle They ])) ]
+       (Just (3, 3))
 
 ||| Concussive Bolt, both paragraphs -- "deals 4 damage to target player or
 ||| planeswalker. / Metalcraft — If you control three or more artifacts,

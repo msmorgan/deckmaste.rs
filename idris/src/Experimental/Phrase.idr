@@ -3161,9 +3161,35 @@ mutual
   ||| it. A body is read INSIDE the pass, so what it can name there is
   ||| the one member the pass is on; leaving the group beside it would
   ||| mint two mentions of one referent and leave "a creature of their
-  ||| choice" with two players to attribute the choice to. The group
-  ||| mention is `nomIntro`'s and stays exactly where it was, for the
-  ||| clauses AFTER the pass that read it back as "those players".
+  ||| choice" with two players to attribute the choice to.
+  |||
+  ||| MEMBER SCOPE -- re-decided 2026-09-02, and it is the member. This
+  ||| note used to end "the group mention is `nomIntro`'s and stays
+  ||| exactly where it was, for the clauses AFTER the pass that read it
+  ||| back as 'those players'". Two things are wrong with that. It was
+  ||| never true of the code: `effIntro (Does s v e) = effIntro e` is
+  ||| computed in THIS context, so what a pass has always left standing
+  ||| for the next sentence is the member row and not the group one. And
+  ||| the corpus does not want the group there. Truce and Temporary Truce
+  ||| print "that player" in the sentence after a distributive offer, and
+  ||| no supported card reads "those players" off an agent seat: all 16
+  ||| lines writing those words name a group some OTHER clause bound -- a
+  ||| damage recipient (Skull Rend), a `CopyStack` agent (Hive Mind), a
+  ||| targeting clause (Cultural Exchange), or a per-member loop's
+  ||| pluralized delta (Winds of Abandon) -- and every one of those seats
+  ||| goes through `nomIntro`, which is untouched. So the member's scope
+  ||| is the pass and the sentences after it, and that is now stated
+  ||| rather than left to `effIntro`'s accident.
+  ||| What this does NOT reach is the DESCRIPTION layer. "Then each
+  ||| player who searched their library this way shuffles" (9 supported
+  ||| carriers, 8 of them also wanting the self-possessive) is a fresh
+  ||| `Each` whose PREDICATE has to name its own subject's zone, and no
+  ||| binding at an agent seat puts a player inside the description that
+  ||| describes them -- `Each p` elaborates `p` in the OUTER bindings, as
+  ||| it must, since `bindFor` needs `p` to mint the row. That gap wants
+  ||| `CompareOver`'s split (domain, then a body typed at the domain's
+  ||| own member), not a wider scope here. The two were routed as one
+  ||| decision and they are two.
   public export
   agentIntro : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Bindings
   agentIntro (Each p {ph}) = bindFor TheD OneOf ph p :: predDelta p ++ bs
