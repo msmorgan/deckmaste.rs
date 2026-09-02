@@ -711,6 +711,8 @@ dependencies = [
 [[package]]
 name = "dpsi"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7149f25c9de3ef8f5046b57fbe0133f6313db1721b5ccb80e16fdeb39cbc3e25"
 dependencies = [
  "serde",
 ]
