@@ -631,6 +631,32 @@ convert : (n : Noun bs Object) ->
           {auto 0 ok : OnBattlefield (nounZone n)} -> Effect bs
 convert n = Enact "Convert" (TurnOver n)
 
+||| "When equipped creature transforms": the bare act as a header, in the
+||| voice [CR#701.27e] writes it in -- no actor, and the permanent that
+||| undergoes the act as the surface subject. 39 supported faces write a
+||| trigger on transforming and 2 of them stop here (Neglected Heirloom
+||| and Corruption of Towashi's first arm), measured 2026-09-02.
+public export
+transforms : (n : Noun bs Object) ->
+             {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+             GameEvent bs
+transforms n = VerbedEvent Nothing "Transform" (Just n) Nothing False {zn}
+
+||| "When this creature transforms into Ulrich, Uruk-hai Blademaster",
+||| "Whenever a permanent you control transforms into a Phyrexian": the
+||| same header with [CR#701.27e]'s complement written. The 37 that write
+||| it split 35 printed names to 2 printed characteristics, and the one
+||| slot spells both -- [CR#109.3] makes a name a characteristic like any
+||| other, which is why the rule says "specified characteristic" and not
+||| "specified name".
+public export
+transformsInto : (n : Noun bs Object) -> (into : Predicate bs Object) ->
+                 {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
+                 {auto 0 sy : PredSays into} ->
+                 GameEvent bs
+transformsInto n into =
+  VerbedEvent Nothing "Transform" (Just n) (Just into) False {zn}
+
 ||| "meld them into [into]": [CR#701.42a]'s keyword action in full --
 ||| put the two cards onto the battlefield with their back faces up and
 ||| combined. The body is the move the rule writes and the rider is the

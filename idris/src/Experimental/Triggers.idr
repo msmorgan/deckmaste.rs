@@ -218,16 +218,67 @@ mutual
             {auto 0 pk : actPatientOf v = Just Object} ->
             VerbPatient v (Just n)
 
-  ||| A verbed event writes a surface subject: its actor, or -- in the
-  ||| passive, which names no actor at all -- its patient. Not both
-  ||| dropped: the act would then be announced of no one.
+  ||| What the act's patient BECAME, where the act's own rule admits the
+  ||| reading: "transforms into Ulrich, Uruk-hai Blademaster", "transforms
+  ||| into a Phyrexian", "transforms into a non-Human creature".
+  |||
+  ||| A PREDICATE and not a noun, because [CR#701.27e] says what the
+  ||| phrase names -- "an object with a specified characteristic" -- and a
+  ||| characteristic is what a predicate spells. That reading covers the
+  ||| printed name as readily as the printed subtype, [CR#109.3] making a
+  ||| name a characteristic like any other; 37 of the 39 supported
+  ||| transform headers write the complement and 35 of those write a name
+  ||| (measured 2026-09-02). It announces no mention: the phrase says what
+  ||| the subject became and names nothing new for a later clause to read.
+  |||
+  ||| The complement rides on the same rule as the intransitive voice, so
+  ||| it is gated on the same fact rather than on a table of its own. No
+  ||| act whose rule names an actor states a characteristic its patient
+  ||| takes on, so `BecomesNothing` is every other label's only arm.
+  public export
+  data VerbBecomes : {0 bs : Bindings} -> (v : VerbLabel) ->
+                     Maybe (Predicate bs Object) -> Type where
+    BecomesNothing : VerbBecomes {bs} v Nothing
+    BecomesInto : {0 p : Predicate bs Object} ->
+                  {auto 0 iv : So (actIntransitiveOf v)} ->
+                  {auto 0 sy : PredSays p} ->
+                  VerbBecomes v (Just p)
+
+  ||| A verbed event writes a surface subject: its actor, or -- where no
+  ||| actor is named at all -- its patient. Not both dropped: the act
+  ||| would then be announced of no one.
+  |||
+  ||| The actorless subject is spelled TWO ways, and the label's own rule
+  ||| decides which, so the type is indexed by the label rather than by
+  ||| the two nouns alone. A PASSIVE writes "[what] is [participle]" and
+  ||| needs a participle to write; an INTRANSITIVE writes "[what]
+  ||| [verb]s" and needs the act's own rule to put the patient before the
+  ||| verb. Nothing had held the passive to a participle before, which
+  ||| left "equipped creature is [nothing]" spellable at the one label
+  ||| that records none; that hole is closed here and the transform
+  ||| header moves to the arm that spells it.
   public export
   data VerbedVoice : {0 bs : Bindings} -> {0 cs : Bindings} ->
+                     (v : VerbLabel) ->
                      Maybe (Noun bs Player) -> Maybe (Noun cs Object) ->
                      Type where
     ActiveAct : {0 w : Noun bs Player} -> {0 p : Maybe (Noun cs Object)} ->
-                VerbedVoice (Just w) p
-    PassiveAct : {0 p : Noun cs Object} -> VerbedVoice Nothing (Just p)
+                VerbedVoice v (Just w) p
+    ||| "Whenever enchanted land is tapped for mana", "Whenever a
+    ||| creature is destroyed": [CR#701.26a]'s and [CR#701.8a]'s acts
+    ||| both record the participle their passive spells.
+    PassiveAct : {0 p : Noun cs Object} ->
+                 {auto 0 pp : So (actNamesParticiple v)} ->
+                 VerbedVoice v Nothing (Just p)
+    ||| "When equipped creature transforms", "Whenever this creature
+    ||| transforms into Ulrich, Uruk-hai Blademaster": [CR#701.27e] puts
+    ||| the object that undergoes the act before the verb, in the active
+    ||| voice and with no actor named. Not a passive with the participle
+    ||| left out -- [CR#701.27g] gave "transformed" to a STATE, so there
+    ||| is no participle to leave out.
+    IntransitiveAct : {0 p : Noun cs Object} ->
+                      {auto 0 iv : So (actIntransitiveOf v)} ->
+                      VerbedVoice v Nothing (Just p)
 
   ||| The event algebra's shape, decided once: composition is carried by
   ||| the slots this vocabulary already has, not by operator constructors.
@@ -613,8 +664,15 @@ mutual
     ||| this row writes neither, since "Put" states no zone of its own --
     ||| so the placement is `PutInto`'s to spell and the verbed reading of
     ||| "Put" is tolerated overgeneration at its printed zero.
-    ||| -- spelling: voiced, "[who] [verb](s) [what]"; unvoiced,
-    ||| "[what] is/are [participle]".
+    ||| -- spelling: voiced, "[who] [verb](s) [what]"; actorless, "[what]
+    ||| is/are [participle]" or -- where the act's rule puts its patient
+    ||| before the verb [CR#701.27e] -- "[what] [verb](s) [into becomes]".
+    ||| The "INTO [what it became]" complement is the fourth slot, and it
+    ||| narrows the act rather than naming a further participant:
+    ||| [CR#701.27e] has the ability trigger only if the object "has the
+    ||| specified characteristic immediately after" transforming or
+    ||| converting. `VerbBecomes` is the gate, which admits it at the two
+    ||| labels whose rule states the reading and nowhere else.
     ||| The "FOR MANA" adjunct is the fourth slot, and it names a second
     ||| act rather than colouring the first: [CR#106.12] says "to 'tap [a
     ||| permanent] for mana' is to activate a mana ability of that
@@ -635,11 +693,13 @@ mutual
     ||| about the ability the header sits on and not a further slot here.
     VerbedEvent : (who : Maybe (Noun bs Player)) -> (v : VerbLabel) ->
                   (what : Maybe (Noun (agentIntro who) Object)) ->
+                  (becomes : Maybe (Predicate (agentIntro who) Object)) ->
                   (forMana : Bool) ->
                   {auto 0 kv : KnownVerb v} ->
                   {auto 0 pt : VerbPatient v what} ->
                   {auto 0 zn : ZoneFits (patientZone what) (actZoneOf v)} ->
-                  {auto 0 vc : VerbedVoice who what} ->
+                  {auto 0 vc : VerbedVoice v who what} ->
+                  {auto 0 bc : VerbBecomes v becomes} ->
                   {auto 0 fm : So (not forMana || verbForManaOk v)} ->
                   GameEvent bs
     ||| The ordinal occurrence of an event: "When the fourth plan counter
@@ -707,7 +767,7 @@ mutual
   eventName (PaysCost _ out _ _) = paymentEventName out
   eventName (PaysLife _) = LifePayment
   eventName (LifeChanges _ dir) = lifeEventName dir
-  eventName (VerbedEvent _ v _ _) = VerbedAct v
+  eventName (VerbedEvent _ v _ _ _) = VerbedAct v
   eventName (NthOccurrence _ _ ev) = eventName ev
 
   ||| What an event pattern contributes before it happens — its announced
@@ -791,8 +851,8 @@ mutual
   -- (Nefarious Lich) reads.
   eventIntro (LifeChanges who dir) =
     outcomeB (lifeMoveOutcome dir) :: selfSubjIntro who
-  eventIntro (VerbedEvent who _ Nothing _) = agentIntro who
-  eventIntro (VerbedEvent _ _ (Just what) _) = selfSubjIntro what
+  eventIntro (VerbedEvent who _ Nothing _ _) = agentIntro who
+  eventIntro (VerbedEvent _ _ (Just what) _ _) = selfSubjIntro what
   eventIntro (NthOccurrence _ _ ev) = eventIntro ev
 
   ||| The discourse after the event has happened, read by a trigger's
@@ -857,17 +917,17 @@ mutual
   eventAfter (PaysCost _ _ whose _) = nomIntro whose
   eventAfter (PaysLife who) = outcomeB LifeLost :: nomIntro who
   eventAfter (LifeChanges who dir) = outcomeB (lifeMoveOutcome dir) :: nomIntro who
-  eventAfter (VerbedEvent who _ Nothing _) = agentIntro who
+  eventAfter (VerbedEvent who _ Nothing _ _) = agentIntro who
   -- the act stamps its patient, so the body may name it back by its
   -- participle ("the milled card"), and leaves it where the act's own
   -- rule puts it [CR#701.9a,701.17a] -- or where it already was, when
   -- that rule moves nothing [CR#701.26a].
   -- and the narrowed act leaves what [CR#106.12a] has it produce, so
   -- the body may read the type its source made.
-  eventAfter (VerbedEvent _ v (Just what) True) =
+  eventAfter (VerbedEvent _ v (Just what) _ True) =
     outcomeB ManaProduced ::
       moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
-  eventAfter (VerbedEvent _ v (Just what) False) =
+  eventAfter (VerbedEvent _ v (Just what) _ False) =
     moveIntro (Just v) what (maybe (nounZone what) Just (actDestOf v))
   eventAfter (NthOccurrence _ _ ev) = eventAfter ev
 
@@ -907,11 +967,11 @@ mutual
   eventSubjectPlur (PaysCost Nothing _ _ _) = OneOf
   eventSubjectPlur (PaysLife who) = nounPlur who
   eventSubjectPlur (LifeChanges who _) = nounPlur who
-  eventSubjectPlur (VerbedEvent (Just who) _ _ _) = nounPlur who
-  eventSubjectPlur (VerbedEvent Nothing _ (Just what) _) = nounPlur what
+  eventSubjectPlur (VerbedEvent (Just who) _ _ _ _) = nounPlur who
+  eventSubjectPlur (VerbedEvent Nothing _ (Just what) _ _) = nounPlur what
   -- unreachable: `VerbedVoice` refuses an act with neither actor nor
   -- patient written; folded here rather than left to a catch-all.
-  eventSubjectPlur (VerbedEvent Nothing _ Nothing _) = OneOf
+  eventSubjectPlur (VerbedEvent Nothing _ Nothing _ _) = OneOf
   eventSubjectPlur (NthOccurrence _ _ ev) = eventSubjectPlur ev
 
   ||| Whether every arm of a coordination announces exactly what the head

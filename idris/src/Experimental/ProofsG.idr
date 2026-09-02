@@ -1266,7 +1266,8 @@ badTimesPaidUnknownKeyword Oh impossible
 public export
 badScryPatient : Unspellable (GameEvent []) (\ok =>
   VerbedEvent (Just You) "Scry"
-              (Just (Macros.a (InZone (ZoneAt Library Bare)))) False {pt = ok})
+              (Just (Macros.a (InZone (ZoneAt Library Bare)))) Nothing False
+              {pt = ok})
 badScryPatient ActOn impossible
 
 
@@ -1274,9 +1275,28 @@ badScryPatient ActOn impossible
 ||| An act announced of no one: the active names its actor and the passive its patient, and this writes neither.
 public export
 badVoicelessAct : Unspellable (GameEvent []) (\ok =>
-  VerbedEvent Nothing "Scry" Nothing False {vc = ok})
+  VerbedEvent Nothing "Scry" Nothing Nothing False {vc = ok})
 badVoicelessAct ActiveAct impossible
 badVoicelessAct PassiveAct impossible
+badVoicelessAct IntransitiveAct impossible
+
+
+||| "Whenever a card is put, …"
+||| The actorless voice spells "[what] is [participle]", and [CR#701.1] leaves "Put" its standard English meaning with no keyword action and no participle behind it -- so there is nothing for the passive to write. [CR#701.27e]'s intransitive is the other actorless voice, and it belongs to the acts whose own rule puts the patient before the verb.
+public export
+badPassiveWithoutParticiple : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent Nothing "Put" (Just (Macros.a IsCard)) Nothing False {vc = ok})
+badPassiveWithoutParticiple PassiveAct impossible
+badPassiveWithoutParticiple IntransitiveAct impossible
+
+
+||| "Whenever a card is milled into a Phyrexian, …"
+||| [CR#701.17a] mills by putting cards from the top of a library into a graveyard and states no characteristic the milled card comes to have, so there is nothing for "into [x]" to name. [CR#701.27e] states that reading for one act and [CR#701.28a] routes a second through it; every other label answers `BecomesNothing`.
+public export
+badBecomesWithoutIntransitive : Unspellable (GameEvent []) (\ok =>
+  VerbedEvent Nothing "Mill" (Just (Macros.a (InZone (ZoneAt Library Bare))))
+              (Just (HasSubtype (creatureType "Phyrexian"))) False {bc = ok})
+badBecomesWithoutIntransitive BecomesInto impossible
 
 
 ||| "Whenever a card in a graveyard is destroyed, …"
@@ -1284,7 +1304,7 @@ badVoicelessAct PassiveAct impossible
 public export
 badDestroyInGraveyard : Unspellable (GameEvent []) (\ok =>
   VerbedEvent Nothing "Destroy"
-              (Just (Macros.a (InZone Macros.graveyardZ))) False {zn = ok})
+              (Just (Macros.a (InZone Macros.graveyardZ))) Nothing False {zn = ok})
 badDestroyInGraveyard Oh impossible
 
 
@@ -1293,7 +1313,7 @@ badDestroyInGraveyard Oh impossible
 public export
 badDiscardFromBattlefield : Unspellable (GameEvent []) (\ok =>
   VerbedEvent (Just You) "Discard"
-              (Just (Macros.a (InZone Macros.battlefieldZ))) False {zn = ok})
+              (Just (Macros.a (InZone Macros.battlefieldZ))) Nothing False {zn = ok})
 badDiscardFromBattlefield Oh impossible
 
 
@@ -1380,7 +1400,7 @@ badObjectPremiseAtSpend Oh impossible
 ||| [CR#106.12] defines "for mana" for ONE act and defines it as a second act -- activating a mana ability that includes the {T} symbol -- so the adjunct is a rule attached to tapping and not an adverb any verb may take.
 public export
 badForManaOnNontap : Unspellable (GameEvent []) (\ok =>
-  VerbedEvent (Just You) "Sacrifice" (Just (Macros.a Macros.creature)) True
+  VerbedEvent (Just You) "Sacrifice" (Just (Macros.a Macros.creature)) Nothing True
               {fm = ok})
 badForManaOnNontap Oh impossible
 

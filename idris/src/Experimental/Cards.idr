@@ -10054,7 +10054,8 @@ public export
 clergyOfTheHolyNimbus : Ability
 clergyOfTheHolyNimbus =
   Static (Intercepts (VerbedEvent Nothing "Destroy"
-                                  (Just Macros.thisCreature) False) [] Nothing
+                                  (Just Macros.thisCreature) Nothing False)
+                     [] Nothing
                      (Regenerate It) Repeatedly Nothing)
 
 ||| Rampant Frogantua's second line: "This creature gets +10/+10 for each
@@ -12584,7 +12585,7 @@ tourachDiscardTrigger : Ability
 tourachDiscardTrigger =
   Macros.triggered Whenever
     (VerbedEvent (Just Macros.anOpponent) "Discard"
-                 (Just (Macros.a (InZone Macros.handZ))) False)
+                 (Just (Macros.a (InZone Macros.handZ))) Nothing False)
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne) Macros.thisCreature)
 
 ||| All-Seeing Arbiter's header -- "Whenever you discard a card, …", the
@@ -12596,7 +12597,8 @@ tourachDiscardTrigger =
 public export
 allSeeingArbiterHeader : GameEvent []
 allSeeingArbiterHeader =
-  VerbedEvent (Just You) "Discard" (Just (Macros.a (InZone Macros.handZ))) False
+  VerbedEvent (Just You) "Discard" (Just (Macros.a (InZone Macros.handZ)))
+              Nothing False
 
 ||| Mirelurk Queen's mill trigger -- "Whenever one or more nonland cards
 ||| are milled, draw a card, then put a +1/+1 counter on this creature.
@@ -12611,7 +12613,7 @@ mirelurkQueenTrigger =
                  (Just (CountedGroup (Macros.atLeast 1) Nothing
                                      (And [Not Macros.land,
                                            InZone (ZoneAt Library Bare)])))
-                 False)
+                 Nothing False)
     OncePerTurn
     (Sequentially [ Macros.drawCards 1
                   , PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
@@ -12628,7 +12630,7 @@ lilianasCaress =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
            (VerbedEvent (Just Macros.anOpponent) "Discard"
-                        (Just (Macros.a (InZone Macros.handZ))) False)
+                        (Just (Macros.a (InZone Macros.handZ))) Nothing False)
            (ChangeLife They (Down (Lit 2))) ]
        Nothing
 
@@ -12645,7 +12647,7 @@ schemingAspirant =
        (MkTypeLine [creatureType "Phyrexian", creatureType "Advisor"]
                    [Creature])
        [ Macros.triggered Whenever
-           (VerbedEvent (Just You) "Proliferate" Nothing False)
+           (VerbedEvent (Just You) "Proliferate" Nothing Nothing False)
            (Sequentially [ Macros.losesLife (Each Opponent) (Lit 2)
                          , Macros.gainsLife You (Lit 2) ]) ]
        (Just (1, 3))
@@ -14792,7 +14794,7 @@ public export
 nazgulRingTrigger : Ability
 nazgulRingTrigger =
   Macros.triggered Whenever
-    (VerbedEvent (Just You) "The Ring Tempts You" Nothing False)
+    (VerbedEvent (Just You) "The Ring Tempts You" Nothing Nothing False)
     (PutCounters (Lit 1) (PrintedKind Macros.plusOnePlusOne)
                  (Each (And [HasSubtype (creatureType "Wraith"),
                              ControlledBy You])))
@@ -14888,7 +14890,8 @@ hostileInvestigatorHeader : GameEvent []
 hostileInvestigatorHeader =
   VerbedEvent (Just (CountedGroup (Macros.atLeast 1) Nothing AnyPlayer))
               "Discard"
-              (Just (CountedGroup (Macros.atLeast 1) Nothing IsCard)) False
+              (Just (CountedGroup (Macros.atLeast 1) Nothing IsCard)) Nothing
+              False
 
 ||| Hallowed Moonlight, whole -- "Until end of turn, if a creature would
 ||| enter and it wasn't cast, exile it instead. / Draw a card." The
@@ -15155,7 +15158,7 @@ veilingOddityLine =
 ||| of your library", a step inside the scry that no event row names.
 public export
 whileScrying : Concurrent []
-whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing False)
+whileScrying = WhileDoing (VerbedEvent (Just You) "Scry" Nothing Nothing False)
 
 ||| Akki Lavarunner // Tok-Tok, Volcano Born, a flip card [CR#710.1],
 ||| whole -- "Haste / Whenever this creature deals damage to an opponent,
@@ -16466,7 +16469,7 @@ public export
 foulEmissaryLine : Ability
 foulEmissaryLine =
   Macros.triggeredWhile When
-    (VerbedEvent (Just You) "Sacrifice" (Just Macros.thisCreature) False)
+    (VerbedEvent (Just You) "Sacrifice" (Just Macros.thisCreature) Nothing False)
     (WhileDoing (Casts You
                    (Macros.a (And [Macros.spell,
                                    HasKeyword (TheKeyword "Emerge")]))
@@ -16492,7 +16495,7 @@ marketGnome =
        [ Macros.triggered When (Dies Macros.thisCreature)
            (Sequentially [ Macros.gainsLife You (Lit 1), Macros.drawACard ])
        , Macros.triggeredWhile When
-           (VerbedEvent Nothing "Exile" (Just Macros.thisCreature) False)
+           (VerbedEvent Nothing "Exile" (Just Macros.thisCreature) Nothing False)
            (WhileDoing (Activates You
                           (Macros.a (AbilityHead (KeywordClass "Craft")))))
            (Sequentially [ Macros.gainsLife You (Lit 1), Macros.drawACard ]) ]
@@ -17363,7 +17366,7 @@ manaFlare =
        (MkTypeLine [] [Enchantment])
        [ Macros.triggered Whenever
            (VerbedEvent (Just (Macros.a AnyPlayer)) "Tap"
-                        (Just (Macros.a Macros.land)) True)
+                        (Just (Macros.a Macros.land)) Nothing True)
            (AddMana (That PlayerW) (Lit 1)
                     (ProducedByEvent (That (TypeW Land))) []) ]
        Nothing
@@ -17387,7 +17390,7 @@ shimmerwildsGrowth =
                                    (OfChosen Color))
        , Macros.triggered Whenever
            (VerbedEvent Nothing "Tap"
-                        (Just (AttachHost Enchanted (TypeW Land))) True)
+                        (Just (AttachHost Enchanted (TypeW Land))) Nothing True)
            (AddMana (ControllerOf (That (TypeW Land))) (Lit 1)
                     (OfChosenColor Nothing) []) ]
        Nothing
@@ -17552,13 +17555,19 @@ arlinnKord =
 
 ||| Neglected Heirloom // Ashmouth Blade, whole -- the transform verb and
 ||| the TRIGGER on the act in one card. "When equipped creature
-||| transforms, transform this Equipment" is the only supported line that
-||| writes the bare act as a header ([CR#701.27e] names the family; 39
-||| supported faces write a trigger on transforming and 37 of them narrow
-||| it with "into [name]", which this one does not). The event is
-||| `VerbedEvent` under the `Transform` label, in the voice that names no
-||| actor -- [CR#701.27a] turns the permanent over and the permanent is
-||| what the header announces.
+||| transforms, transform this Equipment" writes the bare act as a header
+||| ([CR#701.27e] names the family; 39 supported faces write a trigger on
+||| transforming and 37 of them narrow it with "into [what it became]",
+||| which this one does not -- Corruption of Towashi's first arm is the
+||| other bare one; re-measured 2026-09-02).
+||| The event is `VerbedEvent` under the `Transform` label in the
+||| INTRANSITIVE voice: [CR#701.27a] turns the permanent over, and
+||| [CR#701.27e] puts that permanent before the verb with no actor named.
+||| It is not the passive it was first written as -- a passive spells
+||| "[what] is [participle]" and this label records no participle,
+||| [CR#701.27g] having given those words to a state -- so `VerbedVoice`
+||| now holds the passive to a participle and this header takes
+||| `IntransitiveAct` instead.
 public export
 neglectedHeirloom : Card
 neglectedHeirloom =
@@ -17568,8 +17577,7 @@ neglectedHeirloom =
             [ Static (Gets (AttachHost Equipped (TypeW Creature))
                            (PtUp (Lit 1)) (PtUp (Lit 1)))
             , Macros.triggered When
-                (VerbedEvent Nothing "Transform"
-                             (Just (AttachHost Equipped (TypeW Creature))) False)
+                (Macros.transforms (AttachHost Equipped (TypeW Creature)))
                 (Macros.transform Macros.thisEquipment)
             , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
             Nothing)
@@ -17604,6 +17612,58 @@ harvestHand =
                            (Gains It (Macros.keyword "Menace")))
                , Macros.keywordCosting "Equip" (Mana [Macros.generic 2]) ]
                Nothing)
+
+||| Cult of the Waxing Moon, whole -- "Whenever a permanent you control
+||| transforms into a non-Human creature, create a 2/2 green Wolf
+||| creature token." [CR#701.27e]'s complement written, and written over
+||| a CHARACTERISTIC rather than a name, which is the reading the rule
+||| states and the reason the slot is a predicate. Norn's Inquisitor
+||| writes the other characteristic-voiced one ("into a Phyrexian") and
+||| the remaining 35 write printed names, which the same slot spells
+||| through `Named` -- [CR#109.3] puts a name among an object's
+||| characteristics.
+||| The header announces its subject and nothing else: the complement
+||| says what that permanent became and names no second thing, so a body
+||| reading "it" would read the subject, as Norn's Inquisitor's does.
+public export
+cultOfTheWaxingMoon : Card
+cultOfTheWaxingMoon =
+  Macros.card "Cult of the Waxing Moon"
+       (Just [Macros.generic 4, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Human", creatureType "Shaman"] [Creature])
+       [ Macros.triggered Whenever
+           (Macros.transformsInto
+              (Macros.a (And [Permanent, ControlledBy You]))
+              (And [Macros.creature,
+                    Not (HasSubtype (creatureType "Human"))]))
+           (Macros.create (Lit 1)
+              (Macros.creatureTok 2 2 [Green] [creatureType "Wolf"])) ]
+       (Just (5, 4))
+
+||| Mutagen Connoisseur, whole -- "Flying, vigilance / This creature gets
+||| +1/+0 for each transformed permanent you control." The STATE
+||| [CR#701.27g] names, counted. It is the reason `Transform`'s row
+||| records no participle: these words describe what a permanent IS, and
+||| a participial lookback would name what the act was performed on --
+||| two different sets, since a permanent this act left front face up is
+||| never a transformed permanent and a transformed ARRIVAL
+||| [CR#712.14a] is one without the act ever happening.
+||| 3 supported lines write the description; Oculus Whelp reads it as a
+||| bare existence and Invasion of Pyrulea // Gargantuan Slabhorn as a
+||| static subject.
+public export
+mutagenConnoisseur : Card
+mutagenConnoisseur =
+  Macros.card "Mutagen Connoisseur"
+       (Just [Macros.generic 1, Macros.pip Green, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Vedalken", creatureType "Mutant"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.keyword "Vigilance"
+       , Static (Gets Macros.thisCreature
+                      (PtUp (Macros.nForEach 1
+                               (And [IsTransformed, ControlledBy You])))
+                      (PtUp (Lit 0))) ]
+       (Just (0, 5))
 
 -- --- The meld pair, and the identity lint the ruling asks for --------------
 

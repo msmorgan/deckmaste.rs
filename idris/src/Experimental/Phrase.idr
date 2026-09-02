@@ -789,6 +789,31 @@ mutual
     ||| -- spelling: "card", "cards".
     IsCard : Predicate bs Object
     IsToken : Predicate bs Object
+    ||| "a transformed permanent", "other transformed permanents you
+    ||| control", "for each transformed permanent you control": the STATE
+    ||| [CR#701.27g] gives those words, which is a different thing from
+    ||| the act that most often produces it. The rule states the whole
+    ||| description -- "a double-faced permanent on the battlefield with
+    ||| its back face up" -- and states as well what it is NOT: "a
+    ||| permanent with its front face up is never considered a
+    ||| transformed permanent, even if it had its back face up
+    ||| previously", and a melded or merged permanent never is either.
+    |||
+    ||| So it is not a participial lookback and could not be one: a
+    ||| lookback names what an act was performed on, and this names what a
+    ||| permanent IS now however it got there (a transformed ARRIVAL
+    ||| [CR#712.14a] turns nothing over and still writes it). That is why
+    ||| `Transform`'s row records no participle, and this row is what the
+    ||| words spell instead. 3 supported lines write it (Invasion of
+    ||| Pyrulea // Gargantuan Slabhorn, Mutagen Connoisseur, Oculus
+    ||| Whelp), measured 2026-09-02.
+    |||
+    ||| Not a `HasStatus`: [CR#110.5] closes a permanent's status at four
+    ||| categories and a side of a card is none of them, which is the
+    ||| refusal `Effect.TurnOver` already records. It seeds the
+    ||| BATTLEFIELD, the rule naming that zone in the description itself.
+    ||| -- spelling: "transformed [head]".
+    IsTransformed : Predicate bs Object
     HasStatus : {c : StatusCat} -> (v : StatusVal c) -> Predicate bs Object
     HasCounters : (kind : Maybe CounterKind) ->
                   {auto 0 kn : CounterKindNamed Object kind} ->
@@ -1106,6 +1131,7 @@ mutual
   seedZone (AttachedBy _ _) = Just Battlefield
   seedZone (AttachedTo _) = Just Battlefield
   seedZone IsToken = Just Battlefield
+  seedZone IsTransformed = Just Battlefield
   seedZone (HasStatus _) = Just Battlefield
   seedZone (HasCounters _) = Nothing
   -- payment is history the object carries [CR#707.2], readable on the
@@ -1153,6 +1179,7 @@ mutual
   public export
   seedsToken : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   seedsToken IsToken = True
+  seedsToken IsTransformed = False
   seedsToken (And ps) = seedsTokenAny ps
   seedsToken (Or ps) = seedsTokenAll ps
   seedsToken (CompareOver dom _ _ _) = seedsToken dom
@@ -1294,6 +1321,7 @@ mutual
   hasHead Permanent = True
   hasHead IsCard = True
   hasHead IsToken = True
+  hasHead IsTransformed = False
   hasHead (HasStatus _) = False
   hasHead (HasCounters _) = False
   hasHead (PaidCost _ _) = False
@@ -1531,6 +1559,8 @@ mutual
   predEq IsCard _ = False
   predEq IsToken IsToken = True
   predEq IsToken _ = False
+  predEq IsTransformed IsTransformed = True
+  predEq IsTransformed _ = False
   predEq (HasStatus v) (HasStatus w) = sameStatusVal v w
   predEq (HasStatus _) _ = False
   predEq (HasCounters Nothing) (HasCounters Nothing) = True
@@ -2063,6 +2093,7 @@ mutual
   predSays Permanent = True
   predSays IsCard = True
   predSays IsToken = True
+  predSays IsTransformed = True
   predSays (HasStatus _) = True
   predSays (HasCounters _) = True
   predSays (PaidCost _ _) = True
@@ -2140,6 +2171,7 @@ mutual
   predNegFree Permanent = True
   predNegFree IsCard = True
   predNegFree IsToken = True
+  predNegFree IsTransformed = True
   predNegFree (HasStatus _) = True
   predNegFree (HasCounters _) = True
   predNegFree (PaidCost _ _) = True
