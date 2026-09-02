@@ -83,3 +83,11 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   player-kind partitive, the condition-gated deontic, two reads of one
   amount, the combat-damage/block assignment decision) — counts in
   done/workbench-attacking-defender-attributive.md.
+
+- **Routed from each-player-binder (close, 2026-09-02):** the ordinal-player
+  cluster — `NthPlayer` (6 cards, all blocked behind measured constructions:
+  `CompareOver`'s member unnameable past an outer singular, and `Opponent`'s
+  missing possessor — 10 carriers, `OpponentOf` sibling the cheaper shape);
+  and the SELF-DESCRIBING description ("each player who searched their
+  library this way", 9 carriers — `CompareOver`'s split shape at the
+  predicate layer). Counts and probes in the done ticket.
