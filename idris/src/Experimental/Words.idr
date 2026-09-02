@@ -5469,9 +5469,9 @@ permanentType Vanguard = False
 ||| [CR#110.4b]'s list, read off a mention's head type: a permanent spell
 ||| is "an artifact, battle, creature, enchantment, or planeswalker
 ||| spell". LAND is on `permanentType`'s list and not on this one --
-||| [CR#305.9] makes playing a land no spell at all -- and a mention that
-||| names no type answers no, since the transition [CR#608.3a] is stated
-||| of a permanent spell and not of every stack object.
+||| [CR#305.1] makes a played land never a spell -- and a mention that
+||| names no type answers no, since the transition is stated of a
+||| permanent spell and not of every stack object.
 public export
 permanentSpellType : Maybe CardType -> Bool
 permanentSpellType Nothing = False

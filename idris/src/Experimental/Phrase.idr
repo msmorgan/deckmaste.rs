@@ -2192,9 +2192,12 @@ mutual
                {auto 0 asc : Ascribable n} -> Noun bs Object
     ||| "that creature enters with an additional +1/+1 counter on it",
     ||| "it gains haste until end of turn": the PERMANENT a permanent
-    ||| spell becomes as it resolves. [CR#608.3a] is the whole of it --
-    ||| a resolving permanent spell "becomes a permanent and enters the
-    ||| battlefield under the control of the spell's controller" -- and
+    ||| spell becomes as it resolves. [CR#110.4b] is the general fact --
+    ||| a permanent spell is one "that will enter the battlefield as a
+    ||| permanent as part of its resolution" -- and [CR#608.3a] is the
+    ||| step, "it becomes a permanent and enters the battlefield under
+    ||| the control of the spell's controller". The two are one object
+    ||| across that change, which
     ||| the two are one object across a zone change, which is why the row
     ||| WRAPS the spell mention instead of minting a referent of its own:
     ||| [CR#400.7a] has effects that changed the spell keep applying to
@@ -5450,7 +5453,7 @@ mutual
   nounZone (AsType t n _) = Just Battlefield
   -- [CR#608.3a] puts the permanent onto the battlefield, which is the
   -- whole point of the read: the base's stack zone is what refused the
-  -- grant.
+  -- grant. [CR#608.3c] lands an Aura spell there too, attached.
   nounZone (ResolvedPermanent _) = Just Battlefield
   -- and the zone IS the marker's own rule: [CR#111.1] puts a token onto
   -- the battlefield, [CR#114.2] an emblem into the command zone.
@@ -5509,7 +5512,8 @@ mutual
   nounTy : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe CardType
   nounTy This = Nothing
   nounTy (AsType t n _) = Just t
-  -- the permanent has the spell's types [CR#400.7a].
+  -- one object across the change [CR#608.3a], so the permanent carries
+  -- the head type the spell mention named.
   nounTy (ResolvedPermanent n) = nounTy n
   -- the marker word ascribes NO type: [CR#111.1] makes a token a marker
   -- for a permanent rather than a type it has, and [CR#114.3] leaves an

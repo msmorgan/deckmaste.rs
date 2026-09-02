@@ -17047,7 +17047,7 @@ delightedHalflingMana =
 ||| now writes, Generator Servant and Animal Attendant benching the two
 ||| spellings. `OnSpent` carried all 11 either way; the step the 9 waited
 ||| on was from the stack mention [CR#601.2a] to what it resolves into
-||| [CR#608.3a].
+||| [CR#110.4b,608.3a].
 public export
 boseijuMana : Ability
 boseijuMana =
@@ -17063,7 +17063,8 @@ boseijuMana =
 ||| until end of turn." The SPELL-TO-PERMANENT read's witness, and the
 ||| cell Boseiju's comment named as the remaining gap: the mention
 ||| `OnSpent` binds is a spell on the stack [CR#601.2a], the grant lands
-||| on the permanent it becomes [CR#608.3a], and `ResolvedPermanent` is
+||| on the permanent it becomes [CR#110.4b,608.3a], and
+||| `ResolvedPermanent` is
 ||| the one step between them. Nine of the eleven paid-for-object cells
 ||| were waiting on it.
 public export

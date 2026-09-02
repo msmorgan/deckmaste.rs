@@ -31,3 +31,7 @@ if a second witness appears or the ordinal work makes it free.
   goad target creature that player controls" (Frenzied Gorespawn's real last
   blocker) has no binder. And Oath of Mages' ordinal player read joins the
   ordinal family here.
+
+- **Confirmed still open (workbench-event-zone-and-cast-provenance close,
+  2026-09-02):** the umbrella declined the ordinal binder as off-lane — this
+  ticket holds it, with the 5 supported cards and the three blockers above.

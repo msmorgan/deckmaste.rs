@@ -290,7 +290,7 @@ badResolvedInstant Oh impossible
 
 
 ||| "this creature, once it resolves"
-||| The read is the stack-to-battlefield transition [CR#608.3a]; a mention already on the battlefield has made it, and naming what it becomes names nothing further.
+||| The read is the stack-to-battlefield transition [CR#110.4b,608.3a]; a mention already on the battlefield has made it, and naming what it becomes names nothing further.
 public export
 badResolvedOnBattlefield : Unspellable (Noun [] Object) (\ok =>
   ResolvedPermanent Macros.thisCreature {zn = ok})

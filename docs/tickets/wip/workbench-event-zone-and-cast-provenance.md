@@ -130,3 +130,146 @@ Standard constraints apply to every sub-ticket claimed off this split.
   9 of the 11 paid-for-object cells wait on it (the grammar correctly refuses
   granting haste to a stack object). Zone-crossing referent machinery, so it
   lands here.
+
+## As landed (2026-09-02) — the residue round
+
+Full `idris/scripts/build` PASS. `cite check --list-noncompliant` empty;
+`cite check` 0 stale over 20019 citations; `cite bless` registered four new
+rules ([CR#608.3a], [CR#608.3c], [CR#400.7a], [CR#111.13]); `cite audit
+--diff` read 39 sites. Three commits.
+
+### 1. The possessed-zone move destination — WRONG PREMISE, no row owed
+
+The routed line said `DestOk` admits bare zones only, so "Put a card exiled
+with this Saga into its owner's hand" does not write. `DestOk` does admit bare
+zones only, but that was never what blocked the sentence: [CR#400.3] routes a
+moved card to its owner's corresponding zone whatever the sentence names, so
+the BARE zone IS the owner-rooted destination — the ruling `blightHerderCast`
+("their owners' graveyards") and `obeliskOfUndoing` ("its owner's hand")
+already carried. Both named witnesses type-check unchanged:
+
+- `roadsGoEverEverOnChapters` — chapters II/III, `move (a (IsCard,
+  ExiledWith thisSaga)) handZ`.
+- `flickeringWardBounce` — "{W}: Return this Aura to its owner's hand."
+
+`summonEsperValigarmandaCast`'s docstring, which named this as the card's
+remaining blocker, is corrected.
+
+### 2. The WHICH-ZONE reader — the LOCUS complement
+
+The routed line described it as reading "which zone the found card came
+from". Re-measured, no printed line reads that; what 73 supported lines read
+is **which zone the SEARCH was performed in**:
+
+| voice | lines | status |
+|---|---|---|
+| condition, "If you search your library this way, shuffle" | 58 present + 4 past + 1 third-person + 1 variant body = **64** | **lands** |
+| relative clause, "Then each player who searched their library this way shuffles" | **8** | machinery lands, cards blocked (below) |
+| event, "When you search your library this way…" (Prishe's Wanderings), "Whenever an opponent searches their library" (3), "If an opponent would search a library" (1) | **5** | ledgered (below) |
+
+98 supported cards write a multi-zone search; 58 of them carry this tail, and
+it is what made them whole-card blockers.
+
+The mechanism is that an act's own rule may perform it ON A ZONE rather than
+on an object patient — which is exactly why sub-round 1 left `Search`'s
+`actPatient` empty ("what a printed line writes after the verb is a zone,
+which is no `Kind` here"):
+
+- `Words.VerbFacts` gains `actLoci : List Zone`, read by `actLociOf` /
+  `actNamesLocus`. `Search` takes every zone ([CR#701.23a] refuses none — it
+  looks at all cards in the named zone, hidden ones included; the four the
+  corpus never writes overgenerate at a printed zero on `destTypeOk`'s
+  terms). `Shuffle` takes `[Library]` ([CR#701.24a]), stated from the rule
+  and read by nothing — 0 supported lines write "shuffled your library this
+  way". Every other row is `[]`.
+- `Events.lookbackLocusOk : EventName -> Zone -> Bool`, open only at
+  `VerbedAct` and keyed on `actLoci`, so the gate is the ACT's and no zone
+  axis is added (a new `Zone` row still costs eleven tables).
+- `Phrase.EventComplement` gains `AtZone`, the FOURTH payload sort. It wraps
+  nothing: the other two zone sorts wrap because English nests them, and a
+  locus is written alone in every supported line. `complementPlain` and
+  `complementSourced` refuse it inside an origin or a destination;
+  `complementDelta` gives it the zone's own.
+- **`bareLookbackOk`'s verbed-act cell is re-measured**, not merely extended:
+  it now reads `not (actNamesPatient v) && not (actNamesLocus v)`, because a
+  search that names no zone drops exactly as much as a discard that names no
+  card.
+- `Macros.happenedAt` / `happenedToAt` are the two voices' wrappers.
+
+**Witnesses.** `vraskasScorn` — whole card, the shape 64 lines write.
+`agencyOutfitterSearch` and `deliveryMoogleSearch` gain their tails.
+
+### 3. The SPELL-TO-PERMANENT read — `ResolvedPermanent`
+
+`Phrase.Noun` gains `ResolvedPermanent : (spell : Noun bs Object) -> …`,
+gated `OnStack (nounZone spell)` and `permanentSpellType (nounTy spell)`
+([CR#110.4b]'s five types; LAND is on `permanentType`'s list and not on this
+one, [CR#305.1]). It WRAPS the spell mention rather than minting a referent —
+[CR#400.7a] keeps the two one object across the change — and reports
+`nounZone = Just Battlefield`, which is the whole of what the grammar was
+refusing. Twelve `Noun` tables filled.
+
+Not `AsType` (that ascribes a type to the source and leaves the referent
+where it is; `Ascribable` admits `This` alone) and not a `Predicate` (no
+description can put a stack object on the battlefield).
+
+**Witnesses.** `generatorServant` and `animalAttendant`, both whole — the two
+printed spellings, "it gains haste until end of turn" and "that creature
+enters with an additional +1/+1 counter on it". One row serves both; the
+choice of pronoun or type word states no fact about the referent.
+Re-measured beyond the mana riders: **22** supported lines write "that
+[permanent type] enters with …", 4 write "that creature gains/gets …" after a
+cast clause, and ~11 write "it gains/enters …" where the grant lands on the
+battlefield. Not this read, and deliberately not claimed: "it gains
+sunburst"/"it gains bloodthirst 3"/"it gains rebound" grant to the SPELL,
+which functions on the stack.
+
+`boseijuMana`'s docstring, which ledgered the 9 cells, is corrected.
+
+### Pins
+
+`badLocusOnDeath`, `badBareSearchLookback`, `badShuffleLocusAtGraveyard`,
+`badResolvedInstant`, `badResolvedOnBattlefield` (all `ProofsG.idr`).
+
+### Zeros — items the brief listed that were already closed
+
+- **The cast-zone provenance for the commander-cast counts.** Landed in
+  sub-round 4; re-measured at **21** supported cards (unchanged), 30 write
+  "from the command zone" at all. `commandersInsignia` benches the active
+  voice. Nothing owed.
+- **Tahngarth's player-subject attack event.** Landed in sub-round 2 as
+  `AttacksWith`; `tahngarthHeader` is benched at `Cards.idr`. Its two tail
+  clauses stay on `workbench-combat-assignment-and-forced-attack`. Nothing
+  owed.
+- **The ordinal binder ([CR#611.2f] next-spell/first-spell grants).** NOT this
+  umbrella's: it has a live planned ticket,
+  `docs/tickets/planned/workbench-element-binder-remainders.md`, carrying the
+  5 supported cards, Once Upon a Time, and the three recorded blockers.
+  Declined as off-lane.
+
+### Remainders — need routing
+
+1. **The searched-zone read's EVENT seat, 5 lines.** `GameEvent.VerbedEvent`
+   has no zone slot, so "When you search your library this way" (Prishe's
+   Wanderings), "Whenever an opponent searches their library" (3) and "If an
+   opponent would search a library" (1, a replacement) do not write. The fact
+   they need is `actLoci`, which landed; what it costs is a fifth positional
+   slot on `VerbedEvent` plus its gate, which is 18 call sites and four table
+   clauses. Declined on the count, not on the shape.
+2. **The SELF-POSSESSIVE zone inside a description, 8 lines.** "each player
+   who searched THEIR library this way" — `happenedToAt` writes the predicate,
+   but no noun names the described player's own library from inside the
+   description that describes them (`They` reads an outer mention). Boldwyr
+   Heavyweights, From the Ashes, Hired Giant, Natural Balance, New Frontiers,
+   Noble Benefactor, Rootweaver Druid, Wave of Vitriol. A description-layer
+   gap, not a zone one.
+3. **"Reveal it" inside an enters trigger.** Delivery Moogle is still not
+   whole: its search sits under `Enters this creature`, whose mention competes
+   with the found card, and `countOnes Object` refuses the pronoun. A recency
+   anaphor, and the whole and/or-search creature cycle (Ashiok's Forerunner,
+   Chandra's Firemaw, Elspeth's Devotee, Ethereal Elk, Garruk's Warsteed,
+   Goldmane Griffin, Niambi, Rowan's Stalwarts, Sorin's Guide, Teferi's
+   Wavecaster, Tower Winder, Yanling's Harbinger, Domri's Nodorog,
+   Fang-Druid Summoner) waits on it.
+4. **`Shuffle`'s locus cell is stated and unreached** — [CR#701.24a] gives the
+   act a library, and 0 supported lines read it back. Recorded, not a gap.
