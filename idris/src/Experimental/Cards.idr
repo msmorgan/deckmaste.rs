@@ -3885,6 +3885,81 @@ overgrownZealot =
                             [SpendOnly [ToPay (OfSpecialAction TurnFaceUp)]]) ]
        (Just (0, 4))
 
+||| Unblinking Observer, whole -- "{T}: Add {U}. Spend this mana only to
+||| pay a disturb cost or cast an instant or sorcery spell." The
+||| keyword-named cost arm beside the cast arm in ONE list, which is all
+||| the disjunction ever needed, over the Disturb row [CR#702.146a].
+public export
+unblinkingObserver : Card
+unblinkingObserver =
+  Macros.card "Unblinking Observer"
+       (Just [Macros.generic 1, Macros.pip Blue]) []
+       (MkTypeLine [creatureType "Homunculus"] [Creature])
+       [ Macros.activated TapSymbol
+                          (AddMana You (Lit 1) (Runs [[OfColor Blue]])
+                            [SpendOnly [ ToPay (OfKeyword "Disturb")
+                                       , ToCast Macros.instantOrSorcery ]]) ]
+       (Just (2, 1))
+
+||| Ainok Tracker, whole -- the Morph row's keyword line [CR#702.37a],
+||| "First strike / Morph {4}{R}". The word's own line is what the row
+||| buys first; Qarsi Deceiver's spend restriction, which names a morph
+||| COST, waits on a description this grammar does not have -- see
+||| `qarsiDeceiverMorphSpend` below.
+public export
+ainokTracker : Card
+ainokTracker =
+  Macros.card "Ainok Tracker"
+       (Just [Macros.generic 5, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Dog", creatureType "Scout"] [Creature])
+       [ Macros.keyword "FirstStrike"
+       , Macros.keywordCosting "Morph"
+                               (Mana [Macros.generic 4, Macros.pip Red]) ]
+       (Just (3, 3))
+
+||| Qarsi Deceiver's spend restriction, MINUS its first purpose --
+||| "Spend this mana only to ... pay a mana cost to turn a manifested
+||| creature face up, or pay a morph cost." The two arms that write:
+||| the special action [CR#116.2b] and the Morph row [CR#702.37a] (the
+||| card's parenthetical "a megamorph cost is a morph cost" is
+||| [CR#702.37b] itself and needs no second word).
+||| WHAT THE THIRD ARM WAITS ON, recorded rather than worked around:
+||| "cast a face-down creature spell" describes a SPELL as face down,
+||| and [CR#110.5d] says only permanents have status -- "cards not on
+||| the battlefield do not" -- so `HasStatus FaceDown`, whose seed zone
+||| is the battlefield for exactly that reason, can never describe one.
+||| What the line means is [CR#708.4]'s face-down CAST, a fact about how
+||| the spell got onto the stack rather than a status on it. 3 supported
+||| lines write "face-down creature spell"; the description is its own
+||| gap and no part of the keyword catalog's.
+public export
+qarsiDeceiverMorphSpend : Ability
+qarsiDeceiverMorphSpend =
+  Macros.activated TapSymbol
+                   (AddMana You (Lit 1) (Runs [[Colorless]])
+                     [SpendOnly [ ToPay (OfSpecialAction TurnFaceUp)
+                                , ToPay (OfKeyword "Morph") ]])
+
+||| Mercadian Bazaar, whole -- the storage land, and `CounterKind`'s
+||| `Storage` row. "This land enters tapped. / {T}: Put a storage counter
+||| on this land. / {T}, Remove any number of storage counters from this
+||| land: Add {R} for each storage counter removed this way." Black Mana
+||| Battery's shape at the other word: the any-number removal in the
+||| activation cost announces `CountersRemoved` and the production reads
+||| it back.
+public export
+mercadianBazaar : Card
+mercadianBazaar =
+  Macros.card "Mercadian Bazaar" Nothing [] (MkTypeLine [] [Land])
+       [ Static (Macros.entersTapped Macros.thisLand)
+       , Macros.activated TapSymbol
+                          (PutCounters (Lit 1) (PrintedKind Storage) Macros.thisLand)
+       , Macros.activated (Compound [TapSymbol,
+                                     Do (RemoveCounters (Just Macros.anyNumber) (Just Storage)
+                                                        Macros.thisLand)])
+                          (AddMana You RemovedThisWay (Runs [[OfColor Red]]) []) ]
+       Nothing
+
 ||| Rootcoil Creeper's second ability -- "{T}: Add two mana of any one
 ||| color. Spend this mana only to cast spells from your graveyard."
 ||| The ZONE-QUALIFIED spend purpose, which needed no cell of its own:

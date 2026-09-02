@@ -4051,6 +4051,35 @@ keywordFacts =
   , MkKeywordFacts "Freerunning"      CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Sneak"            CostParam    False (Just AtCasting)    True  True  False
   , MkKeywordFacts "Mayhem"           CostParam    False Nothing             True  True  False
+  -- TWO MORE alternative-cost words, bought by the SPEND-RESTRICTION
+  -- channel rather than by the readback one: `CostNamed.OfKeyword`
+  -- reaches a word through `keywordCosts` exactly as `PaidCost` does,
+  -- and "Spend this mana only to pay a disturb cost" (Unblinking
+  -- Observer) / "... or pay a morph cost" (Qarsi Deceiver) is a consumer
+  -- neither a macro nor a readback supplies. Both write ZERO readbacks,
+  -- which is why the twenty-word list above still names disturb: that
+  -- list is about the readback channel alone.
+  -- [CR#702.146a]: "Disturb [cost]" means "You may cast this card
+  -- transformed from your graveyard by paying [cost] rather than its
+  -- mana cost", an ability found on the front face of a double-faced
+  -- card, with [CR#712.8c] giving the resulting spell its back face.
+  -- [CR#702.37a]: "Morph [cost]" means "You may cast this card as a 2/2
+  -- face-down creature ... by paying {3} rather than paying its mana
+  -- cost", a static ability functioning "in any zone from which you
+  -- could play the card it's on". Neither functions on the stack -- each
+  -- carries its own zone, as madness and mayhem do -- so neither has a
+  -- stack regime, and neither is in [CR#122.1b]'s keyword-counter list.
+  -- MEGAMORPH IS NOT A SECOND ROW: [CR#702.37b] says outright that "a
+  -- megamorph cost is a morph cost", so the word Qarsi Deceiver's
+  -- parenthetical names is this row's.
+  -- The card classes are the RULES' and not the corpus's: neither rule
+  -- names a card type, and [CR#708.4] applies a face-down cast's
+  -- prohibitions to the face-down characteristics whatever the card was.
+  -- Measured 2026-09-02 over supported faces with reminders stripped: 25
+  -- disturb lines and 172 morph/megamorph lines, every one of them on a
+  -- creature (or artifact creature) card.
+  , MkKeywordFacts "Disturb"          CostParam    False Nothing             True  True  False
+  , MkKeywordFacts "Morph"            CostParam    False Nothing             True  True  False
   -- The two MODAL cost words, which are additional costs rather than
   -- alternative ones and earn their rows from the keyword LINE alone: 32
   -- supported entwine lines and 9 escalate lines, and ZERO readbacks
@@ -4673,9 +4702,9 @@ Eq SpecialAction where
 ||| a cost -- and Jegantha's mana pays the {R} of {2}{R} perfectly well.
 ||| 1 line, its own gap.
 |||
-||| Two of the keyword-named lines have no word to name yet: `keywordFacts`
-||| carries no Disturb and no Morph row, so Unblinking Observer and Qarsi
-||| Deceiver wait on the keyword catalog rather than on this type. The
+||| The two keyword-named lines that had no word to name are paid: the
+||| Disturb and Morph rows landed in `keywordFacts`, so Unblinking
+||| Observer and Qarsi Deceiver both bench. The
 ||| cost-arm/cast-arm disjunction both of them also write needs nothing:
 ||| `SpendOnly` already takes a LIST of purposes, and an arm of each kind
 ||| in one list is that sentence.
@@ -5387,6 +5416,18 @@ data CounterKind : Type where
   ||| Cyclone's escalating tally: the same ordinary marker [CR#122.1],
   ||| counted by the payment that reads it.
   Wind : CounterKind
+  ||| The storage lands' stored mana: the same ordinary marker
+  ||| [CR#122.1], put by one activation and removed by another to pay for
+  ||| the mana it produces. Re-measured 2026-09-02: 18 supported LANDS
+  ||| write 36 lines naming the kind, 6 of them the "Remove X storage
+  ||| counters ...: Add X mana in any combination of ..." family
+  ||| (Calciform Pools and its four siblings, Crucible of the Spirit
+  ||| Dragon) and the rest the single-colour and single-symbol ones.
+  ||| Its own kind and not `Charge`'s: the two words are different
+  ||| markers on different cards, and [CR#122.1] gives a counter's kind
+  ||| no meaning beyond the abilities that name it, so nothing licenses
+  ||| one word standing in for the other.
+  Storage : CounterKind
 
 public export
 counterScope : CounterKind -> Kind
@@ -5413,6 +5454,7 @@ counterScope Luck = Object
 counterScope Blood = Object
 counterScope Bloodstain = Object
 counterScope Wind = Object
+counterScope Storage = Object
 
 public export
 Eq CounterKind where
@@ -5463,6 +5505,8 @@ Eq CounterKind where
   (==) Bloodstain _ = False
   (==) Wind Wind = True
   (==) Wind _ = False
+  (==) Storage Storage = True
+  (==) Storage _ = False
 
 public export
 data CounterKindNamed : Kind -> Maybe CounterKind -> Type where
