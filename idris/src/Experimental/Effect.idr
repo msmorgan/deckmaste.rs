@@ -870,6 +870,38 @@ mutual
       SetsColor : (n : Noun bs Object) -> (cs : ColorSpec) ->
                   {auto 0 cd : ColorSpecOk cs} ->
                   StaticEffect bs
+      ||| The type-line SETTING [CR#613.1d], and `ret` is the RETENTION
+      ||| PHRASE the line prints, not a list of what survives. Read
+      ||| [CR#205.1b] and the difference matters: an effect that
+      ||| "specif[ies] that the object retains a prior card type" keeps
+      ||| ALL of them -- "all the object's prior card types, supertypes,
+      ||| and subtypes are retained" -- so "It's still a land" is the
+      ||| trigger for retain-all and not a one-type carve-out. The slot
+      ||| is `Maybe CardType` because that is the WORD the card prints
+      ||| after "still a"; `Nothing` is [CR#205.1a]'s plain replacement.
+      ||| 135 supported lines print a marker (measured 2026-09-02): 118
+      ||| "It's still a land", 12 "They're still lands", and one each of
+      ||| enchantment, artifact, Shapeshifter and Cave land.
+      |||
+      ||| THERE IS THEREFORE NO RETAIN-ALL ARM to add, and no measured
+      ||| zero is doing the work. Two families were asked of this row and
+      ||| neither wants one. "Is a [type] in addition to its other types"
+      ||| -- 289 supported lines over 285 cards, re-measured 2026-09-02 --
+      ||| is [CR#205.1b]'s OTHER listed phrase and states the ADDITION
+      ||| operation, which is `BecomesAlso`'s row over this same bundle;
+      ||| Luxior, Giada's Gift writes a setting and an addition in one
+      ||| sentence (`luxiorTypeSetting`) and neither half is the other's.
+      ||| And the unmarked "becomes a [subtype] artifact creature" form --
+      ||| 232 supported lines -- retains all its prior types too, by
+      ||| [CR#205.1b]'s own last two sentences, with no phrase printed
+      ||| for a slot to hold: that retention is a function of the type
+      ||| line this row already carries, so recording it twice would put
+      ||| a derived fact in a printed cell.
+      ||| RECORDED RESIDUE: 2 of the 135 markers print a SUBTYPE ("It's
+      ||| still a Shapeshifter", "It's still a Cave land"), which a
+      ||| `Maybe CardType` cannot spell. Two lines, and what they want is
+      ||| a wider retention PAYLOAD, not a retain-all arm.
+      ||| -- spelling: "[n] becomes [t]" then "It's still a [ret]".
       SetsType : (n : Noun bs Object) -> (t : TokenChars bs) ->
                  (ret : Maybe CardType) ->
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -5838,6 +5870,41 @@ mutual
              CostSeq n (costIntro c) -> CostSeq (S n) bs
 
   namespace Text
+    ||| A face's abilities, THREADED LEFT TO RIGHT: each one is typed at
+    ||| the bindings its predecessors introduced.
+    |||
+    ||| That threading is the MODEL'S, not a rule's, and saying so is
+    ||| worth a paragraph because five pins turn on it --
+    ||| `badReaderBeforeChooser`, `badChosenProtectionBeforeChoice`,
+    ||| `badAscribedQualityBeforeChoice`, `badNameMatchBeforeChooser`
+    ||| and `badLastChosenBeforeChooser`, all in `ProofsF`. [CR#608.2c]
+    ||| orders the instructions of ONE spell or ability and says nothing
+    ||| about the order of a card's abilities; its own last sentence
+    ||| points the other way, telling the reader that later text on the
+    ||| card may modify earlier text and to read the whole text rather
+    ||| than step by step. What links a chooser to a reader is
+    ||| [CR#607.2d], and it links them by ROLE -- the ability that
+    ||| causes the choice and the ability that refers to it -- naming no
+    ||| printed order at all.
+    |||
+    ||| So a JOINT-TYPING CONTAINER would be the truer model, and it is
+    ||| declined on cost with its shape written down. It cannot be this
+    ||| sequence typed at the union of its own members' introductions:
+    ||| that index would be computed from the sequence the index types.
+    ||| The face has to DECLARE its choices instead -- `CardFace` gains
+    ||| a `chosen : List QualitySort` cell, `text` is indexed at the
+    ||| bindings those sorts introduce ahead of `costLetters cost`, and
+    ||| a `So` gate holds the declaration to what the abilities actually
+    ||| choose. Only the CHOICE bindings may be lifted: a target or a
+    ||| pronoun antecedent belongs to the one ability that wrote it, and
+    ||| lifting those would let an ability read another ability's
+    ||| target, which no rule licenses. The price is `CardFace`,
+    ||| `AltFace`, `FaceLaws`, `AltFaceLaws`, `Macros.card` and every
+    ||| card in the bench, bought for a shape NO printed card writes:
+    ||| measured 2026-09-02, 0 supported cards print a chosen-quality
+    ||| read above the chooser it reads. Unbought, so the five pins
+    ||| stand as STRUCTURAL refusals -- this threading's, labelled as
+    ||| such -- and not as rules refusals.
     public export
     data AbilitySeq : Bindings -> Type where
       Nil : AbilitySeq bs

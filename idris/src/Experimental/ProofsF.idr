@@ -230,7 +230,7 @@ badYourChoiceNumber Oh impossible
 
 
 ||| "Creatures you control of the chosen type get +1/+1. / As this enchantment enters, choose a creature type."
-||| [CR#608.2c] carries out the instructions in the order written, so a choice a later line makes has not been made.
+||| STRUCTURAL, and the label is the honest one: `AbilitySeq` threads a face's abilities left to right, so the read is typed before the chooser has bound anything. [CR#607.2d] links the two by role and orders neither.
 public export
 badReaderBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
@@ -270,7 +270,7 @@ badChosenReadWrongSort Refl impossible
 
 
 ||| "This creature has protection from the chosen color. / As this creature enters, choose a color."
-||| [CR#608.2c] runs the lines in the order written, so the parameter reads a colour nobody has chosen yet.
+||| STRUCTURAL, the same threading at a keyword parameter: the read is typed before the chooser's ability. [CR#607.2d] links them by role.
 public export
 badChosenProtectionBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [creatureType "Angel"] [Creature])
@@ -282,7 +282,7 @@ badChosenProtectionBeforeChoice Refl impossible
 
 
 ||| "Creatures you control are the chosen type in addition to their other types. / As this enchantment enters, choose a creature type."
-||| The same refusal at the ascribed quality: [CR#608.2c] has not reached the choosing line yet.
+||| STRUCTURAL, the same threading at the ascribed quality.
 public export
 badAscribedQualityBeforeChoice : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
@@ -306,7 +306,7 @@ badDoubleExtension Oh impossible
 
 
 ||| "{U}: Counter target spell with the chosen name. / As this enchantment enters, choose a card name."
-||| [CR#607.2d] links the reader to the choice the first ability made; [CR#608.2c] has not run the later line.
+||| STRUCTURAL, the same threading with the reader inside an ACTIVATED ability. [CR#607.2d] links an activated reader to an as-enters chooser as readily as a static one.
 public export
 badNameMatchBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])
@@ -593,7 +593,7 @@ badLastChosenColorNoChooser ChoiceMade impossible
 
 
 ||| "Prevent all damage that would be dealt to you by sources of the last chosen color. / As this enchantment enters, choose a color."
-||| [CR#608.2c] follows the instructions in the order written, so the last chosen colour is not yet chosen.
+||| STRUCTURAL, the same threading at the MARKED read, whose count is zero before the chooser's ability.
 public export
 badLastChosenBeforeChooser : Unspellable Card (\ok =>
   Macros.card "" Nothing [] (MkTypeLine [] [Enchantment])

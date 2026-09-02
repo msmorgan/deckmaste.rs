@@ -5495,6 +5495,26 @@ data CounterKindSource : Bindings -> Type where
   ||| arm are both tolerated and both unwritten -- each is performable,
   ||| and each says what `PrintedKind` says, since [CR#122.1] makes
   ||| counters with the same name interchangeable.
+  |||
+  ||| THE ARMS SHARE THE CLAUSE'S AMOUNT, and one printed line disagrees.
+  ||| Re-measured 2026-09-02: 38 supported lines write "your choice of"
+  ||| over counter kinds, 26 of them distinct, and exactly ONE gives an
+  ||| arm a number of its own -- Inspirit, Flagship Vessel, "put your
+  ||| choice of a +1/+1 counter or two charge counters on up to one
+  ||| other target artifact". (Grimdancer's "two different counters" is
+  ||| the pick's size, which is `DistinctChosenKinds` and already
+  ||| written.) The shape that line wants is a menu of counter
+  ||| QUANTITIES -- arms of (amount, kind) with the clause's own amount
+  ||| slot absent, since the menu has subsumed it -- and it cannot be an
+  ||| arm here: this type sits in `PutCounters`' kind slot beside an
+  ||| `Amount` the row always writes, and an arm carrying its own number
+  ||| beside a clause amount would state the count twice. `Modal` is not
+  ||| the spelling either: two modes would mint a target apiece
+  ||| [CR#601.2c] where the card writes one mention for both arms. So it
+  ||| is a row of its own at ONE line, and one line does not buy a row
+  ||| plus its nine tables. Recorded, not built; the card is blocked
+  ||| well past this in any case, writing Station and two
+  ||| threshold-framed ability groups.
   ChosenKind : (menu : List CounterKind) ->
                {auto 0 ne : NonEmpty menu} -> CounterKindSource bs
   ||| "your choice of two different counters ... from among [k1], [k2],
