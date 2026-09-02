@@ -18,3 +18,14 @@ is a quoted block. Record the row in the ADR's ownership table, implement
 it generally (any nominal position, not the `with` postmodifier alone),
 and prove it with `ambiguity --require-resolved` and the byte-exact gates.
 Standard constraints apply.
+
+Coordinator amendment (modal landing review F2/F3): no fresh ADR ruling is
+needed — `quote_terminated_statement` (constructions.rs ~:4606) already
+implements the rule (the quoted interior's period discharges the enclosing
+sentence's terminator), narrowed by `require predicate is
+QuotedAbilityPredicate`, a construction-naming guard of the same defect
+class as `require possessor is Their`. Generalize that construction to any
+sentence whose final constituent is a quoted block and delete the guard;
+record the ownership row in the ADR as the now-general rule. Sizing: 312
+is a string count; ~215 units fail only at the terminator, the rest fail
+mid-text for unrelated reasons — expect ~215 returned.

@@ -16,3 +16,8 @@ Two construction-compiler gaps the 13-10 round hit and worked around:
 
 Fix both in `deckmaste_construction_core`; the grammar-side changes are
 one-line follow-ups in english_v2. Standard constraints apply.
+
+Coordinator amendment: only item 1 (onset for `{P}` symbol runs; 5 faces)
+is a 14-10 blocker. Item 2 (nested `OracleText`) is non-blocking —
+`QuotedBlock` over `DocumentBlock` works and carries units today; do it
+here for structural correctness, but 14-10 may proceed once item 1 lands.

@@ -50,3 +50,21 @@ means `gains "…"` (135 faces) cannot take `Role("QuotedAbility")` until
 core verbs live in declaration data; the `have` frame already does. The
 declaration-side route for a core verb's frame lands here — the quoted
 grant is its first consumer.
+
+Coordinator amendments (modal landing review, 2026-09-02):
+- LEVEL ruling (F1): the `"LEVEL"` literal (constructions.rs ~:4917)
+  collides case-insensitively with the declared designation surface
+  `level`. Ruling: the leveler band label is the Level Up keyword
+  ability's grammar contribution — move it to that stub's declared
+  surfaces and delete the core literal; the compiler tripwire compares
+  exact surfaces (case-sensitive), so no exemption is needed once moved.
+  Land this before the tripwire so it never has to grandfather shipped
+  code.
+- Inventory refresh: "an opponent chooses" and "one or both" were
+  dissolved by the 13-10 round — strike them; re-run the zero-routing
+  construction census (the pawprint arm changed it) before deleting.
+- This ticket also owns the unimplemented half of the 2026-09-02 ruling:
+  the literal/lexicon-collision (or structural-depth) metric in the gate
+  summary.
+- The frame-key-reduction -> 14-10 needs edge is RATIFIED by the
+  coordinator: dissolution precedes the long-tail loop by design.
