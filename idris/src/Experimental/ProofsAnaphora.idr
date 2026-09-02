@@ -1171,7 +1171,7 @@ dealDamageOwnReadsNoPrefix bs k src c to pm rk = DealDamageOwn src c to {pm} {rk
 public export
 ofSubjectReadsNoPrefix : (bs : Bindings) -> (k : Nat) -> (n : Noun bs Object) ->
                          (vps : SubjectVPs k (selfSubjIntro n)) -> IsSucc k ->
-                         So (vpsOk (nounZone n) (nounRegime n) vps) ->
+                         So (vpsOk (nounZone n) (nounRegime n) (nounTy n) vps) ->
                          StaticEffect bs
 ofSubjectReadsNoPrefix bs k n vps ne ok = OfSubject n vps {ne} {ok}
 
@@ -1438,14 +1438,16 @@ subjectVPsThreadPrefix bs n vp rest = (::) vp rest
 public export
 vpIntroIsDeltaThenPrefix : (bs : Bindings) -> (pow : PtShift bs) ->
                            (tou : PtShift (shiftIntro pow)) ->
-                           vpIntro (VPGets pow tou)
+                           (sp : Maybe (Duration (shiftIntro tou))) ->
+                           vpIntro (VPGets pow tou sp)
                              = shiftDelta tou ++ shiftDelta pow ++ bs
-vpIntroIsDeltaThenPrefix bs pow tou = Refl
+vpIntroIsDeltaThenPrefix bs pow tou sp = Refl
 
 public export
 vpGainsMintsNothing : (bs : Bindings) -> (ab : AbilityAt bs) ->
-                      vpIntro (VPGains ab) = bs
-vpGainsMintsNothing bs ab = Refl
+                      (sp : Maybe (Duration bs)) ->
+                      vpIntro (VPGains ab sp) = bs
+vpGainsMintsNothing bs ab sp = Refl
 
 ||| An arithmetic amount reads its left operand's output, not the other
 ||| way round: "X plus Y" types Y in X's context.

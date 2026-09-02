@@ -708,7 +708,7 @@ public export
 sharedSubject : {0 k : Nat} -> (n : Noun bs Object) ->
                 (vps : SubjectVPs k (selfSubjIntro n)) ->
                 {auto 0 ne : IsSucc k} ->
-                {auto 0 ok : So (vpsOk (nounZone n) (nounRegime n) vps)} ->
+                {auto 0 ok : So (vpsOk (nounZone n) (nounRegime n) (nounTy n) vps)} ->
                 (d : Maybe (Duration (vpsIntro vps))) ->
                 {auto 0 sp : SpanOk Coordination d} -> Effect bs
 sharedSubject n vps d = Continuously (OfSubject n vps {ne} {ok}) d {sp}

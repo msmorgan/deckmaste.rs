@@ -9663,8 +9663,8 @@ ghorClanRampager =
                       -- around the missing form.
                       (Macros.sharedSubject
                          (Macros.target (And [Macros.creature, Attacking]))
-                         [ VPGets (PtUp (Lit 4)) (PtUp (Lit 4))
-                         , VPGains (Macros.keyword "Trample") ]
+                         [ VPGets (PtUp (Lit 4)) (PtUp (Lit 4)) Nothing
+                         , VPGains (Macros.keyword "Trample") Nothing ]
                          (Just Macros.untilEndOfTurn)))
 
 
@@ -13657,8 +13657,8 @@ aimHigh =
        [ Spell (Sequentially
                   [ Macros.untap (Macros.target Macros.creature)
                   , Macros.sharedSubject (ItVerbed "Untap")
-                      [ VPGets (PtUp (Lit 2)) (PtUp (Lit 2))
-                      , VPGains (Macros.keyword "Reach") ]
+                      [ VPGets (PtUp (Lit 2)) (PtUp (Lit 2)) Nothing
+                      , VPGains (Macros.keyword "Reach") Nothing ]
                       (Just Macros.untilEndOfTurn) ]) ]
        Nothing
 
@@ -15863,9 +15863,9 @@ tattooWard =
        [ Macros.keywordSubject "Enchant" Macros.creature
        , Static (DoesntRemove
                    (OfSubject (AttachHost Enchanted (TypeW Creature))
-                      [ VPGets (PtUp (Lit 1)) (PtUp (Lit 1))
+                      [ VPGets (PtUp (Lit 1)) (PtUp (Lit 1)) Nothing
                       , VPGains (Macros.keywordQuality "Protection"
-                                   (HasType Enchantment)) ])
+                                   (HasType Enchantment)) Nothing ])
                    Macros.thisAura)
        , Macros.activated (Do (Macros.sacrifice You Macros.thisAura))
            (Macros.destroy (Macros.target Macros.enchantment)) ]
@@ -17046,3 +17046,89 @@ leoninBola =
                       (SetStatus Tapped (Macros.target Macros.creature))))
        , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
        Nothing
+
+-- ---------------------------------------------------------------------------
+-- The PER-PART span on the shared-subject coordination.
+-- ---------------------------------------------------------------------------
+
+||| Distortion Strike, whole card -- "Target creature gets +1/+0 until
+||| end of turn and can't be blocked this turn. / Rebound". One subject,
+||| two verb phrases, and TWO SPANS: the grant is written "until end of
+||| turn" and the restriction "this turn", which are different `Duration`
+||| values, so the single envelope `Continuously` puts over the whole
+||| coordination could not write the line. The envelope stays as the
+||| ELIDED form -- "gets +2/+2 and gains trample until end of turn" still
+||| writes one span at the end and no arm span at all.
+||| Taigam's Strike writes the same line at +2/+0; Teleportal, Marchesa's
+||| Smuggler, Veil of Secrecy and Cephalid Inkshrouder are the same
+||| family at other verbs.
+||| The card does not bench whole: its second line is the keyword
+||| Rebound, which the keyword catalog does not carry -- that word's
+||| cell, not this span's.
+public export
+distortionStrikeLine : Effect []
+distortionStrikeLine =
+  Macros.sharedSubject
+    (Macros.target Macros.creature)
+    [ VPGets (PtUp (Lit 1)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn)
+    , VPDeontic Forbid ["Block"] Patient (Just Macros.thisTurn) ]
+    Nothing
+
+||| Battlegate Mimic, whole card -- "Whenever you cast a spell that's
+||| both red and white, this creature has base power and toughness 4/2
+||| until end of turn and gains first strike until end of turn."
+|||
+||| THE SAME-WORD-TWICE VERDICT, and it is a spelling variant of the
+||| shared envelope. Re-measured 2026-09-02: four lines write the
+||| identical current-turn word twice on one shared-subject coordination
+||| (the Mimic cycle's flying, first strike, trample and wither members;
+||| the fifth, Riverfall Mimic, writes the can't-be-blocked variant and
+||| belongs to the DISAGREEING family), plus Sylvan Awakening's
+||| land-copy line. Because both written spans are the same `Duration`
+||| value, the envelope already says what the line says, and the family
+||| that actually needed a per-part span shrinks to the 51 grant-plus-
+||| restriction lines `VPDeontic` buys. This card benches on the
+||| envelope, unchanged -- `HasBasePt` has no verb-phrase arm, so the
+||| coordination is `AndAlso`'s and the second statement writes the
+||| deictic again rather than reading it back.
+public export
+battlegateMimic : Card
+battlegateMimic =
+  Macros.card "Battlegate Mimic"
+       (Just [Macros.generic 1, Macros.hybridPip Red White]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
+       [ Macros.triggered Whenever
+           (Casts You (Macros.a (And [Macros.spell, ColorIs Red,
+                                      ColorIs White])) Nothing)
+           (Continuously
+              (AndAlso [ HasBasePt Macros.thisCreature (Lit 4) (Lit 2)
+                       , Gains Macros.thisCreature
+                               (Macros.keyword "FirstStrike") ])
+              (Just Macros.untilEndOfTurn)) ]
+       (Just (2, 1))
+
+
+public export
+probeA : Card
+probeA =
+  Macros.card "Battlegate Mimic"
+       (Just [Macros.generic 1, Macros.hybridPip Red White]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
+       [ Macros.triggered Whenever
+           (Casts You (Macros.a (And [Macros.spell, ColorIs Red,
+                                      ColorIs White])) Nothing)
+           Macros.drawACard ]
+       (Just (2, 1))
+
+public export
+probeB : Card
+probeB =
+  Macros.card "Battlegate Mimic"
+       (Just [Macros.generic 1, Macros.hybridPip Red White]) []
+       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
+       [ Macros.triggered Whenever
+           (Casts You (Macros.a (And [Macros.spell, ColorIs Red,
+                                      ColorIs White])) Nothing)
+           (Continuously (HasBasePt Macros.thisCreature (Lit 4) (Lit 2))
+                         (Just Macros.untilEndOfTurn)) ]
+       (Just (2, 1))

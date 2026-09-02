@@ -1160,7 +1160,8 @@ mutual
       OfSubject : {0 k : Nat} -> (n : Noun bs Object) ->
                   (vps : SubjectVPs k (selfSubjIntro n)) ->
                   {auto 0 ne : IsSucc k} ->
-                  {auto 0 ok : So (vpsOk (nounZone n) (nounRegime n) vps)} ->
+                  {auto 0 ok :
+                     So (vpsOk (nounZone n) (nounRegime n) (nounTy n) vps)} ->
                   StaticEffect bs
 
   ||| The modality, all four rows of it. [CR#609.4] writes the
@@ -4847,9 +4848,26 @@ mutual
     data SubjectVP : Bindings -> Type where
       ||| `Gets`' slots: "… gets +4/+4 …".
       VPGets : (pow : PtShift bs) -> (tou : PtShift (shiftIntro pow)) ->
-               SubjectVP bs
+               (span : Maybe (Duration (shiftIntro tou))) -> SubjectVP bs
       ||| `Gains`' slot: "… and gains trample", "… and has flying".
-      VPGains : (ab : AbilityAt bs) -> SubjectVP bs
+      VPGains : (ab : AbilityAt bs) -> (span : Maybe (Duration bs)) ->
+                SubjectVP bs
+      ||| `Deontic`'s slots minus the subject: "… and can't be blocked
+      ||| this turn", "… and can attack this turn", "… and must be
+      ||| blocked this turn". The third arm, and the one the PER-PART
+      ||| SPAN was bought with: 51 supported lines coordinate a grant
+      ||| written "until end of turn" with a restriction written "this
+      ||| turn" (measured 2026-09-02, 49 in that order and 2 reversed),
+      ||| and those are two different `Duration` values, so the one
+      ||| envelope `Continuously` puts over the whole coordination cannot
+      ||| write them. Distortion Strike, Taigam's Strike, Teleportal and
+      ||| Marchesa's Smuggler are the family's plainest members.
+      ||| No patient and no counterfactual: the arm is the PLAIN
+      ||| restriction the seat writes, and the four lines that name a
+      ||| blocker class there ("can't be blocked by Walls this turn")
+      ||| keep writing `AndAlso`.
+      VPDeontic : (c : Compulsion bs) -> (deeds : Deeds) -> (role : Role) ->
+                  (span : Maybe (Duration bs)) -> SubjectVP bs
 
     ||| The parts, threaded left to right [CR#608.2c] on `StaticParts`'
     ||| model: each typed in the previous one's output.
@@ -4864,29 +4882,57 @@ mutual
   ||| part was typed.
   public export
   vpIntro : {bs : Bindings} -> SubjectVP bs -> Bindings
-  vpIntro (VPGets pow tou) = shiftDelta tou ++ shiftDelta pow ++ bs
-  vpIntro (VPGains _) = bs
+  -- a span announces into nothing at this seat, exactly as
+  -- `Continuously`'s does: only a span written BEFORE its statement is
+  -- in a position to be read, and every arm's is written after.
+  vpIntro (VPGets pow tou _) = shiftDelta tou ++ shiftDelta pow ++ bs
+  vpIntro (VPGains _ _) = bs
+  vpIntro (VPDeontic _ _ _ _) = bs
 
   public export
   vpsIntro : {0 k : Nat} -> {bs : Bindings} -> SubjectVPs k bs -> Bindings
   vpsIntro [] = bs
   vpsIntro (vp :: rest) = vpsIntro rest
 
-  ||| One part's own obligation, asked of the SHARED subject's two
-  ||| facts: `Gets` wants a battlefield subject, `Gains` wants a subject
-  ||| the ability may be granted to [CR#113.6e] and an ability that may
-  ||| be granted at all.
+  ||| `Deontic`'s subject demands as a Bool, asked of the shared
+  ||| subject's own three facts rather than of a noun: the coordination
+  ||| writes the subject once, so no arm has one to ask. Same content as
+  ||| `counterpartFits`, at the seat where the noun is not in hand.
+  public export
+  deedSubjectFits : Maybe Zone -> Maybe CardType -> Deeds -> Role -> Bool
+  deedSubjectFits zn ty ds r =
+    all (\d => deedKindOk d r Object) ds &&
+    (case ty of
+       Just t => all (\d => deedTypeOk d r t) ds
+       Nothing => all (\d => deedBareOk d r) ds) &&
+    zoneFits zn (deedsZone ds r)
+
+  ||| A written span is `SpanOk`'s own demand, asked at the arm: an
+  ||| unwritten one is the elided form and the envelope's business.
+  public export
+  vpSpanOk : {0 bs : Bindings} -> Maybe (Duration bs) -> Bool
+  vpSpanOk Nothing = True
+  vpSpanOk (Just d) = durationOk d
+
+  ||| One part's own obligation, asked of the SHARED subject's facts:
+  ||| `Gets` wants a battlefield subject, `Gains` wants a subject the
+  ||| ability may be granted to [CR#113.6e] and an ability that may be
+  ||| granted at all, and the restriction wants what `Deontic` wants of
+  ||| its subject. Every arm's own span is asked `durationOk`.
   public export
   vpOk : {0 bs : Bindings} -> Maybe Zone -> Maybe StackRegime ->
-         SubjectVP bs -> Bool
-  vpOk zn reg (VPGets _ _) = zoneFits zn (Just Battlefield)
-  vpOk zn reg (VPGains ab) = grantSubjectFits zn reg ab && grantableAb ab
+         Maybe CardType -> SubjectVP bs -> Bool
+  vpOk zn reg ty (VPGets _ _ sp) = zoneFits zn (Just Battlefield) && vpSpanOk sp
+  vpOk zn reg ty (VPGains ab sp) =
+    grantSubjectFits zn reg ab && grantableAb ab && vpSpanOk sp
+  vpOk zn reg ty (VPDeontic _ ds r sp) =
+    not (isNil ds) && knownDeeds ds && deedSubjectFits zn ty ds r && vpSpanOk sp
 
   public export
   vpsOk : {0 k : Nat} -> {0 bs : Bindings} -> Maybe Zone ->
-          Maybe StackRegime -> SubjectVPs k bs -> Bool
-  vpsOk zn reg [] = True
-  vpsOk zn reg (vp :: rest) = vpOk zn reg vp && vpsOk zn reg rest
+          Maybe StackRegime -> Maybe CardType -> SubjectVPs k bs -> Bool
+  vpsOk zn reg ty [] = True
+  vpsOk zn reg ty (vp :: rest) = vpOk zn reg ty vp && vpsOk zn reg ty rest
 
   namespace Paid
     public export
