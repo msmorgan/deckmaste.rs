@@ -1158,6 +1158,15 @@ constructions! {
         element AmongPhraseValue { domain: NounPhrase, }
         form among_phrase = "among" domain;
     }
+    // A class level bar's activated ability sets the Class's level; a level is
+    // a declared designation carrying a number [CR#716.2a,716.2b].
+    construction class_level_body: AbilityBody {
+        element ClassLevelBody {
+            designation: lex DesignationTerm,
+            value: lex ScalarNumber,
+        }
+        form class_level_body = lex(designation) lex(value);
+    }
     construction plain: Ability {
         element Plain {
             body: AbilityBody,
@@ -4883,10 +4892,36 @@ constructions! {
         form labelled_ability = label sentence_initial(" — ") ability;
     }
 
+    // A level symbol is a keyword ability whose band owns the power/toughness
+    // printed in its striation [CR#711.2a,711.2b].
+    abstract sum LevelRange {
+        Bounded: BoundedLevelRange,
+        Open: OpenLevelRange,
+    }
+    construction bounded_level_range: LevelRange {
+        element BoundedLevelRange {
+            bounds: seq lex ScalarNumber separated by "-",
+        }
+        require len(bounds) = 2;
+        form bounded_level_range = lex(bounds);
+    }
+    construction open_level_range: LevelRange {
+        element OpenLevelRange { low: lex ScalarNumber, }
+        form open_level_range = suffix(lex(low), "+");
+    }
+    construction level_band: LevelBand {
+        element LevelBandValue {
+            range: LevelRange,
+            power_toughness: PredicativePowerToughnessComplement,
+        }
+        form level_band = "LEVEL" range sentence_initial("\n") power_toughness;
+    }
+
     abstract sum DocumentBlock {
         Ability,
         Labelled: LabelledAbility,
         KeywordLine,
+        Level: LevelBand,
     }
     abstract product OracleText {
         blocks: seq DocumentBlock separated by sentence_initial("\n"),
