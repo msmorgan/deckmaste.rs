@@ -3480,8 +3480,41 @@ mutual
     ||| refuses a bound the game state supplies. A ceiling inside a
     ||| ceiling is unwritten English no rule refuses; tolerated, at its
     ||| zero.
+    ||| It ANNOUNCES: [CR#608.2d] fixes the chosen number while the effect
+    ||| applies, and that same moment fixes how far short of the bound the
+    ||| announcement fell. `ShortOfCeiling` is the read of that half.
     ||| -- spelling: "up to [bound]".
     UpTo : (bound : Amount bs) -> Amount bs
+    ||| "for each card less than two a player draws this way": how many
+    ||| fewer than the written bound the ceiling's announcer took. 2
+    ||| supported cards write it and they write it identically -- Truce
+    ||| and Temporary Truce, "Each player may draw up to two cards. For
+    ||| each card less than two a player draws this way, that player gains
+    ||| 2 life" (measured 2026-09-02).
+    ||| A read of the ANNOUNCEMENT and not of the game state, so it sits
+    ||| beside `PreventedThisWay` and `RemovedThisWay` rather than among
+    ||| the measured counts: [CR#608.2d] makes the ceiling's number a
+    ||| choice made while applying the effect, and the shortfall is that
+    ||| choice subtracted from the bound the card printed. Nothing in the
+    ||| game state carries it -- the cards that were not drawn are still in
+    ||| a library, indistinguishable from the rest.
+    ||| `ThatMuch` does not reach it and must not: "that much" names a
+    ||| quantity a clause WROTE, and the ceiling wrote the taken number,
+    ||| not the declined one. So the ceiling's mention carries no quantity
+    ||| (`outcomeIsQuantity CeilingShortfall = False`, `ManaAdded`'s
+    ||| precedent) and the taken count keeps its own read, the batch's
+    ||| `GroupSize`.
+    ||| SLOTLESS, as the family is: the unit ("card"), the bound ("two"),
+    ||| the actor ("a player") and the verb ("draws") are all the
+    ||| announcing clause's own words, and the read names none of them
+    ||| again.
+    ||| The gate is counted uniqueness -- two ceilings in one sentence
+    ||| refuse, since [CR#608.2d] announces each separately and the phrase
+    ||| ranks neither.
+    ||| -- spelling: "[unit] less than [bound] [who] [verb]s this way",
+    ||| under a "for each".
+    ShortOfCeiling : {auto 0 ok : countOutcomes CeilingShortfall bs = 1} ->
+                     Amount bs
 
   public export
   amtDelta : {bs : Bindings} -> Amount bs -> List Binding
@@ -3516,7 +3549,11 @@ mutual
   amtDelta (AggregateOver _ dom _) = predDelta dom
   amtDelta (CountOfGroup grp) = nounDelta grp
   amtDelta (DistinctCount _ dom) = nounDelta dom
-  amtDelta (UpTo b) = amtDelta b
+  -- the ceiling's own announcement rides above whatever the bound
+  -- introduces: [CR#608.2d] fixes the number here, so the shortfall is
+  -- readable from here on.
+  amtDelta (UpTo b) = outcomeB CeilingShortfall :: amtDelta b
+  amtDelta ShortOfCeiling = []
 
   public export
   amtIntro : {bs : Bindings} -> Amount bs -> Bindings
@@ -3551,7 +3588,8 @@ mutual
   amtIntro (AggregateOver _ dom _) = predDelta dom ++ bs
   amtIntro (CountOfGroup grp) = nomIntro grp
   amtIntro (DistinctCount _ dom) = nomIntro dom
-  amtIntro (UpTo b) = amtIntro b
+  amtIntro (UpTo b) = outcomeB CeilingShortfall :: amtIntro b
+  amtIntro ShortOfCeiling = bs
 
   ||| An unwritten amount introduces nothing: the slot's absence is the
   ||| bare "all" spelling, not a mention a later clause could read.
@@ -3596,6 +3634,9 @@ mutual
   amtPlur (DistinctCount _ _) = ManyOf
   -- Agreement follows the written bound: "up to three cards", "up to one card".
   amtPlur (UpTo b) = amtPlur b
+  -- "for each card less than two …": the shortfall is any number from
+  -- zero to the bound, so nothing agrees singular.
+  amtPlur ShortOfCeiling = ManyOf
 
   public export
   boundEq : {0 bs : Bindings} -> Amount bs -> Amount bs -> Bool
@@ -3735,6 +3776,10 @@ mutual
   readAmount (DistinctCount _ _) = True
   -- Announced under [CR#608.2d], not read off the game state.
   readAmount (UpTo _) = False
+  -- and the shortfall is arithmetic on that same announcement, so it
+  -- measures nothing either: the cards left undrawn are still in a
+  -- library and no game state tells them from the rest.
+  readAmount ShortOfCeiling = False
 
   public export
   ReadAmount : Amount bs -> Type

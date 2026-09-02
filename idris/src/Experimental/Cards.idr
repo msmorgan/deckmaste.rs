@@ -13472,6 +13472,26 @@ discardUpToTwoThenDrawThatMany =
   Sequentially [ Macros.discardN (UpTo (Lit 2))
                , Draw You GroupSize ]
 
+||| Truce and Temporary Truce's two clauses -- "Each player may draw up to
+||| two cards. For each card less than two a player draws this way, that
+||| player gains 2 life" -- with the SHORTFALL read written and the card's
+||| per-player distribution not. 2 supported cards write it and they write
+||| it identically (measured 2026-09-02).
+||| The ceiling announces under [CR#608.2d] and `ShortOfCeiling` reads the
+||| half the announcer declined; the `may` offers the action and the
+||| `UpTo` the number, as on Shah of Naar Isle.
+||| What the fragment cannot spell is the printed "that player". That word
+||| asks a distributive pass's MEMBER to be readable in the sentence AFTER
+||| the pass, and `agentIntro`'s note settles the other way on purpose --
+||| the member is the agent seat's, and what stands for the clauses after
+||| the pass is the group mention "those players". So the gain is written
+||| over the group here, and the whole card is the ticket's remainder.
+public export
+drawUpToTwoThenGainPerShortfall : Effect []
+drawUpToTwoThenGainPerShortfall =
+  Sequentially [ Macros.may (Each AnyPlayer) (Draw (Those PlayerW) (UpTo (Lit 2)))
+               , Macros.gainsLife (Those PlayerW) (Times 2 ShortOfCeiling) ]
+
 ||| Soul of Emancipation, whole -- "When this creature enters, destroy up
 ||| to three other target nonland permanents. For each of those
 ||| permanents, its controller creates a 3/3 white Angel creature token

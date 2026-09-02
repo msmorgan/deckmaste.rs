@@ -93,6 +93,14 @@ badPreventedThisWayUnannounced : Unspellable (Effect []) (\ok =>
 badPreventedThisWayUnannounced Refl impossible
 
 
+||| "You gain 2 life for each card less than two you draw this way."
+||| No ceiling was announced, and [CR#608.2d] fixes the number only where one is: with no bound written there is nothing the announcement fell short of.
+public export
+badShortOfCeilingUnannounced : Unspellable (Effect []) (\ok =>
+  Macros.gainsLife You (Times 2 (ShortOfCeiling {ok})))
+badShortOfCeilingUnannounced Refl impossible
+
+
 ||| "Prevent the next [the damage prevented this way] damage that would be dealt to you."
 ||| A shield cannot be sized by what it prevents: [CR#615.7]'s cap is spent one damage at a time.
 public export

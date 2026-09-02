@@ -912,6 +912,19 @@ data OutcomeSort = DamageDealt | LifeGained | LifeLost | CountersPut
                  -- sort would let "that land produced" be written after a
                  -- bare add, where no land was tapped at all.
                  | ManaProduced
+                 -- what a CEILINGED amount leaves BEHIND: "for each card
+                 -- less than two a player draws this way" (Truce,
+                 -- Temporary Truce), the shortfall against the written
+                 -- bound. [CR#608.2d] has the acting player announce an
+                 -- effect's own choices while applying the effect, so the
+                 -- ceiling fixes its number there and the difference from
+                 -- the bound is fixed at the same moment; the card reads
+                 -- the half the player did NOT take.
+                 -- Its own sort beside `RepeatCount`, which is the other
+                 -- announced count: that one is how many times the TEXT
+                 -- said to go round, this is how many of a bound the
+                 -- ANNOUNCER declined, and one clause can leave both.
+                 | CeilingShortfall
 
 ||| Which reading of a flipped coin a clause takes. [CR#705.2] gives a
 ||| flip two and only two: the face it came up, and -- when the flipper
@@ -1600,6 +1613,8 @@ Eq OutcomeSort where
   (==) ManaAdded _ = False
   (==) ManaProduced ManaProduced = True
   (==) ManaProduced _ = False
+  (==) CeilingShortfall CeilingShortfall = True
+  (==) CeilingShortfall _ = False
 
 public export
 outcomeB : OutcomeSort -> Binding
@@ -1805,6 +1820,15 @@ outcomeIsQuantity CountersRemoved = True
 -- produced, which `ProducedByEvent` names and no quantity read reaches.
 outcomeIsQuantity ManaAdded = False
 outcomeIsQuantity ManaProduced = False
+-- and a ceiling leaves none for "that much" to name. What [CR#608.2d]
+-- announces is the number the player TOOK, and what this sort exports is
+-- its complement against the printed bound -- a quantity no clause wrote.
+-- The taken number is read where it always was, off the batch the clause
+-- produced -- `GroupSize`, which is what the nine "discard up to [n]
+-- cards, then draw that many cards" lines write (measured 2026-09-02).
+-- 0 supported lines read a shortfall with "that much", and the sorted
+-- `ShortOfCeiling` is the only phrase that reaches it.
+outcomeIsQuantity CeilingShortfall = False
 
 ||| What "that much" folds: the outcome mentions that carry a number.
 public export
