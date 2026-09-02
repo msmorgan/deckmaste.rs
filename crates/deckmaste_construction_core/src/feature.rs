@@ -10,6 +10,7 @@ use crate::model;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum Feature {
     Agreement,
+    BareLocativeLicense,
     Cardinality,
     Compoundability,
     Countability,
@@ -30,6 +31,8 @@ pub(crate) enum Feature {
 pub(crate) enum FeatureValue {
     Bare,
     ThirdPersonSingular,
+    QualifiedOnly,
+    BareAllowed,
     Singular,
     Plural,
     Consonant,
@@ -107,6 +110,7 @@ impl Feature {
     pub(crate) fn domain(self) -> &'static [FeatureValue] {
         match self {
             Self::Agreement => &[FeatureValue::Bare, FeatureValue::ThirdPersonSingular],
+            Self::BareLocativeLicense => &[FeatureValue::QualifiedOnly, FeatureValue::BareAllowed],
             Self::Cardinality => &[FeatureValue::Zero, FeatureValue::One, FeatureValue::TwoPlus],
             Self::Compoundability => &[FeatureValue::Compoundable, FeatureValue::NonCompoundable],
             Self::Countability => &[FeatureValue::Count, FeatureValue::Mass],
@@ -161,6 +165,7 @@ impl Feature {
     pub(crate) fn key(self) -> &'static str {
         match self {
             Self::Agreement => "agreement",
+            Self::BareLocativeLicense => "bare_locative_license",
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
             Self::Countability => "countability",
@@ -184,6 +189,8 @@ impl FeatureValue {
         match self {
             Self::Bare => "Bare",
             Self::ThirdPersonSingular => "ThirdPersonSingular",
+            Self::QualifiedOnly => "QualifiedOnly",
+            Self::BareAllowed => "BareAllowed",
             Self::Singular => "Singular",
             Self::Plural => "Plural",
             Self::Consonant => "Consonant",
@@ -349,6 +356,7 @@ impl Feature {
     fn snapshot(self) -> &'static str {
         match self {
             Self::Agreement => "agreement",
+            Self::BareLocativeLicense => "bare_locative_license",
             Self::Cardinality => "cardinality",
             Self::Compoundability => "compoundability",
             Self::Countability => "countability",
@@ -373,6 +381,8 @@ impl FeatureValue {
         match self {
             Self::Bare => "Bare",
             Self::ThirdPersonSingular => "ThirdPersonSingular",
+            Self::QualifiedOnly => "QualifiedOnly",
+            Self::BareAllowed => "BareAllowed",
             Self::Singular => "Singular",
             Self::Plural => "Plural",
             Self::Consonant => "Consonant",
@@ -437,6 +447,8 @@ pub(crate) fn lower_constant(
     let value = match (feature, name.as_str()) {
         (model::Feature::Agreement, "Bare") => FeatureValue::Bare,
         (model::Feature::Agreement, "ThirdPersonSingular") => FeatureValue::ThirdPersonSingular,
+        (model::Feature::BareLocativeLicense, "QualifiedOnly") => FeatureValue::QualifiedOnly,
+        (model::Feature::BareLocativeLicense, "BareAllowed") => FeatureValue::BareAllowed,
         (model::Feature::Number, "Singular") => FeatureValue::Singular,
         (model::Feature::Number, "Plural") => FeatureValue::Plural,
         (model::Feature::Onset, "Consonant") => FeatureValue::Consonant,
@@ -481,6 +493,12 @@ pub(crate) fn lower_constant(
             return Err(syn::Error::new_spanned(
                 path,
                 format!("`{name}` is not an agreement value"),
+            ));
+        }
+        (model::Feature::BareLocativeLicense, _) => {
+            return Err(syn::Error::new_spanned(
+                path,
+                format!("`{name}` is not a bare-locative-license value"),
             ));
         }
         (model::Feature::Cardinality, _) => {
@@ -575,6 +593,7 @@ impl From<model::Feature> for Feature {
     fn from(value: model::Feature) -> Self {
         match value {
             model::Feature::Agreement => Self::Agreement,
+            model::Feature::BareLocativeLicense => Self::BareLocativeLicense,
             model::Feature::Cardinality => Self::Cardinality,
             model::Feature::Compoundability => Self::Compoundability,
             model::Feature::Countability => Self::Countability,

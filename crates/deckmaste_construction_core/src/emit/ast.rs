@@ -735,7 +735,10 @@ fn emit_sequence_feature_check(
     owner: &syn::LitStr,
     locals: &HashMap<String, syn::Ident>,
 ) -> syn::Result<TokenStream> {
-    if feature == crate::feature::Feature::Onset {
+    if matches!(
+        feature,
+        crate::feature::Feature::Onset | crate::feature::Feature::PossessiveEnding
+    ) {
         return Ok(TokenStream::new());
     }
     if feature != crate::feature::Feature::Agreement {
@@ -997,6 +1000,12 @@ fn feature_value(value: crate::feature::FeatureValue) -> TokenStream {
         crate::feature::FeatureValue::Bare => quote! { Agreement::Bare },
         crate::feature::FeatureValue::ThirdPersonSingular => {
             quote! { Agreement::ThirdPersonSingular }
+        }
+        crate::feature::FeatureValue::QualifiedOnly => {
+            quote! { BareLocativeLicense::QualifiedOnly }
+        }
+        crate::feature::FeatureValue::BareAllowed => {
+            quote! { BareLocativeLicense::BareAllowed }
         }
         crate::feature::FeatureValue::Singular => quote! { Number::Singular },
         crate::feature::FeatureValue::Plural => quote! { Number::Plural },
@@ -1998,6 +2007,7 @@ mod tests {
                 "ActionStem",
                 "Agreement",
                 "Cardinality",
+                "BareLocativeLicense",
                 "Compoundability",
                 "Countability",
                 "ModifierLicense",

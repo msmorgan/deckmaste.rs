@@ -1901,6 +1901,50 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::PreposedFor => NonterminalKind::PreposedFor,
         NonterminalCategory::PreposedForPredicate => NonterminalKind::PreposedForPredicate,
         NonterminalCategory::PreposedTemporalRelation => NonterminalKind::PreposedTemporalRelation,
+        NonterminalCategory::PostposedAsLongAsPredicate => {
+            NonterminalKind::PostposedAsLongAsPredicate
+        }
+        NonterminalCategory::PreposedWhile => NonterminalKind::PreposedWhile,
+        NonterminalCategory::PreposedWhilePredicate => NonterminalKind::PreposedWhilePredicate,
+        NonterminalCategory::PreposedUntil => NonterminalKind::PreposedUntil,
+        NonterminalCategory::PreposedUntilPredicate => NonterminalKind::PreposedUntilPredicate,
+        NonterminalCategory::PreposedDurationPredicate => {
+            NonterminalKind::PreposedDurationPredicate
+        }
+        NonterminalCategory::PredicativeAbilityComplement => {
+            NonterminalKind::PredicativeAbilityComplement
+        }
+        NonterminalCategory::AmountClauseCostKeywordLineItem => {
+            NonterminalKind::AmountClauseCostKeywordLineItem
+        }
+        NonterminalCategory::AmountManaClauseCostKeywordLineItem => {
+            NonterminalKind::AmountManaClauseCostKeywordLineItem
+        }
+        NonterminalCategory::QualityManaCostKeywordLineItem => {
+            NonterminalKind::QualityManaCostKeywordLineItem
+        }
+        NonterminalCategory::QualityClauseCostKeywordLineItem => {
+            NonterminalKind::QualityClauseCostKeywordLineItem
+        }
+        NonterminalCategory::QualityManaClauseCostKeywordLineItem => {
+            NonterminalKind::QualityManaClauseCostKeywordLineItem
+        }
+        NonterminalCategory::FiniteSubjectGapRelativeClause => {
+            NonterminalKind::FiniteSubjectGapRelativeClause
+        }
+        NonterminalCategory::ModalSubjectGapRelativeClause => {
+            NonterminalKind::ModalSubjectGapRelativeClause
+        }
+        NonterminalCategory::ThirdPersonNegativeObjectGapRelativeClause => {
+            NonterminalKind::ThirdPersonNegativeObjectGapRelativeClause
+        }
+        NonterminalCategory::AndManaCoordination => NonterminalKind::AndManaCoordination,
+        NonterminalCategory::AndOrManaCoordination => NonterminalKind::AndOrManaCoordination,
+        NonterminalCategory::OnlyTemporalClauseRestriction => {
+            NonterminalKind::OnlyTemporalClauseRestriction
+        }
+        NonterminalCategory::WithObjectFrame => NonterminalKind::WithObjectFrame,
+        NonterminalCategory::ObjectWithObjectFrame => NonterminalKind::ObjectWithObjectFrame,
     }
 }
 

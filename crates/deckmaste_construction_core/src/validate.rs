@@ -404,6 +404,45 @@ pub(crate) fn validate_declarations(raw: Declarations) -> syn::Result<ValidatedD
     })
 }
 
+pub(crate) fn validate_declaration_verb_consumers(semantic: &SemanticPlan) -> syn::Result<()> {
+    let consumers = semantic
+        .constructions()
+        .iter()
+        .flat_map(crate::semantic::ConstructionPlan::forms)
+        .flat_map(crate::semantic::FormPlan::atoms)
+        .filter_map(|atom| match atom.value_atom() {
+            crate::semantic::AtomPlan::Lex { terminal, .. } => Some(terminal.as_str()),
+            crate::semantic::AtomPlan::Literal(_)
+            | crate::semantic::AtomPlan::SentenceInitialLiteral(_)
+            | crate::semantic::AtomPlan::Category { .. }
+            | crate::semantic::AtomPlan::Identity { .. }
+            | crate::semantic::AtomPlan::Noun { .. }
+            | crate::semantic::AtomPlan::VerbFixed { .. }
+            | crate::semantic::AtomPlan::OpenDeclaration(_)
+            | crate::semantic::AtomPlan::Bound { .. }
+            | crate::semantic::AtomPlan::Circumfix { .. } => None,
+        })
+        .collect::<HashSet<_>>();
+    let mut errors = None;
+
+    for (_, declaration) in semantic.runtime_declaration_verbs() {
+        let name = declaration.codec_name();
+        if !consumers.contains(name) {
+            combine(
+                &mut errors,
+                syn::Error::new(
+                    proc_macro2::Span::call_site(),
+                    format!(
+                        "declaration_verb codec `{name}` has no construction consumer; every declared valence must build through the grammar"
+                    ),
+                ),
+            );
+        }
+    }
+
+    finish(errors)
+}
+
 fn validate_owned_english_verb_lexemes(
     raw: &Declarations,
     resolved: &ResolvedGrammar,
@@ -569,19 +608,19 @@ fn validate_sequence_feature_roles(
                 continue;
             }
             let feature = uses[0].0;
-            if !matches!(feature, ParsedFeature::Agreement | ParsedFeature::Onset) {
+            let Some(resolved_feature) = supported_sequence_feature(feature) else {
                 combine(
                     &mut errors,
                     syn::Error::new(
                         uses[0].1,
                         format!(
-                            "{element}.{role}: sequence feature propagation supports agreement or first-member onset, found {}",
+                            "{element}.{role}: sequence feature propagation supports agreement, first-member onset, or last-member possessive ending, found {}",
                             feature_name(feature)
                         ),
                     ),
                 );
                 continue;
-            }
+            };
             let Some(field) = fields.get(&role) else { continue };
             let FieldKind::Sequence { .. } = &field.kind else { continue };
             let Some(structural_field) = structural
@@ -611,13 +650,16 @@ fn validate_sequence_feature_roles(
                     ParsedFeature::Agreement,
                     ValueKindPlan::Category(category) | ValueKindPlan::Sum(category),
                 )
-                | (ParsedFeature::Onset, ValueKindPlan::Category(category)) => category,
+                | (
+                    ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
+                    ValueKindPlan::Category(category),
+                ) => category,
                 (
                     ParsedFeature::Agreement,
                     ValueKindPlan::Lex(_) | ValueKindPlan::Identity(_) | ValueKindPlan::Product(_),
                 )
                 | (
-                    ParsedFeature::Onset,
+                    ParsedFeature::Onset | ParsedFeature::PossessiveEnding,
                     ValueKindPlan::Sum(_)
                     | ValueKindPlan::Lex(_)
                     | ValueKindPlan::Identity(_)
@@ -650,32 +692,20 @@ fn validate_sequence_feature_roles(
                 );
                 continue;
             }
-            result.insert(
-                (element.clone(), role),
-                match feature {
-                    ParsedFeature::Agreement => Feature::Agreement,
-                    ParsedFeature::Onset => Feature::Onset,
-                    ParsedFeature::Cardinality
-                    | ParsedFeature::Compoundability
-                    | ParsedFeature::Countability
-                    | ParsedFeature::ModifierLicense
-                    | ParsedFeature::DeterminerNumber
-                    | ParsedFeature::FusedHeadLicense
-                    | ParsedFeature::NominalForm
-                    | ParsedFeature::NominalLicense
-                    | ParsedFeature::Number
-                    | ParsedFeature::Participle
-                    | ParsedFeature::PossessiveEnding
-                    | ParsedFeature::Properness
-                    | ParsedFeature::Relationality => {
-                        unreachable!("unsupported sequence feature was rejected")
-                    }
-                },
-            );
+            result.insert((element.clone(), role), resolved_feature);
         }
     }
     finish(errors)?;
     Ok(result)
+}
+
+fn supported_sequence_feature(feature: ParsedFeature) -> Option<Feature> {
+    match feature {
+        ParsedFeature::Agreement => Some(Feature::Agreement),
+        ParsedFeature::Onset => Some(Feature::Onset),
+        ParsedFeature::PossessiveEnding => Some(Feature::PossessiveEnding),
+        _ => None,
+    }
 }
 
 fn sequence_feature_uses(
@@ -2042,7 +2072,8 @@ fn validate_lexeme_declaration_shape(
     for default in &lexeme.feature_defaults {
         if !matches!(
             default.feature,
-            crate::model::Feature::Compoundability
+            crate::model::Feature::BareLocativeLicense
+                | crate::model::Feature::Compoundability
                 | crate::model::Feature::Countability
                 | crate::model::Feature::ModifierLicense
                 | crate::model::Feature::Properness
@@ -2052,7 +2083,7 @@ fn validate_lexeme_declaration_shape(
                 errors,
                 syn::Error::new(
                     default.value.span(),
-                    "closed lexeme metadata supports only Compoundability, Countability, ModifierLicense, Properness, and Relationality",
+                    "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, ModifierLicense, Properness, and Relationality",
                 ),
             );
         }
@@ -2116,7 +2147,8 @@ fn validate_lexeme_declaration_shape(
         for override_ in &member.feature_overrides {
             if !matches!(
                 override_.feature,
-                crate::model::Feature::Compoundability
+                crate::model::Feature::BareLocativeLicense
+                    | crate::model::Feature::Compoundability
                     | crate::model::Feature::Countability
                     | crate::model::Feature::ModifierLicense
                     | crate::model::Feature::Properness
@@ -2126,7 +2158,7 @@ fn validate_lexeme_declaration_shape(
                     errors,
                     syn::Error::new(
                         override_.value.span(),
-                        "closed lexeme metadata supports only Compoundability, Countability, ModifierLicense, Properness, and Relationality",
+                        "closed lexeme metadata supports only BareLocativeLicense, Compoundability, Countability, ModifierLicense, Properness, and Relationality",
                     ),
                 );
             }
@@ -5002,6 +5034,9 @@ fn generated_name_inventory(
                     };
                     let (spelling, display) = match feature {
                         ParsedFeature::Agreement => ("agreement", "Agreement"),
+                        ParsedFeature::BareLocativeLicense => {
+                            ("bare_locative_license", "BareLocativeLicense")
+                        }
                         ParsedFeature::Cardinality => ("cardinality", "Cardinality"),
                         ParsedFeature::Compoundability => ("compoundability", "Compoundability"),
                         ParsedFeature::Countability => ("countability", "Countability"),
@@ -5613,6 +5648,7 @@ fn owner_rule_variant_names(
 fn raw_category_reads_feature(raw: &Declarations, category: &str, feature: Feature) -> bool {
     let parsed_feature = match feature {
         Feature::Agreement => ParsedFeature::Agreement,
+        Feature::BareLocativeLicense => ParsedFeature::BareLocativeLicense,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::Countability => ParsedFeature::Countability,
@@ -5667,6 +5703,7 @@ fn raw_sequence_reads_inherent_category_feature(
     }
     let parsed_feature = match feature {
         Feature::Agreement => ParsedFeature::Agreement,
+        Feature::BareLocativeLicense => ParsedFeature::BareLocativeLicense,
         Feature::Cardinality => ParsedFeature::Cardinality,
         Feature::Compoundability => ParsedFeature::Compoundability,
         Feature::Countability => ParsedFeature::Countability,
@@ -5926,6 +5963,7 @@ fn validate_resolution(raw: &Declarations, symbols: &Symbols) -> syn::Result<Res
                 ParsedFeature::Number => role_provides_number(raw, &fields, field)
                     .then(|| (identifier_key(field), ParsedFeature::Number)),
                 ParsedFeature::Agreement
+                | ParsedFeature::BareLocativeLicense
                 | ParsedFeature::Compoundability
                 | ParsedFeature::Countability
                 | ParsedFeature::ModifierLicense
@@ -6761,7 +6799,12 @@ fn check_feature_role(
             }
         }
         Some(FieldKind::Sequence { item, .. })
-            if matches!(feature, ParsedFeature::Agreement | ParsedFeature::Onset)
+            if matches!(
+                feature,
+                ParsedFeature::Agreement
+                    | ParsedFeature::Onset
+                    | ParsedFeature::PossessiveEnding
+            )
                 && matches!(item.as_ref(), FieldKind::Category(path) if providers.contains(&(path_name(path), feature))) =>
         {
         }
@@ -9495,7 +9538,8 @@ fn feature_providers(raw: &Declarations) -> HashSet<(String, ParsedFeature)> {
             for default in &lexeme.feature_defaults {
                 if matches!(
                     default.feature,
-                    ParsedFeature::Compoundability
+                    ParsedFeature::BareLocativeLicense
+                        | ParsedFeature::Compoundability
                         | ParsedFeature::Countability
                         | ParsedFeature::Properness
                         | ParsedFeature::Relationality
@@ -9559,6 +9603,7 @@ fn place_key(place: &ParsedFeaturePlace) -> String {
 fn feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
+        ParsedFeature::BareLocativeLicense => "bare_locative_license",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::Countability => "countability",
@@ -10000,7 +10045,8 @@ fn validate_lowerable_feature_compositions(
             },
             (
                 ParsedFeaturePlace::Construction(
-                    ParsedFeature::Compoundability
+                    ParsedFeature::BareLocativeLicense
+                    | ParsedFeature::Compoundability
                     | ParsedFeature::Countability
                     | ParsedFeature::Properness
                     | ParsedFeature::Relationality,
@@ -10054,7 +10100,8 @@ fn validate_lowerable_feature_compositions(
             (
                 ParsedFeaturePlace::Role {
                     feature:
-                        ParsedFeature::Compoundability
+                        ParsedFeature::BareLocativeLicense
+                        | ParsedFeature::Compoundability
                         | ParsedFeature::Countability
                         | ParsedFeature::Properness
                         | ParsedFeature::Relationality,
@@ -10304,6 +10351,7 @@ fn validate_category_feature_uniformity(raw: &Declarations, errors: &mut Option<
 fn parsed_feature_name(feature: ParsedFeature) -> &'static str {
     match feature {
         ParsedFeature::Agreement => "agreement",
+        ParsedFeature::BareLocativeLicense => "bare_locative_license",
         ParsedFeature::Cardinality => "cardinality",
         ParsedFeature::Compoundability => "compoundability",
         ParsedFeature::Countability => "countability",
@@ -14135,6 +14183,30 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn declaration_verb_valences_require_a_construction_consumer() {
+        let orphaned = crate::generate(quote! {
+            codec WithObjectVerb {
+                generate declaration_verb {
+                    position = Verb;
+                    tail = ["with", object: ObjectNounPhrase];
+                    feature = Agreement;
+                }
+            }
+            construction only: Cat { element Only {} form only = "only"; }
+            root Cat { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect_err("consumerless declaration verbs must fail code generation")
+        .into_compile_error()
+        .to_string();
+        assert!(
+            orphaned
+                .contains("declaration_verb codec `WithObjectVerb` has no construction consumer")
+                && orphaned.contains("every declared valence must build through the grammar"),
+            "{orphaned}",
+        );
+    }
+
+    #[test]
     fn unused_noun_lexemes_retain_traversal_without_direct_atom_capability() {
         let validated = validate(quote! {
             morphology EnglishNoun { feature = Number; recipe = english_noun; }
@@ -14728,7 +14800,7 @@ pub(crate) mod tests {
         });
         assert!(
             unsupported.contains(
-                "UnsupportedSequence.members: sequence feature propagation supports agreement or first-member onset, found number"
+                "UnsupportedSequence.members: sequence feature propagation supports agreement, first-member onset, or last-member possessive ending, found number"
             ),
             "{unsupported}"
         );
@@ -16536,7 +16608,7 @@ pub(crate) mod tests {
         assert_eq!(validated.semantic().constructions().len(), 6);
         assert_eq!(validated.semantic().terminals().len(), 8);
         assert_eq!(validated.semantic().roots().len(), 1);
-        assert_eq!(expansion.plan().items().len(), 128);
+        assert_eq!(expansion.plan().items().len(), 129);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -16883,7 +16955,7 @@ pub(crate) mod tests {
             snapshot.dynamic_number_constructions,
             vec!["leaf".to_owned()]
         );
-        assert_eq!(expansion.plan().items().len(), 128);
+        assert_eq!(expansion.plan().items().len(), 129);
         assert!(expansion.items().iter().any(|item| {
             matches!(
                 &item.key,
@@ -17023,7 +17095,7 @@ pub(crate) mod tests {
 
         let emission = crate::plan::plan_emission(validated.semantic())
             .expect("the already validated semantic plan emits");
-        assert_eq!(emission.items().len(), 128);
+        assert_eq!(emission.items().len(), 129);
         assert!(emission.items().iter().any(|item| {
             matches!(
                 &item.key,

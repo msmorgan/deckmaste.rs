@@ -564,6 +564,7 @@ fn declaration_noun_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
         let number_feature = match codec.feature_axis() {
             crate::feature::Feature::Number => quote! { wanted },
             crate::feature::Feature::Agreement
+            | crate::feature::Feature::BareLocativeLicense
             | crate::feature::Feature::Cardinality
             | crate::feature::Feature::Compoundability
             | crate::feature::Feature::Countability

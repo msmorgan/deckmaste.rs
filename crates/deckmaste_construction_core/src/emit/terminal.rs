@@ -114,6 +114,15 @@ pub(crate) fn emit(
                 ));
                 items.push(emit_lexeme_surface_helper(row, origin.clone())?);
                 if row
+                    .feature_members(crate::feature::Feature::BareLocativeLicense)
+                    .is_some()
+                {
+                    items.push(emit_lexeme_bare_locative_license_helper(
+                        row,
+                        origin.clone(),
+                    ));
+                }
+                if row
                     .feature_members(crate::feature::Feature::Compoundability)
                     .is_some()
                 {
@@ -683,6 +692,7 @@ fn emit_lexeme_surface_helper(
         crate::Feature::Number => (quote! { Number }, quote! { number }),
         crate::Feature::Participle => (quote! { Participle }, quote! { participle }),
         crate::Feature::Cardinality
+        | crate::Feature::BareLocativeLicense
         | crate::Feature::Compoundability
         | crate::Feature::Countability
         | crate::Feature::ModifierLicense
@@ -736,6 +746,40 @@ fn emit_lexeme_surface_helper(
         },
         vec![origin],
     ))
+}
+
+fn emit_lexeme_bare_locative_license_helper(
+    lexeme: &crate::semantic::LexemePlan,
+    origin: DeclarationKey,
+) -> GeneratedItem {
+    let function_name = feature_helper("bare_locative_license", lexeme.name());
+    let function = emitted_ident(&function_name, lexeme.name_ident().span());
+    let ty = emitted_ident(lexeme.name(), lexeme.name_ident().span());
+    let members = lexeme
+        .feature_members(crate::feature::Feature::BareLocativeLicense)
+        .expect("requested sealed bare-locative-license metadata")
+        .iter()
+        .map(|(member, value)| {
+            let member = emitted_ident(member, lexeme.name_ident().span());
+            let value = match value {
+                crate::feature::FeatureValue::QualifiedOnly => {
+                    quote! { BareLocativeLicense::QualifiedOnly }
+                }
+                crate::feature::FeatureValue::BareAllowed => {
+                    quote! { BareLocativeLicense::BareAllowed }
+                }
+                _ => unreachable!("sealed bare locative license has its closed domain"),
+            };
+            quote! { #ty::#member => #value }
+        });
+    GeneratedItem::new(
+        ItemKey::Named {
+            kind: NamedKind::Function,
+            name: function_name,
+        },
+        quote! { fn #function(value: #ty) -> BareLocativeLicense { match value { #(#members),* } } },
+        vec![origin],
+    )
 }
 
 fn emit_lexeme_compoundability_helper(
@@ -873,6 +917,12 @@ fn emit_aggregate_noun_feature_helpers(
     let ty = noun.codec_ident();
     let origin = noun.origin().clone();
     let closed_ident = closed.name_ident();
+    let bare_locative_license_name = feature_helper("bare_locative_license", noun.codec_name());
+    let bare_locative_license = emitted_ident(&bare_locative_license_name, ty.span());
+    let closed_bare_locative_license = emitted_ident(
+        &feature_helper("bare_locative_license", closed.name()),
+        closed_ident.span(),
+    );
     let compoundability_name = feature_helper("compoundability", noun.codec_name());
     let compoundability = emitted_ident(&compoundability_name, ty.span());
     let closed_compoundability = emitted_ident(
@@ -898,6 +948,28 @@ fn emit_aggregate_noun_feature_helpers(
         closed_ident.span(),
     );
     let mut items = Vec::new();
+    if closed
+        .feature_members(crate::feature::Feature::BareLocativeLicense)
+        .is_some()
+    {
+        items.push(GeneratedItem::new(
+            ItemKey::Named {
+                kind: NamedKind::Function,
+                name: bare_locative_license_name,
+            },
+            quote! {
+                fn #bare_locative_license(
+                    value: impl ::std::borrow::Borrow<#ty>,
+                ) -> BareLocativeLicense {
+                    match ::std::borrow::Borrow::borrow(&value) {
+                        #ty::Lexeme(value) => #closed_bare_locative_license(*value),
+                        #ty::Declaration(_) => BareLocativeLicense::QualifiedOnly,
+                    }
+                }
+            },
+            vec![origin.clone()],
+        ));
+    }
     if closed
         .feature_members(crate::feature::Feature::Compoundability)
         .is_some()

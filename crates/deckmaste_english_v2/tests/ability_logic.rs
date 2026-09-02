@@ -207,6 +207,14 @@ impl Visitor for SubjectStructureVisitor {
         self.0.push("DemonstrativePossessiveReference");
         deckmaste_english_v2::visit::walk_demonstrative_possessive_reference(self, value);
     }
+
+    fn visit_genitive_determiner_singular_reference(
+        &mut self,
+        value: &GenitiveDeterminerSingularReference,
+    ) {
+        self.0.push("GenitiveDeterminerSingularReference");
+        deckmaste_english_v2::visit::walk_genitive_determiner_singular_reference(self, value);
+    }
 }
 
 #[test]
@@ -364,7 +372,7 @@ fn finite_subject_coordination_and_exclusion_are_linguistic_structure() {
             &[
                 "form:other_than_qualified_reference/other_than_qualified_reference/1",
                 "form:other_than_qualified_reference/other_than_qualified_reference/2",
-                "form:demonstrative_possessive_reference/demonstrative_possessive_reference/1/affix",
+                "form:possessive/singular/0/affix",
             ][..],
         ),
     ];

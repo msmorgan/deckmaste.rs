@@ -1652,6 +1652,7 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
 
     for text in [
         "Draw cards equal to the blue creature's toughness.",
+        "Draw cards equal to the blue creatures' toughness.",
         "Draw cards equal to the sacrificed creature's toughness.",
         "Deal damage equal to the number of Slivers you control to target artifact.",
         "Deal damage to target artifact equal to the number of Slivers you control.",
@@ -1715,7 +1716,6 @@ fn scalar_values_compose_genitives_counts_and_post_recipient_equalities() {
 
     for malformed in [
         "Draw cards equal to the blue creature toughness.",
-        "Draw cards equal to the blue creatures' toughness.",
         "Deal damage to target artifact equal the number of Slivers you control.",
         "Deal damage to target artifact the number of Slivers you control.",
         "Gain life equal to twice number of Slivers you control.",
@@ -3993,5 +3993,21 @@ fn then_sequences_reject_malformed_punctuation_case_spacing_and_singletons() {
             parser.parse(text, &context).is_err(),
             "malformed then boundary must reject {text:?}",
         );
+    }
+}
+
+#[test]
+fn restored_general_construction_probes_select_uniquely() {
+    let parser = parser();
+    let context = context();
+
+    for text in [
+        "Destroy all white, blue, black, and red creatures.",
+        "You gain less than 3 life.",
+        "Add {2/W}.",
+        "It is able to attack.",
+        "Put all creatures on the bottom of their owners' libraries.",
+    ] {
+        assert_selected(&parser, &context, text);
     }
 }

@@ -359,6 +359,7 @@ pub(super) fn structural_carrier_type(kind: &StructuralFieldKindPlan) -> TokenSt
 pub(super) fn feature_type(feature: crate::feature::Feature) -> TokenStream {
     match feature {
         crate::feature::Feature::Agreement => quote! { Agreement },
+        crate::feature::Feature::BareLocativeLicense => quote! { BareLocativeLicense },
         crate::feature::Feature::Cardinality => quote! { Cardinality },
         crate::feature::Feature::Compoundability => quote! { Compoundability },
         crate::feature::Feature::Countability => quote! { Countability },
@@ -471,6 +472,7 @@ fn emit_predicate_atom(
         | PredicateSubjectPlan::ConstructionFeature(feature) => {
             let feature_type = match feature {
                 crate::feature::Feature::Agreement => local_ident("Agreement"),
+                crate::feature::Feature::BareLocativeLicense => local_ident("BareLocativeLicense"),
                 crate::feature::Feature::Cardinality => local_ident("Cardinality"),
                 crate::feature::Feature::Compoundability => local_ident("Compoundability"),
                 crate::feature::Feature::Countability => local_ident("Countability"),

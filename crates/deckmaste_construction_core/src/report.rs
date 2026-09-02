@@ -797,7 +797,11 @@ mod tests {
                     feature = Agreement;
                 }
             }
-            construction only: Root { element Only {} form only = "only"; }
+            construction action: Root {
+                element Action { head: lex ActionVerb, }
+                derive head.agreement = Values::Bare;
+                form action = verb(head);
+            }
             root Root { punctuation = "."; eoi = true; standalone_render = true; }
         })
         .expect("generated declaration-verb report fixture validates");

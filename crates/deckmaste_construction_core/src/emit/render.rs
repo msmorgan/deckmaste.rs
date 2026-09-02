@@ -1688,6 +1688,7 @@ fn emit_vocab_feature_helper(helper: VocabFeatureHelper<'_>) -> GeneratedItem {
     let ty = emitted_ident(helper.vocab.name(), helper.vocab.name_ident().span());
     let return_ty = match helper.feature {
         Feature::Agreement => quote! { Agreement },
+        Feature::BareLocativeLicense => quote! { BareLocativeLicense },
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
@@ -3690,8 +3691,8 @@ fn feature_expr(
                         Err(internal("verb slot does not provide nominal license"))
                     }
                     Feature::Onset => implicit_verb_onset(validated, construction, locals),
-                    Feature::Compoundability => {
-                        Err(internal("compoundability is closed lexeme metadata"))
+                    Feature::BareLocativeLicense | Feature::Compoundability => {
+                        Err(internal("noun licensing is closed lexeme metadata"))
                     }
                     Feature::Countability | Feature::Properness | Feature::Relationality => {
                         Err(internal("noun classification is closed lexical metadata"))
@@ -3755,15 +3756,28 @@ fn feature_expr(
                     }
                 };
                 let helper = ident(&feature_helper(feature_name(*source_feature), helper_owner));
-                let environment = (*source_feature == Feature::Onset
+                let realized_surface_feature =
+                    matches!(*source_feature, Feature::Onset | Feature::PossessiveEnding);
+                let environment = (realized_surface_feature
                     && validated.needs_parser_environment())
                 .then(|| quote! { , environment });
-                let context = (*source_feature == Feature::Onset).then(|| quote! { , context });
-                return Ok(quote! {
-                    #helper(
+                let context = realized_surface_feature.then(|| quote! { , context });
+                let member = if *source_feature == Feature::PossessiveEnding {
+                    quote! {
+                        #role_value
+                            .last()
+                            .expect("validated sequence feature source is statically nonempty")
+                    }
+                } else {
+                    quote! {
                         #role_value
                             .first()
                             .expect("validated sequence feature source is statically nonempty")
+                    }
+                };
+                return Ok(quote! {
+                    #helper(
+                        #member
                         #context
                         #environment
                     )
@@ -4596,6 +4610,7 @@ fn emit_feature_helper(
     let argument = allocator.allocate(&category_argument(category));
     let return_ty = match feature {
         Feature::Agreement => quote! { Agreement },
+        Feature::BareLocativeLicense => quote! { BareLocativeLicense },
         Feature::Cardinality => quote! { Cardinality },
         Feature::Compoundability => quote! { Compoundability },
         Feature::Countability => quote! { Countability },
@@ -5168,6 +5183,8 @@ fn feature_value(value: FeatureValue) -> TokenStream {
     match value {
         FeatureValue::Bare => quote! { Agreement::Bare },
         FeatureValue::ThirdPersonSingular => quote! { Agreement::ThirdPersonSingular },
+        FeatureValue::QualifiedOnly => quote! { BareLocativeLicense::QualifiedOnly },
+        FeatureValue::BareAllowed => quote! { BareLocativeLicense::BareAllowed },
         FeatureValue::Singular => quote! { Number::Singular },
         FeatureValue::Plural => quote! { Number::Plural },
         FeatureValue::Consonant => quote! { Onset::Consonant },
@@ -5428,6 +5445,7 @@ fn render_vocab_argument(name: &str) -> String {
 fn feature_name(feature: Feature) -> &'static str {
     match feature {
         Feature::Agreement => "agreement",
+        Feature::BareLocativeLicense => "bare_locative_license",
         Feature::Cardinality => "cardinality",
         Feature::Compoundability => "compoundability",
         Feature::Countability => "countability",
@@ -5515,6 +5533,62 @@ mod tests {
             .to_string();
         for required in ["members . first ()", "onset_for_item", "context"] {
             assert!(onset.contains(required), "missing `{required}`: {onset}");
+        }
+    }
+
+    #[test]
+    fn sequence_possessive_ending_rendering_uses_the_last_member_without_a_shared_parameter() {
+        let expansion = crate::generate(quote::quote! {
+            construction ends_in_s: Item {
+                element EndsInSItem {}
+                derive possessive_ending = Values::EndsInS;
+                form ends_in_s = "artifacts";
+            }
+            construction other: Item {
+                element OtherItem {}
+                derive possessive_ending = Values::Other;
+                form other = "bear";
+            }
+            construction coordinated: Root {
+                element Coordinated {
+                    members: seq Item separated by position {
+                        pair = " and ";
+                        first = ", ";
+                        middle = ", ";
+                        last = ", and ";
+                    },
+                }
+                require len(members) >= 2;
+                derive possessive_ending = members.possessive_ending;
+                form coordinated = members;
+            }
+            construction possessive: Output {
+                element Possessive { owner: Root, }
+                form ends_in_s when owner.possessive_ending is EndsInS = suffix(owner, "'");
+                form other otherwise = suffix(owner, "'s");
+            }
+            root Output { punctuation = "."; eoi = true; standalone_render = true; }
+        })
+        .expect("last-member possessive-ending fixture generates");
+        let sequence = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Function, name } if name == "render_coordinated_members_sequence"))
+            .expect("sequence renderer is generated")
+            .tokens
+            .to_string();
+        assert!(sequence.contains("values : & [Item]"), "{sequence}");
+        assert!(!sequence.contains("sequence_feature"), "{sequence}");
+
+        let ending = expansion
+            .items()
+            .iter()
+            .find(|item| matches!(&item.key, crate::ItemKey::Named { kind: crate::NamedKind::Function, name } if name == "possessive_ending_for_root"))
+            .expect("root possessive-ending helper is generated")
+            .tokens
+            .to_string();
+        for required in ["members . last ()", "possessive_ending_for_item", "context"] {
+            assert!(ending.contains(required), "missing `{required}`: {ending}");
         }
     }
 

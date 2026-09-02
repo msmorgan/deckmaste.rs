@@ -2125,6 +2125,16 @@ mod tests {
                     feature = Agreement;
                 }
             }
+            construction auxiliary: Root {
+                element AuxiliaryUse { head: lex AuxiliaryVerb, }
+                derive head.agreement = Values::Bare;
+                form auxiliary = verb(head);
+            }
+            construction pro_verb: Root {
+                element ProVerbUse { head: lex ProVerb, }
+                derive head.agreement = Values::Bare;
+                form pro_verb = verb(head);
+            }
             construction only: Root {
                 element Only {}
                 form only = "only";
@@ -2706,7 +2716,7 @@ mod tests {
                 },
             ]
         );
-        assert_eq!(keys.len(), 109);
+        assert_eq!(keys.len(), 110);
         assert_representative_agreement_match(&first);
         assert!(keys.contains(&&ItemKey::Named {
             kind: NamedKind::Trait,

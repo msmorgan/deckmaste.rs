@@ -941,6 +941,7 @@ mod tests {
     use crate::constructions::NominalLicense;
     use crate::constructions::Number;
     use crate::constructions::Onset;
+    use crate::constructions::PossessiveEnding;
     use crate::constructions::SingularNominalValue;
     use crate::constructions::SingularSimpleDeterminative;
     use crate::context::ParseContext;
@@ -1165,6 +1166,7 @@ mod tests {
                     Agreement::ThirdPersonSingular,
                     Number::Singular,
                     nominal_onset,
+                    PossessiveEnding::Other,
                     FeatureConstraint::Any,
                 ),
             ]
@@ -1188,6 +1190,7 @@ mod tests {
                     Number::Singular,
                     onset,
                     _,
+                    _,
                 ))) if onset == nominal_onset
             ));
         }
@@ -1206,6 +1209,7 @@ mod tests {
                 _,
                 _,
                 Onset::Vowel,
+                _,
                 _
             )))
         ));

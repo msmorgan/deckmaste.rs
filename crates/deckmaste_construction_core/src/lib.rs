@@ -62,6 +62,7 @@ pub fn generate(tokens: proc_macro2::TokenStream) -> syn::Result<Expansion> {
 }
 
 fn generate_from_semantic(semantic: &semantic::SemanticPlan) -> syn::Result<Expansion> {
+    validate::validate_declaration_verb_consumers(semantic)?;
     let plan = plan::plan_emission(semantic)?;
     let escape_hatches = report::escape_hatch_report(semantic)?;
     Ok(Expansion {

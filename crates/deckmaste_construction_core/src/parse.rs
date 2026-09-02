@@ -779,6 +779,7 @@ fn parse_equation(input: ParseStream<'_>) -> syn::Result<FeatureEquation> {
 fn feature_from_ident(ident: &Ident) -> Option<Feature> {
     match ident.to_string().as_str() {
         "agreement" => Some(Feature::Agreement),
+        "bare_locative_license" => Some(Feature::BareLocativeLicense),
         "cardinality" => Some(Feature::Cardinality),
         "compoundability" => Some(Feature::Compoundability),
         "countability" => Some(Feature::Countability),
@@ -800,6 +801,7 @@ fn feature_from_ident(ident: &Ident) -> Option<Feature> {
 fn lexeme_feature_from_ident(ident: &Ident) -> Option<Feature> {
     (ident == "Compoundability")
         .then_some(Feature::Compoundability)
+        .or_else(|| (ident == "BareLocativeLicense").then_some(Feature::BareLocativeLicense))
         .or_else(|| (ident == "Countability").then_some(Feature::Countability))
         .or_else(|| (ident == "ModifierLicense").then_some(Feature::ModifierLicense))
         .or_else(|| (ident == "Properness").then_some(Feature::Properness))
