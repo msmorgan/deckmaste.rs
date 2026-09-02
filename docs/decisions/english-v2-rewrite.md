@@ -1061,3 +1061,17 @@ on stringly-typed provider names and `downcast_ref` + `expect` (`:1502-1505`,
 `:1995-1998`).
 Remember: what hand-written rendering grows into when the generator does not
 own it, and why A4 has to cover rendering too.
+
+
+## Ruling: frame literals may not be lexicon surfaces (2026-09-02)
+
+Two independent gaming audits found ~40% of selected units routing
+through verb-specific frames whose tail literals were nouns ("damage",
+"life", "mana of any", "card", "counter"), so those phrases were never
+noun phrases — coverage bought one level below sentence memorization,
+invisible to the byte-exact laws and the unit-count ratchet. Ruling: a
+`Literal` tail atom or form literal whose surface equals a declared noun
+or verb surface is a compile-time load error. Literals are for particles,
+prepositions, punctuation, and closed grammatical words; content words
+enter only through lexemes and declarations. The gate census reports a
+structural-depth or literal/lexicon-collision metric beside unit counts.
