@@ -109,11 +109,24 @@ engine tickets its stages absorb (listed in each stage ticket).
 
 ## Staging
 
-`core-regions-substrate` → `core-regions-discourse` →
-`core-regions-costs-and-captures`, with `core-regions-piles` off the
-discourse stage. All behind `core-demacro`: after it, engine fixtures spell
+Four stages, each behind `core-demacro`: after it, engine fixtures spell
 semantics and `lower`, so the plugin corpus and the fixtures are untouched by
 core-shape changes and each stage is lowering plus engine plus core types.
+
+`core-regions-substrate` → `core-regions-discourse` →
+`core-regions-costs-and-captures`, with `core-regions-piles` off the
+discourse stage. Each landed stage carried residue into a follow-up rather
+than reopening its own ticket, so the live node set is larger than the four:
+`core-regions-substrate-closeout` (the compat register spellings and the
+frame collapse), `core-regions-discourse-closeout` (runtime nearest-antecedent
+search, the shared choice slot, per-card lowering diagnostics, the
+resolver/certifier differential gate), `core-regions-test-restoration` (the
+assurance the discourse stage deleted, plus that stage's seven named
+fixtures), `core-regions-captures-and-memory` (laws 7 and 8, split off when
+the cost half alone ran to ~4k lines), and `core-regions-witness-fixtures`
+(hand-spelled semantic fixtures for the nineteen inherited witness cards,
+which the wizards corpus cannot exercise). A stage is closed by its own
+ticket plus its follow-ups, not by its ticket alone.
 
 Core's shape is independent of which semantics lowers into it. The chain
 builds the resolver on today's `deckmaste_semantics` → core path as the
