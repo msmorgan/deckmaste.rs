@@ -9,7 +9,9 @@ impl Lower for deckmaste_semantics::AlternativeCost {
     fn lower(self) -> <Self as Lower>::Target {
         match self {
             Self::Free => deckmaste_core::AlternativeCost::Free,
-            Self::Components(f0) => deckmaste_core::AlternativeCost::Components(f0.lower()),
+            Self::Components(f0) => deckmaste_core::AlternativeCost::Components(
+                crate::cost::lower_scoped_cost_components(&f0),
+            ),
         }
     }
 }
@@ -136,7 +138,10 @@ impl Lower for deckmaste_semantics::Deontic {
             Self::May(f0) => deckmaste_core::Deontic::May(f0.lower()),
             Self::Cant(f0) => deckmaste_core::Deontic::Cant(f0.lower()),
             Self::Must(f0) => deckmaste_core::Deontic::Must(f0.lower()),
-            Self::Gate(f0, f1) => deckmaste_core::Deontic::Gate(f0.lower(), f1.lower()),
+            Self::Gate(f0, f1) => deckmaste_core::Deontic::Gate(
+                f0.lower(),
+                crate::cost::lower_scoped_cost_components(&f1),
+            ),
             // Invocation provenance does not cross `lower`: the core grammar is
             // a compiled artifact and carries no record of the semantic
             // spelling (spec §12). Prose recovers the semantic term through the

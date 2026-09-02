@@ -26,6 +26,48 @@ impl GameState {
     /// Panics on a `Count` not wired for Stage 3, on a `StatOf` whose object
     /// lacks the stat, and on a `ThatMuch` with no amount fixed in this
     /// resolution.
+    /// A departed object's LAST KNOWN value for `stat` ([CR#608.2h,113.7a]).
+    ///
+    /// The snapshot keeps the object's card spine and its counters, so a
+    /// printed power/toughness plus the counter adjustment is what remains
+    /// knowable about it; continuous effects that were applying when it left
+    /// are not recorded, which is the same degradation the snapshot already
+    /// documents for its other fields.
+    fn last_known_stat(
+        &self,
+        snapshot: &crate::lki::LkiSnapshot,
+        stat: deckmaste_core::Stat,
+    ) -> Uint {
+        let crate::object::ObjectSource::Card(card) = snapshot.source else {
+            return 0;
+        };
+        let face = crate::derive::face(&self.cards.get(card).def);
+        let counter = |name: &str| {
+            deckmaste_core::Int::try_from(snapshot.counters.get(name).copied().unwrap_or(0))
+                .unwrap_or(deckmaste_core::Int::MAX)
+        };
+        let value = match stat {
+            deckmaste_core::Stat::Power => {
+                crate::layer::base_stat(face.power.as_ref()).unwrap_or(0) + counter("P1P1Counter")
+                    - counter("M1M1Counter")
+            }
+            deckmaste_core::Stat::Toughness => {
+                crate::layer::base_stat(face.toughness.as_ref()).unwrap_or(0)
+                    + counter("P1P1Counter")
+                    - counter("M1M1Counter")
+            }
+            deckmaste_core::Stat::ManaValue => {
+                deckmaste_core::Int::try_from(face.mana_cost.mana_value())
+                    .expect("mana value fits Int")
+            }
+            deckmaste_core::Stat::Loyalty => {
+                crate::layer::base_stat(face.loyalty.as_ref()).unwrap_or(0)
+            }
+            deckmaste_core::Stat::Defense => counter("DefenseCounter"),
+        };
+        Uint::try_from(value.max(0)).expect("clamped stat fits Uint")
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "one arm per Count kind — the value language's full surface"
@@ -108,7 +150,28 @@ impl GameState {
             // documented perf seam as `target::matches`'s `Has` arm). A
             // negative result counts as 0 ([CR#107.1b]).
             Count::StatOf(reference, stat) => {
-                let id = self.eval_reference(reference, frame);
+                let product = self.eval_reference_product(reference, frame);
+                // [CR#608.2h]: current information while the object is still
+                // the one the effect expected; LAST KNOWN information once it
+                // has left that zone — "the sacrificed creature's power"
+                // (Fling) and "the sacrificed creature's toughness" (Ayli)
+                // both read a permanent that is already in a graveyard. A
+                // cost's paid product may still be findable there
+                // ([CR#400.7j]), but it is a different object ([CR#400.7]).
+                let reminted = product
+                    .lki
+                    .as_ref()
+                    .is_some_and(|snapshot| product.current != Some(snapshot.object));
+                let live = (!reminted)
+                    .then_some(product.current)
+                    .flatten()
+                    .filter(|&id| self.objects.get(id).is_some());
+                let Some(id) = live else {
+                    return product
+                        .lki
+                        .as_ref()
+                        .map_or(0, |snapshot| self.last_known_stat(snapshot, *stat));
+                };
                 let value = match stat {
                     deckmaste_core::Stat::Power => self
                         .layers()
@@ -171,7 +234,22 @@ impl GameState {
             // so the count comes from the trigger's last-known snapshot instead.
             Count::CounterCount(reference, kind) => {
                 let product = self.eval_reference_product(reference, frame);
-                match product.current.and_then(|id| self.objects.get(id)) {
+                // [CR#608.2h]: current information while the object is still
+                // the one the effect expected; LAST KNOWN information once it
+                // has left that zone. A register holding a cost's paid product
+                // resolves to the object's new incarnation in its new public
+                // zone ([CR#400.7j] — the effect can still find it), but that
+                // is a different object ([CR#400.7]), so "the sacrificed
+                // creature's counters" is read off the snapshot.
+                let reminted = product
+                    .lki
+                    .as_ref()
+                    .is_some_and(|snapshot| product.current != Some(snapshot.object));
+                let live = (!reminted)
+                    .then_some(product.current)
+                    .flatten()
+                    .and_then(|id| self.objects.get(id));
+                match live {
                     Some(o) => o.counters.get(kind.as_str()).copied().unwrap_or(0),
                     None => product
                         .lki
@@ -480,9 +558,9 @@ impl GameState {
                         }
                     }
                 }
-            } // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-              // loaded value reaches here wrapped. The arm survives only because
-              // the variant does; `core-demacro` deletes both.
+            } /* Provenance is erased at `lower` (`deckmaste_lowering`), so no
+               * loaded value reaches here wrapped. The arm survives only because
+               * the variant does; `core-demacro` deletes both. */
         }
     }
 
@@ -1420,6 +1498,42 @@ mod tests {
         );
     }
 
+    /// A register a payment or instruction has not written yet holds no
+    /// product, and every value read over it DEGRADES TO NULL rather than
+    /// panicking (the fizzle law of
+    /// `docs/decisions/invalid-semantic-input-fizzles.md`). `StatOf` is the
+    /// read a cost's paid product travels through ("the sacrificed creature's
+    /// power", [CR#118.8]), so it must never assert liveness.
+    #[test]
+    fn a_value_read_over_an_unwritten_register_degrades_to_null_not_a_panic() {
+        let (state, bear) = bear_on_field();
+        let frame = frame_src(&state, bear);
+        // Register 7 is past `frame_src`'s whole parameter prefix: nothing has
+        // ever written it.
+        let unwritten = Reference::Reg(deckmaste_core::RefId(7));
+        for stat in [
+            deckmaste_core::Stat::Power,
+            deckmaste_core::Stat::Toughness,
+            deckmaste_core::Stat::ManaValue,
+            deckmaste_core::Stat::Loyalty,
+            deckmaste_core::Stat::Defense,
+        ] {
+            assert_eq!(
+                state.eval_count(&Count::StatOf(unwritten.clone(), stat), &frame),
+                0,
+                "{stat:?} over an unwritten register reads zero"
+            );
+        }
+        assert_eq!(
+            state.eval_count(
+                &Count::CounterCount(Arc::new(unwritten), "P1P1Counter".into()),
+                &frame
+            ),
+            0,
+            "a counter read over an unwritten register reads zero"
+        );
+    }
+
     /// [CR#603.10a,702.43a]: when the object a `CounterCount(This, _)` names is
     /// GONE (a dies trigger — Modular's "for each +1/+1 counter on this
     /// permanent" resolves after the creature left the battlefield), the count
@@ -1573,8 +1687,8 @@ mod tests {
             // The activation mints a Stack-zone identity that REUSES the
             // source's card id ([CR#602.2a]) — the LKI copy that drives the
             // over-count. `eval_count` enumerates every object in the store, so
-            // minting it into the Stack zone is enough for the unzoned filter to
-            // reach it.
+            // minting it into the Stack zone is enough for the unzoned filter
+            // to reach it.
             let src_card = state.objects.obj(source).card_id().unwrap();
             let _stack_copy =
                 state
@@ -1582,9 +1696,10 @@ mod tests {
                     .mint(ObjectSource::Card(src_card), PlayerId(0), Some(Zone::Stack));
 
             // `canon()` (not `builtin()`): the filter names the canon-declared
-            // `Goblin` subtype, whose macro lives in canon — a bare `Subtype(Goblin)`
-            // only expands with that macro in scope. Parsed through the
-            // SEMANTICS path (`semantics::Predicate` → `lower()`), the path
+            // `Goblin` subtype, whose macro lives in canon — a bare
+            // `Subtype(Goblin)` only expands with that macro in
+            // scope. Parsed through the SEMANTICS path
+            // (`semantics::Predicate` → `lower()`), the path
             // production now takes.
             let semantic: deckmaste_semantics::Predicate = canon().macros.read_str(filter).unwrap();
             let parsed: Predicate = deckmaste_lowering::Lower::lower(semantic);
@@ -1611,7 +1726,8 @@ mod tests {
                 }),
                 &frame,
             );
-            // Drain the queued work (the TokenCreated batch + per-token enters).
+            // Drain the queued work (the TokenCreated batch + per-token
+            // enters).
             while let StepOutcome::Progress(_) = state.step() {}
             state.zones.battlefield.len() - before
         }
@@ -1705,7 +1821,8 @@ mod tests {
             cause: None,
         });
 
-        // The creature-death event pattern (same as morbid Condition::Happened).
+        // The creature-death event pattern (same as morbid
+        // Condition::Happened).
         let death_pattern = EventFilter::ZoneChange {
             what: Predicate::creature(),
             from: Some(Zone::Battlefield),

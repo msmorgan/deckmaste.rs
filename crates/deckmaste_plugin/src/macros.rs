@@ -840,11 +840,12 @@ mod tests {
             ))
         );
 
-        let deckmaste_core::CostComponent::Act(action) = cost.clone().lower() else {
-            panic!("expected a runnable Act cost component");
+        let lowered = deckmaste_semantics::Cost(std::sync::Arc::from([cost.clone()])).lower();
+        let [deckmaste_core::CostComponent::Act { dest: None, action }] = &*lowered.0 else {
+            panic!("expected one runnable Act cost component, got {lowered:?}");
         };
         assert_eq!(
-            *action,
+            **action,
             deckmaste_core::Action::Sacrifice(
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(1)),
                 deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
@@ -1082,7 +1083,8 @@ mod tests {
                     body: Also(would: ZoneChange(what: Any, to: Battlefield), also: Param(0)),
                 )"#))
             .unwrap();
-        // `Purple` is neither a OneShotEffect variant nor a OneShotEffect macro.
+        // `Purple` is neither a OneShotEffect variant nor a OneShotEffect
+        // macro.
         let error = macros
             .read_str::<deckmaste_semantics::Replacement>("DoThen(Purple)")
             .unwrap_err()

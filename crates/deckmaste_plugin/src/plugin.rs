@@ -514,13 +514,17 @@ fn validate_ability_regions(ability: &deckmaste_core::Ability) -> anyhow::Result
     use deckmaste_core::ManaAbility;
     match ability {
         Ability::Activated(ability) | Ability::Mana(ManaAbility::Activated { ability, .. }) => {
-            deckmaste_core::validate_telescope(&ability.effect, &ability.targets)?;
+            // [CR#601.2b]: the activation cost is part of the announcement, so
+            // its instructions define into the region ahead of the body.
+            deckmaste_core::validate_announced(&ability.effect, &ability.targets, &ability.cost)?;
         }
         Ability::Triggered(ability) | Ability::Mana(ManaAbility::Triggered(ability)) => {
             deckmaste_core::validate_telescope(&ability.effect, &ability.targets)?;
         }
         Ability::Spell(ability) => {
-            deckmaste_core::validate_telescope(&ability.effect, &ability.targets)?;
+            // [CR#118.8]: a printed additional cost is announced with the mana
+            // cost, so it defines ahead of the body too.
+            deckmaste_core::validate_announced(&ability.effect, &ability.targets, &ability.cost)?;
         }
         Ability::Innate(inner) => validate_ability_regions(inner)?,
         Ability::Static(region) => deckmaste_core::validate_static(region)?,
@@ -906,8 +910,9 @@ mod tests {
         .unwrap();
         assert_eq!(plugin.types.len(), 10, "all ten canonical types registered");
         // Land confers its default-deny land-play marker (Task 8, the land-play
-        // consumer): a May(Play(what: Ref(This))) row ([CR#305.9,116.2a,701.18])
-        // that legal.rs/cast.rs key land-play + spell-non-castability on.
+        // consumer): a May(Play(what: Ref(This))) row
+        // ([CR#305.9,116.2a,701.18]) that legal.rs/cast.rs key
+        // land-play + spell-non-castability on.
         assert_eq!(
             plugin.types["Land"],
             TypeDef {

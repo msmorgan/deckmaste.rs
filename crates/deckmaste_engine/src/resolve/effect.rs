@@ -49,9 +49,10 @@ impl GameState {
         one_shot: bool,
         frame: &Frame,
     ) {
-        // Same canonical guard the continuous-effect mint uses ([CR#611.2,614.3]):
-        // a shield may carry only a SWEEPABLE duration. `ForThisEvent` is the
-        // one exception — an instruction-scoped rider, never a stored shield;
+        // Same canonical guard the continuous-effect mint uses
+        // ([CR#611.2,614.3]): a shield may carry only a SWEEPABLE
+        // duration. `ForThisEvent` is the one exception — an
+        // instruction-scoped rider, never a stored shield;
         // stay LOUD rather than register a silently-forever shield.
         assert!(
             crate::state::duration_sweepable(&duration),
@@ -60,9 +61,10 @@ impl GameState {
         );
         // [CR#614.3]: the protected permanent is the `That` the enclosing `With`
         // bound — the shield freezes THAT resolved identity at creation
-        // (`floating_watches` then matches on this frozen subject). An unbound /
-        // vanished `That` (no `With`, degenerate reference) fizzles the mint —
-        // never a shield with a null subject, never a panic ([CR#701.8a]).
+        // (`floating_watches` then matches on this frozen subject). An unbound
+        // / vanished `That` (no `With`, degenerate reference) fizzles
+        // the mint — never a shield with a null subject, never a panic
+        // ([CR#701.8a]).
         let id = self
             .activation_latest_object(frame.activation)
             .unwrap_or_else(ObjectId::null);
@@ -133,47 +135,10 @@ impl GameState {
         ids
     }
 
-    /// Resolve a [`CostBinder`](deckmaste_core::CostBinder) to its bound group of
-    /// element ids ([CR#608.2]) for the transitional cost-side
-    /// `ChooseAndPay`. `TheRef` is a singleton, `Existing` evaluates its
-    /// `Selection`, and a chooser (`ChooseOne`/`Choose`, and the search
-    /// binders `SearchOne`/`Search` [CR#701.23] — a search surfaces its
-    /// hidden-zone candidates the same `ChooseObjects` way) reads the picks
-    /// that a prior [`Self::binder_choice`] stored on the activation; a
-    /// search's picks may be empty (a failed find).
-    pub(crate) fn resolve_binder(
-        &self,
-        binder: &deckmaste_core::CostBinder,
-        frame: &Frame,
-    ) -> Vec<ObjectId> {
-        use deckmaste_core::CostBinder;
-        match binder {
-            CostBinder::TheRef(reference) => vec![self.eval_reference(reference, frame)],
-            CostBinder::Existing(selection) => self.eval_selection_set(selection, frame),
-            CostBinder::ChooseOne { .. }
-            | CostBinder::Choose { .. }
-            | CostBinder::SearchOne { .. }
-            | CostBinder::Search { .. } => self
-                .activation_chosen(frame.activation)
-                .expect("a chooser binder re-runs with its picks bound"),
-            // A producing cost binder needs a mutating run-action-and-
-            // capture step this read-only (`&self`) resolver can't provide.
-            // Unreachable from `With`; still hit if `Each`/`Distribute` ever
-            // took a `Produce` binder (they don't — `Produce`/`SearchOne` are
-            // One-binders, not the many-binder those expect).
-            CostBinder::Produce(_) => unimplemented!(
-                "engine seam: cost-side Produce resolved outside ChooseAndPay ([CR#400.7j]) — \
-                 the payment path must run its Action and capture its product; \
-                 owner: engine-produce-capture-binder"
-            ),
-            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-            // loaded value reaches here wrapped. The arm survives only because
-            // the variant does; `core-demacro` deletes both.
-        }
-    }
-
-    /// instead of by the pure selection evaluator. The sample is returned
-    /// directly; each element is then written to its loop region parameter.
+    /// The element set a loop iterates ([CR#608.2]). A `Random` selection is
+    /// SAMPLED here — once, by the mutating resolver — instead of by the pure
+    /// selection evaluator. The sample is returned directly; each element is
+    /// then written to its loop region parameter.
     fn iteration_selection(
         &mut self,
         selection: &deckmaste_core::Selection,
@@ -249,14 +214,20 @@ impl GameState {
         match effect {
             OneShotEffect::Act { dest, action } => {
                 // A verb acts on an already-bound `Reference` — choosing is a
-                // separate preceding instruction (`Choose`/`ChooseValue`/`Search`),
+                // separate preceding instruction
+                // (`Choose`/`ChooseValue`/`Search`),
                 // never the verb's, so an `Act` never surfaces a choice itself.
                 // `CreateReplacement` directly mutates `state.shields` — it
                 // cannot go through `action_items` (which is `&self`). Handle
                 // it here, mirroring how `OneShotEffect::Continuously` works.
                 if let Some(dest) = dest {
                     match &action {
-                        Action::Move(subject, _, _, _) => {
+                        // [CR#701.21a]: a sacrifice moves the permanent to its
+                        // owner's graveyard, so — like any move — its product
+                        // is that object, written at its pre-move identity and
+                        // chased to its new one on read ([CR#400.7]). This is
+                        // "the sacrificed creature" a cost block's body names.
+                        Action::Move(subject, _, _, _) | Action::Sacrifice(_, subject) => {
                             let object = self.eval_reference(subject, frame);
                             self.activation_write_object(frame.activation, dest, object);
                         }
@@ -390,15 +361,18 @@ impl GameState {
                 }
             }
             OneShotEffect::Sequentially(children) => {
-                // Pre-scan for `ForThisEvent` riders ([CR#611.2a], [CR#701.19c]):
-                // an `Until(ForThisEvent, parts)` child NEVER mints its own
-                // instance — its parts fold as instruction-scoped RIDERS onto
-                // the immediately-preceding sibling's work. This shape is forced
-                // by scheduling: a `Destroy` front-schedules its `Emit`, which is
+                // Pre-scan for `ForThisEvent` riders ([CR#611.2a],
+                // [CR#701.19c]): an `Until(ForThisEvent,
+                // parts)` child NEVER mints its own instance —
+                // its parts fold as instruction-scoped RIDERS onto
+                // the immediately-preceding sibling's work. This shape is
+                // forced by scheduling: a `Destroy`
+                // front-schedules its `Emit`, which is
                 // APPLIED before the next `RunEffect` child could run, so a
                 // sibling-minted instance would arrive too late ([CR#611.2c]);
-                // the rider must be armed BEFORE the destroy runs. We install it
-                // just before that preceding sibling's `RunEffect`.
+                // the rider must be armed BEFORE the destroy runs. We install
+                // it just before that preceding sibling's
+                // `RunEffect`.
                 let mut items: Vec<WorkItem> = Vec::new();
                 for child in children.iter().cloned() {
                     if let Some(parts) = for_this_event_rider(&child) {
@@ -500,11 +474,13 @@ impl GameState {
                             if ids.is_empty() {
                                 void = true;
                             }
-                            // The affected object is fixed at mint ([CR#611.2c]).
+                            // The affected object is fixed at mint
+                            // ([CR#611.2c]).
                             // A `SetController` naming another object's
                             // controller must be resolved here too: the game
                             // read it needs happens once, when the effect
-                            // applies ([CR#608.2h]), and `resolve_new_controller`'s
+                            // applies ([CR#608.2h]), and
+                            // `resolve_new_controller`'s
                             // apply-time pass only understands `You` anyway (it
                             // has no Frame to chase a live `Target`/
                             // `ControllerOf` read) — so Avarice Totem's
@@ -616,8 +592,9 @@ impl GameState {
                 // [CR#611.2]/[CR#611.2c]: stamp at creation; lock the object set
                 // for non-floating scopes, leave `Matching` floating.
                 let timestamp = self.objects.next_timestamp();
-                // Duration guard narrowed from the old catch-all: EVERY duration
-                // is now sweepable EXCEPT `ForThisEvent`, which is an
+                // Duration guard narrowed from the old catch-all: EVERY
+                // duration is now sweepable EXCEPT
+                // `ForThisEvent`, which is an
                 // instruction-scoped rider ([CR#611.2a]) handled entirely by
                 // `Sequentially` lowering and never a standalone instance.
                 // Reaching this mint with `ForThisEvent` means a rider with no
@@ -965,7 +942,7 @@ impl GameState {
                 if modal
                     .modes
                     .iter()
-                    .any(|m| !m.targets.is_empty() || m.cost.is_some())
+                    .any(|m| !m.targets.is_empty() || !m.cost.is_empty())
                 {
                     // engine-resolve-effects seam: modal per-mode targets/costs
                     // are announce-time ([CR#601.2b,700.2c,700.2h]) — the mode
@@ -1194,52 +1171,6 @@ impl GameState {
             // no-op instead (nothing revealed, `body` never runs) — never a
             // panic, matching the CRITICAL never-crash ruling.
             OneShotEffect::RevealUntil(_) => {}
-            OneShotEffect::AdditionalCost(ac) => {
-                let cost = ac.pay.normalize().0;
-                // [CR#608.2k,118.12]: the payment's DECISION RECORD, captured
-                // when the payer chooses to pay (here, at schedule time —
-                // the cost hasn't run yet, but a directly-resolvable or
-                // already-`That`-bound reference is already fixed) — object
-                // and actor only (the payer, statically known: [CR#601.2b]
-                // an additional cost is never another player's). Amount and
-                // patient stay documented seams. `bindEvent`'s
-                // `notEventRoleA` clears any stale outer event-role binding
-                // FIRST ([CR#608.2k] — one antecedent set per body), so a
-                // trigger body's own `that_player`/`that_patient` can't leak
-                // into this payment's body.
-                let mut body_frame = self.fork_frame(frame);
-                let paid = self.cost_paid_object(&cost, frame);
-                self.frame_set_event_bindings(
-                    &mut body_frame,
-                    paid,
-                    Some(frame.controller(self)),
-                    None,
-                );
-                // [CR#118.10]: one fresh payment id for this cost's whole
-                // drain — every component below shares it; `body_frame`
-                // (the consequence, not the payment) never carries it.
-                let payment = self.mint_payment();
-                let mut payment_frame = frame.clone();
-                payment_frame.payment = Some(payment);
-                let mut items: Vec<WorkItem> = cost
-                    .iter()
-                    .map(|c| WorkItem::RunEffect {
-                        // Render each cost component as the controller's payment
-                        // effect; a cost-side `With` becomes an `OneShotEffect::With`
-                        // (its choice surfaced at payment), not a single action.
-                        effect: Arc::new(crate::decide::unless_cost_effect(
-                            c,
-                            &Reference::controller_parameter(),
-                        )),
-                        frame: payment_frame.clone(),
-                    })
-                    .collect();
-                items.push(WorkItem::RunEffect {
-                    effect: ac.body,
-                    frame: body_frame,
-                });
-                self.schedule_front(items);
-            }
             // [CR#603.7,603.12]: create a delayed triggered ability, unified
             // with the reflexive rule. It is printed on no permanent, so it
             // fires ONCE the next time its event occurs ([CR#603.7b]) — BUT if
@@ -1417,10 +1348,11 @@ impl GameState {
     ///
     /// [CR#400.7j]: when the creating source itself MOVED during the same
     /// resolution (madness exiles the very card whose ability is discarding
-    /// it — `frame.source(self)` is reminted and gone), `~`/`This` falls back to the
-    /// `With(Produce(...))` product bound as `That`, so the delayed body's
-    /// filter still anchors `Ref(This)` on the just-produced object and its
-    /// watcher-source is that live card rather than a bare player proxy.
+    /// it — `frame.source(self)` is reminted and gone), `~`/`This` falls back
+    /// to the `With(Produce(...))` product bound as `That`, so the delayed
+    /// body's filter still anchors `Ref(This)` on the just-produced object
+    /// and its watcher-source is that live card rather than a bare player
+    /// proxy.
     fn created_trigger_context(
         &self,
         frame: &Frame,
@@ -1480,11 +1412,13 @@ impl GameState {
                 // [CR#400.7j,603.2e]: a trigger firing reflexively WITHIN the
                 // resolution that produced its event reads the moved object at
                 // its CURRENT identity. The event fact's `that_object` snapshot
-                // holds the object's PRE-move id; the object was reminted on the
-                // move (madness's Hand → Exile remint), so chase the live
-                // same-resolution move record to the product and re-snapshot it
-                // — the "…exiled this way" linkage. Left as-is when the object
-                // did not move again or the chase leaves the store (LKI stands).
+                // holds the object's PRE-move id; the object was reminted on
+                // the move (madness's Hand → Exile remint), so
+                // chase the live same-resolution move record to
+                // the product and re-snapshot it — the "…exiled
+                // this way" linkage. Left as-is when the object
+                // did not move again or the chase leaves the store (LKI
+                // stands).
                 if let Some(snap) = &bindings.that_object {
                     let chased = self.chase_moved(snap.object);
                     if chased != snap.object && self.objects.get(chased).is_some() {
@@ -1507,46 +1441,6 @@ impl GameState {
             self.schedule_front(emits);
         }
         fired
-    }
-
-    /// The last-known snapshot of the object a cost payment moves
-    /// ([CR#608.2k] cost→effect reference) — shared by the
-    /// [`OneShotEffect::AdditionalCost`] arm — when the cost is a single
-    /// object-moving verb (`Sacrifice`/`Move` — exile is `Move(_, Exile)` —
-    /// or a `Discard` that names *what*) over a resolvable reference
-    /// (`Sacrifice(This)`, …). Captured BEFORE the verb actually pays, so it
-    /// is the object's last-known information ([CR#603.10a]) — exactly what
-    /// the body's `EventObject` should read. Returns `None` for a cost that
-    /// moves no object (mana/tap/life — nothing to bind).
-    ///
-    /// A register written by an enclosing `ChooseAndPay` resolves here too:
-    /// the choice is committed before the nested payment verb runs
-    /// ([CR#608.2]).
-    pub(crate) fn cost_paid_object(
-        &self,
-        cost: &[deckmaste_core::CostComponent],
-        frame: &Frame,
-    ) -> Option<crate::lki::LkiSnapshot> {
-        for component in cost {
-            let deckmaste_core::CostComponent::Act(pa) = component else {
-                continue;
-            };
-            let reference = match pa.as_ref() {
-                Action::Sacrifice(_, r) | Action::Move(r, _, _, _) => Some(r),
-                // The bound discard form ("discard this card") names its
-                // moved card in the body's single-move head.
-                Action::Composite { name, body } if name.as_str() == "Discard" => {
-                    deckmaste_core::discard_body_what(body)
-                }
-                _ => None,
-            };
-            let Some(reference) = reference else { continue };
-            let object = self.eval_reference(reference, frame);
-            if self.objects.get(object).is_some() {
-                return Some(crate::lki::LkiSnapshot::capture(self, object));
-            }
-        }
-        None
     }
 
     /// A future-form `ZoneChange` intent ([CR#400.7]) moving `object` to `to`
@@ -1867,7 +1761,8 @@ mod tests {
     #[test]
     fn each_creature_yields_all_battlefield_creatures() {
         let (mut state, a) = bear_on_field();
-        // Force a second Grizzly Bears from player 0's hand onto the battlefield.
+        // Force a second Grizzly Bears from player 0's hand onto the
+        // battlefield.
         let b = *state.zones.hands[0]
             .iter()
             .find(|&&o| obj_matches(&state, o, &Predicate::r#type(Type::Creature)))
@@ -3023,7 +2918,8 @@ mod tests {
     /// body instructions, never from `DamageDealt`).
     #[test]
     fn zero_power_fighter_still_records_its_fight_fact() {
-        // Darksteel Myr is canon's 0/1 (see myr_on_field, resolve/action.rs:971-1003).
+        // Darksteel Myr is canon's 0/1 (see myr_on_field,
+        // resolve/action.rs:971-1003).
         let (mut state, a, _b) = two_permanents_on_field();
         let myr_card = Arc::new(canon().card("Darksteel Myr").unwrap().core);
         let cid = state.cards.push(myr_card, PlayerId(0));
@@ -3200,7 +3096,8 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let frame = frame_src(&state, src);
-        // "for as long as an object matching not-anything exists" — always false.
+        // "for as long as an object matching not-anything exists" — always
+        // false.
         let cond = Condition::Exists(Predicate::Not(Arc::new(Predicate::Any)));
         let effect = OneShotEffect::Continuously(Continuously {
             effect: Arc::new(StaticEffect::Modify(
@@ -3668,7 +3565,8 @@ mod tests {
         };
         let p0 = PlayerId(0);
 
-        // yes → effect (3) + if_did (10) = +13; surfaces YesNo to the controller.
+        // yes → effect (3) + if_did (10) = +13; surfaces YesNo to the
+        // controller.
         let mut state = game();
         let frame = frame_for(&state, p0);
         let life0 = state.player(p0).life;
@@ -3731,7 +3629,7 @@ mod tests {
                 LifeOp::Up(Count::Literal(n)),
             ))
             .into(),
-            cost: None,
+            cost: deckmaste_core::Cost::default(),
         };
         let modes = || vec![gain_mode(3), gain_mode(5), gain_mode(7)];
         let spec = |count, up_to| ChooseSpec {
@@ -3834,7 +3732,7 @@ mod tests {
                         .into(),
                     )
                     .into(),
-                    cost: None,
+                    cost: deckmaste_core::Cost::default(),
                 }]
                 .into(),
             }),
@@ -3885,7 +3783,7 @@ mod tests {
                 LifeOp::Up(Count::Literal(0)),
             ))
             .into(),
-            cost: None,
+            cost: deckmaste_core::Cost::default(),
         };
         let gain_mode = |n| Mode {
             targets: [].into(),
@@ -3894,7 +3792,7 @@ mod tests {
                 LifeOp::Up(Count::Literal(n)),
             ))
             .into(),
-            cost: None,
+            cost: deckmaste_core::Cost::default(),
         };
         let escalate = || {
             Some(ModalCostRider::Escalate(Cost(
@@ -3979,7 +3877,7 @@ mod tests {
                 LifeOp::Up(Count::Literal(n)),
             ))
             .into(),
-            cost: None,
+            cost: deckmaste_core::Cost::default(),
         };
         let p0 = PlayerId(0);
         let p1 = PlayerId(1);
@@ -4013,9 +3911,9 @@ mod tests {
     /// [CR#118.12,608.2d]: `May.who` is the decider — Browbeat's "Any
     /// player may have Browbeat deal 5 damage to them" proves it isn't always
     /// the controller. Surfaced via `acting_player`, not hardcoded to
-    /// `frame.controller(self)`. `who: You` is the only spelling in canon today,
-    /// so this pins the new routing for a non-`You` decider without changing
-    /// any existing card's behavior.
+    /// `frame.controller(self)`. `who: You` is the only spelling in canon
+    /// today, so this pins the new routing for a non-`You` decider without
+    /// changing any existing card's behavior.
     #[test]
     fn run_effect_may_surfaces_yes_no_to_the_named_decider() {
         use deckmaste_core::May;
@@ -4338,19 +4236,69 @@ mod tests {
         );
     }
 
-    /// [CR#601.2f,118.8]: `OneShotEffect::AdditionalCost` (nested, resolution-time) —
-    /// the cost is PAID (the source is sacrificed) and the body then reads the
-    /// paid object through the event reference `EventObject`. The bear is
-    /// sacrificed carrying three +1/+1 counters; the body gains life equal to
-    /// the SACRIFICED creature's counter count, read via its last-known
-    /// snapshot ([CR#603.10a]) — proving the paid object is bound for the
-    /// body even after it has left the battlefield.
-    #[test]
-    fn run_effect_additional_cost_binds_paid_object_for_body() {
-        use deckmaste_core::AdditionalCost;
-        use deckmaste_core::Cost;
-        use deckmaste_core::CostComponent;
+    /// An announcement's cost block followed by the ability body it pays for,
+    /// as one ordered run against a single activation — the shape
+    /// `cast::cost_step_items` schedules, with the body's instructions after
+    /// it ([CR#601.2b,601.2h]).
+    fn announced_run(
+        block: &[deckmaste_core::CostComponent],
+        body: OneShotEffect,
+    ) -> OneShotEffect {
+        let mut instructions: Vec<OneShotEffect> = block
+            .iter()
+            .map(|component| {
+                crate::decide::unless_cost_effect(
+                    component,
+                    &deckmaste_core::Reference::controller_parameter(),
+                )
+            })
+            .collect();
+        instructions.push(body);
+        OneShotEffect::Sequentially(instructions.into())
+    }
 
+    /// "Sacrifice another creature", as the cost instruction the announcement
+    /// runs: the paid product goes to `dest` for the body to read.
+    fn sacrifice_this_for(dest: u32) -> deckmaste_core::CostComponent {
+        deckmaste_core::CostComponent::producing(
+            deckmaste_core::DefId(dest),
+            Action::Sacrifice(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Reference::Reg(deckmaste_core::RefId(0)),
+            ),
+        )
+    }
+
+    /// "You gain life equal to the sacrificed creature's [counters]" — the
+    /// ability body reading the paid product's register.
+    fn gain_life_from_counters_of(register: u32) -> OneShotEffect {
+        OneShotEffect::Act {
+            dest: None,
+            action: Action::ChangeLife(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                LifeOp::Up(Count::CounterCount(
+                    Arc::new(Reference::Reg(deckmaste_core::RefId(register))),
+                    "P1P1Counter".into(),
+                )),
+            ),
+        }
+    }
+
+    /// [CR#118.8,601.2b]: an ability's cost block is PAID (the source is
+    /// sacrificed) and the body then reads the paid object through the
+    /// register the payment wrote — Ayli's "you gain life equal to the
+    /// sacrificed creature's …". The bear is sacrificed carrying three +1/+1
+    /// counters; the body gains life equal to the SACRIFICED creature's
+    /// counter count, read via its last-known snapshot ([CR#603.10a]) —
+    /// proving the paid product is bound for the body even after it has left
+    /// the battlefield.
+    ///
+    /// Re-spelled from the deleted nested-`AdditionalCost` node: an additional
+    /// cost is announced and paid with the mana or activation cost
+    /// ([CR#118.8,118.8a]), never mid-resolution, so the same card and the same
+    /// asserted outcome are pinned against the announcement block instead.
+    #[test]
+    fn a_cost_block_binds_its_paid_product_for_the_ability_body() {
         let (mut state, bear) = bear_on_field();
         state
             .objects
@@ -4362,22 +4310,7 @@ mod tests {
         let frame = frame_src(&state, bear);
 
         state.run_effect(
-            OneShotEffect::AdditionalCost(AdditionalCost {
-                pay: Cost(
-                    vec![CostComponent::do_action(Action::Sacrifice(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                        Reference::Reg(deckmaste_core::RefId(0)),
-                    ))]
-                    .into(),
-                ),
-                body: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    LifeOp::Up(Count::CounterCount(
-                        Arc::new(Reference::Reg(deckmaste_core::RefId(2))),
-                        "P1P1Counter".into(),
-                    )),
-                ))),
-            }),
+            announced_run(&[sacrifice_this_for(2)], gain_life_from_counters_of(2)),
             &frame,
         );
         let _ = drain_progress(&mut state, 40);
@@ -4394,28 +4327,35 @@ mod tests {
         assert_eq!(
             state.player(p0).life,
             life0 + 3,
-            "the body read the sacrificed object's counters via EventObject"
+            "the body read the sacrificed object's counters through the paid product's register"
         );
     }
 
-    /// [CR#608.2k]: `bindEvent`'s `notEventRoleA` hygiene, ported — a stale
-    /// event-role binding an ENCLOSING scope carried (e.g. a triggered
-    /// ability's own firing-event patient) must not ride along into an
-    /// `AdditionalCost` body's frame just because the body's frame is a
-    /// clone of the enclosing one. One antecedent set per body: the payment
-    /// clears `that_patient` before landing its own (unpopulated —
-    /// documented seam) roles, rather than leaving the outer value in place.
+    /// [CR#608.2k]: one antecedent set per body — a stale event-role binding an
+    /// ENCLOSING scope carried (a triggered ability's own firing-event patient)
+    /// must never be mistaken for the payment's product.
+    ///
+    /// Re-spelled from the deleted nested-`AdditionalCost` node's frame-hygiene
+    /// test. The old shape forked a body frame and cleared its event roles; the
+    /// announcement shape has no fork at all — the paid product is a REGISTER,
+    /// so an outer event role is structurally incapable of standing in for it.
+    /// Same card, same asserted outcome: the body reads the sacrificed
+    /// creature, not the stale patient.
     #[test]
-    fn additional_cost_body_clears_a_stale_outer_event_patient_binding() {
-        use deckmaste_core::AdditionalCost;
-        use deckmaste_core::Cost;
-        use deckmaste_core::CostComponent;
-
+    fn a_paid_product_is_read_by_register_not_a_stale_outer_event_role() {
         let (mut state, bear) = bear_on_field();
+        state
+            .objects
+            .obj_mut(bear)
+            .counters
+            .insert("P1P1Counter".into(), 3);
+        let p0 = PlayerId(0);
+        let life0 = state.player(p0).life;
         let mut frame = frame_src(&state, bear);
-        // Simulate an enclosing scope's own stale event-role binding — the
-        // shape a triggered ability's frame carries when ITS firing event
-        // named a patient (`resolve/mod.rs`'s trigger-frame construction).
+        // An enclosing scope's own stale event-role binding — the shape a
+        // triggered ability's frame carries when ITS firing event named a
+        // patient (`resolve/mod.rs`'s trigger-frame construction). The patient
+        // is a PLAYER, which carries no +1/+1 counters at all.
         state.frame_set_event_bindings(
             &mut frame,
             None,
@@ -4423,54 +4363,33 @@ mod tests {
             Some(crate::trigger::EventPatient::Player(PlayerId(1))),
         );
 
+        // The paid product goes to register 7 — past this region's whole
+        // parameter prefix, so it can only be the payment's own definition and
+        // never an event role.
         state.run_effect(
-            OneShotEffect::AdditionalCost(AdditionalCost {
-                pay: Cost(
-                    vec![CostComponent::do_action(Action::Sacrifice(
-                        Reference::Reg(deckmaste_core::RefId(1)),
-                        Reference::Reg(deckmaste_core::RefId(0)),
-                    ))]
-                    .into(),
-                ),
-                body: Arc::new(OneShotEffect::Act(Action::ChangeLife(
-                    Reference::Reg(deckmaste_core::RefId(1)),
-                    LifeOp::Up(Count::Literal(1)),
-                ))),
-            }),
+            announced_run(&[sacrifice_this_for(7)], gain_life_from_counters_of(7)),
             &frame,
         );
+        let _ = drain_progress(&mut state, 40);
 
-        let body_frame = state
-            .agenda
-            .iter()
-            .find_map(|item| match item {
-                WorkItem::RunEffect { effect, frame }
-                    if matches!(
-                        effect.as_ref(),
-                        OneShotEffect::Act {
-                            action: Action::ChangeLife(..),
-                            ..
-                        }
-                    ) =>
-                {
-                    Some(frame.clone())
-                }
-                _ => None,
-            })
-            .expect("the AdditionalCost body's RunEffect is scheduled");
-
+        assert_eq!(
+            state.player(p0).life,
+            life0 + 3,
+            "the paid product's register holds the sacrificed creature, never the stale patient"
+        );
         assert!(
             state
                 .activation_context_product(
-                    body_frame.activation,
+                    frame.activation,
                     &deckmaste_core::Provenance::EventPatient,
                 )
-                .is_none(),
-            "a stale outer EventPatient binding must not leak into the payment body"
+                .is_some(),
+            "the outer event role is still there — it simply is not what the body reads"
         );
     }
 
-    // --- Ascend (spell form) e2e ([CR#702.131a]) -------------------------------
+    // --- Ascend (spell form) e2e ([CR#702.131a])
+    // -------------------------------
     //
     // The spell form of Ascend folds into `Sequentially([If(<gate>,
     // GetDesignation), If(Is(You,Designated), Draw(3), otherwise: Draw(2))])`
@@ -4615,6 +4534,7 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
                 effect: secrets_effect().into(),
             })],

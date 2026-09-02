@@ -210,15 +210,15 @@ impl GameState {
                     None => Vec::new(),
                 }
             }
-            // The RNG's picks, bound into the frame before the selection is
-            // read ([CR#608.2d]): `Each`/`With`/`Distribute`'s handling
-            // (`resolve/effect.rs`) samples an `Existing(Random(..))` binder
-            // via the seeded rng and binds `frame.anaphora.chosen` BEFORE
-            // this evaluator ever runs — the discard-at-random composite
-            // ([CR#701.9b]) is the first live consumer.
-            Selection::Random(..) => self
-                .activation_chosen(frame.activation)
-                .expect("a Random selection is bound into the frame before it is read"),
+            // A random pick is a DECISION, so it is sampled by the mutating
+            // resolver, never by this pure evaluator: `Each`/`Distribute`
+            // sample it once through the seeded rng and write each element to
+            // the loop region's parameter (the discard-at-random composite,
+            // [CR#701.9b,608.2d]). The validator rejects a decision-bearing
+            // selection in every pure position it could otherwise reach
+            // (`Let`, [CR#608.2h]), so nothing reaches here — and an
+            // unavailable group packs to empty rather than crashing.
+            Selection::Random(..) => Vec::new(),
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
@@ -354,14 +354,14 @@ impl GameState {
                     .flat_map(|m| self.eval_selection_set(m, frame))
                     .filter(|id| seen.insert(*id))
                     .collect()
-            } // Grammar-valid but not yet wired: there is no `noted` object-set on
-              // the frame to select among. An explicit named arm (not a catch-all)
-              // so a future `Selection` variant is a compile error here rather than
-              // a silent runtime panic.
-              // [CR#607.2a]: the fact-backed product group — the members the
-              // noting clause ACTUALLY moved, read through their post-move
-              // identities ("cards milled this way"); a member that has since
-              // left (a ceased token) drops out of the live read.
+            } /* Grammar-valid but not yet wired: there is no `noted` object-set on
+               * the frame to select among. An explicit named arm (not a catch-all)
+               * so a future `Selection` variant is a compile error here rather than
+               * a silent runtime panic.
+               * [CR#607.2a]: the fact-backed product group — the members the
+               * noting clause ACTUALLY moved, read through their post-move
+               * identities ("cards milled this way"); a member that has since
+               * left (a ceased token) drops out of the live read. */
         }
     }
 
@@ -477,17 +477,6 @@ impl GameState {
                 }
                 self.player(self.owner_of(id)).object
             }
-            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-            // loaded value reaches here wrapped. The arm survives only because
-            // the variant does; `core-demacro` deletes both.
-            // engine-resolve-selections follow-ups: these need stores that do
-            // not exist yet — a semantic read fizzles until then.
-            Reference::Bound(_) => {
-                Self::unbound_ref(reference, "Bound(...) named-role binding store not wired")
-            }
-            Reference::Linked(_) => {
-                Self::unbound_ref(reference, "Linked(...) linked-ability store not wired")
-            }
             // [CR#301.5,303.4]: the host an attachment is attached to — read
             // the attachment→host relation directly off the resolved object.
             Reference::AttachHostOf(inner) => {
@@ -568,7 +557,12 @@ mod tests {
 
     #[test]
     fn activation_target_product_keeps_lki_after_departure() {
-        use deckmaste_core::{DefId, Kind, Param, Provenance, RefId, Region};
+        use deckmaste_core::DefId;
+        use deckmaste_core::Kind;
+        use deckmaste_core::Param;
+        use deckmaste_core::Provenance;
+        use deckmaste_core::RefId;
+        use deckmaste_core::Region;
 
         let (mut state, target) = bear_on_field();
         let source = state.player(PlayerId(0)).object;
@@ -691,8 +685,9 @@ mod tests {
     #[test]
     fn references_resolve_controller_owner_and_trigger_bindings() {
         let (mut state, bear) = bear_on_field();
-        // A second Grizzly Bears from player 0's hand onto the battlefield, then
-        // handed to player 1: owner stays player 0, controller becomes player 1.
+        // A second Grizzly Bears from player 0's hand onto the battlefield,
+        // then handed to player 1: owner stays player 0, controller
+        // becomes player 1.
         let theirs = second_bear_to_player_1(&mut state);
 
         let mut frame = frame_src_targets(&state, bear, vec![theirs]);

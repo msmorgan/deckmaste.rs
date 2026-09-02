@@ -55,11 +55,18 @@ impl Lower for deckmaste_semantics::Reference {
             Self::That(sort) => deckmaste_core::Reference::Reg(
                 crate::region::that(sort).expect("unbound sorted anaphor during semantic lowering"),
             ),
-            Self::Bound(name) => crate::region::named(&name).map_or_else(
-                || deckmaste_core::Reference::Bound(name.lower()),
-                deckmaste_core::Reference::Reg,
+            // [CR#607]: a named role and a linked-memory read are register
+            // reads or nothing — core has no name-keyed store, so an
+            // unresolved name is a lowering error, not a runtime fizzle.
+            Self::Bound(name) => deckmaste_core::Reference::Reg(
+                crate::region::named(&name)
+                    .unwrap_or_else(|| panic!("unbound role `{name}` during semantic lowering")),
             ),
-            Self::Linked(f0) => deckmaste_core::Reference::Linked(f0.lower()),
+            Self::Linked(name) => {
+                deckmaste_core::Reference::Reg(crate::region::named(&name).unwrap_or_else(|| {
+                    panic!("linked-memory read `{name}` has no declared cell ([CR#607])")
+                }))
+            }
             Self::ControllerOf(f0) => deckmaste_core::Reference::ControllerOf(f0.lower()),
             Self::Coalesce(f0) => deckmaste_core::Reference::Coalesce(f0.lower()),
             Self::OwnerOf(f0) => deckmaste_core::Reference::OwnerOf(f0.lower()),
@@ -160,20 +167,44 @@ mod tests {
         );
     }
 
+    /// A named role is a REGISTER, not a name-keyed store lookup: core has no
+    /// `Bound`/`Linked` variant to fall back to, so a role bound earlier in
+    /// the region lowers to its register read.
     #[test]
-    fn lowers_reference_bound() {
+    fn lowers_reference_bound_to_its_register() {
+        let (_, lowered) = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            crate::region::bind_named("X".into(), deckmaste_core::RefId(1));
+            deckmaste_semantics::Reference::Bound("X".into()).lower()
+        });
         assert_matches!(
-            deckmaste_semantics::Reference::Bound("X".into()).lower(),
-            deckmaste_core::Reference::Bound(_)
+            lowered,
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(1))
         );
     }
 
+    /// An unbound role is a LOWERING error, never a runtime fizzle
+    /// ([CR#607] — a linked read names a declared cell or nothing).
     #[test]
-    fn lowers_reference_linked() {
-        assert_matches!(
-            deckmaste_semantics::Reference::Linked("X".into()).lower(),
-            deckmaste_core::Reference::Linked(_)
-        );
+    #[should_panic(expected = "unbound role")]
+    fn unbound_role_is_a_lowering_error() {
+        let _ = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            deckmaste_semantics::Reference::Bound("X".into()).lower()
+        });
+    }
+
+    /// A linked-memory read ([CR#607]) is a register read too — core has no
+    /// `Linked` variant and no name-keyed store, so a read with no declared
+    /// cell in scope is a lowering error rather than a value that fizzles at
+    /// runtime.
+    ///
+    /// Re-spelled from `lowers_reference_linked`, whose target variant this
+    /// stage deletes.
+    #[test]
+    #[should_panic(expected = "has no declared cell")]
+    fn linked_read_without_a_declared_cell_is_a_lowering_error() {
+        let _ = crate::region::in_region(crate::region::RegionKind::Spell, 0, || {
+            deckmaste_semantics::Reference::Linked("X".into()).lower()
+        });
     }
 
     #[test]

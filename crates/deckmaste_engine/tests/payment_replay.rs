@@ -201,12 +201,12 @@ fn suspending_barred_mana_source() -> Arc<Card> {
             Mode {
                 targets: [].into(),
                 effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: [].into(),
                 effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
         ]
         .into(),
@@ -1279,7 +1279,7 @@ fn a_nested_producer_spent_by_a_barred_outer_cost_is_forced_to_remain() {
     let move_iou = child
         .outstanding
         .iter()
-        .find(|iou| matches!(iou.kind, IouKind::Act(_)))
+        .find(|iou| matches!(iou.kind, IouKind::Act { .. }))
         .unwrap()
         .id;
     let mana = state.player(payer).mana_pool.units()[0].id;
@@ -1414,7 +1414,7 @@ fn rescind_replays_an_optional_payment_nested_inside_a_fulfillment() {
     let sacrifice = prompt
         .outstanding
         .iter()
-        .find(|iou| matches!(iou.kind, IouKind::Act(_)))
+        .find(|iou| matches!(iou.kind, IouKind::Act { .. }))
         .unwrap()
         .id;
     fulfill(&mut state, tap, FulfillmentWitness::Bound);
@@ -1711,7 +1711,7 @@ fn omitted_fulfillment_mana_child_replays_after_earlier_created_source() {
     let sacrifice = prompt
         .outstanding
         .iter()
-        .find(|iou| matches!(iou.kind, IouKind::Act(_)))
+        .find(|iou| matches!(iou.kind, IouKind::Act { .. }))
         .unwrap()
         .id;
     fulfill(&mut state, life, FulfillmentWitness::PayLife);
@@ -1843,12 +1843,12 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
             Mode {
                 targets: [].into(),
                 effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: [].into(),
                 effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
         ]
         .into(),
@@ -2045,12 +2045,12 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
             Mode {
                 targets: [].into(),
                 effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: [].into(),
                 effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
         ]
         .into(),
@@ -2228,12 +2228,12 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
             Mode {
                 targets: [].into(),
                 effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: [].into(),
                 effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
         ]
         .into(),

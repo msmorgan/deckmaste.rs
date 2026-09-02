@@ -1,9 +1,10 @@
+use std::collections::HashSet;
+
 use deckmaste_core::DeciderSpec;
 use deckmaste_core::KeywordAbility;
 use deckmaste_core::LockPoint;
 use deckmaste_core::Uint;
 use deckmaste_core::Visibility;
-use std::collections::HashSet;
 
 use crate::object::ObjectId;
 use crate::player::PlayerId;
@@ -369,7 +370,7 @@ pub(crate) fn unless_cost_action(
         // `filter`/`by`), while the bound "discard this card" form
         // ([CR#702.29a]) is paid by its patient's own controller, so it
         // needs only the named card.
-        CostComponent::Act(action) => match &**action {
+        CostComponent::Act { action, .. } => match action.as_action() {
             Action::Sacrifice(_, what) => Action::Sacrifice(who.clone(), what.clone()),
             Action::ChangeLife(_, op) => Action::ChangeLife(who.clone(), op.clone()),
             Action::Composite { name, body } if name.as_str() == "Discard" => {
@@ -396,15 +397,16 @@ pub(crate) fn unless_cost_action(
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        // A cost-side `With` ([CR#601.2b]) is a choose-then-pay step with no
-        // single-`Action` rendering — it must surface a payment-time choice and
-        // bind `That`/`Those`. Every caller that can see a `With` routes through
-        // `unless_cost_effect` (which renders it as an `OneShotEffect::With`), so this
-        // Action-only path is never reached for one.
-        CostComponent::ChooseAndPay { .. } => unreachable!(
-            "a cost-side With ([CR#601.2b]) is rendered by unless_cost_effect as an \
-             OneShotEffect::With, never as a single Action"
-        ),
+        // A payment-time decision ([CR#601.2b]) has no single-`Action`
+        // rendering — it surfaces a choice and writes a register. Every
+        // caller that can see one routes through `unless_cost_effect`, which
+        // renders it as the matching instruction.
+        CostComponent::Choose(_) | CostComponent::Search(_) | CostComponent::Let(_) => {
+            unreachable!(
+                "a payment-time decision ([CR#601.2b]) is rendered by unless_cost_effect as \
+                 its own instruction, never as a single Action"
+            )
+        }
         // The `unless` cost list is `Cost::normalize`d at the `OneShotEffect::Unless`
         // boundary (see `resolve.rs`), which splices every nested `Cost` flat,
         // so a `Cost` component never survives to here.
@@ -450,27 +452,36 @@ pub(crate) fn unless_cost_effect(
     use deckmaste_core::CostComponent;
     use deckmaste_core::OneShotEffect;
     match component {
-        // [CR#601.2b]: the binder's choice binds `That`/`Those`; the body pays
-        // against that binding. Recurse on the body (a nested `With` still
-        // surfaces its own choice) and reuse the `OneShotEffect::With` interpreter.
-        CostComponent::ChooseAndPay { body, .. } => cost_body_effect(body, who),
+        // [CR#601.2b]: a payment-time decision IS an instruction — the same
+        // node the effect grammar uses — so it runs through the ordinary
+        // interpreter and writes its register in the announce activation.
+        CostComponent::Choose(choice) => OneShotEffect::Choose(choice.clone()),
+        CostComponent::Search(search) => OneShotEffect::Search(search.clone()),
+        CostComponent::Let(binding) => OneShotEffect::Let(binding.clone()),
+        // [CR#400.7]: a producing payment writes its product for the ability
+        // body to read.
+        CostComponent::Act {
+            dest: Some(dest),
+            action,
+        } => OneShotEffect::producing(*dest, unless_cost_action_of(action, who)),
         other => OneShotEffect::act(unless_cost_action(other, who)),
     }
 }
 
-/// A cost-`With`'s body (a [`Cost`](deckmaste_core::Cost)) as the single effect
-/// `who` runs to pay it ([CR#601.2b]): each component rendered by
-/// [`unless_cost_effect`], sequenced in order (a lone component stays bare).
-fn cost_body_effect(
-    body: &deckmaste_core::Cost,
+/// The re-agented [`Action`](deckmaste_core::Action) a paying component runs
+/// ([CR#601.2h]) — the `Act` half of [`unless_cost_action`], reused by the
+/// producing arm.
+fn unless_cost_action_of(
+    action: &deckmaste_core::RunnableCostAction,
     who: &deckmaste_core::Reference,
-) -> deckmaste_core::OneShotEffect {
-    let mut effects: Vec<deckmaste_core::OneShotEffect> =
-        body.iter().map(|c| unless_cost_effect(c, who)).collect();
-    match effects.len() {
-        1 => effects.pop().expect("len 1"),
-        _ => deckmaste_core::OneShotEffect::Sequentially(effects.into()),
-    }
+) -> deckmaste_core::Action {
+    unless_cost_action(
+        &deckmaste_core::CostComponent::Act {
+            dest: None,
+            action: action.clone(),
+        },
+        who,
+    )
 }
 
 use deckmaste_core::Agency;
@@ -803,8 +814,9 @@ impl GameState {
         // [CR#702.19b]: a trample source may assign damage to what it's
         // attacking (a player OR a planeswalker) only after every blocker
         // recipient has lethal. The spill target is whatever recipient is NOT a
-        // blocker of this source — so this holds uniformly whether the source is
-        // trampling over a player proxy or a planeswalker ([CR#702.19f]).
+        // blocker of this source — so this holds uniformly whether the source
+        // is trampling over a player proxy or a planeswalker
+        // ([CR#702.19f]).
         let view = self.layers();
         if crate::combat::has_keyword(&view, source, &KeywordAbility::Trample) {
             let blockers = self.combat.blockers_of(source);
@@ -937,8 +949,9 @@ impl GameState {
                     self.turn.priority = None;
                     if let Some(top) = self.stack.last() {
                         // [CR#608]: resolve the top; AP gets priority after
-                        // ([CR#117.3b]). Keyed on `StackEntry.id` so a triggered
-                        // ability (no backing object) resolves like a spell.
+                        // ([CR#117.3b]). Keyed on `StackEntry.id` so a
+                        // triggered ability (no backing
+                        // object) resolves like a spell.
                         let id = top.id;
                         self.schedule_front(vec![
                             WorkItem::Resolve(id),

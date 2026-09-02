@@ -384,8 +384,8 @@ pub fn validate_payment(pool: &ManaPool, cost: &ManaCost, payment: &Payment) -> 
     if payment.units.len() != req.mana_value() as usize {
         return false;
     }
-    // The selected units must perfectly match the pips. Equal cardinality plus a
-    // perfect pip-side matching means every selected unit is also used.
+    // The selected units must perfectly match the pips. Equal cardinality plus
+    // a perfect pip-side matching means every selected unit is also used.
     let pips = pips(&req);
     match_pips(&pips, units, &payment.units)
         .iter()
@@ -478,6 +478,32 @@ pub fn auto_pay_spendable(pool: &ManaPool, cost: &ManaCost, spendable: &[bool]) 
 /// (shared across every `verb_payment_items` call and cost-`With` step that
 /// payment's drain schedules) so every event this payment's verbs perform
 /// reads as `Agency::CostPayment` and shares one payment id.
+/// The payment window's work for one ordered cost BLOCK ([CR#601.2b,601.2h]).
+///
+/// Every component runs against the ANNOUNCE activation, so a payment-time
+/// decision writes a register the components after it — and the ability body
+/// at resolution — read by index. Order is preserved: the choice comes before
+/// the verb that spends it.
+fn cost_step_items(
+    steps: &[CostComponent],
+    activation: crate::ActivationId,
+    payment: crate::stack::Payment,
+) -> Vec<WorkItem> {
+    steps
+        .iter()
+        .map(|step| WorkItem::RunEffect {
+            effect: Arc::new(crate::decide::unless_cost_effect(
+                step,
+                &deckmaste_core::Reference::controller_parameter(),
+            )),
+            frame: Frame {
+                activation,
+                payment: Some(payment),
+            },
+        })
+        .collect()
+}
+
 fn verb_payment_items(
     verbs: &[CoreAction],
     activation: crate::ActivationId,
@@ -527,19 +553,6 @@ fn quantity_mentions_cost_x(quantity: &deckmaste_core::Quantity) -> bool {
         || upper.is_some_and(deckmaste_core::Count::mentions_x)
 }
 
-/// Whether a cost-side binder's choice cardinality reads the announced X.
-fn binder_mentions_cost_x(binder: &deckmaste_core::CostBinder) -> bool {
-    match binder {
-        deckmaste_core::CostBinder::Choose { quantity, .. }
-        | deckmaste_core::CostBinder::Search { quantity, .. } => quantity_mentions_cost_x(quantity),
-        deckmaste_core::CostBinder::Produce(action) => verb_mentions_cost_x(action),
-        deckmaste_core::CostBinder::TheRef(_)
-        | deckmaste_core::CostBinder::ChooseOne { .. }
-        | deckmaste_core::CostBinder::SearchOne { .. }
-        | deckmaste_core::CostBinder::Existing(_) => false,
-    }
-}
-
 /// Whether a runnable cost component reads the one X value announced for the
 /// spell or ability. This follows nested/lowered cost structure so modal and
 /// optional additions participate only after they have actually been chosen.
@@ -548,13 +561,17 @@ fn cost_component_mentions_x(component: &CostComponent) -> bool {
         CostComponent::Mana(mana) => mana
             .iter()
             .any(|symbol| matches!(symbol, ManaSymbol::Variable)),
-        CostComponent::Act(action) => verb_mentions_cost_x(action),
+        CostComponent::Act { action, .. } => verb_mentions_cost_x(action),
         CostComponent::Cost(nested) => nested.iter().any(cost_component_mentions_x),
         CostComponent::TapTotal { count, .. } => count.mentions_x(),
-        CostComponent::ChooseAndPay { binder, body, .. } => {
-            binder_mentions_cost_x(binder) || body.iter().any(cost_component_mentions_x)
-        }
-        CostComponent::ManaCostOf(_) | CostComponent::Tap | CostComponent::Untap => false,
+        // A payment-time choice's cardinality reads X ("sacrifice X
+        // creatures", [CR#601.2b]).
+        CostComponent::Choose(choice) => quantity_mentions_cost_x(&choice.quantity),
+        CostComponent::Search(search) => quantity_mentions_cost_x(&search.quantity),
+        CostComponent::Let(_)
+        | CostComponent::ManaCostOf(_)
+        | CostComponent::Tap
+        | CostComponent::Untap => false,
     }
 }
 
@@ -570,7 +587,7 @@ fn phyrexian_life_verbs(verbs: &[CostComponent]) -> Vec<CoreAction> {
     verbs
         .iter()
         .map(|c| match c {
-            CostComponent::Act(action) => (**action).clone(),
+            CostComponent::Act { action, .. } => (**action).clone(),
             other => unreachable!("concretize emits only Act(_) verb costs, got {other:?}"),
         })
         .collect()
@@ -689,9 +706,7 @@ fn announced_mode_cost_components(
     };
     let mut components = Vec::new();
     for &index in chosen_modes {
-        if let Some(cost) = &modal.modes[index as usize].cost {
-            components.extend(cost.iter().cloned());
-        }
+        components.extend(modal.modes[index as usize].cost.iter().cloned());
     }
     match &modal.choose.rider {
         Some(deckmaste_core::ModalCostRider::Escalate(cost)) => {
@@ -960,8 +975,9 @@ impl GameState {
         let view = self.layers();
         // Legal but for the mana? Also yields the concrete cost to cover.
         let cost = self.castable_cost_ignoring_mana(&view, player, object)?;
-        // Only fixed Simple pips are auto-tappable; anything needing an announce
-        // choice ({X}) or a non-fixed source ({S}/hybrid/Phyrexian) bails.
+        // Only fixed Simple pips are auto-tappable; anything needing an
+        // announce choice ({X}) or a non-fixed source
+        // ({S}/hybrid/Phyrexian) bails.
         let mut colored: Vec<ColorOrColorless> = Vec::new();
         let mut generic: Uint = 0;
         for sym in cost.iter() {
@@ -1004,8 +1020,9 @@ impl GameState {
             }
         }
         // Greedy coverage over a working bag of available units: the spendable
-        // pool already floated ([CR#106.6] SpendOnly-filtered for this subject),
-        // then colored pips from exact-colour sources, then generic from any.
+        // pool already floated ([CR#106.6] SpendOnly-filtered for this
+        // subject), then colored pips from exact-colour sources, then
+        // generic from any.
         let mut available: Vec<ColorOrColorless> = self
             .spendable_pool(player, object)
             .units()
@@ -1496,9 +1513,11 @@ impl GameState {
                 self.legal_targets(s, carrier, activation)
                     .into_iter()
                     .filter(|&t| {
-                        // Forbidden by a Cant(Target) row ([CR#702.11b] hexproof),
-                        // UNLESS an AsThough overlay sees through that specific
-                        // obstacle for this agent ([CR#609.4] Glaring Spotlight).
+                        // Forbidden by a Cant(Target) row ([CR#702.11b]
+                        // hexproof), UNLESS an AsThough
+                        // overlay sees through that specific
+                        // obstacle for this agent ([CR#609.4] Glaring
+                        // Spotlight).
                         crate::legal::target_forbidden_by(self, &rows, targeting_id, t).is_none()
                             || crate::legal::asthough_sees_through_target(
                                 self,
@@ -1537,7 +1556,11 @@ impl GameState {
                         })
                     },
                     |cost| cost_components_mention_x(cost),
-                ),
+                )
+                    // [CR#118.8,601.2b]: the printed additional cost is part of
+                    // the same announcement, so "sacrifice X creatures"
+                    // triggers the X announcement too.
+                    || cost_components_mention_x(&self.spell_additional_cost(*o)),
                 self.spell_effect(*o),
             ),
             StackObject::Activated { ability, .. } => {
@@ -1638,6 +1661,17 @@ impl GameState {
                 unreachable!("a triggered ability has no cost and never occupies the announce slot")
             }
         };
+        // [CR#118.8,118.8a]: a spell's PRINTED ADDITIONAL cost is announced and
+        // paid with its mana cost, so its mana joins the concretized demand
+        // and its instructions join the payment window.
+        if let StackObject::Spell(object) = &pending.object {
+            let (extra_mana, extra_steps) =
+                partition_alternative_cost(&self.spell_additional_cost(*object));
+            let mut symbols: Vec<ManaSymbol> = cost.iter().copied().collect();
+            symbols.extend(extra_mana.iter().copied());
+            cost = ManaCost::from(Arc::from(symbols));
+            alt_verbs.extend(extra_steps);
+        }
         let mode_components = effect.map_or_else(Vec::new, |effect| {
             announced_mode_cost_components(&effect, pending.chosen_modes.as_ref())
         });
@@ -1887,7 +1921,8 @@ impl GameState {
                 // controller.
                 let mut items = verb_payment_items(&extra_verbs, activation, payment);
                 // [CR#601.2b]: apply the announced X to the concretized mana
-                // ({X} -> Generic(announced_x); hybrid/Phyrexian already resolved).
+                // ({X} -> Generic(announced_x); hybrid/Phyrexian already
+                // resolved).
                 let mana = concretize_x(&mana, announced_x);
                 // [CR#601.2f]: announced optional additional costs (kicker,
                 // [CR#702.33a]) join the total — mana components into the
@@ -1896,9 +1931,12 @@ impl GameState {
                 for component in &optional_components {
                     match component {
                         CostComponent::Mana(m) => mana.extend(m.iter().copied()),
-                        CostComponent::Act(pa) => {
-                            items.extend(verb_payment_items(
-                                &[(**pa).clone()],
+                        CostComponent::Act { .. }
+                        | CostComponent::Choose(_)
+                        | CostComponent::Search(_)
+                        | CostComponent::Let(_) => {
+                            items.extend(cost_step_items(
+                                std::slice::from_ref(component),
                                 activation,
                                 payment,
                             ));
@@ -1913,8 +1951,9 @@ impl GameState {
                 // [CR#601.2g..601.2h]: convoke/delve/improvise — offer each
                 // eligible pip of the now-locked-in cost its `PayPips`
                 // alternative; pips paid that way drop out of the mana decision
-                // (the total cost / mana value are untouched, [CR#702.51b]). The
-                // tap/exile items join the same payment window as the verbs.
+                // (the total cost / mana value are untouched, [CR#702.51b]).
+                // The tap/exile items join the same payment
+                // window as the verbs.
                 let (mana, pip_items) = self.assemble_pip_payments(object, controller, &mana);
                 items.extend(pip_items);
                 if !items.is_empty() {
@@ -1984,27 +2023,13 @@ impl GameState {
                 // the {T}/{Q} events and before `AbilityActivated`. The
                 // ability's own verb costs come first, then the
                 // concretization's Phyrexian-life verbs.
-                items.extend(verb_payment_items(&summary.verbs, activation, payment));
+                // [CR#601.2b,601.2h]: the cost BLOCK in announcement order,
+                // run against the announce activation — a payment-time choice
+                // surfaces its `ChooseObjects` decision and writes its
+                // register, and the verb after it pays through that register,
+                // which the ability body then reads as the paid product.
+                items.extend(cost_step_items(&summary.steps, activation, payment));
                 items.extend(verb_payment_items(&extra_verbs, activation, payment));
-                // [CR#601.2b,601.2h]: pay each cost-side `With` choose-then-pay
-                // step. Rendered as an `OneShotEffect::With` (choosing kept OUT of the
-                // verb) and run over a fresh frame whose controller is the
-                // activator — so the binder surfaces a `ChooseObjects` decision,
-                // binds `That`/`Those`, then the body's verb pays against it,
-                // exactly like the effect-side `With`. One `RunEffect` per step,
-                // in the same payment window as the verb costs.
-                for with in &summary.withs {
-                    let effect = crate::decide::unless_cost_effect(
-                        with,
-                        &deckmaste_core::Reference::controller_parameter(),
-                    );
-                    let mut frame = Frame::bare(source, controller);
-                    frame.payment = Some(payment);
-                    items.push(WorkItem::RunEffect {
-                        effect: Arc::new(effect),
-                        frame,
-                    });
-                }
                 if !items.is_empty() {
                     self.schedule_front(items);
                 }
@@ -2238,9 +2263,9 @@ impl GameState {
             });
         }
         // Rows granted by resolved one-shots ([CR#611.2c] instance rows). Each
-        // is self-filtered (`of` is a spell predicate); anchor `Ref(This)`/`You`
-        // /`Scaled` on the instance controller's player proxy — the row has no
-        // battlefield carrier of its own.
+        // is self-filtered (`of` is a spell predicate); anchor
+        // `Ref(This)`/`You` /`Scaled` on the instance controller's
+        // player proxy — the row has no battlefield carrier of its own.
         for ce in &self.continuous {
             let carrier = self.player(ce.controller).object;
             let source = self.objects.obj(carrier).source;
@@ -2549,7 +2574,8 @@ mod tests {
 
     #[test]
     fn concretize_x_substitutes_variable_with_generic() {
-        // {X}{R} at X=3 -> {3}{R}; X=0 -> {0}{R}; a cost with no X is unchanged.
+        // {X}{R} at X=3 -> {3}{R}; X=0 -> {0}{R}; a cost with no X is
+        // unchanged.
         assert_eq!(concretize_x(&cost("{X}{R}"), 3), cost("{3}{R}"));
         assert_eq!(concretize_x(&cost("{X}{R}"), 0), cost("{0}{R}"));
         assert_eq!(concretize_x(&cost("{1}{G}"), 5), cost("{1}{G}"));
@@ -2599,7 +2625,8 @@ mod tests {
             unit(1, green(), vec![deckmaste_core::ManaRider::Snow]),
         ];
         assert!(can_pay(&ManaPool::from_units(units), &cost("{G}{S}")));
-        // ONE snow green alone canNOT pay {G}{S}: needs two units (one per pip).
+        // ONE snow green alone canNOT pay {G}{S}: needs two units (one per
+        // pip).
         assert!(!can_pay(&snow_pool(&[(green(), 1)]), &cost("{G}{S}")));
     }
 
@@ -2753,6 +2780,7 @@ mod tests {
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
@@ -2770,7 +2798,7 @@ mod tests {
                                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
                             ))
                             .into(),
-                            cost: None,
+                            cost: deckmaste_core::Cost::default(),
                         },
                         Mode {
                             targets: vec![target.clone()].into(),
@@ -2778,7 +2806,7 @@ mod tests {
                                 deckmaste_core::RefId(6),
                             )))
                             .into(),
-                            cost: None,
+                            cost: deckmaste_core::Cost::default(),
                         },
                     ]
                     .into(),
@@ -2838,7 +2866,7 @@ mod tests {
                 deckmaste_core::LifeOp::Up(Count::Literal(amount)),
             ))
             .into(),
-            cost: None,
+            cost: deckmaste_core::Cost::default(),
         };
         let card = Card::Normal(CardFace {
             name: "Ordered modal announcement fixture".into(),
@@ -2846,6 +2874,7 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
@@ -2896,7 +2925,7 @@ mod tests {
             )]
             .into(),
             effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-            cost: None,
+            cost: deckmaste_core::Cost::default(),
         };
         let card = Card::Normal(CardFace {
             name: "Impossible modal spell".into(),
@@ -2904,6 +2933,7 @@ mod tests {
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
@@ -2971,7 +3001,7 @@ mod tests {
                 ))
                 .into(),
             ),
-            cost: None,
+            cost: deckmaste_core::Cost::default(),
         };
         let card = Card::Normal(CardFace {
             name: "Modal resolution fixture".into(),
@@ -2979,6 +3009,7 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
@@ -3045,7 +3076,7 @@ mod tests {
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
             .into(),
-            cost: Some(
+            cost: deckmaste_core::Cost(
                 vec![CostComponent::Mana(
                     format!("{{{generic}}}").parse().unwrap(),
                 )]
@@ -3058,6 +3089,7 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
@@ -3109,7 +3141,7 @@ mod tests {
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
             .into(),
-            cost: None,
+            cost: deckmaste_core::Cost::default(),
         };
         let card = Card::Normal(CardFace {
             name: "Entwine fixture".into(),
@@ -3117,6 +3149,7 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
@@ -3168,7 +3201,7 @@ mod tests {
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
             ))
             .into(),
-            cost: Some(vec![CostComponent::Mana(mana.parse().unwrap())].into()),
+            cost: deckmaste_core::Cost(vec![CostComponent::Mana(mana.parse().unwrap())].into()),
         };
         let card = || {
             Card::Normal(CardFace {
@@ -3177,6 +3210,7 @@ mod tests {
                 types: vec![Type::Sorcery.def()],
                 abilities: vec![Ability::spell(SpellAbility {
                     ability_word: None,
+                    cost: deckmaste_core::Cost::default(),
                     targets: [].into(),
                     effect: OneShotEffect::Modal(Modal {
                         choose: ChooseSpec {

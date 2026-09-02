@@ -449,12 +449,12 @@ fn modal_payment_fixture_with_ordinary_mode(
                     ManaSpec::Specific(Color::Green.into()).into(),
                 ))
                 .into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
             Mode {
                 targets: ordinary_targets,
                 effect: ordinary_effect.into(),
-                cost: None,
+                cost: deckmaste_core::Cost::default(),
             },
         ]
         .into(),
@@ -635,6 +635,7 @@ fn nested_resolution_cast_trigger_fixture() -> (
         types: vec![Type::Instant.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
+            cost: deckmaste_core::Cost::default(),
             targets: [].into(),
             effect: OneShotEffect::Sequentially(Arc::from([])).into(),
         })],

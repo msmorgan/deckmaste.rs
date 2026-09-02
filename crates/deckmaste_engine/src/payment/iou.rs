@@ -2,8 +2,6 @@ use std::sync::Arc;
 
 use deckmaste_core::Cmp;
 use deckmaste_core::Color;
-use deckmaste_core::Cost;
-use deckmaste_core::CostBinder;
 use deckmaste_core::PayAct;
 use deckmaste_core::PipClass;
 use deckmaste_core::Predicate;
@@ -50,12 +48,19 @@ pub enum IouKind {
     PayLife(Uint),
     Tap,
     Untap,
-    Act(RunnableCostAction),
-    ChooseAndPay {
-        dest: deckmaste_core::DefId,
-        binder: Arc<CostBinder>,
-        body: Cost,
+    /// A paying action ([CR#601.2h]); `dest` captures its product
+    /// ([CR#400.7]) for the ability body to read.
+    Act {
+        dest: Option<deckmaste_core::DefId>,
+        action: RunnableCostAction,
     },
+    /// A payment-time object choice writing its destination register
+    /// ([CR#601.2b]) — the verbs after it pay through that register.
+    Choose(deckmaste_core::Choose),
+    /// A payment-time hidden-zone search ([CR#701.23]) writing its register.
+    Search(deckmaste_core::Search),
+    /// A pure read pinned as a payment subject.
+    Let(deckmaste_core::Let),
     TapTotal {
         stat: Stat,
         cmp: Cmp,

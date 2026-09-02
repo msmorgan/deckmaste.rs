@@ -645,53 +645,109 @@ mod tests {
     }
 }
 
-fn lower_region(
-    kind: crate::region::RegionKind,
+/// Split an ability's effect into its announcement declarations and the body
+/// that resolves: the target telescope ([CR#601.2c]) and the PRINTED
+/// ADDITIONAL COST ([CR#118.8,601.2b]).
+///
+/// An additional cost is by definition paid with the spell's mana cost or the
+/// ability's activation cost ([CR#118.8,118.8a]), so a semantic
+/// `AdditionalCost` at an ability root is a DECLARATION, not an instruction:
+/// it is hoisted here onto the ability's cost and never reaches the body. (A
+/// payment made while the ability resolves is [CR#118.12]'s "[do something].
+/// If you do, …" — core's `May`, a different node.)
+fn peel_announcement(
     effect: deckmaste_semantics::OneShotEffect,
 ) -> (
-    std::sync::Arc<[deckmaste_core::TargetSpec]>,
-    deckmaste_core::Region,
-) {
-    let (targets, region, ()) = lower_region_with(kind, effect, || ());
-    (targets, region)
-}
-
-fn lower_region_with<T>(
-    kind: crate::region::RegionKind,
-    effect: deckmaste_semantics::OneShotEffect,
-    tail: impl FnOnce() -> T,
-) -> (
-    std::sync::Arc<[deckmaste_core::TargetSpec]>,
-    deckmaste_core::Region,
-    T,
+    Vec<deckmaste_semantics::TargetSpec>,
+    Vec<deckmaste_semantics::CostComponent>,
+    deckmaste_semantics::OneShotEffect,
 ) {
     let (targets, body) = peel_targets(effect);
-    let target_count = targets.len();
+    let mut targets = targets.to_vec();
+    match as_additional_cost(&body) {
+        Some(additional) => {
+            let (inner_targets, inner_pay, inner_body) = peel_announcement(
+                std::sync::Arc::unwrap_or_clone(std::sync::Arc::clone(&additional.body)),
+            );
+            targets.extend(inner_targets);
+            let mut pay = additional.pay.0.to_vec();
+            pay.extend(inner_pay);
+            (targets, pay, inner_body)
+        }
+        None => (targets, Vec::new(), body),
+    }
+}
+
+/// The additional-cost declaration a spell root spells, looking through the
+/// remembered macro invocation that wraps it. The wrapper's provenance does not
+/// cross `lower` (spec §12) — and cannot, since core has no node for this
+/// declaration at all: it becomes the ability's cost.
+fn as_additional_cost(
+    effect: &deckmaste_semantics::OneShotEffect,
+) -> Option<&deckmaste_semantics::AdditionalCost> {
+    match effect {
+        deckmaste_semantics::OneShotEffect::AdditionalCost(additional) => Some(additional),
+        deckmaste_semantics::OneShotEffect::Expanded(expanded) => {
+            as_additional_cost(&expanded.value)
+        }
+        _ => None,
+    }
+}
+
+/// Build an ability region together with its announcement ([CR#601.2b]).
+///
+/// The cost block is lowered FIRST, so its payment-time decisions occupy the
+/// definitions that come before the body's — a paid product is a def the body
+/// reads (ADR law 9), never an anaphor re-derived at resolution. `declared` is
+/// the ability's own printed cost (an activation cost, a mode's cost); a root
+/// `AdditionalCost` in `effect` is hoisted onto the same block.
+fn lower_announced_region(
+    kind: crate::region::RegionKind,
+    declared: &[deckmaste_semantics::CostComponent],
+    effect: deckmaste_semantics::OneShotEffect,
+) -> (
+    std::sync::Arc<[deckmaste_core::TargetSpec]>,
+    deckmaste_core::Region,
+    deckmaste_core::Cost,
+) {
+    let (semantic_targets, additional, body) = peel_announcement(effect);
+    let target_count = semantic_targets.len();
     let build = || {
-        let targets = targets
+        let targets = semantic_targets
             .iter()
             .cloned()
             .enumerate()
             .map(|(index, target)| crate::region::with_target_prefix(index, || target.lower()))
             .collect::<Vec<_>>()
             .into();
+        let mut components: Vec<deckmaste_semantics::CostComponent> = declared.to_vec();
+        components.extend(additional);
+        let (cost, paid) = crate::cost::lower_cost_block(&components);
+        // [CR#118.8]: the paid product IS the payment event's object, so the
+        // body reads "the sacrificed creature" through the same event anaphor
+        // a trigger uses — now resolved to the cost's own register.
+        if let Some(paid) = paid {
+            crate::region::set_event_object(paid.reference);
+        }
         let body = crate::effect::lower_block(body);
-        (targets, body, tail())
+        (targets, body, deckmaste_core::Cost(cost))
     };
-    let (params, (targets, body, tail)) = if crate::region::is_active() {
+    let (params, (targets, body, cost)) = if crate::region::is_active() {
         crate::region::in_carried_region(kind, target_count, build)
     } else {
         crate::region::in_region(kind, target_count, build)
     };
-    (targets, deckmaste_core::Region::new(params, body), tail)
+    (targets, deckmaste_core::Region::new(params, body), cost)
 }
 
 impl Lower for deckmaste_semantics::SpellAbility {
     type Target = deckmaste_core::SpellAbility;
     fn lower(self) -> <Self as Lower>::Target {
-        let (targets, effect) = lower_region(crate::region::RegionKind::Spell, self.effect);
+        let (targets, effect, cost) =
+            lower_announced_region(crate::region::RegionKind::Spell, &[], self.effect);
         deckmaste_core::SpellAbility {
             ability_word: self.ability_word.lower(),
+            cost,
             targets,
             effect,
         }
@@ -701,10 +757,11 @@ impl Lower for deckmaste_semantics::SpellAbility {
 impl Lower for deckmaste_semantics::ActivatedAbility {
     type Target = deckmaste_core::ActivatedAbility;
     fn lower(self) -> <Self as Lower>::Target {
-        let (targets, effect, cost) =
-            lower_region_with(crate::region::RegionKind::Activated, self.effect, || {
-                self.cost.lower()
-            });
+        let (targets, effect, cost) = lower_announced_region(
+            crate::region::RegionKind::Activated,
+            &self.cost.0,
+            self.effect,
+        );
         deckmaste_core::ActivatedAbility {
             ability_word: self.ability_word.lower(),
             cost,
@@ -741,7 +798,12 @@ impl Lower for deckmaste_semantics::TriggeredAbility {
             where_x,
             effect,
         } = self;
-        let (semantic_targets, body) = peel_targets(effect);
+        let (semantic_targets, additional, body) = peel_announcement(effect);
+        assert!(
+            additional.is_empty(),
+            "a triggered ability pays no mana cost and no activation cost, so it has \
+             nowhere to pay an additional cost ([CR#118.8])"
+        );
         let target_count = semantic_targets.len();
         let build = || {
             let targets = semantic_targets
@@ -816,10 +878,9 @@ impl Lower for deckmaste_semantics::ModalCostRider {
 impl Lower for deckmaste_semantics::Mode {
     type Target = deckmaste_core::Mode;
     fn lower(self) -> <Self as Lower>::Target {
+        let declared = self.cost.unwrap_or_else(|| std::sync::Arc::from([]));
         let (targets, effect, cost) =
-            lower_region_with(crate::region::RegionKind::Mode, self.effect, || {
-                self.cost.lower()
-            });
+            lower_announced_region(crate::region::RegionKind::Mode, &declared, self.effect);
         deckmaste_core::Mode {
             targets,
             effect,
@@ -1026,7 +1087,6 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
             .fold(ManaFacts::NEUTRAL, |facts, part| {
                 facts.merge(effect_mana_facts(part))
             }),
-        OneShotEffect::AdditionalCost(additional) => effect_mana_facts(&additional.body),
         OneShotEffect::Each(each) => region_mana_facts(&each.body),
         OneShotEffect::Distribute(distribute) => region_mana_facts(&distribute.body),
         OneShotEffect::Modal(modal) => {

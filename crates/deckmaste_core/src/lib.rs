@@ -41,9 +41,6 @@ pub use action::discard_body_what;
 pub use action::discard_body_whose;
 pub use action::fight_body_fighters;
 
-mod binder;
-pub use binder::CostBinder;
-
 mod count;
 pub use count::AggregateOp;
 pub use count::BASIC_LAND_TYPES;
@@ -93,7 +90,6 @@ pub use cost::OptionalCost;
 pub use cost::RunnableCostAction;
 pub use cost::RunnableCostActionError;
 pub use cost::TotalCost;
-pub use cost::cost_binder_is_runnable;
 
 mod counter;
 pub use counter::Counter;
@@ -137,7 +133,6 @@ pub use temporal::Timing;
 pub use temporal::TurnMarker;
 
 mod effect;
-pub use effect::AdditionalCost;
 pub use effect::Choose;
 pub use effect::ChoosePile;
 pub use effect::ChooseValue;
@@ -170,15 +165,14 @@ pub use event::VerbName;
 pub use event::WhoseTurn;
 
 mod filter;
+pub use dpsi::Ident;
+pub(crate) use dpsi::IdentSeed;
 pub use filter::Adjacency;
 pub use filter::CharacteristicPredicate;
 pub use filter::ObjectKind;
 pub use filter::Predicate;
 pub use filter::RelationPredicate;
 pub use filter::StatePredicate;
-
-pub use dpsi::Ident;
-pub(crate) use dpsi::IdentSeed;
 
 /// Canonicalize a core value after construction or plain-serde loading.
 pub trait Normalize {
@@ -230,6 +224,7 @@ pub use region::Region;
 pub use region::ValidationError;
 pub use region::event_region_params;
 pub use region::validate;
+pub use region::validate_announced;
 pub use region::validate_sba;
 pub use region::validate_static;
 pub use region::validate_telescope;

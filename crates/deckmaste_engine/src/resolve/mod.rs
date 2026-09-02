@@ -137,10 +137,12 @@ impl GameState {
                     // [CR#608.3]: a permanent spell enters the battlefield.
                     // Host resolution by entry context (spec §4, [CR#303.4]): a
                     // permanent SPELL that enters attached (the Enchant
-                    // `AsEnters`) attaches to its resolving spell's CHOSEN TARGET
-                    // — the Aura's enchant target — not an arbitrary candidate.
-                    // Carry that host in the `EnterStatus`; `apply_zone_will_change`
-                    // prefers it over the candidate-set fallback (`.or`).
+                    // `AsEnters`) attaches to its resolving spell's CHOSEN
+                    // TARGET — the Aura's enchant target —
+                    // not an arbitrary candidate.
+                    // Carry that host in the `EnterStatus`;
+                    // `apply_zone_will_change` prefers it
+                    // over the candidate-set fallback (`.or`).
                     // The Aura's enchant target is slot 0's single member.
                     let enters = if self.enters_attached_self(self.objects.obj(spell).source)
                         && let Some(&host) = entry.targets.first().and_then(|slot| slot.first())
@@ -165,7 +167,8 @@ impl GameState {
                         }),
                     ))]);
                 } else if self.targets_still_legal(&entry) {
-                    // Instant/sorcery with all targets still legal: run its effect.
+                    // Instant/sorcery with all targets still legal: run its
+                    // effect.
                     let effect = self
                         .spell_effect(spell)
                         .expect("an instant/sorcery has a Spell ability");
@@ -242,14 +245,17 @@ impl GameState {
                 // A delayed/reflexive trigger carries its body by value
                 // ([CR#603.7,603.12]); a printed one is read by index — its
                 // text may have changed under layers, so re-derive it fresh.
-                // The index read uses `.get` (never `[]`): a source that left the
-                // battlefield and reminted shorter — or whose current face is
-                // shorter than the fired index — yields `None`, and the trigger
-                // FIZZLES (no-op, vanishes) rather than panicking, mirroring the
-                // intervening-if / illegal-target vanish below and
-                // `step::trigger`'s graceful `.get`. (Back-face-sourced printed
-                // triggers are captured by value at fire time, so they never
-                // reach this fallback; this guards the residual gone/short cases.)
+                // The index read uses `.get` (never `[]`): a source that left
+                // the battlefield and reminted shorter — or
+                // whose current face is shorter than the fired
+                // index — yields `None`, and the trigger
+                // FIZZLES (no-op, vanishes) rather than panicking, mirroring
+                // the intervening-if / illegal-target vanish
+                // below and `step::trigger`'s graceful `.get`.
+                // (Back-face-sourced printed triggers are
+                // captured by value at fire time, so they never
+                // reach this fallback; this guards the residual gone/short
+                // cases.)
                 let t = match created {
                     Some(t) => t.as_ref().clone(),
                     None => {
@@ -281,8 +287,9 @@ impl GameState {
                 );
                 // [CR#603.4]: an intervening-if is rechecked as the ability
                 // resolves. If it no longer holds, the ability is removed from
-                // the stack and does nothing (the rule mirrors the illegal-target
-                // fizzle) — schedule only the `AbilityResolved` that discards the
+                // the stack and does nothing (the rule mirrors the
+                // illegal-target fizzle) — schedule only the
+                // `AbilityResolved` that discards the
                 // entry, never the effect.
                 if t.condition
                     .as_ref()
@@ -404,6 +411,18 @@ impl GameState {
             .iter()
             .find_map(|a| spell_ability_effect(a))
             .cloned()
+    }
+
+    /// The spell's PRINTED ADDITIONAL cost ([CR#118.8,601.2b]) — the cost
+    /// block its `SpellAbility` declares, announced and paid with the mana
+    /// cost. Empty for a spell with no additional cost.
+    #[must_use]
+    pub(crate) fn spell_additional_cost(&self, id: ObjectId) -> deckmaste_core::Cost {
+        crate::derive::abilities(self, id)
+            .iter()
+            .find_map(|ability| spell_ability(ability))
+            .map(|spell| spell.cost.clone())
+            .unwrap_or_default()
     }
 
     #[must_use]

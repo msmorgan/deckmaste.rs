@@ -11,7 +11,6 @@ use crate::TargetSpec;
 use crate::Timing;
 use crate::continuous::StaticEffect;
 use crate::cost::Cost;
-use crate::cost::CostComponent;
 
 /// A spell ability — what an instant or sorcery does on resolution
 /// ([CR#113.3a]). Targeting, when present, lives in `targets`; the effect reads
@@ -22,6 +21,17 @@ pub struct SpellAbility {
     /// meaning), pure render metadata: "Domain — …". NEVER a macro tier.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ability_word: Option<crate::Ident>,
+    /// The spell's PRINTED ADDITIONAL cost ([CR#118.8,601.2b]) — "as an
+    /// additional cost to cast this spell, sacrifice a creature" (Fling). A
+    /// block of cost instructions announced and paid with the mana cost
+    /// ([CR#118.8a,601.2h]), running in this ability's own activation, so its
+    /// paid product is a def `effect` reads. Empty (and omitted on write) for
+    /// the ordinary spell with no additional cost. An `ActivatedAbility` folds
+    /// the same block into its activation cost; a `TriggeredAbility` has none
+    /// — a trigger pays no mana cost and no activation cost, so [CR#118.8]
+    /// gives an additional cost nowhere to be paid.
+    #[serde(default, skip_serializing_if = "Cost::is_empty")]
+    pub cost: Cost,
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub targets: Arc<[TargetSpec]>,
     pub effect: Region,
@@ -168,8 +178,11 @@ pub struct Mode {
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub targets: Arc<[TargetSpec]>,
     pub effect: Region,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cost: Option<Arc<[CostComponent]>>,
+    /// The mode's own cost ([CR#700.2h]) — announced with the mode choice and
+    /// folded into the total at [CR#601.2f]. A cost block like any other: its
+    /// products define into this mode's region ahead of `effect`.
+    #[serde(default, skip_serializing_if = "Cost::is_empty")]
+    pub cost: Cost,
 }
 
 /// One modal branch's lowering-time mana-ability facts. Runtime mode

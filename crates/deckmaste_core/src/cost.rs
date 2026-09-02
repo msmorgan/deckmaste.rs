@@ -4,7 +4,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Cmp;
-use crate::CostBinder;
 use crate::Count;
 use crate::Normalize;
 use crate::Predicate;
@@ -16,9 +15,10 @@ use crate::reference::Reference;
 ///
 /// The semantic grammar may place a chooser or random selection inside a
 /// keyword-action composite (notably discard). Lowering lifts that binder into
-/// [`CostComponent::ChooseAndPay`] and constructs this wrapper only around the
-/// remaining bound action. The private field makes it impossible for runnable
-/// core costs to bypass that check.
+/// its own [`CostComponent::Choose`] instruction ahead of the paying action
+/// and constructs this wrapper only around the remaining bound action. The
+/// private field makes it impossible for runnable core costs to bypass that
+/// check.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RunnableCostAction(Arc<crate::Action>);
 
@@ -157,7 +157,7 @@ fn runnable_reference_is_bound(reference: &Reference) -> bool {
         | Reference::OwnerOf(reference)
         | Reference::AttachHostOf(reference) => runnable_reference_is_bound(reference),
         Reference::Coalesce(references) => references.iter().all(runnable_reference_is_bound),
-        Reference::Reg(_) | Reference::Bound(_) | Reference::Linked(_) | Reference::Source => true,
+        Reference::Reg(_) | Reference::Source => true,
     }
 }
 
@@ -248,11 +248,6 @@ fn runnable_life_op_is_bound(operation: &crate::LifeOp) -> bool {
             runnable_count_is_bound(count)
         }
     }
-}
-
-fn runnable_quantity_is_bound(quantity: &crate::Quantity) -> bool {
-    let (lower, upper) = quantity.bounds();
-    lower.is_none_or(runnable_count_is_bound) && upper.is_none_or(runnable_count_is_bound)
 }
 
 fn runnable_count_is_bound(count: &crate::Count) -> bool {
@@ -367,111 +362,6 @@ fn runnable_selection_is_bound(selection: &crate::Selection) -> bool {
     }
 }
 
-/// Whether a binder can safely cross the runnable-cost boundary.
-///
-/// Payment samples only the exact top-level
-/// `Existing(Selection::Random(..))` shape. A random selection hidden inside
-/// any other binder expression would reach the ordinary query evaluator
-/// without a sampled value, so this predicate rejects it. Producer binders
-/// are narrower still: only a `Move` with already-bound operands has a product
-/// that the current payment runtime can capture. Search whiff branches are
-/// rejected until arbitrary effects have an equivalent checked boundary.
-#[must_use]
-pub fn cost_binder_is_runnable(binder: &CostBinder) -> bool {
-    match binder {
-        CostBinder::TheRef(reference) => cost_binder_reference_is_supported(reference),
-        CostBinder::ChooseOne { filter, by } => {
-            runnable_predicate_is_bound(filter) && cost_binder_reference_is_supported(by)
-        }
-        CostBinder::Choose {
-            quantity,
-            filter,
-            by,
-        } => {
-            runnable_quantity_is_bound(quantity)
-                && runnable_predicate_is_bound(filter)
-                && cost_binder_reference_is_supported(by)
-        }
-        CostBinder::Produce(action) => cost_binder_producer_is_supported(action),
-        CostBinder::SearchOne {
-            filter,
-            by,
-            whose,
-            if_none,
-            ..
-        } => {
-            if_none.is_none()
-                && runnable_predicate_is_bound(filter)
-                && cost_binder_reference_is_supported(by)
-                && cost_binder_reference_is_supported(whose)
-        }
-        CostBinder::Search {
-            quantity,
-            filter,
-            by,
-            whose,
-            if_none,
-            ..
-        } => {
-            if_none.is_none()
-                && runnable_quantity_is_bound(quantity)
-                && runnable_predicate_is_bound(filter)
-                && cost_binder_reference_is_supported(by)
-                && cost_binder_reference_is_supported(whose)
-        }
-        CostBinder::Existing(crate::Selection::Random(quantity, filter)) => {
-            runnable_quantity_is_bound(quantity) && runnable_predicate_is_bound(filter)
-        }
-        CostBinder::Existing(selection) => cost_binder_selection_is_supported(selection),
-    }
-}
-
-fn cost_binder_producer_is_supported(action: &crate::Action) -> bool {
-    match action {
-        crate::Action::Move(..) => validate_runnable_cost_action(action).is_ok(),
-        _ => false,
-    }
-}
-
-fn cost_binder_reference_is_supported(reference: &Reference) -> bool {
-    match reference {
-        Reference::Single(selection) => cost_binder_selection_is_supported(selection),
-        Reference::OpponentOf(reference)
-        | Reference::ControllerOf(reference)
-        | Reference::OwnerOf(reference)
-        | Reference::AttachHostOf(reference) => cost_binder_reference_is_supported(reference),
-        Reference::Coalesce(references) => {
-            references.iter().all(cost_binder_reference_is_supported)
-        }
-        Reference::Reg(_) | Reference::Bound(_) | Reference::Linked(_) | Reference::Source => true,
-    }
-}
-
-fn cost_binder_selection_is_supported(selection: &crate::Selection) -> bool {
-    match selection {
-        crate::Selection::Random(..) => false,
-        crate::Selection::Reg(_) => true,
-        crate::Selection::SelectAll(filter) => runnable_predicate_is_bound(&filter.body),
-        crate::Selection::Union(selections) => {
-            selections.iter().all(cost_binder_selection_is_supported)
-        }
-        crate::Selection::InChosenOrder(selection, by) => {
-            cost_binder_selection_is_supported(selection) && cost_binder_reference_is_supported(by)
-        }
-        crate::Selection::TopOfLibrary { count, whose }
-        | crate::Selection::BottomOfLibrary { count, whose }
-        | crate::Selection::TopOfGraveyard { count, of: whose } => {
-            runnable_count_is_bound(count) && cost_binder_reference_is_supported(whose)
-        }
-        crate::Selection::LibraryOf(whose)
-        | crate::Selection::ValidTargetsFor(whose)
-        | crate::Selection::PilesOf { of: whose, .. } => cost_binder_reference_is_supported(whose),
-        crate::Selection::Pick { proj, .. } => {
-            runnable_countable_is_bound(&proj.of) && runnable_count_is_bound(&proj.by.body)
-        }
-    }
-}
-
 /// A single component of an ability's cost ([CR#601.2b]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum CostComponent {
@@ -492,16 +382,24 @@ pub enum CostComponent {
     /// Pay by performing an action ([CR#118.3]) — the Idris `Do : Action b
     /// -> Cost b`. The payer is `You` in cost context — spelled explicitly on
     /// every agent-bearing verb (`Do(Sacrifice(You, This))`, Law 2: no
-    /// read-time default). [`RunnableCostAction`] retains the full action so a
-    /// keyword-action composite can be a cost — "Discard a card:" is lifted
-    /// into [`ChooseAndPay`](CostComponent::ChooseAndPay), while cycling's
-    /// "Discard this card:" keeps the bound
+    /// read-time default). `dest` names the PAID PRODUCT ([CR#400.7]) — the
+    /// exiled or moved object the ability body later reads — mirroring
+    /// [`Instr::Act`](crate::Instr::Act)'s optional destination; a payment
+    /// nothing reads back leaves it `None`. [`RunnableCostAction`] retains the
+    /// full action so a keyword-action composite can be a cost — "Discard a
+    /// card:" lifts its chooser into a preceding
+    /// [`Choose`](CostComponent::Choose) instruction, while cycling's "Discard
+    /// this card:" keeps the bound
     /// [`discard_what`](crate::Action::discard_what) action
     /// ([CR#701.9,702.29a]). Its private checked constructor enforces both
     /// [`Action::is_cost_eligible`](crate::Action::is_cost_eligible) and the
     /// absence of unresolved chooser/random subjects. The wrapper owns a
     /// shared action allocation, keeping this list element compact.
-    Act(RunnableCostAction),
+    Act {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        dest: Option<crate::DefId>,
+        action: RunnableCostAction,
+    },
     /// A *nested* cost list produced when semantic lowering splices a
     /// list-valued parameter into a larger cost list (cycling,
     /// [CR#702.29a]). Plain deserialization preserves the nested value;
@@ -529,18 +427,23 @@ pub enum CostComponent {
         count: Count,
         filter: Arc<Predicate>,
     },
-    /// A choice/bind step made BEFORE the cost actions it scopes
-    /// ([CR#601.2b]). The `binder` makes the choice (e.g.
-    /// `ChooseOne(Creature)`), writes it to `dest`, and `body` pays through
-    /// that register. Keeps choosing
-    /// OUT of the verb — the cost action receives an already-bound
-    /// reference. `binder` is boxed (an open [`CostBinder`] is large and
-    /// `CostComponent` rides in `Vec<CostComponent>` cost lists).
-    ChooseAndPay {
-        dest: crate::DefId,
-        binder: Arc<CostBinder>,
-        body: Cost,
-    },
+    /// A payment-time object choice made BEFORE the cost actions that spend
+    /// it ([CR#601.2b,601.2h]) — "sacrifice a creature" chooses, then
+    /// sacrifices. Writes the chosen group to `dest`; every later component of
+    /// the same block, and the ability body, read it by register. Keeps
+    /// choosing OUT of the verb: the paying action receives an already-bound
+    /// reference. The same node the effect grammar uses
+    /// ([`Instr::Choose`](crate::Instr::Choose)) — a cost block is a block of
+    /// instructions, not a second grammar.
+    Choose(crate::Choose),
+    /// A payment-time hidden-zone search ([CR#701.23]) writing its
+    /// found group to `dest` — the search-as-cost shape, the cost twin of
+    /// [`Instr::Search`](crate::Instr::Search).
+    Search(crate::Search),
+    /// Pin a pure read as a payment subject ([CR#608.2h]) — the cost twin of
+    /// [`Instr::Let`](crate::Instr::Let). Spells "an existing group/reference
+    /// pays this" without a decision: the register the paying action reads.
+    Let(crate::Let),
 }
 
 impl CostComponent {
@@ -564,17 +467,65 @@ impl CostComponent {
     /// Returns the same checked-boundary error as
     /// [`RunnableCostAction::try_new`].
     pub fn try_do_action(action: crate::Action) -> Result<CostComponent, RunnableCostActionError> {
-        RunnableCostAction::try_new(action).map(CostComponent::Act)
+        RunnableCostAction::try_new(action).map(|action| CostComponent::Act { dest: None, action })
+    }
+
+    /// Pay by performing an action whose product is read back by register
+    /// ([CR#400.7]) — the exile-as-cost shape whose ability body names "the
+    /// exiled card".
+    ///
+    /// # Panics
+    ///
+    /// Panics on the same checked-boundary failures as [`Self::do_action`].
+    #[must_use]
+    pub fn producing(dest: crate::DefId, action: crate::Action) -> CostComponent {
+        CostComponent::Act {
+            dest: Some(dest),
+            action: RunnableCostAction::try_new(action)
+                .expect("CostComponent::producing requires a runnable action"),
+        }
+    }
+
+    /// The register this component defines, if any — the paid product or the
+    /// payment-time decision's destination ([CR#601.2b]).
+    #[must_use]
+    pub fn dest(&self) -> Option<crate::DefId> {
+        match self {
+            Self::Act { dest, .. } => *dest,
+            Self::Choose(choice) => Some(choice.dest),
+            Self::Search(search) => Some(search.dest),
+            Self::Let(binding) => Some(binding.dest),
+            Self::Mana(_)
+            | Self::ManaCostOf(_)
+            | Self::Tap
+            | Self::Untap
+            | Self::Cost(_)
+            | Self::TapTotal { .. } => None,
+        }
     }
 }
 
-/// A cost: an ordered list of [`CostComponent`]s ([CR#601.2b]). A newtype
-/// (not a bare `Vec`) so it can carry a [`Normalize`] impl. Plain serde
-/// preserves a nested [`CostComponent::Cost`] produced by semantic lowering
-/// (cycling, [CR#702.29a]). [`Cost::normalize`] is the explicit boundary step that
-/// splices the nested `Cost` back into one flat list, yielding
-/// `[Mana(…), Do(…)]`. Serializes and deserializes transparently as the bare
-/// list.
+/// A cost: an ordered BLOCK of cost instructions ([CR#601.2b]), run at
+/// announcement in the ability's own activation — the announcement half of the
+/// region the ability body resolves in. A decision component
+/// ([`Choose`](CostComponent::Choose), [`Search`](CostComponent::Search)) and a
+/// producing [`Act`](CostComponent::Act) each write a register that continues
+/// the ability region's definition sequence, so the paid product (the
+/// sacrificed creature, the discarded card, the exiled card) is a def the body
+/// reads — never a re-derived anaphor.
+///
+/// An additional cost is by definition announced and paid with the spell's
+/// mana cost or the ability's activation cost ([CR#118.8,118.8a,601.2b]);
+/// there is no resolution-time additional cost. A payment made WHILE a spell
+/// or ability resolves is [CR#118.12]'s "[do something]. If you do, …", which
+/// core spells as [`May`](crate::May) — not as a cost block.
+///
+/// A newtype (not a bare `Vec`) so it can carry a [`Normalize`] impl. Plain
+/// serde preserves a nested [`CostComponent::Cost`] produced by semantic
+/// lowering (cycling, [CR#702.29a]). [`Cost::normalize`] is the explicit
+/// boundary step that splices the nested `Cost` back into one flat list,
+/// yielding `[Mana(…), Act(…)]`. Serializes and deserializes transparently as
+/// the bare list.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct Cost(pub Arc<[CostComponent]>);
@@ -585,13 +536,6 @@ impl Normalize for CostComponent {
     fn normalize(self) -> Self {
         match self {
             CostComponent::Cost(inner) => CostComponent::Cost(inner.normalize()),
-            // Recurse into a choice step's scoped body so a nested cost there
-            // still flattens.
-            CostComponent::ChooseAndPay { dest, binder, body } => CostComponent::ChooseAndPay {
-                dest,
-                binder,
-                body: body.normalize(),
-            },
             other => other,
         }
     }
@@ -620,6 +564,21 @@ impl std::ops::Deref for Cost {
     type Target = Arc<[CostComponent]>;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl Default for Cost {
+    fn default() -> Self {
+        Cost(Arc::from([]))
+    }
+}
+
+impl Cost {
+    /// Whether this cost demands nothing — the serde omission predicate for an
+    /// ability that declares no additional cost.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
@@ -739,54 +698,86 @@ mod tests {
         crate::ron::options().to_string(value).unwrap()
     }
 
-    /// The cost-level `ChooseAndPay` step keeps choosing OUT of the verb — it
-    /// writes the choice to a register BEFORE the action that pays. And exile,
-    /// being a pure zone move, is paid as `Do(Move(This, Exile))`
-    /// (Scavenge), not a dedicated verb. Both round-trip.
-    #[test]
-    fn with_choice_step_and_move_are_cost_forms() {
-        use crate::CharacteristicPredicate;
-        use crate::CostBinder;
-        use crate::Predicate;
+    fn creature() -> crate::Predicate {
+        crate::Predicate::Characteristic(crate::CharacteristicPredicate::Supertype(
+            crate::Supertype::Basic,
+        ))
+    }
 
-        // "sacrifice a creature": choose one creature, then Sacrifice(You,
-        // That(Creature)).
-        let creature =
-            Predicate::Characteristic(CharacteristicPredicate::Supertype(crate::Supertype::Basic));
-        let with = CostComponent::ChooseAndPay {
+    /// A cost block keeps choosing OUT of the verb: the payment-time choice is
+    /// its own instruction writing a register, and the paying action reads it
+    /// ([CR#601.2b,601.2h]). And exile, being a pure zone move, is paid as
+    /// `Act(Move(This, Exile))` (Scavenge), not a dedicated verb. Both
+    /// round-trip.
+    #[test]
+    fn choice_instruction_and_move_are_cost_forms() {
+        // "sacrifice a creature": choose one creature into register 2, then
+        // Sacrifice(You, Reg(2)).
+        let choose = CostComponent::Choose(crate::Choose {
             dest: crate::DefId(2),
-            binder: Arc::new(CostBinder::ChooseOne {
-                filter: creature,
-                by: Reference::Reg(crate::RefId(1)),
-            }),
-            body: Cost(
-                vec![CostComponent::do_action(crate::Action::Sacrifice(
-                    Reference::Reg(crate::RefId(1)),
-                    Reference::Reg(crate::RefId(2)),
-                ))]
-                .into(),
-            ),
-        };
-        assert_eq!(read(&to_string(&with)), with, "With cost round-trips");
+            by: Reference::Reg(crate::RefId(1)),
+            quantity: crate::Quantity::one(),
+            filter: Arc::new(crate::Region::candidate(creature())),
+        });
+        assert_eq!(read(&to_string(&choose)), choose, "Choose cost round-trips");
+
+        let pay = CostComponent::do_action(crate::Action::Sacrifice(
+            Reference::Reg(crate::RefId(1)),
+            Reference::Reg(crate::RefId(2)),
+        ));
+        assert_eq!(read(&to_string(&pay)), pay, "the paying verb round-trips");
+        assert_eq!(choose.dest(), Some(crate::DefId(2)));
+        assert_eq!(
+            pay.dest(),
+            None,
+            "a payment nothing reads back defines nothing"
+        );
 
         // Exile-as-cost is a Move to the Exile zone — `Action::Move` is
-        // agent-silent, so this spells with no agent slot.
-        let exile = CostComponent::do_action(crate::Action::move_to(
-            Reference::Reg(crate::RefId(0)),
-            crate::Zone::Exile,
-        ));
+        // agent-silent, so this spells with no agent slot. A body that names
+        // "the exiled card" reads the product register.
+        let exile = CostComponent::producing(
+            crate::DefId(2),
+            crate::Action::move_to(Reference::Reg(crate::RefId(0)), crate::Zone::Exile),
+        );
         assert_eq!(
             read(&to_string(&exile)),
             exile,
-            "Do(Move(This, Exile)) round-trips"
+            "a producing Act cost round-trips"
         );
+        assert_eq!(exile.dest(), Some(crate::DefId(2)));
+    }
+
+    /// A `Let` pins an existing reference as the payment subject, and a
+    /// `Search` finds one in a hidden zone ([CR#701.23]); both are ordinary
+    /// cost instructions with a destination.
+    #[test]
+    fn let_and_search_are_cost_instructions() {
+        let binding = CostComponent::Let(crate::Let {
+            dest: crate::DefId(2),
+            expr: crate::Expr::Object(Reference::Reg(crate::RefId(0))),
+        });
+        assert_eq!(read(&to_string(&binding)), binding);
+        assert_eq!(binding.dest(), Some(crate::DefId(2)));
+
+        let search = CostComponent::Search(crate::Search {
+            dest: crate::DefId(3),
+            by: Reference::Reg(crate::RefId(1)),
+            whose: Reference::Reg(crate::RefId(1)),
+            from: Arc::from([crate::Zone::Library]),
+            quantity: crate::Quantity::one(),
+            filter: Arc::new(crate::Region::candidate(creature())),
+            if_none: crate::Block::default(),
+        });
+        assert_eq!(read(&to_string(&search)), search);
+        assert_eq!(search.dest(), Some(crate::DefId(3)));
     }
 
     /// Read is FAITHFUL: a nested `Cost` component survives deserialization
     /// verbatim, and `.normalize()` is the explicit step that splices it into
     /// one flat list. Semantic lowering can produce
-    /// `[Cost([Mana(…)]), Do(…)]`; normalization collapses it to
-    /// `[Mana(…), Do(…)]` (cycling, [CR#702.29a]).
+    /// `[Cost([Mana(…)]), Act(…)]`; normalization collapses it to
+    /// `[Mana(…), Act(…)]` (cycling, [CR#702.29a]).
     #[test]
     fn nested_cost_survives_read_and_normalizes_flat() {
         // The named Cost variant wraps a sub-list.
@@ -854,7 +845,7 @@ mod tests {
         );
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
-            read("Act(Sacrifice(Reg(1), Reg(0)))"),
+            read("Act(action: Sacrifice(Reg(1), Reg(0)))"),
             CostComponent::do_action(crate::Action::Sacrifice(
                 Reference::Reg(crate::RefId(1)),
                 Reference::Reg(crate::RefId(0))
@@ -927,108 +918,123 @@ mod tests {
         );
     }
 
+    /// The runnable-cost boundary still admits the DETERMINISTIC and
+    /// exact-random payment shapes a cost block spells, now that the binder
+    /// enum is gone: a `Let` pinning an existing selection, a `Choose` over a
+    /// filter, and a producing `Act` whose product a body reads
+    /// ([CR#601.2b,400.7]).
+    ///
+    /// Re-spelled from the deleted `cost_binder_is_runnable` check: same
+    /// shapes, same admitted/rejected verdicts, asserted against the cost
+    /// INSTRUCTIONS that replaced the binder.
     #[test]
-    fn runnable_cost_binder_admits_supported_deterministic_and_exact_random_shapes() {
-        let selected_legend = Reference::Single(Arc::new(crate::Selection::SelectAll(Arc::new(
-            crate::Region::new(
-                Arc::from([]),
-                Predicate::And(
-                    vec![
-                        Predicate::Characteristic(crate::CharacteristicPredicate::Supertype(
-                            crate::Supertype::Legendary,
-                        )),
-                        Predicate::Relation(crate::RelationPredicate::ControlledBy(Arc::new(
-                            Predicate::Ref(Reference::Reg(crate::RefId(1))),
-                        ))),
-                    ]
-                    .into(),
-                ),
+    fn cost_instructions_admit_the_supported_deterministic_shapes() {
+        let selected_legend = crate::Selection::SelectAll(Arc::new(crate::Region::new(
+            Arc::from([]),
+            Predicate::And(
+                vec![
+                    Predicate::Characteristic(crate::CharacteristicPredicate::Supertype(
+                        crate::Supertype::Legendary,
+                    )),
+                    Predicate::Relation(crate::RelationPredicate::ControlledBy(Arc::new(
+                        Predicate::Ref(Reference::Reg(crate::RefId(1))),
+                    ))),
+                ]
+                .into(),
             ),
-        ))));
-        assert!(cost_binder_is_runnable(&CostBinder::TheRef(
-            selected_legend
         )));
-        assert!(cost_binder_is_runnable(&CostBinder::Existing(
-            crate::Selection::Random(crate::Quantity::one(), Predicate::Any),
-        )));
-        assert!(cost_binder_is_runnable(&CostBinder::Produce(Arc::new(
+        let pinned = CostComponent::Let(crate::Let {
+            dest: crate::DefId(2),
+            expr: crate::Expr::Objects(selected_legend),
+        });
+        assert_eq!(read(&to_string(&pinned)), pinned);
+
+        let chosen = CostComponent::Choose(crate::Choose {
+            dest: crate::DefId(2),
+            by: Reference::Reg(crate::RefId(1)),
+            quantity: crate::Quantity::one(),
+            filter: Arc::new(crate::Region::candidate(Predicate::Any)),
+        });
+        assert_eq!(read(&to_string(&chosen)), chosen);
+
+        let produced = CostComponent::producing(
+            crate::DefId(2),
             crate::Action::Move(
                 Reference::Reg(crate::RefId(0)),
                 crate::Destination::Zone(crate::Zone::Exile),
                 Arc::from([]),
                 None,
             ),
-        ))));
+        );
+        assert_eq!(read(&to_string(&produced)), produced);
+        assert_eq!(produced.dest(), Some(crate::DefId(2)));
     }
 
+    /// The boundary still REJECTS a random or otherwise unresolved payment
+    /// subject hidden inside a cost instruction, and a `Let` may not smuggle a
+    /// decision into a pure expression ([CR#608.2h]).
+    ///
+    /// Re-spelled from the deleted `cost_binder_is_runnable` rejection cases:
+    /// the binder that used to carry `Existing(Random(..))` is now a `Let`, and
+    /// the producer that used to carry a random subject is now a producing
+    /// `Act`; both verdicts are unchanged.
     #[test]
-    fn runnable_cost_binder_rejects_nested_random_and_unchecked_producers() {
+    fn cost_instructions_reject_random_and_unchecked_producers() {
         let random_reference = || {
             Reference::Single(Arc::new(crate::Selection::Random(
                 crate::Quantity::one(),
                 Predicate::Any,
             )))
         };
-        assert!(!cost_binder_is_runnable(&CostBinder::TheRef(
-            Reference::ControllerOf(Arc::new(random_reference())),
-        )));
-        assert!(!cost_binder_is_runnable(&CostBinder::Existing(
-            crate::Selection::Union(vec![
-                crate::Selection::SelectAll(Arc::new(crate::Region::new(
-                    Arc::from([]),
-                    Predicate::Any
-                ))),
-                crate::Selection::Random(crate::Quantity::one(), Predicate::Any),
-            ]),
-        )));
-
-        let random_count = Count::StatOf(random_reference(), crate::Stat::Power);
-        assert!(!cost_binder_is_runnable(&CostBinder::Existing(
-            crate::Selection::Random(
-                crate::Quantity::Range(Some(random_count.clone()), Some(random_count)),
-                Predicate::Any,
-            ),
-        )));
-        assert!(!cost_binder_is_runnable(&CostBinder::Produce(Arc::new(
-            crate::Action::Move(
+        assert_eq!(
+            CostComponent::try_do_action(crate::Action::Move(
                 random_reference(),
                 crate::Destination::Zone(crate::Zone::Exile),
                 Arc::from([]),
                 None,
-            ),
-        ))));
-        assert!(!cost_binder_is_runnable(&CostBinder::Produce(Arc::new(
-            crate::Action::Move(
-                Reference::Single(Arc::new(crate::Selection::SelectAll(Arc::new(
-                    crate::Region::new(Arc::from([]), Predicate::Any),
-                )))),
-                crate::Destination::Zone(crate::Zone::Exile),
-                Arc::from([]),
-                None,
-            ),
-        ))));
-        assert!(!cost_binder_is_runnable(&CostBinder::Produce(Arc::new(
-            crate::Action::DrawCard(Reference::Reg(crate::RefId(1))),
-        ))));
+            )),
+            Err(RunnableCostActionError::UnresolvedSubject),
+            "a producing payment over a random subject stays out of the cost block"
+        );
+        assert_eq!(
+            CostComponent::try_do_action(crate::Action::DrawCard(Reference::Reg(crate::RefId(1)))),
+            Err(RunnableCostActionError::Ineligible),
+            "a non-cost-eligible action is not a payment at all"
+        );
 
-        let unchecked_whiff = crate::OneShotEffect::act(crate::Action::Move(
-            random_reference(),
-            crate::Destination::Zone(crate::Zone::Exile),
-            Arc::from([]),
-            None,
-        ));
-        assert!(!cost_binder_is_runnable(&CostBinder::SearchOne {
-            filter: Predicate::Any,
-            by: Reference::Reg(crate::RefId(1)),
-            whose: Reference::Reg(crate::RefId(1)),
-            from: Arc::from([crate::Zone::Library]),
-            if_none: Some(Arc::new(unchecked_whiff)),
-        }));
+        // A random pick is a DECISION, so it cannot ride a pure `Let`; the
+        // region validator refuses the whole cost block.
+        let random_let = crate::Cost(Arc::from([CostComponent::Let(crate::Let {
+            dest: crate::DefId(2),
+            expr: crate::Expr::Objects(crate::Selection::Random(
+                crate::Quantity::one(),
+                Predicate::Any,
+            )),
+        })]));
+        let region = crate::Region::new(
+            Arc::from([
+                crate::Param {
+                    def: crate::DefId(0),
+                    kind: crate::Kind::Object,
+                    provenance: crate::Provenance::Source,
+                },
+                crate::Param {
+                    def: crate::DefId(1),
+                    kind: crate::Kind::Object,
+                    provenance: crate::Provenance::Controller,
+                },
+            ]),
+            crate::Block::default(),
+        );
+        assert_eq!(
+            crate::validate_announced(&region, &[], &random_let),
+            Err(crate::ValidationError::DecisionInExpression),
+        );
     }
 
     /// `ManaCostOf(Reference)` reads and round-trips through the
-    /// `serde::Deserialize, serde::Serialize` serde (a referenced object's mana cost,
-    /// [CR#202.1]).
+    /// `serde::Deserialize, serde::Serialize` serde (a referenced object's mana
+    /// cost, [CR#202.1]).
     #[test]
     fn mana_cost_of_round_trips() {
         assert_eq!(
@@ -1114,7 +1120,7 @@ mod tests {
     fn cost_list_round_trips() {
         // `Sacrifice` carries its agent slot explicitly now ([CR#701.21a]
         // "its controller"); in a cost, `You` is the payer.
-        let source = "[Mana([Simple(Generic(2))]),Tap,Act(Sacrifice(Reg(1), Reg(0)))]";
+        let source = "[Mana([Simple(Generic(2))]),Tap,Act(action: Sacrifice(Reg(1), Reg(0)))]";
         let parsed: Arc<[CostComponent]> = crate::ron::options().from_str(source).unwrap();
         let written = crate::ron::options().to_string(&parsed).unwrap();
         let reparsed: Arc<[CostComponent]> = crate::ron::options().from_str(&written).unwrap();

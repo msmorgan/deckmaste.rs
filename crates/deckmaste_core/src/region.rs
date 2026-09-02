@@ -4,10 +4,14 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde::Serialize;
-use serde::ser::{
-    Impossible, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
-    SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
-};
+use serde::ser::Impossible;
+use serde::ser::SerializeMap;
+use serde::ser::SerializeSeq;
+use serde::ser::SerializeStruct;
+use serde::ser::SerializeStructVariant;
+use serde::ser::SerializeTuple;
+use serde::ser::SerializeTupleStruct;
+use serde::ser::SerializeTupleVariant;
 
 use crate::OneShotEffect;
 
@@ -15,12 +19,12 @@ use crate::OneShotEffect;
 ///
 /// Parameters occupy the first ordinals. Instruction products added by later
 /// region stages continue the same sequence.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 #[serde(transparent)]
 pub struct DefId(pub u32);
 
 /// A read of an earlier [`DefId`] in the same region.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 #[serde(transparent)]
 pub struct RefId(pub u32);
 
@@ -128,7 +132,7 @@ pub fn event_region_params() -> Arc<[Param]> {
 /// the following discourse stage splits decision products into individual
 /// instruction arms. Keeping the sequence as a distinct type now makes region
 /// entry and validation explicit without introducing a second core grammar.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct Block(pub Arc<[OneShotEffect]>);
 
@@ -349,7 +353,7 @@ impl serde::ser::Error for ValidationError {
 ///
 /// Panics only if the region declares more than `u32::MAX` parameters.
 pub fn validate(region: &Region<Block>) -> Result<(), ValidationError> {
-    validate_region(region, None)
+    validate_region(region, None, None)
 }
 
 /// Validate a static-ability region and its nested per-subject regions.
@@ -446,7 +450,11 @@ fn validate_deontic(
     Ok(())
 }
 
-fn validate_region(region: &Region<Block>, outer: Option<&[Param]>) -> Result<(), ValidationError> {
+fn validate_region(
+    region: &Region<Block>,
+    outer: Option<&[Param]>,
+    cost: Option<&crate::Cost>,
+) -> Result<(), ValidationError> {
     validate_params(region, outer)?;
     for (index, param) in region.params.iter().enumerate() {
         let expected = DefId(u32::try_from(index).expect("region parameter count fits in u32"));
@@ -518,6 +526,11 @@ fn validate_region(region: &Region<Block>, outer: Option<&[Param]>) -> Result<()
     }
 
     let mut definitions = Definitions::new(&region.params);
+    // [CR#601.2b]: the announcement block runs first, so its paid products
+    // occupy the definitions the body reads.
+    if let Some(cost) = cost {
+        validate_cost(cost, &mut definitions)?;
+    }
     validate_instructions(&region.body, &mut definitions)?;
     Ok(())
 }
@@ -620,10 +633,6 @@ fn validate_instructions(
                     definitions.hide_since(outer);
                 }
             }
-            E::AdditionalCost(additional) => {
-                validate_cost(&additional.pay, definitions)?;
-                validate_instructions(std::slice::from_ref(additional.body.as_ref()), definitions)?;
-            }
             E::May(may) => {
                 may.who.serialize(definitions.walker())?;
                 for branch in [Some(&may.effect), may.if_did.as_ref(), may.if_not.as_ref()]
@@ -638,21 +647,21 @@ fn validate_instructions(
             E::Each(each) => {
                 each.over.serialize(definitions.walker())?;
                 validate_selection_regions(&each.over, &definitions.params)?;
-                validate_region(&each.body, Some(&definitions.params))?;
+                validate_region(&each.body, Some(&definitions.params), None)?;
             }
             E::Distribute(distribute) => {
                 distribute.amount.serialize(definitions.walker())?;
                 distribute.over.serialize(definitions.walker())?;
                 validate_count_regions(&distribute.amount, &definitions.params)?;
                 validate_selection_regions(&distribute.over, &definitions.params)?;
-                validate_region(&distribute.body, Some(&definitions.params))?;
+                validate_region(&distribute.body, Some(&definitions.params), None)?;
             }
             E::RevealUntil(reveal) => {
                 reveal.whose.serialize(definitions.walker())?;
                 validate_predicate_region(&reveal.matches, &definitions.params)?;
                 append_definition(definitions, reveal.found, Kind::Object)?;
                 append_definition(definitions, reveal.passed, Kind::Objects)?;
-                validate_region(&reveal.body, Some(&definitions.params))?;
+                validate_region(&reveal.body, Some(&definitions.params), None)?;
             }
             E::Delayed(ability) | E::Reflexive(ability) => {
                 validate_telescope_with_outer(
@@ -664,10 +673,14 @@ fn validate_instructions(
             E::Modal(modal) => {
                 modal.choose.serialize(definitions.walker())?;
                 for mode in modal.modes.iter() {
-                    validate_telescope_with_outer(
+                    // A mode's own cost joins the total at announcement
+                    // ([CR#700.2h,601.2f]); its products define into the
+                    // mode's region ahead of the mode body.
+                    validate_telescope_inner(
                         &mode.effect,
                         &mode.targets,
-                        &definitions.params,
+                        Some(&definitions.params),
+                        Some(&mode.cost),
                     )?;
                 }
             }
@@ -688,35 +701,60 @@ fn validate_instructions(
     Ok(())
 }
 
+/// Validate a cost block ([CR#601.2b]): an ordered run of cost instructions
+/// whose destinations continue the enclosing region's definition sequence, so
+/// a paid product stays visible to every later component AND to the ability
+/// body that reads it.
 fn validate_cost(cost: &crate::Cost, definitions: &mut Definitions) -> Result<(), ValidationError> {
-    use crate::CostBinder;
     use crate::CostComponent;
 
     for component in cost.0.iter() {
         match component {
-            CostComponent::ChooseAndPay { dest, binder, body } => {
-                binder.serialize(definitions.walker())?;
-                let kind = match binder.as_ref() {
-                    CostBinder::TheRef(_)
-                    | CostBinder::ChooseOne { .. }
-                    | CostBinder::SearchOne { .. } => Kind::Object,
-                    CostBinder::Choose { .. }
-                    | CostBinder::Search { .. }
-                    | CostBinder::Existing(_) => Kind::Objects,
-                    CostBinder::Produce(action) => match action.as_ref() {
+            CostComponent::Act { dest, action } => {
+                validate_action(action.as_action(), definitions)?;
+                if let Some(dest) = dest {
+                    let kind = match action.as_action() {
                         crate::Action::MoveGroup { .. } | crate::Action::Create { .. } => {
                             Kind::Objects
                         }
                         _ => Kind::Object,
-                    },
-                };
+                    };
+                    append_definition(definitions, *dest, kind)?;
+                }
+            }
+            CostComponent::Choose(choice) => {
+                choice.by.serialize(definitions.walker())?;
+                choice.quantity.serialize(definitions.walker())?;
+                validate_predicate_region(&choice.filter, &definitions.params)?;
+                append_definition(definitions, choice.dest, Kind::Objects)?;
+            }
+            CostComponent::Search(search) => {
+                search.by.serialize(definitions.walker())?;
+                search.whose.serialize(definitions.walker())?;
+                search.quantity.serialize(definitions.walker())?;
+                validate_predicate_region(&search.filter, &definitions.params)?;
                 let outer = definitions.params.len();
-                append_definition(definitions, *dest, kind)?;
-                validate_cost(body, definitions)?;
+                validate_instructions(&search.if_none, definitions)?;
                 definitions.hide_since(outer);
+                append_definition(definitions, search.dest, Kind::Objects)?;
+            }
+            CostComponent::Let(binding) => {
+                if matches!(&binding.expr, Expr::Objects(selection)
+                    if selection_is_decision_bearing(selection))
+                {
+                    return Err(ValidationError::DecisionInExpression);
+                }
+                binding.expr.serialize(definitions.walker())?;
+                match &binding.expr {
+                    Expr::Objects(selection) => {
+                        validate_selection_regions(selection, &definitions.params)?;
+                    }
+                    Expr::Number(count) => validate_count_regions(count, &definitions.params)?,
+                    Expr::Object(_) => {}
+                }
+                append_definition(definitions, binding.dest, binding.expr.kind())?;
             }
             CostComponent::Cost(nested) => validate_cost(nested, definitions)?,
-            CostComponent::Act(action) => validate_action(action.as_action(), definitions)?,
             other => other.serialize(definitions.walker())?,
         }
     }
@@ -985,7 +1023,24 @@ pub fn validate_telescope(
     region: &Region,
     targets: &[crate::TargetSpec],
 ) -> Result<(), ValidationError> {
-    validate_telescope_inner(region, targets, None)
+    validate_telescope_inner(region, targets, None, None)
+}
+
+/// Validate an ability whose announcement declares a COST block ([CR#601.2b])
+/// alongside its target telescope. The cost's instructions define into the
+/// region's ordinal sequence ahead of the body, so the body reads a paid
+/// product by register.
+///
+/// # Errors
+///
+/// Returns [`ValidationError`] on the same failures as [`validate_telescope`],
+/// plus a cost instruction whose destination breaks the definition sequence.
+pub fn validate_announced(
+    region: &Region,
+    targets: &[crate::TargetSpec],
+    cost: &crate::Cost,
+) -> Result<(), ValidationError> {
+    validate_telescope_inner(region, targets, None, Some(cost))
 }
 
 fn validate_telescope_with_outer(
@@ -993,15 +1048,16 @@ fn validate_telescope_with_outer(
     targets: &[crate::TargetSpec],
     outer: &[Param],
 ) -> Result<(), ValidationError> {
-    validate_telescope_inner(region, targets, Some(outer))
+    validate_telescope_inner(region, targets, Some(outer), None)
 }
 
 fn validate_telescope_inner(
     region: &Region,
     targets: &[crate::TargetSpec],
     outer: Option<&[Param]>,
+    cost: Option<&crate::Cost>,
 ) -> Result<(), ValidationError> {
-    validate_region(region, outer)?;
+    validate_region(region, outer, cost)?;
     let target_parameters = region
         .params
         .iter()

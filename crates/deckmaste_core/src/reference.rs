@@ -80,7 +80,6 @@ mod tests {
 ///
 /// Players are objects: the controller region parameter and the results of
 /// `ControllerOf` and `OwnerOf` resolve to player objects.
-///
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Reference {
     /// An indexed read from the current region's activation record.
@@ -90,13 +89,6 @@ pub enum Reference {
     Single(Arc<crate::Selection>),
     /// An opponent of the player produced by the inner expression.
     OpponentOf(Arc<Reference>),
-    /// A named role bound by an event pattern or instruction (for example,
-    /// the attacker versus the blocker). Announced targets and lexical
-    /// instruction results use indexed region parameters instead.
-    Bound(crate::Ident),
-    /// Information remembered by a linked ability ([CR#607]): the object
-    /// exiled with this, the chosen value, the cost paid.
-    Linked(crate::Ident),
     /// The controller of a referenced object ([CR#109.5]).
     ControllerOf(Arc<Reference>),
     /// The first reference in order that resolves to a non-null value.

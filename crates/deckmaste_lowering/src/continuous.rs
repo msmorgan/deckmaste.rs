@@ -836,10 +836,14 @@ impl Lower for deckmaste_semantics::CostChange {
     type Target = deckmaste_core::CostChange;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::Increase(f0) => deckmaste_core::CostChange::Increase(f0.lower()),
-            Self::Reduce(f0) => deckmaste_core::CostChange::Reduce(f0.lower()),
+            Self::Increase(f0) => {
+                deckmaste_core::CostChange::Increase(crate::cost::lower_scoped_cost_components(&f0))
+            }
+            Self::Reduce(f0) => {
+                deckmaste_core::CostChange::Reduce(crate::cost::lower_scoped_cost_components(&f0))
+            }
             Self::Additional { components } => deckmaste_core::CostChange::Additional {
-                components: components.lower(),
+                components: crate::cost::lower_scoped_cost_components(&components),
             },
             Self::Scaled { change, times } => deckmaste_core::CostChange::Scaled {
                 change: change.lower(),

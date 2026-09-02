@@ -401,11 +401,11 @@ fn lower_action(action: deckmaste_semantics::Action) -> Vec<Instr> {
     }
 }
 
-struct BoundValue {
-    reference: deckmaste_core::RefId,
-    kind: deckmaste_core::Kind,
-    cardinality: crate::region::Cardinality,
-    sort: Option<deckmaste_semantics::Sort>,
+pub(crate) struct BoundValue {
+    pub(crate) reference: deckmaste_core::RefId,
+    pub(crate) kind: deckmaste_core::Kind,
+    pub(crate) cardinality: crate::region::Cardinality,
+    pub(crate) sort: Option<deckmaste_semantics::Sort>,
 }
 
 fn predicate_sort(predicate: &deckmaste_semantics::Predicate) -> Option<deckmaste_semantics::Sort> {
@@ -456,67 +456,7 @@ fn predicate_sort(predicate: &deckmaste_semantics::Predicate) -> Option<deckmast
     }
 }
 
-pub(crate) fn binder_shape(
-    binder: &deckmaste_semantics::Binder,
-) -> (
-    deckmaste_core::Kind,
-    crate::region::Cardinality,
-    Option<deckmaste_semantics::Sort>,
-) {
-    use deckmaste_semantics::Binder;
-    match binder {
-        Binder::TheRef(_) => (
-            deckmaste_core::Kind::Object,
-            crate::region::Cardinality::One,
-            None,
-        ),
-        Binder::ChooseOne { filter, .. } => (
-            deckmaste_core::Kind::Object,
-            crate::region::Cardinality::One,
-            predicate_sort(filter),
-        ),
-        Binder::Choose { .. } | Binder::Existing(_) => (
-            deckmaste_core::Kind::Objects,
-            crate::region::Cardinality::Many,
-            None,
-        ),
-        Binder::Produce(action) => match action.as_ref() {
-            deckmaste_semantics::Action::Move(_, to, _, _) => (
-                deckmaste_core::Kind::Object,
-                crate::region::Cardinality::One,
-                Some(destination_sort(&to.clone().lower())),
-            ),
-            deckmaste_semantics::Action::MoveGroup { to, .. } => (
-                deckmaste_core::Kind::Objects,
-                crate::region::Cardinality::Many,
-                Some(destination_sort(&to.clone().lower())),
-            ),
-            deckmaste_semantics::Action::Create { .. } => (
-                deckmaste_core::Kind::Objects,
-                crate::region::Cardinality::Many,
-                Some(deckmaste_semantics::Sort::Token),
-            ),
-            _ => (
-                deckmaste_core::Kind::Object,
-                crate::region::Cardinality::One,
-                None,
-            ),
-        },
-        Binder::SearchOne { .. } => (
-            deckmaste_core::Kind::Object,
-            crate::region::Cardinality::One,
-            Some(deckmaste_semantics::Sort::Card),
-        ),
-        Binder::Search { .. } => (
-            deckmaste_core::Kind::Objects,
-            crate::region::Cardinality::Many,
-            Some(deckmaste_semantics::Sort::Card),
-        ),
-        Binder::Expanded(expanded) => binder_shape(&expanded.value),
-    }
-}
-
-fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, BoundValue) {
+pub(crate) fn lower_binder(binder: deckmaste_semantics::Binder) -> (Vec<Instr>, BoundValue) {
     use deckmaste_semantics::Binder;
     match binder {
         Binder::TheRef(reference) => {
@@ -765,6 +705,16 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
             crate::region::remove_antecedent(bound.reference, crate::region::Site::Frame);
             instructions
         }
+        // [CR#118.8]: an additional cost is announced and paid with the
+        // spell's mana cost or the ability's activation cost — there is no
+        // resolution-time additional cost, so this node is a DECLARATION that
+        // `peel_announcement` hoists onto the ability. Reaching the
+        // instruction lowerer means it was nested under another instruction,
+        // where no announcement exists to carry it.
+        S::AdditionalCost(_) => unreachable!(
+            "a nested AdditionalCost has no announcement to be paid at ([CR#118.8,118.8a]); \
+             a payment made while a spell or ability resolves is May ([CR#118.12])"
+        ),
         S::Each(each) => {
             if let deckmaste_semantics::Binder::Existing(selection) = &each.binder {
                 let over = selection.clone().lower();
@@ -906,7 +856,6 @@ fn lower_instructions(effect: deckmaste_semantics::OneShotEffect) -> Vec<Instr> 
         S::ChoosePile(value) => vec![Instr::ChoosePile(value.lower())],
         S::May(value) => vec![Instr::May(value.lower())],
         S::If(value) => vec![Instr::If(value.lower())],
-        S::AdditionalCost(value) => vec![Instr::AdditionalCost(value.lower())],
         S::Delayed(value) => vec![Instr::Delayed(value.lower())],
         S::Reflexive(value) => vec![Instr::Reflexive(value.lower())],
         S::Modal(value) => vec![Instr::Modal(value.lower())],
@@ -966,16 +915,6 @@ impl Lower for deckmaste_semantics::If {
             condition: self.condition.lower(),
             then: crate::region::scoped_antecedents(|| lower_arc(self.then)),
             otherwise: crate::region::scoped_antecedents(|| lower_optional_arc(self.otherwise)),
-        }
-    }
-}
-
-impl Lower for deckmaste_semantics::AdditionalCost {
-    type Target = deckmaste_core::AdditionalCost;
-    fn lower(self) -> <Self as Lower>::Target {
-        deckmaste_core::AdditionalCost {
-            pay: self.pay.lower(),
-            body: lower_arc(self.body),
         }
     }
 }

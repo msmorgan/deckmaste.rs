@@ -305,16 +305,24 @@ fn core_region_substrate_witness_cards_lower_with_valid_regions() {
 
         for ability in core_abilities(&loaded.core) {
             if let Some(ability) = ability.as_activated() {
-                deckmaste_core::validate_telescope(&ability.effect, &ability.targets)
-                    .unwrap_or_else(|error| panic!("{name}: invalid activated region: {error}"));
+                deckmaste_core::validate_announced(
+                    &ability.effect,
+                    &ability.targets,
+                    &ability.cost,
+                )
+                .unwrap_or_else(|error| panic!("{name}: invalid activated region: {error}"));
                 regions += 1;
             } else if let Some(ability) = ability.as_triggered() {
                 deckmaste_core::validate_telescope(&ability.effect, &ability.targets)
                     .unwrap_or_else(|error| panic!("{name}: invalid triggered region: {error}"));
                 regions += 1;
             } else if let deckmaste_core::Ability::Spell(ability) = ability {
-                deckmaste_core::validate_telescope(&ability.effect, &ability.targets)
-                    .unwrap_or_else(|error| panic!("{name}: invalid spell region: {error}"));
+                deckmaste_core::validate_announced(
+                    &ability.effect,
+                    &ability.targets,
+                    &ability.cost,
+                )
+                .unwrap_or_else(|error| panic!("{name}: invalid spell region: {error}"));
                 regions += 1;
             }
         }
@@ -491,7 +499,6 @@ impl CoreAbilitySubterms for deckmaste_core::OneShotEffect {
                 i.then.push_abilities(out);
                 i.otherwise.push_abilities(out);
             }
-            Self::AdditionalCost(a) => a.body.push_abilities(out),
             Self::Each(e) => e.body.push_abilities(out),
             Self::Distribute(d) => d.body.push_abilities(out),
             Self::Delayed(t) | Self::Reflexive(t) => t.effect.push_abilities(out),

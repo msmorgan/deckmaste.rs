@@ -5,7 +5,6 @@ use serde::Serialize;
 
 use crate::ChooseSpec;
 use crate::Condition;
-use crate::Cost;
 use crate::Count;
 use crate::Mode;
 use crate::ability::TriggeredAbility;
@@ -92,17 +91,6 @@ pub enum Instr {
     May(May),
     /// "If [condition], [then]; otherwise [else]" ([CR#603.4]-style branch).
     If(If),
-    /// "As an additional cost, [pay]; then [body]" ([CR#601.2f,118.8]) —
-    /// imposes an additional cost whose paid object the body reads through
-    /// the event references (`EventObject`/`EventActor`/`EventPatient`):
-    /// "sacrifice a creature: ~ deals damage equal to its power" (Fling,
-    /// Momentous Fall). The payment is an event, so
-    /// [`AdditionalCost::body`] reads the sacrificed/exiled object with the
-    /// SAME anaphors a trigger uses. At a spell/ability root the engine
-    /// hoists it to cast/activation time (the printed additional cost,
-    /// [CR#601.2f]); nested, it is an extra resolution-time cost. Mirrors
-    /// the Idris `AdditionalCost (pay : Cost) body`.
-    AdditionalCost(AdditionalCost),
     /// "For each [element of `over`], [do]" — enters `body` once per element,
     /// supplying its `LoopElement` parameter ([CR#608]).
     Each(Each),
@@ -114,8 +102,9 @@ pub enum Instr {
     /// for the same effect — so one primitive subsumes divided damage
     /// (`body: DealDamage(This, Allotment, It)`) AND distributed counters
     /// (`body: PutCounters(It, <kind>, Allotment)`); the body reads the
-    /// allotment parameter. Named for the Idris north-star `Distribute : Count b
-    /// -> Bindable b Many k -> …`, the general divide-or-distribute primitive.
+    /// allotment parameter. Named for the Idris north-star `Distribute : Count
+    /// b -> Bindable b Many k -> …`, the general divide-or-distribute
+    /// primitive.
     Distribute(Distribute),
     /// A delayed triggered ability created on resolution ([CR#603.7]).
     /// Note the object set the inner effect moves/touches under `key`
@@ -166,7 +155,8 @@ impl Instr {
     /// Construct a destination-less intrinsic instruction.
     ///
     /// This preserves the compact `OneShotEffect::Act(action)` Rust spelling
-    /// while the core data model and serialized form use `Act { dest, action }`.
+    /// while the core data model and serialized form use `Act { dest, action
+    /// }`.
     #[allow(
         non_snake_case,
         reason = "compatibility constructor mirrors the Act variant"
@@ -287,22 +277,6 @@ pub struct Search {
 pub struct Let {
     pub dest: crate::DefId,
     pub expr: crate::Expr,
-}
-
-/// `AdditionalCost { pay, body }` — "As an additional cost, [pay]; then run
-/// [body]" ([CR#601.2f,118.8]). The payment is an event, so `body` reads the
-/// sacrificed/exiled object through the event references
-/// (`EventObject`/`EventActor`/`EventPatient`) — the cost-side twin of a
-/// trigger's event bindings ("the sacrificed creature's power" =
-/// `StatOf(EventObject, Power)`, Fling/Momentous Fall). Unlike `May`'s
-/// `Act(Pay(cost))` shape there is no `who`: an additional cost is always
-/// paid by the spell/ability's controller ([CR#601.2b]). `body` is boxed to
-/// break the `OneShotEffect` → `AdditionalCost` → `OneShotEffect` size cycle
-/// (mirrors [`May`]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct AdditionalCost {
-    pub pay: Cost,
-    pub body: Arc<OneShotEffect>,
 }
 
 /// `Each { over, body }` enters the body region once per selected element.

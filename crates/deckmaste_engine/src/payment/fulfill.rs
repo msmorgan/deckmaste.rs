@@ -1,13 +1,9 @@
 use deckmaste_core::Action;
 use deckmaste_core::Agency;
 use deckmaste_core::Cmp;
-use deckmaste_core::CostBinder;
-use deckmaste_core::CostComponent;
 use deckmaste_core::Destination;
-use deckmaste_core::LifeOp;
 use deckmaste_core::PayAct;
 use deckmaste_core::Predicate;
-use deckmaste_core::Reference;
 use deckmaste_core::Selection;
 use deckmaste_core::Stat;
 use deckmaste_core::Uint;
@@ -36,15 +32,35 @@ use crate::state::GameState;
 /// Return the outstanding obligations currently admitted by [CR#601.2h]. The
 /// nonrandom/nonlibrary tier must finish before any remaining obligation that
 /// introduces randomness or moves a card out of a library.
+///
+/// Within a tier, a payment-time DECISION ([CR#601.2b]) also gates everything
+/// declared after it in the cost block: the verbs that follow pay through the
+/// register it writes, so offering them first would ask the payer to spend an
+/// unwritten binding. Obligation ids are minted in block order, so "declared
+/// after" is "has a larger id".
 pub(super) fn current_tier(outstanding: &[PaymentIou]) -> Vec<&PaymentIou> {
     let ordinary: Vec<&PaymentIou> = outstanding.iter().filter(|iou| !is_deferred(iou)).collect();
-    if ordinary.is_empty() { outstanding.iter().collect() } else { ordinary }
+    let tier: Vec<&PaymentIou> =
+        if ordinary.is_empty() { outstanding.iter().collect() } else { ordinary };
+    let Some(first_writer) = tier
+        .iter()
+        .filter(|iou| writes_a_register(iou))
+        .map(|iou| iou.id)
+        .min()
+    else {
+        return tier;
+    };
+    tier.into_iter()
+        .filter(|iou| iou.id <= first_writer)
+        .collect()
 }
 
-fn is_deferred(iou: &PaymentIou) -> bool {
+/// Whether this obligation writes a register later obligations read
+/// ([CR#601.2b]).
+fn writes_a_register(iou: &PaymentIou) -> bool {
     match &iou.kind {
-        IouKind::Act(action) => action_is_deferred(action),
-        IouKind::ChooseAndPay { binder, .. } => binder_is_deferred(binder),
+        IouKind::Choose(_) | IouKind::Search(_) | IouKind::Let(_) => true,
+        IouKind::Act { dest, .. } => dest.is_some(),
         IouKind::ManaPip(_)
         | IouKind::PayLife(_)
         | IouKind::Tap
@@ -53,17 +69,22 @@ fn is_deferred(iou: &PaymentIou) -> bool {
     }
 }
 
-fn binder_is_deferred(binder: &CostBinder) -> bool {
-    match binder {
-        CostBinder::SearchOne { from, .. } | CostBinder::Search { from, .. } => {
-            from.contains(&Zone::Library)
-        }
-        CostBinder::Produce(action) => action_is_deferred(action),
-        CostBinder::Existing(Selection::Random(..)) => true,
-        CostBinder::TheRef(_)
-        | CostBinder::ChooseOne { .. }
-        | CostBinder::Choose { .. }
-        | CostBinder::Existing(_) => false,
+fn is_deferred(iou: &PaymentIou) -> bool {
+    match &iou.kind {
+        IouKind::Act { action, .. } => action_is_deferred(action),
+        // [CR#601.2h]: a search that moves a card out of a library belongs to
+        // the second payment tier, as does a random pick.
+        IouKind::Search(search) => search.from.contains(&Zone::Library),
+        IouKind::Let(binding) => matches!(
+            &binding.expr,
+            deckmaste_core::Expr::Objects(Selection::Random(..))
+        ),
+        IouKind::ManaPip(_)
+        | IouKind::PayLife(_)
+        | IouKind::Tap
+        | IouKind::Untap
+        | IouKind::Choose(_)
+        | IouKind::TapTotal { .. } => false,
     }
 }
 
@@ -302,7 +323,7 @@ impl GameState {
                     .collect();
                 FulfillmentPlan { spend: None, work }
             }
-            IouKind::Act(action) => {
+            IouKind::Act { dest, action } => {
                 if witness != FulfillmentWitness::Bound {
                     return illegal("a bound action IOU requires Bound");
                 }
@@ -319,6 +340,26 @@ impl GameState {
                 if !self.verb_cost_payable(action.as_action(), payer, &frame) {
                     return illegal("the bound action cost cannot currently be paid");
                 }
+                // [CR#400.7]: the paid product. The moved object's PRE-move id
+                // is written; register reads chase it to its post-move
+                // incarnation, the same way an effect-side producing
+                // instruction's product is read.
+                if let Some(dest) = dest {
+                    // [CR#701.21a]: a sacrifice is a move to the graveyard, so
+                    // both verbs name their product in the same slot.
+                    let (Action::Move(subject, ..) | Action::Sacrifice(_, subject)) =
+                        action.as_action()
+                    else {
+                        return illegal(
+                            "a producing cost action currently requires a Move or Sacrifice",
+                        );
+                    };
+                    let object = self.eval_reference(subject, &frame);
+                    if self.objects.get(object).is_none() {
+                        return illegal("the producing cost's subject no longer exists");
+                    }
+                    self.activation_write_object(frame.activation, *dest, object);
+                }
                 FulfillmentPlan {
                     spend: None,
                     work: vec![WorkItem::RunEffect {
@@ -329,8 +370,11 @@ impl GameState {
                     }],
                 }
             }
-            IouKind::ChooseAndPay { dest, binder, body } => {
-                let mut frame = self
+            // [CR#601.2b]: a payment-time decision writes its register in the
+            // ANNOUNCE activation, so the verbs after it — and the ability
+            // body — read the payment subject by index.
+            IouKind::Choose(choice) => {
+                let frame = self
                     .payment
                     .as_ref()
                     .expect("controller remains live")
@@ -340,17 +384,69 @@ impl GameState {
                     .locked
                     .frame
                     .clone();
-                let chosen = self.validate_binder_witness(binder, &witness, payer, &frame)?;
-                self.frame_set_chosen(&mut frame, chosen);
-                let group = self.validate_bound_cost_body(*dest, binder, body, payer, &frame)?;
-                self.activation_write_objects(frame.activation, *dest, &group);
-                self.frame_set_chosen(&mut frame, None);
+                let FulfillmentWitness::Objects(objects) = &witness else {
+                    return illegal("a payment-time choice requires its complete object set");
+                };
+                let (lo, hi) = choice.quantity.bounds();
+                let min = lo.map_or(0, |count| self.eval_count(count, &frame));
+                let max = hi.map_or(Uint::MAX, |count| self.eval_count(count, &frame));
+                self.validate_choice_region_objects(objects, min, max, &choice.filter, &frame)?;
+                self.activation_write_objects(frame.activation, choice.dest, objects);
                 FulfillmentPlan {
                     spend: None,
-                    work: vec![WorkItem::RunEffect {
-                        effect: std::sync::Arc::new(runnable_cost_body_effect(body)?),
-                        frame,
-                    }],
+                    work: Vec::new(),
+                }
+            }
+            IouKind::Search(search) => {
+                let frame = self
+                    .payment
+                    .as_ref()
+                    .expect("controller remains live")
+                    .frames
+                    .last()
+                    .expect("frame remains live")
+                    .locked
+                    .frame
+                    .clone();
+                let FulfillmentWitness::Objects(objects) = &witness else {
+                    return illegal("a payment-time search requires its complete object set");
+                };
+                let candidates = self.payment_search_candidates(
+                    &search.whose,
+                    &search.from,
+                    &search.filter.body,
+                    &frame,
+                );
+                let (lo, hi) = self.choice_bounds(&search.quantity, candidates.len(), &frame);
+                // [CR#701.23b..701.23d]: a stated-quality search never compels
+                // a find; only a bare-quantity search must take as many as
+                // exist.
+                let min = if search_is_bare_quantity(&search.filter.body) { lo } else { 0 };
+                validate_search_witness(objects, &candidates, min, hi)?;
+                self.activation_write_objects(frame.activation, search.dest, objects);
+                FulfillmentPlan {
+                    spend: None,
+                    work: Vec::new(),
+                }
+            }
+            IouKind::Let(binding) => {
+                if witness != FulfillmentWitness::Bound {
+                    return illegal("a pinned payment subject requires Bound");
+                }
+                let frame = self
+                    .payment
+                    .as_ref()
+                    .expect("controller remains live")
+                    .frames
+                    .last()
+                    .expect("frame remains live")
+                    .locked
+                    .frame
+                    .clone();
+                self.write_let(binding, &frame);
+                FulfillmentPlan {
+                    spend: None,
+                    work: Vec::new(),
                 }
             }
             IouKind::TapTotal {
@@ -533,411 +629,8 @@ impl GameState {
         self.refresh_payment_prompt();
     }
 
-    fn validate_binder_witness(
-        &self,
-        binder: &CostBinder,
-        witness: &FulfillmentWitness,
-        _payer: crate::player::PlayerId,
-        frame: &Frame,
-    ) -> Result<Option<Vec<ObjectId>>, DecisionError> {
-        if !deckmaste_core::cost_binder_is_runnable(binder) {
-            return illegal("the cost binder retains an unsupported unresolved operation");
-        }
-        match binder {
-            CostBinder::ChooseOne { filter, .. } => {
-                let FulfillmentWitness::Objects(objects) = witness else {
-                    return illegal("ChooseOne requires one selected object");
-                };
-                self.validate_choice_objects(objects, 1, 1, filter, frame)?;
-                Ok(Some(objects.clone()))
-            }
-            CostBinder::Choose {
-                quantity, filter, ..
-            } => {
-                let FulfillmentWitness::Objects(objects) = witness else {
-                    return illegal("Choose requires its complete selected object set");
-                };
-                let (lo, hi) = quantity.bounds();
-                let min = lo.map_or(0, |count| self.eval_count(count, frame));
-                let max = hi.map_or(Uint::MAX, |count| self.eval_count(count, frame));
-                self.validate_choice_objects(objects, min, max, filter, frame)?;
-                Ok(Some(objects.clone()))
-            }
-            CostBinder::Existing(Selection::Random(quantity, filter)) => {
-                if witness != &FulfillmentWitness::Bound {
-                    return illegal("a random cost binder requires Bound");
-                }
-                let watcher = Some(self.frame_watcher(frame));
-                let available = crate::target::candidates_with(self, filter, watcher).len();
-                let (lo, _) = quantity.bounds();
-                let required = lo.map_or(0, |count| self.eval_count(count, frame));
-                if Uint::try_from(available).unwrap_or(Uint::MAX) < required {
-                    return illegal("the random cost has too few legal subjects");
-                }
-                Ok(None)
-            }
-            CostBinder::TheRef(_) | CostBinder::Existing(_)
-                if witness == &FulfillmentWitness::Bound =>
-            {
-                Ok(None)
-            }
-            CostBinder::TheRef(_) | CostBinder::Existing(_) => {
-                illegal("a nonchoice binder requires Bound")
-            }
-            CostBinder::SearchOne {
-                filter,
-                whose,
-                from,
-                ..
-            } => {
-                let FulfillmentWitness::Objects(objects) = witness else {
-                    return illegal("SearchOne requires its complete searched object set");
-                };
-                let candidates = self.payment_search_candidates(whose, from, filter, frame);
-                let (_, max) =
-                    self.choice_bounds(&deckmaste_core::Quantity::one(), candidates.len(), frame);
-                let min = if search_is_bare_quantity(filter) { max } else { 0 };
-                validate_search_witness(objects, &candidates, min, max)?;
-                Ok(Some(objects.clone()))
-            }
-            CostBinder::Search {
-                quantity,
-                filter,
-                whose,
-                from,
-                ..
-            } => {
-                let FulfillmentWitness::Objects(objects) = witness else {
-                    return illegal("Search requires its complete searched object set");
-                };
-                let candidates = self.payment_search_candidates(whose, from, filter, frame);
-                let (lo, hi) = self.choice_bounds(quantity, candidates.len(), frame);
-                let min = if search_is_bare_quantity(filter) { lo } else { 0 };
-                validate_search_witness(objects, &candidates, min, hi)?;
-                Ok(Some(objects.clone()))
-            }
-            CostBinder::Produce(action) => {
-                if witness != &FulfillmentWitness::Bound {
-                    return illegal("a producer cost binder requires Bound");
-                }
-                let Action::Move(subject, _, _, from) = action.as_ref() else {
-                    return illegal("a producer cost binder currently requires a Move action");
-                };
-                let object = self.eval_reference(subject, frame);
-                let Some(current) = self.objects.get(object) else {
-                    return illegal("the producer cost's bound subject no longer exists");
-                };
-                if from.is_some_and(|zone| current.zone != Some(zone)) {
-                    return illegal(
-                        "the producer cost's bound subject is no longer in its required zone",
-                    );
-                }
-                Ok(None)
-            }
-        }
-    }
-
-    fn validate_bound_cost_body(
-        &self,
-        dest: deckmaste_core::DefId,
-        binder: &CostBinder,
-        body: &deckmaste_core::Cost,
-        payer: crate::player::PlayerId,
-        frame: &Frame,
-    ) -> Result<Vec<ObjectId>, DecisionError> {
-        let mut projected = self.clone();
-        let mut bound = frame.clone();
-        let group = match binder {
-            CostBinder::Produce(action) => {
-                let Action::Move(subject, ..) = action.as_ref() else {
-                    return illegal("a producer cost binder currently requires a Move action");
-                };
-                let object = projected.eval_reference(subject, &bound);
-                if projected.objects.get(object).is_none()
-                    || !projected.preflight_cost_action(action, payer, &bound)
-                {
-                    return illegal("the producer cost cannot currently be paid");
-                }
-                vec![object]
-            }
-            CostBinder::Existing(Selection::Random(_, filter)) => {
-                let watcher = Some(projected.frame_watcher(&bound));
-                crate::target::candidates_with(&projected, filter, watcher)
-            }
-            _ => projected.resolve_binder(binder, &bound),
-        };
-        let cardinality = match binder {
-            CostBinder::TheRef(_)
-            | CostBinder::ChooseOne { .. }
-            | CostBinder::Produce(_)
-            | CostBinder::SearchOne { .. } => crate::stack::Cardinality::One,
-            CostBinder::Choose { .. } | CostBinder::Existing(_) | CostBinder::Search { .. } => {
-                crate::stack::Cardinality::Many
-            }
-        };
-        if cardinality == crate::stack::Cardinality::One && group.len() != 1 {
-            return illegal("a singular cost binder must resolve to one live object");
-        }
-        if group
-            .iter()
-            .any(|&object| projected.objects.get(object).is_none())
-        {
-            return illegal("the bound cost subject no longer exists");
-        }
-        projected.frame_set_chosen(&mut bound, None);
-        projected.activation_write_objects(bound.activation, dest, &group);
-        if projected.preflight_cost_components(body, payer, &bound) {
-            Ok(group)
-        } else {
-            illegal("the complete bound cost body cannot currently be paid")
-        }
-    }
-
-    fn preflight_cost_components(
-        &mut self,
-        body: &deckmaste_core::Cost,
-        payer: crate::player::PlayerId,
-        frame: &Frame,
-    ) -> bool {
-        body.iter().all(|component| match component {
-            CostComponent::Act(action) => {
-                self.preflight_cost_action(action.as_action(), payer, frame)
-            }
-            CostComponent::Tap => self.preflight_cost_action(
-                &Action::Tap(Reference::source_parameter()),
-                payer,
-                frame,
-            ),
-            CostComponent::Untap => self.preflight_cost_action(
-                &Action::Untap(Reference::source_parameter()),
-                payer,
-                frame,
-            ),
-            CostComponent::Cost(inner) => self.preflight_cost_components(inner, payer, frame),
-            CostComponent::ChooseAndPay { .. }
-            | CostComponent::Mana(_)
-            | CostComponent::ManaCostOf(_)
-            | CostComponent::TapTotal { .. } => false,
-        })
-    }
-
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the checked cost-action set is intentionally reviewed in one exhaustive match"
-    )]
-    fn preflight_cost_action(
-        &mut self,
-        action: &Action,
-        payer: crate::player::PlayerId,
-        frame: &Frame,
-    ) -> bool {
-        match action {
-            Action::Sacrifice(agent, subject) => {
-                let Some(actor) = self.eval_player_ref(agent, frame) else {
-                    return false;
-                };
-                let object = self.eval_reference(subject, frame);
-                let Some(candidate) = self.objects.get(object) else {
-                    return false;
-                };
-                if actor != payer
-                    || candidate.zone != Some(Zone::Battlefield)
-                    || candidate.controller != actor
-                {
-                    return false;
-                }
-                let candidate = self.objects.obj_mut(object);
-                candidate.zone = Some(Zone::Graveyard);
-                candidate.tapped = false;
-                candidate.counters.clear();
-                candidate.damage.clear();
-                candidate.attached_to = None;
-                candidate.summoning_sick = false;
-                candidate.skip_next_untap = false;
-                candidate.side = crate::object::Side::Front;
-                true
-            }
-            Action::Move(subject, destination, riders, from) => {
-                let object = self.eval_reference(subject, frame);
-                let Some(candidate) = self.objects.get(object) else {
-                    return false;
-                };
-                if from.is_some_and(|required| candidate.zone != Some(required)) {
-                    return false;
-                }
-                let owner = match candidate.source {
-                    crate::object::ObjectSource::Card(_) => Some(self.owner_of(object)),
-                    crate::object::ObjectSource::Player(_) => None,
-                };
-                let mut controller = candidate.controller;
-                for rider in riders.iter() {
-                    match rider {
-                        deckmaste_core::EnterRider::UnderControlOf(who) => {
-                            let Some(new_controller) = self.eval_player_ref(who, frame) else {
-                                return false;
-                            };
-                            controller = new_controller;
-                        }
-                        deckmaste_core::EnterRider::UnderOwnersControl => {
-                            let Some(owner) = owner else {
-                                return false;
-                            };
-                            controller = owner;
-                        }
-                        _ => {}
-                    }
-                }
-                let zone = match destination {
-                    Destination::Zone(zone) => *zone,
-                    Destination::Library(_) => Zone::Library,
-                };
-                let counter_additions = riders
-                    .iter()
-                    .filter_map(|rider| match rider {
-                        deckmaste_core::EnterRider::WithCounters(kind, count) => {
-                            Some((kind.0, self.eval_count(count, frame)))
-                        }
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>();
-                let candidate = self.objects.obj_mut(object);
-                candidate.zone = Some(zone);
-                candidate.controller = controller;
-                candidate.tapped = zone == Zone::Battlefield
-                    && riders
-                        .iter()
-                        .any(|rider| matches!(rider, deckmaste_core::EnterRider::Tapped));
-                candidate.counters.clear();
-                candidate.damage.clear();
-                candidate.attached_to = None;
-                candidate.summoning_sick = zone == Zone::Battlefield;
-                candidate.skip_next_untap = false;
-                candidate.side = crate::object::Side::Front;
-                for (kind, amount) in counter_additions {
-                    let counter = candidate.counters.entry(kind).or_default();
-                    *counter = counter.saturating_add(amount);
-                }
-                true
-            }
-            Action::Tap(subject) | Action::Untap(subject) => {
-                let tap = matches!(action, Action::Tap(_));
-                let object = self.eval_reference(subject, frame);
-                let Some(candidate) = self.objects.get(object) else {
-                    return false;
-                };
-                if candidate.zone != Some(Zone::Battlefield)
-                    || candidate.controller != payer
-                    || candidate.tapped == tap
-                {
-                    return false;
-                }
-                self.objects.obj_mut(object).tapped = tap;
-                true
-            }
-            Action::ChangeLife(subject, operation) => {
-                let Some(recipient) = self.eval_player_ref(subject, frame) else {
-                    return false;
-                };
-                let (count, direction) = match operation {
-                    LifeOp::Down(count) => (count, -1),
-                    LifeOp::Up(count) => (count, 1),
-                    LifeOp::Set(count) => (count, 0),
-                };
-                let Ok(amount) = i32::try_from(self.eval_count(count, frame)) else {
-                    return false;
-                };
-                let life = self.player(recipient).life;
-                let next = match direction {
-                    -1 if life >= amount => life.checked_sub(amount),
-                    1 => life.checked_add(amount),
-                    0 => Some(amount),
-                    _ => None,
-                };
-                let Some(next) = next else { return false };
-                self.player_mut(recipient).life = next;
-                true
-            }
-            Action::PutCounters(subject, kind, count)
-            | Action::RemoveCounters(subject, kind, count) => {
-                let remove = matches!(action, Action::RemoveCounters(..));
-                let object = self.eval_reference(subject, frame);
-                let amount = self.eval_count(count, frame);
-                let Some(candidate) = self.objects.get(object) else {
-                    return false;
-                };
-                let current = candidate.counters.get(kind.as_str()).copied().unwrap_or(0);
-                if remove && current < amount {
-                    return false;
-                }
-                let counter = self
-                    .objects
-                    .obj_mut(object)
-                    .counters
-                    .entry(kind.0)
-                    .or_default();
-                *counter = if remove {
-                    counter.saturating_sub(amount)
-                } else {
-                    counter.saturating_add(amount)
-                };
-                true
-            }
-            Action::Reveal { what, to } => {
-                let object = self.eval_reference(what, frame);
-                self.objects.get(object).is_some()
-                    && to
-                        .as_ref()
-                        .is_none_or(|who| self.eval_player_ref(who, frame).is_some())
-            }
-            Action::Composite { name, body } if name.as_str() == "Discard" => {
-                self.preflight_discard_effect(body, payer, frame)
-            }
-            _ => false,
-        }
-    }
-
-    fn preflight_discard_effect(
-        &mut self,
-        effect: &deckmaste_core::OneShotEffect,
-        payer: crate::player::PlayerId,
-        frame: &Frame,
-    ) -> bool {
-        match effect {
-            deckmaste_core::OneShotEffect::Act { action, .. } => {
-                if let Action::Move(subject, _, _, Some(Zone::Hand)) = action {
-                    let object = self.eval_reference(subject, frame);
-                    if self.objects.get(object).is_none()
-                        || self.owner_of(object) != payer
-                        || self.objects.obj(object).zone != Some(Zone::Hand)
-                    {
-                        return false;
-                    }
-                }
-                self.preflight_cost_action(action, payer, frame)
-            }
-            deckmaste_core::OneShotEffect::Each(each) => {
-                let objects = self.eval_selection_set(&each.over, frame);
-                for object in objects {
-                    if self.objects.get(object).is_none() {
-                        return false;
-                    }
-                    let mut element = frame.clone();
-                    element.activation = self.enter_loop_region(&each.body, frame, object, None);
-                    if !each
-                        .body
-                        .body
-                        .iter()
-                        .all(|effect| self.preflight_discard_effect(effect, payer, &element))
-                    {
-                        return false;
-                    }
-                }
-                true
-            }
-            _ => false,
-        }
-    }
-
+    /// The cards a payment-time search may find ([CR#701.23]): `whose`'s
+    /// objects in the searched `from` zones that match the filter.
     fn payment_search_candidates(
         &self,
         whose: &deckmaste_core::Reference,
@@ -956,12 +649,16 @@ impl GameState {
             .collect()
     }
 
-    fn validate_choice_objects(
+    /// Validate a payment-time choice's witness against its CANDIDATE REGION
+    /// ([CR#601.2b]): the filter is a region whose candidate parameter each
+    /// object is written into, so a filter reading the payment's own
+    /// registers judges every candidate correctly.
+    fn validate_choice_region_objects(
         &self,
         objects: &[ObjectId],
         min: Uint,
         max: Uint,
-        filter: &Predicate,
+        filter: &deckmaste_core::Region<Predicate>,
         frame: &Frame,
     ) -> Result<(), DecisionError> {
         let len = Uint::try_from(objects.len()).unwrap_or(Uint::MAX);
@@ -972,12 +669,36 @@ impl GameState {
             || distinct.len() != objects.len()
             || objects.iter().any(|&object| {
                 self.objects.get(object).is_none()
-                    || !crate::target::matches_with(self, object, filter, watcher)
+                    || !crate::target::matches_region_with_activation(
+                        self,
+                        object,
+                        filter,
+                        watcher,
+                        frame.activation,
+                    )
             })
         {
             return illegal("the chosen cost subjects must be distinct live legal candidates");
         }
         Ok(())
+    }
+
+    /// Write a pinned payment subject's register ([CR#608.2h]).
+    fn write_let(&self, binding: &deckmaste_core::Let, frame: &Frame) {
+        match &binding.expr {
+            deckmaste_core::Expr::Object(reference) => {
+                let object = self.eval_reference(reference, frame);
+                self.activation_write_object(frame.activation, binding.dest, object);
+            }
+            deckmaste_core::Expr::Objects(selection) => {
+                let objects = self.eval_selection_set(selection, frame);
+                self.activation_write_objects(frame.activation, binding.dest, &objects);
+            }
+            deckmaste_core::Expr::Number(count) => {
+                let number = self.eval_count(count, frame);
+                self.activation_write_number(frame.activation, binding.dest, number);
+            }
+        }
     }
 
     fn tap_total_witness_is_legal(
@@ -1164,38 +885,4 @@ fn validate_search_witness(
         return illegal("the searched cost subjects must be a complete distinct legal set");
     }
     Ok(())
-}
-
-fn runnable_cost_body_effect(
-    body: &deckmaste_core::Cost,
-) -> Result<deckmaste_core::OneShotEffect, DecisionError> {
-    use deckmaste_core::OneShotEffect;
-
-    fn component_effect(component: &CostComponent) -> Result<OneShotEffect, DecisionError> {
-        match component {
-            CostComponent::Act(action) => Ok(OneShotEffect::act(action.as_action().clone())),
-            CostComponent::Tap => Ok(OneShotEffect::act(Action::Tap(
-                deckmaste_core::Reference::source_parameter(),
-            ))),
-            CostComponent::Untap => Ok(OneShotEffect::act(Action::Untap(
-                deckmaste_core::Reference::source_parameter(),
-            ))),
-            CostComponent::ChooseAndPay { body, .. } => runnable_cost_body_effect(body),
-            CostComponent::Cost(inner) => runnable_cost_body_effect(inner),
-            CostComponent::Mana(_)
-            | CostComponent::ManaCostOf(_)
-            | CostComponent::TapTotal { .. } => {
-                illegal("a chosen action body cannot contain a second payment resource kind")
-            }
-        }
-    }
-
-    let mut effects = body
-        .iter()
-        .map(component_effect)
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(match effects.len() {
-        1 => effects.pop().expect("one effect"),
-        _ => OneShotEffect::Sequentially(effects.into()),
-    })
 }

@@ -76,7 +76,6 @@ struct ActivationContext {
     event_amount: Option<Uint>,
     targets: Vec<Vec<ObjectId>>,
     x: Option<Uint>,
-    chosen: Option<Vec<ObjectId>>,
     produced_mana: Vec<deckmaste_core::ColorOrColorless>,
     crossed: Option<(Uint, Uint)>,
     inherited_replacements: std::collections::HashSet<crate::replace_registry::ReplacementKey>,
@@ -96,7 +95,6 @@ impl ActivationContext {
             event_amount: None,
             targets: Vec::new(),
             x: None,
-            chosen: None,
             produced_mana: Vec::new(),
             crossed: None,
             inherited_replacements: std::collections::HashSet::new(),
@@ -739,10 +737,6 @@ impl crate::state::GameState {
             })
     }
 
-    pub(crate) fn activation_chosen(&self, activation: ActivationId) -> Option<Vec<ObjectId>> {
-        self.activation_context(activation).chosen
-    }
-
     pub(crate) fn activation_crossed(&self, activation: ActivationId) -> Option<(Uint, Uint)> {
         self.activation_context(activation).crossed
     }
@@ -763,16 +757,6 @@ impl crate::state::GameState {
 
     pub(crate) fn activation_contained_in_batch(&self, activation: ActivationId) -> bool {
         self.activation_context(activation).contained_in_batch
-    }
-
-    pub(crate) fn frame_set_chosen(&self, frame: &mut Frame, chosen: Option<Vec<ObjectId>>) {
-        self.materialize_frame(frame);
-        self.activations
-            .borrow_mut()
-            .get_mut(&frame.activation)
-            .expect("materialized frame exists")
-            .context
-            .chosen = chosen;
     }
 
     pub(crate) fn frame_set_event_extras(
@@ -925,7 +909,10 @@ mod tests {
     use super::*;
     use crate::player::PlayerId;
     use crate::stack::Frame;
-    use crate::state::{GameConfig, GameState, PlayerConfig, StartingPlayer};
+    use crate::state::GameConfig;
+    use crate::state::GameState;
+    use crate::state::PlayerConfig;
+    use crate::state::StartingPlayer;
 
     fn bare_game() -> GameState {
         GameState::new(GameConfig {

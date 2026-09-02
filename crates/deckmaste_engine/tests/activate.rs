@@ -1392,7 +1392,8 @@ fn activated_ability_pays_loyalty_plus_cost() {
     );
     let mut state = cost_game(7, &card);
     let obj = force_into_play(&mut state, PlayerId(0), NAME);
-    // Seed the source with 3 loyalty so the `+2` cost proves it ADDS ([CR#606.4]).
+    // Seed the source with 3 loyalty so the `+2` cost proves it ADDS
+    // ([CR#606.4]).
     state
         .objects
         .obj_mut(obj)
@@ -1517,7 +1518,7 @@ fn activated_ability_announces_and_pays_nonmana_x_cost() {
     assert!(matches!(
         prompt.outstanding.as_slice(),
         [deckmaste_engine::PaymentIou {
-            kind: deckmaste_engine::IouKind::Act(_),
+            kind: deckmaste_engine::IouKind::Act { .. },
             ..
         }]
     ));
@@ -2184,7 +2185,8 @@ fn x_plus_hybrid_announces_x_concretizes_hybrid_pays_composed_cost() {
     let _ = complete_pending_payment(&mut state);
 
     let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
-    // The blue unit paid {U}; the two greens paid the {2}. Nothing is left over.
+    // The blue unit paid {U}; the two greens paid the {2}. Nothing is left
+    // over.
     assert_eq!(
         state.player(PlayerId(0)).mana_pool.amount(blue()),
         0,
@@ -2280,5 +2282,311 @@ fn phyrexian_spell_proposal_is_offered_even_when_current_resources_fail() {
     assert!(
         cast_action(&legal, spell).is_some(),
         "{{W/P}} instant remains a legal proposal at 1 life with no white, legal: {legal:?}"
+    );
+}
+
+// --- announcement cost blocks ([CR#118.8,601.2b])
+// -----------------------------
+
+/// An artifact whose sole ability carries the given announcement cost block and
+/// effect region. The cost's instructions define into the ability's own region
+/// ahead of the body, so `effect` may read a payment product by register.
+fn artifact_with_cost_and_effect(
+    name: &str,
+    cost: Vec<CostComponent>,
+    effect: OneShotEffect,
+) -> Arc<Card> {
+    Arc::new(Card::Normal(CardFace {
+        name: name.into(),
+        mana_cost: ManaCost::from(Arc::<[ManaSymbol]>::from(vec![])),
+        color_indicator: vec![],
+        supertypes: vec![],
+        types: vec![Type::Artifact.def()],
+        subtypes: vec![],
+        abilities: vec![Ability::activated(ActivatedAbility {
+            ability_word: None,
+            targets: [].into(),
+            from: None,
+            window: None,
+            cost: Arc::<[deckmaste_core::CostComponent]>::from(cost).into(),
+            condition: None,
+            limits: vec![].into(),
+            effect: effect.into(),
+        })],
+        power: None,
+        toughness: None,
+        loyalty: None,
+        defense: None,
+    }))
+}
+
+/// A candidate region matching "another creature" — register 0 is the candidate
+/// under test, register 1 the ability's source.
+fn another_creature() -> Arc<deckmaste_core::Region<deckmaste_core::Predicate>> {
+    use deckmaste_core::Predicate;
+
+    Arc::new(deckmaste_core::Region::new(
+        Arc::from([
+            deckmaste_core::Param {
+                def: deckmaste_core::DefId(0),
+                kind: deckmaste_core::Kind::Object,
+                provenance: deckmaste_core::Provenance::Candidate,
+            },
+            deckmaste_core::Param {
+                def: deckmaste_core::DefId(1),
+                kind: deckmaste_core::Kind::Object,
+                provenance: deckmaste_core::Provenance::Source,
+            },
+        ]),
+        Predicate::And(Arc::from(vec![
+            Predicate::r#type(Type::Creature),
+            Predicate::State(deckmaste_core::StatePredicate::InZone(Zone::Battlefield)),
+            Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
+                deckmaste_core::RefId(1),
+            )))),
+        ])),
+    ))
+}
+
+/// Ayli, Eternal Pilgrim's first activated ability ([CR#118.8,601.2b,601.2h]):
+/// "{1}, Sacrifice another creature: You gain life equal to the sacrificed
+/// creature's toughness."
+///
+/// The witness the `engine-root-additional-cost-hoist` ticket named. Three
+/// claims, all about ANNOUNCEMENT rather than resolution:
+///
+/// 1. the creature is chosen and sacrificed while the ability is being
+///    activated — it is already in the graveyard before the ability resolves
+///    ([CR#601.2h] precedes [CR#601.2i]);
+/// 2. every player's response window opens only after that payment, with the
+///    ability already on the stack;
+/// 3. resolution gains life equal to that creature's toughness, read through
+///    the register the payment wrote — not through any re-derived anaphor.
+#[test]
+fn sacrifice_cost_is_paid_at_activation_and_its_product_is_read_at_resolution() {
+    const NAME: &str = "Ayli-shaped life gainer";
+    // Registers: 0 source, 1 controller, 2 announced X; the cost's choice
+    // therefore defines register 3, which the body reads.
+    let chosen = deckmaste_core::DefId(3);
+    let card = artifact_with_cost_and_effect(
+        NAME,
+        vec![
+            CostComponent::Mana("{0}".parse().unwrap()),
+            CostComponent::Choose(deckmaste_core::Choose {
+                dest: chosen,
+                by: Reference::Reg(deckmaste_core::RefId(1)),
+                quantity: deckmaste_core::Quantity::one(),
+                filter: another_creature(),
+            }),
+            CostComponent::do_action(CoreAction::Sacrifice(
+                Reference::Reg(deckmaste_core::RefId(1)),
+                Reference::Reg(chosen.into()),
+            )),
+        ],
+        OneShotEffect::Act(CoreAction::ChangeLife(
+            Reference::Reg(deckmaste_core::RefId(1)),
+            LifeOp::Up(Count::StatOf(
+                Reference::Reg(chosen.into()),
+                deckmaste_core::Stat::Toughness,
+            )),
+        )),
+    );
+
+    let bears = Arc::new(canon().card(BEARS).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
+    let mut deck0 = vec![Arc::clone(&card); 4];
+    deck0.extend(vec![Arc::clone(&bears); 4]);
+    deck0.extend(vec![mountain; 4]);
+    let mut state = GameState::new(GameConfig {
+        players: vec![
+            PlayerConfig { deck: deck0 },
+            PlayerConfig {
+                deck: vec![forest; 10],
+            },
+        ],
+        seed: 11,
+        starting_life: 20,
+        starting_player: StartingPlayer::Fixed(PlayerId(0)),
+        sba_rules: vec![],
+        conferral_rules: vec![],
+        damage_result_rules: vec![],
+        counter_decls: std::collections::HashMap::new(),
+        subtypes: std::collections::HashMap::new(),
+        types: std::collections::HashMap::new(),
+    });
+    let source = force_into_play(&mut state, PlayerId(0), NAME);
+    let bear = force_into_play(&mut state, PlayerId(0), BEARS);
+    let life_before = state.player(PlayerId(0)).life;
+    let toughness = state
+        .layers()
+        .toughness(bear)
+        .expect("the bear has a toughness");
+
+    let trace = activate_and_pay_zero(&mut state, source);
+
+    // (1) The chosen creature is sacrificed during the activation, before the
+    //     ability becomes activated ([CR#601.2h] then [CR#601.2i]).
+    let sacrificed = trace
+        .iter()
+        .position(|p| {
+            matches!(
+                applied(p),
+                Some(GameEvent::ZoneChange(change)) if change.object == bear
+            )
+        })
+        .unwrap_or_else(|| panic!("the chosen creature is sacrificed, trace: {trace:?}"));
+    let activated = trace
+        .iter()
+        .position(|p| {
+            matches!(
+                applied(p),
+                Some(GameEvent::AbilityActivated(AbilityActivated { source: s, .. })) if *s == source
+            )
+        })
+        .unwrap_or_else(|| panic!("the ability becomes activated, trace: {trace:?}"));
+    assert!(
+        sacrificed < activated,
+        "the sacrifice is a COST paid during activation, not part of resolution; \
+         sacrificed@{sacrificed} activated@{activated}"
+    );
+
+    // (2) Opponents respond only after payment: the first priority window has
+    //     the ability on the stack and the creature already gone.
+    assert_eq!(state.stack.len(), 1, "the ability is on the stack");
+    assert!(
+        state.objects.get(bear).is_none(),
+        "the sacrificed creature left the battlefield before anyone could respond"
+    );
+    assert_eq!(
+        state.player(PlayerId(0)).life,
+        life_before,
+        "no life is gained until the ability resolves ([CR#608.2])"
+    );
+
+    // (3) Resolution reads the paid product's register.
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    // Both players pass, so the ability resolves before the next P0 window.
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert!(state.stack.is_empty(), "the ability resolved");
+    assert_eq!(
+        state.player(PlayerId(0)).life,
+        life_before + toughness,
+        "resolution gains life equal to the sacrificed creature's toughness"
+    );
+}
+
+/// Fling ([CR#118.8,601.2b,601.2h]): "As an additional cost to cast this
+/// spell, sacrifice a creature. Fling deals damage equal to the sacrificed
+/// creature's power to any target."
+///
+/// The witness the `engine-bound-references` ticket named. The printed
+/// additional cost is HOISTED onto the spell's announcement, so the creature is
+/// chosen and sacrificed while Fling is being cast, and the resolving spell
+/// reads that creature as the payment's product — never through a trigger's
+/// event-object slot, and never by re-deriving an anaphor at resolution.
+#[test]
+fn fling_reads_the_sacrificed_creature_as_its_paid_product() {
+    const FLING: &str = "Fling";
+    let canon = canon();
+    let fling = Arc::new(canon.card(FLING).unwrap().core);
+    let bears = Arc::new(canon.card(BEARS).unwrap().core);
+    let mountain = Arc::new(builtin().card("Mountain").unwrap().core);
+    let forest = Arc::new(builtin().card("Forest").unwrap().core);
+    let mut deck0 = vec![Arc::clone(&fling); 4];
+    deck0.extend(vec![Arc::clone(&bears); 4]);
+    deck0.extend(vec![Arc::clone(&mountain); 6]);
+    let build = |seed: u64| {
+        GameState::new(GameConfig {
+            players: vec![
+                PlayerConfig {
+                    deck: deck0.clone(),
+                },
+                PlayerConfig {
+                    deck: vec![Arc::clone(&forest); 10],
+                },
+            ],
+            seed,
+            starting_life: 20,
+            starting_player: StartingPlayer::Fixed(PlayerId(0)),
+            sba_rules: vec![],
+            conferral_rules: vec![],
+            damage_result_rules: vec![],
+            counter_decls: std::collections::HashMap::new(),
+            subtypes: std::collections::HashMap::new(),
+            types: std::collections::HashMap::new(),
+        })
+    };
+    let mut state = (0u64..2000)
+        .map(build)
+        .find(|s| s.zones.hands[0].iter().any(|&o| is_card(s, o, FLING)))
+        .expect("a seed with Fling in P0's opening hand");
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    force_into_play(&mut state, PlayerId(0), "Mountain");
+    let bear = force_into_play(&mut state, PlayerId(0), BEARS);
+    let spell = find_in_hand(&state, PlayerId(0), FLING);
+    let power = state.layers().power(bear).expect("the bear has a power");
+    let opponent = state.player(PlayerId(1)).object;
+    let life_before = state.player(PlayerId(1)).life;
+
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    float_mana(&mut state, PlayerId(0), 2);
+    let legal = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    let cast = legal
+        .iter()
+        .find(|a| matches!(a, Action::CastSpell { object } if *object == spell))
+        .cloned()
+        .unwrap_or_else(|| panic!("Fling is castable, legal: {legal:?}"));
+    state.submit_decision(Decision::Act(cast)).unwrap();
+
+    // Announcement: target first ([CR#601.2c]), then the additional cost is
+    // paid ([CR#601.2h]) — the deterministic payer takes the only creature.
+    let mut targeted = false;
+    loop {
+        let (_, stop) = step_to_stop(&mut state);
+        match stop {
+            StepOutcome::NeedsDecision(PendingDecision::ChooseTargets(_)) => {
+                state
+                    .submit_decision(Decision::Targets(vec![vec![opponent]]))
+                    .unwrap();
+                targeted = true;
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Payment(_)) => {
+                let decision = state
+                    .auto_payment_pending()
+                    .expect("automatic payment decision");
+                state.submit_decision(decision).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::PayMana(_)) => {
+                let pay = state.auto_pay_pending();
+                state.submit_decision(Decision::Pay(pay)).unwrap();
+            }
+            StepOutcome::NeedsDecision(PendingDecision::Priority(_)) => break,
+            other => panic!("unexpected stop while casting Fling: {other:?}"),
+        }
+    }
+    assert!(targeted, "Fling announced its target");
+
+    // The additional cost was paid as part of casting: the creature is gone
+    // while the spell is still on the stack.
+    assert_eq!(state.stack.len(), 1, "Fling is on the stack");
+    assert!(
+        state.objects.get(bear).is_none(),
+        "the sacrificed creature left the battlefield during the cast ([CR#118.8a])"
+    );
+    assert_eq!(
+        state.player(PlayerId(1)).life,
+        life_before,
+        "no damage until Fling resolves ([CR#608.2])"
+    );
+
+    // Resolution reads the paid product's last-known power ([CR#608.2h]).
+    state.submit_decision(Decision::Act(Action::Pass)).unwrap();
+    let _ = run_to_priority(&mut state, PlayerId(0), PhaseStep::PrecombatMain);
+    assert!(state.stack.is_empty(), "Fling resolved");
+    assert_eq!(
+        state.player(PlayerId(1)).life,
+        life_before - power,
+        "Fling dealt damage equal to the sacrificed creature's power"
     );
 }

@@ -12,7 +12,6 @@ use deckmaste_core::Cmp;
 use deckmaste_core::Color;
 use deckmaste_core::ColorOrColorless;
 use deckmaste_core::Cost;
-use deckmaste_core::CostBinder;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
 use deckmaste_core::Destination;
@@ -370,7 +369,7 @@ fn deferred_library_iou_waits_for_the_ordinary_tier() {
     let library = prompt
         .outstanding
         .iter()
-        .find(|iou| matches!(iou.kind, IouKind::Act(_)))
+        .find(|iou| matches!(iou.kind, IouKind::Act { .. }))
         .unwrap()
         .id;
     assert_eq!(prompt.fulfillable, vec![tap]);
@@ -400,21 +399,17 @@ fn deferred_library_iou_waits_for_the_ordinary_tier() {
     dead_code,
     reason = "shared fixture retained for neighboring payment cases"
 )]
-fn choose_one_cost(filter: Predicate, actions: Vec<CoreAction>) -> CostComponent {
-    CostComponent::ChooseAndPay {
+fn choose_one_cost(filter: Predicate, actions: Vec<CoreAction>) -> Vec<CostComponent> {
+    // [CR#601.2b]: the choice is its own cost instruction, writing the
+    // register the paying verbs read.
+    let mut block = vec![CostComponent::Choose(deckmaste_core::Choose {
         dest: deckmaste_core::DefId(2),
-        binder: Arc::new(CostBinder::ChooseOne {
-            filter,
-            by: Reference::Reg(deckmaste_core::RefId(1)),
-        }),
-        body: Cost(
-            actions
-                .into_iter()
-                .map(CostComponent::do_action)
-                .collect::<Vec<_>>()
-                .into(),
-        ),
-    }
+        by: Reference::Reg(deckmaste_core::RefId(1)),
+        quantity: deckmaste_core::Quantity::one(),
+        filter: Arc::new(deckmaste_core::Region::candidate(filter)),
+    })];
+    block.extend(actions.into_iter().map(CostComponent::do_action));
+    block
 }
 
 #[test]
@@ -836,21 +831,18 @@ fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
         name: "Second library subject".into(),
         ..CardFace::default()
     }));
-    let search = CostComponent::ChooseAndPay {
+    let search = CostComponent::Search(deckmaste_core::Search {
         dest: deckmaste_core::DefId(2),
-        binder: Arc::new(CostBinder::Search {
-            quantity: deckmaste_core::Quantity::Range(
-                Some(deckmaste_core::Count::Literal(2)),
-                Some(deckmaste_core::Count::Literal(2)),
-            ),
-            filter: Predicate::Any,
-            by: Reference::Reg(deckmaste_core::RefId(1)),
-            whose: Reference::Reg(deckmaste_core::RefId(1)),
-            from: Arc::from([Zone::Library]),
-            if_none: None,
-        }),
-        body: Cost(Arc::from([])),
-    };
+        by: Reference::Reg(deckmaste_core::RefId(1)),
+        whose: Reference::Reg(deckmaste_core::RefId(1)),
+        from: Arc::from([Zone::Library]),
+        quantity: deckmaste_core::Quantity::Range(
+            Some(deckmaste_core::Count::Literal(2)),
+            Some(deckmaste_core::Count::Literal(2)),
+        ),
+        filter: Arc::new(deckmaste_core::Region::candidate(Predicate::Any)),
+        if_none: deckmaste_core::Block::default(),
+    });
     let (mut state, payer, source) =
         activation_fixture_with_extras(vec![CostComponent::Tap, search], vec![first, second]);
     let first = hand_card(&state, payer, "First library subject");
@@ -871,7 +863,7 @@ fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
     let search = prompt
         .outstanding
         .iter()
-        .find(|iou| matches!(iou.kind, IouKind::ChooseAndPay { .. }))
+        .find(|iou| matches!(iou.kind, IouKind::Search(_)))
         .expect("search IOU")
         .id;
     assert_eq!(prompt.fulfillable, vec![tap]);

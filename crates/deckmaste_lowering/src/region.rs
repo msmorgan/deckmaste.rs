@@ -2,8 +2,13 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use deckmaste_core::{DefId, Kind, Param, Provenance, RefId};
-use deckmaste_semantics::{Ident, Sort};
+use deckmaste_core::DefId;
+use deckmaste_core::Kind;
+use deckmaste_core::Param;
+use deckmaste_core::Provenance;
+use deckmaste_core::RefId;
+use deckmaste_semantics::Ident;
+use deckmaste_semantics::Sort;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RegionKind {
@@ -356,6 +361,20 @@ pub(crate) fn defending_player() -> Option<RefId> {
 pub(crate) fn x() -> Option<RefId> {
     read(|context| context.x)
 }
+/// Bind the region's event-object slot to a payment product ([CR#118.8]).
+/// Announcement regions (spell/activated/mode) declare no event roles, so the
+/// paid product is what "the sacrificed creature" names there.
+pub(crate) fn set_event_object(reference: RefId) {
+    CONTEXTS.with(|contexts| {
+        contexts
+            .borrow_mut()
+            .last_mut()
+            .expect("event-object binding outside core region")
+            .event_object
+            .get_or_insert(reference);
+    });
+}
+
 pub(crate) fn set_x(reference: RefId) {
     CONTEXTS.with(|contexts| {
         contexts
@@ -492,6 +511,30 @@ pub(crate) fn with_antecedent<T>(
     push_antecedent(reference, kind, cardinality, sort, site);
     let value = f();
     remove_antecedent(reference, site);
+    value
+}
+
+/// Run `f` with its own ANAPHORA scope: bindings it introduces are readable
+/// inside it and invisible after, while the definitions themselves stay live
+/// (unlike [`scoped_antecedents`], which also retires them).
+///
+/// A cost block is exactly this shape ([CR#601.2b]): its payment subjects are
+/// read by the verbs inside the block, and the ability body reads the paid
+/// product only through the channel the announcement declares for it — never
+/// as a bare "it" competing with the effect's own antecedents.
+pub(crate) fn scoped_anaphora<T>(f: impl FnOnce() -> T) -> T {
+    let saved = CONTEXTS.with(|contexts| {
+        let contexts = contexts.borrow();
+        let context = contexts.last().expect("scope outside core region");
+        (context.antecedents.clone(), context.named.clone())
+    });
+    let value = f();
+    CONTEXTS.with(|contexts| {
+        let mut contexts = contexts.borrow_mut();
+        let context = contexts.last_mut().expect("scope outside core region");
+        context.antecedents = saved.0;
+        context.named = saved.1;
+    });
     value
 }
 

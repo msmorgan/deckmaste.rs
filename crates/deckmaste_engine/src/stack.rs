@@ -159,20 +159,11 @@ pub struct PendingStackEntry {
     pub alternative_cost: Option<deckmaste_core::Cost>,
 }
 
-/// Cardinality of the transitional cost binder retained for Stage 3.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Cardinality {
-    /// A single bound element.
-    One,
-    /// A bound group of elements.
-    Many,
-}
-
 /// A cost payment in progress ([CR#118.10]): stamped on every
 /// [`Frame`] the payment's own drain runs against (each cost-eligible verb,
 /// each toll component), never on the frame of what comes AFTER a payment
-/// (`if_did`/`if_not`, an `AdditionalCost` body) — those name the
-/// CONSEQUENCE, not the payment. `id` is a fresh monotonic id minted once per
+/// (`if_did`/`if_not`) — those name the CONSEQUENCE, not the payment. `id` is a
+/// fresh monotonic id minted once per
 /// payment ([`crate::state::GameState::mint_payment`]) and shared by every
 /// `Frame` in that one payment's drain — the representation [CR#118.10]
 /// needs to be checkable ("a payment... applies to only one spell, ability,

@@ -52,7 +52,14 @@ fn assert_mana_then_discard_this(
     let [expected_mana] = printed.0.as_ref() else {
         panic!("printed keyword cost lowers to one mana component");
     };
-    let [actual_mana, CostComponent::Act(discard)] = actual.0.as_ref() else {
+    let [
+        actual_mana,
+        CostComponent::Act {
+            dest: None,
+            action: discard,
+        },
+    ] = actual.0.as_ref()
+    else {
         panic!("keyword cost is mana followed by discard-this; got {actual:?}");
     };
     assert_eq!(actual_mana, expected_mana, "printed mana cost is preserved");
@@ -244,8 +251,8 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
 
     let plugin = builtin();
 
-    // Convoke: one Generic tap clause + one Colored(c) tap clause per color, all
-    // `TapToPay` (never `ExileToPay`) ([CR#702.51a]).
+    // Convoke: one Generic tap clause + one Colored(c) tap clause per color,
+    // all `TapToPay` (never `ExileToPay`) ([CR#702.51a]).
     let convoke = pay_pips(&plugin, "Convoke");
     assert!(
         convoke
@@ -547,7 +554,8 @@ fn ascend_macro_expands_to_static_sba() {
 
     // Drift guard: the macro's Sba `when` must equal the canonical Ascend gate
     // ([CR#702.131a,702.131b]) — the same typed `Condition` the spell-form
-    // `ASCEND_GATE` and the engine helper use. A macro edit that diverges fails.
+    // `ASCEND_GATE` and the engine helper use. A macro edit that diverges
+    // fails.
     let canonical: deckmaste_semantics::Ability = plugin
         .macros
         .read_str(
@@ -613,12 +621,20 @@ fn cycling_confers_from_hand_discard_self_draw() {
 
     // (3) Effect = the independently expanded `Draw(1)` macro, lowered as an
     // activated-ability region so its controller reference receives the same
-    // provenance-assigned register as Cycling's body.
+    // provenance-assigned register as Cycling's body. The reference lowering
+    // carries the SAME announcement cost: a cost block's instructions define
+    // into the region ahead of the body ([CR#601.2b]), so the discard
+    // composite's product occupies a register the body's own definitions come
+    // after.
     let expected_effect: deckmaste_semantics::OneShotEffect =
         plugin.macros.read_str("Draw(1)").unwrap();
+    let expected_cost: deckmaste_semantics::Cost = plugin
+        .macros
+        .read_str("[Mana([Generic(2)]), DiscardThis]")
+        .unwrap();
     let expected = deckmaste_semantics::ActivatedAbility {
         ability_word: None,
-        cost: deckmaste_semantics::Cost([].into()),
+        cost: expected_cost,
         from: None,
         window: None,
         condition: None,
@@ -679,7 +695,8 @@ fn reinforce_confers_from_hand_discard_self_put_counters() {
         .unwrap();
     assert_mana_then_discard_this(&act.cost, printed_cost);
 
-    // (3) OneShotEffect = put N +1/+1 counters on target creature ([CR#702.77a]).
+    // (3) OneShotEffect = put N +1/+1 counters on target creature
+    // ([CR#702.77a]).
     assert_eq!(
         act.targets.len(),
         1,
@@ -785,9 +802,10 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
     );
 
     // (3) Cost = printed cost ({2}) THEN exile this card. Exile is a pure zone
-    // move now (`Move(This, Exile)`, [CR#701.13]). `Splice(Param(0))` inlines the
-    // printed cost ahead of the fixed exile-self at read time (Cycling's
-    // discard-self twin), so the cost is FLAT — no nested `Cost` wrapper.
+    // move now (`Move(This, Exile)`, [CR#701.13]). `Splice(Param(0))` inlines
+    // the printed cost ahead of the fixed exile-self at read time
+    // (Cycling's discard-self twin), so the cost is FLAT — no nested `Cost`
+    // wrapper.
     let flat_cost: deckmaste_semantics::Cost = plugin
         .macros
         .read_str("[Mana([Generic(2)]), Do(Move(This, Exile))]")
@@ -798,9 +816,9 @@ fn scavenge_confers_from_graveyard_exile_self_sorcery_counters() {
         "scavenge cost is the printed cost + exile this card, spliced flat"
     );
 
-    // (4) OneShotEffect = put +1/+1 counters equal to this card's power on target
-    // creature ([CR#702.97a]). One creature target, inner PutCounters reads
-    // `StatOf(This, Power)` for the magnitude.
+    // (4) OneShotEffect = put +1/+1 counters equal to this card's power on
+    // target creature ([CR#702.97a]). One creature target, inner
+    // PutCounters reads `StatOf(This, Power)` for the magnitude.
     assert_eq!(
         act.targets.len(),
         1,

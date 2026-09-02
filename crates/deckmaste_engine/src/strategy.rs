@@ -25,11 +25,12 @@ use crate::strategy_def::Strategy as StrategyDef;
 
 /// The evaluation frame for scoring a `candidate` option from `seat`'s
 /// perspective: the controller parameter resolves to `seat`, and the source
-/// parameter resolves to `candidate` — or, when there is no candidate (player-only
-/// sensing), to `seat`'s own player proxy. Sensing only: no targets, trigger
-/// bindings, choice, or X. The engine's `eval_count`/`condition_holds`/
-/// `eval_reference` evaluate a strategy's `Count`/`Condition`/`Reference`
-/// against this exactly as they do during effect resolution.
+/// parameter resolves to `candidate` — or, when there is no candidate
+/// (player-only sensing), to `seat`'s own player proxy. Sensing only: no
+/// targets, trigger bindings, choice, or X. The engine's
+/// `eval_count`/`condition_holds`/ `eval_reference` evaluate a strategy's
+/// `Count`/`Condition`/`Reference` against this exactly as they do during
+/// effect resolution.
 pub(crate) fn eval_frame(state: &GameState, seat: PlayerId, candidate: Option<ObjectId>) -> Frame {
     Frame::bare(candidate.unwrap_or_else(|| state.player(seat).object), seat)
 }
@@ -316,13 +317,14 @@ impl StrategyEvaluator {
             Some(_) if attackers.is_empty() => return vec![],
             Some(policy) => policy,
         };
-        // Repair the naive proposal against block legality so the strategy never
-        // submits an illegal decision ([CR#509.1b,702.111b]) — the play error a
-        // blind flyer-vs-ground round-robin would otherwise `expect`-panic in
-        // the sim. A blocker is only paired with an attacker its point-wise
-        // Cant(Block) rows permit, and an attacker whose resulting blocker set
-        // trips an arrangement bound (menace — too few blockers) is left
-        // unblocked. `validate_blocks` enforces these same rules on submission.
+        // Repair the naive proposal against block legality so the strategy
+        // never submits an illegal decision ([CR#509.1b,702.111b]) —
+        // the play error a blind flyer-vs-ground round-robin would
+        // otherwise `expect`-panic in the sim. A blocker is only paired
+        // with an attacker its point-wise Cant(Block) rows permit, and
+        // an attacker whose resulting blocker set trips an arrangement
+        // bound (menace — too few blockers) is left unblocked.
+        // `validate_blocks` enforces these same rules on submission.
         let view = state.layers();
         let rows = crate::legal::cant_block_rows(state, &view);
         let permits = |b: ObjectId, a: ObjectId| {
@@ -358,7 +360,8 @@ impl StrategyEvaluator {
                 .collect(),
         };
         // Drop any attacker whose blocker set trips an arrangement bound
-        // (menace): the AI can't legally satisfy it, so it declines to block it.
+        // (menace): the AI can't legally satisfy it, so it declines to block
+        // it.
         let mut by_attacker: std::collections::HashMap<ObjectId, Vec<ObjectId>> =
             std::collections::HashMap::new();
         for &(b, a) in &pairs {
@@ -751,7 +754,8 @@ mod tests {
             2,
         );
 
-        // A `Condition` comparing the candidate's power against a literal: 2 >= 2.
+        // A `Condition` comparing the candidate's power against a literal: 2 >=
+        // 2.
         let cond = Condition::Compare(
             Count::StatOf(Reference::Reg(deckmaste_core::RefId(0)), Stat::Power),
             Cmp::AtLeast,
@@ -955,6 +959,7 @@ mod tests {
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                cost: deckmaste_core::Cost::default(),
                 targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
@@ -968,12 +973,12 @@ mod tests {
                         Mode {
                             targets: vec![impossible_target].into(),
                             effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                            cost: None,
+                            cost: deckmaste_core::Cost::default(),
                         },
                         Mode {
                             targets: [].into(),
                             effect: OneShotEffect::Sequentially(Arc::from([])).into(),
-                            cost: None,
+                            cost: deckmaste_core::Cost::default(),
                         },
                     ]
                     .into(),

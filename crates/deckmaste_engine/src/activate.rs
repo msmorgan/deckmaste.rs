@@ -94,17 +94,17 @@ pub(crate) struct CostSummary {
     /// frame; the payment protocol exposes every legal complete subset and the
     /// runner alone applies a preference among them.
     pub tap_totals: Vec<TapTotalReq>,
-    /// Cost-side choose-then-pay steps ([CR#601.2b], `CostComponent::With`):
-    /// "sacrifice a creature" = `With(ChooseOne(Creature),
-    /// [Do(Sacrifice(That(Permanent)))])`. The binder makes a choice (bound as
-    /// `That`/`Those`) the body's verbs pay against — choosing kept OUT of
-    /// the verb. Collected verbatim because the choice can only be surfaced
-    /// against a live frame: the gate ([`GameState::can_activate`]) checks
-    /// the binder's choose-feasibility, and the pay step
-    /// ([`GameState::pay_cost`]) runs each as an `OneShotEffect::With`
-    /// (which surfaces `ChooseObjects` and binds `frame.those`, exactly like
-    /// the effect-side `With`).
-    pub withs: Vec<CostComponent>,
+    /// The cost block's INSTRUCTIONS in announcement order
+    /// ([CR#601.2b,601.2h]): every payment-time decision and every paying
+    /// action, kept as one ordered run because a decision writes the
+    /// register the action after it pays through. "Sacrifice a creature" is
+    /// `[Choose(dest: 2, Creature), Act(Sacrifice(Reg(1), Reg(2)))]`.
+    /// Collected verbatim because a decision can only be surfaced against a
+    /// live frame: the gate ([`GameState::can_activate`]) checks each
+    /// decision's feasibility and the pay step ([`GameState::pay_cost`]) runs
+    /// the whole run against the ANNOUNCE activation, so the paid product is
+    /// a register the ability body reads.
+    pub steps: Vec<CostComponent>,
 }
 
 /// One aggregate-stat (tap-total) cost obligation collected by [`cost_summary`]
@@ -133,7 +133,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
     let mut verbs: Vec<Action> = Vec::new();
     let mut mana_cost_of: Vec<Reference> = Vec::new();
     let mut tap_totals: Vec<TapTotalReq> = Vec::new();
-    let mut withs: Vec<CostComponent> = Vec::new();
+    let mut steps: Vec<CostComponent> = Vec::new();
     for component in cost {
         match component {
             CostComponent::Mana(m) => symbols.extend_from_slice(m),
@@ -157,13 +157,17 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 count: count.clone(),
                 filter: (**filter).clone(),
             }),
-            CostComponent::Act(action) => verbs.push(action.as_action().clone()),
-            // A cost-side choose-then-pay step ([CR#601.2b]) — bind the choice
-            // as `That`/`Those`, then pay the body. Collected verbatim: the
-            // choice can only be surfaced against a live frame, so the gate
-            // checks the binder's choose-feasibility and the pay step runs each
-            // as an `OneShotEffect::With` (mirroring `ManaCostOf`/`TapTotal`).
-            CostComponent::ChooseAndPay { .. } => withs.push(component.clone()),
+            CostComponent::Act { action, .. } => {
+                verbs.push(action.as_action().clone());
+                steps.push(component.clone());
+            }
+            // A payment-time decision ([CR#601.2b]) — collected verbatim in
+            // place, because the action after it pays through the register it
+            // writes. Feasibility is decided against a live frame at the gate;
+            // the pay step runs the whole ordered block.
+            CostComponent::Choose(_) | CostComponent::Search(_) | CostComponent::Let(_) => {
+                steps.push(component.clone());
+            }
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
@@ -178,7 +182,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
                 verbs.extend(inner.verbs);
                 mana_cost_of.extend(inner.mana_cost_of);
                 tap_totals.extend(inner.tap_totals);
-                withs.extend(inner.withs);
+                steps.extend(inner.steps);
             }
         }
     }
@@ -189,7 +193,7 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
         verbs,
         mana_cost_of,
         tap_totals,
-        withs,
+        steps,
     })
 }
 
@@ -418,59 +422,44 @@ impl GameState {
     /// Not(Ref(This))])`, which needs a carrier to exclude `source` itself —
     /// engine-frameless-carrier-threading.
     #[cfg(test)]
-    fn with_cost_feasible(
+    fn cost_step_feasible(
         &self,
-        with: &CostComponent,
+        step: &CostComponent,
         source: ObjectId,
         controller: PlayerId,
     ) -> bool {
-        use deckmaste_core::CostBinder;
-        let CostComponent::ChooseAndPay { binder, .. } = with else {
-            unreachable!("cost_summary collects only ChooseAndPay components into `withs`");
-        };
         let watcher = Some(self.objects.obj(source).source);
-        match &**binder {
-            // A captured reference / existing selection resolves directly —
-            // always payable. A search binder ([CR#701.23b..701.23d]) joins them
-            // here for an unrelated reason: unlike `Choose`, a search's
-            // fail-to-find is never a partial-payment problem — even the
-            // compulsory bare-quantity case explicitly settles for "as many
-            // as exist" ([CR#701.23d]) rather than failing outright, and a
-            // stated-quality search never compels a find at all
-            // ([CR#701.23b]). Searching a zone — even an empty one — is
-            // always a legal outcome, so a search-binder cost is always
-            // payable too.
-            CostBinder::TheRef(_)
-            | CostBinder::Existing(_)
-            | CostBinder::Search { .. }
-            | CostBinder::SearchOne { .. } => true,
-            // ≥ 1 candidate to choose ([CR#601.2b]).
-            CostBinder::ChooseOne { filter, .. } => {
-                !crate::target::candidates_with(self, filter, watcher).is_empty()
-            }
-            // ≥ the quantity's lower bound of candidates (no partial payment).
-            CostBinder::Choose {
-                quantity, filter, ..
-            } => {
-                let candidates = crate::target::candidates_with(self, filter, watcher);
+        match step {
+            // >= 1 candidate to choose, and >= the quantity's lower bound
+            // when several are demanded (no partial payment, [CR#601.2b]).
+            CostComponent::Choose(choice) => {
+                let candidates = crate::target::candidates_region_with_activation(
+                    self,
+                    &choice.filter,
+                    watcher,
+                    crate::ActivationId::NONE,
+                );
                 let frame = Frame::bare(source, controller);
-                let (lo, _hi) = quantity.bounds();
+                let (lo, _hi) = choice.quantity.bounds();
                 let need = lo.map_or(0, |c| self.eval_count(c, &frame));
                 Uint::try_from(candidates.len()).unwrap_or(Uint::MAX) >= need
             }
-            // SEAM: producer cost binder. [CR#400.7j] is explicit that a COST
-            // may move an object to a public zone for the spell's effects to
-            // find, so this is a real hole, not a guard. No corpus card uses
-            // one in a cost; an explicit labeled arm keeps a future use a loud
-            // seam rather than a silent `true`/`false`.
-            CostBinder::Produce(_) => unimplemented!(
-                "engine seam: Produce as a cost binder ([CR#601.2h,400.7j]) — no runtime \
-                 produce-and-capture primitive, so payability can't be decided; \
-                 owner: engine-produce-capture-binder"
-            ),
-            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-            // loaded value reaches here wrapped. The arm survives only because
-            // the variant does; `core-demacro` deletes both.
+            // A search ([CR#701.23b..701.23d]) is ALWAYS payable, unlike a
+            // choice: even the compulsory bare-quantity case explicitly
+            // settles for "as many as exist" ([CR#701.23d]) rather than
+            // failing outright, and a stated-quality search never compels a
+            // find at all ([CR#701.23b]). Searching a zone — even an empty
+            // one — is a legal outcome. A `Let` pins an existing read and a
+            // paying `Act` is gated by `can_pay_verbs`, not here.
+            CostComponent::Search(_)
+            | CostComponent::Let(_)
+            | CostComponent::Act { .. }
+            | CostComponent::Mana(_)
+            | CostComponent::ManaCostOf(_)
+            | CostComponent::Tap
+            | CostComponent::Untap
+            | CostComponent::Cost(_)
+            | CostComponent::TapTotal { .. } => true,
         }
     }
 
@@ -536,10 +525,11 @@ impl GameState {
         let mut frame = Frame::bare(subject, player);
         self.frame_set_x(&mut frame, Some(0));
         // TODO(engine-cost-payment / deontics): [CR#119.8] "can't pay life" is
-        // NOT YET ENFORCED. Under a continuous effect saying a player can't lose
-        // life, a cost that involves having that player pay life can't be paid —
-        // so a `Do(LoseLife(..))` cost (and a Phyrexian-life reading, which
-        // concretizes to `Do(LoseLife(2))`) should be UNPAYABLE for that player
+        // NOT YET ENFORCED. Under a continuous effect saying a player can't
+        // lose life, a cost that involves having that player pay life
+        // can't be paid — so a `Do(LoseLife(..))` cost (and a
+        // Phyrexian-life reading, which concretizes to
+        // `Do(LoseLife(2))`) should be UNPAYABLE for that player
         // while the mana reading stays available. The deontic layer has no
         // pay-life / lose-life `DeonticAction` variant today (it models only
         // attack/block/target/attach/cast/play/activate), so there is nothing
@@ -902,9 +892,9 @@ mod tests {
         assert!(
             cycling.cost.iter().any(|component| matches!(
                 component,
-                CostComponent::Act(action)
+                CostComponent::Act { action, .. }
                     if matches!(
-                        action.as_ref(),
+                        action.as_action(),
                         Action::Composite { name, body }
                             if name.as_str() == "Discard"
                                 && matches!(
@@ -921,11 +911,11 @@ mod tests {
             "lowering binds the runnable discard action's subject to This"
         );
         assert!(
-            cycling
-                .cost
-                .iter()
-                .all(|component| !matches!(component, CostComponent::ChooseAndPay { .. })),
-            "no semantic expansion or unresolved action-selection wrapper reaches runnable costs"
+            cycling.cost.iter().all(|component| !matches!(
+                component,
+                CostComponent::Choose(_) | CostComponent::Search(_)
+            )),
+            "cycling's bound discard needs no payment-time decision ([CR#702.29a])"
         );
     }
 
@@ -989,12 +979,13 @@ mod tests {
 
     fn make_object_on_battlefield(state: &mut GameState, player: PlayerId) -> ObjectId {
         // A minimal Card-backed permanent (empty types ⇒ no confers, so this
-        // stays a neutral fixture for the activation gate). Being Card-backed is
-        // what a real battlefield object always is: `base_map` builds a
-        // `LayeredView` entry only for objects with a `card_id`, skipping
-        // card-less player proxies — which never sit on the battlefield in real
-        // play. A prior `ObjectSource::Player` synthetic was absent from the
-        // view, so the battlefield-wide `Cant(Activate)` collector's `view.get`
+        // stays a neutral fixture for the activation gate). Being Card-backed
+        // is what a real battlefield object always is: `base_map`
+        // builds a `LayeredView` entry only for objects with a
+        // `card_id`, skipping card-less player proxies — which never
+        // sit on the battlefield in real play. A prior
+        // `ObjectSource::Player` synthetic was absent from the view, so
+        // the battlefield-wide `Cant(Activate)` collector's `view.get`
         // could not resolve it.
         let card = Arc::new(deckmaste_card::Card::Normal(deckmaste_card::CardFace {
             name: "Gate Fixture".into(),
@@ -1087,8 +1078,8 @@ mod tests {
             !state.can_activate(&view, player, obj, 0, &ability),
             "OncePerTurn should block after one activation"
         );
-        // Confirm the gate passes after advancing to a new turn (ThisTurn window
-        // excludes prior-turn entries).
+        // Confirm the gate passes after advancing to a new turn (ThisTurn
+        // window excludes prior-turn entries).
         state.turn.turn_number += 1;
         let view = state.layers();
         assert!(
@@ -1114,7 +1105,8 @@ mod tests {
                 ability: 0,
             }),
         );
-        // Advance to a new turn — the ThisGame window still sees the prior entry.
+        // Advance to a new turn — the ThisGame window still sees the prior
+        // entry.
         state.turn.turn_number += 1;
 
         let ability = ActivatedAbility {
@@ -1454,18 +1446,15 @@ mod tests {
         );
     }
 
-    /// [CR#601.2h]: a `ChooseOne` cost filter carrying `Not(Ref(This))`
+    /// [CR#601.2h]: a payment-time choice filtered by `Not(Ref(This))`
     /// ("sacrifice another creature") must exclude the ability's own source
     /// from its candidates — an unpayable cost can't be paid, and without the
     /// exclusion the source would wrongly count as its own "another" —
     /// engine-frameless-carrier-threading. Without a threaded carrier,
-    /// `Ref(This)` panics in the frameless matcher; `with_cost_feasible` must
+    /// `Ref(This)` panics in the frameless matcher; `cost_step_feasible` must
     /// supply the source as watcher.
     #[test]
-    fn choose_one_cost_filter_excludes_source_via_not_ref_this() {
-        use deckmaste_core::Cost;
-        use deckmaste_core::CostBinder;
-
+    fn choose_cost_filter_excludes_source_via_not_ref_this() {
         let mut state = game();
         let player = PlayerId(0);
         let card_id = state.cards.push(creature_card(2, 2), player);
@@ -1475,25 +1464,46 @@ mod tests {
                 .mint(ObjectSource::Card(card_id), player, Some(Zone::Battlefield));
         state.zones.battlefield.push(source);
 
-        let filter = Predicate::And(Arc::from(vec![
-            Predicate::creature(),
-            Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
-                deckmaste_core::RefId(0),
-            )))),
-        ]));
-        let with = CostComponent::ChooseAndPay {
+        // A predicate region: register 0 is the CANDIDATE under test, and the
+        // enclosing source/controller follow as captured parameters — the
+        // shape `deckmaste_lowering::region::candidate_region` builds. "Another
+        // creature" is therefore `Not(Ref(Reg(1)))`, the source.
+        let filter = deckmaste_core::Region::new(
+            Arc::from([
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(0),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Candidate,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(1),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Source,
+                },
+                deckmaste_core::Param {
+                    def: deckmaste_core::DefId(2),
+                    kind: deckmaste_core::Kind::Object,
+                    provenance: deckmaste_core::Provenance::Controller,
+                },
+            ]),
+            Predicate::And(Arc::from(vec![
+                Predicate::creature(),
+                Predicate::Not(Arc::new(Predicate::Ref(Reference::Reg(
+                    deckmaste_core::RefId(1),
+                )))),
+            ])),
+        );
+        let choose = CostComponent::Choose(deckmaste_core::Choose {
             dest: deckmaste_core::DefId(2),
-            binder: Arc::new(CostBinder::ChooseOne {
-                filter,
-                by: Reference::Reg(deckmaste_core::RefId(1)),
-            }),
-            body: Cost(Arc::from(vec![])),
-        };
+            by: Reference::Reg(deckmaste_core::RefId(1)),
+            quantity: deckmaste_core::Quantity::one(),
+            filter: Arc::new(filter),
+        });
 
         // Only the source itself is a creature: "sacrifice another creature"
         // has no legal candidate — unpayable.
         assert!(
-            !state.with_cost_feasible(&with, source, player),
+            !state.cost_step_feasible(&choose, source, player),
             "Not(Ref(This)) excludes the source; no OTHER creature exists to sacrifice"
         );
 
@@ -1506,20 +1516,18 @@ mod tests {
         );
         state.zones.battlefield.push(other);
         assert!(
-            state.with_cost_feasible(&with, source, player),
+            state.cost_step_feasible(&choose, source, player),
             "a second creature satisfies 'sacrifice another creature'"
         );
     }
 
-    /// [CR#701.23b..701.23d]: a search-binder cost is always payable — even the
-    /// compulsory bare-quantity case settles for "as many as exist"
-    /// ([CR#701.23d]) rather than failing outright, unlike `Choose`'s
+    /// [CR#701.23b..701.23d]: a search cost instruction is always payable —
+    /// even the compulsory bare-quantity case settles for "as many as exist"
+    /// ([CR#701.23d]) rather than failing outright, unlike a choice's
     /// no-partial-payment rule. An EMPTY library (the hardest case) still
     /// doesn't block payment.
     #[test]
-    fn search_cost_binder_is_always_payable_even_over_an_empty_library() {
-        use deckmaste_core::Cost;
-        use deckmaste_core::CostBinder;
+    fn search_cost_step_is_always_payable_even_over_an_empty_library() {
         use deckmaste_core::ObjectKind;
         use deckmaste_core::Quantity;
 
@@ -1527,38 +1535,31 @@ mod tests {
         let player = PlayerId(0);
         let source = make_object_on_battlefield(&mut state, player);
 
-        let search_one = CostComponent::ChooseAndPay {
-            dest: deckmaste_core::DefId(2),
-            binder: Arc::new(CostBinder::SearchOne {
-                filter: Predicate::Kind(ObjectKind::Card),
+        // Both cardinalities the retired binder pair spelled: exactly one
+        // (`SearchOne`) and a stated quantity (`Search`).
+        for quantity in [
+            Quantity::one(),
+            Quantity::Range(
+                Some(deckmaste_core::Count::Literal(2)),
+                Some(deckmaste_core::Count::Literal(2)),
+            ),
+        ] {
+            let search = CostComponent::Search(deckmaste_core::Search {
+                dest: deckmaste_core::DefId(2),
                 by: Reference::Reg(deckmaste_core::RefId(1)),
                 whose: Reference::Reg(deckmaste_core::RefId(1)),
                 from: vec![Zone::Library].into(),
-                if_none: None,
-            }),
-            body: Cost(Arc::from(vec![])),
-        };
-        assert!(
-            state.with_cost_feasible(&search_one, source, player),
-            "SearchOne over an empty library is still payable"
-        );
-
-        let search = CostComponent::ChooseAndPay {
-            dest: deckmaste_core::DefId(2),
-            binder: Arc::new(CostBinder::Search {
-                quantity: Quantity::one(),
-                filter: Predicate::Kind(ObjectKind::Card),
-                by: Reference::Reg(deckmaste_core::RefId(1)),
-                whose: Reference::Reg(deckmaste_core::RefId(1)),
-                from: vec![Zone::Library].into(),
-                if_none: None,
-            }),
-            body: Cost(Arc::from(vec![])),
-        };
-        assert!(
-            state.with_cost_feasible(&search, source, player),
-            "Search over an empty library is still payable"
-        );
+                quantity: quantity.clone(),
+                filter: Arc::new(deckmaste_core::Region::candidate(Predicate::Kind(
+                    ObjectKind::Card,
+                ))),
+                if_none: deckmaste_core::Block::default(),
+            });
+            assert!(
+                state.cost_step_feasible(&search, source, player),
+                "a search over an empty library is still payable ({quantity:?})"
+            );
+        }
     }
 
     /// A `This` self-sacrifice always has its one object — payable.

@@ -1978,9 +1978,9 @@ mod tests {
             assert!(
                 activated.cost.iter().any(|component| matches!(
                     component,
-                    deckmaste_core::CostComponent::Act(action)
+                    deckmaste_core::CostComponent::Act { action, .. }
                         if matches!(
-                            action.as_ref(),
+                            action.as_action(),
                             Action::Move(
                                 Reference::Reg(deckmaste_core::RefId(0)),
                                 deckmaste_core::Destination::Zone(Zone::Exile),
@@ -1994,9 +1994,10 @@ mod tests {
             assert!(
                 activated.cost.iter().all(|component| !matches!(
                     component,
-                    deckmaste_core::CostComponent::ChooseAndPay { .. }
+                    deckmaste_core::CostComponent::Choose(_)
+                        | deckmaste_core::CostComponent::Search(_)
                 )),
-                "no semantic expansion or unresolved action-selection wrapper reaches runnable costs"
+                "the bound exile cost needs no payment-time decision ([CR#601.2b])"
             );
         }
         abilities
@@ -2156,7 +2157,8 @@ mod tests {
         use crate::decide::PendingDecision;
 
         let (mut state, src) = bear_on_field();
-        // Mint the creature token to be populated (a 2/2 Bear token you control).
+        // Mint the creature token to be populated (a 2/2 Bear token you
+        // control).
         state.run_effect(
             OneShotEffect::Act(Action::Create {
                 agent: Reference::Reg(deckmaste_core::RefId(1)),
@@ -2268,9 +2270,9 @@ mod tests {
         use crate::decide::Decision;
 
         let (mut state, src) = bear_on_field();
-        // An Army creature you (player 0) control — the amass target. A 2/2 base
-        // so the pre-growth object never risks an SBA before the counters land;
-        // the amass grows it to 4/4.
+        // An Army creature you (player 0) control — the amass target. A 2/2
+        // base so the pre-growth object never risks an SBA before the
+        // counters land; the amass grows it to 4/4.
         let army = mint_on_field(
             &mut state,
             Card::Normal(CardFace {

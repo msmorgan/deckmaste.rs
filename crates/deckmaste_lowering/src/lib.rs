@@ -119,7 +119,6 @@ mod minimal;
 
 mod ability;
 mod action;
-mod binder;
 mod card;
 mod color;
 mod condition;

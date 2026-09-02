@@ -133,8 +133,9 @@ fn builtin_cards_are_valid() {
     }
     assert!(validation.failures.is_empty());
     assert!(validation.lint_failures.is_empty());
-    // The handwritten builtin cards: 5 basics + 3 tokens at the time of writing.
-    // Floor, not exact, so adding cards or tokens doesn't break the test.
+    // The handwritten builtin cards: 5 basics + 3 tokens at the time of
+    // writing. Floor, not exact, so adding cards or tokens doesn't break
+    // the test.
     assert!(
         validation.valid >= 8,
         "only {} items checked",
@@ -615,9 +616,9 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
     assert!(
         components.iter().any(|c| matches!(
             c,
-            CostComponent::Act(action)
+            CostComponent::Act { action, .. }
                 if matches!(
-                    action.as_ref(),
+                    action.as_action(),
                     deckmaste_core::Action::PutCounters(
                         deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                         counter,
@@ -646,9 +647,9 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
     assert!(
         components.iter().any(|c| matches!(
             c,
-            CostComponent::Act(action)
+            CostComponent::Act { action, .. }
                 if matches!(
-                    action.as_ref(),
+                    action.as_action(),
                     deckmaste_core::Action::RemoveCounters(
                         deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
                         counter,

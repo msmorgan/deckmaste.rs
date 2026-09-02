@@ -11,7 +11,6 @@ pub use coverage::ManaPayment;
 use deckmaste_core::Action;
 use deckmaste_core::Cmp;
 use deckmaste_core::Cost;
-use deckmaste_core::CostBinder;
 use deckmaste_core::CostComponent;
 use deckmaste_core::LifeOp;
 use deckmaste_core::ManaCost;
@@ -21,7 +20,6 @@ use deckmaste_core::PipClass;
 use deckmaste_core::Predicate;
 use deckmaste_core::Reference;
 use deckmaste_core::RunnableCostAction;
-use deckmaste_core::Selection;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Stat;
 use deckmaste_core::Uint;
@@ -481,12 +479,11 @@ pub(crate) fn automatic_activation_cost_usable(
     {
         return false;
     }
-    if summary.withs.iter().any(|component| {
-        let CostComponent::ChooseAndPay { binder, .. } = component else {
-            unreachable!("cost_summary collects only ChooseAndPay components")
-        };
-        automatic_binder_witness(state, binder, &frame).is_none()
-    }) {
+    if summary
+        .steps
+        .iter()
+        .any(|step| !automatic_step_is_satisfiable(state, step, &frame))
+    {
         return false;
     }
     summary.tap_totals.iter().all(|requirement| {
@@ -503,68 +500,57 @@ pub(crate) fn automatic_activation_cost_usable(
     })
 }
 
-fn automatic_binder_witness(
+/// Whether the automatic payer can satisfy one cost instruction against
+/// `frame` ([CR#601.2b]) — the gate half of [`automatic_step_witness`].
+fn automatic_step_is_satisfiable(state: &GameState, step: &CostComponent, frame: &Frame) -> bool {
+    !matches!(step, CostComponent::Choose(_))
+        || automatic_step_witness(state, step, frame).is_some()
+}
+
+/// The witness the automatic payer offers for one cost instruction
+/// ([CR#601.2b,601.2h]). A choice needs a concrete legal object set; a search
+/// takes whatever the searched zones hold ([CR#701.23d]); everything else is
+/// already bound.
+fn automatic_step_witness(
     state: &GameState,
-    binder: &CostBinder,
+    step: &CostComponent,
     frame: &Frame,
 ) -> Option<FulfillmentWitness> {
     let watcher = Some(state.frame_watcher(frame));
-    match binder {
-        CostBinder::Existing(Selection::Random(quantity, filter)) => {
-            let candidates = crate::target::candidates_with(state, filter, watcher);
-            let (lo, _) = quantity.bounds();
-            let count = lo.map_or(0, |count| state.eval_count(count, frame));
-            let count = usize::try_from(count).ok()?;
-            (candidates.len() >= count).then_some(FulfillmentWitness::Bound)
-        }
-        CostBinder::TheRef(_) | CostBinder::Existing(_) | CostBinder::Produce(_) => {
-            Some(FulfillmentWitness::Bound)
-        }
-        CostBinder::ChooseOne { filter, .. } => {
-            crate::target::candidates_with(state, filter, watcher)
-                .into_iter()
-                .next()
-                .map(|object| FulfillmentWitness::Objects(vec![object]))
-        }
-        CostBinder::Choose {
-            quantity, filter, ..
-        } => {
-            let mut candidates = crate::target::candidates_with(state, filter, watcher);
-            let (lo, _) = quantity.bounds();
+    match step {
+        CostComponent::Choose(choice) => {
+            let mut candidates = crate::target::candidates_region_with_activation(
+                state,
+                &choice.filter,
+                watcher,
+                frame.activation,
+            );
+            let (lo, _) = choice.quantity.bounds();
             let count = lo.map_or(0, |count| state.eval_count(count, frame));
             let count = usize::try_from(count).ok()?;
             (candidates.len() >= count).then(|| {
-                candidates.truncate(count);
+                candidates.truncate(count.max(1).min(candidates.len()));
                 FulfillmentWitness::Objects(candidates)
             })
         }
-        CostBinder::SearchOne {
-            filter,
-            whose,
-            from,
-            ..
-        } => {
-            let mut candidates = automatic_search_candidates(state, whose, from, filter, frame);
-            candidates.truncate(1);
-            Some(FulfillmentWitness::Objects(candidates))
-        }
-        CostBinder::Search {
-            quantity,
-            filter,
-            whose,
-            from,
-            ..
-        } => {
-            let mut candidates = automatic_search_candidates(state, whose, from, filter, frame);
-            let (_, hi) = quantity.bounds();
+        CostComponent::Search(search) => {
+            let mut candidates = automatic_search_candidates(
+                state,
+                &search.whose,
+                &search.from,
+                &search.filter.body,
+                frame,
+            );
+            let (_, hi) = search.quantity.bounds();
             let count = hi
-                .map(|count| state.eval_count(count, frame))
-                .and_then(|count| usize::try_from(count).ok())
-                .unwrap_or(candidates.len())
+                .map_or(candidates.len(), |count| {
+                    usize::try_from(state.eval_count(count, frame)).unwrap_or(candidates.len())
+                })
                 .min(candidates.len());
             candidates.truncate(count);
             Some(FulfillmentWitness::Objects(candidates))
         }
+        _ => Some(FulfillmentWitness::Bound),
     }
 }
 
@@ -862,15 +848,22 @@ impl GameState {
                 let witness = match &iou.kind {
                     IouKind::ManaPip(_) => FulfillmentWitness::CoveredMana,
                     IouKind::PayLife(_) => FulfillmentWitness::PayLife,
-                    IouKind::Tap | IouKind::Untap | IouKind::Act(_) => FulfillmentWitness::Bound,
-                    IouKind::ChooseAndPay { binder, .. } => {
+                    IouKind::Tap | IouKind::Untap | IouKind::Act { .. } | IouKind::Let(_) => {
+                        FulfillmentWitness::Bound
+                    }
+                    IouKind::Choose(_) | IouKind::Search(_) => {
                         let frame = self
                             .payment
                             .as_ref()
                             .and_then(|controller| controller.frames.last())
                             .expect("a Payment prompt has an active frame");
+                        let step = match &iou.kind {
+                            IouKind::Choose(choice) => CostComponent::Choose(choice.clone()),
+                            IouKind::Search(search) => CostComponent::Search(search.clone()),
+                            _ => unreachable!("the match arm selected a decision IOU"),
+                        };
                         let Some(witness) =
-                            automatic_binder_witness(self, binder, &frame.locked.frame)
+                            automatic_step_witness(self, &step, &frame.locked.frame)
                         else {
                             return Some(crate::decide::Decision::Payment(
                                 PaymentCommand::DeclinePayment,
@@ -2354,7 +2347,7 @@ impl LockBuilder<'_> {
                 }
                 CostComponent::Tap => self.push(IouKind::Tap, Vec::new()),
                 CostComponent::Untap => self.push(IouKind::Untap, Vec::new()),
-                CostComponent::Act(action) => self.lock_action(action),
+                CostComponent::Act { dest, action } => self.lock_action(*dest, action),
                 CostComponent::Cost(inner) => self.lock_components(inner)?,
                 CostComponent::TapTotal {
                     stat,
@@ -2373,27 +2366,31 @@ impl LockBuilder<'_> {
                         Vec::new(),
                     );
                 }
-                CostComponent::ChooseAndPay { dest, binder, body } => self.push(
-                    IouKind::ChooseAndPay {
-                        dest: *dest,
-                        binder: Arc::clone(binder),
-                        body: body.clone(),
-                    },
-                    Vec::new(),
-                ),
+                CostComponent::Choose(choice) => {
+                    self.push(IouKind::Choose(choice.clone()), Vec::new());
+                }
+                CostComponent::Search(search) => {
+                    self.push(IouKind::Search(search.clone()), Vec::new());
+                }
+                CostComponent::Let(binding) => {
+                    self.push(IouKind::Let(binding.clone()), Vec::new());
+                }
             }
         }
         Ok(())
     }
 
-    fn lock_action(&mut self, action: &RunnableCostAction) {
+    fn lock_action(&mut self, dest: Option<deckmaste_core::DefId>, action: &RunnableCostAction) {
         let kind = match action.as_action() {
             Action::ChangeLife(reference, LifeOp::Down(count))
-                if reference == &Reference::controller_parameter() =>
+                if dest.is_none() && reference == &Reference::controller_parameter() =>
             {
                 IouKind::PayLife(self.state.eval_count(count, self.frame))
             }
-            _ => IouKind::Act(action.clone()),
+            _ => IouKind::Act {
+                dest,
+                action: action.clone(),
+            },
         };
         self.push(kind, Vec::new());
     }
