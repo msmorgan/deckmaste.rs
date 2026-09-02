@@ -91,3 +91,10 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   and the SELF-DESCRIBING description ("each player who searched their
   library this way", 9 carriers — `CompareOver`'s split shape at the
   predicate layer). Counts and probes in the done ticket.
+
+- **Routed from secret-votes (close, 2026-09-02):** the `Choose` BINDER gap —
+  `Choose` types noun and agent at the OUTER context, so "each player
+  secretly chooses a creature THEY control" is unwritable (Call to the Void,
+  Malik; a structural gap, not the protocol's); and the cross-kind
+  you-or-description join ("if it targets you or a permanent you control" —
+  Emissary of Grudges; no joined head takes "you").
