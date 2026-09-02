@@ -55,17 +55,10 @@ fn sole_innate_ability(subtype: &Subtype) -> Ability {
     a.peel_innate().clone()
 }
 
-/// Every Static effect (peel `Expanded`) of an ability, or empty.
+/// Every static effect directly carried by a lowered ability, or empty.
 fn static_effects(a: &Ability) -> Vec<StaticEffect> {
-    fn peel(e: &StaticEffect) -> StaticEffect {
-        match e {
-            StaticEffect::Expanded(x) => peel(&x.value),
-            other => other.clone(),
-        }
-    }
     match a {
-        Ability::Static(s) => vec![peel(s)],
-        Ability::Expanded(e) => static_effects(&e.value),
+        Ability::Static(s) => vec![s.as_ref().clone()],
         _ => vec![],
     }
 }

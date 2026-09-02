@@ -31,9 +31,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Ability;
-use crate::Expansion;
 use crate::Ident;
-use crate::SupportsMacros;
 
 /// A keyword name at a REFERENCE position ("has flying", `Has(Flying)`):
 /// spelled as a bare identifier, like `kinds: [Subtype]` and param-type
@@ -62,13 +60,6 @@ impl From<&str> for KeywordRef {
     }
 }
 
-impl crate::Expand for KeywordRef {
-    // A leaf: a name, never an expandable value.
-    fn expand_all(self) -> Self {
-        self
-    }
-}
-
 impl serde::Serialize for KeywordRef {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         // A unit variant writes as a bare identifier in RON.
@@ -93,7 +84,7 @@ impl<'de> serde::Deserialize<'de> for KeywordRef {
                 data: A,
             ) -> Result<Self::Value, A::Error> {
                 use serde::de::VariantAccess;
-                let (ident, variant) = data.variant_seed(macro_ron::IdentSeed)?;
+                let (ident, variant) = data.variant_seed(crate::IdentSeed)?;
                 variant.unit_variant()?;
                 Ok(KeywordRef(ident))
             }
@@ -144,7 +135,7 @@ pub struct KeywordDecl {
 /// [`Display`] / [`FromStr`] expose that mapping for the future
 /// `Modification::LoseAbility(Ident)` / `Has(KeywordRef)` paths
 /// ([CR#613.1f]), which name abilities by string.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum KeywordAbility {
     /// [CR#702.7].
     FirstStrike,
@@ -158,9 +149,9 @@ pub enum KeywordAbility {
     Vigilance,
     /// A keyword COMPOSED of other abilities ([CR#702]), as opposed to the
     /// intrinsic variants above that the engine implements natively: its
-    /// printed name plus the abilities it stands for, carried IN the
-    /// grammar — so the name survives `expand_all` (provenance wrappers do
-    /// not) and the `LoseAbility`/`CantHaveAbility`/`Has` name paths
+    /// printed name plus the abilities it stands for, carried in the core
+    /// value produced by semantic lowering, so the
+    /// `LoseAbility`/`CantHaveAbility`/`Has` name paths
     /// match it through [`as_str`](Self::as_str) like any intrinsic.
     /// Produced by keyword macros (`Ward([...])`, `Islandwalk`, …) — RON:
     /// `Keyword(Composite(name: "Ward", abilities: [...]))`. The engine
@@ -170,12 +161,6 @@ pub enum KeywordAbility {
         name: Ident,
         abilities: Vec<Ability>,
     },
-    /// A remembered `KeywordAbility` macro invocation — the non-intrinsic
-    /// keywords, invoked INSIDE the wrapper so card definitions always call
-    /// out keyword-ness explicitly: `Keyword(Flying)`, `Keyword(Ward([…]))`.
-    /// Serialized as the invocation, not the struct.
-    #[macro_ron(expanded)]
-    Expanded(Expansion<KeywordAbility>),
 }
 
 impl KeywordAbility {
@@ -204,9 +189,6 @@ impl KeywordAbility {
             // `Ident` interns to a 'static str, so composite keywords keep
             // the same lifetime story as the intrinsics.
             KeywordAbility::Composite { name, .. } => name.as_str(),
-            // An unexpanded invocation answers with its expansion's name, so
-            // the name bridge holds whether or not `expand_all` has run.
-            KeywordAbility::Expanded(e) => e.value.as_str(),
         }
     }
 }
@@ -237,7 +219,6 @@ impl FromStr for KeywordAbility {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Expand;
 
     /// `as_str`/`from_str` round-trip and pin the printed (RON) spelling of
     /// every variant — the variant identifier, no spaces.
@@ -309,14 +290,5 @@ mod tests {
         assert_eq!(written, r#"Composite(name:"Ward",abilities:[])"#);
         let read: KeywordAbility = crate::ron::options().from_str(&written).unwrap();
         assert_eq!(read, ward());
-    }
-
-    /// THE point of the in-grammar name: `expand_all` strips `Expanded`
-    /// provenance wrappers inside the carried abilities but the keyword's
-    /// name survives.
-    #[test]
-    fn expand_all_keeps_the_name() {
-        let kw = ward().expand_all();
-        assert_eq!(kw.as_str(), "Ward");
     }
 }

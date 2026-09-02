@@ -352,8 +352,8 @@ mod tests {
     /// A bare, macro-free reader: every fixture frame below is unguarded, so
     /// no guard constant ever needs a macro (e.g. `Exactly`) to expand.
     fn empty_macro_set() -> macro_ron::MacroSet {
-        macro_ron::MacroSet::new(deckmaste_core::ron::kinds())
-            .with_options(deckmaste_core::ron::raw_options())
+        macro_ron::MacroSet::new(deckmaste_semantics::ron::kinds())
+            .with_options(deckmaste_semantics::ron::raw_options())
     }
 
     const PRECEDENCE_CONSTRUCTOR: &str = r#"[

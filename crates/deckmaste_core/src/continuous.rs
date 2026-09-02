@@ -11,15 +11,12 @@ use crate::CostComponent;
 use crate::Count;
 use crate::Deontic;
 use crate::EventFilter;
-use crate::Expand;
-use crate::Expansion;
 use crate::Ident;
 use crate::Predicate;
 use crate::Reference;
 use crate::RelationPredicate;
 use crate::StatValue;
 use crate::Supertype;
-use crate::SupportsMacros;
 use crate::TurnMarker;
 use crate::replacement::Prevention;
 use crate::replacement::Replacement;
@@ -27,7 +24,7 @@ use crate::replacement::Replacement;
 /// How long a one-shot-created continuous effect lasts ([CR#611.2]). Static
 /// abilities don't carry this — their duration is implicit ("while it
 /// functions", [CR#611.3]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Duration {
     /// Ends at a fixed turn-structure marker ([CR#611.2a]): end of turn
     /// sweeps in cleanup ([CR#514.2]), end of combat at the combat phase's
@@ -58,7 +55,7 @@ pub enum Duration {
 /// ([CR#613.4a..613.4c]). The op↔axis pairing is the soundness gate: a numeric
 /// axis variant (`Modification::Power`, …) takes a `NumericOp`, recovering
 /// Idris's `Numeric` type-class gate (`idris/src/Semantics.idr`) structurally.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum NumericOp {
     /// Overwrite the base value — layer 7b, or 7a when CDA-flagged
     /// ([CR#613.4a,613.4b]). Carries a [`StatValue`], not a bare [`Count`]: the
@@ -79,9 +76,7 @@ pub enum NumericOp {
 /// a `CollectionOp`, which has no `Up`/`Down`, recovering Idris's `Collection`
 /// type-class gate (`idris/src/Semantics.idr`) structurally.
 ///
-/// Generic over the element type, so it can't `#[derive(Expand)]` (that derive
-/// rejects generics); the `Expand` impl is hand-written just below. serde's
-/// derive handles the generic fine.
+/// Generic over the element type; serde's derive handles the generic directly.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum CollectionOp<T> {
     /// Overwrite the whole list (layer 4 types / layer 5 colors).
@@ -90,16 +85,6 @@ pub enum CollectionOp<T> {
     Add(T),
     /// Remove one element.
     Remove(T),
-}
-
-impl<T: Expand + Clone> Expand for CollectionOp<T> {
-    fn expand_all(self) -> Self {
-        match self {
-            CollectionOp::Set(v) => CollectionOp::Set(v.expand_all()),
-            CollectionOp::Add(t) => CollectionOp::Add(t.expand_all()),
-            CollectionOp::Remove(t) => CollectionOp::Remove(t.expand_all()),
-        }
-    }
 }
 
 /// A flat primitive characteristic-change op ([CR#613]). Layers are DERIVED
@@ -120,17 +105,15 @@ impl<T: Expand + Clone> Expand for CollectionOp<T> {
 /// unrepresentable), while keeping RON readable (`Power(Up(1))`,
 /// `Colors(Add(Blue))`).
 ///
-/// `SupportsMacros` (not plain `Expand`) so a change-bundling macro can stand
-/// in a `changes: [...]` slot — the keystone being `PowerAndToughnessUp(p, t)`,
-/// which expands to `Several([Power(Up(p)), Toughness(Up(t))])`. `Several` is
-/// the `Modification` analog of `Predicate::And`: a macro expands to ONE
-/// value, so a macro that must contribute several ops bundles them into a
-/// `Several`. Unlike `Predicate::And` (a conjunction the engine evaluates),
-/// `Several` is semantically inert — `changes` is already a flat,
+/// Semantic lowering may bundle several authored changes into
+/// `Several([Power(Up(p)), Toughness(Up(t))])`. `Several` is the
+/// `Modification` analog of `Predicate::And`, but unlike `Predicate::And` (a
+/// conjunction the engine evaluates), `Several` is semantically inert:
+/// `changes` is already a flat,
 /// layer-spanning list ([CR#613.6]) — so it is flattened away once, at the
 /// engine boundary ([`Modification::flatten`]), and the engine layer loops
 /// never see it.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Modification {
     /// Power ([CR#613.4]): `Set` base (7a/7b), `Up`/`Down` (7c).
     Power(NumericOp),
@@ -182,39 +165,24 @@ pub enum Modification {
     /// gain the basic-land mana ability (Blood Moon). One intrinsic, not
     /// reachable from the plain `Set*` ops.
     BecomeBasicLandType(Arc<[Ident]>),
-    /// A bundle of ops contributed by one macro invocation — the analog of
-    /// `Predicate::And`. A macro expands to a single value, so a
-    /// change-bundling macro (`PowerAndToughnessUp(p, t)`) produces
+    /// A bundle of ops contributed by one semantic authoring form — the analog
+    /// of `Predicate::And`. For example, `PowerAndToughnessUp(p, t)` lowers to
     /// `Several([Power(Up(p)), Toughness(Up(t))])`. Semantically inert:
     /// `changes` is already a flat, layer-spanning list ([CR#613.6]), so
     /// [`Modification::flatten`] splices a `Several` into its parent list
     /// at the engine boundary and the engine never sees this variant.
     Several(Arc<[Modification]>),
-    /// A remembered `Modification` macro invocation. Serialized as the
-    /// invocation, not the struct; `expand_all` strips it to the bundled value.
-    #[macro_ron(expanded)]
-    Expanded(Expansion<Modification>),
 }
 
 impl Modification {
-    /// Splice every `Several` (recursively) into the parent list, the one
-    /// flatten-away pass for change-bundling macros. Run AFTER `expand_all`
-    /// (which turns `Expanded(PowerAndToughnessUp(p, t))` into
-    /// `Several([Power(Up(p)), Toughness(Up(t))])`) and BEFORE the engine
-    /// consumes `changes`: `changes` is semantically a flat, layer-spanning
-    /// list ([CR#613.6]), so `Several` is a pure expansion artifact
-    /// normalized away exactly once here. The engine's `layer_of`/`apply`
-    /// then never see `Several`/`Expanded`.
-    ///
-    /// Element-wise `expand_all` first (a stored `changes` list may still hold
-    /// `Expanded` invocations), then splice: a plain element passes through, a
-    /// `Several` recurses and splices its (already-flattened) members in place.
+    /// Recursively splice every `Several` into the parent list. `Several` is a
+    /// semantic grouping artifact; the engine consumes a flat,
+    /// layer-spanning `changes` list ([CR#613.6]).
     #[must_use]
     pub fn flatten(changes: &[Modification]) -> Arc<[Modification]> {
-        use crate::Expand;
         let mut out: Vec<Modification> = Vec::with_capacity(changes.len());
         for m in changes.iter().cloned() {
-            match m.expand_all() {
+            match m {
                 Modification::Several(inner) => {
                     out.extend(Modification::flatten(&inner).iter().cloned());
                 }
@@ -231,7 +199,7 @@ impl Modification {
 /// it never changes the mana cost itself ([CR#118.8d]). Alternative costs
 /// are NOT here — they swap the base and ride `May(Cast(cost: …))` rows
 /// ([CR#118.9]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum CostChange {
     Increase(Arc<[CostComponent]>),
     Reduce(Arc<[CostComponent]>),
@@ -273,12 +241,7 @@ fn is_affected_you_control(f: &Predicate) -> bool {
 /// The shared currency between an "anthem" static ability and a "+3/+3 until
 /// end of turn" one-shot ([CR#611]). The difference is who wraps it: a static
 /// ability (`StaticAbility`) or a one-shot `OneShotEffect::Continuously`.
-///
-/// Both serde impls are generated by `#[derive(SupportsMacros)]` for macro
-/// interception (it bears `Expanded`): unknown names at `StaticEffect`
-/// positions fall through to the macro layer, and the struct variants read
-/// flat in RON through generated helper structs + `unwrap_variant_newtypes`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum StaticEffect {
     /// Change ONE object's characteristics ([CR#613]) — `Modify(It,
     /// PowerAndToughnessUp(2, 2))`. Positional — a single target [`Reference`]
@@ -333,9 +296,7 @@ pub enum StaticEffect {
     /// condition against its in-progress derived view ([CR#611.3a]); non-layer
     /// static consumers use the same wrapper as their collection gate.
     Conditionally(Condition, Arc<StaticEffect>),
-    /// A deontic clause ([CR#101.2,601.3]): May/Cant/Must/Gate read bare
-    /// in RON (`effects: [Cant(…)]`) via the flatten dispatch.
-    #[macro_ron(flatten)]
+    /// A deontic clause ([CR#101.2,601.3]).
     Deontic(Deontic),
     /// A cost modifier ([CR#118.7]).
     CostModifier { of: Predicate, change: CostChange },
@@ -473,14 +434,10 @@ pub enum StaticEffect {
     /// engine step, so the "while on the stack" lifetime ([CR#702.51a]) needs
     /// no separate is-active predicate.
     PayPips(PipClass, PayAct),
-    /// A remembered `StaticEffect` macro invocation. Serialized as the
-    /// invocation, not the struct.
-    #[macro_ron(expanded)]
-    Expanded(Expansion<StaticEffect>),
 }
 
 /// Which outcome a [`StaticEffect::OutcomeGate`] suppresses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum OutcomeGateKind {
     /// Suppresses the loss SBAs ([CR#704.5a..704.5c]) and "loses the
     /// game" effect outcomes ([CR#104.3e]) for matching players.
@@ -498,7 +455,7 @@ pub enum OutcomeGateKind {
 /// `n` of the extras to discard (Krark's Thumb's own "ignore one" —
 /// [CR#706.6] settles this as the flipper's choice, not a forced-lowest
 /// rule). Mirrors Idris `IgnoreRule = IgnoreLowest | IgnoreChosen Nat`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum IgnoreRule {
     IgnoreLowest,
     IgnoreChosen(crate::Uint),
@@ -512,7 +469,7 @@ pub enum IgnoreRule {
 /// implicit color-match: the color is named here, and a convoke keyword expands
 /// to one variant per color so the tapped creature's color is enforced
 /// structurally.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum PipClass {
     /// A generic pip ({1}) — delve, improvise, convoke's generic clause.
     Generic,
@@ -524,7 +481,7 @@ pub enum PipClass {
 /// The per-pip alternative-payment action a [`StaticEffect::PayPips`] performs
 /// "rather than pay that mana" ([CR#702.51a,702.66a,702.126a]). The object is
 /// chosen at payment time ([CR#601.2g]); `Predicate` is open (plugin-safe).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum PayAct {
     /// Tap an untapped permanent matching the filter you control
     /// ([CR#107.5]): convoke taps a creature ([CR#702.51a]), improvise an
@@ -540,7 +497,7 @@ pub enum PayAct {
 /// [CR#305.2]) are the caps continuous statics modify (Reliquary Tower /
 /// Exploration); `Life` ([CR#119.1]) and `HandSize` ([CR#402.2]) round out the
 /// readable player attributes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum PlayerAttr {
     Life,
     HandSize,
@@ -555,7 +512,7 @@ pub enum PlayerAttr {
 /// `Raise(LandPlaysPerTurn, 1)`); `NoMax` removes a cap (Reliquary Tower =
 /// `NoMax(HandSizeLimit)`, "no maximum hand size") — kept a dedicated op, not a
 /// `Maybe Count` value, since a player attribute reads as a count.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum PlayerMod {
     /// Overwrite the attribute with a fixed value.
     SetTo(PlayerAttr, Count),
@@ -565,444 +522,4 @@ pub enum PlayerMod {
     Lower(PlayerAttr, Count),
     /// Remove the attribute's maximum ("no maximum hand size").
     NoMax(PlayerAttr),
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::Supertype;
-
-    fn read(source: &str) -> StaticEffect {
-        crate::ron::options().from_str(source).unwrap()
-    }
-
-    /// The anthem shape reads flat and round-trips: `Each(SelectAll(...),
-    /// Modify(It, ...))` distributes a single-object `Modify` over every
-    /// matching creature.
-    #[test]
-    fn modify_reads_flat() {
-        let parsed = read(
-            "Each(SelectAll(Supertype(Basic)), Modify(It, Several([Power(Up(Literal(1))), Toughness(Up(Literal(1)))])))",
-        );
-        assert_eq!(
-            parsed,
-            StaticEffect::Each(
-                crate::Selection::SelectAll(Predicate::Characteristic(
-                    crate::CharacteristicPredicate::Supertype(Supertype::Basic)
-                )),
-                Arc::new(StaticEffect::Modify(
-                    Reference::It,
-                    Modification::Several(
-                        vec![
-                            Modification::Power(NumericOp::Up(Count::Literal(1))),
-                            Modification::Toughness(NumericOp::Up(Count::Literal(1))),
-                        ]
-                        .into()
-                    ),
-                )),
-            ),
-        );
-        let written = crate::ron::options().to_string(&parsed).unwrap();
-        assert_eq!(read(&written), parsed);
-    }
-
-    /// The negative-P/T shape (layer 7c) reads flat and round-trips.
-    #[test]
-    fn subtract_modify_round_trips() {
-        let parsed = read(
-            "Each(SelectAll(Supertype(Basic)), Modify(It, Several([Power(Down(Literal(1))), Toughness(Down(Literal(1)))])))",
-        );
-        assert_eq!(
-            parsed,
-            StaticEffect::Each(
-                crate::Selection::SelectAll(Predicate::Characteristic(
-                    crate::CharacteristicPredicate::Supertype(Supertype::Basic)
-                )),
-                Arc::new(StaticEffect::Modify(
-                    Reference::It,
-                    Modification::Several(
-                        vec![
-                            Modification::Power(NumericOp::Down(Count::Literal(1))),
-                            Modification::Toughness(NumericOp::Down(Count::Literal(1))),
-                        ]
-                        .into()
-                    ),
-                )),
-            ),
-        );
-        let written = crate::ron::options().to_string(&parsed).unwrap();
-        assert_eq!(read(&written), parsed);
-    }
-
-    /// A collection-axis op reads flat and round-trips: `Colors(Set([...]))`
-    /// (layer 5) and the `Ident`-keyed `CardTypes` `Add`/`Remove` forms
-    /// ([CR#613.1d]). The `Subtypes` axis carries a [`SubtypeRef`] (bare-write
-    /// / resolved-read) and is covered separately by
-    /// [`subtypes_modification_writes_bare_reads_resolved`].
-    #[test]
-    fn collection_op_round_trips() {
-        let parsed = read(
-            "Each(SelectAll(Supertype(Basic)), Modify(It, Several([Colors(Set([Black])), CardTypes(Add(\"Artifact\"))])))",
-        );
-        assert_eq!(
-            parsed,
-            StaticEffect::Each(
-                crate::Selection::SelectAll(Predicate::Characteristic(
-                    crate::CharacteristicPredicate::Supertype(Supertype::Basic)
-                )),
-                Arc::new(StaticEffect::Modify(
-                    Reference::It,
-                    Modification::Several(
-                        vec![
-                            Modification::Colors(CollectionOp::Set(vec![Color::Black].into())),
-                            Modification::CardTypes(CollectionOp::Add("Artifact".into())),
-                        ]
-                        .into()
-                    ),
-                )),
-            ),
-        );
-        let written = crate::ron::options().to_string(&parsed).unwrap();
-        assert_eq!(read(&written), parsed);
-    }
-
-    /// A `Subtypes(...)` layer-4 op carries a [`SubtypeRef`]: it WRITES the
-    /// bare name (the compact filter/wizards form) and READS the resolved
-    /// fused struct — or a subtype-macro name, in a macro-aware reader.
-    /// By-name identity ([`SubtypeRef`]) makes the fused read equal a
-    /// name-only build, so the bare write and the resolved read agree
-    /// ([CR#613.1d]).
-    #[test]
-    fn subtypes_modification_writes_bare_reads_resolved() {
-        let m = Modification::Subtypes(CollectionOp::Add("Zombie".into()));
-        let written = crate::ron::options().to_string(&m).unwrap();
-        assert_eq!(written, "Subtypes(Add(Zombie))");
-        let read_back: Modification = crate::ron::options()
-            .from_str("Subtypes(Add(name:\"Zombie\",types:[Creature]))")
-            .unwrap();
-        assert_eq!(read_back, m, "SubtypeRef identity is by-name");
-    }
-
-    /// The `Sba` state-based-action primitive round-trips: the Aura
-    /// must-be-attached shape `Sba(when: Not(LegallyAttached(Ref(This))), then:
-    /// Move(Ref(This), Graveyard))` ([CR#704.5m]).
-    #[test]
-    fn sba_roundtrip() {
-        use crate::Action;
-        use crate::Condition;
-        use crate::OneShotEffect;
-        use crate::Zone;
-
-        let sba = StaticEffect::Sba {
-            when: Arc::new(Condition::Not(Arc::new(Condition::LegallyAttached(
-                Reference::This,
-            )))),
-            then: Arc::new(OneShotEffect::Act(Action::move_to(
-                Reference::This,
-                Zone::Graveyard,
-            ))),
-        };
-        let written = crate::ron::options().to_string(&sba).unwrap();
-        assert_eq!(read(&written), sba, "Sba round-trips: {written}");
-    }
-
-    /// A `CantHappen` variant round-trips from RON.
-    #[test]
-    fn cant_happen_reads_flat() {
-        let parsed = read(
-            "CantHappen(ZoneChange(what: Ref(This), from: Battlefield, to: Graveyard, cause: Cause(verb: Destroy)))",
-        );
-        assert!(matches!(parsed, StaticEffect::CantHappen(_)));
-    }
-
-    /// `Modification::flatten` splices a `Several` bundle into its parent list
-    /// (recursively) and leaves plain ops untouched — the one flatten-away pass
-    /// for change-bundling macros. A `Several([Power(Up), Toughness(Up)])`
-    /// (what `PowerAndToughnessUp(3, 3)` expands to) followed by a
-    /// `GainAbility` becomes the flat three-op list the engine consumes.
-    #[test]
-    fn flatten_splices_several() {
-        let changes = vec![
-            Modification::Several(
-                vec![
-                    Modification::Power(NumericOp::Up(Count::Literal(3))),
-                    Modification::Toughness(NumericOp::Up(Count::Literal(3))),
-                ]
-                .into(),
-            ),
-            Modification::LoseAllAbilities,
-            // A nested Several splices recursively.
-            Modification::Several(
-                vec![Modification::Several(
-                    vec![Modification::Colors(CollectionOp::Set(
-                        vec![Color::White].into(),
-                    ))]
-                    .into(),
-                )]
-                .into(),
-            ),
-        ];
-        assert_eq!(
-            Modification::flatten(&changes),
-            vec![
-                Modification::Power(NumericOp::Up(Count::Literal(3))),
-                Modification::Toughness(NumericOp::Up(Count::Literal(3))),
-                Modification::LoseAllAbilities,
-                Modification::Colors(CollectionOp::Set(vec![Color::White].into())),
-            ]
-            .into(),
-        );
-    }
-
-    /// `flatten` runs `expand_all` element-wise first, so a stored `changes`
-    /// list still holding an `Expanded(Several([...]))` invocation (the
-    /// `PowerAndToughnessUp` shape) flattens to its bundled ops.
-    #[test]
-    fn flatten_strips_expanded_invocations() {
-        use crate::Expansion;
-        use crate::ExpansionArgs;
-        let expanded = Modification::Expanded(Expansion {
-            name: "PowerAndToughnessUp".into(),
-            args: ExpansionArgs::Positional(vec!["2".into(), "0".into()]),
-            template: Some("gets +${0}/+${1}".into()),
-            value: Box::new(Modification::Several(
-                vec![
-                    Modification::Power(NumericOp::Up(Count::Literal(2))),
-                    Modification::Toughness(NumericOp::Up(Count::Literal(0))),
-                ]
-                .into(),
-            )),
-        });
-        assert_eq!(
-            Modification::flatten(&[expanded, Modification::SwitchPowerToughness]),
-            vec![
-                Modification::Power(NumericOp::Up(Count::Literal(2))),
-                Modification::Toughness(NumericOp::Up(Count::Literal(0))),
-                Modification::SwitchPowerToughness,
-            ]
-            .into(),
-        );
-    }
-
-    /// `ModifyPlayer` reads flat and round-trips: the Exploration land-plays
-    /// raise ([CR#305.2]) and the Reliquary Tower no-maximum-hand-size cap
-    /// removal ([CR#402.2]).
-    #[test]
-    fn modify_player_round_trips() {
-        let parsed = read("ModifyPlayer(You, Raise(LandPlaysPerTurn, 1))");
-        assert_eq!(
-            parsed,
-            StaticEffect::ModifyPlayer(
-                Reference::You,
-                PlayerMod::Raise(PlayerAttr::LandPlaysPerTurn, Count::Literal(1)),
-            ),
-        );
-        let written = crate::ron::options().to_string(&parsed).unwrap();
-        assert_eq!(read(&written), parsed);
-
-        let no_max = read("ModifyPlayer(You, NoMax(HandSizeLimit))");
-        assert_eq!(
-            no_max,
-            StaticEffect::ModifyPlayer(Reference::You, PlayerMod::NoMax(PlayerAttr::HandSizeLimit),),
-        );
-        let written = crate::ron::options().to_string(&no_max).unwrap();
-        assert_eq!(read(&written), no_max);
-    }
-
-    /// `TriggerMultiplier` round-trips: Panharmonicon's artifact/creature-ETB
-    /// cause with the default "you control" affected omitted from RON
-    /// ([CR#603.2d]), and an explicit non-default affected preserved.
-    #[test]
-    fn trigger_multiplier_round_trips() {
-        let parsed = read(
-            "TriggerMultiplier(cause: ZoneChange(what: Or([Supertype(Basic), Supertype(Legendary)]), to: Battlefield), extra: 1)",
-        );
-        let StaticEffect::TriggerMultiplier {
-            extra, affected, ..
-        } = &parsed
-        else {
-            panic!("expected TriggerMultiplier, got {parsed:?}");
-        };
-        assert_eq!(*extra, Count::Literal(1));
-        assert_eq!(*affected, affected_you_control(), "default is you-control");
-        let written = crate::ron::options().to_string(&parsed).unwrap();
-        assert!(
-            !written.contains("affected"),
-            "the default affected is omitted: {written}"
-        );
-        assert_eq!(read(&written), parsed);
-
-        // An explicit non-default affected (an opponent doubler) is preserved.
-        let opp = read(
-            "TriggerMultiplier(cause: ZoneChange(what: Supertype(Basic), to: Battlefield), extra: 1, affected: ControlledBy(OpponentOf(Ref(You))))",
-        );
-        let written = crate::ron::options().to_string(&opp).unwrap();
-        assert!(written.contains("affected"), "non-default affected kept");
-        assert_eq!(read(&written), opp);
-    }
-
-    /// `PayPips` reads flat and round-trips: convoke's colored clause
-    /// (`Colored(White)` + tap a white creature you control, [CR#702.51a]) and
-    /// delve's generic clause (`Generic` + exile a graveyard card,
-    /// [CR#702.66a]). The `Predicate` fields are open and read flat.
-    #[test]
-    fn pay_pips_round_trips() {
-        use crate::CharacteristicPredicate;
-        use crate::RelationPredicate;
-        use crate::StatePredicate;
-        use crate::Zone;
-
-        // Convoke's colored clause: tap a white creature you control rather
-        // than pay a {W} pip.
-        let convoke = read(
-            "PayPips(Colored(White), TapToPay(And([Supertype(Basic), ColorIs(White), ControlledBy(Ref(You))])))",
-        );
-        assert_eq!(
-            convoke,
-            StaticEffect::PayPips(
-                PipClass::Colored(Color::White),
-                PayAct::TapToPay(Predicate::And(
-                    vec![
-                        Predicate::Characteristic(CharacteristicPredicate::Supertype(
-                            Supertype::Basic
-                        )),
-                        Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::White)),
-                        Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(
-                            Predicate::Ref(Reference::You)
-                        ))),
-                    ]
-                    .into()
-                )),
-            ),
-        );
-        let written = crate::ron::options().to_string(&convoke).unwrap();
-        assert_eq!(read(&written), convoke, "convoke round-trips: {written}");
-
-        // Delve's generic clause: exile a card from your graveyard rather than
-        // pay a generic pip.
-        let delve = read("PayPips(Generic, ExileToPay(InZone(Graveyard)))");
-        assert_eq!(
-            delve,
-            StaticEffect::PayPips(
-                PipClass::Generic,
-                PayAct::ExileToPay(Predicate::State(StatePredicate::InZone(Zone::Graveyard))),
-            ),
-        );
-        let written = crate::ron::options().to_string(&delve).unwrap();
-        assert_eq!(read(&written), delve, "delve round-trips: {written}");
-    }
-
-    /// `CantPrevent` — the [CR#615.12] gate on the Prevention class — reads
-    /// flat and round-trips.
-    #[test]
-    fn cant_prevent_round_trips() {
-        let parsed = read("CantPrevent(from: Ref(This), to: Any)");
-        assert_eq!(
-            parsed,
-            StaticEffect::CantPrevent {
-                from: Predicate::Ref(Reference::This),
-                to: Predicate::Any,
-            },
-        );
-        let written = crate::ron::options().to_string(&parsed).unwrap();
-        assert_eq!(read(&written), parsed);
-    }
-
-    /// `SpendAsThough` — the [CR#609.4b] mana counterfactual channel —
-    /// reads flat and round-trips for both `SymbolPred` readings.
-    #[test]
-    fn spend_as_though_round_trips() {
-        let parsed = read("SpendAsThough(mana_from: Ref(This), as_: AnyColor)");
-        assert_eq!(
-            parsed,
-            StaticEffect::SpendAsThough {
-                mana_from: Predicate::Ref(Reference::This),
-                as_: crate::SymbolPred::AnyColor,
-            },
-        );
-        let written = crate::ron::options().to_string(&parsed).unwrap();
-        assert_eq!(read(&written), parsed);
-        let any_type = read("SpendAsThough(mana_from: Any, as_: AnyType)");
-        assert!(matches!(
-            any_type,
-            StaticEffect::SpendAsThough {
-                as_: crate::SymbolPred::AnyType,
-                ..
-            }
-        ));
-    }
-
-    /// A deontic clause reads flat and serializes flat — the compartment
-    /// tag never appears in RON.
-    #[test]
-    fn deontic_reads_flat() {
-        let parsed = read("Cant(Attack(by: Ref(This)))");
-        assert_eq!(
-            parsed,
-            StaticEffect::Deontic(Deontic::Cant(crate::DeonticAction::Attack {
-                by: Predicate::Ref(crate::Reference::This),
-                on: Predicate::Any,
-            })),
-        );
-        let written = crate::ron::options().to_string(&parsed).unwrap();
-        assert!(
-            !written.contains("Deontic"),
-            "compartment tag leaked: {written}"
-        );
-        assert_eq!(read(&written), parsed);
-    }
-
-    /// `StaticEffect::BecomesCopy(Reference, CopySpec)` ([CR#707.4]) — "X
-    /// becomes a copy of Y" — carries the shared `CopySpec` payload
-    /// (mirroring `Modify(Reference, Modification)`'s shape) and round-trips
-    /// bare, and wrapped in `Until` — the shape a becomes-a-copy effect
-    /// actually gets authored through ([CR#611.2]).
-    #[test]
-    fn becomes_copy_round_trips() {
-        use crate::CopySource;
-        use crate::CopySpec;
-        use crate::OneShotEffect;
-
-        let parsed = read("BecomesCopy(This, (source: Object(Target(0))))");
-        assert_eq!(
-            parsed,
-            StaticEffect::BecomesCopy(
-                Reference::This,
-                CopySpec {
-                    source: CopySource::Object(Reference::Target(0)),
-                    exceptions: vec![],
-                },
-            ),
-        );
-        let written = crate::ron::options().to_string(&parsed).unwrap();
-        assert_eq!(read(&written), parsed, "BecomesCopy round-trips: {written}");
-
-        // The shape a card actually authors: wrapped in `Until` alongside
-        // the shared one-shot-continuous machinery ([CR#611.2]).
-        let until = OneShotEffect::Until(
-            Duration::EndOfGame,
-            vec![StaticEffect::BecomesCopy(
-                Reference::This,
-                CopySpec {
-                    source: CopySource::Object(Reference::Target(0)),
-                    exceptions: vec![],
-                },
-            )]
-            .into(),
-        );
-        let written = crate::ron::options().to_string(&until).unwrap();
-        let back: OneShotEffect = crate::ron::options().from_str(&written).unwrap();
-        assert_eq!(back, until, "Until(..., [BecomesCopy(...)]) round-trips");
-    }
-
-    /// `Duration::ForThisEvent` — the instruction-scoped rider duration
-    /// ("It can't be regenerated.", [CR#701.19c]) — reads bare and
-    /// round-trips.
-    #[test]
-    fn for_this_event_round_trips() {
-        let v: Duration = crate::ron::options().from_str("ForThisEvent").unwrap();
-        assert_eq!(v, Duration::ForThisEvent);
-        let written = crate::ron::options().to_string(&v).unwrap();
-        assert_eq!(written, "ForThisEvent");
-    }
 }

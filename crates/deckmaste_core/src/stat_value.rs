@@ -1,10 +1,5 @@
-use crate::SupportsMacros;
-
-/// The `#[macro_ron(literal)]` Number variant reads/writes a bare integer —
-/// `3`, not `Number(3)` — mirroring [`Count::Literal`](crate::Count). A literal
-/// payload is a bare scalar, so (unlike an embed) it needs no `SupportsMacros`
-/// on `Int`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+/// Core RON spells numeric values explicitly as `Number(3)`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum StatValue {
     // Power or toughness set by a characteristic-defining ability ([CR#208.2a] —
     // the `*`, worded "[this creature's] power/toughness is equal to …", set per
@@ -19,7 +14,6 @@ pub enum StatValue {
     // toughness — and thus a base value — can be less than zero ([CR#107.1b],
     // e.g. Spinal Parasite's -1/-1), unlike the game's otherwise non-negative
     // numbers.
-    #[macro_ron(literal)]
     Number(crate::Int),
 
     // A dynamic value drawn from the amount language — a base power/toughness
@@ -27,7 +21,6 @@ pub enum StatValue {
     // card types, etc.). Embeds [`Count`](crate::Count) so a bare `CountOf(…)` /
     // `CountDistinct(…)` at a stat position reads straight through. Mirrors the
     // Idris `CharValue Power = Count` settable-value type (`idris/src/Semantics.idr`).
-    #[macro_ron(embed)]
     Count(crate::Count),
 }
 

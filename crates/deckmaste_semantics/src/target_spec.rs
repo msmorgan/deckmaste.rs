@@ -64,8 +64,8 @@ mod tests {
     }
 
     /// The announce-list grammar: `Target(Quantity, Predicate)`, distinct from
-    /// `Selection`'s resolution choices. The core reader carries no macros, so
-    /// these spell the underlying `Range` primitive directly (the named
+    /// `Selection`'s resolution choices. This unit fixture has no macro set, so
+    /// it spells the underlying `Range` primitive directly (the named
     /// `Exactly`/`AtMost`/`AnyNumber` forms are exercised at the cards layer,
     /// where the builtin macros are loaded).
     #[test]

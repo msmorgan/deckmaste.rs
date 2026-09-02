@@ -1,4 +1,4 @@
-//! The "no dead grammar" coverage sweep: every core grammar node — an enum
+//! The "no dead grammar" coverage sweep: every semantic grammar node — an enum
 //! variant defined in one of the seven grammar family files (effects,
 //! actions, statics, events, counts, conditions, references) — must carry at
 //! least one loading ACCEPTANCE card (`plugins/{canon,testing,builtin}`,
@@ -6,7 +6,7 @@
 //! allowlist below.
 //!
 //! MECHANICAL, not hand-maintained: the inventory comes from parsing the
-//! actual `deckmaste_core` source (`syn`), so a newly-minted grammar node is
+//! actual `deckmaste_semantics` source (`syn`), so a newly-minted grammar node is
 //! swept in automatically the moment it exists — no second list to update.
 //! Coverage is a plain whole-word text search over the corpus (never a typed
 //! AST walk): a card that reaches a node only through MACRO EXPANSION is
@@ -38,7 +38,7 @@ use std::path::PathBuf;
 use regex::Regex;
 
 /// The seven grammar-family source files this sweep walks, relative to
-/// `deckmaste_core/src/`.
+/// `deckmaste_semantics/src/`.
 /// (effects/actions/statics/events/counts/conditions/references).
 const GRAMMAR_FILES: &[&str] = &[
     "effect.rs",
@@ -53,8 +53,8 @@ const GRAMMAR_FILES: &[&str] = &[
     "mana.rs",
 ];
 
-fn core_src_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../deckmaste_core/src")
+fn semantics_src_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../deckmaste_semantics/src")
 }
 
 fn plugins_root() -> PathBuf {
@@ -70,7 +70,7 @@ type Node = (String, String);
 /// (enum, variant) pairs. Never descends into a nested `mod` — this is how
 /// `#[cfg(test)]` fixture enums (there are none today, but the rule is
 /// structural, not incidental) and any future non-grammar nested enum stay
-/// out of the inventory: only file-top-level enums count as core grammar.
+/// out of the inventory: only file-top-level enums count as semantic grammar.
 fn enum_variants_in_file(path: &Path) -> Vec<Node> {
     let source =
         std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
@@ -90,7 +90,7 @@ fn enum_variants_in_file(path: &Path) -> Vec<Node> {
 /// The full node inventory: every (enum, variant) pair across the seven
 /// grammar files.
 fn grammar_inventory() -> Vec<Node> {
-    let dir = core_src_dir();
+    let dir = semantics_src_dir();
     let mut nodes = Vec::new();
     for file in GRAMMAR_FILES {
         nodes.extend(enum_variants_in_file(&dir.join(file)));

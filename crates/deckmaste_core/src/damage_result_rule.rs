@@ -2,7 +2,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::CounterRef;
-use crate::Expand;
 use crate::Predicate;
 
 /// A rules-as-data damage result authored under a plugin's `rules/damage/`
@@ -16,23 +15,8 @@ use crate::Predicate;
 /// count field is needed. This is a global, `Predicate`-scoped rule so the rule
 /// set is swappable (variant Magic) without touching the engine — the same
 /// lifecycle as [`crate::SbaRule`] / [`crate::ConferralRule`].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct DamageResultRule {
     pub recipient: Predicate,
     pub remove: CounterRef,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn damage_result_rule_round_trips() {
-        let ron = "DamageResultRule(recipient: Supertype(Legendary), remove: LoyaltyCounter)";
-        let rule: DamageResultRule = crate::ron::options().from_str(ron).unwrap();
-        assert_eq!(rule.remove, CounterRef::from("LoyaltyCounter"));
-        let written = crate::ron::options().to_string(&rule).unwrap();
-        let reparsed: DamageResultRule = crate::ron::options().from_str(&written).unwrap();
-        assert_eq!(reparsed, rule);
-    }
 }

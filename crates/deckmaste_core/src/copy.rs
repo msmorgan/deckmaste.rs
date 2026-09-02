@@ -8,12 +8,10 @@ use serde::Serialize;
 
 use crate::Ability;
 use crate::Color;
-use crate::Expand;
 use crate::ManaCost;
 use crate::StatValue;
 use crate::Subtype;
 use crate::Supertype;
-use crate::SupportsMacros;
 use crate::TypeDef;
 use crate::action::EnterRider;
 use crate::continuous::Modification;
@@ -23,13 +21,13 @@ use crate::reference::Reference;
 /// "A copy of SOURCE, except EXCEPTIONS" ([CR#707.2,707.9]) — the
 /// copiable-value spec shared by every copy delivery site.
 ///
-/// Embedded as an ordinary payload field in the `SupportsMacros` enums that
+/// Embedded as an ordinary payload field in the `serde::Deserialize, serde::Serialize` enums that
 /// reference it (`TokenSpec`/`EnterRider`/`PlayerAction`), the way
 /// `NumericOp`/`Characteristic` are embedded in `Modification`/`Count` —
-/// `#[derive(SupportsMacros)]` applies to enums only (a struct target is a
+/// `#[derive(serde::Deserialize, serde::Serialize)]` applies to enums only (a struct target is a
 /// compile error directing to `#[derive(Expand)]`), so this struct derives
-/// `Expand` + serde like those embedded types, not `SupportsMacros` itself.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+/// `Expand` + serde like those embedded types, not `serde::Deserialize, serde::Serialize` itself.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct CopySpec {
     pub source: CopySource,
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
@@ -37,7 +35,7 @@ pub struct CopySpec {
 }
 
 /// What a copy effect copies ([CR#707.1]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum CopySource {
     /// A referenced object — "a copy of target creature" (Clone, Populate).
     Object(Reference),
@@ -53,7 +51,7 @@ pub enum CopySource {
 /// `Modification` is folded into the copiable values at layer 1a (not its
 /// native layer), and providing/retaining a characteristic drops the source's
 /// defining ability for it ([CR#707.9d]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum CopyException {
     /// A characteristic modification folded into the copiable values —
     /// "in addition to its other types" ([CR#707.9b]), "except it's 7/7"
@@ -72,7 +70,7 @@ pub enum CopyException {
 /// The copiable characteristics of an object ([CR#707.2]) — the `CardFace`
 /// characteristic set, produced by the copy model and consumed by token
 /// execution here and by `base_values` downstream.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct CopiableValues {
     pub name: Arc<str>,
 

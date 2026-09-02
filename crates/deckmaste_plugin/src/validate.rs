@@ -3,8 +3,8 @@
 //! are always semantic-input errors.
 //!
 //! **Token walking**: every `tokens/**/*.ron` is read as a
-//! [`deckmaste_core::Token`] with the same macro scope and todo-skipping as
-//! cards.
+//! semantic [`deckmaste_semantics::Token`] with the same macro scope and
+//! todo-skipping as cards, then lowered to [`deckmaste_core::Token`].
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -579,6 +579,7 @@ mod keyword_ref_tests {
     use std::path::PathBuf;
 
     use deckmaste_core::Ability;
+    use deckmaste_lowering::Lower;
 
     use crate::plugin::Plugin;
 
@@ -591,7 +592,10 @@ mod keyword_ref_tests {
     #[test]
     fn unknown_keyword_reference_is_flagged() {
         let plugin = builtin();
-        let read = |src: &str| -> Ability { plugin.macros.read_str(src).unwrap() };
+        let read = |src: &str| -> Ability {
+            let semantic: deckmaste_semantics::Ability = plugin.macros.read_str(src).unwrap();
+            semantic.lower()
+        };
         let typo = read("Static(Cant(Block(on: Ref(This), by: Not(Has(Flyng)))))");
         let fine =
             read("Static(Cant(Block(on: Ref(This), by: Not(Or([Has(Flying), Has(Trample)])))))");

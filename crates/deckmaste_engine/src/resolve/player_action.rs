@@ -887,7 +887,6 @@ impl GameState {
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
-            Action::Expanded(_) => unreachable!("provenance erased at lower"),
             // `action_items` dispatches every object/effect-agent verb
             // directly and only falls through to this function for the
             // former-`PlayerAction` family — these variants never reach here.
@@ -2010,8 +2009,7 @@ mod tests {
             assert!(
                 activated.cost.iter().all(|component| !matches!(
                     component,
-                    deckmaste_core::CostComponent::Expanded(_)
-                        | deckmaste_core::CostComponent::ChooseAndPay { .. }
+                    deckmaste_core::CostComponent::ChooseAndPay { .. }
                 )),
                 "no semantic expansion or unresolved action-selection wrapper reaches runnable costs"
             );

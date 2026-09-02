@@ -11,6 +11,7 @@ workspace = true
 derive = ["dep:macro_ron_derive"]
 
 [dependencies]
+dpsi = { version = "0.1.0", path = "../dpsi" }
 deckmaste_features = { version = "0.1.0", path = "../deckmaste_features" }
 elsa = "1.11.2"
 ron = "0.12.1"

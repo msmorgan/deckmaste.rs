@@ -164,17 +164,12 @@ fn convoke_delve_improvise_confer_pay_pips_statics() {
     use deckmaste_core::StaticEffect;
 
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
-        match a {
-            Ability::Static(s) => out.push(s.as_ref().clone()),
-            Ability::Expanded(e) => statics(&e.value, out),
-            _ => {}
+        if let Ability::Static(s) = a {
+            out.push(s.as_ref().clone());
         }
     }
     fn peel(e: &StaticEffect) -> &StaticEffect {
-        match e {
-            StaticEffect::Expanded(x) => peel(&x.value),
-            other => other,
-        }
+        e
     }
     // Expand a keyword invocation to the flat list of its `PayPips` rows.
     fn pay_pips(plugin: &Plugin, invocation: &str) -> Arc<[(PipClass, PayAct)]> {
@@ -256,17 +251,12 @@ fn enchant_confers_spell_may_attach_and_as_enters() {
     use deckmaste_core::StaticEffect;
 
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
-        match a {
-            Ability::Static(s) => out.push(s.as_ref().clone()),
-            Ability::Expanded(e) => statics(&e.value, out),
-            _ => {}
+        if let Ability::Static(s) = a {
+            out.push(s.as_ref().clone());
         }
     }
     fn peel(e: &StaticEffect) -> &StaticEffect {
-        match e {
-            StaticEffect::Expanded(x) => peel(&x.value),
-            other => other,
-        }
+        e
     }
 
     let plugin = builtin();
@@ -292,7 +282,7 @@ fn enchant_confers_spell_may_attach_and_as_enters() {
     // (2) the host-grant May(Attach) row.
     assert!(
         effs.iter().any(|e| matches!(peel(e),
-            StaticEffect::Deontic(d) if matches!(deontic_inner(d), Some(DeonticAction::Attach { .. })))),
+            StaticEffect::Deontic(d) if matches!(deontic_inner(d), DeonticAction::Attach { .. }))),
         "Enchant confers May(Attach(... to Param(0))) ([CR#702.5a]); got {effs:?}"
     );
     // (3) the AsEnters self-replacement (enters attached).
@@ -425,7 +415,9 @@ fn outlast_confers_sorcery_speed_tap_put_counter() {
 
     // (2) Cost = printed cost ({W}) THEN {T}. `Splice(Param(0))` inlines the
     // printed cost ahead of the fixed `Tap` at read time, so the cost is FLAT.
-    let flat_cost: Cost = ron_options().from_str("[Mana([White]), Tap]").unwrap();
+    let flat_cost: Cost = ron_options()
+        .from_str("[Mana([Simple(Specific(Color(White)))]), Tap]")
+        .unwrap();
     assert_eq!(
         act.cost, flat_cost,
         "outlast cost is the param cost plus {{T}}, spliced flat ([CR#702.107a])"
@@ -464,17 +456,12 @@ fn ascend_macro_expands_to_static_sba() {
 
     // Walk every Static effect (peel Expanded) and look for an Sba row.
     fn statics(a: &Ability, out: &mut Vec<StaticEffect>) {
-        match a {
-            Ability::Static(s) => out.push(s.as_ref().clone()),
-            Ability::Expanded(e) => statics(&e.value, out),
-            _ => {}
+        if let Ability::Static(s) = a {
+            out.push(s.as_ref().clone());
         }
     }
     fn peel(e: &StaticEffect) -> &StaticEffect {
-        match e {
-            StaticEffect::Expanded(x) => peel(&x.value),
-            other => other,
-        }
+        e
     }
 
     let plugin = builtin();
@@ -977,7 +964,7 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
         "token is a Spirit; got {:?}",
         token.subtypes
     );
-    // With flying — a Keyword(Flying) ability (peel Expanded).
+    // With flying — a lowered, name-carrying keyword ability.
     assert!(
         token.abilities.iter().any(|a| names_keyword(a, "Flying")),
         "token has flying; got {:?}",
@@ -985,14 +972,10 @@ fn afterlife_confers_dies_create_spirit_tokens_with_flying() {
     );
 }
 
-/// Whether `a` is (or peels to) a keyword ability whose carried name is `name`
-/// — a `Keyword(Flying)` reads as `Ability::Keyword(KeywordAbility::Expanded)`,
-/// and an outer `Ability::Expanded` wrapper is looked through.
+/// Whether `a` is a lowered keyword ability whose carried name is `name`.
 fn names_keyword(a: &deckmaste_core::Ability, name: &str) -> bool {
     use deckmaste_core::Ability;
     match a {
-        Ability::Expanded(e) => e.name.as_str() == name || names_keyword(&e.value, name),
-        Ability::Keyword(KeywordAbility::Expanded(e)) => e.name.as_str() == name,
         Ability::Keyword(KeywordAbility::Composite { name: keyword, .. }) => {
             keyword.as_str() == name
         }
@@ -1000,19 +983,14 @@ fn names_keyword(a: &deckmaste_core::Ability, name: &str) -> bool {
     }
 }
 
-fn deontic_inner(d: &deckmaste_core::Deontic) -> Option<&deckmaste_core::DeonticAction> {
+fn deontic_inner(d: &deckmaste_core::Deontic) -> &deckmaste_core::DeonticAction {
     use deckmaste_core::Deontic;
     match d {
-        Deontic::Cant(a) | Deontic::May(a) | Deontic::Must(a) | Deontic::Gate(a, _) => Some(a),
-        Deontic::Expanded(e) => deontic_inner(&e.value),
+        Deontic::Cant(a) | Deontic::May(a) | Deontic::Must(a) | Deontic::Gate(a, _) => a,
     }
 }
 
 fn is_also(r: &deckmaste_core::Replacement) -> bool {
     use deckmaste_core::Replacement;
-    match r {
-        Replacement::Also { .. } => true,
-        Replacement::Expanded(e) => is_also(&e.value),
-        _ => false,
-    }
+    matches!(r, Replacement::Also { .. })
 }

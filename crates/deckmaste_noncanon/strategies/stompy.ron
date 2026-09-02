@@ -13,12 +13,12 @@
         (when: And([]), prefer: Play(what: (pick: First, by: Literal(1)))),
         // Deploy the biggest creature the pool can already fund (never a land,
         // which can surface as a zero-cost CastSpell).
-        (when: And([]), prefer: Cast(what: (pick: Max, by: StatOf(This, ManaValue), among: Not(Type(name: "Land", permanent: true))))),
+        (when: And([]), prefer: Cast(what: (pick: Max, by: StatOf(This, ManaValue), among: Not(Characteristic(Type((name: "Land", permanent: true))))))),
         // Ramp toward the next cast: tap lands first so creatures stay untapped
         // to attack; fall back to a mana dork only when lands are exhausted
         // (which still fires the nonland-tap probe when the seat floods).
-        (when: And([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Type(name: "Land", permanent: true)))),
-        (when: And([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Named("Llanowar Elves")))),
+        (when: And([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Characteristic(Type((name: "Land", permanent: true)))))),
+        (when: And([]), prefer: Activate(what: (pick: First, by: Literal(1), among: Characteristic(Named("Llanowar Elves"))))),
         // Swing with everything that can legally attack.
         (when: And([]), prefer: Attack(what: (pick: First, by: Literal(1), among: Any))),
         // Hold the ground.

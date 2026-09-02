@@ -511,7 +511,7 @@ dependencies = [
 name = "deckmaste_core"
 version = "0.1.0"
 dependencies = [
- "macro_ron",
+ "dpsi",
  "ron",
  "serde",
  "thiserror",
@@ -706,6 +706,13 @@ dependencies = [
  "block-buffer",
  "const-oid",
  "crypto-common",
+]
+
+[[package]]
+name = "dpsi"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -1028,6 +1035,7 @@ name = "macro_ron"
 version = "0.1.0"
 dependencies = [
  "deckmaste_features",
+ "dpsi",
  "elsa",
  "macro_ron_derive",
  "ron",

@@ -171,7 +171,6 @@ pub fn matches_with(
         // (`deckmaste_lowering`), so no loaded value reaches here wrapped. The
         // arm survives only because the variant does; `core-demacro` deletes
         // both.
-        Predicate::Expanded(_) => unreachable!("provenance erased at lower"),
         // [CR#702.11d] "abilities … from [quality] sources": strict to stack
         // ABILITIES by construction — the candidate is an activated/triggered
         // ability on the stack whose SOURCE (the generating object,

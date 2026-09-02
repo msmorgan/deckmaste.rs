@@ -428,10 +428,10 @@ mod tests {
              the `Subtypes` axis writes its `SubtypeRef` as the bare name, the \
              reader accepts the resolved struct (or a subtype-macro name)"
         );
-        // The `Subtypes` axis is a `SubtypeRef`: the bare write is re-read by a
-        // macro-aware reader (a subtype-macro name) or, here in core, the
-        // resolved fused struct — by-name identity makes it equal the name-only
-        // build. The spaced, human-readable spelling macros/cards actually write.
+        // The `Subtypes` axis is a `SubtypeRef`: a reader with subtype
+        // declarations loaded accepts the authored name; this local fixture
+        // supplies the resolved struct explicitly. By-name identity makes it
+        // equal the name-only build.
         let spaced: TokenSpec = crate::ron::options()
             .from_str(
                 "Copy(source: SelfCard, exceptions: [Modify(Power(Set(4))), \

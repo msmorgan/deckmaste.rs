@@ -6,14 +6,13 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::Expand;
 use crate::Reference;
 
 /// The NOMINAL decider of a decision ([CR#700.2a,608.2d,508.1a,509.1a],
 /// vote: [CR#701.38a]); the engine resolves nominal → actual (delegation,
 /// rebinding). `Rng` is the pseudo-decider of coin flips and die rolls
 /// (choices.md §4).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum DeciderSpec {
     /// The spell/ability's controller (announce-stage choices).
     Controller,
@@ -35,7 +34,7 @@ pub enum DeciderSpec {
 }
 
 /// How a choice is seen by other players (choices.md §3).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Visibility {
     /// The default: made publicly; later deciders see earlier choices
     /// ([CR#101.4b]).
@@ -56,7 +55,7 @@ pub enum Visibility {
 /// [`Noting`](crate::Noting)/[`SeparatePiles`](crate::SeparatePiles) and
 /// staying store-side with their writers). Readers: `Reference::Linked(key)`,
 /// `Count::Noted(key)`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, Expand, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum ChosenValueKind {
     Color,
     CardName,
@@ -71,7 +70,7 @@ pub enum ChosenValueKind {
 /// `Selection::PilesOf`, [CR#700.3a]). Never a choice-node kind (that is
 /// [`ChosenValueKind`]) — the note store's key-typing keeps both kind
 /// vocabularies, split by writer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, Expand, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum NotedKind {
     Objects,
     Piles,

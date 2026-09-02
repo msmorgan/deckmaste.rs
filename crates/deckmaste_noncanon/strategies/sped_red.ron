@@ -4,15 +4,15 @@
     rules: [
         (when: And([]), prefer: Play(what: (pick: First, by: Literal(1)))),
         (when: And([]), prefer: Cast(
-            what: (pick: Min, by: StatOf(This, ManaValue), among: Not(Type(name: "Land", permanent: true))),
+            what: (pick: Min, by: StatOf(This, ManaValue), among: Not(Characteristic(Type((name: "Land", permanent: true))))),
             target: (pick: First, by: Literal(1), among: And([Kind(Player), Not(Ref(You))])),
         )),
         (when: And([]), prefer: Activate(
-            what: (pick: First, by: Literal(1), among: Type(name: "Land", permanent: true)),
-            target: (pick: First, by: Literal(1), among: Type(name: "Land", permanent: true)),
+            what: (pick: First, by: Literal(1), among: Characteristic(Type((name: "Land", permanent: true)))),
+            target: (pick: First, by: Literal(1), among: Characteristic(Type((name: "Land", permanent: true)))),
         )),
         (when: And([]), prefer: Activate(
-            what: (pick: First, by: Literal(1), among: Not(Type(name: "Land", permanent: true))),
+            what: (pick: First, by: Literal(1), among: Not(Characteristic(Type((name: "Land", permanent: true))))),
             target: (pick: First, by: Literal(1), among: And([Kind(Player), Not(Ref(You))])),
         )),
         (when: And([]), prefer: Attack(what: (pick: First, by: Literal(1), among: Any))),

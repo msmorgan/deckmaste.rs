@@ -202,7 +202,6 @@ fn triggered_by_mana(event: &deckmaste_core::EventFilter) -> bool {
         EventFilter::Nth { of, .. } | EventFilter::When(of, _) | EventFilter::Within(of, _) => {
             triggered_by_mana(of)
         }
-        EventFilter::Expanded(expansion) => triggered_by_mana(&expansion.value),
         _ => false,
     }
 }
@@ -267,7 +266,6 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
             facts
         }
         OneShotEffect::Repeat(_, body) | OneShotEffect::Batch(_, body) => effect_mana_facts(body),
-        OneShotEffect::Expanded(expansion) => effect_mana_facts(&expansion.value),
     }
 }
 
@@ -279,7 +277,6 @@ fn effect_action_facts(action: &deckmaste_core::Action) -> ManaFacts {
             ..ManaFacts::NEUTRAL
         },
         Action::Composite { body, .. } => effect_mana_facts(body),
-        Action::Expanded(expansion) => effect_action_facts(&expansion.value),
         _ => ManaFacts::NEUTRAL,
     }
 }
@@ -291,7 +288,6 @@ fn binder_mana_facts(binder: &deckmaste_core::Binder) -> ManaFacts {
         Binder::SearchOne { if_none, .. } | Binder::Search { if_none, .. } => if_none
             .as_deref()
             .map_or(ManaFacts::NEUTRAL, effect_mana_facts),
-        Binder::Expanded(expansion) => binder_mana_facts(&expansion.value),
         Binder::TheRef(_)
         | Binder::ChooseOne { .. }
         | Binder::Choose { .. }

@@ -454,7 +454,6 @@ impl GameState {
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both. Named explicitly
             // so the seam below reports only genuinely unbuilt shapes.
-            Predicate::Expanded(_) => unreachable!("provenance erased at lower"),
             other => todo!(
                 "engine seam: stage 3 does not evaluate snapshot filter {other:?} — the LKI \
                  matcher covers only part of the live matcher's leaves; \
@@ -2191,19 +2190,16 @@ mod tests {
     // Event macro round-trip: Dies / Enters expand correctly
     // -------------------------------------------------------------------------
 
-    /// Confirm that `Dies(Type(Creature))` parses and produces the expected
-    /// `EventFilter::Expanded` shape wrapping `ZoneMove`.
+    /// Confirm that `Dies(Type(Creature))` parses and lowers to `ZoneChange`.
     #[test]
     fn dies_macro_expands_to_zone_move() {
         use deckmaste_core::EventFilter;
 
-        let event: EventFilter = canon().macros.read_str("Dies(Type(Creature))").unwrap();
-        let EventFilter::Expanded(expanded) = &event else {
-            panic!("expected EventFilter::Expanded, got {event:?}");
-        };
-        assert_eq!(expanded.name.as_str(), "Dies");
+        let semantic: deckmaste_semantics::EventFilter =
+            canon().macros.read_str("Dies(Type(Creature))").unwrap();
+        let event: EventFilter = deckmaste_lowering::Lower::lower(semantic);
         assert_eq!(
-            *expanded.value,
+            event,
             EventFilter::ZoneChange {
                 cause: None,
                 what: Predicate::creature(),
@@ -2219,13 +2215,11 @@ mod tests {
     fn enters_macro_expands_to_zone_move() {
         use deckmaste_core::EventFilter;
 
-        let event: EventFilter = canon().macros.read_str("Enters(Ref(This))").unwrap();
-        let EventFilter::Expanded(expanded) = &event else {
-            panic!("expected EventFilter::Expanded, got {event:?}");
-        };
-        assert_eq!(expanded.name.as_str(), "Enters");
+        let semantic: deckmaste_semantics::EventFilter =
+            canon().macros.read_str("Enters(Ref(This))").unwrap();
+        let event: EventFilter = deckmaste_lowering::Lower::lower(semantic);
         assert_eq!(
-            *expanded.value,
+            event,
             EventFilter::ZoneChange {
                 cause: None,
                 what: Predicate::Ref(Reference::This),
@@ -2245,16 +2239,13 @@ mod tests {
         use deckmaste_core::CausePattern;
         use deckmaste_core::EventFilter;
 
-        let event: EventFilter = canon()
+        let semantic: deckmaste_semantics::EventFilter = canon()
             .macros
             .read_str("Destroyed(Type(Creature))")
             .unwrap();
-        let EventFilter::Expanded(expanded) = &event else {
-            panic!("expected EventFilter::Expanded, got {event:?}");
-        };
-        assert_eq!(expanded.name.as_str(), "Destroyed");
+        let event: EventFilter = deckmaste_lowering::Lower::lower(semantic);
         assert_eq!(
-            *expanded.value,
+            event,
             EventFilter::ZoneChange {
                 what: Predicate::creature(),
                 from: Some(Zone::Battlefield),
@@ -3352,16 +3343,15 @@ mod tests {
     fn dies_this_filter_ref_reference_this() {
         use deckmaste_core::EventFilter;
 
-        let event: EventFilter = canon().macros.read_str("Dies(Ref(This))").unwrap();
-        let EventFilter::Expanded(expanded) = &event else {
-            panic!("expected EventFilter::Expanded");
-        };
-        let EventFilter::ZoneChange { what, .. } = expanded.value.as_ref() else {
-            panic!("expected ZoneMove inner, got {:?}", expanded.value);
+        let semantic: deckmaste_semantics::EventFilter =
+            canon().macros.read_str("Dies(Ref(This))").unwrap();
+        let event: EventFilter = deckmaste_lowering::Lower::lower(semantic);
+        let EventFilter::ZoneChange { what, .. } = event else {
+            panic!("expected ZoneChange inner");
         };
         assert_eq!(
             what,
-            &Predicate::Ref(Reference::This),
+            Predicate::Ref(Reference::This),
             "Dies(Ref(This)) must use Predicate::Ref(Reference::This)"
         );
     }

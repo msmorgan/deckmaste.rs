@@ -114,7 +114,6 @@ pub(crate) fn target_spec_filter(spec: &TargetSpec) -> &deckmaste_core::Predicat
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        TargetSpec::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -128,7 +127,6 @@ pub(crate) fn target_spec_quantity(spec: &TargetSpec) -> &deckmaste_core::Quanti
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        TargetSpec::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -143,7 +141,6 @@ pub(crate) fn distinct_siblings(spec: &TargetSpec) -> &[usize] {
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        TargetSpec::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 

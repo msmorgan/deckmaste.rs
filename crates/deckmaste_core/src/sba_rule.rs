@@ -2,7 +2,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Condition;
-use crate::Expand;
 use crate::OneShotEffect;
 use crate::Predicate;
 
@@ -14,7 +13,7 @@ use crate::Predicate;
 /// `when`. This is the same `when`/`then` shape conferred statics use (see
 /// [`crate::StaticEffect::Sba`]), lifted to a global, scoped rule so the rule
 /// set is swappable (variant Magic) without touching the engine.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SbaRule {
     pub scope: Predicate,
     pub when: Condition,
@@ -32,8 +31,7 @@ mod tests {
 
     #[test]
     fn sba_rule_has_scope_when_then() {
-        // Construct directly — pins the field names/types. (RON round-trip
-        // through the macro reader is covered by the loader test in Task A2.)
+        // Construct directly to pin the field names and types.
         let rule = SbaRule {
             scope: Predicate::Characteristic(CharacteristicPredicate::Type(Type::Creature.into())),
             when: Condition::YourTurn,

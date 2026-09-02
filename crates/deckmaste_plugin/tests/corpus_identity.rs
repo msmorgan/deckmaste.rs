@@ -344,7 +344,6 @@ impl CoreAbilitySubterms for deckmaste_core::KeywordAbility {
     fn push_abilities<'a>(&'a self, out: &mut Vec<&'a deckmaste_core::Ability>) {
         match self {
             Self::Composite { abilities, .. } => abilities.push_abilities(out),
-            Self::Expanded(e) => e.value.push_abilities(out),
             Self::FirstStrike
             | Self::DoubleStrike
             | Self::Deathtouch
@@ -359,7 +358,6 @@ impl CoreAbilitySubterms for deckmaste_core::StaticEffect {
         match self {
             Self::Modify(_, m) => m.push_abilities(out),
             Self::Each(_, e) | Self::Conditionally(_, e) => e.push_abilities(out),
-            Self::Expanded(e) => e.value.push_abilities(out),
             // A copy delivery site ([CR#707.4]); mirrors the semantics side.
             Self::BecomesCopy(_, spec) => spec.push_abilities(out),
             // No other `StaticEffect` shape carries an `Ability` — same
@@ -376,7 +374,6 @@ impl CoreAbilitySubterms for deckmaste_core::Modification {
         match self {
             Self::GainAbility(a) => a.push_abilities(out),
             Self::Several(ms) => ms.push_abilities(out),
-            Self::Expanded(e) => e.value.push_abilities(out),
             Self::Power(_)
             | Self::Toughness(_)
             | Self::SwitchPowerToughness
@@ -430,7 +427,6 @@ impl CoreAbilitySubterms for deckmaste_core::OneShotEffect {
             Self::Targeted(t) => t.effect.push_abilities(out),
             Self::Repeat(_, e) | Self::Batch(_, e) => e.push_abilities(out),
             Self::RevealUntil(r) => r.body.push_abilities(out),
-            Self::Expanded(e) => e.value.push_abilities(out),
         }
     }
 }
@@ -521,7 +517,6 @@ fn core_nested_abilities(ability: &deckmaste_core::Ability) -> Vec<&deckmaste_co
         deckmaste_core::Ability::Spell(a) => a.effect.push_abilities(&mut out),
         deckmaste_core::Ability::Keyword(k) => k.push_abilities(&mut out),
         deckmaste_core::Ability::Innate(a) => out.push(a),
-        deckmaste_core::Ability::Expanded(e) => out.push(&e.value),
     }
     out
 }

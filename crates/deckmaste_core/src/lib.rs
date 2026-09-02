@@ -8,9 +8,7 @@ pub(crate) fn slice_is_empty<T>(s: &[T]) -> bool {
     s.is_empty()
 }
 
-/// An empty `Arc<[T]>`. A path-call default for `#[macro_ron(default = ...)]`
-/// (a method-call expression like `[].into()` needs syn's `full` feature,
-/// which the derive does not enable).
+/// An empty `Arc<[T]>` for serde defaults on slice-backed fields.
 pub(crate) fn empty_arc<T>() -> Arc<[T]> {
     Arc::from([])
 }
@@ -177,13 +175,21 @@ pub use filter::ObjectKind;
 pub use filter::Predicate;
 pub use filter::RelationPredicate;
 pub use filter::StatePredicate;
-pub use macro_ron::Expand;
-pub use macro_ron::Expansion;
-pub use macro_ron::ExpansionArgs;
-pub use macro_ron::Ident;
-pub use macro_ron::IdentSeed;
-pub use macro_ron::Normalize;
-pub use macro_ron::SupportsMacros;
+
+pub use dpsi::Ident;
+pub(crate) use dpsi::IdentSeed;
+
+/// Canonicalize a core value after construction or plain-serde loading.
+pub trait Normalize {
+    #[must_use]
+    fn normalize(self) -> Self;
+}
+
+impl<T: Normalize + Clone> Normalize for Arc<T> {
+    fn normalize(self) -> Self {
+        Arc::new(Arc::unwrap_or_clone(self).normalize())
+    }
+}
 
 mod keyword;
 pub use keyword::KeywordAbility;

@@ -157,7 +157,7 @@ mod tests {
     fn selector_embeds_core_count_and_filter() {
         use deckmaste_core::Reference;
         use deckmaste_core::Stat;
-        let s: Selector = read("(pick: Max, by: StatOf(This, Power), among: Any)");
+        let s: Selector = read("(pick: Max, by: StatOf(This, Power), among: Some(Any))");
         assert_eq!(s.pick, Extremum::Max);
         assert_eq!(s.by, Count::StatOf(Reference::This, Stat::Power));
         assert_eq!(s.among, Some(Predicate::Any));
@@ -188,7 +188,7 @@ mod tests {
         assert_eq!(target, None);
 
         let activate: Preference = read(
-            "Activate(what: (pick: First, by: Literal(1)), target: (pick: Max, by: StatOf(This, Power)))",
+            "Activate(what: (pick: First, by: Literal(1)), target: Some((pick: Max, by: StatOf(This, Power))))",
         );
         let Preference::Activate { target, .. } = activate else {
             panic!("expected Activate");
@@ -252,8 +252,8 @@ mod tests {
                 name: "Round Trip",
                 rules: [
                     (when: YourTurn, prefer: Cast(
-                        what: (pick: Min, by: StatOf(This, ManaValue), among: Any),
-                        target: (pick: Max, by: StatOf(This, Power)),
+                        what: (pick: Min, by: StatOf(This, ManaValue), among: Some(Any)),
+                        target: Some((pick: Max, by: StatOf(This, Power))),
                     )),
                     (when: And([]), prefer: Block(BlockAll)),
                     (when: And([]), prefer: Pass),

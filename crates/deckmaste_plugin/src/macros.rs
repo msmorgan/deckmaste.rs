@@ -27,41 +27,41 @@ pub use macro_ron::Params;
 mod tests {
     use std::sync::Arc;
 
-    use deckmaste_card::CardFace;
-    use deckmaste_core::Ability;
-    use deckmaste_core::Action;
-    use deckmaste_core::AsThough;
-    use deckmaste_core::CharacteristicPredicate;
-    use deckmaste_core::ColorOrColorless;
-    use deckmaste_core::Condition;
-    use deckmaste_core::CostComponent;
-    use deckmaste_core::Count;
-    use deckmaste_core::Counter;
-    use deckmaste_core::Destination;
-    use deckmaste_core::EventFilter;
-    use deckmaste_core::KeywordAbility;
-    use deckmaste_core::LifeOp;
-    use deckmaste_core::ManaProduction;
-    use deckmaste_core::ManaRider;
-    use deckmaste_core::ManaSpec;
-    use deckmaste_core::ManaSymbol;
-    use deckmaste_core::Modification;
-    use deckmaste_core::ObjectKind;
-    use deckmaste_core::OneShotEffect;
-    use deckmaste_core::Predicate;
-    use deckmaste_core::Quantity;
-    use deckmaste_core::Reference;
-    use deckmaste_core::Replacement;
-    use deckmaste_core::Selection;
-    use deckmaste_core::SimpleManaSymbol;
-    use deckmaste_core::StatValue;
-    use deckmaste_core::StatePredicate;
-    use deckmaste_core::StaticEffect;
-    use deckmaste_core::Subtype;
-    use deckmaste_core::TargetSpec;
-    use deckmaste_core::Type;
-    use deckmaste_core::Zone;
     use deckmaste_lowering::Lower;
+    use deckmaste_semantics::Ability;
+    use deckmaste_semantics::Action;
+    use deckmaste_semantics::AsThough;
+    use deckmaste_semantics::CardFace;
+    use deckmaste_semantics::CharacteristicPredicate;
+    use deckmaste_semantics::ColorOrColorless;
+    use deckmaste_semantics::Condition;
+    use deckmaste_semantics::CostComponent;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::Counter;
+    use deckmaste_semantics::Destination;
+    use deckmaste_semantics::EventFilter;
+    use deckmaste_semantics::KeywordAbility;
+    use deckmaste_semantics::LifeOp;
+    use deckmaste_semantics::ManaProduction;
+    use deckmaste_semantics::ManaRider;
+    use deckmaste_semantics::ManaSpec;
+    use deckmaste_semantics::ManaSymbol;
+    use deckmaste_semantics::Modification;
+    use deckmaste_semantics::ObjectKind;
+    use deckmaste_semantics::OneShotEffect;
+    use deckmaste_semantics::Predicate;
+    use deckmaste_semantics::Quantity;
+    use deckmaste_semantics::Reference;
+    use deckmaste_semantics::Replacement;
+    use deckmaste_semantics::Selection;
+    use deckmaste_semantics::SimpleManaSymbol;
+    use deckmaste_semantics::StatValue;
+    use deckmaste_semantics::StatePredicate;
+    use deckmaste_semantics::StaticEffect;
+    use deckmaste_semantics::Subtype;
+    use deckmaste_semantics::TargetSpec;
+    use deckmaste_semantics::Type;
+    use deckmaste_semantics::Zone;
 
     use super::*;
 
@@ -70,7 +70,9 @@ mod tests {
     /// `macro_ron`, so file-shaped source is the construction path here —
     /// which is also what real definitions are.)
     fn def(source: &str) -> MacroDef {
-        deckmaste_core::ron::options().from_str(source).unwrap()
+        deckmaste_semantics::ron::options()
+            .from_str(source)
+            .unwrap()
     }
 
     /// The semantics grammar owns the kind registry
@@ -122,10 +124,10 @@ mod tests {
             name_of::<deckmaste_semantics::Card>(),
             name_of::<deckmaste_semantics::Supertype>(),
             name_of::<Subtype>(),
-            name_of::<deckmaste_core::TypeDef>(),
+            name_of::<deckmaste_semantics::TypeDef>(),
             name_of::<TargetSpec>(),
             name_of::<Counter>(),
-            name_of::<deckmaste_core::DesignationDecl>(),
+            name_of::<deckmaste_semantics::DesignationDecl>(),
             "Macro", // hand-registered: MacroDef's serde rename, loader-only
             // hand-registered: the keyword-action verb grouping kind (name-
             // erasing like `TypeDef`), collected into the plugin's verb table.
@@ -184,9 +186,9 @@ mod tests {
     /// to the flat two-op list. The keystone of the change-bundling design.
     #[test]
     fn modification_positions_expand_and_flatten() {
-        use deckmaste_core::Expand as _;
-        use deckmaste_core::Modification;
-        use deckmaste_core::NumericOp;
+        use deckmaste_semantics::Expand as _;
+        use deckmaste_semantics::Modification;
+        use deckmaste_semantics::NumericOp;
 
         let mut macros = macro_set();
         macros
@@ -230,7 +232,9 @@ mod tests {
         );
 
         // Round-trips as the invocation, not the expansion.
-        let written = deckmaste_core::ron::options().to_string(&effect).unwrap();
+        let written = deckmaste_semantics::ron::options()
+            .to_string(&effect)
+            .unwrap();
         assert_eq!(
             written,
             "Modify(This,Several([PowerAndToughnessUp(3,3),GainAbility(Keyword(Trample))]))"
@@ -268,8 +272,8 @@ mod tests {
     /// stop at the delegate's own `Expanded` wrapper.
     #[test]
     fn pt_up_down_expand_through_delegate() {
-        use deckmaste_core::Expand as _;
-        use deckmaste_core::NumericOp;
+        use deckmaste_semantics::Expand as _;
+        use deckmaste_semantics::NumericOp;
 
         let mut macros = macro_set();
         macros
@@ -301,7 +305,7 @@ mod tests {
 
         let up: Modification = macros.read_str("PowerAndToughnessUp(2, 2)").unwrap();
         assert_eq!(
-            deckmaste_core::ron::options().to_string(&up).unwrap(),
+            deckmaste_semantics::ron::options().to_string(&up).unwrap(),
             "PowerAndToughnessUp(2,2)"
         );
         assert_eq!(
@@ -317,7 +321,9 @@ mod tests {
 
         let down: Modification = macros.read_str("PowerAndToughnessDown(2, 2)").unwrap();
         assert_eq!(
-            deckmaste_core::ron::options().to_string(&down).unwrap(),
+            deckmaste_semantics::ron::options()
+                .to_string(&down)
+                .unwrap(),
             "PowerAndToughnessDown(2,2)"
         );
         assert_eq!(
@@ -344,7 +350,7 @@ mod tests {
     /// invocation wrapper `expand_all` strips.
     #[test]
     fn cost_param_forwards_into_nested_macro() {
-        use deckmaste_core::Expand;
+        use deckmaste_semantics::Expand;
 
         let mut set = macro_set();
         set.insert(&def(r#"(
@@ -390,10 +396,10 @@ mod tests {
     /// `PowerAndToughnessBoth`) must land on the flat two-axis `Several`.
     #[test]
     fn p1p1_for_each_expands_and_reserializes() {
-        use deckmaste_core::Count;
-        use deckmaste_core::Countable;
-        use deckmaste_core::Expand as _;
-        use deckmaste_core::NumericOp;
+        use deckmaste_semantics::Count;
+        use deckmaste_semantics::Countable;
+        use deckmaste_semantics::Expand as _;
+        use deckmaste_semantics::NumericOp;
 
         let macros = builtin().macros;
         let pred_src = r"And([Permanent,Type(Creature),ControlledBy(Ref(You))])";
@@ -411,7 +417,10 @@ mod tests {
         assert_eq!(exp.name, "P1P1ForEach");
 
         // Round-trips to the invocation, not the expansion.
-        assert_eq!(deckmaste_core::ron::options().to_string(&m).unwrap(), ron);
+        assert_eq!(
+            deckmaste_semantics::ron::options().to_string(&m).unwrap(),
+            ron
+        );
 
         // Fully expanded (through the `PowerAndToughnessBoth` delegate)
         // lands on the flat two-axis `Several`, both sides reading the SAME
@@ -436,10 +445,10 @@ mod tests {
     /// `Several` wrapping at all, unlike `P1P1ForEach`.
     #[test]
     fn p1p0_for_each_expands_to_lone_power() {
-        use deckmaste_core::Count;
-        use deckmaste_core::Countable;
-        use deckmaste_core::Expand as _;
-        use deckmaste_core::NumericOp;
+        use deckmaste_semantics::Count;
+        use deckmaste_semantics::Countable;
+        use deckmaste_semantics::Expand as _;
+        use deckmaste_semantics::NumericOp;
 
         let macros = builtin().macros;
         let pred_src = r"And([Permanent,Type(Creature),ControlledBy(Ref(You))])";
@@ -455,7 +464,10 @@ mod tests {
             panic!("expected a remembered modification, got {m:?}");
         };
         assert_eq!(exp.name, "P1P0ForEach");
-        assert_eq!(deckmaste_core::ron::options().to_string(&m).unwrap(), ron);
+        assert_eq!(
+            deckmaste_semantics::ron::options().to_string(&m).unwrap(),
+            ron
+        );
 
         let count = Count::CountOf(Countable::Objects(Arc::new(pred)));
         assert_eq!(m.expand_all(), Modification::Power(NumericOp::Up(count)));
@@ -503,11 +515,11 @@ mod tests {
     /// `StaticEffect`'s filter slot.
     #[test]
     fn keyword_action_pattern_twins_expand_to_the_act_master_form() {
-        use deckmaste_core::EventFilter;
-        use deckmaste_core::Predicate;
-        use deckmaste_core::Reference;
-        use deckmaste_core::StaticEffect;
-        use deckmaste_core::VerbName;
+        use deckmaste_semantics::EventFilter;
+        use deckmaste_semantics::Predicate;
+        use deckmaste_semantics::Reference;
+        use deckmaste_semantics::StaticEffect;
+        use deckmaste_semantics::VerbName;
 
         let macros = builtin().macros;
 
@@ -585,9 +597,9 @@ mod tests {
     /// to its own `And([...])` filter.
     #[test]
     fn selection_wrappers_expand_through_predicate_atoms() {
-        use deckmaste_core::Expand as _;
-        use deckmaste_core::RelationPredicate;
-        use deckmaste_core::Zone;
+        use deckmaste_semantics::Expand as _;
+        use deckmaste_semantics::RelationPredicate;
+        use deckmaste_semantics::Zone;
 
         let macros = builtin().macros;
 
@@ -597,7 +609,7 @@ mod tests {
         // what its body nests.
         let sel: Selection = macros.read_str("OtherCreaturesYouControl").unwrap();
         assert_eq!(
-            deckmaste_core::ron::options().to_string(&sel).unwrap(),
+            deckmaste_semantics::ron::options().to_string(&sel).unwrap(),
             "OtherCreaturesYouControl"
         );
 
@@ -643,7 +655,9 @@ mod tests {
         // The predicate atom on its own expands to the same `And([...])`.
         let pred: Predicate = macros.read_str("OtherCreatureYouControl").unwrap();
         assert_eq!(
-            deckmaste_core::ron::options().to_string(&pred).unwrap(),
+            deckmaste_semantics::ron::options()
+                .to_string(&pred)
+                .unwrap(),
             "OtherCreatureYouControl"
         );
         assert_eq!(pred.expand_all(), expected_atom);
@@ -829,11 +843,17 @@ mod tests {
         let deckmaste_core::CostComponent::Act(action) = cost.clone().lower() else {
             panic!("expected a runnable Act cost component");
         };
-        assert_eq!(*action, Action::Sacrifice(Reference::You, Reference::This));
+        assert_eq!(
+            *action,
+            deckmaste_core::Action::Sacrifice(
+                deckmaste_core::Reference::You,
+                deckmaste_core::Reference::This,
+            )
+        );
     }
 
-    /// A remembered invocation round-trips as the invocation through the
-    /// real core types' `Serialize` impls: a nullary Ability
+    /// A remembered invocation round-trips through the semantic types'
+    /// `Serialize` impls: a nullary Ability
     /// macro serializes back to its bare name, a parameterized Predicate macro
     /// to the original call text — not the expansion.
     #[test]
@@ -866,7 +886,9 @@ mod tests {
 
         let ability: Ability = macros.read_str("Flying").unwrap();
         assert_eq!(
-            deckmaste_core::ron::options().to_string(&ability).unwrap(),
+            deckmaste_semantics::ron::options()
+                .to_string(&ability)
+                .unwrap(),
             "Flying"
         );
 
@@ -874,7 +896,9 @@ mod tests {
         // bare type name, not the expanded struct.
         let filter: Predicate = macros.read_str("OfType(Creature)").unwrap();
         assert_eq!(
-            deckmaste_core::ron::options().to_string(&filter).unwrap(),
+            deckmaste_semantics::ron::options()
+                .to_string(&filter)
+                .unwrap(),
             "OfType(Creature)"
         );
     }
@@ -914,7 +938,7 @@ mod tests {
     /// fully-expanded RON, not the invocation.
     #[test]
     fn expand_all_strips_remembered_invocations() {
-        use deckmaste_core::Expand as _;
+        use deckmaste_semantics::Expand as _;
 
         let mut macros = macro_set();
         macros
@@ -941,7 +965,9 @@ mod tests {
                 .into()
             )
         );
-        let written = deckmaste_core::ron::options().to_string(&expanded).unwrap();
+        let written = deckmaste_semantics::ron::options()
+            .to_string(&expanded)
+            .unwrap();
         assert!(!written.contains("GainTwo"), "macro name leaked: {written}");
         // A `Count` literal writes bare — `2`, never `Literal(2)`.
         assert_eq!(written, "Sequentially([ChangeLife(You,Up(2))])");
@@ -964,8 +990,8 @@ mod tests {
     /// `Count` stays macro-aware inside `Library(FromTop(...))`.
     #[test]
     fn count_macro_expands_at_library_anchor_position() {
-        use deckmaste_core::Anchor;
-        use deckmaste_core::Destination;
+        use deckmaste_semantics::Anchor;
+        use deckmaste_semantics::Destination;
         let mut macros = macro_set();
         macros
             .insert(&def(r#"(
@@ -1058,7 +1084,7 @@ mod tests {
             .unwrap();
         // `Purple` is neither a OneShotEffect variant nor a OneShotEffect macro.
         let error = macros
-            .read_str::<deckmaste_core::Replacement>("DoThen(Purple)")
+            .read_str::<deckmaste_semantics::Replacement>("DoThen(Purple)")
             .unwrap_err()
             .to_string();
         assert!(
@@ -1066,13 +1092,13 @@ mod tests {
             "unexpected error: {error}"
         );
         // A real OneShotEffect argument is accepted (remembered as `Expanded`).
-        let ok: deckmaste_core::Replacement = macros.read_str("DoThen(Tap(This))").unwrap();
-        let deckmaste_core::Replacement::Expanded(exp) = ok else {
+        let ok: deckmaste_semantics::Replacement = macros.read_str("DoThen(Tap(This))").unwrap();
+        let deckmaste_semantics::Replacement::Expanded(exp) = ok else {
             panic!("expected a remembered replacement, got {ok:?}");
         };
         assert!(matches!(
             *exp.value,
-            deckmaste_core::Replacement::Also { .. }
+            deckmaste_semantics::Replacement::Also { .. }
         ));
     }
 
@@ -1097,7 +1123,7 @@ mod tests {
     /// validators (`read_str::<T>`) rely on exactly that guarantee.
     #[test]
     fn supports_macros_guarantees_deserialize_owned() {
-        fn read_one<T: deckmaste_core::SupportsMacros>(
+        fn read_one<T: deckmaste_semantics::SupportsMacros>(
             macros: &MacroSet,
             src: &str,
         ) -> Result<T, ron::error::SpannedError> {
@@ -1144,7 +1170,7 @@ mod tests {
                     body: Subtype(name: Param(0), types: [Land]),
                 )"#))
             .unwrap();
-        let subtype: deckmaste_core::Subtype = macros
+        let subtype: deckmaste_semantics::Subtype = macros
             .read_str(r#"BasicLandType("Plains", White)"#)
             .unwrap();
         assert_eq!(subtype.name, "Plains");
@@ -1163,7 +1189,8 @@ mod tests {
                     body: Subtype(name: Param(0), types: [Creature]),
                 )"#))
             .unwrap();
-        let subtype: deckmaste_core::Subtype = macros.read_str(r#"CreatureType("Bear")"#).unwrap();
+        let subtype: deckmaste_semantics::Subtype =
+            macros.read_str(r#"CreatureType("Bear")"#).unwrap();
         assert_eq!(subtype.name, "Bear");
     }
 
@@ -1186,7 +1213,7 @@ mod tests {
             .unwrap();
         let produced: MacroDef = macros.read_str(r#"CreatureType(name: "Zombie")"#).unwrap();
         macros.insert(&produced).unwrap();
-        let subtype: deckmaste_core::Subtype = macros.read_str("Zombie").unwrap();
+        let subtype: deckmaste_semantics::Subtype = macros.read_str("Zombie").unwrap();
         assert_eq!(subtype.name, "Zombie");
     }
 
@@ -1204,7 +1231,7 @@ mod tests {
     /// dependency.
     #[test]
     fn strategy_when_position_expands_a_condition_macro() {
-        use deckmaste_core::Condition;
+        use deckmaste_semantics::Condition;
 
         #[derive(serde::Deserialize)]
         struct Rule {

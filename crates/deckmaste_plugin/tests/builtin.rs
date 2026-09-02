@@ -26,6 +26,7 @@ use deckmaste_core::Subtype;
 use deckmaste_core::Supertype;
 use deckmaste_core::Type;
 use deckmaste_core::ron::options as ron_options;
+use deckmaste_lowering::Lower;
 use deckmaste_plugin::plugin::Plugin;
 
 fn builtin_path() -> PathBuf {
@@ -170,7 +171,11 @@ fn declared_subtypes_cover_the_basics() {
         );
 
         // Declared subtypes are nullary macros expanding to themselves.
-        let expanded: Subtype = plugin.macros.read_str(name).unwrap();
+        let expanded: Subtype = plugin
+            .macros
+            .read_str::<deckmaste_semantics::Subtype>(name)
+            .unwrap()
+            .lower();
         assert_eq!(Some(&expanded), plugin.subtypes.get(name));
     }
 }
@@ -214,23 +219,16 @@ fn subtype_confers_round_trips_and_omits_empty() {
 fn regenerate_macro_expands_with_typed_reference_param() {
     let plugin = builtin();
 
-    // Regenerate(This): the self form. A macro invocation is REMEMBERED as
-    // `Expanded` (the bidirectional form — it renders back to "Regenerate(This)"
-    // via the template; the typed param is what restores that round-trip), with
-    // the expansion in `value`.
-    let effect: OneShotEffect = plugin.macros.read_str("Regenerate(This)").unwrap();
-    let OneShotEffect::Expanded(ref ex) = effect else {
-        panic!("a macro invocation is remembered as Expanded, got {effect:?}");
-    };
-    assert_eq!(ex.name.as_str(), "Regenerate");
+    // Regenerate(This): lower the semantic invocation before inspecting the
+    // runnable core shape.
+    let semantic: deckmaste_semantics::OneShotEffect =
+        plugin.macros.read_str("Regenerate(This)").unwrap();
+    let effect: OneShotEffect = semantic.lower();
     // The subject is bound by an enclosing `With(TheRef(Param(0)))` as the
     // singular `That` (the shield freezes it at creation); `CreateReplacement`
     // no longer carries a semantic `subject:` field.
-    let OneShotEffect::With(deckmaste_core::With { binder, body }) = (*ex.value).clone() else {
-        panic!(
-            "Regenerate(This) must expand to With(TheRef, CreateReplacement), got {:?}",
-            ex.value
-        );
+    let OneShotEffect::With(deckmaste_core::With { binder, body }) = effect else {
+        panic!("Regenerate(This) must expand to With(TheRef, CreateReplacement), got {effect:?}");
     };
     assert_eq!(
         binder,
@@ -263,20 +261,18 @@ fn regenerate_macro_expands_with_typed_reference_param() {
     // Regenerate(It): the announced-target anaphor parses too — the param is
     // a Reference, so `It` fits exactly where `This` did (as the `TheRef`
     // subject the `With` binds).
-    let tgt: OneShotEffect = plugin.macros.read_str("Regenerate(It)").unwrap();
-    let OneShotEffect::Expanded(tex) = tgt else {
-        panic!("Regenerate(It) is remembered as Expanded");
-    };
+    let semantic: deckmaste_semantics::OneShotEffect =
+        plugin.macros.read_str("Regenerate(It)").unwrap();
+    let tgt: OneShotEffect = semantic.lower();
     assert!(
         matches!(
-            *tex.value,
+            tgt,
             OneShotEffect::With(deckmaste_core::With {
                 binder: deckmaste_core::Binder::TheRef(Reference::It),
                 ..
             })
         ),
-        "Regenerate(It) expands with the anaphor subject bound by With, got {:?}",
-        tex.value
+        "Regenerate(It) lowers with the anaphor subject bound by With"
     );
 }
 
@@ -285,7 +281,7 @@ fn regenerate_macro_expands_with_typed_reference_param() {
 /// the RON surface — the headline guarantee that existing cards don't churn.
 #[test]
 fn named_quantity_macros_round_trip_byte_identical() {
-    use deckmaste_core::Quantity;
+    use deckmaste_semantics::Quantity;
     let plugin = builtin();
     for surface in [
         "Exactly(1)",
@@ -299,7 +295,9 @@ fn named_quantity_macros_round_trip_byte_identical() {
             .macros
             .read_str(surface)
             .unwrap_or_else(|e| panic!("parsing {surface}: {e}"));
-        let written = ron_options().to_string(&parsed).unwrap();
+        let written = deckmaste_semantics::ron::options()
+            .to_string(&parsed)
+            .unwrap();
         assert_eq!(written, surface, "surface RON changed for {surface}");
     }
 }
@@ -309,8 +307,8 @@ fn named_quantity_macros_round_trip_byte_identical() {
 /// both distinct, `AnyNumber` neither.
 #[test]
 fn named_quantity_macros_expand_to_range() {
-    use deckmaste_core::Count;
-    use deckmaste_core::Quantity;
+    use deckmaste_semantics::Count;
+    use deckmaste_semantics::Quantity;
     let plugin = builtin();
     let q = |s: &str| -> Quantity { plugin.macros.read_str(s).unwrap() };
     assert_eq!(
@@ -383,16 +381,13 @@ fn wave_macros_expand_to_their_blessed_bodies() {
 
     // Unless — the English order over the collapsed `May(Pay(cost))` MustPay
     // shape ([CR#118.12a]): who defaults to You, the cost splices flat.
-    let unless: OneShotEffect = plugin
+    let semantic: deckmaste_semantics::OneShotEffect = plugin
         .macros
         .read_str("Unless(effect: Draw(1), unless: [Mana([Generic(2)])])")
         .unwrap();
-    let OneShotEffect::Expanded(exp) = unless else {
-        panic!("expected a remembered Unless expansion, got {unless:?}");
-    };
-    assert_eq!(exp.name.as_str(), "Unless");
-    let OneShotEffect::May(m) = exp.value.as_ref() else {
-        panic!("Unless must expand to May, got {:?}", exp.value);
+    let unless: OneShotEffect = semantic.lower();
+    let OneShotEffect::May(m) = &unless else {
+        panic!("Unless must lower to May, got {unless:?}");
     };
     assert_eq!(m.who, Reference::You, "the payer defaults to You");
     assert!(
@@ -402,19 +397,13 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     let Some(if_not) = m.if_not.as_ref() else {
         panic!("expected if_not, got None");
     };
-    // `Draw(1)` is the `Draw` macro, so the unpaid branch is its remembered
-    // `Expanded` wrapping the `Batch(1, Act(By(You, DrawCard)))`.
-    let OneShotEffect::Expanded(draw_exp) = if_not.as_ref() else {
-        panic!("if_not should be the remembered Draw expansion, got {if_not:?}");
-    };
-    assert_eq!(draw_exp.name.as_str(), "Draw");
     // `Draw(1)` is `Batch(1, Act(DrawCard(You)))`: the `Batch` is the
     // instruction level a count-referring replacement bites ([CR#121.2a]) and
     // each element is one individual card draw ([CR#121.2]). NOT a `Composite`
     // — drawing is [CR#121], not a keyword action ([CR#701]), and [CR#121.5]
     // makes it irreducible, so there is no body.
-    let OneShotEffect::Batch(_, draw_inner) = draw_exp.value.as_ref() else {
-        panic!("Draw expands to a Batch, got {:?}", draw_exp.value);
+    let OneShotEffect::Batch(_, draw_inner) = if_not.as_ref() else {
+        panic!("Draw lowers to a Batch, got {if_not:?}");
     };
     assert!(
         matches!(
@@ -426,27 +415,24 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     );
 
     // Exile — the render name over the pure zone move ([CR#701.13]).
-    let exile: OneShotEffect = plugin.macros.read_str("Exile(This)").unwrap();
-    let OneShotEffect::Expanded(exp) = exile else {
-        panic!("expected a remembered Exile expansion");
-    };
+    let semantic: deckmaste_semantics::OneShotEffect =
+        plugin.macros.read_str("Exile(This)").unwrap();
+    let exile: OneShotEffect = semantic.lower();
     assert!(
         matches!(
-            exp.value.as_ref(),
+            exile,
             OneShotEffect::Act(Action::Move(Reference::This, _, _, _))
         ),
-        "Exile(This) is Move(This, Exile), got {:?}",
-        exp.value
+        "Exile(This) lowers to Move(This, Exile)"
     );
 
     // DestroyNoRegen — destroy + the ForThisEvent-scoped
     // Cant(Regenerate) rider ([CR#701.19c]).
-    let dnr: OneShotEffect = plugin.macros.read_str("DestroyNoRegen(This)").unwrap();
-    let OneShotEffect::Expanded(exp) = dnr else {
-        panic!("expected a remembered DestroyNoRegen expansion");
-    };
-    let OneShotEffect::Sequentially(parts) = exp.value.as_ref() else {
-        panic!("DestroyNoRegen is a Sequentially, got {:?}", exp.value);
+    let semantic: deckmaste_semantics::OneShotEffect =
+        plugin.macros.read_str("DestroyNoRegen(This)").unwrap();
+    let dnr: OneShotEffect = semantic.lower();
+    let OneShotEffect::Sequentially(parts) = &dnr else {
+        panic!("DestroyNoRegen lowers to Sequentially, got {dnr:?}");
     };
     assert!(
         matches!(
@@ -469,34 +455,33 @@ fn wave_macros_expand_to_their_blessed_bodies() {
 
     // PreventNext / PreventAll — render names over the Prevention class
     // ([CR#615.7,615.1]), one-shot shields until end of turn.
-    let next: OneShotEffect = plugin
+    let semantic: deckmaste_semantics::OneShotEffect = plugin
         .macros
         .read_str("PreventNext(n: 3, to: Creature)")
         .unwrap();
-    let OneShotEffect::Expanded(exp) = next else {
-        panic!("expected a remembered PreventNext expansion");
-    };
+    let next: OneShotEffect = semantic.lower();
     assert!(
         matches!(
-            exp.value.as_ref(),
+            next,
             OneShotEffect::Continuously(c) if c.duration == Duration::FixedUntil(deckmaste_core::TurnMarker::EndOfTurn)
         ),
-        "PreventNext is an until-end-of-turn shield, got {:?}",
-        exp.value
+        "PreventNext lowers to an until-end-of-turn shield"
     );
-    let all: OneShotEffect = plugin.macros.read_str("PreventAll(to: Ref(You))").unwrap();
-    assert!(matches!(all, OneShotEffect::Expanded(_)));
+    let all: deckmaste_semantics::OneShotEffect =
+        plugin.macros.read_str("PreventAll(to: Ref(You))").unwrap();
+    assert!(matches!(
+        all,
+        deckmaste_semantics::OneShotEffect::Expanded(_)
+    ));
 
     // Multikicker — the repeatable kicker variant ([CR#702.33c]): the same
     // Kicker-tagged CostOption with repeatable: true.
-    let multi: deckmaste_core::KeywordAbility = plugin
+    let semantic: deckmaste_semantics::KeywordAbility = plugin
         .macros
         .read_str("Multikicker([Mana([Generic(1)])])")
         .unwrap();
-    let deckmaste_core::KeywordAbility::Expanded(exp) = multi else {
-        panic!("expected a remembered Multikicker expansion");
-    };
-    let deckmaste_core::KeywordAbility::Composite { abilities, .. } = exp.value.as_ref() else {
+    let multi: deckmaste_core::KeywordAbility = semantic.lower();
+    let deckmaste_core::KeywordAbility::Composite { abilities, .. } = &multi else {
         panic!("Multikicker lands on a Composite");
     };
     let Ability::Static(s) = &abilities[0] else {
@@ -515,14 +500,12 @@ fn wave_macros_expand_to_their_blessed_bodies() {
     // Chapter — sagas as data ([CR#714.2b]): OneOrMore + Crossed, a plain
     // REMOVABLE triggered ability (NOT Innate: [CR#714.2d] contemplates a
     // Saga that has lost its chapter abilities, so they cannot be innate).
-    let chapter: Ability = plugin
+    let semantic: deckmaste_semantics::Ability = plugin
         .macros
         .read_str("Chapter(n: [1], effect: Draw(1))")
         .unwrap();
-    let Ability::Expanded(exp) = chapter else {
-        panic!("expected a remembered Chapter expansion");
-    };
-    let Ability::Triggered(t) = exp.value.as_ref() else {
+    let chapter: Ability = semantic.lower();
+    let Ability::Triggered(t) = &chapter else {
         panic!("a chapter is a plain removable triggered ability ([CR#714.2,714.2d])");
     };
     assert!(
@@ -545,14 +528,12 @@ fn wave_macros_expand_to_their_blessed_bodies() {
 #[test]
 fn chapter_range_expands_to_plural_thresholds() {
     let plugin = builtin();
-    let chapter: Ability = plugin
+    let semantic: deckmaste_semantics::Ability = plugin
         .macros
         .read_str("Chapter(n: [2, 3], effect: Draw(1))")
         .unwrap();
-    let Ability::Expanded(exp) = chapter else {
-        panic!("expected a remembered Chapter expansion");
-    };
-    let Ability::Triggered(t) = exp.value.as_ref() else {
+    let chapter: Ability = semantic.lower();
+    let Ability::Triggered(t) = &chapter else {
         panic!("a chapter is a plain removable triggered ability ([CR#714.2,714.2d])");
     };
     let Some(deckmaste_core::Condition::Crossed { thresholds, .. }) = &t.condition else {
@@ -579,8 +560,6 @@ fn loyalty_macros_expand_to_sorcery_speed_shared_once_per_turn() {
     use deckmaste_core::CounterRef;
     use deckmaste_core::Timing;
     use deckmaste_core::UseLimit;
-    use deckmaste_lowering::Lower;
-
     let plugin = builtin();
 
     let plus: deckmaste_semantics::Ability = plugin
@@ -674,14 +653,11 @@ fn amass_decomposes_into_core_primitives() {
     use deckmaste_core::Type;
 
     let plugin = builtin();
-    let effect: OneShotEffect = plugin.macros.read_str("Amass(Zombie, 1)").unwrap();
-    // The invocation is remembered (so it can render back through the template).
-    let OneShotEffect::Expanded(exp) = effect else {
-        panic!("expected a remembered Amass expansion");
-    };
-    assert_eq!(exp.name.as_str(), "Amass");
-    let OneShotEffect::Sequentially(steps) = exp.value.as_ref() else {
-        panic!("Amass is a Sequentially, got {:?}", exp.value);
+    let semantic: deckmaste_semantics::OneShotEffect =
+        plugin.macros.read_str("Amass(Zombie, 1)").unwrap();
+    let effect: OneShotEffect = semantic.lower();
+    let OneShotEffect::Sequentially(steps) = &effect else {
+        panic!("Amass lowers to Sequentially, got {effect:?}");
     };
     assert_eq!(
         steps.len(),
@@ -716,7 +692,11 @@ fn amass_decomposes_into_core_primitives() {
     // ([CR#508.1a,509.1a]) — the `Creature` cardtype macro expands to the full
     // conferring `TypeDef`, not the empty-confer `Type::Creature.def()`. Read
     // the SAME expansion the token's semantic `types: [Creature]` produced.
-    let creature_type: deckmaste_core::TypeDef = plugin.macros.read_str("Creature").unwrap();
+    let creature_type: deckmaste_core::TypeDef = plugin
+        .macros
+        .read_str::<deckmaste_semantics::TypeDef>("Creature")
+        .unwrap()
+        .lower();
     assert_eq!(tok.types, vec![creature_type].into());
     let names: Arc<[&str]> = tok.subtypes.iter().map(|s| s.name.as_str()).collect();
     assert_eq!(

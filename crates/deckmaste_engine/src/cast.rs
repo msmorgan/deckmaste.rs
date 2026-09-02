@@ -518,7 +518,6 @@ fn verb_mentions_cost_x(verb: &CoreAction) -> bool {
         CoreAction::Composite { name, body } if name.as_str() == "Discard" => {
             deckmaste_core::discard_body_count(body).is_some_and(deckmaste_core::Count::mentions_x)
         }
-        CoreAction::Expanded(expansion) => verb_mentions_cost_x(&expansion.value),
         _ => false,
     }
 }
@@ -536,7 +535,6 @@ fn binder_mentions_cost_x(binder: &deckmaste_core::Binder) -> bool {
         deckmaste_core::Binder::Choose { quantity, .. }
         | deckmaste_core::Binder::Search { quantity, .. } => quantity_mentions_cost_x(quantity),
         deckmaste_core::Binder::Produce(action) => verb_mentions_cost_x(action),
-        deckmaste_core::Binder::Expanded(expansion) => binder_mentions_cost_x(&expansion.value),
         deckmaste_core::Binder::TheRef(_)
         | deckmaste_core::Binder::ChooseOne { .. }
         | deckmaste_core::Binder::SearchOne { .. }
@@ -558,7 +556,6 @@ fn cost_component_mentions_x(component: &CostComponent) -> bool {
         CostComponent::ChooseAndPay { binder, body } => {
             binder_mentions_cost_x(binder) || body.iter().any(cost_component_mentions_x)
         }
-        CostComponent::Expanded(expansion) => cost_component_mentions_x(&expansion.value),
         CostComponent::ManaCostOf(_) | CostComponent::Tap | CostComponent::Untap => false,
     }
 }

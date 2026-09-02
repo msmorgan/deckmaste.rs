@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use macro_ron::Ident;
+use crate::Ident;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::Expand;
 use crate::Property;
 
 // [CR#300.1]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Type {
     Artifact,
     Battle,
@@ -28,7 +27,7 @@ pub enum Type {
 }
 
 // [CR#205.4a]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, macro_ron::SupportsMacros)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Supertype {
     Basic,
     Legendary,
@@ -40,17 +39,15 @@ pub enum Supertype {
 /// A subtype: its name, the card types it can appear on ([CR#205.3]), and
 /// what it confers on its bearers — how [CR#305.6] gives basic lands their
 /// mana abilities, as plugin data rather than an engine special case.
-/// Embedded in the value: a macro-expanded card describes the entirety of
-/// its behavior.
+/// Embedded in the lowered value, so a core card describes the entirety of its
+/// behavior.
 ///
 /// Subtypes are open-ended data, declared by plugins (usually as macro
 /// definitions produced by meta-macros like
 /// `LandType(name: "Forest", template: "Forest")`) rather than baked in as
-/// Rust variants.
-/// Plain serde on both sides; card files reference declared subtypes by bare
-/// name (`Forest`), which the macro-aware reader expands to the full
-/// declaration before this type ever sees it.
-#[derive(Debug, Clone, Eq, Deserialize, Expand, Serialize)]
+/// Rust variants. Semantic lowering resolves authored subtype names to the
+/// full declaration before core sees them.
+#[derive(Debug, Clone, Eq, Deserialize, Serialize)]
 pub struct Subtype {
     pub name: Ident,
     pub types: Arc<[Type]>,
@@ -58,8 +55,8 @@ pub struct Subtype {
     pub confers: Arc<[Property]>,
 }
 
-// A subtype's identity is its NAME: it always comes from the one macro of that
-// name, so `types`/`confers` are redundant to compare — they ride along in the
+// A subtype's identity is its NAME: semantic lowering resolves it from one
+// declaration, so `types`/`confers` are redundant to compare — they ride along in the
 // `Arc` for free, and equality never touches them. (A same-name value that
 // *drifts* from its declaration is a future, essentially test-only concern; the
 // load-time subtype lint still catches an UNdeclared name via the registry.)
@@ -78,11 +75,11 @@ impl std::hash::Hash for Subtype {
 /// An open, plugin-declared card type ([CR#300.1]): its open name, whether it
 /// is a PERMANENT type ([CR#608.3] — a spell of this type enters the
 /// battlefield on resolution), and what it CONFERS on its bearer. Types are
-/// macro-expanded from bare names (`Creature`) to full structs before core
+/// resolved from authored bare names (`Creature`) to full structs before core
 /// ever sees them — exactly like [`Subtype`]. `confers` reuses `Vec<Property>`
 /// (`May(Cast(…))` / `May(Play(…))` are `Ability(Static(Deontic(…)))`
 /// Properties); no new type.
-#[derive(Debug, Clone, Eq, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Eq, Deserialize, Serialize)]
 pub struct TypeDef {
     pub name: Ident,
     pub permanent: bool,
@@ -91,7 +88,7 @@ pub struct TypeDef {
 }
 
 // Identity is the NAME (see [`Subtype`]'s eq): a type ref always resolves to
-// the one macro of that name, so `permanent`/`confers` are redundant to
+// one declaration for that name, so `permanent`/`confers` are redundant to
 // compare.
 impl PartialEq for TypeDef {
     fn eq(&self, other: &Self) -> bool {
@@ -154,29 +151,11 @@ impl Type {
     }
 }
 
-/// A card-type reference at a FILTER position ([CR#109.3]): `Type(Creature)`.
-/// It carries the RESOLVED [`TypeDef`] (the macro-aware reader expands the bare
-/// name to the full struct — `confers` and all — before core deserializes it),
-/// but SERIALIZES as the bare name (`Creature`), never the struct — the filter
-/// channel's compact write form, so regenerated filters don't repeat every
-/// type's `confers` across thousands of sites. Deserialize delegates to
-/// `Arc<TypeDef>`'s `deserialize_struct("TypeDef", …)` channel (NOT a
-/// `deserialize_newtype_struct` wrapper), so the macro-aware reader intercepts
-/// a bare `Creature` as a `TypeDef`-kind macro and expands it in place — nested
-/// in a newtype variant (`Type(Creature)`) or forwarded through a macro frame
-/// (`PermanentOfType`'s `Type(Param(0))`) alike; an undeclared name has no
-/// macro and fails to parse (validation for free). The type-LINE (`types:
-/// [Type]`) keeps the closed [`Type`] enum; this is the open, plugin-declared
-/// filter form. Identity is the def's by-name eq — `confers` ride along in the
-/// `Arc` and are never compared.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Expand)]
+/// A resolved card-type reference at a filter position. Core snapshots carry
+/// the complete [`TypeDef`]; the semantics layer owns compact authored names.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(transparent)]
 pub struct TypeRef(pub Arc<TypeDef>);
-
-impl<'de> Deserialize<'de> for TypeRef {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(TypeRef(Arc::<TypeDef>::deserialize(deserializer)?))
-    }
-}
 
 impl TypeRef {
     /// The referenced type's canonical open name ([CR#300.1]) — the match key.
@@ -216,30 +195,11 @@ impl From<Type> for TypeRef {
     }
 }
 
-impl Serialize for TypeRef {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        // A bare identifier in RON — the same channel `CounterRef` writes
-        // through. The `confers` in the `Arc` are dropped from the text.
-        serializer.serialize_unit_variant("TypeRef", 0, self.0.name.as_str())
-    }
-}
-
-/// A subtype reference at a FILTER position ([CR#109.3]): `Subtype(Vampire)`.
-/// The [`Subtype`] twin of [`TypeRef`] — resolved def in the `Arc`, bare-name
-/// serialization, macro-expanded and validated on read, by-name identity. The
-/// type-LINE (`subtypes: [Subtype]`) keeps the full [`Subtype`] struct; this is
-/// the compact filter form.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Expand)]
+/// A resolved subtype reference at a filter position. Core snapshots carry
+/// the complete [`Subtype`]; compact authored names are semantic syntax.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(transparent)]
 pub struct SubtypeRef(pub Arc<Subtype>);
-
-impl<'de> Deserialize<'de> for SubtypeRef {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        // Delegates to `Arc<Subtype>`'s `deserialize_struct("Subtype", …)`
-        // channel so a bare `Vampire` expands as a `Subtype`-kind macro — see
-        // [`TypeRef`]'s Deserialize.
-        Ok(SubtypeRef(Arc::<Subtype>::deserialize(deserializer)?))
-    }
-}
 
 impl SubtypeRef {
     /// The referenced subtype's name ([CR#205.3]) — the match key.
@@ -279,12 +239,6 @@ impl From<Ident> for SubtypeRef {
 impl From<&str> for SubtypeRef {
     fn from(name: &str) -> Self {
         SubtypeRef::named(name.into())
-    }
-}
-
-impl Serialize for SubtypeRef {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_unit_variant("SubtypeRef", 0, self.0.name.as_str())
     }
 }
 

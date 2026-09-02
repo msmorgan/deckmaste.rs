@@ -6,13 +6,10 @@ use serde::Serialize;
 use crate::Condition;
 use crate::CountBound;
 use crate::CounterRef;
-use crate::Expand;
-use crate::Expansion;
 use crate::Ident;
 use crate::Lookback;
 use crate::Predicate;
 use crate::Reference;
-use crate::SupportsMacros;
 use crate::Uint;
 use crate::Zone;
 
@@ -21,7 +18,7 @@ use crate::Zone;
 /// ([CR#500.8], `Action::ExtraPhase` — "an additional combat phase");
 /// [`PhaseStep`] names a phase-AND-step position instead. Extra STEPS
 /// ([CR#500.9]) accrete a step-grained twin when a card needs one.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum PhaseKind {
     /// The beginning phase ([CR#501]).
     Beginning,
@@ -40,7 +37,7 @@ pub enum PhaseKind {
 /// phase that is a single step (the main phases — [CR#505.1]) is a bare
 /// variant. Nested enums round-trip in RON as `Beginning(Upkeep)`,
 /// `Combat(DeclareAttackers)`, `PostcombatMain`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum PhaseStep {
     /// The beginning phase ([CR#501]): untap, upkeep, draw.
     Beginning(BeginningStep),
@@ -55,7 +52,7 @@ pub enum PhaseStep {
 }
 
 /// The steps of the beginning phase ([CR#501,502,503]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum BeginningStep {
     /// [CR#502].
     Untap,
@@ -66,7 +63,7 @@ pub enum BeginningStep {
 }
 
 /// The steps of the combat phase ([CR#506,507,508,509,510,511]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum CombatStep {
     /// [CR#507].
     BeginningOfCombat,
@@ -84,7 +81,7 @@ pub enum CombatStep {
 }
 
 /// The steps of the ending phase ([CR#512,513,514]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum EndingStep {
     /// [CR#513].
     End,
@@ -93,7 +90,7 @@ pub enum EndingStep {
 }
 
 /// Whose turn a step-based trigger watches ([CR#503.1] "your upkeep", etc.).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum WhoseTurn {
     /// The controller's own turn.
     Your,
@@ -108,7 +105,7 @@ pub enum WhoseTurn {
 /// (`AttackDeclared`/`BlockDeclared`), control changes are `ControlChanged`,
 /// designation gains are `DesignationChanged`: this enum carries only the
 /// residual status deltas.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum StateChange {
     /// Becomes tapped ([CR#603.2e]).
     Tapped,
@@ -129,7 +126,7 @@ pub enum StateChange {
 
 /// The machinery that demanded an event — the cause triple's AGENCY
 /// coordinate (mtg-rules events.md §3). Closed CR vocabulary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Agency {
     /// {T}/cost components being paid ([CR#107.5], "sacrificed to pay").
     CostPayment,
@@ -185,13 +182,6 @@ impl From<&str> for VerbName {
     }
 }
 
-impl crate::Expand for VerbName {
-    // A leaf: a name, never an expandable value.
-    fn expand_all(self) -> Self {
-        self
-    }
-}
-
 impl Serialize for VerbName {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         // A unit variant writes as a bare identifier in RON.
@@ -214,7 +204,7 @@ impl<'de> Deserialize<'de> for VerbName {
                 data: A,
             ) -> Result<Self::Value, A::Error> {
                 use serde::de::VariantAccess;
-                let (ident, variant) = data.variant_seed(macro_ron::IdentSeed)?;
+                let (ident, variant) = data.variant_seed(crate::IdentSeed)?;
                 variant.unit_variant()?;
                 Ok(VerbName(ident))
             }
@@ -229,7 +219,7 @@ impl<'de> Deserialize<'de> for VerbName {
 /// filters the causing object/controller (Karmic Justice's "a spell or
 /// ability an opponent controls"). Agent-IDENTITY equality ("destroyed this
 /// way") is a binding concern, not a pattern — it rides the event log.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct CausePattern {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub verb: Option<VerbName>,
@@ -247,7 +237,7 @@ pub struct CausePattern {
 /// things. When one does, `AnyOf`/`Not` variants accrete HERE without
 /// respelling existing files. RON requires enum variant names, so the
 /// position always reads `Cause(verb: Destroy)` — never a bare tuple.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Cause {
     /// Every PRESENT coordinate must match (the conjunction).
     Cause(CausePattern),
@@ -274,12 +264,7 @@ pub enum Cause {
 /// (`Happened`/`EventCount`) refuse `OneOrMore`; disjunction pairs kind
 /// with filters per-disjunct and must bottom out in master forms in
 /// kind-anchored lanes.
-///
-/// Both serde impls are generated by `#[derive(SupportsMacros)]`: `Expanded`
-/// writes the invocation back, and the struct variants read flat in RON
-/// through generated helper structs (carrying the forwarded `#[serde(...)]`
-/// field defaults) + `unwrap_variant_newtypes`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum EventFilter {
     /// An object changed zones ([CR#603.6]). `Dies` = `from: Battlefield,
     /// to: Graveyard` is a prelude macro over this. `cause` narrows by the
@@ -656,281 +641,4 @@ pub enum EventFilter {
     /// refinement, legal only under `EventCount`/`EventSum`; a live fact has
     /// no recorded cast position to compare and never matches.
     Before(Reference),
-    /// A remembered `EventFilter` macro invocation (`Dies`, `Enters`,
-    /// `Sacrificed`, …). Serialized as the invocation, not the struct.
-    #[macro_ron(expanded)]
-    Expanded(Expansion<EventFilter>),
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::CharacteristicPredicate;
-    use crate::Type;
-
-    fn read(source: &str) -> EventFilter {
-        crate::ron::options().from_str(source).unwrap()
-    }
-
-    /// Predicate fields default to match-anything when omitted — `Cast()`
-    /// reads as any-caster/any-spell.
-    #[test]
-    fn filter_fields_default_to_any() {
-        assert_eq!(
-            read("Cast(who: Ref(You))"),
-            EventFilter::Cast {
-                who: Predicate::Ref(crate::Reference::You),
-                what: Predicate::Any,
-            },
-        );
-        assert_eq!(
-            read("AttackDeclared(by: Ref(This))"),
-            EventFilter::AttackDeclared {
-                by: Predicate::Ref(crate::Reference::This),
-                against: Predicate::Any,
-            },
-        );
-    }
-
-    /// The cause position is an enum (single variant today) so the name
-    /// is structural: it always reads `Cause(verb: …)` — a bare
-    /// `(verb: …)` tuple does not parse (user ruling), and boolean
-    /// variants can accrete without respelling files. The verb is a
-    /// [`VerbName`] name-atom, spelled bare.
-    #[test]
-    fn zone_change_cause_named_and_never_bare() {
-        assert_eq!(
-            read(
-                "ZoneChange(what: Type(name:\"Creature\",permanent:true), from: Battlefield, to: Graveyard, cause: Cause(verb: Destroy))"
-            ),
-            EventFilter::ZoneChange {
-                what: Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature.into()
-                )),
-                from: Some(Zone::Battlefield),
-                to: Some(Zone::Graveyard),
-                cause: Some(Cause::Cause(CausePattern {
-                    verb: Some(VerbName::from("Destroy")),
-                    agency: None,
-                    agent: None,
-                })),
-            },
-        );
-        let err = crate::ron::options()
-            .from_str::<EventFilter>(
-                "ZoneChange(what: Type(name:\"Creature\",permanent:true), cause: (verb: Destroy))",
-            )
-            .unwrap_err();
-        let err = err.to_string();
-        assert!(
-            err.contains("Cause") || err.contains("variant") || err.contains("Expected identifier"),
-            "a bare cause tuple must not parse — got: {err}"
-        );
-    }
-
-    #[test]
-    fn zone_change_options_default_none() {
-        assert_eq!(
-            read(
-                "ZoneChange(what: Type(name:\"Creature\",permanent:true), from: Battlefield, to: Graveyard)"
-            ),
-            EventFilter::ZoneChange {
-                what: Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature.into()
-                )),
-                from: Some(Zone::Battlefield),
-                to: Some(Zone::Graveyard),
-                cause: None,
-            },
-        );
-        assert_eq!(
-            read("ZoneChange(what: Type(name:\"Creature\",permanent:true))"),
-            EventFilter::ZoneChange {
-                what: Predicate::Characteristic(CharacteristicPredicate::Type(
-                    Type::Creature.into()
-                )),
-                from: None,
-                to: None,
-                cause: None,
-            },
-        );
-    }
-
-    /// The `Act` master form reads flat (verb + who/on/cause): a two-slot
-    /// discard narrows both performer and card; omitted `who`/`on` default to
-    /// match-anything and `cause` to `None`; and every form round-trips.
-    #[test]
-    fn act_master_form_reads_and_round_trips() {
-        use crate::Reference;
-
-        // Both slots present ("if you would discard THIS card"): the master
-        // form the bare-verb `Discard(Ref(You), Ref(This))` twin expands to.
-        assert_eq!(
-            read("Act(verb: Discard, who: Ref(You), on: Ref(This))"),
-            EventFilter::Act {
-                verb: VerbName::from("Discard"),
-                who: Predicate::Ref(Reference::You),
-                on: Predicate::Ref(Reference::This),
-                cause: None,
-            },
-        );
-        // Omitted predicate slots default to match-anything; `cause` to `None`
-        // — the single-slot `Scry(You)` twin's shape.
-        assert_eq!(
-            read("Act(verb: Scry, who: Ref(You))"),
-            EventFilter::Act {
-                verb: VerbName::from("Scry"),
-                who: Predicate::Ref(Reference::You),
-                on: Predicate::Any,
-                cause: None,
-            },
-        );
-        // `cause` narrows the cause triple — a discard narrowed to cycling-cost
-        // agency ("whenever a player cycles").
-        assert_eq!(
-            read("Act(verb: Discard, cause: Cause(agency: CostPayment))"),
-            EventFilter::Act {
-                verb: VerbName::from("Discard"),
-                who: Predicate::Any,
-                on: Predicate::Any,
-                cause: Some(Cause::Cause(CausePattern {
-                    verb: None,
-                    agency: Some(Agency::CostPayment),
-                    agent: None,
-                })),
-            },
-        );
-        for source in [
-            "Act(verb: Destroy, on: Ref(This))",
-            "Act(verb: Fight, on: Ref(This))",
-            "Act(verb: Mill, who: Ref(You))",
-        ] {
-            let parsed = read(source);
-            let written = crate::ron::options().to_string(&parsed).unwrap();
-            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
-        }
-    }
-
-    /// `StepBegins` carries ONLY the step and whose-turn coordinates — a
-    /// step event has no `what:` by construction.
-    #[test]
-    fn step_begins_reads() {
-        assert_eq!(
-            read("StepBegins(at: Beginning(Upkeep), whose: Your)"),
-            EventFilter::StepBegins {
-                at: PhaseStep::Beginning(BeginningStep::Upkeep),
-                whose: WhoseTurn::Your,
-            },
-        );
-    }
-
-    /// `Used(of: This)` reads and serializes back to the same invocation —
-    /// the self/object-scoped ability-use pattern counted via `EventCount`
-    /// ([CR#608.2i]).
-    #[test]
-    fn used_round_trips() {
-        use crate::Reference;
-
-        let v = EventFilter::Used {
-            of: Reference::This,
-        };
-        assert_eq!(read("Used(of: This)"), v);
-        let w = crate::ron::options().to_string(&v).unwrap();
-        assert_eq!(read(&w), v);
-    }
-
-    /// The amount refinement is the comparator-headed [`CountBound`]
-    /// (`amount: AtLeast(3)`), with the bare-literal `Count` sugar inside.
-    #[test]
-    fn amount_bounds_read_comparator_headed() {
-        use crate::Count;
-
-        assert_eq!(
-            read("Damage(source: Ref(This), amount: AtLeast(3))"),
-            EventFilter::Damage {
-                source: Predicate::Ref(crate::Reference::This),
-                to: Predicate::Any,
-                combat: None,
-                amount: Some(CountBound::AtLeast(Count::Literal(3))),
-            },
-        );
-    }
-
-    /// The lane-gated algebra round-trips: `Nth` carries its 1-based index
-    /// and lookback; `Within` carries a lookback; `OneOrMore` boxes its
-    /// batch operand.
-    #[test]
-    fn algebra_round_trips() {
-        for source in [
-            "Nth(n: 2, of: Cast(who: Ref(You)), within: ThisTurn)",
-            "Within(LifeGained(who: Ref(You)), ThisTurn)",
-            "Before(This)",
-            "AllOf([Cast(who: Any, what: Any), Before(This)])",
-            "OneOrMore(ZoneChange(what: Supertype(Basic), from: Battlefield, to: Graveyard))",
-            "Not(ZoneChange(what: Any, to: Battlefield, cause: Cause(verb: Play)))",
-            "AllOf([ZoneChange(what: Any, to: Battlefield), ZoneChange(what: Supertype(Basic))])",
-            "When(StepBegins(at: Ending(End), whose: EachPlayers), YourTurn)",
-            r#"DesignationChanged(name: "DayNight", to: "Day")"#,
-            r#"DesignationChanged(name: "DayNight", to: "Night")"#,
-            "CoinFlipped(by: Ref(You), won: true)",
-            "DiceRolled(by: Ref(You))",
-        ] {
-            let parsed = read(source);
-            let written = crate::ron::options().to_string(&parsed).unwrap();
-            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
-        }
-    }
-
-    /// The exposure rows ([CR#701.24a,701.20a]): `Shuffled` narrows by the
-    /// shuffler, `Revealed` by ∃-over the revealed set — both round-trip,
-    /// and bare (no narrowing) forms read as match-anything.
-    #[test]
-    fn shuffled_and_revealed_round_trip() {
-        assert_eq!(
-            read("Shuffled(by: Ref(You))"),
-            EventFilter::Shuffled {
-                by: Predicate::Ref(crate::Reference::You),
-            },
-        );
-        assert_eq!(
-            read("Shuffled()"),
-            EventFilter::Shuffled { by: Predicate::Any },
-        );
-        assert_eq!(
-            read("Revealed(what: Ref(This))"),
-            EventFilter::Revealed {
-                what: Predicate::Ref(crate::Reference::This),
-            },
-        );
-        for source in ["Shuffled(by: Ref(You))", "Revealed(what: Ref(This))"] {
-            let parsed = read(source);
-            let written = crate::ron::options().to_string(&parsed).unwrap();
-            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
-        }
-    }
-
-    /// `CounterPlaced`/`CounterRemoved`/`StateBecame` gain the `cause`
-    /// narrowing their engine facts already capture — omitted reads `None`
-    /// (match-anything); present round-trips.
-    #[test]
-    fn counter_and_state_cause_narrowing_round_trips() {
-        assert_eq!(
-            read("CounterPlaced(on: Ref(This))"),
-            EventFilter::CounterPlaced {
-                kind: None,
-                on: Predicate::Ref(crate::Reference::This),
-                amount: None,
-                cause: None,
-            },
-        );
-        for source in [
-            "CounterPlaced(on: Ref(This), cause: Cause(agency: CostPayment))",
-            "CounterRemoved(on: Ref(This), cause: Cause(verb: RemoveCounters))",
-            "StateBecame(of: Ref(This), becomes: Tapped, cause: Cause(agency: CostPayment))",
-        ] {
-            let parsed = read(source);
-            let written = crate::ron::options().to_string(&parsed).unwrap();
-            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
-        }
-    }
 }

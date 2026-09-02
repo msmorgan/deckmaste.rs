@@ -18,6 +18,7 @@ use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Type;
+use deckmaste_lowering::Lower;
 use deckmaste_plugin::plugin::Plugin;
 use macro_ron::Expand;
 
@@ -65,7 +66,12 @@ fn grizzly_bears_expand_the_creature_type_macro() {
     // — the combat-capability confers ([CR#508.1a,509.1a]) ride the type. Read
     // the SAME expansion the card's `types: [Creature]` produced, not the
     // empty-confer `Type::Creature.def()`.
-    let creature_type: deckmaste_core::TypeDef = plugin.macros.read_str("Creature").unwrap();
+    let creature_type: deckmaste_core::TypeDef = plugin
+        .macros
+        .read_str::<deckmaste_semantics::TypeDef>("Creature")
+        .unwrap()
+        .expand_all()
+        .lower();
     assert_eq!(face.types, vec![creature_type]);
     assert_eq!(
         face.subtypes,
@@ -97,9 +103,10 @@ fn lightning_bolt_expands_target_macros() {
     // shape.
     let any_target: TargetSpec = plugin
         .macros
-        .read_str::<TargetSpec>("AnyTarget")
+        .read_str::<deckmaste_semantics::TargetSpec>("AnyTarget")
         .unwrap()
-        .expand_all();
+        .expand_all()
+        .lower();
     assert_eq!(
         face.abilities,
         vec![Ability::spell(SpellAbility {
@@ -136,9 +143,10 @@ fn tribal_flames_expands_the_domain_count() {
     };
     let domain: Count = plugin
         .macros
-        .read_str::<Count>("Domain")
+        .read_str::<deckmaste_semantics::Count>("Domain")
         .unwrap()
-        .expand_all();
+        .expand_all()
+        .lower();
     assert_eq!(*count, domain, "Tribal Flames' damage is Domain's body");
     assert!(matches!(
         count,
@@ -165,8 +173,8 @@ fn any_target_body_replaces_its_expansion_on_the_loaded_card() {
     let OneShotEffect::Targeted(ref te) = spell.effect else {
         panic!("expected a Targeted wrapper, got {:?}", spell.effect);
     };
-    let any_target: TargetSpec = plugin.macros.read_str("AnyTarget").unwrap();
-    let TargetSpec::Expanded(ref exp) = any_target else {
+    let any_target: deckmaste_semantics::TargetSpec = plugin.macros.read_str("AnyTarget").unwrap();
+    let deckmaste_semantics::TargetSpec::Expanded(ref exp) = any_target else {
         panic!(
             "expected AnyTarget's own macro-def read to still be an expansion, got {any_target:?}"
         );
@@ -178,7 +186,7 @@ fn any_target_body_replaces_its_expansion_on_the_loaded_card() {
     );
     assert_eq!(
         te.targets[0],
-        any_target.expand_all(),
+        any_target.expand_all().lower(),
         "but the loaded card carries AnyTarget's body, not its expansion wrapper"
     );
 }
@@ -244,16 +252,17 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
 /// `lower` erases invocation provenance (spec §12): Brainstorm's
 /// `Choose(Exactly(2), …)` used to re-serialize with `Exactly(2)` intact (the
 /// no-card-churn guarantee, pre-erasure); now the loaded card carries
-/// `Exactly(2)`'s BODY, so the written RON shows the bare `Range(2, 2)`
-/// primitive instead — the invocation spelling no longer lives in the
+/// `Exactly(2)`'s BODY, so the plain-serde core RON shows the explicit
+/// `Range(Literal(2), Literal(2))` primitive instead — the invocation spelling no longer lives in the
 /// compiled card at all (it is still on the `Exactly` macro definition).
 #[test]
 fn brainstorm_exactly_two_round_trips() {
     let card = canon().card("Brainstorm").unwrap().core;
     let written = deckmaste_core::ron::options().to_string(&card).unwrap();
     assert!(
-        written.contains("Range(2,2)") || written.contains("Range(2, 2)"),
-        "Exactly(2)'s body should round-trip as the bare Range primitive, got: {written}"
+        written.contains("Range(Literal(2),Literal(2))")
+            || written.contains("Range(Literal(2), Literal(2))"),
+        "Exactly(2)'s body should round-trip as an explicit core Range, got: {written}"
     );
     assert!(
         !written.contains("Exactly("),
@@ -321,9 +330,10 @@ fn arc_lightning_targets_any_target() {
     // robust to macro refactors instead of pinning the shape by hand.
     let any_target: deckmaste_core::Predicate = plugin
         .macros
-        .read_str::<deckmaste_core::Predicate>("AnyTarget")
+        .read_str::<deckmaste_semantics::Predicate>("AnyTarget")
         .unwrap()
-        .expand_all();
+        .expand_all()
+        .lower();
     assert_eq!(
         *filter, any_target,
         "Arc Lightning's target should be AnyTarget's body"

@@ -398,7 +398,6 @@ pub(crate) fn unless_cost_action(
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        CostComponent::Expanded(_) => unreachable!("provenance erased at lower"),
         // A cost-side `With` ([CR#601.2b]) is a choose-then-pay step with no
         // single-`Action` rendering — it must surface a payment-time choice and
         // bind `That`/`Those`. Every caller that can see a `With` routes through

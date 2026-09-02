@@ -6,12 +6,9 @@ use serde::Serialize;
 use crate::Binder;
 use crate::Cmp;
 use crate::Count;
-use crate::Expand;
-use crate::Expansion;
 use crate::Normalize;
 use crate::Predicate;
 use crate::Stat;
-use crate::SupportsMacros;
 use crate::mana::ManaCost;
 use crate::reference::Reference;
 
@@ -102,18 +99,7 @@ impl<'de> Deserialize<'de> for RunnableCostAction {
     }
 }
 
-impl Expand for RunnableCostAction {
-    fn expand_all(self) -> Self {
-        let action = Arc::unwrap_or_clone(self.0).expand_all();
-        Self::try_new(action)
-            .expect("expanding a checked runnable cost action preserves its invariant")
-    }
-}
-
 fn validate_runnable_cost_action(action: &crate::Action) -> Result<(), RunnableCostActionError> {
-    if let crate::Action::Expanded(expansion) = action {
-        return validate_runnable_cost_action(&expansion.value);
-    }
     if !action.is_cost_eligible() {
         return Err(RunnableCostActionError::Ineligible);
     }
@@ -147,16 +133,12 @@ fn runnable_action_subjects_are_bound(action: &crate::Action) -> bool {
             runnable_reference_is_bound(what) && to.as_ref().is_none_or(runnable_reference_is_bound)
         }
         crate::Action::Composite { body, .. } => runnable_discard_effect_is_bound(body),
-        crate::Action::Expanded(expansion) => runnable_action_subjects_are_bound(&expansion.value),
         _ => true,
     }
 }
 
 fn runnable_discard_effect_is_bound(effect: &crate::OneShotEffect) -> bool {
     match effect {
-        crate::OneShotEffect::Expanded(expansion) => {
-            runnable_discard_effect_is_bound(&expansion.value)
-        }
         crate::OneShotEffect::Act(action) => {
             action.is_cost_eligible() && runnable_action_subjects_are_bound(action)
         }
@@ -179,7 +161,6 @@ fn runnable_reference_is_bound(reference: &Reference) -> bool {
         | Reference::OwnerOf(reference)
         | Reference::AttachHostOf(reference) => runnable_reference_is_bound(reference),
         Reference::Coalesce(references) => references.iter().all(runnable_reference_is_bound),
-        Reference::Expanded(expansion) => runnable_reference_is_bound(&expansion.value),
         Reference::This
         | Reference::You
         | Reference::Opponent
@@ -246,7 +227,6 @@ fn runnable_modification_is_bound(modification: &crate::Modification) -> bool {
         Modification::Several(modifications) => {
             modifications.iter().all(runnable_modification_is_bound)
         }
-        Modification::Expanded(expansion) => runnable_modification_is_bound(&expansion.value),
         // Ability payloads can contain arbitrary action/effect grammar. A
         // cost-side copy exception must not smuggle that open structure past
         // the runnable boundary.
@@ -320,7 +300,6 @@ fn runnable_count_is_bound(count: &crate::Count) -> bool {
         Count::Aggregate(_, projection) => {
             runnable_countable_is_bound(&projection.of) && runnable_count_is_bound(&projection.by)
         }
-        Count::Expanded(expansion) => runnable_count_is_bound(&expansion.value),
         // History predicates are an open recursive grammar. They are not a
         // supported runnable cost magnitude until that grammar has its own
         // checked representation.
@@ -383,7 +362,6 @@ fn runnable_predicate_is_bound(predicate: &crate::Predicate) -> bool {
         // Conditions can embed every event/action/reference family. Keep the
         // checked cost representation closed until a complete visitor exists.
         Predicate::Where(_) => false,
-        Predicate::Expanded(expansion) => runnable_predicate_is_bound(&expansion.value),
         Predicate::Kind(_)
         | Predicate::Characteristic(_)
         | Predicate::State(_)
@@ -395,7 +373,6 @@ fn runnable_selection_is_bound(selection: &crate::Selection) -> bool {
     match selection {
         crate::Selection::They | crate::Selection::Them(_) => true,
         crate::Selection::Union(selections) => selections.iter().all(runnable_selection_is_bound),
-        crate::Selection::Expanded(expansion) => runnable_selection_is_bound(&expansion.value),
         crate::Selection::SelectAll(_)
         | crate::Selection::InChosenOrder(..)
         | crate::Selection::Random(..)
@@ -467,14 +444,12 @@ pub fn cost_binder_is_runnable(binder: &Binder) -> bool {
             runnable_quantity_is_bound(quantity) && runnable_predicate_is_bound(filter)
         }
         Binder::Existing(selection) => cost_binder_selection_is_supported(selection),
-        Binder::Expanded(expansion) => cost_binder_is_runnable(&expansion.value),
     }
 }
 
 fn cost_binder_producer_is_supported(action: &crate::Action) -> bool {
     match action {
         crate::Action::Move(..) => validate_runnable_cost_action(action).is_ok(),
-        crate::Action::Expanded(expansion) => cost_binder_producer_is_supported(&expansion.value),
         _ => false,
     }
 }
@@ -488,7 +463,6 @@ fn cost_binder_reference_is_supported(reference: &Reference) -> bool {
         Reference::Coalesce(references) => {
             references.iter().all(cost_binder_reference_is_supported)
         }
-        Reference::Expanded(expansion) => cost_binder_reference_is_supported(&expansion.value),
         Reference::This
         | Reference::You
         | Reference::Opponent
@@ -528,17 +502,11 @@ fn cost_binder_selection_is_supported(selection: &crate::Selection) -> bool {
             runnable_countable_is_bound(&proj.of) && runnable_count_is_bound(&proj.by)
         }
         crate::Selection::Targets(_) | crate::Selection::They | crate::Selection::Them(_) => true,
-        crate::Selection::Expanded(expansion) => {
-            cost_binder_selection_is_supported(&expansion.value)
-        }
     }
 }
 
 /// A single component of an ability's cost ([CR#601.2b]).
-///
-/// Both serde impls are generated by `#[derive(SupportsMacros)]`: `Expanded`
-/// writes the invocation back.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum CostComponent {
     /// Mana payment, e.g. `Mana([Generic(2)])`.
     Mana(ManaCost),
@@ -567,13 +535,11 @@ pub enum CostComponent {
     /// absence of unresolved chooser/random subjects. The wrapper owns a
     /// shared action allocation, keeping this list element compact.
     Act(RunnableCostAction),
-    /// A *nested* cost list. It exists only to let a macro splice a
-    /// list-valued cost param into a larger cost list — the body writes
-    /// `cost: [Cost(Param(0)), Do(Discard(…))]`, so the spliced `[Mana(…)]`
-    /// reads as `Cost([Mana(…)])` (cycling, [CR#702.29a]). Read is faithful:
-    /// a nested `Cost` SURVIVES deserialization verbatim. [`Cost::normalize`]
-    /// is what splices it into the surrounding list — call it at the boundary
-    /// before consuming a (possibly macro-spliced) cost.
+    /// A *nested* cost list produced when semantic lowering splices a
+    /// list-valued parameter into a larger cost list (cycling,
+    /// [CR#702.29a]). Plain deserialization preserves the nested value;
+    /// [`Cost::normalize`] splices it into the surrounding list before the
+    /// engine consumes it.
     Cost(Cost),
     /// An *aggregate-stat* cost: tap a chosen subset of the permanents matching
     /// `filter` whose summed `stat` satisfies `cmp` `count` ([CR#601.2b],
@@ -589,10 +555,7 @@ pub enum CostComponent {
     /// `Vec<CostComponent>` cost lists, so an unboxed field would size
     /// every element to it (`clippy::large_enum_variant`).
     ///
-    /// A struct variant (it reads flat in RON through a generated helper
-    /// struct, like [`Condition::Happened`](crate::Condition)): four fields
-    /// exceed the `SupportsMacros` tuple-variant arity, and the named
-    /// fields read better than four bare positionals.
+    /// Named fields keep this four-part shape readable in core RON.
     TapTotal {
         stat: Stat,
         cmp: Cmp,
@@ -611,10 +574,6 @@ pub enum CostComponent {
     /// reference. `binder` is boxed (an open `Binder` is large and
     /// `CostComponent` rides in `Vec<CostComponent>` cost lists).
     ChooseAndPay { binder: Arc<Binder>, body: Cost },
-    /// A remembered `CostComponent` macro invocation (`SacrificeThis`, loyalty
-    /// sugar, …).
-    #[macro_ron(expanded)]
-    Expanded(Expansion<CostComponent>),
 }
 
 impl CostComponent {
@@ -643,16 +602,13 @@ impl CostComponent {
 }
 
 /// A cost: an ordered list of [`CostComponent`]s ([CR#601.2b]). A newtype
-/// (not a bare `Vec`) so it can carry a [`Normalize`] impl. Read is FAITHFUL:
-/// a nested cost — a [`CostComponent::Cost`] spliced in by a macro whose cost
-/// param is itself a list — survives deserialization verbatim. A macro body
-/// writes `[Param(0), Do(…)]` where `Param(0)` expands to `[Mana(…)]`; that
-/// reads as the lumpy `[Cost([Mana(…)]), Do(…)]` and STAYS lumpy (cycling,
-/// [CR#702.29a]). [`Cost::normalize`] is the explicit post-read step that
+/// (not a bare `Vec`) so it can carry a [`Normalize`] impl. Plain serde
+/// preserves a nested [`CostComponent::Cost`] produced by semantic lowering
+/// (cycling, [CR#702.29a]). [`Cost::normalize`] is the explicit boundary step that
 /// splices the nested `Cost` back into one flat list, yielding
 /// `[Mana(…), Do(…)]`. Serializes and deserializes transparently as the bare
 /// list.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct Cost(pub Arc<[CostComponent]>);
 
@@ -662,8 +618,8 @@ impl Normalize for CostComponent {
     fn normalize(self) -> Self {
         match self {
             CostComponent::Cost(inner) => CostComponent::Cost(inner.normalize()),
-            // Recurse into a `With` step's scoped body so a macro-spliced nested
-            // cost there still flattens.
+            // Recurse into a `With` step's scoped body so a nested cost there
+            // still flattens.
             CostComponent::ChooseAndPay { binder, body } => CostComponent::ChooseAndPay {
                 binder,
                 body: body.normalize(),
@@ -677,9 +633,9 @@ impl Normalize for Cost {
     /// Splice every [`CostComponent::Cost`] one level into the surrounding
     /// list (associativity of cost concatenation, [CR#601.2b]) — the inner
     /// list is already normalized by the per-component recursion, so one pass
-    /// flattens arbitrarily-deep nesting. This is the explicit post-read
-    /// replacement for the old read-time flatten: a macro-spliced cost reads
-    /// lumpy and `.normalize()` collapses it (cycling, [CR#702.29a]).
+    /// flattens arbitrarily-deep nesting. Semantic lowering may produce the
+    /// nested shape; `.normalize()` collapses it at the engine boundary
+    /// (cycling, [CR#702.29a]).
     fn normalize(self) -> Self {
         let mut flat: Vec<CostComponent> = Vec::with_capacity(self.0.len());
         for component in self.0.iter().cloned() {
@@ -733,13 +689,6 @@ impl From<&str> for CostTag {
     }
 }
 
-impl crate::Expand for CostTag {
-    // A leaf: a name, never an expandable value.
-    fn expand_all(self) -> Self {
-        self
-    }
-}
-
 impl Serialize for CostTag {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         // A unit variant writes as a bare identifier in RON.
@@ -762,7 +711,7 @@ impl<'de> Deserialize<'de> for CostTag {
                 data: A,
             ) -> Result<Self::Value, A::Error> {
                 use serde::de::VariantAccess;
-                let (ident, variant) = data.variant_seed(macro_ron::IdentSeed)?;
+                let (ident, variant) = data.variant_seed(crate::IdentSeed)?;
                 variant.unit_variant()?;
                 Ok(CostTag(ident))
             }
@@ -780,7 +729,7 @@ impl<'de> Deserialize<'de> for CostTag {
 /// [CR#702.33e,607.2]). `repeatable: true` is multikicker's "any number of
 /// times" ([CR#702.33c]); buyback is one more tag ([CR#702.27a]). Intentions
 /// are announced at [CR#601.2b]; the total locks at [CR#601.2f].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct OptionalCost {
     pub components: Arc<[CostComponent]>,
     pub tag: CostTag,
@@ -864,11 +813,9 @@ mod tests {
     }
 
     /// Read is FAITHFUL: a nested `Cost` component survives deserialization
-    /// verbatim (the macro-splice shape stays lumpy), and `.normalize()` is the
-    /// explicit step that splices it into one flat list. This is what lets a
-    /// macro splice a list-valued cost param into a larger cost list:
-    /// `cost: [Cost(Param(0)), Do(…)]` where `Param(0)` expands to `[Mana(…)]`
-    /// reads as `[Cost([Mana(…)]), Do(…)]`, and normalization collapses it to
+    /// verbatim, and `.normalize()` is the explicit step that splices it into
+    /// one flat list. Semantic lowering can produce
+    /// `[Cost([Mana(…)]), Do(…)]`; normalization collapses it to
     /// `[Mana(…), Do(…)]` (cycling, [CR#702.29a]).
     #[test]
     fn nested_cost_survives_read_and_normalizes_flat() {
@@ -879,17 +826,18 @@ mod tests {
             "Cost([…]) reads as the Cost variant, got {comp:?}"
         );
 
-        // Faithful read: the nested Cost SURVIVES verbatim — no read-time flatten.
-        let lumpy: Cost = crate::ron::options()
-            .from_str(
-                "[Cost([Mana([Generic(2)])]), \
-                 Act(Composite(name: Discard, body: Move(This, Graveyard)))]",
-            )
-            .unwrap();
+        // Plain serde preserves the nested Cost verbatim.
         let mana_two = CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
             ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
         ])));
         let discard_self = CostComponent::do_action(crate::Action::discard_what(Reference::This));
+        let lumpy = Cost(
+            vec![
+                CostComponent::Cost(Cost(vec![mana_two.clone()].into())),
+                discard_self.clone(),
+            ]
+            .into(),
+        );
         assert_eq!(
             lumpy,
             Cost(
@@ -899,7 +847,7 @@ mod tests {
                 ]
                 .into()
             ),
-            "read preserves the lumpy macro-splice shape",
+            "the nested cost shape is preserved",
         );
 
         // `.normalize()` splices the nested Cost into one flat list.
@@ -928,7 +876,7 @@ mod tests {
     #[test]
     fn cost_components_parse() {
         assert_eq!(
-            read("Mana([Generic(2)])"),
+            read("Mana([Simple(Generic(2))])"),
             CostComponent::Mana(ManaCost::from(Arc::<[ManaSymbol]>::from(vec![
                 ManaSymbol::Simple(SimpleManaSymbol::Generic(2)),
             ]))),
@@ -1086,7 +1034,7 @@ mod tests {
     }
 
     /// `ManaCostOf(Reference)` reads and round-trips through the
-    /// `SupportsMacros` serde (a referenced object's mana cost,
+    /// `serde::Deserialize, serde::Serialize` serde (a referenced object's mana cost,
     /// [CR#202.1]).
     #[test]
     fn mana_cost_of_round_trips() {
@@ -1121,7 +1069,9 @@ mod tests {
             )),
         };
         assert_eq!(
-            read("TapTotal(stat: Power, cmp: AtLeast, count: 3, filter: Supertype(Basic))"),
+            read(
+                "TapTotal(stat: Power, cmp: AtLeast, count: Literal(3), filter: Characteristic(Supertype(Basic)))"
+            ),
             crew,
         );
 
@@ -1138,7 +1088,7 @@ mod tests {
     #[test]
     fn optional_cost_round_trips() {
         let kicker: crate::OptionalCost = crate::ron::options()
-            .from_str("(components: [Mana([Generic(2)])], tag: Kicker)")
+            .from_str("(components: [Mana([Simple(Generic(2))])], tag: Kicker)")
             .unwrap();
         assert_eq!(kicker.tag, crate::CostTag::from("Kicker"));
         assert!(!kicker.repeatable, "repeatable defaults false");
@@ -1155,7 +1105,9 @@ mod tests {
         assert_eq!(reread, kicker);
 
         let multi: crate::OptionalCost = crate::ron::options()
-            .from_str("(components: [Mana([Generic(1)])], tag: Multikicker, repeatable: true)")
+            .from_str(
+                "(components: [Mana([Simple(Generic(1))])], tag: Multikicker, repeatable: true)",
+            )
             .unwrap();
         assert!(multi.repeatable);
         let written = crate::ron::options().to_string(&multi).unwrap();
@@ -1167,7 +1119,7 @@ mod tests {
     fn cost_list_round_trips() {
         // `Sacrifice` carries its agent slot explicitly now ([CR#701.21a]
         // "its controller"); in a cost, `You` is the payer.
-        let source = "[Mana([Generic(2)]),Tap,Act(Sacrifice(You, This))]";
+        let source = "[Mana([Simple(Generic(2))]),Tap,Act(Sacrifice(You, This))]";
         let parsed: Arc<[CostComponent]> = crate::ron::options().from_str(source).unwrap();
         let written = crate::ron::options().to_string(&parsed).unwrap();
         let reparsed: Arc<[CostComponent]> = crate::ron::options().from_str(&written).unwrap();

@@ -352,7 +352,6 @@ fn apply_modification(result: &mut CopiableValues, m: &Modification) {
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        Modification::Expanded(_) => unreachable!("provenance erased at lower"),
         // Not meaningful for a copiable-characteristics SNAPSHOT
         // ([CR#707.2]): `CantHaveAbility` is a standing restriction (no
         // field on `CopiableValues` to carry it), `SetController`/`SetText`
@@ -534,7 +533,6 @@ fn defines_pt(ability: &Ability, axis: PtAxis) -> bool {
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        Ability::Expanded(_) => unreachable!("provenance erased at lower"),
         Ability::Innate(inner) => defines_pt(inner, axis),
         Ability::Static(effect) => static_defines_pt(effect, axis),
         Ability::Activated(_)

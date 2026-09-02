@@ -60,7 +60,6 @@ fn binder_is_deferred(binder: &Binder) -> bool {
         }
         Binder::Produce(action) => action_is_deferred(action),
         Binder::Existing(Selection::Random(..)) => true,
-        Binder::Expanded(expansion) => binder_is_deferred(&expansion.value),
         Binder::TheRef(_)
         | Binder::ChooseOne { .. }
         | Binder::Choose { .. }
@@ -84,7 +83,6 @@ fn action_is_deferred(action: &Action) -> bool {
             !matches!(destination, Destination::Library(_))
         }
         Action::Composite { body, .. } => effect_is_deferred(body),
-        Action::Expanded(expansion) => action_is_deferred(&expansion.value),
         _ => false,
     }
 }
@@ -97,7 +95,6 @@ fn effect_is_deferred(effect: &deckmaste_core::OneShotEffect) -> bool {
         OneShotEffect::Sequentially(effects) | OneShotEffect::Simultaneously(effects) => {
             effects.iter().any(effect_is_deferred)
         }
-        OneShotEffect::Expanded(expansion) => effect_is_deferred(&expansion.value),
         _ => false,
     }
 }
@@ -636,7 +633,6 @@ impl GameState {
                 }
                 Ok(None)
             }
-            Binder::Expanded(_) => unreachable!("provenance erased at lower"),
         }
     }
 
@@ -676,7 +672,6 @@ impl GameState {
             Binder::Choose { .. } | Binder::Existing(_) | Binder::Search { .. } => {
                 crate::stack::Cardinality::Many
             }
-            Binder::Expanded(_) => unreachable!("provenance erased at lower"),
         };
         if cardinality == crate::stack::Cardinality::One && group.len() != 1 {
             return illegal("a singular cost binder must resolve to one live object");
@@ -729,7 +724,6 @@ impl GameState {
             | CostComponent::Mana(_)
             | CostComponent::ManaCostOf(_)
             | CostComponent::TapTotal { .. } => false,
-            CostComponent::Expanded(_) => unreachable!("provenance erased at lower"),
         })
     }
 
@@ -904,9 +898,6 @@ impl GameState {
             Action::Composite { name, body } if name.as_str() == "Discard" => {
                 self.preflight_discard_effect(body, payer, frame)
             }
-            Action::Expanded(expansion) => {
-                self.preflight_cost_action(&expansion.value, payer, frame)
-            }
             _ => false,
         }
     }
@@ -949,9 +940,6 @@ impl GameState {
                     }
                 }
                 true
-            }
-            deckmaste_core::OneShotEffect::Expanded(expansion) => {
-                self.preflight_discard_effect(&expansion.value, payer, frame)
             }
             _ => false,
         }
@@ -1211,7 +1199,6 @@ fn runnable_cost_body_effect(
             | CostComponent::TapTotal { .. } => {
                 illegal("a chosen action body cannot contain a second payment resource kind")
             }
-            CostComponent::Expanded(_) => unreachable!("provenance erased at lower"),
         }
     }
 

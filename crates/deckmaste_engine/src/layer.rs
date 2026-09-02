@@ -379,11 +379,9 @@ fn layer_of(m: &Modification, is_cda: bool) -> Option<Layer> {
         // and strips before the layer pass, so it never reaches it — defensive.
         Modification::BaseLoyalty(_) | Modification::BaseDefense(_) | Modification::Several(_) => {
             None
-        }
-        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-        // loaded value reaches here wrapped. The arm survives only because
-        // the variant does; `core-demacro` deletes both.
-        Modification::Expanded(_) => unreachable!("provenance erased at lower"),
+        } // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+          // loaded value reaches here wrapped. The arm survives only because
+          // the variant does; `core-demacro` deletes both.
     }
 }
 
@@ -922,7 +920,6 @@ fn condition_holds_derived(
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        Condition::Expanded(_) => unreachable!("provenance erased at lower"),
         Condition::YourTurn => state.turn.active_player == controller,
         Condition::TurnOf(filter) => condition_predicate_matches(
             state,
@@ -1353,7 +1350,6 @@ fn eval_count(
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        Count::Expanded(_) => unreachable!("provenance erased at lower"),
         // Announce-time / history context (`X`, `ThatMuch`, `EventCount`,
         // `EventSum`, `Noted`) is unavailable during layer derivation — those
         // need a resolution `Frame` (`resolve.rs::eval_count`), so a continuous
@@ -1741,7 +1737,7 @@ fn apply_static(
         // `Modification::flatten` at the `gather` boundary splices every
         // `Several` away and strips every `Expanded`, so neither reaches the
         // layer pass.
-        Modification::Several(_) | Modification::Expanded(_) => {
+        Modification::Several(_) => {
             unreachable!("Several/Expanded are flattened before the engine")
         }
     }
@@ -2434,45 +2430,6 @@ mod tests {
                 .amount(ColorOrColorless::Color(deckmaste_core::Color::Blue)),
             1,
             "the conferred ability adds {{U}} through the payment protocol"
-        );
-    }
-
-    /// [CR#113.12]: an `Expanded(Innate(...))` (a macro-expanded Innate, the
-    /// shape a Stage-4 subtype conferral may produce) ALSO survives
-    /// `LoseAllAbilities` — `is_innate` looks through the `Expanded` provenance
-    /// wrapper, so the retention guard keeps it. Observed via `is_innate` on
-    /// the derived list (not `peel_innate`, which stops at `Expanded`).
-    #[test]
-    fn expanded_innate_survives_lose_all_abilities() {
-        use deckmaste_core::Expansion;
-        use deckmaste_core::ExpansionArgs;
-
-        // `Expanded(Innate(Static(+2/+2 anthem)))`.
-        let expanded_innate = Ability::Expanded(Expansion {
-            name: "SubtypeRule".into(),
-            args: ExpansionArgs::none(),
-            template: None,
-            value: Box::new(pump_static(true)),
-        });
-        assert!(expanded_innate.is_innate(), "the test fixture is innate");
-        let (mut state, id) = creature_on_field(game(), vec![expanded_innate]);
-
-        let innate_present = |state: &GameState| {
-            state
-                .layers()
-                .get(id)
-                .abilities
-                .iter()
-                .any(Ability::is_innate)
-        };
-        assert!(
-            innate_present(&state),
-            "Expanded(Innate) present pre-removal"
-        );
-        lose_all_abilities(&mut state, id);
-        assert!(
-            innate_present(&state),
-            "Expanded(Innate) survives LoseAllAbilities ([CR#113.12])"
         );
     }
 

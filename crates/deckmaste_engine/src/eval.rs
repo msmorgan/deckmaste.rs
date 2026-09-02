@@ -817,7 +817,6 @@ impl GameState {
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
-            EventFilter::Expanded(_) => unreachable!("provenance erased at lower"),
 
             // [CR#603.6]: zone constraints + cause narrowing + the moved
             // object's filter against its candidate view.

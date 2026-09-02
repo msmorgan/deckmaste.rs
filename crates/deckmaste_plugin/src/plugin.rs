@@ -773,16 +773,14 @@ mod tests {
             4,
             "toughness-0, loyalty-0, battle-defense-0, lethal-damage"
         );
-        // Every row puts the object into a graveyard. The lethal-damage row's
-        // `Destroy(This)` is the `Destroy` macro (an `Expanded` over the
-        // `Composite`), so peel a remembered macro to its value first.
-        assert!(plugin.sba_rules.iter().all(|r| {
-            let then = match &r.then {
-                deckmaste_core::OneShotEffect::Expanded(e) => e.value.as_ref(),
-                other => other,
-            };
-            matches!(then, deckmaste_core::OneShotEffect::Act(_))
-        }));
+        // Every authored row, including the `Destroy(This)` macro invocation,
+        // has been lowered to a runnable action before it reaches core.
+        assert!(
+            plugin
+                .sba_rules
+                .iter()
+                .all(|r| matches!(r.then, deckmaste_core::OneShotEffect::Act(_)))
+        );
     }
 
     /// `builtin/rules/grant/planeswalker-loyalty.ron` confers the
@@ -936,7 +934,6 @@ mod tests {
             match m {
                 Modification::Power(_) => true,
                 Modification::Several(members) => members.iter().any(contains_power),
-                Modification::Expanded(e) => contains_power(&e.value),
                 _ => false,
             }
         }

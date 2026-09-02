@@ -239,7 +239,6 @@ impl GameState {
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
-            Selection::Expanded(_) => unreachable!("provenance erased at lower"),
             // The nth announced target slot, read as its whole group
             // ([CR#115.3,601.2c]) — positional, and the only plural read of the
             // announce list. Never resolves over the antecedent stack: a target
@@ -641,7 +640,6 @@ impl GameState {
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
-            Reference::Expanded(_) => unreachable!("provenance erased at lower"),
             // engine-resolve-selections follow-ups: these need stores that do
             // not exist yet — a semantic read fizzles until then.
             Reference::Bound(_) => {

@@ -24,7 +24,6 @@ extern crate self as macro_ron;
 mod expand;
 mod expansion;
 pub mod frames;
-mod ident;
 mod kind;
 mod param;
 mod set;
@@ -34,10 +33,10 @@ mod tests;
 mod traverse;
 pub mod v2;
 
+pub use dpsi::Ident;
+pub use dpsi::IdentSeed;
 pub use expansion::Expansion;
 pub use expansion::ExpansionArgs;
-pub use ident::Ident;
-pub use ident::IdentSeed;
 pub use kind::Kind;
 pub use kind::KindSet;
 #[cfg(feature = "derive")]

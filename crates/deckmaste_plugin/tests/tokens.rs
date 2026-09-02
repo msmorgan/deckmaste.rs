@@ -27,7 +27,6 @@ use deckmaste_core::Token;
 use deckmaste_core::Type;
 use deckmaste_lowering::Lower;
 use deckmaste_plugin::plugin::Plugin;
-use macro_ron::Expand;
 
 fn builtin() -> Plugin {
     Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin")).unwrap()
@@ -117,9 +116,9 @@ fn clue_token_parses() {
                 limits: vec![].into(),
                 effect: builtin()
                     .macros
-                    .read_str::<OneShotEffect>("Draw(1)")
+                    .read_str::<deckmaste_semantics::OneShotEffect>("Draw(1)")
                     .unwrap()
-                    .expand_all(),
+                    .lower(),
             })]
             .into(),
             power: None,
@@ -210,7 +209,6 @@ fn blood_token_parses() {
         .macros
         .read_str::<deckmaste_semantics::CostComponent>("DiscardCards(1)")
         .unwrap()
-        .expand_all()
         .lower();
     let token = builtin().token("Blood").unwrap().core;
     assert_eq!(
@@ -236,9 +234,9 @@ fn blood_token_parses() {
                 limits: vec![].into(),
                 effect: builtin()
                     .macros
-                    .read_str::<OneShotEffect>("Draw(1)")
+                    .read_str::<deckmaste_semantics::OneShotEffect>("Draw(1)")
                     .unwrap()
-                    .expand_all(),
+                    .lower(),
             })]
             .into(),
             power: None,

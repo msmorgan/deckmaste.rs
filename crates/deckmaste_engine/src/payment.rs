@@ -556,7 +556,6 @@ fn automatic_binder_witness(
             candidates.truncate(count);
             Some(FulfillmentWitness::Objects(candidates))
         }
-        Binder::Expanded(expansion) => automatic_binder_witness(state, &expansion.value, frame),
     }
 }
 
@@ -2342,7 +2341,6 @@ impl LockBuilder<'_> {
                     },
                     Vec::new(),
                 ),
-                CostComponent::Expanded(_) => return Err(PaymentLockError::ExpandedCost),
             }
         }
         Ok(())

@@ -168,7 +168,6 @@ pub(crate) fn cost_summary(cost: &[CostComponent]) -> Option<CostSummary> {
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
-            CostComponent::Expanded(_) => unreachable!("provenance erased at lower"),
             // A nested cost (the macro list-splice shape) survives faithful
             // read; recurse to splice it into the summary — this walk is the
             // pay path's `Cost::normalize`, inlined.
@@ -472,7 +471,6 @@ impl GameState {
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
-            Binder::Expanded(_) => unreachable!("provenance erased at lower"),
         }
     }
 
@@ -910,10 +908,10 @@ mod tests {
             "lowering binds the runnable discard action's subject to This"
         );
         assert!(
-            cycling.cost.iter().all(|component| !matches!(
-                component,
-                CostComponent::Expanded(_) | CostComponent::ChooseAndPay { .. }
-            )),
+            cycling
+                .cost
+                .iter()
+                .all(|component| !matches!(component, CostComponent::ChooseAndPay { .. })),
             "no semantic expansion or unresolved action-selection wrapper reaches runnable costs"
         );
     }

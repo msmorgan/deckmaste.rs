@@ -7,8 +7,6 @@ use crate::Cmp;
 use crate::Color;
 use crate::Condition;
 use crate::Count;
-use crate::Expand;
-use crate::Expansion;
 use crate::Ident;
 use crate::Normalize;
 use crate::PlayerAttr;
@@ -16,13 +14,12 @@ use crate::Reference;
 use crate::Stat;
 use crate::Status;
 use crate::Supertype;
-use crate::SupportsMacros;
 use crate::Type;
 use crate::Zone;
 
 /// What kind of object something is ([CR#109.1]). Players are objects here
 /// too — the engine gives players `ObjectId`s.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum ObjectKind {
     /// An activated or triggered ability on the stack
     /// ([CR#602.2a,603.3]). Distinct from `Spell` (a card on the
@@ -46,18 +43,16 @@ pub enum ObjectKind {
 
 /// Characteristic atoms ([CR#109.3]): facts printed on or defined for the
 /// object. `Type`/`Subtype` carry the RESOLVED def (`Arc<TypeDef>` /
-/// `Arc<Subtype>`) — the macro-aware reader expands the bare name
-/// (`Type(Creature)`, `Subtype(Vampire)`) to the full struct before core
-/// deserializes it, so an undeclared name has no macro to expand and fails at
-/// parse (validation for free). Open, plugin-declared types/subtypes stay
-/// filterable — the def is data, not a closed enum. Matching keys on `.name`.
+/// `Arc<Subtype>`) supplied by semantic lowering. Open, plugin-declared
+/// types/subtypes stay filterable — the def is data, not a closed enum.
+/// Matching keys on `.name`.
 ///
 /// Equality is by name: [`TypeDef`](crate::TypeDef)/[`Subtype`](crate::Subtype)
-/// compare by their `name` (they always resolve from the one macro of that
-/// name), so the derived `PartialEq`/`Hash` here are name-based for
+/// compare by their `name` (semantic lowering resolves each name to its plugin
+/// declaration), so the derived `PartialEq`/`Hash` here are name-based for
 /// `Type`/`Subtype` for free, and a registry-less [`Predicate::r#type`] helper
 /// compares equal to a full parse-built filter.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum CharacteristicPredicate {
     Type(crate::TypeRef),
     Subtype(crate::SubtypeRef),
@@ -83,7 +78,7 @@ pub enum CharacteristicPredicate {
 
 /// State atoms: where the object is and what's on it — not
 /// characteristics ([CR#110.5a,122.1]).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum StatePredicate {
     InZone(Zone),
     /// The object's status ([CR#110.5]).
@@ -140,7 +135,7 @@ pub enum StatePredicate {
 /// Structural relations the engine owns. Relations are
 /// implicitly existential: `ControlledBy(IsOpponent-shaped)` means "whose
 /// controller matches".
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum RelationPredicate {
     /// The object's controller matches ([CR#109.5]).
     ControlledBy(Arc<Predicate>),
@@ -168,22 +163,13 @@ pub enum RelationPredicate {
     Attachment(Arc<Predicate>),
 }
 
-/// A predicate over game objects, players included. Compartmentalized in
-/// Rust; flat in RON (`Type("Creature")`, never
-/// `Characteristic(Type("Creature"))`) via the `#[macro_ron(flatten)]`
-/// markers: each compartment's variant names lift into `Predicate`'s dispatch
-/// and the compartment tag never appears in text.
-///
-/// Generated dispatch, not `#[serde(untagged)]` wrappers: untagged variants
-/// deserialize through `deserialize_any`, which never reaches the macro
-/// layer's `deserialize_enum` interception — a `Predicate` macro would stop
-/// expanding at Predicate positions. Dispatching by name over one combined
-/// variant list keeps the RON flat *and* the positions macro-aware.
+/// A predicate over game objects, players included. Core RON keeps the
+/// `Characteristic`, `State`, and `Relation` compartments explicit.
 ///
 /// Relative position between two objects in an ORDERED zone ([CR#404.2] — a
 /// graveyard is kept in a single face-up pile with a fixed order): gates
 /// [`Predicate::Adjacent`] (Death Spark's "directly above").
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum Adjacency {
     Above,
     Below,
@@ -192,14 +178,11 @@ pub enum Adjacency {
 /// Conjunction is explicit (`And`) — an enum position never carries a
 /// bare list. Canonical filters are context-free-correct: state the whole
 /// predicate even where engine context would make parts redundant.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Predicate {
     Kind(ObjectKind),
-    #[macro_ron(flatten)]
     Characteristic(CharacteristicPredicate),
-    #[macro_ron(flatten)]
     State(StatePredicate),
-    #[macro_ron(flatten)]
     Relation(RelationPredicate),
     Ref(Reference),
     /// The candidate is directly Above/Below `r` in an ORDERED zone, nothing
@@ -238,10 +221,6 @@ pub enum Predicate {
     /// Matches every object — the bare-Predicate default for event participant
     /// slots (an `EventFilter` master form's `who`/`what`).
     Any,
-    /// A remembered `Predicate` macro invocation (evasion sets, protection
-    /// qualities, …). Serialized as the invocation, not the struct.
-    #[macro_ron(expanded)]
-    Expanded(Expansion<Predicate>),
 }
 
 impl Predicate {
@@ -359,450 +338,5 @@ impl Normalize for Predicate {
             // `Where` carries a Condition, not normalized in this pass.
             other => other,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::Supertype;
-    use crate::Type;
-    use crate::Zone;
-
-    fn read(source: &str) -> Predicate {
-        crate::ron::options().from_str(source).unwrap()
-    }
-
-    /// PROOF (mechanism): a bare `Type(Creature)` macro-expands to the resolved
-    /// `TypeRef` through a real `MacroSet` — both at top level and forwarded
-    /// through a macro frame (`Type(Param(0))`). `TypeRef` delegates
-    /// Deserialize to `Arc<TypeDef>`'s `deserialize_struct` channel, and
-    /// the macro layer intercepts a struct position hosting `TypeDef`-kind
-    /// macros even under the newtype-variant `SkipStructs` mode, so the
-    /// bare name fires. An undeclared name fails to parse.
-    #[test]
-    fn bare_type_name_expands_through_macro_set() {
-        let mut macros =
-            macro_ron::MacroSet::new(crate::ron::kinds()).with_options(crate::ron::raw_options());
-        let def: macro_ron::MacroDef = crate::ron::options()
-            .from_str(
-                r#"(name: "Creature", kinds: [TypeDef], body: TypeDef(name: "Creature", permanent: true))"#,
-            )
-            .unwrap();
-        macros.insert(&def).unwrap();
-
-        let filter: Predicate = macros.read_str("Type(Creature)").unwrap();
-        assert_eq!(filter, Predicate::r#type(Type::Creature));
-        // The resolved def rode along in the Arc.
-        let Predicate::Characteristic(CharacteristicPredicate::Type(tref)) = &filter else {
-            panic!("expected a Type ref, got {filter:?}");
-        };
-        assert_eq!(tref.name(), Type::Creature.name());
-
-        // An undeclared name has no macro — parse fails (validation for free).
-        let error = macros.read_str::<Predicate>("Type(Bogus)").unwrap_err();
-        let msg = error.to_string();
-        assert!(msg.contains("Bogus"), "unexpected error: {msg}");
-        assert!(msg.contains("TypeDef"), "unexpected error: {msg}");
-
-        // IN-FRAME: a `Type(Param(0))` body forwarding a bare type name through a
-        // parameterized macro's expansion frame must expand identically.
-        let permof: macro_ron::MacroDef = crate::ron::options()
-            .from_str(
-                r#"(name: "PermOfType", kinds: [Predicate], params: [Any], body: And([Type(Param(0))]))"#,
-            )
-            .unwrap();
-        macros.insert(&permof).unwrap();
-        let framed: Predicate = macros.read_str("PermOfType(Creature)").unwrap();
-        assert_eq!(
-            crate::Expand::expand_all(framed),
-            Predicate::And(vec![Predicate::r#type(Type::Creature)].into())
-        );
-    }
-
-    #[test]
-    fn atoms_read_flat() {
-        // `Type`/`Subtype` now carry a resolved def (`Arc<…>`); their flat read
-        // is covered by `type_and_subtype_carry_resolved_def` (struct form) and
-        // the macro-aware bare-name test in `deckmaste_plugin`.
-        assert_eq!(
-            read("Supertype(Basic)"),
-            Predicate::Characteristic(CharacteristicPredicate::Supertype(Supertype::Basic)),
-        );
-        assert_eq!(
-            read("InZone(Battlefield)"),
-            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-        );
-        assert_eq!(read("Kind(Player)"), Predicate::Kind(ObjectKind::Player));
-        assert_eq!(read("Kind(Ability)"), Predicate::Kind(ObjectKind::Ability));
-        assert_eq!(read("Any"), Predicate::Any);
-    }
-
-    /// `Type`/`Subtype` filter atoms carry the RESOLVED def (`Arc<TypeDef>` /
-    /// `Arc<Subtype>`), not a bare name — the macro-aware reader expands
-    /// `Type(Creature)` / `Subtype(Vampire)` to the full struct before core
-    /// deserializes it (core here reads the post-expansion struct directly).
-    #[test]
-    fn type_and_subtype_carry_resolved_def() {
-        use crate::Subtype;
-        use crate::SubtypeRef;
-        use crate::TypeDef;
-        use crate::TypeRef;
-        assert_eq!(
-            read("Type(name:\"Creature\",permanent:true)"),
-            Predicate::Characteristic(CharacteristicPredicate::Type(TypeRef(Arc::new(TypeDef {
-                name: "Creature".into(),
-                permanent: true,
-                confers: vec![].into(),
-            })))),
-        );
-        // By-name eq: the structural helper (empty `confers`) equals the parsed
-        // ref regardless of the payload the Arc carries.
-        assert_eq!(
-            read("Type(name:\"Creature\",permanent:true)"),
-            Predicate::r#type(Type::Creature)
-        );
-        assert_eq!(
-            read("Subtype(name:\"Vampire\",types:[Creature])"),
-            Predicate::Characteristic(CharacteristicPredicate::Subtype(SubtypeRef(Arc::new(
-                Subtype {
-                    name: "Vampire".into(),
-                    types: vec![Type::Creature].into(),
-                    confers: vec![].into(),
-                }
-            )))),
-        );
-    }
-
-    /// The team-relative player relation `TeammateOf` reads flat alongside its
-    /// `OpponentOf` sibling and round-trips ([CR#102.3,810.1]).
-    #[test]
-    fn teammate_of_reads_and_round_trips() {
-        use crate::Reference;
-        let v = read("TeammateOf(Ref(You))");
-        assert_eq!(
-            v,
-            Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
-                Reference::You
-            )))),
-        );
-        let written = crate::ron::options().to_string(&v).unwrap();
-        assert_eq!(written, "TeammateOf(Ref(You))");
-        assert_eq!(read(&written), v);
-        // "your team" ([CR#102.4]) composes from the two primitives.
-        assert_eq!(
-            read("Or([Ref(You), TeammateOf(Ref(You))])"),
-            Predicate::Or(
-                vec![
-                    Predicate::Ref(Reference::You),
-                    Predicate::Relation(RelationPredicate::TeammateOf(Arc::new(Predicate::Ref(
-                        Reference::You
-                    )))),
-                ]
-                .into()
-            ),
-        );
-    }
-
-    /// The new §1 atoms read flat through their compartments.
-    #[test]
-    fn new_atoms_read_flat() {
-        assert_eq!(
-            read("ColorIs(Red)"),
-            Predicate::Characteristic(CharacteristicPredicate::ColorIs(Color::Red)),
-        );
-        assert_eq!(
-            read(r#"Named("Forest")"#),
-            Predicate::Characteristic(CharacteristicPredicate::Named("Forest".into())),
-        );
-        assert_eq!(
-            read("Stat(Power, AtLeast, Literal(3))"),
-            Predicate::Characteristic(CharacteristicPredicate::Stat(
-                Stat::Power,
-                Cmp::AtLeast,
-                Count::Literal(3),
-            )),
-        );
-        assert_eq!(
-            read("Has(Flying)"),
-            Predicate::Characteristic(CharacteristicPredicate::Has("Flying".into())),
-        );
-        assert_eq!(
-            read("Status(Tapped)"),
-            Predicate::State(StatePredicate::Status(Status::Tapped)),
-        );
-        assert_eq!(
-            // The counter kind is a bare ident (`CounterRef`), not a string.
-            read("HasCounter(P1P1Counter)"),
-            Predicate::State(StatePredicate::HasCounter("P1P1Counter".into())),
-        );
-        assert_eq!(
-            read(r#"Designated("Monstrous")"#),
-            Predicate::State(StatePredicate::Designated("Monstrous".into())),
-        );
-        assert_eq!(
-            // The paid-cost tag is a bare ident (`CostTag`), not a string.
-            read("WasPaidWith(Kicker)"),
-            Predicate::State(StatePredicate::WasPaidWith("Kicker".into())),
-        );
-        assert_eq!(
-            // The alt-cost tag is a bare ident (`CostTag`), not a string.
-            read("WasCastWith(Flashback)"),
-            Predicate::State(StatePredicate::WasCastWith("Flashback".into())),
-        );
-        // The inner `Type(..)` filter is spelled as the resolved struct here —
-        // the macro-less core reader can't expand the bare `Type(Creature)`
-        // name (covered in the macro-aware `deckmaste_plugin` test); by-name eq
-        // matches the `Predicate::r#type` helper regardless.
-        assert_eq!(
-            read(r#"RelatedBy("PairedWith", Type(name:"Creature",permanent:true))"#),
-            Predicate::State(StatePredicate::RelatedBy(
-                "PairedWith".into(),
-                Arc::new(Predicate::r#type(Type::Creature)),
-            )),
-        );
-        assert_eq!(
-            read("AttachedTo(Type(name:\"Creature\",permanent:true))"),
-            Predicate::Relation(RelationPredicate::AttachedTo(Arc::new(Predicate::r#type(
-                Type::Creature
-            )))),
-        );
-        assert_eq!(
-            read("Attachment(Type(name:\"Enchantment\",permanent:true))"),
-            Predicate::Relation(RelationPredicate::Attachment(Arc::new(Predicate::r#type(
-                Type::Enchantment
-            )))),
-        );
-        assert_eq!(
-            // "milled" — [CR#701.17a].
-            read("WasPutFrom(Library)"),
-            Predicate::State(StatePredicate::WasPutFrom(Zone::Library)),
-        );
-    }
-
-    /// `Adjacent` (Death Spark's "a creature card directly above it") reads
-    /// flat with its `Adjacency` direction and round-trips both ways.
-    #[test]
-    fn adjacent_reads_and_round_trips() {
-        let above = read("Adjacent(Above, This)");
-        assert_eq!(
-            above,
-            Predicate::Adjacent(Adjacency::Above, Reference::This),
-        );
-        assert_eq!(
-            read(&crate::ron::options().to_string(&above).unwrap()),
-            above
-        );
-
-        let below = Predicate::Adjacent(Adjacency::Below, Reference::You);
-        assert_eq!(read("Adjacent(Below, You)"), below);
-        assert_eq!(
-            read(&crate::ron::options().to_string(&below).unwrap()),
-            below
-        );
-    }
-
-    /// `FromSource` lifts a quality to a stack ability's source
-    /// ([CR#702.11d]): it reads flat, nests a full filter, and round-trips.
-    #[test]
-    fn from_source_reads_and_round_trips() {
-        let v = read("FromSource(ColorIs(Red))");
-        assert_eq!(
-            v,
-            Predicate::FromSource(Arc::new(Predicate::Characteristic(
-                CharacteristicPredicate::ColorIs(Color::Red)
-            ))),
-        );
-        let written = crate::ron::options().to_string(&v).unwrap();
-        assert_eq!(read(&written), v);
-        // The hexproof-from-red agent shape: red spells, or abilities from
-        // red sources ([CR#702.11d]).
-        let agent = read("Or([And([Kind(Spell), ColorIs(Red)]), FromSource(ColorIs(Red))])");
-        assert!(matches!(agent, Predicate::Or(_)));
-        // Normalize recurses through FromSource.
-        assert_eq!(
-            read("FromSource(And([ColorIs(Red)]))").normalize(),
-            read("FromSource(ColorIs(Red))"),
-        );
-    }
-
-    /// `PlayerStatCmp` (the player-scope twin of `Characteristic(Stat(..))`,
-    /// [CR#119.1]) reads flat with its `PlayerAttr`/`Cmp`/`Count` triple and
-    /// round-trips: "a player has 13 or less life" =
-    /// `PlayerStatCmp(Life, AtMost, 13)`.
-    #[test]
-    fn player_stat_cmp_reads_and_round_trips() {
-        let v = read("PlayerStatCmp(Life, AtMost, 13)");
-        assert_eq!(
-            v,
-            Predicate::PlayerStatCmp(PlayerAttr::Life, Cmp::AtMost, Count::Literal(13)),
-        );
-        let written = crate::ron::options().to_string(&v).unwrap();
-        assert_eq!(written, "PlayerStatCmp(Life,AtMost,13)");
-        assert_eq!(read(&written), v);
-    }
-
-    #[test]
-    fn combinators_nest() {
-        assert_eq!(
-            read("And([InZone(Battlefield), Type(name:\"Creature\",permanent:true)])"),
-            Predicate::And(
-                vec![
-                    Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                    Predicate::r#type(Type::Creature),
-                ]
-                .into()
-            ),
-        );
-        assert_eq!(
-            read("Not(Kind(Player))"),
-            Predicate::Not(Arc::new(Predicate::Kind(ObjectKind::Player))),
-        );
-    }
-
-    #[test]
-    fn relations_take_filters() {
-        use crate::Reference;
-        assert_eq!(
-            read("ControlledBy(Ref(You))"),
-            Predicate::Relation(RelationPredicate::ControlledBy(Arc::new(Predicate::Ref(
-                Reference::You
-            )))),
-        );
-        assert_eq!(
-            read("Controls(Type(name:\"Land\",permanent:true))"),
-            Predicate::Relation(RelationPredicate::Controls(Arc::new(Predicate::r#type(
-                Type::Land
-            )))),
-        );
-    }
-
-    /// The compartment wrappers must not appear in the text: Rust nests,
-    /// RON stays flat.
-    #[test]
-    fn serialization_stays_flat() {
-        // The filter channel writes the type by its BARE name, never the full
-        // struct — `Type(Creature)`, not `Type(name:"Creature",...)`.
-        let filter = Predicate::r#type(Type::Creature);
-        assert_eq!(
-            crate::ron::options().to_string(&filter).unwrap(),
-            "Type(Creature)"
-        );
-    }
-
-    #[test]
-    fn unknown_names_error() {
-        let err = crate::ron::options()
-            .from_str::<Predicate>("Bogus(1)")
-            .unwrap_err();
-        let err = err.to_string();
-        assert!(err.contains("Bogus"));
-    }
-
-    /// `Normalize` flattens nested `And`/`Or` (associativity) and
-    /// collapses a singleton combinator to its element.
-    #[test]
-    fn normalize_flattens_and_collapses_combinators() {
-        // Associativity: And([And([a, b]), c]) → And([a, b, c]). The leaf atoms
-        // are `Supertype(..)` (core-readable, round-trippable) — the flattening
-        // is atom-agnostic, and the bare `Type(..)` filter can't round-trip
-        // through the macro-less core reader.
-        let nested =
-            read("And([And([Supertype(Basic), Supertype(Legendary)]), InZone(Battlefield)])");
-        assert_eq!(
-            nested.clone().normalize(),
-            read("And([Supertype(Basic), Supertype(Legendary), InZone(Battlefield)])"),
-        );
-
-        // Same for Or.
-        let nested_or =
-            read("Or([Or([Supertype(Basic), Supertype(Legendary)]), InZone(Battlefield)])");
-        assert_eq!(
-            nested_or.normalize(),
-            read("Or([Supertype(Basic), Supertype(Legendary), InZone(Battlefield)])"),
-        );
-
-        // Singleton collapse: And([x]) → x, Or([x]) → x.
-        assert_eq!(
-            read("And([Supertype(Basic)])").normalize(),
-            read("Supertype(Basic)")
-        );
-        assert_eq!(
-            read("Or([Supertype(Basic)])").normalize(),
-            read("Supertype(Basic)")
-        );
-
-        // Nested singletons collapse from the inside out.
-        assert_eq!(
-            read("And([And([Supertype(Basic)])])").normalize(),
-            read("Supertype(Basic)")
-        );
-
-        // A combinator under a compartment filter is normalized too.
-        assert_eq!(
-            read("ControlledBy(And([Supertype(Basic)]))").normalize(),
-            read("ControlledBy(Supertype(Basic))"),
-        );
-
-        // Distinct combinators are NOT merged (Or inside And stays).
-        let mixed =
-            read("And([Or([Supertype(Basic), Supertype(Legendary)]), InZone(Battlefield)])");
-        assert_eq!(
-            mixed.clone().normalize(),
-            mixed,
-            "And/Or don't cross-flatten"
-        );
-
-        // Idempotent.
-        let normd = nested.normalize();
-        assert_eq!(normd.clone().normalize(), normd, "normalize is idempotent");
-    }
-
-    /// The compartment Serialize delegation must produce text the
-    /// Deserialize accepts back — every compartment, plus the new atoms.
-    #[test]
-    fn compartment_round_trips() {
-        let cases = [
-            "ControlledBy(Ref(You))",
-            "Controls(InZone(Battlefield))",
-            "Owner(Kind(Player))",
-            "OpponentOf(Kind(Player))",
-            "TeammateOf(Kind(Player))",
-            // The inner filters avoid `Type`/`Subtype`: their bare-name write
-            // form doesn't round-trip through the macro-less core reader (that
-            // round-trip is covered in the macro-aware `deckmaste_plugin` test).
-            "AttachedTo(InZone(Battlefield))",
-            "Attachment(Supertype(Basic))",
-            "InZone(Battlefield)",
-            "Status(Tapped)",
-            "HasCounter(P1P1Counter)",
-            "WasPaidWith(Kicker)",
-            "WasCastWith(Flashback)",
-            r#"Designated("Monstrous")"#,
-            r#"RelatedBy("PairedWith", InZone(Battlefield))"#,
-            "Supertype(Basic)",
-            "ColorIs(Green)",
-            r#"Named("Forest")"#,
-            "Stat(Toughness, Greater, Literal(0))",
-            "Has(Flying)",
-            "Not(Kind(Player))",
-            "Ref(You)",
-            "Any",
-        ];
-        for source in cases {
-            let parsed = read(source);
-            let written = crate::ron::options().to_string(&parsed).unwrap();
-            assert_eq!(read(&written), parsed, "round-trip failed for: {source}");
-        }
-    }
-
-    /// [CR#302.6]: the summoning-sickness state atom reads bare and round-trips.
-    #[test]
-    fn summoning_sick_reads_flat_and_round_trips() {
-        let v = read("SummoningSick");
-        assert_eq!(v, Predicate::State(StatePredicate::SummoningSick));
-        let written = crate::ron::options().to_string(&v).unwrap();
-        assert_eq!(written, "SummoningSick");
-        assert_eq!(read(&written), v);
     }
 }

@@ -175,7 +175,6 @@ impl GameState {
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
-            Binder::Expanded(_) => unreachable!("provenance erased at lower"),
         }
     }
 
@@ -196,11 +195,9 @@ impl GameState {
             | Binder::SearchOne { .. } => Cardinality::One,
             Binder::Choose { .. } | Binder::Existing(_) | Binder::Search { .. } => {
                 Cardinality::Many
-            }
-            // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-            // loaded value reaches here wrapped. The arm survives only because
-            // the variant does; `core-demacro` deletes both.
-            Binder::Expanded(_) => unreachable!("provenance erased at lower"),
+            } // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+              // loaded value reaches here wrapped. The arm survives only because
+              // the variant does; `core-demacro` deletes both.
         }
     }
 
@@ -1535,7 +1532,6 @@ impl GameState {
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both. Named explicitly
             // so the seam below reports only genuinely unbuilt shapes.
-            OneShotEffect::Expanded(_) => unreachable!("provenance erased at lower"),
             // What remains is the pile family: `SeparatePiles`/`ChoosePile`.
             other => todo!(
                 "engine seam: stage 3 does not interpret effect {other:?} \
@@ -2090,7 +2086,6 @@ fn deontic_action_mut(d: &mut Deontic) -> &mut DeonticAction {
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        Deontic::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 
@@ -2114,7 +2109,6 @@ fn deontic_subject_slots(a: &mut DeonticAction) -> Vec<&mut Predicate> {
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        DeonticAction::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 

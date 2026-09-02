@@ -5,7 +5,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Color;
-use crate::Expand;
 use crate::Ident;
 use crate::StatValue;
 use crate::Subtype;
@@ -19,7 +18,7 @@ use crate::ability::Ability;
 /// ([CR#111.10]) — `Named(Treasure)` — that the rules define a fixed token for.
 /// The predefined definitions live in [`PredefinedToken`]; `Named(name)`
 /// resolves to one with [`TokenName::resolve`].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum TokenSpec {
     /// An inline token definition.
     Token(Arc<Token>),
@@ -65,13 +64,6 @@ impl From<&str> for TokenName {
     }
 }
 
-impl Expand for TokenName {
-    // A leaf: a name, never an expandable value.
-    fn expand_all(self) -> Self {
-        self
-    }
-}
-
 impl Serialize for TokenName {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         // A unit variant writes as a bare identifier in RON.
@@ -94,7 +86,7 @@ impl<'de> Deserialize<'de> for TokenName {
                 data: A,
             ) -> Result<Self::Value, A::Error> {
                 use serde::de::VariantAccess;
-                let (ident, variant) = data.variant_seed(macro_ron::IdentSeed)?;
+                let (ident, variant) = data.variant_seed(crate::IdentSeed)?;
                 variant.unit_variant()?;
                 Ok(TokenName(ident))
             }
@@ -323,7 +315,7 @@ impl PredefinedToken {
 /// copy acquires the source's name as a copiable value ([CR#707.2]), so
 /// `token_from_copiable` (`deckmaste_engine::copy`) sets this explicitly
 /// rather than letting a copy token's name resynthesize from its subtypes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Token {
     /// An explicit name ([CR#111.3]/[CR#707.2]) — `None` synthesizes at
     /// [CR#111.4] (subtypes + "Token") the way an unnamed token always has.
@@ -342,293 +334,4 @@ pub struct Token {
     pub power: Option<StatValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub toughness: Option<StatValue>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ability::Ability;
-    use crate::ability::ActivatedAbility;
-    use crate::action::Action;
-    use crate::cost::CostComponent;
-    use crate::effect::OneShotEffect;
-    use crate::mana::ManaSpec;
-    use crate::reference::Reference;
-
-    fn read(source: &str) -> Token {
-        crate::ron::options().from_str(source).unwrap()
-    }
-
-    /// `Named(Treasure)` reads as a BARE identifier (the name is also a
-    /// `Subtype`), round-trips bare, and a quoted string must NOT parse —
-    /// matching the `KeywordRef`/`CounterRef` channel.
-    #[test]
-    fn token_spec_named_reads_bare() {
-        let spec: TokenSpec = crate::ron::options().from_str("Named(Treasure)").unwrap();
-        assert_eq!(spec, TokenSpec::Named(TokenName::from("Treasure")));
-        let written = crate::ron::options().to_string(&spec).unwrap();
-        assert_eq!(written, "Named(Treasure)", "writes bare, no quotes");
-        let err = crate::ron::options()
-            .from_str::<TokenSpec>("Named(\"Treasure\")")
-            .unwrap_err();
-        let err = err.to_string();
-        assert!(
-            err.contains("Expected"),
-            "a quoted token name is not a valid TokenSpec: {err}"
-        );
-    }
-
-    /// `TokenSpec::Copy(CopySpec{…})` reads/writes FLAT — the newtype variant
-    /// unwraps the way `TokenSpec::Token(Token{…})` does
-    /// (`UNWRAP_VARIANT_NEWTYPES`), so a macro/card spells `Copy(source: …,
-    /// exceptions: […])`, never the double-paren `Copy((source: …))`.
-    /// Proves the spelling the copy-consuming keyword macros
-    /// (Populate/Embalm/Eternalize/Offspring) rely on.
-    #[test]
-    fn token_spec_copy_reads_flat() {
-        use crate::CollectionOp;
-        use crate::Color;
-        use crate::CopyException;
-        use crate::CopySource;
-        use crate::CopySpec;
-        use crate::Modification;
-        use crate::NumericOp;
-
-        let spec = TokenSpec::Copy(
-            CopySpec {
-                source: CopySource::SelfCard,
-                exceptions: vec![
-                    CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(
-                        4,
-                    )))),
-                    CopyException::Modify(Modification::Colors(CollectionOp::Set(
-                        vec![Color::Black].into(),
-                    ))),
-                    CopyException::Modify(Modification::Subtypes(CollectionOp::Add(
-                        "Zombie".into(),
-                    ))),
-                ],
-            }
-            .into(),
-        );
-        let written = crate::ron::options().to_string(&spec).unwrap();
-        assert_eq!(
-            written,
-            "Copy(source:SelfCard,exceptions:[Modify(Power(Set(4))),\
-             Modify(Colors(Set([Black]))),Modify(Subtypes(Add(Zombie)))])",
-            "TokenSpec::Copy spells FLAT (newtype unwrapped); the writer is compact — \
-             the `Subtypes` axis writes its `SubtypeRef` as the bare name, the \
-             reader accepts the resolved struct (or a subtype-macro name)"
-        );
-        // The `Subtypes` axis is a `SubtypeRef`: the bare write is re-read by a
-        // macro-aware reader (a subtype-macro name) or, here in core, the
-        // resolved fused struct — by-name identity makes it equal the name-only
-        // build. The spaced, human-readable spelling macros/cards actually write.
-        let spaced: TokenSpec = crate::ron::options()
-            .from_str(
-                "Copy(source: SelfCard, exceptions: [Modify(Power(Set(4))), \
-                 Modify(Colors(Set([Black]))), \
-                 Modify(Subtypes(Add(name: \"Zombie\", types: [Creature])))])",
-            )
-            .unwrap();
-        assert_eq!(
-            spaced, spec,
-            "the resolved macro/card spelling parses to a by-name-equal ref"
-        );
-    }
-
-    /// A predefined name resolves to its rules-defined [CR#111.10]
-    /// characteristics — a colorless artifact whose sole subtype is its own
-    /// name. Matches the builtin `Treasure.ron` (the [CR#111.10a] body).
-    #[test]
-    fn named_treasure_resolves_to_rules_token() {
-        let token = TokenName::from("Treasure").resolve().unwrap();
-        assert_eq!(token.types, vec![Type::Artifact.def()].into());
-        assert_eq!(token.subtypes.len(), 1);
-        assert_eq!(token.subtypes[0].name, "Treasure");
-        assert!(token.color_indicator.is_empty(), "[CR#111.10a]: colorless");
-        assert_eq!(
-            token.abilities,
-            vec![Ability::activated(ActivatedAbility {
-                ability_word: None,
-                from: None,
-                window: None,
-                cost: crate::Cost(
-                    vec![
-                        CostComponent::Tap,
-                        CostComponent::do_action(Action::Sacrifice(
-                            Reference::You,
-                            Reference::This
-                        )),
-                    ]
-                    .into(),
-                ),
-                condition: None,
-                limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::AddMana(
-                    Reference::You,
-                    crate::Count::Literal(1),
-                    ManaSpec::AnyColor.into()
-                )),
-            })]
-            .into()
-        );
-    }
-
-    /// An unbuilt predefined token (Powerstone) and a non-token name resolve
-    /// to `None` — the parser must decline these, not emit a `Named` that
-    /// can't resolve.
-    #[test]
-    fn unbuilt_or_unknown_names_resolve_to_none() {
-        assert!(TokenName::from("Powerstone").resolve().is_none());
-        assert!(TokenName::from("Bogus").resolve().is_none());
-    }
-
-    /// The `Create` position reads through the single-variant wrapper with
-    /// the SAME spelling files always used — `Token(types: …)`, the struct
-    /// name, is now the variant name.
-    #[test]
-    fn token_spec_reads_the_token_spelling() {
-        let spec: TokenSpec = crate::ron::options()
-            .from_str("Token(types: [TypeDef(name: \"Artifact\", permanent: true)])")
-            .unwrap();
-        assert_eq!(
-            spec,
-            TokenSpec::Token(
-                Token {
-                    name: None,
-                    color_indicator: vec![].into(),
-                    supertypes: vec![].into(),
-                    types: vec![Type::Artifact.def()].into(),
-                    subtypes: vec![].into(),
-                    abilities: vec![].into(),
-                    power: None,
-                    toughness: None,
-                }
-                .into()
-            )
-        );
-    }
-
-    #[test]
-    fn minimal_token_parses() {
-        let token = read("Token(types: [TypeDef(name: \"Artifact\", permanent: true)])");
-        assert_eq!(token.types, vec![Type::Artifact.def()].into());
-        assert!(token.supertypes.is_empty());
-        assert!(token.subtypes.is_empty());
-        assert!(token.abilities.is_empty());
-        assert!(token.color_indicator.is_empty());
-        assert!(token.power.is_none());
-        assert!(token.toughness.is_none());
-    }
-
-    #[test]
-    fn token_round_trips_with_empty_vecs_omitted() {
-        let token = Token {
-            name: None,
-            color_indicator: vec![].into(),
-            supertypes: vec![].into(),
-            types: vec![Type::Artifact.def()].into(),
-            subtypes: vec![].into(),
-            abilities: vec![].into(),
-            power: None,
-            toughness: None,
-        };
-        let written = crate::ron::options().to_string(&token).unwrap();
-        // Empty vecs must not appear in the output (skip_serializing_if is
-        // load-bearing).
-        // `written` legitimately contains "name" as part of the nested
-        // `TypeDef(name: "Artifact", ...)` — check specifically for the
-        // Token-level `name:` key, not a bare substring match.
-        assert!(
-            !written.contains("Token(name:") && !written.contains(", name:"),
-            "the Token's own `name` field should be omitted when None: {written}"
-        );
-        assert!(
-            !written.contains("supertypes"),
-            "supertypes should be omitted when empty"
-        );
-        assert!(
-            !written.contains("subtypes"),
-            "subtypes should be omitted when empty"
-        );
-        assert!(
-            !written.contains("abilities"),
-            "abilities should be omitted when empty"
-        );
-        assert!(
-            !written.contains("color_indicator"),
-            "color_indicator should be omitted when empty"
-        );
-        assert!(
-            !written.contains("power"),
-            "power should be omitted when None"
-        );
-        assert!(
-            !written.contains("toughness"),
-            "toughness should be omitted when None"
-        );
-        let reparsed = read(&written);
-        assert_eq!(token, reparsed);
-    }
-
-    /// A creature token carries its defined color [CR#202.2e] and P/T
-    /// [CR#111.3]; the new fields round-trip and stay omitted when empty.
-    #[test]
-    fn token_carries_color_and_pt() {
-        let token = read(
-            "Token(color_indicator: [Red], types: [TypeDef(name: \"Creature\", permanent: true)], power: 1, toughness: 1)",
-        );
-        assert_eq!(token.color_indicator, vec![Color::Red].into());
-        assert_eq!(token.types, vec![Type::Creature.def()].into());
-        assert_eq!(token.power, Some(StatValue::Number(1)));
-        assert_eq!(token.toughness, Some(StatValue::Number(1)));
-        let written = crate::ron::options().to_string(&token).unwrap();
-        assert_eq!(read(&written), token);
-    }
-
-    #[test]
-    fn treasure_like_token_parses() {
-        // Mirrors the structure of plugins/builtin/tokens/Treasure.ron with the
-        // macro-expanded forms: `SacrificeThis` -> `Do(Sacrifice(This))`,
-        // subtypes omitted (Subtype is a struct requiring plugin expansion).
-        let source = "Token(\
-            types: [TypeDef(name: \"Artifact\", permanent: true)],\
-            abilities: [\
-                Activated(\
-                    cost: [Tap, Act(Sacrifice(You, This))],\
-                    effect: AddMana(You, Literal(1), AnyColor),\
-                )\
-            ],\
-        )";
-        let token = read(source);
-        assert_eq!(token.types, vec![Type::Artifact.def()].into());
-        assert!(token.subtypes.is_empty());
-        assert_eq!(
-            token.abilities,
-            vec![Ability::activated(ActivatedAbility {
-                ability_word: None,
-                from: None,
-                window: None,
-                cost: crate::Cost(
-                    vec![
-                        CostComponent::Tap,
-                        CostComponent::do_action(Action::Sacrifice(
-                            Reference::You,
-                            Reference::This
-                        )),
-                    ]
-                    .into(),
-                ),
-                condition: None,
-                limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::AddMana(
-                    Reference::You,
-                    crate::Count::Literal(1),
-                    ManaSpec::AnyColor.into(),
-                )),
-            })]
-            .into()
-        );
-    }
 }

@@ -430,7 +430,6 @@ fn deref_quantity(q: &deckmaste_core::Quantity) -> &deckmaste_core::Quantity {
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        deckmaste_core::Quantity::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 

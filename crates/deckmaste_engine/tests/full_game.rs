@@ -227,7 +227,8 @@ const RON_BOLTS: &str = r#"(
         (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
          prefer: Cast(
             what: (pick: Min, by: StatOf(This, ManaValue)),
-            target: (pick: Max, by: StatOf(This, Power), among: Type(name:"Creature",permanent:true)))),
+            target: (pick: Max, by: StatOf(This, Power), among:
+                Characteristic(Type((name:"Creature",permanent:true)))))),
         (when: And([]), prefer: Discard(what: (pick: Min, by: StatOf(This, ManaValue)))),
         (when: And([]), prefer: Pass),
     ],

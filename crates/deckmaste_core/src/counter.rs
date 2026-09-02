@@ -4,7 +4,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::Count;
-use crate::Expand;
 use crate::Ident;
 use crate::Property;
 
@@ -33,13 +32,6 @@ impl From<&str> for CounterRef {
     }
 }
 
-impl crate::Expand for CounterRef {
-    // A leaf: a name, never an expandable value.
-    fn expand_all(self) -> Self {
-        self
-    }
-}
-
 impl Serialize for CounterRef {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         // A unit variant writes as a bare identifier in RON.
@@ -62,7 +54,7 @@ impl<'de> Deserialize<'de> for CounterRef {
                 data: A,
             ) -> Result<Self::Value, A::Error> {
                 use serde::de::VariantAccess;
-                let (ident, variant) = data.variant_seed(macro_ron::IdentSeed)?;
+                let (ident, variant) = data.variant_seed(crate::IdentSeed)?;
                 variant.unit_variant()?;
                 Ok(CounterRef(ident))
             }
@@ -79,7 +71,7 @@ impl<'de> Deserialize<'de> for CounterRef {
 /// `AllKinds` moves every counter of every kind at once (Ozolith / Fate
 /// Transfer) — the one case a single-kind remove+put can't reach, because it
 /// quantifies over the kinds present.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum CounterSpec {
     /// A specific counter kind and count.
     Named(CounterRef, Count),
@@ -127,84 +119,4 @@ pub struct Counter {
 )]
 fn is_object_scope(scope: &CounterScope) -> bool {
     *scope == CounterScope::Object
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// A `CounterRef` reads and writes as a BARE identifier (`P1P1Counter`),
-    /// never a quoted string — the hand-written serde impls, the highest-risk
-    /// arm. (A quoted `"P1P1Counter"` must NOT parse.)
-    #[test]
-    fn counter_ref_round_trips_bare() {
-        let value = CounterRef::from("P1P1Counter");
-        let written = crate::ron::options().to_string(&value).unwrap();
-        assert_eq!(written, "P1P1Counter", "writes bare, no quotes");
-        let read: CounterRef = crate::ron::options().from_str("P1P1Counter").unwrap();
-        assert_eq!(read, value);
-        let err = crate::ron::options()
-            .from_str::<CounterRef>("\"P1P1Counter\"")
-            .unwrap_err();
-        let err = err.to_string();
-        assert!(
-            err.contains("Expected"),
-            "a quoted identifier is not a valid CounterRef: {err}"
-        );
-    }
-
-    /// The `scope` column ([CR#122.1]) defaults to `Object` (omitted from
-    /// RON) and a `Player` row reads and round-trips — the registry carries
-    /// the dependent index as data.
-    #[test]
-    fn counter_scope_column_round_trips() {
-        let object: Counter = crate::ron::options()
-            .from_str(r#"Counter(name: "P1P1Counter")"#)
-            .unwrap();
-        assert_eq!(object.scope, CounterScope::Object);
-        let written = crate::ron::options().to_string(&object).unwrap();
-        assert!(
-            !written.contains("scope"),
-            "object default omitted: {written}"
-        );
-
-        let player: Counter = crate::ron::options()
-            .from_str(r#"Counter(name: "Poison", scope: Player)"#)
-            .unwrap();
-        assert_eq!(player.scope, CounterScope::Player);
-        let written = crate::ron::options().to_string(&player).unwrap();
-        assert!(written.contains("scope:Player"), "player kept: {written}");
-        let reread: Counter = crate::ron::options().from_str(&written).unwrap();
-        assert_eq!(reread, player);
-    }
-
-    /// `CounterSpec` reads both forms: a named kind+count (bare counter ident,
-    /// bare numeral) and the unit `AllKinds`. Both round-trip.
-    #[test]
-    fn counter_spec_round_trips() {
-        let named = CounterSpec::Named(CounterRef::from("P1P1Counter"), Count::Literal(2));
-        assert_eq!(
-            crate::ron::options()
-                .from_str::<CounterSpec>("Named(P1P1Counter, 2)")
-                .unwrap(),
-            named,
-        );
-        let written = crate::ron::options().to_string(&named).unwrap();
-        assert_eq!(
-            crate::ron::options()
-                .from_str::<CounterSpec>(&written)
-                .unwrap(),
-            named,
-        );
-
-        let all = CounterSpec::AllKinds;
-        assert_eq!(
-            crate::ron::options()
-                .from_str::<CounterSpec>("AllKinds")
-                .unwrap(),
-            all,
-        );
-        let written = crate::ron::options().to_string(&all).unwrap();
-        assert_eq!(written, "AllKinds");
-    }
 }

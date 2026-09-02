@@ -428,9 +428,9 @@ struct Line {
     text: String,
     /// The RON type this line's semantic value normalizes at —
     /// `"KeywordAbility"` for a keyword line, `"OneShotEffect"` for a spell
-    /// effect (which reads a raw `Action`-flattened constructor like
-    /// `DealDamage(...)` directly too — `OneShotEffect::Act` is
-    /// `#[macro_ron(flatten)]`, `crates/deckmaste_core/src/effect.rs`).
+    /// effect (whose semantic authoring form accepts an action constructor
+    /// such as `DealDamage(...)` directly and lowers it to
+    /// `OneShotEffect::Act`).
     ron_type: &'static str,
     semantic_view: View,
 }

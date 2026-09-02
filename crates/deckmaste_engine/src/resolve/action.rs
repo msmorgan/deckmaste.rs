@@ -2747,13 +2747,14 @@ mod tests {
     /// A Rest-in-Peace-shape static: "if a card would be put into a graveyard,
     /// exile it instead" ([CR#614.6]) — a `ZoneChange → Graveyard` replacement.
     fn rest_in_peace_fixture(state: &mut GameState) {
-        let ability = builtin()
+        let semantic = builtin()
             .macros
-            .read_str::<Ability>(
+            .read_str::<deckmaste_semantics::Ability>(
                 "Static(Replacement(Instead(would: ZoneChange(what: Any, to: Graveyard), \
                  instead: Move(EventObject, Exile))))",
             )
             .unwrap();
+        let ability: Ability = deckmaste_lowering::Lower::lower(semantic);
         mint_on_field(
             state,
             Card::Normal(CardFace {

@@ -434,10 +434,9 @@ fn replacement_would(state: &GameState, r: &Replacement, source: ObjectId, e: &G
             replacement_watches(state, would, source, e)
         }
         Replacement::Skip { .. } => false, // handled in begin_step, Task 9
-        // Provenance is erased at `lower` (`deckmaste_lowering`), so no
-        // loaded value reaches here wrapped. The arm survives only because
-        // the variant does; `core-demacro` deletes both.
-        Replacement::Expanded(_) => unreachable!("provenance erased at lower"),
+                                           // Provenance is erased at `lower` (`deckmaste_lowering`), so no
+                                           // loaded value reaches here wrapped. The arm survives only because
+                                           // the variant does; `core-demacro` deletes both.
     }
 }
 
@@ -483,7 +482,6 @@ fn floating_watches(
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        Replacement::Expanded(_) => unreachable!("provenance erased at lower"),
     };
     let Some(fact) = crate::eval::FactView::of(state, e) else {
         return false;
@@ -680,11 +678,9 @@ fn apply_one(
                 Replacement::Skip { .. } => {
                     // Skip is handled by the step-elision pass (Task 9), not here.
                     Some(e)
-                }
-                // Provenance is erased at `lower` (`deckmaste_lowering`), so
-                // no loaded value reaches here wrapped. The arm survives only
-                // because the variant does; `core-demacro` deletes both.
-                Replacement::Expanded(_) => unreachable!("provenance erased at lower"),
+                } // Provenance is erased at `lower` (`deckmaste_lowering`), so
+                  // no loaded value reaches here wrapped. The arm survives only
+                  // because the variant does; `core-demacro` deletes both.
             }
         }
         ApplicableEffect::Prevention(prevention) => {

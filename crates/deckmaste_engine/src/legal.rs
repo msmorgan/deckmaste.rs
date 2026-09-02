@@ -32,7 +32,6 @@ fn deontic_action(d: &Deontic) -> &DeonticAction {
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-        Deontic::Expanded(_) => unreachable!("provenance erased at lower"),
     }
 }
 

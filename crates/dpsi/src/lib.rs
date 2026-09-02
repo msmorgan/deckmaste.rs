@@ -1,3 +1,5 @@
+//! The dumbest possible string interner (pronounced “Dipsy”).
+
 use std::collections::HashSet;
 use std::sync::LazyLock;
 use std::sync::RwLock;
@@ -7,15 +9,13 @@ use serde::Serialize;
 
 static POOL: LazyLock<RwLock<HashSet<&'static str>>> = LazyLock::new(Default::default);
 
-/// The dumbest possible string interner.
 fn intern(s: &str) -> &'static str {
-    // Fast path: shared read lock for the (overwhelmingly common) hit.
+    // Fast path: shared read lock for the overwhelmingly common hit.
     if let Some(&interned) = POOL.read().unwrap().get(s) {
         return interned;
     }
     let mut pool = POOL.write().unwrap();
-    // Re-check under the write lock: another thread may have interned `s`
-    // between the read and write locks above.
+    // Another thread may have interned `s` between the two locks.
     pool.get(s).copied().unwrap_or_else(|| {
         let interned = Box::leak(s.into());
         pool.insert(interned);
@@ -23,41 +23,40 @@ fn intern(s: &str) -> &'static str {
     })
 }
 
-// `Hash` stays content-based while `PartialEq` is pointer-based; the
-// `a == b ⟹ hash(a) == hash(b)` contract holds because pointer-equal implies
-// content-equal (see the `PartialEq` impl below).
+/// An interned string with cheap copy and equality operations.
 #[expect(
     clippy::derived_hash_with_manual_eq,
-    reason = "pointer-equal implies content-equal, so Eq ⟹ same hash"
+    reason = "pointer-equal implies content-equal, so Eq implies the same hash"
 )]
 #[derive(Debug, Clone, Copy, Eq, Hash, Serialize)]
 #[serde(transparent)]
 pub struct Ident(&'static str);
 
 impl Ident {
+    /// Intern `s` and return its canonical identifier.
     #[must_use]
     pub fn new(s: &str) -> Self {
         Self(intern(s))
     }
+
+    /// Return the interned string.
     #[must_use]
     pub fn as_str(&self) -> &'static str {
         self.0
     }
 }
 
-/// Pointer equality: [`intern`] returns one canonical allocation per distinct
-/// string, so comparing addresses is equivalent to comparing contents — every
-/// constructor (including [`Default`] below) goes through [`intern`]. The
-/// derived [`Hash`] stays content-based so [`Borrow<str>`](std::borrow::Borrow)
-/// map lookups keep working.
+// Every constructor goes through `intern`, so pointer equality is equivalent
+// to content equality. The derived Hash remains content-based, preserving the
+// `Borrow<str>` lookup contract.
 impl PartialEq for Ident {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self.0, other.0)
     }
 }
 
-/// Routes through [`intern`] (a derived impl would not) so the canonical-
-/// pointer invariant holds: `Ident::default() == Ident::new("")`.
+// Route the empty string through the interner too, preserving the canonical
+// pointer invariant.
 impl Default for Ident {
     fn default() -> Self {
         Self::new("")
@@ -108,16 +107,17 @@ impl PartialEq<&str> for Ident {
     }
 }
 
-/// The one visitor behind both entry points; only the expectation differs.
 struct IdentVisitor(&'static str);
 
 impl serde::de::Visitor<'_> for IdentVisitor {
     type Value = Ident;
+
     fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str(self.0)
     }
-    fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
-        Ok(Ident::new(v))
+
+    fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+        Ok(Ident::new(value))
     }
 }
 
@@ -130,12 +130,10 @@ impl<'de> Deserialize<'de> for Ident {
     }
 }
 
-/// Reads an [`Ident`] from identifier position: a bare `Forest` or `LandType`
-/// token, where the string-position [`Deserialize`] impl above would fail.
+/// A serde seed that reads an [`Ident`] from an identifier position.
 ///
-/// In the serde data model an identifier is an enum variant tag, so this seed
-/// only works where the deserializer expects one — pass it to
-/// `EnumAccess::variant_seed` after driving `Deserializer::deserialize_enum`.
+/// Use this with `EnumAccess::variant_seed` for bare tokens such as `Forest`;
+/// [`Ident`]'s ordinary [`Deserialize`] implementation reads string values.
 pub struct IdentSeed;
 
 impl<'de> serde::de::DeserializeSeed<'de> for IdentSeed {
@@ -146,5 +144,34 @@ impl<'de> serde::de::DeserializeSeed<'de> for IdentSeed {
         D: serde::Deserializer<'de>,
     {
         deserializer.deserialize_identifier(IdentVisitor("an identifier"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Ident;
+
+    #[test]
+    fn equal_text_shares_one_allocation() {
+        let first = Ident::new("Dipsy");
+        let owned = String::from("Dipsy");
+        let second = Ident::new(&owned);
+
+        assert_eq!(first, second);
+        assert!(std::ptr::eq(first.as_str(), second.as_str()));
+    }
+
+    #[test]
+    fn interning_is_thread_safe() {
+        let interns: Vec<_> = (0..8)
+            .map(|_| std::thread::spawn(|| Ident::new("DumbestPossibleStringInterner")))
+            .map(|thread| thread.join().unwrap())
+            .collect();
+
+        assert!(
+            interns
+                .windows(2)
+                .all(|pair| std::ptr::eq(pair[0].as_str(), pair[1].as_str()))
+        );
     }
 }

@@ -551,8 +551,8 @@ mod tests {
             Predicate::State(StatePredicate::WasCastWith("Flashback".into())),
         );
         // The inner `Type(..)` filter is spelled as the resolved struct here —
-        // the macro-less core reader can't expand the bare `Type(Creature)`
-        // name (covered in the macro-aware `deckmaste_plugin` test); by-name eq
+        // this unit fixture has no type declarations loaded to resolve the bare
+        // `Type(Creature)` name (covered in `deckmaste_plugin`); by-name eq
         // matches the `Predicate::r#type` helper regardless.
         assert_eq!(
             read(r#"RelatedBy("PairedWith", Type(name:"Creature",permanent:true))"#),
@@ -704,9 +704,8 @@ mod tests {
     #[test]
     fn normalize_flattens_and_collapses_combinators() {
         // Associativity: And([And([a, b]), c]) → And([a, b, c]). The leaf atoms
-        // are `Supertype(..)` (core-readable, round-trippable) — the flattening
-        // is atom-agnostic, and the bare `Type(..)` filter can't round-trip
-        // through the macro-less core reader.
+        // are `Supertype(..)` (declaration-free and round-trippable); the
+        // flattening is atom-agnostic.
         let nested =
             read("And([And([Supertype(Basic), Supertype(Legendary)]), InZone(Battlefield)])");
         assert_eq!(
@@ -768,9 +767,8 @@ mod tests {
             "Owner(Kind(Player))",
             "OpponentOf(Kind(Player))",
             "TeammateOf(Kind(Player))",
-            // The inner filters avoid `Type`/`Subtype`: their bare-name write
-            // form doesn't round-trip through the macro-less core reader (that
-            // round-trip is covered in the macro-aware `deckmaste_plugin` test).
+            // The inner filters avoid `Type`/`Subtype` because this unit fixture
+            // has no declarations loaded; plugin tests cover those round trips.
             "AttachedTo(InZone(Battlefield))",
             "Attachment(Supertype(Basic))",
             "InZone(Battlefield)",
