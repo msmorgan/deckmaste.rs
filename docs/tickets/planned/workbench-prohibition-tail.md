@@ -54,3 +54,8 @@ Re-measure everything at claim; the counts are the close-outs'.
   `Maybe PremiseSort` and the `"Spend"` deed carries `ManaPremise`. The
   crew/saddle COUNTERFACTUAL-VALUE premise (the 18 as-though lines) is now
   one sort in that mold, not a redesign.
+
+- **Routed from workbench-static-frame (close, 2026-09-02):** "this token
+  can't block" is unwritable — the deed table types Block's agent as Creature
+  ([CR#509.1a]) and the marker word (`AsMarker`) ascribes no type; wants a
+  deliberate agent-typing decision at the deed facts.

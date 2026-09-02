@@ -27,3 +27,7 @@ Re-measure at claim.
   (`LeftHalfUnlocked`/`RightHalfUnlocked` [CR#709.5c]) and
   `SpecialAction.UnlockDoor` are LANDED; what waits here is the door NOUN
   [CR#709.5j] and the unlock trigger header [CR#709.5h].
+
+- **Routed from workbench-static-frame (close, 2026-09-02):** a `KeywordTerm`
+  arm on the ability LOSS (Shay Cormac, Tolaria — 2 lines), pairing the
+  class-term with `LosesAbilities`.

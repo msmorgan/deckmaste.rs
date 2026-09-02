@@ -201,3 +201,9 @@ Standard constraints apply.
   mention). Announcing the source would double every "except it" pronoun's
   antecedents and turn all 23 lines into live misbinding hazards. Audit
   record: scratchpad recency-audit/opus-analysis.md (session-local).
+
+- **Routed from workbench-static-frame (close, 2026-09-02):** the
+  copy-an-ability widenings — 15 targeted-copy lines need `CopyStack` opened
+  past Object-kinded `OnStack` and `ChooseNewTargets`/`CopyW` likewise; the
+  ability-noun vocabulary (`AnyTriggered` etc.) is ready and waiting. Same
+  slot family as the Reverberation kind-index item already here.
