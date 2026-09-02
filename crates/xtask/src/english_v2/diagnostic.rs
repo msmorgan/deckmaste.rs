@@ -1004,7 +1004,10 @@ enum NonterminalKind {
     SubjectKeywordLineItem,
     KeywordQualityCoordination,
     KeywordLine,
-    AbilityWordAbility,
+    LabelledAbility,
+    BlockLabel,
+    AbilityWordLabel,
+    ChapterLabel,
     BareCopularPredicate,
     PassiveDamagePredicate,
     PassiveMovementPredicate,
@@ -1737,7 +1740,10 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
             NonterminalKind::KeywordQualityCoordination
         }
         NonterminalCategory::KeywordLine => NonterminalKind::KeywordLine,
-        NonterminalCategory::AbilityWordAbility => NonterminalKind::AbilityWordAbility,
+        NonterminalCategory::LabelledAbility => NonterminalKind::LabelledAbility,
+        NonterminalCategory::BlockLabel => NonterminalKind::BlockLabel,
+        NonterminalCategory::AbilityWordLabel => NonterminalKind::AbilityWordLabel,
+        NonterminalCategory::ChapterLabel => NonterminalKind::ChapterLabel,
         NonterminalCategory::BareCopularPredicate => NonterminalKind::BareCopularPredicate,
         NonterminalCategory::PassiveDamagePredicate => NonterminalKind::PassiveDamagePredicate,
         NonterminalCategory::PassiveMovementPredicate => NonterminalKind::PassiveMovementPredicate,

@@ -186,6 +186,14 @@ constructions! {
         Tap = "T",
         Untap = "Q",
     }
+    vocab ChapterNumeral {
+        One = "I",
+        Two = "II",
+        Three = "III",
+        Four = "IV",
+        Five = "V",
+        Six = "VI",
+    }
     vocab ModalChooser {
         You = "choose",
         Opponent = "an opponent chooses",
@@ -4758,17 +4766,35 @@ constructions! {
         require len(items) >= 1;
         form keyword_line = items;
     }
-    construction ability_word_ability: AbilityWordAbility {
-        element AbilityWordAbilityValue {
-            label: lex AbilityWordTerm,
+    // A chapter symbol is a keyword ability whose Roman numeral heads a
+    // triggered ability [CR#107.15,714.2b]; a combined label means each
+    // numeral individually [CR#714.2c].
+    abstract sum BlockLabel {
+        AbilityWord: AbilityWordLabel,
+        Chapter: ChapterLabel,
+    }
+    construction ability_word_label: BlockLabel {
+        element AbilityWordLabel { term: lex AbilityWordTerm, }
+        form ability_word_label = lex(term);
+    }
+    construction chapter_label: BlockLabel {
+        element ChapterLabel {
+            numerals: seq lex ChapterNumeral separated by ", ",
+        }
+        require len(numerals) >= 1;
+        form chapter_label = lex(numerals);
+    }
+    construction labelled_ability: LabelledAbility {
+        element LabelledAbilityValue {
+            label: BlockLabel,
             ability: Ability,
         }
-        form ability_word_ability = lex(label) sentence_initial(" — ") ability;
+        form labelled_ability = label sentence_initial(" — ") ability;
     }
 
     abstract sum DocumentBlock {
         Ability,
-        AbilityWord: AbilityWordAbility,
+        Labelled: LabelledAbility,
         KeywordLine,
     }
     abstract product OracleText {
