@@ -5335,7 +5335,7 @@ generalJarkeldReassign =
 public export
 tahngarthChoosesDefender : Effect []
 tahngarthChoosesDefender =
-  Choose (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Nothing
+  Choose (Macros.a (Macros.kindJoin AnyPlayer (HasType Planeswalker))) Nothing Openly
 
 ||| "Tahngarth is attacking that player or planeswalker", in the context
 ||| the choose above leaves behind. [CR#506.3] closes what the slot may
@@ -8193,7 +8193,7 @@ forgottenLoreRepeat : Effect []
 forgottenLoreRepeat =
   Sequentially
     [ Choose (Macros.a (InZone (Macros.graveyardOf You)))
-             (Just (Macros.target Opponent))
+             (Just (Macros.target Opponent)) Openly
     , Macros.mayThen You (Pay You (Mana [Macros.pip Green]) PaidOnce)
                      (Repeat AgainExcludingChosen) ]
 
@@ -19608,3 +19608,402 @@ keeperOfTheFlame =
                                     (PlayerStatOf LifeTotal You) ]))
               , DealDamage Macros.thisCreature (Lit 2) (That PlayerW) ]) ]
        (Just (1, 1))
+
+-- --------------------------------------------------------------------
+-- The secret-choice and voting bundle (round of 2026-09-02)
+-- --------------------------------------------------------------------
+
+||| Menacing Ogre, whole card -- "Trample, haste / When this creature
+||| enters, each player secretly chooses a number. Then those numbers are
+||| revealed. Each player with the highest number loses that much life.
+||| If you are one of those players, put two +1/+1 counters on this
+||| creature."
+|||
+||| The hidden protocol's marquee, and the whole of it in four sentences:
+||| the `Secretly` marking that turns [CR#101.4b] off, the reveal that
+||| puts the information back, the extremal read across the choosers, and
+||| the number that read named.
+||| `ThatMuch` reaches the third sentence's amount because `ChoseExtreme`
+||| introduces `NamedNumber` -- the phrase NAMES the highest number and
+||| [CR#608.2c] lets the rest of the sentence read it.
+||| ONE SURFACE IS NOT REPRODUCED: the fourth sentence spells its
+||| predicate anaphorically ("one of those players") where this writes it
+||| out. That is the previous sentence's own predicate said a second
+||| time, so it is a spelling question and not a cell, and exactly one
+||| supported card writes the membership condition at all ("if you are
+||| one of", measured 2026-09-02) -- a cell no witness pays for.
+public export
+menacingOgre : Card
+menacingOgre =
+  Macros.card "Menacing Ogre"
+       (Just [Macros.generic 3, Macros.pip Red, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Ogre"] [Creature])
+       [ Macros.keyword "Trample"
+       , Macros.keyword "Haste"
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Sequentially
+              [ Macros.secretlyChooses (Each AnyPlayer)
+                                       (Macros.a (Macros.quality Number))
+              , ChoicesRevealed HiddenNumbers
+              , Macros.losesLife (Each (And [AnyPlayer, ChoseExtreme MaxOf]))
+                                 ThatMuch
+              , Macros.ifThen (Matches You (ChoseExtreme MaxOf))
+                              (PutCounters (Lit 2)
+                                           (PrintedKind Macros.plusOnePlusOne)
+                                           Macros.thisCreature) ]) ]
+       (Just (3, 3))
+
+||| Tyrant's Choice, whole card -- "Will of the council — Starting with
+||| you, each player votes for death or torture. If death gets more
+||| votes, each opponent sacrifices a creature of their choice. If
+||| torture gets more votes or the vote is tied, each opponent loses 4
+||| life."
+|||
+||| The vote's marquee: [CR#701.38a]'s procedure, a two-word ballot
+||| [CR#701.38b], and the tally read that 14 supported cards write, with
+||| the tie on the second arm where every card that writes two arms puts
+||| it. The ability word is [CR#207.2c]'s and carries no rules meaning.
+public export
+tyrantsChoice : Card
+tyrantsChoice =
+  Macros.card "Tyrant's Choice"
+       (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [] [Sorcery])
+       [ Macros.abilityWord WillOfTheCouncil
+           (Spell (Sequentially
+              [ Vote (Each AnyPlayer) Openly (ByLabel ["death", "torture"])
+              , Macros.ifThen (VoteLead "death" False)
+                  (Macros.sacrifice (Each Opponent)
+                                    (Macros.aTheirChoice Macros.creature))
+              , Macros.ifThen (VoteLead "torture" True)
+                  (Macros.losesLife (Each Opponent) (Lit 4)) ])) ]
+       Nothing
+
+||| Ballot Broker, whole card -- "While voting, you may vote an
+||| additional time." [CR#701.38d]'s allowance and the whole of the
+||| card's text; the parenthesis after it is reminder text [CR#207.2a].
+public export
+ballotBroker : Card
+ballotBroker =
+  Macros.card "Ballot Broker"
+       (Just [Macros.generic 2, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Advisor"] [Creature])
+       [ Static (MayVoteAdditional You (Macros.exactly 1)) ]
+       (Just (2, 3))
+
+||| Council's Judgment, whole card -- "Will of the council — Starting
+||| with you, each player votes for a nonland permanent you don't
+||| control. Exile each permanent with the most votes or tied for most
+||| votes."
+|||
+||| The CANDIDATE ballot and its winners. The second sentence describes
+||| the winners afresh rather than reading a mention back, which is what
+||| the card's own ruling requires -- "None of the candidate permanents
+||| are targeted" -- and why `Vote` announces nothing.
+public export
+councilsJudgment : Card
+councilsJudgment =
+  Macros.card "Council's Judgment"
+       (Just [Macros.generic 1, Macros.pip White, Macros.pip White]) []
+       (MkTypeLine [] [Sorcery])
+       [ Macros.abilityWord WillOfTheCouncil
+           (Spell (Sequentially
+              [ Vote (Each AnyPlayer) Openly
+                     (ByCandidate (Macros.a (And [ Permanent
+                                                 , Not Macros.land
+                                                 , Not (ControlledBy You) ])))
+              , Macros.exile (AllOf (And [Permanent, WithMostVotes])) ])) ]
+       Nothing
+
+||| Orchard Elemental, whole card -- "Council's dilemma — When this
+||| creature enters, starting with you, each player votes for sprout or
+||| harvest. Put two +1/+1 counters on this creature for each sprout
+||| vote. You gain 3 life for each harvest vote."
+|||
+||| The per-option TALLY as a multiplier, which is the other half of the
+||| vote's reads: where `VoteLead` compares two options, `VotesFor` reads
+||| one option's count as a number. 12 supported cards write it.
+public export
+orchardElemental : Card
+orchardElemental =
+  Macros.card "Orchard Elemental"
+       (Just [Macros.generic 5, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Elemental"] [Creature])
+       [ Macros.abilityWord CouncilsDilemma
+           (Macros.triggered When (Enters Macros.thisCreature Nothing)
+              (Sequentially
+                 [ Vote (Each AnyPlayer) Openly (ByLabel ["sprout", "harvest"])
+                 , PutCounters (Times 2 (VotesFor "sprout"))
+                               (PrintedKind Macros.plusOnePlusOne)
+                               Macros.thisCreature
+                 , Macros.gainsLife You (Times 3 (VotesFor "harvest")) ])) ]
+       (Just (2, 2))
+
+||| Plea for Power, whole card -- "Will of the council — Starting with
+||| you, each player votes for time or knowledge. If time gets more
+||| votes, take an extra turn after this one. If knowledge gets more
+||| votes or the vote is tied, draw three cards."
+||| The extra turn the turn-schedule round landed, under a vote.
+public export
+pleaForPower : Card
+pleaForPower =
+  Macros.card "Plea for Power"
+       (Just [Macros.generic 3, Macros.pip Blue]) []
+       (MkTypeLine [] [Sorcery])
+       [ Macros.abilityWord WillOfTheCouncil
+           (Spell (Sequentially
+              [ Vote (Each AnyPlayer) Openly (ByLabel ["time", "knowledge"])
+              , Macros.ifThen (VoteLead "time" False) (ExtraTurn You (Lit 1))
+              , Macros.ifThen (VoteLead "knowledge" True)
+                              (Draw You (Lit 3)) ])) ]
+       Nothing
+
+||| Coercive Portal, whole card -- "Will of the council — At the
+||| beginning of your upkeep, starting with you, each player votes for
+||| carnage or homage. If carnage gets more votes, sacrifice this
+||| artifact and destroy all nonland permanents. If homage gets more
+||| votes or the vote is tied, draw a card."
+||| The `VoteLead` pair's second witness, at a recurring upkeep trigger
+||| where Tyrant's Choice writes a one-shot spell.
+public export
+coercivePortal : Card
+coercivePortal =
+  Macros.card "Coercive Portal" (Just [Macros.generic 4]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.abilityWord WillOfTheCouncil
+           (Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+              (Sequentially
+                 [ Vote (Each AnyPlayer) Openly (ByLabel ["carnage", "homage"])
+                 , Macros.ifThen (VoteLead "carnage" False)
+                     (Sequentially
+                        [ Macros.sacrifice You Macros.thisArtifact
+                        , Macros.destroy (AllOf (And [Permanent,
+                                                      Not Macros.land])) ])
+                 , Macros.ifThen (VoteLead "homage" True)
+                                 (Draw You (Lit 1)) ])) ]
+       Nothing
+
+||| Custodi Squire, whole card -- "Flying / Will of the council — When
+||| this creature enters, starting with you, each player votes for an
+||| artifact, creature, or enchantment card in your graveyard. Return
+||| each card with the most votes or tied for most votes to your hand."
+||| The candidate ballot at a described GRAVEYARD card, where Council's
+||| Judgment runs its over the battlefield.
+||| The destination is the BARE hand and not a possessed one: every
+||| candidate is a card in your graveyard, which [CR#404.1] makes a
+||| card you own, so [CR#400.3] sends it to your hand without the
+||| clause having to say whose.
+public export
+custodiSquire : Card
+custodiSquire =
+  Macros.card "Custodi Squire"
+       (Just [Macros.generic 4, Macros.pip White]) []
+       (MkTypeLine [creatureType "Spirit", creatureType "Cleric"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.abilityWord WillOfTheCouncil
+           (Macros.triggered When (Enters Macros.thisCreature Nothing)
+              (Sequentially
+                 [ Vote (Each AnyPlayer) Openly
+                        (ByCandidate
+                           (Macros.a (And [ Or [ HasType Artifact
+                                               , HasType Creature
+                                               , HasType Enchantment ]
+                                          , InZone (Macros.graveyardOf You) ])))
+                 , Macros.returnTo (AllOf (And [IsCard, WithMostVotes]))
+                                   Macros.handZ ])) ]
+       (Just (3, 3))
+
+||| Lieutenants of the Guard, whole card -- "Council's dilemma — When
+||| this creature enters, starting with you, each player votes for
+||| strength or numbers. Put a +1/+1 counter on this creature for each
+||| strength vote and create a 1/1 white Soldier creature token for each
+||| numbers vote."
+||| Both of the ballot's options read in one sentence, which is the
+||| council's-dilemma frame at its plainest: no comparison, one count per
+||| option.
+public export
+lieutenantsOfTheGuard : Card
+lieutenantsOfTheGuard =
+  Macros.card "Lieutenants of the Guard"
+       (Just [Macros.generic 4, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+       [ Macros.abilityWord CouncilsDilemma
+           (Macros.triggered When (Enters Macros.thisCreature Nothing)
+              (Sequentially
+                 [ Vote (Each AnyPlayer) Openly
+                        (ByLabel ["strength", "numbers"])
+                 , PutCounters (VotesFor "strength")
+                               (PrintedKind Macros.plusOnePlusOne)
+                               Macros.thisCreature
+                 , Macros.create (VotesFor "numbers")
+                                 (Macros.creatureTok 1 1 [White]
+                                                     [creatureType "Soldier"]) ])) ]
+       (Just (2, 2))
+
+||| Truth or Consequences' first two sentences -- "Secret council — Each
+||| player secretly votes for truth or consequences, then those votes are
+||| revealed. You draw cards equal to the number of truth votes."
+|||
+||| The SECRET vote's witness. The reveal is spelled off the row's own
+||| `Secretly` and is no second sentence, because all six supported
+||| secret-vote cards comma-join it exactly here; and no starting player
+||| is written, because a simultaneous ballot has no order to start
+||| [CR#701.38a]. `VotesFor` appears in its bare read.
+||| The card's other two sentences want "choose an opponent at random",
+||| which is fenced off to the randomness ticket.
+public export
+truthOrConsequencesVote : Ability
+truthOrConsequencesVote =
+  Macros.abilityWord SecretCouncil
+    (Spell (Sequentially
+       [ Vote (Each AnyPlayer) Secretly (ByLabel ["truth", "consequences"])
+       , Draw You (VotesFor "truth") ]))
+
+||| Emissary of Grudges' entry line -- "As this creature enters, secretly
+||| choose an opponent." The `EntersChoice` marking, whose reveal is an
+||| activation cost on the card's second ability rather than a sentence.
+||| Guardian Archon writes the same line; Stalking Leonin writes it at a
+||| triggered chooser instead.
+public export
+emissaryOfGrudgesEntry : StaticEffect []
+emissaryOfGrudgesEntry =
+  Macros.entersChoosingPlayerSecretly Macros.thisCreature (Just OpponentsOnly)
+
+||| Emissary of Grudges' second ability, in the context its entry line
+||| leaves -- "Reveal the player you chose: Choose new targets for target
+||| spell or ability if it's controlled by the chosen player … Activate
+||| only once."
+|||
+||| THE REVEAL AS A COST: the hidden protocol's other half, where
+||| Menacing Ogre's reveal is a sentence. The chooser fired at entry and
+||| the value it hid is spent here, which is why the cost is an `Expose`
+||| over `ExposedChoice` and the payload reads the same value back as
+||| `ChosenPlayer` [CR#607.2d]. `OnlyIf` carries the trailing "if".
+|||
+||| NOT WHOLE, and the gap is named: the printed line's second clause
+||| ("and if it targets you or a permanent you control") coordinates a
+||| specific player with an object description across kinds, which
+||| `EitherOf` cannot take -- its two arms share one kind -- and which no
+||| joined HEAD supplies either, since a join is a description and "you"
+||| is not one. Guardian Archon's and Stalking Leonin's own payloads are
+||| blocked elsewhere (a mixed-group subject, and an attacker read under
+||| a trailing if), so this is the reveal cost's one witness.
+public export
+emissaryOfGrudgesReveal : AbilityAt [choiceB PlayerC]
+emissaryOfGrudgesReveal =
+  Macros.activatedOnlyOnce
+    (Do (Expose Reveal You (ExposedChoice PlayerC)))
+    (OnlyIf (ChooseNewTargets
+               (Macros.target (Joined Macros.spell (AbilityHead AnyOnStack))))
+            (Matches It (ControlledBy (Definite ChosenPlayer)))
+            Nothing)
+    OncePerGame
+
+-- The secret-choice and voting bundle's residues, measured 2026-09-02 over
+-- `jq 'select(.supported)'` and NOT built. The bundle does not collapse on
+-- the supported filter: 40 supported cards write a vote against 3
+-- unsupported ones (a Plane, an Alchemy split card and a land), and 17
+-- write "secretly". 33 of the 40 cast a vote -- 27 openly and 6 secretly --
+-- and 26 of those 33 write a two-word ballot.
+--
+-- THE FINISH-VOTING TRIGGER AND THE AGREEMENT READS, 3 cards -- Erestor of
+-- the Council, Grudge Keeper, Model of Unity. "Whenever players finish
+-- voting, each opponent who voted for a choice you voted for …". Two things
+-- at once: a trigger on the COMPLETION of [CR#701.38a]'s pass, which no
+-- `GameEvent` row names, and a predicate comparing one player's ballot
+-- against another's, which needs the per-voter choice the row does not
+-- record. Grudge Keeper is a one-line card behind them both.
+--
+-- "THE VOTER", 2 cards -- Elrond of the White Council, Expropriate. "For
+-- each money vote, choose a permanent owned by the voter": a distributive
+-- over one option's votes whose agent is the player who cast each of them.
+-- `VotesFor` reads the option's COUNT and leaves no per-vote mention for an
+-- agent to be read off.
+--
+-- VOTES RECEIVED BY A PLAYER, 2 cards -- Círdan the Shipwright, Mob Verdict.
+-- "each vote they received", "for each vote an opponent received", "each
+-- player who received no votes". The candidate-side tally at the player
+-- sort, where `VotesFor` reads a printed label and `WithMostVotes` reads
+-- only the extreme.
+--
+-- THE PER-CANDIDATE COUNT, 1 card -- Trap the Trespassers' "For each
+-- creature with one or more votes, put that many stun counters on it". A
+-- non-extremal candidate tally beside `WithMostVotes`, plus the count read
+-- back as "that many".
+--
+-- VOTE CONTROL, 1 card -- Illusion of Choice's "You choose how each player
+-- votes this turn". A continuous effect that takes [CR#701.38a]'s choice
+-- away from its player, which is the control-grant machinery over a
+-- procedure rather than over a permanent.
+--
+-- THE COLOUR BALLOT, 1 card -- Council Guardian's "votes for blue, black,
+-- red, or green", with "protection from each color with the most votes or
+-- tied for most votes" reading it back. [CR#701.38b]'s third possibility --
+-- "other variables relevant to the resolution" -- as a printed list of
+-- values from a closed vocabulary, which is neither `ByLabel` (words with
+-- no rules meaning) nor `ByCandidate` (a description). One card, so the arm
+-- was not minted; `WithMostVotes` is already kind-indexed and would read it.
+--
+-- THE OPTIONAL BALLOT, 1 card -- Vault 11: Voter's Dilemma' "votes for up to
+-- one creature", with "If no creature got votes" beside it. Council's
+-- Judgment's ruling states the default this breaks ("Each player must vote
+-- for one of the candidate permanents. They can't abstain"), and the card is
+-- a Saga besides.
+--
+-- "YOU GET AN ADDITIONAL VOTE", 1 card -- Brago's Representative. The extra
+-- vote's second surface, one meaning: [CR#701.38d] states one rule for every
+-- effect that "gives a player multiple votes". Recorded, not carried, and
+-- not benched; Ballot Broker prints the other surface and is the witness.
+--
+-- THE CHOOSER THAT BINDS ITS OWN NOUN, 2 cards -- Call to the Void ("each
+-- player secretly chooses a creature they control and a creature they don't
+-- control") and Malik, Grim Manipulator ("you and target opponent each
+-- secretly choose a creature that player controls"). `Choose` types its noun
+-- and its agent both at the OUTER context, so the chooser is no binder and
+-- "they" has nothing to read. A `Choose` structural gap and not the hidden
+-- protocol's: both cards' remaining sentences are ordinary, and Call to the
+-- Void's third one ("Destroy each creature chosen this way") already writes.
+--
+-- THE PRINTED VALUE LIST AT A CHOOSER, 2 cards -- Expert-Level Safe ("each
+-- secretly choose 1, 2, or 3") and A Killer Among Us ("secretly choose
+-- Human, Merfolk, or Goblin"). A `ChoiceDomain` NARROWS a sort ([CR#607.2d]
+-- ranges over values, and `NumberBetween`/`TypeOtherThan` cut the range);
+-- neither of these narrows, they enumerate. Expert-Level Safe additionally
+-- wants "If they match", a cross-chooser equality.
+--
+-- THE LABEL CHOOSER, 1 card -- Prisoner's Dilemma's "Each opponent secretly
+-- chooses silence or snitch, then the choices are revealed. If each opponent
+-- chose silence, …". A ballot's exact shape at a chooser, and the card that
+-- proves [CR#701.38c]'s line is worth keeping: no vote read may touch it.
+--
+-- WHEEL OF MISFORTUNE, 1 card -- "then all players reveal those numbers
+-- simultaneously and determine the highest and lowest numbers revealed this
+-- way", then "each player who chose that number" and "each player who didn't
+-- choose the lowest number". A DETERMINE step that names two numbers at
+-- once, where `ChoseExtreme` describes the players holding one of them.
+--
+-- THE TOYMAKER'S TRAP, 1 card -- "secretly choose a number between 1 and 5
+-- that hasn't been chosen" (an exclusion over the choices this permanent
+-- already made, the Lores' `AgainExcludingChosen` at a value sort) plus "an
+-- opponent guesses which number you chose".
+--
+-- THE MEMBERSHIP CONDITION, 1 card -- Menacing Ogre's "If you are one of
+-- those players", which this bench writes out as the predicate the previous
+-- sentence stated. Exactly one supported card writes the condition, so no
+-- witness pays for a cell.
+--
+-- THE REVEAL-COST PAIR'S OTHER PAYLOADS, 2 cards -- Guardian Archon ("You
+-- and target permanent you control each gain protection from the chosen
+-- player", a mixed-kind coordinated subject; the protection itself already
+-- writes, on True-Name Nemesis' line) and Stalking Leonin ("Exile target
+-- creature that's attacking you if it's controlled by the chosen player").
+--
+-- THE OPEN VOTES BLOCKED ON THEIR CONSEQUENTS, 18 of the 27 -- among them
+-- the five Path of the … cards (planeswalk and chaos ensues, Planechase
+-- actions no supported row names), Bite of the Black Rose (an agent-
+-- distributive counted discard), Magister of Worth, Sail into the West,
+-- Selvala's Stampede, Fateful Tempest, Messenger Jays, Emissary Green,
+-- Travel Through Caradhras, Capital Punishment, Expropriate, Split
+-- Decision, Trial of a Time Lord, Galadriel, Elven-Queen and Tivit, Seller
+-- of Secrets. Every one of them writes its vote sentence with the rows this
+-- round landed; what each is missing is its own payload.
