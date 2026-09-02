@@ -1067,6 +1067,19 @@ mutual
   ||| "spells with the chosen name cost {1} less to cast this turn",
   ||| which is the corpus's one such line (re-measured 2026-08-28) and
   ||| benches at `Continuously`.
+  |||
+  ||| The GAME-SPANNING duration wanted nothing here either, and the
+  ||| ledger that said it wanted an `absentOk` flip described a table
+  ||| that no longer exists: `SpanUnstated` is unconditional in the kind,
+  ||| so an unstated duration is admitted at every static kind
+  ||| ([CR#611.2a] gives it the end of the game), and `RestOfGame` is an
+  ||| ordinary row every seat may write. Re-measured 2026-09-02: "for the
+  ||| rest of the game" is 55 supported lines, 41 of them the reminder
+  ||| text of Ascend, Storied and Epic; all 14 of the rest are RESOLUTION
+  ||| clauses and no printed static line writes the phrase, so
+  ||| [CR#611.3b]'s covariance -- the effect applies at all times the
+  ||| permanent generating it is on the battlefield -- holds and the cell
+  ||| is settled at zero for the static ability line.
   public export
   data SpanOk : StaticKind -> Maybe (Duration bs) -> Type where
     SpanUnstated : SpanOk k Nothing

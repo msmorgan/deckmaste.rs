@@ -16801,8 +16801,10 @@ profitLoss =
 
 ||| Kasmina, Enigma Sage's first line -- "Each other planeswalker you
 ||| control has the loyalty abilities of Kasmina." The DESCRIBED ability
-||| payload at the loyalty class, with the grantor named by self-name
-||| [CR#113.7a]. The other half of the ledgered pair is Nicol Bolas,
+||| payload at the loyalty class, with the source named by self-name --
+||| [CR#201.5]'s reference, which `This` already spells: text on a card
+||| that names that card means that particular object. The other half of
+||| the ledgered pair is Nicol Bolas,
 ||| Dragon-God below; neither was writable while `Gains` was the only
 ||| grant, since neither card quotes an ability.
 public export
@@ -16877,8 +16879,9 @@ conspicuousSnoop =
 
 ||| Skill Borrower, whole card -- the same two lines at an artifact
 ||| creature, the condition widened to "an artifact or creature card".
-||| Its reminder text is [CR#201.5a]'s name substitution restated and is
-||| not part of the ability.
+||| Its reminder text ("If any of the abilities use that card's name,
+||| use this creature's name instead") is [CR#201.5b] restated and is not
+||| part of the ability.
 public export
 skillBorrower : Card
 skillBorrower =
@@ -17108,27 +17111,117 @@ battlegateMimic =
        (Just (2, 1))
 
 
-public export
-probeA : Card
-probeA =
-  Macros.card "Battlegate Mimic"
-       (Just [Macros.generic 1, Macros.hybridPip Red White]) []
-       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
-       [ Macros.triggered Whenever
-           (Casts You (Macros.a (And [Macros.spell, ColorIs Red,
-                                      ColorIs White])) Nothing)
-           Macros.drawACard ]
-       (Just (2, 1))
+-- ---------------------------------------------------------------------------
+-- The MULTI-SENTENCE static line, and why it wanted no carrier.
+-- ---------------------------------------------------------------------------
 
+||| Retro-Mutation, whole card -- "Enchant creature / Enchanted creature
+||| is a Turtle with base power and toughness 0/1. It can't attack and
+||| loses all abilities."
+|||
+||| The line prints TWO SENTENCES and the second reads the first's
+||| subject back, which was ledgered as a carrier gap: `Static` holds one
+||| `StaticEffect`, so the second sentence was said to have nowhere to
+||| stand. It does not need one. `AndAlso` coordinates whole STATEMENTS,
+||| each naming its own subject and the later ones free to read an
+||| earlier one back -- which is exactly what this line does -- so the
+||| full stop is SPELLING and carries no rules content the "and" does
+||| not. Lithoform Blight's bench entry decided the same question the
+||| same way one round earlier.
+|||
+||| Re-measured 2026-09-02: 11 supported static ability lines write two
+||| sentences with the second reading the first's subject back. They are
+||| NOT one class, and the split is what a second carrier would have
+||| hidden: 6 are a plain further statement (this card, Spider-Man No
+||| More, Heliod's Punishment, Intercessor's Arrest, Bride's Gown,
+||| Groom's Finery), 3 write a REPLACING second statement (Mind Carver,
+||| Precipitous Drop and So Tiny's "It gets +3/+1 INSTEAD as long as …")
+||| and 2 give the subject's controller leave to ignore the effect (Lost
+||| in Thought, Volrath's Curse). The plain six write today; the other
+||| five want the "instead"/"additional" marking and the
+||| ignore-this-effect permission, which are their own cells and are
+||| recorded rather than minted -- 3 lines and 2 lines respectively.
+||| The 12 Zendikon-style "It's still a land" lines are not in this
+||| count: `SetsType`'s retention slot already spells them.
 public export
-probeB : Card
-probeB =
-  Macros.card "Battlegate Mimic"
-       (Just [Macros.generic 1, Macros.hybridPip Red White]) []
-       (MkTypeLine [creatureType "Shapeshifter"] [Creature])
-       [ Macros.triggered Whenever
-           (Casts You (Macros.a (And [Macros.spell, ColorIs Red,
-                                      ColorIs White])) Nothing)
-           (Continuously (HasBasePt Macros.thisCreature (Lit 4) (Lit 2))
-                         (Just Macros.untilEndOfTurn)) ]
-       (Just (2, 1))
+retroMutation : Card
+retroMutation =
+  Macros.card "Retro-Mutation" (Just [Macros.generic 2, Macros.pip Blue]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (AndAlso
+           [ SetsType (AttachHost Enchanted (TypeW Creature))
+                      (MkToken Nothing []
+                               (MkTypeLine [creatureType "Turtle"] []) [] Nothing)
+                      Nothing
+           , HasBasePt It (Lit 0) (Lit 1)
+           , Deontic It Forbid ["Attack"] Agent NoDeonticPatient Nothing
+           , LosesAllAbilities It Nothing ]) ]
+       Nothing
+
+||| Alluring Suitor's activated ability -- "{R}{R}: This creature and
+||| another target creature each get +1/+0 until end of turn." The
+||| COMPOUND SUBJECT, recorded on the static-frame ledger as a noun
+||| question and answered by the noun vocabulary that already holds it:
+||| the "and" is inside the phrase and the distributive "each" is
+||| `EachOfBoth` over `BothOf`'s pair. Re-measured 2026-09-02 at 14
+||| supported lines, not the three the ledger carried -- Alandra, Sky
+||| Dreamer; Eidolon of Countless Battles; Fated Clash; Nighthowler;
+||| Razorgrass Invoker; Gogo, Mysterious Mime and the rest. Nothing was
+||| owed here; the entry is the witness that says so at a STATIC subject.
+public export
+alluringSuitorPump : Ability
+alluringSuitorPump =
+  Macros.activated (Mana [Macros.pip Red, Macros.pip Red])
+    (Macros.gets
+       (EachOfBoth
+          (BothOf Macros.thisCreature
+                  (Macros.target (And [Macros.creature, OtherThan This]))))
+       (PtUp (Lit 1)) (PtUp (Lit 0)) (Just Macros.untilEndOfTurn))
+
+-- THE ABILITY ON THE STACK, re-measured 2026-09-02: 40 supported lines
+-- name a TARGETED ability there, not the 60 the ledger carried -- 23 at
+-- "counter" (Squelch, Stifle, Disallow and Counterspell's kin, all
+-- benched above) and 15 at "copy" (Strionic Resonator, Rings of
+-- Brighthearth, Lithoform Engine, Illusionist's Bracers), plus two
+-- oblique mentions. The NOUN is landed: `AbilityHead`'s class word with
+-- `AbilityOf`/`ActivatedBy` for the possessor and the source
+-- restriction, and `Counterable`'s ability row is what lets the counter
+-- verb take it.
+--
+-- The COPY verb does not, and the ledger's "both verbs' complement
+-- slots are already the ordinary stack noun" is wrong about it:
+-- `CopyStack` takes a `Noun bs Object` under `OnStack`, where
+-- `CounterSpell` is kind-indexed under `Counterable`. Widening it wants
+-- `Counterable`'s twin AND a second move at the rider -- every one of
+-- the 15 lines goes on to say "you may choose new targets for the
+-- copy", and `ChooseNewTargets` is Object-kinded too, with
+-- `wordReaches CopyW AbilityP = False` behind it. Two widenings in the
+-- COPY verb's own family; recorded here at its count rather than taken
+-- by this round.
+
+-- ---------------------------------------------------------------------------
+-- Measured, and deliberately not built.
+-- ---------------------------------------------------------------------------
+--
+-- THE GRANTED ABILITY'S SUBJECT IN A NON-BATTLEFIELD ZONE: FOUR supported
+-- spans, re-measured 2026-09-02 and unchanged. Case of the Uneaten Feast,
+-- Kethis, the Hidden Hand and The Grim Captain's Locker grant to cards in a
+-- GRAVEYARD; Lukka, Coppercoat Outcast to cards EXILED this way. Hand and
+-- library are ZERO. Three of the four payloads are play permissions
+-- `MayPlay` already spells -- it is the SUBJECT that refuses -- and
+-- [CR#113.6b] is what those payloads say about themselves. Under the bar;
+-- no row minted.
+--
+-- THE ONE-TIME BOON: 27 cards write "you get a one-time boon with '…'" and
+-- NONE of them is supported (re-measured 2026-09-02). Every one is Alchemy,
+-- which is the supported flag doing its job. Its shapes, for whoever
+-- inherits a changed flag: one-time, two-time, three-time and bare (Merfolk
+-- Tunnel-Guide, Tasteful Offering, Swiftspear's Teachings, Flaming Fist
+-- Duskguard).
+--
+-- THE ATTACHMENT HEAD `Equipped` × `PermanentW`: the ledger called this a
+-- live False discrepancy; it is neither. `attachHeadOk Equipped PermanentW`
+-- is True and the table's own docstring names Luxior, Giada's Gift as the
+-- printing that opened it. Re-measured 2026-09-02: "equipped permanent" 1
+-- line, "equipped planeswalker" 0, "enchanted permanent" 105.

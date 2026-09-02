@@ -267,3 +267,181 @@ Standard constraints apply.
   no lose-one-NAMED-ability row exists (`LosesAllAbilities` is the only loss
   shape) — Blind Fury's last blocker. Ability-values machinery, so it lands
   here.
+
+---
+
+## As landed (2026-09-02)
+
+Every count below was re-measured against `data/derived/cards.jsonl` under
+`jq 'select(.supported)'`. Several of the ticket's numbers and premises were
+stale; the corrections are stated at the cell.
+
+### Built
+
+- **The described ability-set grant** — `GainsAbilitiesOf`
+  (`Effect.idr`). **29 supported lines** ("this creature has all activated
+  abilities of that card", "Nicol Bolas has all loyalty abilities of all
+  other planeswalkers on the battlefield"). The description vocabulary is
+  `AbilityClass`' own, already minted for the ability on the stack: 26 write
+  "all activated", 2 "all activated and triggered", 2 the loyalty class. The
+  class slot is a LIST; the EXCEPTION slot is a `Predicate` over `Ability`,
+  so Sharkey, Tyrant of the Shire's "except mana abilities" ([CR#605.1a]'s
+  derived property, `IsManaAbility`) and Scheming Fence's "except for
+  loyalty abilities" (`AbilityHead LoyaltyClass`) are one slot. No
+  subject-zone demand ([CR#113.6b]).
+  Bench: **Conspicuous Snoop and Skill Borrower whole**; Kasmina, Nicol
+  Bolas Dragon-God, Myr Welder and Sharkey's lines.
+- **`testSubjectOk` admits a library slice** as a condition's subject
+  (`Phrase.idr`), for the `Definite` row's own stated reason — `nounDelta`
+  mints its mention at `TheD` and [CR#401.2] keeps a library in one ordered
+  pile. This is what let Snoop and Borrower bench whole ("as long as the top
+  card of your library is a Goblin card, this creature has all activated
+  abilities of THAT CARD"): the read is of what the condition's subject
+  announced. **Flagged deviation** — a condition-vocabulary cell moved to
+  buy two of this ticket's named cards.
+- **The named-ability loss** — `LosesAbilities` (`Effect.idr`), [CR#613.1f]'s
+  layer 6 and `Gains`' mirror. **76 supported lines over 76 cards**
+  (measured; "loses flying" 32). The payload is a `List (AbilityAt bs)`, so
+  one row carries the bare keyword, the parameterised one ("protection from
+  black", Cephalid Snitch) and the quoted ability. Bench: **Blind Fury
+  whole** (routed item), Shadowspear's line.
+- **The ability-loss EXCEPTION** — `LosesAllAbilities` gained a `Maybe
+  (Predicate … Ability)`. Blood Sun is still the corpus's **only** loss-side
+  exception; the slot is bought by the GRANT's two lines and REUSED here
+  rather than minted for one line. Bench: **Blood Sun whole**.
+- **The marker object's self-ascription** — `AsMarker` (`Phrase.idr`) over
+  `MarkerWord` (`Words.idr`), a THIRD ascription axis: [CR#111.1]'s token
+  and [CR#114.3]'s emblem name no type, so neither can ride `ascriptionOk`,
+  whose whole content is [CR#109.2]'s "card type or subtype". Zones are the
+  rules' own ([CR#111.1] battlefield, [CR#114.2] command). **102 of the 206
+  distinct quoted token-creation payloads write "this token"; 9 of the 90
+  distinct emblem payloads write "this emblem"** (the ledger's 193/239 and
+  10/90 were a different span count). Bench: Nesting Dragon's inner token
+  payload, Chandra, Awakened Inferno's emblem.
+- **The grantor named from inside the quotation** — `TheGrantor`
+  (`Phrase.idr`), [CR#201.5a]'s reference. `This` cannot say it (inside a
+  granted ability `This` is the granted-to object) and `Named` cannot
+  (that describes a class). **49 quoted payloads over 48 supported cards.**
+  Its zone is the battlefield ([CR#113.6]); an emblem grantor would be the
+  widening and no supported line writes one. Bench: **Leonin Bola whole**.
+- **The per-part span** — `SubjectVP`'s arms carry their own
+  `Maybe Duration`, and a third arm `VPDeontic` spells `Deontic`'s slots
+  minus the subject. **51 supported lines** coordinate a grant written
+  "until end of turn" with a restriction written "this turn" (49 in that
+  order, 2 reversed) — two different `Duration` values, which
+  `Continuously`'s single envelope cannot write. The envelope stays as the
+  elided form. `vpOk` gained the subject's `nounTy` so the arm can ask
+  `Deontic`'s participant demands. Bench: Distortion Strike's line.
+
+### Verdicts recorded, nothing built
+
+- **The same-word-twice class is a spelling variant of the shared
+  envelope** — measured BEFORE the design was fixed, as the acceptance
+  requires. **Four** lines write the identical current-turn word twice on one
+  coordination (the Mimic cycle's flying/first-strike/trample/wither
+  members), plus Sylvan Awakening's land-copy line; the fifth Mimic
+  (Riverfall) writes the can't-be-blocked variant and belongs to the
+  DISAGREEING family. Both written spans being the same `Duration` value,
+  the envelope already says what the line says. **Battlegate Mimic benches
+  whole on the envelope, unchanged.** The family that actually needed a
+  per-part span is therefore the 51 grant-plus-restriction lines alone.
+- **The multi-sentence static line needs no carrier.** **11 supported
+  lines** (re-measured; the 12 Zendikon-style "It's still a land" lines are
+  excluded — `SetsType`'s retention slot spells them). They are **not one
+  class**: 6 are a plain further statement, 3 write a REPLACING second
+  statement ("It gets +3/+1 INSTEAD as long as …" — Mind Carver,
+  Precipitous Drop, So Tiny), 2 give the subject's controller leave to
+  ignore the effect (Lost in Thought, Volrath's Curse). `AndAlso` already
+  coordinates whole statements with later ones reading an earlier back, so
+  the full stop is SPELLING — Lithoform Blight decided the same question the
+  same way a round earlier. Bench: **Retro-Mutation whole**. The
+  instead/additional marking (3 lines) and the ignore-this-effect permission
+  (2 lines) are their own cells, recorded at their counts.
+- **`badCoordinatedSpanDisagree` no longer exists**, and neither do
+  `CoordSpanOk`/`coordSpanOk`/`partsAdmit`. The pins round retired them
+  before this one. The acceptance line "still refuses genuine disagreement"
+  has no gate left to hold; the disagreement is now WRITABLE, which is what
+  the printed lines wanted.
+- **The GAME-SPANNING duration is settled at zero and wanted no flip.**
+  `absentOk` does not exist; `SpanUnstated` is unconditional in the
+  `StaticKind` ([CR#611.2a]) and `RestOfGame` is an ordinary row. "For the
+  rest of the game" is 55 supported lines, 41 of them Ascend/Storied/Epic
+  reminder text; all 14 of the rest are resolution clauses and no printed
+  static line writes the phrase, so [CR#611.3b]'s covariance holds. Recorded
+  on `SpanOk`.
+- **The static statement's TURN WINDOW already landed.** `OnlyDuring` is the
+  third reader of the timing vocabulary and `windowOk` is the same gate the
+  activated ability's `Timing` and the trigger's `TriggerWindow` get.
+  Re-measured at **96 supported lines over 94 cards** (91 "during your
+  turn"), not the two the ledger carried. Bench: **Ahn-Crop Invader whole**
+  (the sentence Restless Spire quotes) and Bedrock Tortoise's line.
+  At Knifepoint is blocked on "outlaws", the cover word for five creature
+  types — not on the window.
+- **The "play with [slice] revealed" static already landed** (routed item).
+  `Visibility Reveal <who> TopOfLibrary` is the row, and Field of Dreams,
+  Lantern of Insight and Wizened Snitches were already benched on it.
+- **The ability on the stack already landed.** `AbilityClass` +
+  `AbilityHead`, with `AbilityOf`/`ActivatedBy` for the possessor and the
+  source restriction, and `Counterable`'s ability row for the verb.
+  Re-measured: **40 supported lines** name a targeted ability there, not 60
+  — 23 at "counter" (Squelch, Stifle, Disallow benched) and 15 at "copy".
+  The description vocabulary the corpus writes is "activated", "triggered",
+  "activated or triggered", "loyalty", plus a source restriction ("from an
+  artifact source" 4, "from a noncreature source" 1) — all inside
+  `AbilityClass`/`AbilityOf` and nothing wider.
+- **The COMPOUND SUBJECT already landed** in the noun vocabulary:
+  `EachOfBoth` over `BothOf`'s pair. Re-measured at **14 supported lines**,
+  not three. Bench: Alluring Suitor's activated ability (a static subject).
+- **`attachHeadOk Equipped PermanentW` — the ledger was stale.** The cell is
+  True and the table's own docstring names Luxior, Giada's Gift. Re-measured:
+  "equipped permanent" 1, "equipped planeswalker" 0, "enchanted permanent"
+  105 (the ledger said 76). No change needed; the ledger line is corrected
+  here.
+- **The non-battlefield granted subject: FOUR spans, unchanged.** Case of the
+  Uneaten Feast, Kethis and The Grim Captain's Locker (graveyard), Lukka
+  (exiled this way); hand and library ZERO. Under the bar, no row minted.
+- **The one-time boon: still ZERO supported.** 27 cards write it and every
+  one is Alchemy.
+
+### Routed items
+
+- **Blind Fury (lose-one-named-ability)** — LANDED and benched whole; the
+  row is `LosesAbilities` at 76 supported lines.
+- **Koh, the Face Stealer's whole-ability-set grant** — the GRANT is built
+  and its exact shape is `GainsAbilitiesOf This [AnyActivated, AnyTriggered]
+  <source> Nothing`. Koh still does not bench: its source is "the last
+  chosen card", the object-sorted MARKED READ, which no row writes. Idris,
+  Soul of the TARDIS writes the same class pair over "the exiled card" — a
+  participle definite its own earlier ability stamped — and no static line
+  reads across an ability boundary. So the class slot's LIST arm has no
+  bench entry: **both** supported two-class lines are held up by their
+  source, and the blocker is the chooser/anaphora family's, not this one's.
+- **"Play with [slice] revealed"** — already landed and benched (above).
+
+### Remainders (explicit)
+
+1. **Copying an ability** — 15 supported lines. `CopyStack` takes a
+   `Noun bs Object` under `OnStack` where `CounterSpell` is kind-indexed
+   under `Counterable`; widening it wants `Counterable`'s twin AND a second
+   move at the rider, since every one of the 15 goes on to say "you may
+   choose new targets for the copy" and `ChooseNewTargets` is Object-kinded
+   too (`wordReaches CopyW AbilityP = False`). Two widenings in the COPY
+   verb's own family. The ledger's "both verbs' complement slots are already
+   the ordinary stack noun" is wrong about copy.
+2. **The keyword-term arm of the ability loss** — Shay Cormac's bare
+   "protection"/"ward" and Tolaria's "all 'bands with other' abilities" want
+   a `KeywordTerm` element beside the `AbilityAt` one. 2 lines.
+3. **The "instead"/"additional" second statement** (3 lines) and the
+   **ignore-this-effect permission** (2 lines), from the multi-sentence
+   measurement.
+4. **Distortion Strike does not bench whole**: its second line is the
+   keyword Rebound, absent from the keyword-facts catalog.
+5. **"This token can't block"** (Harried Spearguard, Anax) still does not
+   write: the deed table gives "Block" a Creature-typed agent and refuses a
+   bare subject ([CR#509.1a]), and the marker word ascribes no type. The
+   deed vocabulary's cell.
+6. **Gutter Grime does not bench**: its token payload counts *slime*
+   counters and `CounterKind` is closed by enumeration without that word.
+   The grantor reference it wanted is built; the counter word is not.
+7. **At Knifepoint** wants "outlaws", the cover word for five creature
+   types.
