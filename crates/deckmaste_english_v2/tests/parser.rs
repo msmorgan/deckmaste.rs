@@ -64,11 +64,13 @@ fn legendary_context(card_name: &str) -> ParseContext<'_> {
 }
 
 fn single_paragraph(oracle_text: &OracleText) -> &Sentences {
-    let [DocumentBlock::Ability(Ability::Plain(Plain { body }))] = oracle_text.blocks.as_slice()
-    else {
+    let [DocumentBlock::Ability(ability)] = oracle_text.blocks.as_slice() else {
         panic!("expected exactly one paragraph ability block: {oracle_text:?}");
     };
-    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+    let Ability::Plain(Plain { body }) = ability.as_ref() else {
+        panic!("expected a plain paragraph ability: {oracle_text:?}");
+    };
+    let AbilityBody::Sentences(sentences) = body else {
         panic!("expected a sentence paragraph: {oracle_text:?}");
     };
     sentences
@@ -91,7 +93,7 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         let Ability::Plain(Plain { body }) = &parsed else {
             panic!("indefinite destroy is a paragraph")
         };
-        let AbilityBody::Sentences(paragraph) = body.as_ref() else {
+        let AbilityBody::Sentences(paragraph) = body else {
             panic!("indefinite destroy is a sentence paragraph")
         };
         let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
@@ -100,15 +102,16 @@ fn indefinite_articles_are_guarded_by_frozen_onset_without_ast_article_state() {
         let Predicate::Atomic(predicate) = imperative.predicate() else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
-        let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame:
-                BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-                    TransitivePredicate {
-                        head: _,
-                        object: Object::ObjectNominal(NominalObject { value }),
-                    },
-                )),
-        }) = predicate.as_ref()
+        let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) = predicate.as_ref() else {
+            panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
+        };
+        let BaseVerbFrame::TransitiveFrame(transitive_frame) = frame.as_ref() else {
+            panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
+        };
+        let TransitiveFrame::TransitivePredicate(TransitivePredicate {
+            head: _,
+            object: Object::ObjectNominal(NominalObject { value }),
+        }) = transitive_frame.as_ref()
         else {
             panic!("the public staged indefinite AST stores its noun head: {parsed:?}")
         };
@@ -379,15 +382,18 @@ fn oracle_text_lf_separates_blocks_without_flattening_or_storage() {
 
     assert_ne!(one_block, two_blocks);
     let [
-        DocumentBlock::Ability(Ability::Plain(Plain { body: first })),
-        DocumentBlock::Ability(Ability::Plain(Plain { body: second })),
+        DocumentBlock::Ability(first_ability),
+        DocumentBlock::Ability(second_ability),
     ] = two_blocks.blocks.as_slice()
     else {
         panic!("LF must preserve two paragraph blocks: {two_blocks:?}");
     };
-    let (AbilityBody::Sentences(first), AbilityBody::Sentences(second)) =
-        (first.as_ref(), second.as_ref())
+    let (Ability::Plain(Plain { body: first }), Ability::Plain(Plain { body: second })) =
+        (first_ability.as_ref(), second_ability.as_ref())
     else {
+        panic!("LF must preserve two plain paragraph abilities: {two_blocks:?}");
+    };
+    let (AbilityBody::Sentences(first), AbilityBody::Sentences(second)) = (first, second) else {
         panic!("LF must preserve two sentence paragraphs: {two_blocks:?}");
     };
     assert_eq!(first.sentences().len(), 1);
@@ -605,13 +611,13 @@ fn where_number_of(counted: Object) -> WhereClauseCategory {
                 Box::new(Predicate::FiniteCopular(Box::new(
                     FiniteCopularPredicate::FiniteCopularPredicate(FiniteCopularPredicateValue {
                         copula: FiniteCopula::Is,
-                        complement: Box::new(PredicativeComplement::Nominal(
+                        complement: Box::new(PredicativeComplement::Nominal(Box::new(
                             PredicativeNominalComplement::PredicativeNominal(
                                 PredicativeNominalValue {
                                     value: number_of(counted),
                                 },
                             ),
-                        )),
+                        ))),
                     }),
                 ))),
             )
@@ -831,7 +837,7 @@ fn generated_invariant_products_enforce_values_and_round_trip_publicly() {
         panic!("the linguistic triggered envelope is preserved")
     };
     assert!(intervening_if.as_ref().is_none());
-    let AbilityBody::Sentences(body) = body.as_ref() else {
+    let AbilityBody::Sentences(body) = body else {
         panic!("the linguistic triggered envelope has a sentence body")
     };
     assert_eq!(finite.marker, TriggerMarker::Whenever);
@@ -1101,7 +1107,7 @@ fn sentences(values: Vec<Sentence>) -> AbilityBody {
 
 fn paragraph(sentence: Sentence) -> Ability {
     Ability::Plain(Plain {
-        body: Box::new(sentences(vec![sentence])),
+        body: sentences(vec![sentence]),
     })
 }
 
@@ -1143,9 +1149,9 @@ fn destroy(object: Object) -> VerbPhrase {
     )
     .expect("the builtin grammar declares transitive Destroy");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-            TransitivePredicate { head, object },
-        )),
+        frame: Box::new(BaseVerbFrame::TransitiveFrame(Box::new(
+            TransitiveFrame::TransitivePredicate(TransitivePredicate { head, object }),
+        ))),
     })
 }
 
@@ -1160,8 +1166,8 @@ fn connive() -> VerbPhrase {
     )
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-            IntransitivePredicate { head },
+        frame: Box::new(BaseVerbFrame::IntransitiveFrame(
+            IntransitiveFrame::IntransitivePredicate(IntransitivePredicate { head }),
         )),
     })
 }
@@ -1187,7 +1193,7 @@ fn triggered(trigger_clause: FiniteClause, consequences: Vec<Sentence>) -> Abili
             clause: Box::new(Clause::Finite(Box::new(trigger_clause))),
         }),
         intervening_if: Box::new(None),
-        body: Box::new(sentences(consequences)),
+        body: sentences(consequences),
     })
 }
 
@@ -1249,14 +1255,14 @@ fn generic_root_api_preserves_types_and_sentence_root_metadata() {
     let Ability::Plain(Plain { body }) = destroy_target_creature() else {
         panic!("the focused fixture is an ordinary paragraph");
     };
-    let AbilityBody::Sentences(expected) = *body else {
+    let AbilityBody::Sentences(expected) = body else {
         panic!("the focused fixture has a sentence body");
     };
     let expected_sentence = expected.sentences()[0].clone();
     assert_eq!(
         ability.into_parse_result(),
         Ok(Ability::Plain(Plain {
-            body: Box::new(AbilityBody::Sentences(expected.clone())),
+            body: AbilityBody::Sentences(expected.clone()),
         }))
     );
     assert_eq!(sentence.into_parse_result(), Ok(expected_sentence.clone()));
@@ -1299,7 +1305,7 @@ fn generic_root_adapter_is_only_applied_at_the_outer_recursive_sentence_boundary
     let Ability::Plain(Plain { body }) = gain_life_with_where() else {
         panic!("the recursive Sentence fixture is an ordinary paragraph");
     };
-    let AbilityBody::Sentences(expected) = *body else {
+    let AbilityBody::Sentences(expected) = body else {
         panic!("the recursive Sentence fixture has a sentence body");
     };
     let expected = expected.sentences()[0].clone();
@@ -1493,7 +1499,7 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let Ability::Plain(Plain { body }) = &parsed else {
         panic!("named-card sentence is a paragraph: {parsed:?}");
     };
-    let AbilityBody::Sentences(paragraph) = body.as_ref() else {
+    let AbilityBody::Sentences(paragraph) = body else {
         panic!("named-card sentence has a sentence body: {parsed:?}");
     };
     let [Sentence::Imperative(imperative)] = paragraph.sentences() else {
@@ -1502,13 +1508,16 @@ fn explicit_named_card_identity_scans_exact_longest_renders_and_owns() {
     let Predicate::Atomic(predicate) = imperative.predicate() else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
-    let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame:
-            BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(TransitivePredicate {
-                head: _,
-                object: Object::ObjectNominal(NominalObject { value }),
-            })),
-    }) = predicate.as_ref()
+    let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) = predicate.as_ref() else {
+        panic!("explicit card name has its generated AST construction: {parsed:?}");
+    };
+    let BaseVerbFrame::TransitiveFrame(transitive_frame) = frame.as_ref() else {
+        panic!("explicit card name has its generated AST construction: {parsed:?}");
+    };
+    let TransitiveFrame::TransitivePredicate(TransitivePredicate {
+        head: _,
+        object: Object::ObjectNominal(NominalObject { value }),
+    }) = transitive_frame.as_ref()
     else {
         panic!("explicit card name has its generated AST construction: {parsed:?}");
     };
@@ -1561,7 +1570,7 @@ fn bare_own_card_name_remains_unique_source_self_reference() {
     let Ability::Plain(Plain { body }) = selected else {
         panic!("self-reference sentence is a paragraph: {selected:?}");
     };
-    let AbilityBody::Sentences(paragraph) = body.as_ref() else {
+    let AbilityBody::Sentences(paragraph) = body else {
         panic!("self-reference sentence has a sentence body: {selected:?}");
     };
     let [Sentence::Declarative(declarative)] = paragraph.sentences() else {

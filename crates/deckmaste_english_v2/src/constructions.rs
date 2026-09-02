@@ -3971,6 +3971,23 @@ constructions! {
         derive onset = reference.onset;
         form scalar_qualified_reference = reference scalar;
     }
+    // One nominal `with` postmodifier for granted abilities, whose complement
+    // is either a keyword-line item ("with flying", "with ward {2}") or a
+    // quoted ability document ("with \"When this creature dies, ...\"").
+    abstract sum GrantedAbility {
+        Keyword: KeywordLineItem,
+        Quoted: QuotedAbility,
+    }
+    construction granted_ability_qualified_reference: NumericStage {
+        element GrantedAbilityQualifiedReference {
+            reference: LocativeStage,
+            granted: GrantedAbility,
+        }
+        derive agreement = reference.agreement;
+        derive number = reference.number;
+        derive onset = reference.onset;
+        form granted_ability_qualified_reference = reference "with" granted;
+    }
     construction qualified_noun_phrase: NounPhrase {
         element QualifiedNounPhrase { reference: NumericStage, }
         derive agreement = reference.agreement;
@@ -4556,9 +4573,16 @@ constructions! {
         derive agreement = head.agreement;
         form declared_for_object_predicate = verb(head) "for" object;
     }
+    // A quoted granted ability is a document in its own right: its interior
+    // parses with the same grammar as printed rules text (oracle convention,
+    // style guide "Quotation marks"; the CR does not describe the quoting).
+    construction quoted_block: QuotedBlock {
+        element QuotedBlockValue { block: DocumentBlock, }
+        form quoted_block = block;
+    }
     construction quoted_ability: QuotedAbility {
-        element QuotedAbilityValue { ability: Ability, }
-        form quoted_ability = sentence_initial(" \"") suffix(ability, "\"");
+        element QuotedAbilityValue { block: QuotedBlock, }
+        form quoted_ability = sentence_initial(" \"") suffix(block, "\"");
     }
     construction quoted_ability_predicate: VerbPhrase {
         element QuotedAbilityPredicate { head: lex HaveQuotedAbilityVerb, ability: QuotedAbility, }

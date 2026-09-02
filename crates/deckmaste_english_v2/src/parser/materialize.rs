@@ -1014,18 +1014,21 @@ mod tests {
         )
         .expect("the canonical environment declares intransitive Connive");
         VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-                IntransitivePredicate { head: declaration },
+            frame: Box::new(BaseVerbFrame::IntransitiveFrame(
+                IntransitiveFrame::IntransitivePredicate(IntransitivePredicate {
+                    head: declaration,
+                }),
             )),
         })
     }
 
     fn connive_leaf() -> Leaf {
         let environment = canonical_test_environment();
-        let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame:
-                BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(predicate)),
-        }) = connive_phrase()
+        let VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) = connive_phrase() else {
+            unreachable!("the helper constructs an intransitive predicate")
+        };
+        let BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(predicate)) =
+            *frame
         else {
             unreachable!("the helper constructs an intransitive predicate")
         };

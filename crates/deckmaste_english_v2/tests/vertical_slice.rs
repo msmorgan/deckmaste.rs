@@ -359,13 +359,13 @@ fn where_number_of(counted: Object) -> WhereClauseCategory {
                 Box::new(Predicate::FiniteCopular(Box::new(
                     FiniteCopularPredicate::FiniteCopularPredicate(FiniteCopularPredicateValue {
                         copula: FiniteCopula::Is,
-                        complement: Box::new(PredicativeComplement::Nominal(
+                        complement: Box::new(PredicativeComplement::Nominal(Box::new(
                             PredicativeNominalComplement::PredicativeNominal(
                                 PredicativeNominalValue {
                                     value: number_of(counted),
                                 },
                             ),
-                        )),
+                        ))),
                     }),
                 ))),
             )
@@ -474,9 +474,7 @@ fn body(values: Vec<Sentence>) -> AbilityBody {
 }
 
 fn plain(values: Vec<Sentence>) -> Ability {
-    Ability::Plain(Plain {
-        body: Box::new(body(values)),
-    })
+    Ability::Plain(Plain { body: body(values) })
 }
 
 fn destroy(object: Object) -> VerbPhrase {
@@ -490,9 +488,9 @@ fn destroy(object: Object) -> VerbPhrase {
     )
     .expect("the builtin grammar declares transitive Destroy");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-            TransitivePredicate { head, object },
-        )),
+        frame: Box::new(BaseVerbFrame::TransitiveFrame(Box::new(
+            TransitiveFrame::TransitivePredicate(TransitivePredicate { head, object }),
+        ))),
     })
 }
 
@@ -507,31 +505,30 @@ fn connive() -> VerbPhrase {
     )
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-            IntransitivePredicate { head },
+        frame: Box::new(BaseVerbFrame::IntransitiveFrame(
+            IntransitiveFrame::IntransitivePredicate(IntransitivePredicate { head }),
         )),
     })
 }
 
 fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
     match predicate {
-        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame:
-                BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-                    IntransitivePredicate { head },
-                )),
-        }) => match head.reference() {
-            VerbInventoryRef::Declaration(id) => Some(id.name()),
-            VerbInventoryRef::Core(_) => None,
-        },
-        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame:
-                BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-                    TransitivePredicate { head, .. },
-                )),
-        }) => match head.reference() {
-            VerbInventoryRef::Declaration(id) => Some(id.name()),
-            VerbInventoryRef::Core(_) => None,
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) => match frame.as_ref() {
+            BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
+                IntransitivePredicate { head },
+            )) => match head.reference() {
+                VerbInventoryRef::Declaration(id) => Some(id.name()),
+                VerbInventoryRef::Core(_) => None,
+            },
+            BaseVerbFrame::TransitiveFrame(transitive_frame) => match transitive_frame.as_ref() {
+                TransitiveFrame::TransitivePredicate(TransitivePredicate { head, .. }) => {
+                    match head.reference() {
+                        VerbInventoryRef::Declaration(id) => Some(id.name()),
+                        VerbInventoryRef::Core(_) => None,
+                    }
+                }
+            },
+            _ => None,
         },
         _ => None,
     }
@@ -544,7 +541,7 @@ fn triggered(trigger_clause: FiniteClause, consequences: Vec<Sentence>) -> Trigg
             clause: Box::new(Clause::Finite(Box::new(trigger_clause))),
         }),
         intervening_if: Box::new(None),
-        body: Box::new(body(consequences)),
+        body: body(consequences),
     }
 }
 
@@ -776,7 +773,7 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
     );
     let triggered_effects = vec![connive_sentence, gain];
     let triggered = triggered(event, triggered_effects.clone());
-    let AbilityBody::Sentences(triggered_body) = triggered.body.as_ref() else {
+    let AbilityBody::Sentences(triggered_body) = &triggered.body else {
         panic!("the triggered fixture has an ordinary sentence body")
     };
     assert_eq!(triggered_body.sentences(), triggered_effects.as_slice());
@@ -793,10 +790,10 @@ fn paragraph_and_oracle_text_constructors_and_traversal_preserve_structural_orde
     assert!(empty_visitor.0.is_empty());
 
     let blocks = vec![
-        DocumentBlock::Ability(Ability::Plain(Plain {
-            body: Box::new(AbilityBody::Sentences(paragraph)),
-        })),
-        DocumentBlock::Ability(Ability::Triggered(triggered)),
+        DocumentBlock::Ability(Box::new(Ability::Plain(Plain {
+            body: AbilityBody::Sentences(paragraph),
+        }))),
+        DocumentBlock::Ability(Box::new(Ability::Triggered(triggered))),
     ];
     let oracle_text = OracleText {
         blocks: blocks.clone(),
@@ -852,7 +849,7 @@ fn generated_invariant_triggered_compile_surface_stores_and_accepts_nonempty_eff
     let event = finite_clause(subject_you(), connive());
     let effect = imperative(connive());
     let value = triggered(event, vec![effect.clone()]);
-    let AbilityBody::Sentences(body) = *value.body else {
+    let AbilityBody::Sentences(body) = value.body else {
         panic!("the generated invariant fixture has an ordinary sentence body")
     };
     assert_eq!(body.sentences(), [effect]);

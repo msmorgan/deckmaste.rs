@@ -48,7 +48,7 @@ fn plain_sentences(ability: &Ability) -> &Sentences {
     let Ability::Plain(Plain { body }) = ability else {
         panic!("expected a plain ability: {ability:?}")
     };
-    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+    let AbilityBody::Sentences(sentences) = body else {
         panic!("expected a sentence body: {ability:?}")
     };
     sentences
@@ -77,40 +77,36 @@ fn connive() -> VerbPhrase {
     )
     .expect("the builtin grammar declares intransitive Connive");
     VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-        frame: BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-            IntransitivePredicate { head },
+        frame: Box::new(BaseVerbFrame::IntransitiveFrame(
+            IntransitiveFrame::IntransitivePredicate(IntransitivePredicate { head }),
         )),
     })
 }
 
 fn declared_action_name(predicate: &VerbPhrase) -> Option<&str> {
     match predicate {
-        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame:
-                BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
-                    IntransitivePredicate { head },
-                )),
-        }) => match head.reference() {
-            VerbInventoryRef::Declaration(id) => Some(id.name()),
-            VerbInventoryRef::Core(_) => None,
-        },
-        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame:
-                BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-                    TransitivePredicate { head, .. },
-                )),
-        }) => match head.reference() {
-            VerbInventoryRef::Declaration(id) => Some(id.name()),
-            VerbInventoryRef::Core(_) => None,
-        },
-        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame:
-                BaseVerbFrame::NumerativeFrame(NumerativeFrame::NumerativePredicate(
-                    NumerativePredicate { head, .. },
-                )),
-        }) => match head.reference() {
-            VerbInventoryRef::Declaration(id) => Some(id.name()),
-            VerbInventoryRef::Core(_) => None,
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) => match frame.as_ref() {
+            BaseVerbFrame::IntransitiveFrame(IntransitiveFrame::IntransitivePredicate(
+                IntransitivePredicate { head },
+            )) => match head.reference() {
+                VerbInventoryRef::Declaration(id) => Some(id.name()),
+                VerbInventoryRef::Core(_) => None,
+            },
+            BaseVerbFrame::TransitiveFrame(transitive_frame) => match transitive_frame.as_ref() {
+                TransitiveFrame::TransitivePredicate(TransitivePredicate { head, .. }) => {
+                    match head.reference() {
+                        VerbInventoryRef::Declaration(id) => Some(id.name()),
+                        VerbInventoryRef::Core(_) => None,
+                    }
+                }
+            },
+            BaseVerbFrame::NumerativeFrame(NumerativeFrame::NumerativePredicate(
+                NumerativePredicate { head, .. },
+            )) => match head.reference() {
+                VerbInventoryRef::Declaration(id) => Some(id.name()),
+                VerbInventoryRef::Core(_) => None,
+            },
+            _ => None,
         },
         _ => None,
     }
@@ -128,7 +124,7 @@ fn linguistic_bodies_enclose_plain_and_triggered_sentence_sequences() {
     let Ability::Plain(Plain { body }) = plain else {
         panic!("plain sentence sequence has the linguistic ability-body shape")
     };
-    let AbilityBody::Sentences(plain_sentences) = *body else {
+    let AbilityBody::Sentences(plain_sentences) = body else {
         panic!("plain ability has a sentence sequence")
     };
     assert_eq!(plain_sentences.sentences().len(), 1);
@@ -146,7 +142,7 @@ fn linguistic_bodies_enclose_plain_and_triggered_sentence_sequences() {
         panic!("triggered ability stores its finite trigger and linguistic body")
     };
     assert!(intervening_if.as_ref().is_none());
-    let AbilityBody::Sentences(consequences) = *body else {
+    let AbilityBody::Sentences(consequences) = body else {
         panic!("triggered ability has a sentence sequence")
     };
     assert_eq!(finite.marker, TriggerMarker::Whenever);
@@ -1090,7 +1086,7 @@ fn finite_trigger_and_activation_boundaries_keep_structural_bytes_separate_from_
         Clause::Finite(clause) if matches!(clause.as_ref(), FiniteClause::PlainFiniteClause(_))
     ));
     assert!(intervening_if.as_ref().is_none());
-    assert!(matches!(body.as_ref(), AbilityBody::Sentences(_)));
+    assert!(matches!(body, AbilityBody::Sentences(_)));
     let trigger_ownership = trigger_analysis
         .ownership()
         .expect("the finite trigger witness has lexical ownership");
@@ -1156,7 +1152,7 @@ fn finite_trigger_and_activation_boundaries_keep_structural_bytes_separate_from_
         condition.clause.as_ref(),
         Clause::Finite(clause) if matches!(clause.as_ref(), FiniteClause::PlainFiniteClause(_))
     ));
-    assert!(matches!(body.as_ref(), AbilityBody::Sentences(_)));
+    assert!(matches!(body, AbilityBody::Sentences(_)));
     let intervening_ownership = intervening_analysis
         .ownership()
         .expect("the finite intervening-if witness has lexical ownership");
@@ -2110,7 +2106,7 @@ fn mixed_activation_has_exact_ast_render_build_visit_and_byte_ownership() {
         ],
     );
     assert_eq!(magnitude.magnitude, NonZeroU32::new(2).unwrap());
-    let AbilityBody::Sentences(sentences) = activated.body.as_ref() else {
+    let AbilityBody::Sentences(sentences) = &activated.body else {
         panic!("the activation witness has an ordinary sentence body")
     };
     assert_eq!(sentences.sentences().len(), 2);
@@ -3005,9 +3001,9 @@ fn attachment_products_have_an_intermediate_linguistic_stage_for_imperatives() {
     assert_eq!(
         selected,
         Ability::Plain(Plain {
-            body: Box::new(AbilityBody::Sentences(
+            body: AbilityBody::Sentences(
                 Sentences::new(Box::new(vec![expected])).expect("one sentence"),
-            )),
+            ),
         }),
         "the attachment lives between Sentence and its predicate/finite-clause payload",
     );
@@ -3089,10 +3085,10 @@ fn conditional_attachments_have_distinct_position_shapes_and_exact_asts() {
         assert_eq!(
             selected,
             Ability::Plain(Plain {
-                body: Box::new(AbilityBody::Sentences(
+                body: AbilityBody::Sentences(
                     Sentences::new(Box::new(vec![expected]))
                         .expect("one conditional sentence is nonempty"),
-                )),
+                ),
             }),
             "the surface has one independently specified position-specific AST: {text}",
         );
@@ -3202,7 +3198,7 @@ fn ordinary_trailing_if_is_not_trigger_intervening_if_and_keeps_its_own_bytes() 
         panic!("ordinary trailing if belongs to the triggered body")
     };
     assert!(intervening_if.as_ref().is_none());
-    let AbilityBody::Sentences(ordinary_body) = body.as_ref() else {
+    let AbilityBody::Sentences(ordinary_body) = body else {
         panic!("ordinary trailing if has a sentence body")
     };
     assert!(matches!(
@@ -3243,7 +3239,7 @@ fn ordinary_trailing_if_is_not_trigger_intervening_if_and_keeps_its_own_bytes() 
         intervening_if.as_ref().as_ref(),
         Some(ConditionClause::FiniteCondition(_))
     ));
-    let AbilityBody::Sentences(intervening_body) = body.as_ref() else {
+    let AbilityBody::Sentences(intervening_body) = body else {
         panic!("intervening-if has a sentence body")
     };
     assert!(matches!(
@@ -3556,7 +3552,7 @@ fn conditional_attachment_root_scope_matrix_is_exact() {
     assert_eq!(
         root,
         Ability::Plain(Plain {
-            body: Box::new(AbilityBody::Sentences(
+            body: AbilityBody::Sentences(
                 Sentences::new(Box::new(vec![Sentence::Attached(Attached {
                     attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
                         PreposedIfPredicate::new(condition.clone(), Box::new(gain.clone()))
@@ -3564,7 +3560,7 @@ fn conditional_attachment_root_scope_matrix_is_exact() {
                     ))),
                 })]))
                 .expect("one root sentence"),
-            )),
+            ),
         }),
     );
 
@@ -3622,7 +3618,7 @@ fn conditional_attachment_trigger_scope_matrix_is_exact() {
                 clause: Box::new(Clause::Finite(Box::new(player_connive_clause()))),
             }),
             intervening_if: Box::new(None),
-            body: Box::new(AbilityBody::Sentences(
+            body: AbilityBody::Sentences(
                 Sentences::new(Box::new(vec![Sentence::Attached(Attached {
                     attachment: Box::new(ClauseAttachment::PostposedIfPredicate(Box::new(
                         PostposedIfPredicate::new(Box::new(gain), condition)
@@ -3630,7 +3626,7 @@ fn conditional_attachment_trigger_scope_matrix_is_exact() {
                     ))),
                 })]))
                 .expect("one trigger-body sentence"),
-            )),
+            ),
         }),
         "the complete trigger envelope retains its prefix, absent intervening condition, and body",
     );
@@ -3697,7 +3693,7 @@ fn conditional_attachment_activation_scope_matrix_is_exact() {
         "the complete activation envelope retains its typed tap cost",
     );
     assert_eq!(
-        activated.body.as_ref(),
+        &activated.body,
         &AbilityBody::Sentences(
             Sentences::new(Box::new(vec![Sentence::Attached(Attached {
                 attachment: Box::new(ClauseAttachment::PreposedIfPredicate(Box::new(
@@ -4035,7 +4031,7 @@ fn selected_plain_modal<'a>(ability: &'a Ability, envelope: &str) -> &'a PlainMo
         }
         _ => panic!("modal body did not retain its {envelope} envelope: {ability:?}"),
     };
-    let AbilityBody::PlainModal(modal) = body.as_ref() else {
+    let AbilityBody::PlainModal(modal) = body else {
         panic!("the envelope contains the unchanged plain-modal body")
     };
     modal
@@ -4191,9 +4187,7 @@ fn the_weighted_mode_marker_is_one_construction_for_spree_and_pawprint() {
 
 fn expected_modal_envelope_with_body(envelope: &str, body: AbilityBody) -> Ability {
     match envelope {
-        "root" => Ability::Plain(Plain {
-            body: Box::new(body),
-        }),
+        "root" => Ability::Plain(Plain { body }),
         "trigger" => Ability::Triggered(Triggered {
             trigger: TriggerPrefix::Finite(Finite {
                 marker: TriggerMarker::Whenever,
@@ -4204,10 +4198,10 @@ fn expected_modal_envelope_with_body(envelope: &str, body: AbilityBody) -> Abili
                     clause: connive_condition_clause(),
                 }),
             )))),
-            body: Box::new(body),
+            body,
         }),
         "activation" => Ability::Activated(
-            Activated::new(Box::new(vec![tap_cost()]), Box::new(body))
+            Activated::new(Box::new(vec![tap_cost()]), body)
                 .expect("the exact tap cost and modal body construct"),
         ),
         _ => panic!("unknown modal envelope {envelope}"),

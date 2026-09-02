@@ -243,10 +243,10 @@ fn transitive_frame(predicate: &VerbPhrase) -> &TransitivePredicate {
     let VerbPhrase::BaseVerbPhrase(base) = predicate else {
         panic!("transitive predicate has the shared base-frame envelope")
     };
-    let BaseVerbFrame::TransitiveFrame(frame) = &base.frame else {
+    let BaseVerbFrame::TransitiveFrame(frame) = base.frame.as_ref() else {
         panic!("transitive predicate has the transitive valence frame")
     };
-    let TransitiveFrame::TransitivePredicate(predicate) = frame;
+    let TransitiveFrame::TransitivePredicate(predicate) = frame.as_ref();
     predicate
 }
 
@@ -526,7 +526,7 @@ fn builds_keep_new_products_in_the_existing_typed_algebra() {
     let Ability::Plain(Plain { body }) = as_ability else {
         panic!("as-entry witness has an ordinary ability envelope")
     };
-    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+    let AbilityBody::Sentences(sentences) = body else {
         panic!("as-entry witness has an ordinary sentence body")
     };
     let [Sentence::Attached(Attached { attachment })] = sentences.sentences() else {
@@ -546,7 +546,7 @@ fn builds_keep_new_products_in_the_existing_typed_algebra() {
     let Ability::Plain(Plain { body }) = coordinated else {
         panic!("clause coordination has an ordinary ability envelope")
     };
-    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+    let AbilityBody::Sentences(sentences) = body else {
         panic!("clause coordination has an ordinary sentence body")
     };
     let [Sentence::Declarative(declarative)] = sentences.sentences() else {
@@ -893,7 +893,7 @@ fn quote_boundary_recurses_only_through_an_ordinary_ability() {
     let Ability::Plain(Plain { body }) = &ability else {
         panic!("quoted complement witness has an ordinary ability envelope")
     };
-    let AbilityBody::QuoteTerminatedStatement(statement) = body.as_ref() else {
+    let AbilityBody::QuoteTerminatedStatement(statement) = body else {
         panic!("quoted complement witness has the derived quote terminator envelope")
     };
     let VerbPhrase::QuotedAbilityPredicate(predicate) = statement.predicate() else {
@@ -903,8 +903,12 @@ fn quote_boundary_recurses_only_through_an_ordinary_ability() {
         predicate.head.reference(),
         VerbInventoryRef::Core(CoreVerbIdentity::Have)
     ));
-    let QuotedAbility::QuotedAbility(quoted) = predicate.ability.as_ref();
-    let Ability::Triggered(_) = quoted.ability.as_ref() else {
+    let QuotedAbility::QuotedAbility(quoted) = &predicate.ability;
+    let QuotedBlock::QuotedBlock(quoted_block) = &quoted.block;
+    let DocumentBlock::Ability(quoted_ability) = quoted_block.block.as_ref() else {
+        panic!("quoted complement stores an ability document block")
+    };
+    let Ability::Triggered(_) = quoted_ability.as_ref() else {
         panic!("quoted complement stores the ordinary triggered ability AST")
     };
 
@@ -1043,7 +1047,7 @@ fn vote_uses_declared_for_object_valence_and_productive_common_noun_choices() {
     let Ability::Plain(Plain { body }) = &ability else {
         panic!("vote witness has an ordinary ability envelope")
     };
-    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+    let AbilityBody::Sentences(sentences) = body else {
         panic!("vote witness has an ordinary sentence body")
     };
     let Sentence::Attached(Attached { attachment }) = &sentences.sentences()[0] else {
@@ -1082,7 +1086,7 @@ fn maximum_hand_size_is_a_typed_copular_scalar_statement() {
     let Ability::Plain(Plain { body }) = &ability else {
         panic!("maximum hand size witness has an ordinary ability envelope")
     };
-    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+    let AbilityBody::Sentences(sentences) = body else {
         panic!("maximum hand size witness has an ordinary sentence body")
     };
     let Sentence::Declarative(declarative) = &sentences.sentences()[0] else {
@@ -1680,8 +1684,8 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
                 let Clause::Passive(passive) = clause.as_ref() else {
                     panic!("damage witness has a passive clause: {ability:#?}")
                 };
-                let PassiveFiniteClause::PassiveFiniteClause(value) = passive;
-                let PassivePredicate::Damage(predicate) = &value.predicate else {
+                let PassiveFiniteClause::PassiveFiniteClause(value) = passive.as_ref();
+                let PassivePredicate::Damage(predicate) = value.predicate.as_ref() else {
                     panic!("damage witness has a passive damage predicate: {ability:#?}")
                 };
                 let PassiveDamagePredicate::PassiveDamagePredicate(PassiveDamagePredicateValue {
@@ -1703,10 +1707,10 @@ fn finite_clause_families_compose_in_triggers_and_conditions() {
                 let Clause::Passive(passive) = clause.as_ref() else {
                     panic!("passive witness has a passive clause: {ability:#?}")
                 };
-                let PassiveFiniteClause::PassiveFiniteClause(value) = passive;
+                let PassiveFiniteClause::PassiveFiniteClause(value) = passive.as_ref();
                 assert!(
                     matches!(
-                        (expected, &value.predicate),
+                        (expected, value.predicate.as_ref()),
                         (IntegratedClause::Movement, PassivePredicate::Movement(_))
                             | (
                                 IntegratedClause::Orientation,
@@ -2126,7 +2130,8 @@ fn ast_keeps_each_linguistic_product_typed() {
     };
     assert!(matches!(
         complement.as_ref(),
-        PredicativeComplement::Status(PredicativeStatus::BlockedBy(_))
+        PredicativeComplement::Status(status)
+            if matches!(status.as_ref(), PredicativeStatus::BlockedBy(_))
     ));
 
     for (text, expected) in [
@@ -2150,8 +2155,8 @@ fn ast_keeps_each_linguistic_product_typed() {
         };
         let PassiveFiniteClause::PassiveFiniteClause(PassiveFiniteClauseValue {
             predicate, ..
-        }) = passive;
-        let observed = match predicate {
+        }) = passive.as_ref();
+        let observed = match predicate.as_ref() {
             PassivePredicate::Damage(_) => "damage",
             PassivePredicate::Movement(_) => "movement",
             PassivePredicate::Orientation(_) => "orientation",
@@ -3157,14 +3162,15 @@ fn modal_subject_gap_relatives_modify_ordinary_mass_noun_phrases() {
     let Sentence::Imperative(sentence) = parser.parse_sentence(text, &context).unwrap() else {
         panic!("the witness is imperative")
     };
-    let Predicate::Duration(DurationPredicate::DurationPredicate(DurationPredicateValue {
-        predicate,
-        ..
-    })) = sentence.predicate()
-    else {
+    let Predicate::Duration(duration_predicate) = sentence.predicate() else {
         panic!("the subject-relative NP remains inside an ordinary duration predicate")
     };
-    assert!(matches!(predicate, BaseVerbFrame::TransitiveFrame(_)));
+    let DurationPredicate::DurationPredicate(DurationPredicateValue { predicate, .. }) =
+        duration_predicate.as_ref();
+    assert!(matches!(
+        predicate.as_ref(),
+        BaseVerbFrame::TransitiveFrame(_)
+    ));
     assert!(
         parser
             .parse(
@@ -5292,10 +5298,11 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
         imperative_atomic(&parser, &context, "Put that card into your hand."),
         VerbPhrase::PutInto(PutInto {
             head,
-            source: None,
+            source,
             destination: IntoPhrase::IntoPhrase(_),
             ..
         }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Put))
+            && source.is_none()
     ));
     assert!(matches!(
         imperative_atomic(
@@ -5305,12 +5312,13 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
         ),
         VerbPhrase::PutOnto(PutOnto {
             head,
-            source: Some(FromPhrase::FromPhrase(_)),
+            source,
             destination: OntoPhrase::OntoPhrase(_),
             result,
             control: Some(ControlPostmodifier::DirectControlPostmodifier(_)),
             ..
         }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Put))
+            && matches!(source.as_ref().as_ref(), Some(FromPhrase::FromPhrase(_)))
             && matches!(result.as_ref(), Some(PredicativeComplement::Status(_)))
     ));
     assert!(matches!(
@@ -5350,12 +5358,13 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
         ),
         VerbPhrase::ReturnTo(ReturnTo {
             head,
-            source: Some(FromPhrase::FromPhrase(_)),
+            source,
             destination: ToPhrase::ToPhrase(_),
             result,
             control: Some(ControlPostmodifier::OwnerControlPostmodifier(_)),
             ..
         }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Return))
+            && matches!(source.as_ref().as_ref(), Some(FromPhrase::FromPhrase(_)))
             && matches!(result.as_ref(), Some(PredicativeComplement::Status(_)))
     ));
     let VerbPhrase::LookAt(LookAt {
@@ -5390,10 +5399,10 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
     ) else {
         panic!("search uses the shared base-frame envelope")
     };
-    let BaseVerbFrame::ObjectForObjectFrame(search) = search.frame else {
+    let BaseVerbFrame::ObjectForObjectFrame(search) = *search.frame else {
         panic!("search uses the object-for-object frame")
     };
-    let ObjectForObjectFrame::DeclaredObjectForObjectFrame(search) = search;
+    let ObjectForObjectFrame::DeclaredObjectForObjectFrame(search) = *search;
     assert!(matches!(search.object, Object::ObjectNominal(_)));
     assert!(matches!(search.complement, Object::ObjectNominal(_)));
     let VerbPhrase::HaveObjectControl(control) =
@@ -5455,14 +5464,16 @@ fn movement_location_and_control_builds_retain_every_typed_role() {
     ));
     assert!(matches!(
         declarative_atomic(&parser, &context, "This creature leaves the battlefield."),
-        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase {
-            frame: BaseVerbFrame::TransitiveFrame(TransitiveFrame::TransitivePredicate(
-                TransitivePredicate {
+        VerbPhrase::BaseVerbPhrase(BaseVerbPhrase { frame }) if matches!(
+            frame.as_ref(),
+            BaseVerbFrame::TransitiveFrame(transitive_frame) if matches!(
+                transitive_frame.as_ref(),
+                TransitiveFrame::TransitivePredicate(TransitivePredicate {
                     head,
                     object: Object::ObjectNominal(_),
-                }
-            )),
-        }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Leave))
+                }) if matches!(head.reference(), VerbInventoryRef::Core(CoreVerbIdentity::Leave))
+            )
+        )
     ));
     assert_selected_with_specificity(
         &parser,
@@ -6565,15 +6576,15 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
     let StateDurationPredicate::StateDurationPredicate(StateDurationPredicateValue {
         predicate,
         duration,
-    }) = duration;
+    }) = duration.as_ref();
     let DurationPhrase::Fixed(duration) = duration else {
         panic!("this turn stays a fixed duration")
     };
     let FixedDurationPhrase::FixedDurationPhrase(duration) = duration;
     assert_eq!(duration.unit, TemporalUnit::Turn);
-    let StateDurationBase::BarePassive(BarePassivePredicate::BarePassivePredicate(
-        BarePassivePredicateValue { predicate, .. },
-    )) = predicate;
+    let StateDurationBase::BarePassive(bare_passive) = predicate.as_ref();
+    let BarePassivePredicate::BarePassivePredicate(BarePassivePredicateValue { predicate, .. }) =
+        bare_passive.as_ref();
     let PassivePredicate::DeclaredTransitive(declared) = predicate.as_ref() else {
         panic!("regeneration uses the declared transitive passive frame")
     };
@@ -6593,10 +6604,14 @@ fn passive_distribution_and_counter_frames_select_typed_products() {
         panic!("damage division keeps its exact predicate product")
     };
     assert!(matches!(
-        distributed.distribution,
-        DamageDistribution::AsYouChoose(ChosenDamageDistribution {
-            recipient: DistributionRecipient::Object(_),
-        })
+        distributed.distribution.as_ref(),
+        DamageDistribution::AsYouChoose(chosen) if matches!(
+            chosen.as_ref(),
+            ChosenDamageDistribution { recipient } if matches!(
+                recipient.as_ref(),
+                DistributionRecipient::Object(_)
+            )
+        )
     ));
 
     let VerbPhrase::PutCounters(PutCounters { head, counters, .. }) =
@@ -7000,7 +7015,7 @@ fn cost_products_keep_ast_render_visit_and_lexical_ownership() {
         cost,
         Ability::Plain(Plain { body })
             if matches!(
-                body.as_ref(),
+                &body,
                 AbilityBody::Sentences(sentences)
                     if matches!(
                         &sentences.sentences()[0],
@@ -7080,7 +7095,7 @@ fn then_sequences_select_pair_serial_and_intersentence_forms() {
         panic!("ordinary sentence juxtaposition keeps its plain ability envelope")
     };
     assert!(
-        matches!(body.as_ref(), AbilityBody::Sentences(_)),
+        matches!(body, AbilityBody::Sentences(_)),
         "a non-then sentence sequence is not an ordered then structure",
     );
 }
@@ -7151,7 +7166,7 @@ fn then_sequences_have_exact_ast_build_visit_and_structural_ownership() {
     let Ability::Plain(Plain { body }) = finite else {
         panic!("finite then sequence has the plain ability envelope")
     };
-    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+    let AbilityBody::Sentences(sentences) = body else {
         panic!("intra-sentence then sequence remains one sentence")
     };
     let [Sentence::Attached(attached)] = sentences.sentences() else {
@@ -7167,7 +7182,7 @@ fn then_sequences_have_exact_ast_build_visit_and_structural_ownership() {
     let Ability::Plain(Plain { body }) = predicate else {
         panic!("shared-subject then sequence has the plain ability envelope")
     };
-    let AbilityBody::Sentences(sentences) = body.as_ref() else {
+    let AbilityBody::Sentences(sentences) = body else {
         panic!("shared-subject then sequence remains one sentence")
     };
     let [Sentence::Imperative(imperative)] = sentences.sentences() else {
@@ -7185,7 +7200,7 @@ fn then_sequences_have_exact_ast_build_visit_and_structural_ownership() {
     let Ability::Plain(Plain { body }) = sentence else {
         panic!("intersentence then sequence has the plain ability envelope")
     };
-    let AbilityBody::ThenSentences(sentence_sequence) = body.as_ref() else {
+    let AbilityBody::ThenSentences(sentence_sequence) = body else {
         panic!("sentence-initial Then has a distinct structural AST")
     };
     assert_eq!(sentence_sequence.members().len(), 2);
@@ -7195,7 +7210,7 @@ fn then_sequences_have_exact_ast_build_visit_and_structural_ownership() {
     );
 
     let mut visitor = ThenVisitor::default();
-    visitor.visit_then_sentence_sequence(sentence_sequence);
+    visitor.visit_then_sentence_sequence(&sentence_sequence);
     assert_eq!((visitor.sequences, visitor.sentences), (1, 2));
 
     let finite_structural = exact_claim_trace(&parser, &context, finite_text)

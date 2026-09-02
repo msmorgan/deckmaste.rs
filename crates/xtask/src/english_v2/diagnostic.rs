@@ -1118,6 +1118,8 @@ enum NonterminalKind {
     FiniteCondition,
     AmongPhrase,
     QuotedAbility,
+    GrantedAbility,
+    QuotedBlock,
     CommonNounChoice,
     AuxiliaryHead,
     AuxiliaryObjectGapRelativeClause,
@@ -1901,6 +1903,8 @@ fn nonterminal(kind: NonterminalCategory) -> NonterminalKind {
         NonterminalCategory::FiniteCondition => NonterminalKind::FiniteCondition,
         NonterminalCategory::AmongPhrase => NonterminalKind::AmongPhrase,
         NonterminalCategory::QuotedAbility => NonterminalKind::QuotedAbility,
+        NonterminalCategory::GrantedAbility => NonterminalKind::GrantedAbility,
+        NonterminalCategory::QuotedBlock => NonterminalKind::QuotedBlock,
         NonterminalCategory::CommonNounChoice => NonterminalKind::CommonNounChoice,
         NonterminalCategory::AuxiliaryHead => NonterminalKind::AuxiliaryHead,
         NonterminalCategory::AuxiliaryObjectGapRelativeClause => {

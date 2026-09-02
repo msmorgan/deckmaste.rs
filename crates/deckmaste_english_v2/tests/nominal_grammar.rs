@@ -3152,7 +3152,7 @@ fn former_count_fixture_has_exact_compositional_ast_visit_and_ownership() {
     let Ability::Plain(Plain { body }) = selected else {
         panic!("former fixture remains a paragraph: {selected:?}");
     };
-    let AbilityBody::Sentences(paragraph) = body.as_ref() else {
+    let AbilityBody::Sentences(paragraph) = &body else {
         panic!("former fixture remains a sentence paragraph: {selected:?}");
     };
     let [Sentence::Declarative(declarative)] = paragraph.sentences() else {
