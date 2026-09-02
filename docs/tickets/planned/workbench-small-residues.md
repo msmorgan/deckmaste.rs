@@ -34,3 +34,9 @@ Re-measure at claim; several may fall out of each other.
   two-exile batch read; and Breath of Fury's coordinated antecedent (split
   `EncNotOneAction` into agent-half and count-half if a second carrier
   appears).
+
+- **Routed from room-halves (close, 2026-09-02):** the effect-level ACT
+  DISJUNCTION over one door ("Lock or unlock a door of target Room", 2 lines
+  + Ghostly Dancers — not `Modal`'s bulleted spell [CR#700.2]; brings
+  [CR#709.5g]'s Lock label with it) and the PLURAL door count (3 reads —
+  halves of a described group with distinct names per [CR#709.5]).
