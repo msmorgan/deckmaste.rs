@@ -1075,3 +1075,20 @@ or verb surface is a compile-time load error. Literals are for particles,
 prepositions, punctuation, and closed grammatical words; content words
 enter only through lexemes and declarations. The gate census reports a
 structural-depth or literal/lexicon-collision metric beside unit counts.
+
+
+## Ruling: one noun inventory, multiple contributors (2026-09-02)
+
+Root cause of the noun-as-literal class: the Type+Subtype noun-domain
+ruling was hardened by the compiler into a single noun lexeme provider,
+leaving ordinary English nouns (damage, life, card, counter, beginning,
+end, mana) no legal home as nouns — literals and vocab were the only
+doors. Ruling, mirroring the verb inventory: ONE noun inventory with
+provenance as data — core-declared ordinary nouns as the seed,
+Type/Subtype declarations as today, and step/phase names as a
+declaration kind (a CR-closed set) contributing like Type/Subtype.
+Grammatical distinctions (count/mass, relational, proper) are declared
+features consumed by constructions; topical noun categories (a
+`TemporalNoun`) are not admitted. Number remains recipe-derived. The
+compiler's single-provider assumption is removed by generalizing to the
+inventory pattern, never by admitting parallel typed noun domains.
