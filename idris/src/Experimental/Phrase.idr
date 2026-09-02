@@ -1418,8 +1418,8 @@ mutual
   ||| domain, and [CR#109.2] assigns a default zone to a description that
   ||| names a card type or subtype without saying anything about one that
   ||| does not. No determiner demands a head, and no gate demands one. The
-  ||| word class is read by `parallelDisjuncts` alone, to keep the arms of
-  ||| one coordination alike.
+  ||| word class is read by `armPresupposes` alone, to tell an arm that
+  ||| asserts its referent's type from one that presupposes it.
   public export
   hasHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   hasHead (HasType _) = True
@@ -2104,30 +2104,28 @@ mutual
   countComparisons (p :: ps) =
     if isComparison p then S (countComparisons ps) else countComparisons ps
 
+  ||| The card type an arm DEMANDS of the head its coordination shares.
+  ||| An arm that writes its own head word demands nothing: it says what
+  ||| its referent is instead of presupposing it, and the type its word
+  ||| names is that assertion's ([CR#205.3c] correlates a subtype word to
+  ||| its own card type). Only a headless arm speaks here, and what it
+  ||| says is what it is said OF.
   public export
-  headsUniform : {0 bs : Bindings} -> {0 k : Kind} ->
-                 Bool -> List (Predicate bs k) -> Bool
-  headsUniform b [] = True
-  headsUniform b (p :: ps) = (if hasHead p then b else not b) && headsUniform b ps
+  armPresupposes : {0 bs : Bindings} -> {0 k : Kind} ->
+                   Predicate bs k -> Maybe CardType
+  armPresupposes p = if hasHead p then Nothing else seedType p
 
   public export
   seedsUniform : {0 bs : Bindings} -> {0 k : Kind} -> Maybe Zone -> Maybe CardType ->
                  List (Predicate bs k) -> Bool
   seedsUniform z t [] = True
   seedsUniform z t (p :: ps) = z == seedZone p &&
-                               t == seedType p &&
+                               t == armPresupposes p &&
                                seedsUniform z t ps
 
-  ||| `seedsUniform`'s zone half alone, for the arms that answer the type
-  ||| half with their own head word.
-  public export
-  zonesUniform : {0 bs : Bindings} -> {0 k : Kind} -> Maybe Zone ->
-                 List (Predicate bs k) -> Bool
-  zonesUniform z [] = True
-  zonesUniform z (p :: ps) = z == seedZone p && zonesUniform z ps
-
   ||| The arms of a disjunction have to stand in one another's place, and
-  ||| the demand splits by whether they write their own head word.
+  ||| the demand is over what each arm PRESUPPOSES of the phrase, not
+  ||| over whether it writes a head word.
   |||
   ||| The ZONE is demanded of every arm alike. It is not the head's
   ||| content: [CR#109.2a] locates a card-worded description by the zone
@@ -2137,24 +2135,37 @@ mutual
   ||| That is `badCrossZoneDisjunction`, a representation limit and not a
   ||| meaningless phrase.
   |||
-  ||| The TYPE is demanded only of arms that write NO head. Such arms
-  ||| modify one head word shared between them, and the type each
-  ||| presupposes is that one head's, so a disagreement contradicts.
-  ||| Where every arm writes its own head the type it presupposes IS that
-  ||| head -- [CR#205.3c] correlates a subtype to its own card type -- so
-  ||| the alternatives are free to name different ones. "Enchant creature
-  ||| or Food" names a creature or an artifact and is one phrase all the
-  ||| same; "with mana value, power, or toughness equal to the chosen
-  ||| number" is headless and still refused, its arms disagreeing about
-  ||| what they are said of.
+  ||| The TYPE is demanded of every arm too, read through
+  ||| `armPresupposes`. A headless arm modifies the head the phrase
+  ||| shares, so the type it presupposes is that head's and a
+  ||| disagreement contradicts; an arm that writes a head presupposes
+  ||| nothing and agrees with anything. "Enchant creature or Food" names
+  ||| a creature or an artifact and is one phrase all the same; "with
+  ||| mana value, power, or toughness equal to the chosen number" is
+  ||| three headless arms and is still refused, its arms disagreeing
+  ||| about what they are said of.
+  |||
+  ||| MIXED ARMS -- an adjectival arm beside head-bearing ones -- pass on
+  ||| that reading, and the head the adjective borrows is the ENCLOSING
+  ||| noun's, never a sibling arm's. [CR#700.6] states such a union in
+  ||| the rules' own words: historic "refers to an object that has the
+  ||| legendary supertype, the artifact card type, or the Saga subtype",
+  ||| three characteristics of ONE object, where a sibling-borrowing read
+  ||| ("legendary artifact") would drop every legendary creature the term
+  ||| covers. [CR#702.195a] counts the same union as "permanents that are
+  ||| artifacts, Sagas, and/or legendary", and its printed reminder
+  ||| substantivises the adjective outright -- "artifacts, legendaries,
+  ||| and/or Sagas" -- which only the enclosing head supports. So the
+  ||| adjectival arm is headless, as `hasHead` already said; what refused
+  ||| it was headlessness alone, and headlessness alone was never the
+  ||| fault. "artifact or attacking" is refused still, on the demand that
+  ||| survives: a combat word presupposes a creature where the other arm
+  ||| wrote artifact.
   public export
   parallelDisjuncts : {0 bs : Bindings} -> {0 k : Kind} ->
                       List (Predicate bs k) -> Bool
   parallelDisjuncts [] = True
-  parallelDisjuncts (p :: ps) =
-    headsUniform (hasHead p) ps &&
-    (if hasHead p then zonesUniform (seedZone p) ps
-                  else seedsUniform (seedZone p) (seedType p) ps)
+  parallelDisjuncts (p :: ps) = seedsUniform (seedZone p) (armPresupposes p) ps
 
   public export
   ParallelDisjuncts : List (Predicate bs k) -> Type

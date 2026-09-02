@@ -89,7 +89,13 @@ badRepeatedDisjunct Oh impossible
 
 
 ||| "artifact or attacking"
-||| Alternatives are parallel — each must stand where the others do — and a status word is no head.
+||| Alternatives are parallel — each must stand where the others do. A
+||| combat word writes no head, so it presupposes one and demands a
+||| creature of it, where the other arm wrote its head and it is an
+||| artifact. The demand that survived the mixed-arm reading: an
+||| adjectival arm may borrow the enclosing head ("artifacts, Sagas,
+||| and/or legendary" [CR#702.195a]) precisely because it presupposes
+||| nothing, and this one does not.
 public export
 badHeadlessDisjunct : Unspellable (Predicate [] Object) (\ok =>
   Or [Macros.artifact, Attacking] {pd = ok})
