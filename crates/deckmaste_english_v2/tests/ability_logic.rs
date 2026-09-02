@@ -2940,6 +2940,10 @@ fn connive_clause() -> FiniteClause {
     plain_finite(you_subject(), Predicate::Atomic(Box::new(connive())))
 }
 
+#[expect(
+    clippy::unnecessary_box_returns,
+    reason = "every consumer of this witness takes an owned boxed condition clause"
+)]
 fn connive_condition_clause() -> Box<Clause> {
     Box::new(Clause::Finite(Box::new(connive_clause())))
 }
@@ -4183,29 +4187,6 @@ fn the_weighted_mode_marker_is_one_construction_for_spree_and_pawprint() {
         [true, false],
         "the plus sign is the marker's optional additional-cost mark, not a second construction",
     );
-}
-
-fn expected_modal_envelope_with_body(envelope: &str, body: AbilityBody) -> Ability {
-    match envelope {
-        "root" => Ability::Plain(Plain { body }),
-        "trigger" => Ability::Triggered(Triggered {
-            trigger: TriggerPrefix::Finite(Finite {
-                marker: TriggerMarker::Whenever,
-                clause: Box::new(Clause::Finite(Box::new(player_connive_clause()))),
-            }),
-            intervening_if: Box::new(Some(ConditionClause::FiniteCondition(Box::new(
-                FiniteCondition::FiniteCondition(FiniteConditionValue {
-                    clause: connive_condition_clause(),
-                }),
-            )))),
-            body,
-        }),
-        "activation" => Ability::Activated(
-            Activated::new(Box::new(vec![tap_cost()]), body)
-                .expect("the exact tap cost and modal body construct"),
-        ),
-        _ => panic!("unknown modal envelope {envelope}"),
-    }
 }
 
 fn modal_sentence(predicate: VerbPhrase) -> Sentence {
