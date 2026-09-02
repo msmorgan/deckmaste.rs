@@ -4472,6 +4472,33 @@ ascribesAsType Plane = False
 ascribesAsType Scheme = False
 ascribesAsType Vanguard = False
 
+||| The word a MARKER OBJECT calls itself by, and the third ascription
+||| axis beside a card type and a subtype. Neither word ascribes a type:
+||| [CR#111.1] makes a token "a marker used to represent any permanent
+||| that isn't represented by a card", which is not a type it has, and
+||| [CR#114.3] says outright that an emblem "has no types". So neither
+||| can ride `ascriptionOk`, whose two axes are both type-valued and
+||| whose whole content is [CR#109.2]'s "card type or subtype".
+||| Closed at two because the rules define exactly two marker objects
+||| [CR#111.1,114.1]; a counter is not one, being a marker ON an object
+||| rather than an object.
+public export
+data MarkerWord = TokenMarker | EmblemMarker
+
+public export
+Eq MarkerWord where
+  (==) TokenMarker TokenMarker = True
+  (==) TokenMarker _ = False
+  (==) EmblemMarker EmblemMarker = True
+  (==) EmblemMarker _ = False
+
+||| Where the rules put each marker object: [CR#111.1] puts a token onto
+||| the battlefield and [CR#114.2] puts an emblem into the command zone.
+public export
+markerZone : MarkerWord -> Zone
+markerZone TokenMarker = Battlefield
+markerZone EmblemMarker = Command
+
 public export
 ascriptionOk : CardType -> Maybe Subtype -> Bool
 ascriptionOk t Nothing = ascribesAsType t

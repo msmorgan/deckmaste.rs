@@ -2143,6 +2143,38 @@ mutual
              (sub : Maybe Subtype) ->
              {auto 0 asc : Ascribable n} ->
              {auto 0 way : So (ascriptionOk t sub)} -> Noun bs Object
+    ||| "this token", "this emblem": the marker object ascribing itself
+    ||| the word the rules give it. A THIRD axis beside `AsType`'s two,
+    ||| and its own row rather than a widening of that one, because
+    ||| `AsType` ascribes a type and neither of these words is one
+    ||| ([CR#111.1], [CR#114.3]) -- the emblem's type absence is a fact
+    ||| the rules state, not an ascription of nothing.
+    ||| 102 of the 206 distinct quoted token-creation payloads write
+    ||| "this token" and 9 of the 90 emblem payloads write "this emblem"
+    ||| (measured 2026-09-02), and both seats already hold whole
+    ||| abilities -- `TokenChars.abilities` and `GetsEmblem` -- so the
+    ||| word was the only thing missing.
+    ||| -- spelling: "this [m]".
+    AsMarker : (m : MarkerWord) -> (n : Noun bs Object) ->
+               {auto 0 asc : Ascribable n} -> Noun bs Object
+    ||| The GRANTOR named from inside the quotation, [CR#201.5a]'s own
+    ||| reference: "if an ability's effect grants another ability to an
+    ||| object, and that second ability refers to that first ability's
+    ||| source by name, the name refers only to the specific object which
+    ||| is that first ability's source". `This` cannot say it -- inside a
+    ||| granted ability `This` is the object that HAS the ability, which
+    ||| is the granted-to object and not the grantor -- and `Named`
+    ||| cannot either, since that describes a CLASS of objects with a
+    ||| name where the rule fixes one object.
+    ||| 49 quoted payloads over 48 supported cards write it (measured
+    ||| 2026-09-02): Gutter Grime's "the number of slime counters on
+    ||| Gutter Grime", and every Equipment that names itself in the
+    ||| ability it grants (Leonin Bola, Heartseeker, Blazing Torch,
+    ||| Hankyu, Shuriken).
+    ||| It is a REFERENCE and carries no description, exactly as `This`
+    ||| does: the rule names the object, so nothing here narrows it.
+    ||| -- spelling: the grantor's own card name.
+    TheGrantor : Noun bs Object
     You : Noun bs Player        -- "you" [CR#109.5]
     PlayerGroup : (w : PlayerGroupWord) -> Noun bs Player
     Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
@@ -2522,6 +2554,12 @@ mutual
   nounEqRef This This = True
   nounEqRef This _ = False
   nounEqRef (AsType _ _ _) _ = False
+  nounEqRef (AsMarker _ _) _ = False
+  -- [CR#201.5a] fixes the grantor to one object, so two occurrences of
+  -- the word inside one phrase denote the same thing -- `This`' own
+  -- reason, at the other reference.
+  nounEqRef TheGrantor TheGrantor = True
+  nounEqRef TheGrantor _ = False
   nounEqRef You You = True
   nounEqRef You _ = False
   nounEqRef (PlayerGroup v) (PlayerGroup w) = v == w
@@ -2613,6 +2651,8 @@ mutual
   nounDelta : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List Binding
   nounDelta This = []
   nounDelta (AsType t n _) = nounDelta n
+  nounDelta (AsMarker _ n) = nounDelta n
+  nounDelta TheGrantor = []
   nounDelta You = []
   nounDelta (PlayerGroup _) = []
   nounDelta (Each p {ph}) = bindFor EachD ManyOf ph p :: predDelta p
@@ -3695,6 +3735,8 @@ mutual
   anchorPhrase : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   anchorPhrase This = True
   anchorPhrase (AsType t n _) = anchorPhrase n
+  anchorPhrase (AsMarker _ n) = anchorPhrase n
+  anchorPhrase TheGrantor = True
   anchorPhrase You = True
   anchorPhrase (PlayerGroup _) = True
   anchorPhrase (Each _) = False
@@ -3756,6 +3798,8 @@ mutual
   choosable : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   choosable This = False
   choosable (AsType _ _ _) = False
+  choosable (AsMarker _ _) = False
+  choosable TheGrantor = False
   choosable You = False
   choosable (PlayerGroup _) = False
   choosable (Each _) = False
@@ -3820,6 +3864,8 @@ mutual
   groupMention (Those _) = True
   groupMention This = False
   groupMention (AsType _ _ _) = False
+  groupMention (AsMarker _ _) = False
+  groupMention TheGrantor = False
   groupMention You = False
   groupMention (PlayerGroup _) = False
   groupMention (Each _) = False
@@ -4749,6 +4795,8 @@ mutual
   costNounOk : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
   costNounOk This = True
   costNounOk (AsType t n _) = costNounOk n
+  costNounOk (AsMarker _ n) = costNounOk n
+  costNounOk TheGrantor = True
   costNounOk You = True
   costNounOk (PlayerGroup _) = True
   costNounOk (Each _) = True
@@ -4793,6 +4841,8 @@ mutual
   nounIsYou (PlayerGroup _) = False
   nounIsYou This = False
   nounIsYou (AsType _ _ _) = False
+  nounIsYou (AsMarker _ _) = False
+  nounIsYou TheGrantor = False
   nounIsYou (Each _) = False
   nounIsYou (Indefinite _ _) = False
   nounIsYou (Definite _) = False
@@ -4835,6 +4885,8 @@ mutual
   nounTargeted (CountedGroup _ _ _) = False
   nounTargeted This = False
   nounTargeted (AsType _ n _) = nounTargeted n
+  nounTargeted (AsMarker _ n) = nounTargeted n
+  nounTargeted TheGrantor = False
   nounTargeted You = False
   nounTargeted (PlayerGroup _) = False
   nounTargeted (Each _) = False
@@ -5152,6 +5204,22 @@ mutual
     MkBinding TheD Object OneOf
               (ObjectP (Just t) z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
       :: bs
+  -- the marker word names no type, so its mention carries none; the
+  -- determiner is the ascribed self's, on `AsType`'s rows.
+  moveIntro p (AsMarker _ This) z =
+    MkBinding SelfD Object OneOf
+              (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
+      :: bs
+  moveIntro p (AsMarker _ n) z =
+    MkBinding TheD Object OneOf
+              (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
+      :: bs
+  -- the grantor is a DIFFERENT object from the one whose ability this is,
+  -- so its mention is definite rather than `This`' self determiner.
+  moveIntro p TheGrantor z =
+    MkBinding TheD Object OneOf
+              (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
+      :: bs
   moveIntro p You z = bs
   moveIntro p (PlayerGroup _) z = bs
   moveIntro p They z = bs
@@ -5190,6 +5258,17 @@ mutual
   nounZone : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe Zone
   nounZone This = Nothing
   nounZone (AsType t n _) = Just Battlefield
+  -- and the zone IS the marker's own rule: [CR#111.1] puts a token onto
+  -- the battlefield, [CR#114.2] an emblem into the command zone.
+  nounZone (AsMarker m _) = Just (markerZone m)
+  -- the grantor is on the BATTLEFIELD. [CR#113.6] has an object's ability
+  -- function on the battlefield unless it states otherwise, and the
+  -- reference is minted only by such an ability's grant; every supported
+  -- payload that names its grantor names a battlefield permanent -- the
+  -- Equipment that unattaches or sacrifices itself, the enchantment whose
+  -- counters a token counts. An emblem grantor ([CR#114.2] puts it in the
+  -- command zone) would be the widening, and no supported line writes one.
+  nounZone TheGrantor = Just Battlefield
   nounZone You = Nothing
   nounZone (PlayerGroup _) = Nothing
   nounZone (Each p) = phraseZone p
@@ -5236,6 +5315,12 @@ mutual
   nounTy : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Maybe CardType
   nounTy This = Nothing
   nounTy (AsType t n _) = Just t
+  -- the marker word ascribes NO type: [CR#111.1] makes a token a marker
+  -- for a permanent rather than a type it has, and [CR#114.3] leaves an
+  -- emblem none at all. So the phrase carries whatever its inner noun
+  -- already named, which for the self-reference is nothing.
+  nounTy (AsMarker _ n) = nounTy n
+  nounTy TheGrantor = Nothing
   nounTy You = Nothing
   nounTy (PlayerGroup _) = Nothing
   nounTy (Each p) = seedTy p
@@ -5301,6 +5386,8 @@ mutual
   nounPlur : {bs : Bindings} -> {k : Kind} -> Noun bs k -> Plurality
   nounPlur This = OneOf
   nounPlur (AsType t n _) = nounPlur n
+  nounPlur (AsMarker _ n) = nounPlur n
+  nounPlur TheGrantor = OneOf
   nounPlur You = OneOf
   nounPlur (PlayerGroup _) = ManyOf
   nounPlur (Each p) = ManyOf

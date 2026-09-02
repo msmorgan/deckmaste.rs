@@ -15773,7 +15773,7 @@ kitsuneMystic =
                       (Macros.target
                          (And [ HasSubtype (enchantmentType "Aura")
                               , AttachedTo (Macros.a Macros.creature) ]))
-                      (Macros.a (And [Macros.creature, Other]))) ]
+                      (Macros.a (And [Macros.creature, OtherThan This]))) ]
                (Macros.printedBox (Just (4, 5))))
 
 ||| Akiri, Fearless Voyager's two lines -- "Whenever you attack a player
@@ -16943,4 +16943,106 @@ bloodSun =
        [ Macros.triggered When (Enters Macros.thisEnchantment Nothing)
                           Macros.drawACard
        , Static (LosesAllAbilities (AllOf Macros.land) (Just IsManaAbility)) ]
+       Nothing
+
+-- ---------------------------------------------------------------------------
+-- The static statement's TURN WINDOW, re-measured.
+-- ---------------------------------------------------------------------------
+
+||| Ahn-Crop Invader, whole card -- "During your turn, this creature has
+||| first strike. / {1}, Sacrifice another creature: This creature gets
+||| +2/+0 until end of turn."
+|||
+||| The window is `OnlyDuring`, which landed with the prohibition round
+||| and is the THIRD reader of the timing vocabulary the statement frame
+||| was said to lack: `windowOk` gates it exactly as it gates an
+||| activation restriction's `Timing` and a trigger's `TriggerWindow`,
+||| and nothing here is a copy of either grid. 96 supported lines over 94
+||| cards write a window-confined static statement (measured 2026-09-02),
+||| 91 of them "during your turn"; the ledger that called this cell two
+||| lines predates the carrier. Restless Spire writes this same sentence
+||| inside a quoted payload and At Knifepoint at a described group --
+||| that one is blocked on "outlaws", the cover word for five creature
+||| types, and not on the window.
+public export
+ahnCropInvader : Card
+ahnCropInvader =
+  Macros.card "Ahn-Crop Invader" (Just [Macros.generic 2, Macros.pip Red]) []
+       (MkTypeLine [creatureType "Zombie", creatureType "Minotaur",
+                    creatureType "Warrior"] [Creature])
+       [ Static (OnlyDuring Turn (Just Yours)
+                   (Gains Macros.thisCreature
+                          (KeywordAbility "FirstStrike" Nothing)))
+       , Macros.activated
+           (Compound [ Mana [Macros.generic 1]
+                     , Do (Macros.sacrifice You
+                             (Macros.a (And [Macros.creature, OtherThan This]))) ])
+           (Macros.gets Macros.thisCreature (PtUp (Lit 2)) (PtUp (Lit 0))
+                        (Just Macros.untilEndOfTurn)) ]
+       (Just (2, 2))
+
+||| Bedrock Tortoise's second line -- "During your turn, creatures you
+||| control have hexproof." The same window over a DESCRIBED GROUP rather
+||| than the source, which is how most of the 96 write it.
+public export
+bedrockTortoiseWindow : StaticEffect []
+bedrockTortoiseWindow =
+  OnlyDuring Turn (Just Yours)
+    (Gains (AllOf Macros.creatureYouControl)
+           (KeywordAbility "Hexproof" Nothing))
+
+-- ---------------------------------------------------------------------------
+-- The marker object's self-ascription and the grantor named from inside
+-- the quotation.
+-- ---------------------------------------------------------------------------
+
+||| Nesting Dragon's inner token payload -- "{R}: This token gets +1/+0
+||| until end of turn." The marker word at the seat that wanted it: 102
+||| of the 206 distinct quoted token-creation payloads name their bearer
+||| "this token" (measured 2026-09-02), and `TokenChars.abilities`
+||| already held whole abilities.
+|||
+||| The word ascribes NO type, which is the point of the third axis and
+||| also its limit: "This token can't block" (Harried Spearguard, Anax,
+||| Hardened in the Forge) still does not write, because the deed table
+||| gives "Block" a Creature-typed agent and refuses a bare subject
+||| ([CR#509.1a] chooses blockers from among creatures). That is the deed
+||| vocabulary's cell, not this word's -- a payload whose verb demands a
+||| typed subject needs the type word, and the marker word is not one.
+public export
+nestingDragonInnerToken : AbilityAt []
+nestingDragonInnerToken =
+  Macros.activated (Mana [Macros.pip Red])
+    (Macros.gets (AsMarker TokenMarker This) (PtUp (Lit 1)) (PtUp (Lit 0))
+                 (Just Macros.untilEndOfTurn))
+
+||| Chandra, Awakened Inferno's emblem -- "You get an emblem with 'At the
+||| beginning of your upkeep, this emblem deals 1 damage to you.'" The
+||| same word at the OTHER marker object, 9 of the 90 distinct emblem
+||| payloads. [CR#114.3] leaves an emblem no types, so the word is the
+||| only self-reference such a payload has, and [CR#114.2] is what puts
+||| it in the command zone.
+public export
+chandraAwakenedInfernoEmblem : Effect []
+chandraAwakenedInfernoEmblem =
+  GetsEmblem You
+    [ Macros.triggered At (BeginningOf Upkeep (ByWord Yours))
+        (DealDamage (AsMarker EmblemMarker This) (Lit 1) You) ]
+
+||| Leonin Bola, whole card -- "Equipped creature has '{T}, Unattach
+||| Leonin Bola: Tap target creature.' / Equip {1}". [CR#201.5a]'s
+||| reference: the granted ability names the Equipment, and the name
+||| denotes THAT object rather than a class of objects with the name.
+||| Heartseeker, Blazing Torch, Razor Boomerang and Shuriken all write
+||| their own name at the same seat.
+public export
+leoninBola : Card
+leoninBola =
+  Macros.card "Leonin Bola" (Just [Macros.generic 1]) []
+       (MkTypeLine [artifactType "Equipment"] [Artifact])
+       [ Static (Gains (AttachHost Equipped (TypeW Creature))
+                   (Macros.activated
+                      (Compound [TapSymbol, Do (Unattach TheGrantor)])
+                      (SetStatus Tapped (Macros.target Macros.creature))))
+       , Macros.keywordCosting "Equip" (Mana [Macros.generic 1]) ]
        Nothing
