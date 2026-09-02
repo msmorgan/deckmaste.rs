@@ -2268,7 +2268,8 @@ mutual
   ||| sake: an as-enters choice is a value picked, where an additional
   ||| cost is an ACTION carried out [CR#118.1] and what it did to the
   ||| objects it named is a fact the next sentence may read -- "creatures
-  ||| tapped this way", the participial stamp [CR#608.2c] licenses.
+  ||| tapped this way", the participial stamp over the group the action
+  ||| touched.
   public export
   staticChoiceDelta : {bs : Bindings} -> StaticEffect bs -> List Binding
   staticChoiceDelta (EntersChoice _ q _) = [choiceB q]

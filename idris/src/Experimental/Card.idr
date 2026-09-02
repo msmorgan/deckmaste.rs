@@ -338,9 +338,9 @@ data CardLine : TypeLine -> Type where
                {auto 0 cmb : So (typesCombinable l.tys)} ->
                {auto 0 sf : So (subsFitLine l.subs l.tys)} -> CardLine l
 
-||| Which words their own rule confines to a MODAL spell. Two, and both
-||| say so in their first sentence: [CR#702.42a] makes entwine "a static
-||| ability of modal spells (see rule 700.2)" whose meaning is "You may
+||| Which words their own rule confines to a MODAL spell [CR#700.2].
+||| Two, and both say so in their first sentence: [CR#702.42a] makes
+||| entwine "a static ability of modal spells" whose meaning is "You may
 ||| choose all modes of this spell instead of just the number
 ||| specified", and [CR#702.120a] makes escalate the same for "each mode
 ||| you choose beyond the first". A card printing either with no modes
