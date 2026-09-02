@@ -37,3 +37,11 @@ Two remainders from trigger-2 (done 2026-08-27) whose named owner
   replacements over a triggering event with an ABILITY-VALUED subject on
   `Intercepts` ("if this ability has triggered … instead"); not an allowance
   sibling. Replacement-seat machinery, so it lands here.
+
+- **Routed from tails-b (close, 2026-09-02):** the MIXED head/adjective
+  disjunction — [CR#702.195a]'s "artifacts, Sagas, and/or legendary" is an
+  `Or` of two head-bearing arms with an adjectival one, refused by
+  `parallelDisjuncts` (`hasHead (HasSupertype _)` is False); storied's gate
+  waits on it. And the `MoveCounters` partitive source (Slippery Bogbonder,
+  1 line — deliberately unbuilt at one carrier; recorded here so it stays
+  live).
