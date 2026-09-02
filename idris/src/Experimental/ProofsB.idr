@@ -177,6 +177,17 @@ badWrappedStatusLaunder : Unspellable (Predicate [] Object) (\ok =>
 badWrappedStatusLaunder Oh impossible
 
 
+||| "blocked creature that's unblocked"
+||| [CR#509.1h] hands the two blocking roles out as alternatives on one
+||| attacking creature -- blockers declared for it makes it blocked, none
+||| makes it unblocked -- and an effect that changes one changes it TO
+||| the other, so a conjunction naming both describes nothing.
+public export
+badBlockedAndUnblocked : Unspellable (Predicate [] Object) (\ok =>
+  And [Macros.creature, Blocked, Unblocked] {cf = ok})
+badBlockedAndUnblocked Oh impossible
+
+
 ||| "between three and two target creatures"
 ||| A range runs upward; a descending pair names an empty interval.
 public export

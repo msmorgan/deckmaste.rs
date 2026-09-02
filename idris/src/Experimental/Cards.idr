@@ -5331,6 +5331,128 @@ tahngarthAttacksThatJoin : Effect (effIntro Cards.tahngarthChoosesDefender)
 tahngarthAttacksThatJoin =
   BecomesAttacking Macros.thisCreature (OneDefender Macros.thatJoin)
 
+||| Smite, whole -- "Destroy target blocked creature." The bare combat
+||| ROLE at its plainest: an attributive `Blocked` naming no blocker, in
+||| a sentence with no second reading to anchor one. Benalish Missionary
+||| prints the same description under a prevention shield and Roar of
+||| Jukai its plural ("each blocked creature gets +2/+2").
+public export
+smite : Card
+smite =
+  Macros.card "Smite" (Just [Macros.pip White]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (Macros.destroy (Macros.target (And [Macros.creature, Blocked]))) ]
+       Nothing
+
+||| Forcefield, whole -- "{1}: The next time an unblocked creature of your
+||| choice would deal combat damage to you this turn, prevent all but 1 of
+||| that damage." `Unblocked`'s witness, and the card damage-prevention
+||| routed to this family on exactly that one word. Everything else it
+||| needs already stood: `NextTimeOnly`'s shield determiner, `CombatOnly`,
+||| `CutAllBut`'s per-event cut, and the your-choice damage agent.
+public export
+forcefield : Card
+forcefield =
+  Macros.card "Forcefield" (Just [Macros.generic 3]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.activated (Mana [Macros.generic 1])
+           (Continuously
+              (PreventsFrom CombatOnly
+                            (DealtBy (Macros.aYourChoice
+                                        (And [Macros.creature, Unblocked])))
+                            (Macros.shieldingIt You)
+                            (CutAllBut (Lit 1)) NextTimeOnly Nothing)
+              (Just Macros.thisTurn)) ]
+       Nothing
+
+||| Agate-Blade Assassin, whole -- "Whenever this creature attacks,
+||| defending player loses 1 life and you gain 1 life." `TheDefendingPlayer`
+||| at the SUBJECT position, the second-largest of the word's three (65 of
+||| the 303 supported lines). The header writes `NoDefender` and the word
+||| still resolves, which is [CR#508.5] doing its own work: this is an
+||| ability of an attacking creature, so the rule supplies the player that
+||| creature is attacking without the line naming one.
+public export
+agateBladeAssassin : Card
+agateBladeAssassin =
+  Macros.card "Agate-Blade Assassin"
+       (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Lizard", creatureType "Assassin"] [Creature])
+       [ Macros.triggered Whenever (Attacks Macros.thisCreature NoDefender)
+           (Sequentially [ ChangeLife TheDefendingPlayer (Down (Lit 1))
+                         , ChangeLife You (Up (Lit 1)) ]) ]
+       (Just (1, 3))
+
+||| Fiend Binder, whole -- "Whenever this creature attacks, tap target
+||| creature defending player controls." The word at its LARGEST position,
+||| naming another permanent's controller: 173 of the 303 supported lines
+||| write it that way, and no row was needed for them beyond this noun --
+||| `ControlledBy` already takes any sole-holder player and asks
+||| `nounPlur` the only question it has.
+public export
+fiendBinder : Card
+fiendBinder =
+  Macros.card "Fiend Binder"
+       (Just [Macros.generic 3, Macros.pip White]) []
+       (MkTypeLine [creatureType "Human", creatureType "Soldier"] [Creature])
+       [ Macros.triggered Whenever (Attacks Macros.thisCreature NoDefender)
+           (SetStatus Tapped
+              (Macros.target (And [Macros.creature,
+                                   ControlledBy TheDefendingPlayer]))) ]
+       (Just (3, 2))
+
+||| Souls of the Faultless's second half -- "Whenever this creature is
+||| dealt combat damage, ... attacking player loses that much life."
+||| `TheAttackingPlayer`'s witness, and the one carrier that shows the
+||| word is not the defending player's mirror image at the same seat: the
+||| subject here is a BLOCKING creature, so [CR#508.5]'s per-attacker
+||| resolution has nothing to resolve and [CR#506.2]'s active player is
+||| the whole of the reference.
+||| A FRAGMENT, and the word is not why. The printed line reads the
+||| damage twice -- "you gain that much life AND attacking player loses
+||| that much life" -- and `ThatMuch` asks `countQuantOutcomes ... = 1`
+||| of the context it stands in, which the life change ahead of it has
+||| already added to. The second read is the two-reads-of-one-amount cell
+||| and is this card's own remainder.
+||| The other 8 bare lines do not land either, and none is held up by
+||| this word. Goblin Goon, Mogg Toady and Monstrous Hound write it
+||| inside "can't block unless you control more creatures than attacking
+||| player", a deontic gated on a CONDITION where `Compulsion` offers
+||| `GatedBy`'s cost and nothing else; Defensive Formation and Invasion
+||| Plans hand the combat-damage or block ASSIGNMENT to a player, which
+||| no row writes; Contested Game Ball, Karazikar and Norn's Decree need
+||| headers this vocabulary has not reached.
+public export
+soulsOfTheFaultlessDrain : Ability
+soulsOfTheFaultlessDrain =
+  Macros.triggered Whenever (IsDealtDamage CombatOnly Macros.thisCreature)
+                   (ChangeLife TheAttackingPlayer (Down ThatMuch))
+
+||| Blessed Reversal, whole -- "You gain 3 life for each creature
+||| attacking you." The ATTACKER-voice predicate written as a bare
+||| participle rather than a relative clause, which is the spelling the
+||| corpus prefers: of the 82 supported lines that describe one side of
+||| an attack by the other, 18 write "creature[s] attacking [m]" and 21
+||| "that's attacking [m]". One row spells both -- a reduced relative
+||| states no fact its full form does not -- so `AttackerOf` needed
+||| nothing here beyond a carrier outside a gate's cost, where the seven
+||| lines that first bought it all sat.
+||| This is where the attacker-voice item routed from description-2
+||| lands. Namor, Atlantean King, whose four kin (Martial Impetus, Oviya,
+||| Scriv, Seifer) were counted with it, still does not bench: its body
+||| is "OTHER creatures you control attacking that player", and `Other`
+||| asks `anyTargeted` of its context, which an untargeted attack trigger
+||| does not answer.
+public export
+blessedReversal : Card
+blessedReversal =
+  Macros.card "Blessed Reversal"
+       (Just [Macros.generic 1, Macros.pip White]) []
+       (MkTypeLine [] [Instant])
+       [ Spell (ChangeLife You
+                  (Up (Times 3 (CountOf (And [Macros.creature, AttackerOf You]))))) ]
+       Nothing
+
 public export
 endure : Card
 endure =
@@ -6103,10 +6225,17 @@ chromaticArmor =
 ||| chooser is not why. Two further blockers apiece: the flavor word
 ||| ("Lure the Unwary", "Targeting Relay") is not one of [CR#207.2c]'s
 ||| ability words and no row spells it; and both spend the read inside
-||| "creatures attacking the last chosen player", an attributive
-||| attacking-DEFENDER phrase that `Attacking` carries no slot for -- 94
-||| supported lines write one, so that is its own cell and not this
-||| round's.
+||| "creatures attacking the last chosen player".
+||| The second of those is CORRECTED (2026-09-02): the attacking-defender
+||| phrase is written, and by `AttackerOf`, which landed the day after
+||| this note was made. Re-measured, the family is 82 supported lines,
+||| not 94 -- 21 relative clauses and 18 bare participles, both of which
+||| that row spells (`blessedReversal`), 27 the entry rider's own
+||| defender slot, and the rest other shapes. What still blocks these two
+||| cards is "the LAST CHOSEN player": the marked read at the player
+||| sort, where `OfLastChosen` is a quality-sorted description of an
+||| OBJECT and `That PlayerW` is the plain demonstrative. That read is
+||| the chooser family's cell, not the combat roles'.
 public export
 beckoningWillOWispChooser : Ability
 beckoningWillOWispChooser =
@@ -16503,12 +16632,17 @@ opponentWithMoreLifeThanYou =
 ||| Namor, Atlantean King's trigger head -- "a player who has more life
 ||| than you". The same cell over the unnarrowed player noun, which is
 ||| what says the narrowing rides the head and not the comparison.
-||| Namor does not bench whole: its body describes creatures by the
-||| defender they are attacking ("other creatures you control attacking
-||| that player"), the ATTACKER's voice of the row sub-round 1 built at
-||| the defender's (`AttackedBy`), and no predicate writes it -- 4 more
-||| supported lines want the same voice under "one of your opponents"
-||| (Martial Impetus, Oviya, Scriv, Seifer; measured 2026-08-28).
+||| Namor does not bench whole, and the reason has MOVED (2026-09-02).
+||| Its body describes creatures by the defender they are attacking
+||| ("other creatures you control attacking that player") -- the
+||| ATTACKER's voice of the row sub-round 1 built at the defender's
+||| (`AttackedBy`) -- and `AttackerOf` now writes exactly that, in the
+||| bare-participle spelling this line uses (`blessedReversal`). What
+||| holds the card up instead is "OTHER": `Other` asks `anyTargeted` of
+||| the context it stands in, and an attack trigger targets nothing. The
+||| four kin counted with it (Martial Impetus, Oviya, Scriv, Seifer;
+||| measured 2026-08-28) write "one of your opponents", a partitive at
+||| the PLAYER kind where `SomeOf` is object-kinded.
 public export
 playerWithMoreLifeThanYou : Predicate [] Player
 playerWithMoreLifeThanYou =

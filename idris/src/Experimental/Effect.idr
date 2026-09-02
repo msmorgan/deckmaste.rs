@@ -3124,6 +3124,20 @@ mutual
     ||| this row names one, through the same `AttackDefender` slot the
     ||| declaration event takes, so [CR#506.3]'s closed set and
     ||| [CR#508.1b]'s one-defender rule ride it unchanged.
+    ||| The rider's missing slot is measured and ROUTED, not an oversight
+    ||| (2026-09-02): 27 supported lines write a defender on the entry
+    ||| ("put it onto the battlefield tapped and attacking that player",
+    ||| "a token that's tapped and attacking that player or a
+    ||| planeswalker they control"), 14 of them outside myriad's reminder
+    ||| text, and [CR#508.4] gives the rider exactly this row's content
+    ||| -- the controller "chooses which defending player, planeswalker a
+    ||| defending player controls, or battle a defending player protects
+    ||| it's attacking ... unless the effect that put it onto the
+    ||| battlefield specifies what it's attacking". What blocks the slot
+    ||| is LAYERING, not the rules: `TokenRider` is declared in
+    ||| `Words.idr`, below both `Noun` and `AttackDefender`, so giving it
+    ||| the slot means moving the type up the module order. That move is
+    ||| its own round.
     ||| It is an assignment, not a declaration: [CR#508.3a] keys attack
     ||| triggers on a creature being "declared as an attacker", which a
     ||| resolving effect never does.

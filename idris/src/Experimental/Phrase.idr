@@ -547,6 +547,26 @@ mutual
     ||| `CastBy`'s own reasons [CR#400.7d].
     ||| -- spelling: "[n] was cast"; under `Not`, "[n] wasn't cast".
     WasCast : Predicate bs Object
+    ||| "attacking creature": the first of the four combat ROLES, and the
+    ||| head of the vocabulary the other three belong to. [CR#506.4] is
+    ||| what makes them one list rather than four unrelated words: a
+    ||| creature removed from combat "stops being an attacking, blocking,
+    ||| blocked, and/or unblocked creature". One event ends all four, all
+    ||| four are held by a creature on the battlefield, and none of them
+    ||| is a status [CR#110.5] or a characteristic -- so the vocabulary is
+    ||| four sibling `Predicate bs Object` rows (`Attacking`, `Blocking`,
+    ||| `Blocked`, `Unblocked`) and nothing else. The RELATIONAL rows are
+    ||| not members: `AttackerOf`, `AttackedBy`, `BlockerOf` and
+    ||| `BlockedBy` each name the other side, which is a second question
+    ||| [CR#506.4] does not ask.
+    ||| The PLAYER roles [CR#506.2] gives in the same section are not
+    ||| members either, and could not be: they are references and not
+    ||| descriptions, and they live at the noun layer as
+    ||| `TheAttackingPlayer` and `TheDefendingPlayer`.
+    ||| It seeds the battlefield and the creature type: [CR#508.1a]
+    ||| chooses attackers from the creatures the active player controls
+    ||| and [CR#508.1k] makes each of them an attacking creature.
+    ||| -- spelling: "attacking [n]"; predicatively, "[n] is attacking".
     Attacking : Predicate bs Object
     ||| "[n] is being declared as an attacker": the attack declaration IN
     ||| PROGRESS, which is not the same question as attacking.
@@ -571,6 +591,57 @@ mutual
     BlockedBy : (m : Noun bs Object) ->
                 {auto 0 zn : ZoneFits (nounZone m) (Just Battlefield)} ->
                 Predicate bs Object
+    ||| "blocked creature", "[n] is blocked": the ROLE, with no blocker
+    ||| named. [CR#509.1h] is what it reads -- an attacking creature
+    ||| "with one or more creatures declared as blockers for it becomes a
+    ||| blocked creature" -- and [CR#506.4] names it in one breath with
+    ||| the other three, saying that a creature removed from combat
+    ||| "stops being an attacking, blocking, blocked, and/or unblocked
+    ||| creature". That sentence is why this row and `Unblocked` are
+    ||| `Attacking` and `Blocking`'s siblings and not a vocabulary of
+    ||| their own: the rules keep the four roles in one list, lose them
+    ||| by one event, and give each the same carrier.
+    ||| It is NOT `BlockedBy` with the relatum dropped. That row
+    ||| describes the attacker by WHICH creature blocks it; this one
+    ||| states the role and names nothing, and the two are different
+    ||| claims -- [CR#509.1h] keeps a creature blocked "even if all the
+    ||| creatures blocking it are removed from combat", so the role
+    ||| outlives every blocker a relatum could name.
+    ||| It seeds the battlefield and the creature type, for `Attacking`'s
+    ||| reason and because [CR#509.1h] makes only an ATTACKING creature
+    ||| blocked.
+    ||| 11 supported lines write it as a description (measured
+    ||| 2026-09-02): "destroy target blocked creature", "each blocked
+    ||| creature gets +1/+0 and gains trample", "destroy all blocking
+    ||| creatures and all blocked creatures", and one predicative
+    ||| ("activate only if this creature is blocked").
+    ||| The 12 further lines carrying the word are NOT this row's: "as
+    ||| though it weren't blocked" is the damage-assignment
+    ||| COUNTERFACTUAL, a premise about the creature that the deed
+    ||| vocabulary already carries, and [CR#609.4]'s "treat the game
+    ||| exactly as if the stated condition were true" is a different
+    ||| question from whether the creature answers a description.
+    ||| -- spelling: "blocked [n]"; predicatively, "[n] is blocked".
+    Blocked : Predicate bs Object
+    ||| "unblocked creature": [CR#509.1h]'s other half, an attacking
+    ||| creature "with no creatures declared as blockers for it".
+    ||| `Blocked`'s ALTERNATIVE and not its negation. A creature that is
+    ||| not attacking at all is neither, so `Not Blocked` is the wider
+    ||| description and the two words are not interchangeable; and the
+    ||| rules mint an unblocked creature where no declaration passed over
+    ||| it at all, [CR#508.4d] putting a creature onto the battlefield
+    ||| attacking during or after the declare blockers step "as an
+    ||| unblocked creature". That the two cannot hold at once is
+    ||| `noCombatRoleClash`'s business, not this row's.
+    ||| 16 supported lines write it outside reminder text (measured
+    ||| 2026-09-02): Forcefield's "an unblocked creature of your choice",
+    ||| "each unblocked creature has base power and toughness 4/1",
+    ||| "prevent all combat damage that would be dealt by unblocked
+    ||| creatures this turn". The other 40 are ninjutsu's and sneak's
+    ||| reminder text ("return an unblocked attacker you control to
+    ||| hand"), which write the same word.
+    ||| -- spelling: "unblocked [n]"; predicatively, "[n] is unblocked".
+    Unblocked : Predicate bs Object
     ||| "the player or planeswalker that creature is attacking": the
     ||| DEFENDER described by the creature attacking it. `BlockedBy`'s
     ||| shape one step earlier in combat, and the only combat predicate
@@ -614,7 +685,15 @@ mutual
     ||| Prison, Windborn Muse, Koskun Falls, Elephant Grass, Collective
     ||| Restraint) and Onakke Oathkeeper's "attacking a planeswalker you
     ||| control", the one that spends the kind index.
-    ||| -- spelling: "[n] that's attacking [m]".
+    ||| Re-measured 2026-09-02: 82 supported lines describe one side of
+    ||| an attack by the other, and this row's two are 21 relative
+    ||| clauses ("that's attacking you") and 18 bare participles
+    ||| ("creatures attacking you"). ONE row spells both -- a reduced
+    ||| relative states no fact its full form does not, which is
+    ||| `ResolvedPermanent`'s recorded principle at another surface.
+    ||| -- spelling: "[n] that's attacking [m]", or the reduced
+    ||| participle "[n] attacking [m]"; the corpus writes both and the
+    ||| choice states no fact the row does not.
     AttackerOf : {k : Kind} -> (m : Noun bs k) ->
                  {auto 0 at : Attackable m} ->
                  Predicate bs Object
@@ -1115,6 +1194,8 @@ mutual
   seedZone (AttackerOf _) = Just Battlefield
   seedZone (BlockerOf _) = Just Battlefield
   seedZone (BlockedBy _) = Just Battlefield
+  seedZone Blocked = Just Battlefield
+  seedZone Unblocked = Just Battlefield
   seedZone (CouldBlock _) = Just Battlefield
   seedZone (CouldBeBlockedBy _) = Just Battlefield
   seedZone (HappenedTo _ _ _) = Nothing
@@ -1210,6 +1291,8 @@ mutual
   seedType (AttackerOf _) = Just Creature
   seedType (BlockerOf _) = Just Creature
   seedType (BlockedBy _) = Just Creature
+  seedType Blocked = Just Creature
+  seedType Unblocked = Just Creature
   seedType (CouldBlock _) = Just Creature
   seedType (CouldBeBlockedBy _) = Just Creature
   seedType (HappenedTo _ _ _) = Nothing
@@ -1299,6 +1382,8 @@ mutual
   hasHead (AttackerOf _) = False
   hasHead (BlockerOf _) = False
   hasHead (BlockedBy _) = False
+  hasHead Blocked = False
+  hasHead Unblocked = False
   hasHead (AttackedBy _) = False
   hasHead (CouldBlock _) = False
   hasHead (CouldBeBlockedBy _) = False
@@ -1513,6 +1598,10 @@ mutual
   predEq (BlockerOf a) (BlockerOf b) = nounEqRef a b
   predEq (BlockerOf _) _ = False
   predEq (BlockedBy a) (BlockedBy b) = nounEqRef a b
+  predEq Blocked Blocked = True
+  predEq Blocked _ = False
+  predEq Unblocked Unblocked = True
+  predEq Unblocked _ = False
   predEq (BlockedBy _) _ = False
   predEq (AttackedBy a) (AttackedBy b) = nounEqRef a b
   predEq (AttackedBy _) _ = False
@@ -1688,6 +1777,29 @@ mutual
   noStatusClash [] = True
   noStatusClash (p :: ps) = not (anyStatusClash p ps) && noStatusClash ps
 
+  ||| [CR#509.1h] hands out the two blocking roles as alternatives on one
+  ||| creature -- blockers declared for it makes it blocked, none makes it
+  ||| unblocked -- and an effect that changes one changes it TO the other,
+  ||| so a conjunction naming both describes nothing.
+  public export
+  combatRoleClashOf : {0 bs : Bindings} -> {0 k : Kind} ->
+                      Predicate bs k -> Predicate bs k -> Bool
+  combatRoleClashOf Blocked Unblocked = True
+  combatRoleClashOf Unblocked Blocked = True
+  combatRoleClashOf _ _ = False
+
+  public export
+  anyCombatRoleClash : {0 bs : Bindings} -> {0 k : Kind} ->
+                       Predicate bs k -> List (Predicate bs k) -> Bool
+  anyCombatRoleClash p [] = False
+  anyCombatRoleClash p (q :: qs) = combatRoleClashOf p q || anyCombatRoleClash p qs
+
+  public export
+  noCombatRoleClash : {0 bs : Bindings} -> {0 k : Kind} ->
+                      List (Predicate bs k) -> Bool
+  noCombatRoleClash [] = True
+  noCombatRoleClash (p :: ps) = not (anyCombatRoleClash p ps) && noCombatRoleClash ps
+
   public export
   isPermanentHead : {0 bs : Bindings} -> {0 k : Kind} -> Predicate bs k -> Bool
   isPermanentHead Permanent = True
@@ -1756,6 +1868,7 @@ mutual
                          not (anySeedEmptied (negTypes (flattenPs ps))
                                              (flattenPs ps)) &&
                          noStatusClash (flattenPs ps) &&
+                         noCombatRoleClash (flattenPs ps) &&
                          noColorClash (flattenPs ps) &&
                          noCardTokenClash (flattenPs ps) &&
                          not (anyPermanentHead (flattenPs ps) &&
@@ -2071,6 +2184,8 @@ mutual
   predSays (AttackerOf _) = True
   predSays (BlockerOf _) = True
   predSays (BlockedBy _) = True
+  predSays Blocked = True
+  predSays Unblocked = True
   predSays (AttackedBy _) = True
   predSays (CouldBlock _) = True
   predSays (CouldBeBlockedBy _) = True
@@ -2149,6 +2264,8 @@ mutual
   predNegFree (AttackerOf _) = True
   predNegFree (BlockerOf _) = True
   predNegFree (BlockedBy _) = True
+  predNegFree Blocked = True
+  predNegFree Unblocked = True
   predNegFree (AttackedBy _) = True
   predNegFree (CouldBlock _) = True
   predNegFree (CouldBeBlockedBy _) = True
@@ -2315,6 +2432,71 @@ mutual
     ||| -- spelling: the grantor's own card name.
     TheGrantor : Noun bs Object
     You : Noun bs Player        -- "you" [CR#109.5]
+    ||| "defending player": the combat role as a REFERENCE, the word
+    ||| standing for whoever holds it. [CR#508.5] is the whole row --
+    ||| "if an ability of an attacking creature refers to a defending
+    ||| player, or a spell or ability refers to both an attacking
+    ||| creature and a defending player, then unless otherwise
+    ||| specified, the defending player it's referring to is the player
+    ||| that creature is attacking, the controller of the planeswalker
+    ||| that creature is attacking, or the protector of the battle that
+    ||| creature is attacking".
+    ||| It carries NO slot, on `TheGrantor`'s precedent: the rule fixes
+    ||| the referent outright from the sentence's own attacking creature
+    ||| and the printed phrase writes no anchor, so a slot would be the
+    ||| grammar restating what the rules already settle. It is a
+    ||| REFERENCE and carries no description for the same reason.
+    ||| It is not `AttackedBy` under a determiner, and the difference is
+    ||| a kind. That predicate describes the ATTACKED side, which
+    ||| [CR#506.3] lets be a player, a planeswalker or a battle; this
+    ||| word is always a PLAYER, reached THROUGH the planeswalker's
+    ||| controller or the battle's protector where the attack is aimed
+    ||| at one -- and [CR#310.9d] makes the battle case a player neither
+    ||| of the other two rows can name, since "all rules and effects
+    ||| that refer to the 'defending player' relative to a battle that
+    ||| is being attacked refer to that battle's protector", who need
+    ||| not be its controller.
+    ||| It does not read the attack header's defender slot
+    ||| (`AttackDefender`) and is not blocked by one. That slot is a
+    ||| WRITTEN defender, this word an unwritten one the rule resolves,
+    ||| and [CR#508.5]'s "unless otherwise specified" is the seam between
+    ||| them; a printed line may carry both, and neither is a binding the
+    ||| other reads.
+    ||| Recorded ungated: [CR#508.5] resolves the word only inside an
+    ||| ability of an attacking creature or a sentence that also names
+    ||| one, and no gate here asks that. It is a context condition the
+    ||| noun cannot see from its own seat -- the same shape as the
+    ||| attacking creature being elsewhere in the ability -- so the row
+    ||| overgenerates onto sentences with no attacker in them.
+    ||| 303 supported lines over 492 supported cards write it (measured
+    ||| 2026-09-02), in three positions: 173 name it as another
+    ||| permanent's controller ("a creature defending player controls"),
+    ||| 65 make it a clause subject ("defending player loses 2 life"),
+    ||| and 16 write the possessive ("defending player's graveyard").
+    ||| -- spelling: "defending player".
+    TheDefendingPlayer : Noun bs Player
+    ||| "attacking player": [CR#506.2]'s other party word, and the one
+    ||| that sentence pairs it with -- "during the combat phase, the
+    ||| active player is the attacking player; ... the nonactive player
+    ||| is the defending player".
+    ||| Its OWN row and not `TheDefendingPlayer` under an index, because
+    ||| the two words are fixed by different rules and reach their
+    ||| referents differently. This one is the ACTIVE player, fixed by
+    ||| the phase alone and the same for every creature in the combat;
+    ||| the other is [CR#508.5]'s per-attacker resolution, individually
+    ||| determined for each attacking creature a sentence could apply to
+    ||| [CR#508.5a]. A word index over the pair would claim a symmetry
+    ||| the rules do not have.
+    ||| It is not `PlayerGroup`'s row either: that word names a GROUP and
+    ||| this one names one player, [CR#506.2] giving the combat exactly
+    ||| one attacking player where [CR#506.2a] lets it have several
+    ||| defending ones.
+    ||| 9 supported lines over 9 cards write the bare word (measured
+    ||| 2026-09-02). The corpus's much commoner "THAT attacking player"
+    ||| is not this row -- it reads a player the header announced, which
+    ||| is `That PlayerW`.
+    ||| -- spelling: "attacking player".
+    TheAttackingPlayer : Noun bs Player
     PlayerGroup : (w : PlayerGroupWord) -> Noun bs Player
     Each : (p : Predicate bs k) -> {auto ph : Phrasal k} ->
            Noun bs k    -- "each …": a group, resolution-time [CR#608.2]
@@ -2758,6 +2940,10 @@ mutual
   -- reason, at the other reference.
   nounEqRef TheGrantor TheGrantor = True
   nounEqRef TheGrantor _ = False
+  nounEqRef TheDefendingPlayer TheDefendingPlayer = True
+  nounEqRef TheDefendingPlayer _ = False
+  nounEqRef TheAttackingPlayer TheAttackingPlayer = True
+  nounEqRef TheAttackingPlayer _ = False
   nounEqRef You You = True
   nounEqRef You _ = False
   nounEqRef (PlayerGroup v) (PlayerGroup w) = v == w
@@ -2857,6 +3043,8 @@ mutual
   nounDelta (ResolvedPermanent n) = nounDelta n
   nounDelta (AsMarker _ n) = nounDelta n
   nounDelta TheGrantor = []
+  nounDelta TheDefendingPlayer = []
+  nounDelta TheAttackingPlayer = []
   nounDelta You = []
   nounDelta (PlayerGroup _) = []
   nounDelta (Each p {ph}) = bindFor EachD ManyOf ph p :: predDelta p
@@ -4063,6 +4251,8 @@ mutual
   anchorPhrase (ResolvedPermanent n) = anchorPhrase n
   anchorPhrase (AsMarker _ n) = anchorPhrase n
   anchorPhrase TheGrantor = True
+  anchorPhrase TheDefendingPlayer = True
+  anchorPhrase TheAttackingPlayer = True
   anchorPhrase You = True
   anchorPhrase (PlayerGroup _) = True
   anchorPhrase (Each _) = False
@@ -4129,6 +4319,8 @@ mutual
   choosable (ResolvedPermanent _) = False
   choosable (AsMarker _ _) = False
   choosable TheGrantor = False
+  choosable TheDefendingPlayer = False
+  choosable TheAttackingPlayer = False
   choosable You = False
   choosable (PlayerGroup _) = False
   choosable (Each _) = False
@@ -4198,6 +4390,8 @@ mutual
   groupMention (ResolvedPermanent _) = False
   groupMention (AsMarker _ _) = False
   groupMention TheGrantor = False
+  groupMention TheDefendingPlayer = False
+  groupMention TheAttackingPlayer = False
   groupMention You = False
   groupMention (PlayerGroup _) = False
   groupMention (Each _) = False
@@ -5179,6 +5373,8 @@ mutual
   costNounOk (ResolvedPermanent n) = costNounOk n
   costNounOk (AsMarker _ n) = costNounOk n
   costNounOk TheGrantor = True
+  costNounOk TheDefendingPlayer = True
+  costNounOk TheAttackingPlayer = True
   costNounOk You = True
   costNounOk (PlayerGroup _) = True
   costNounOk (Each _) = True
@@ -5221,6 +5417,8 @@ mutual
 
   public export
   nounIsYou : {0 bs : Bindings} -> {0 k : Kind} -> Noun bs k -> Bool
+  nounIsYou TheDefendingPlayer = False
+  nounIsYou TheAttackingPlayer = False
   nounIsYou You = True
   nounIsYou (PlayerGroup _) = False
   nounIsYou This = False
@@ -5275,6 +5473,8 @@ mutual
   nounTargeted (ResolvedPermanent n) = nounTargeted n
   nounTargeted (AsMarker _ n) = nounTargeted n
   nounTargeted TheGrantor = False
+  nounTargeted TheDefendingPlayer = False
+  nounTargeted TheAttackingPlayer = False
   nounTargeted You = False
   nounTargeted (PlayerGroup _) = False
   nounTargeted (Each _) = False
@@ -5627,6 +5827,8 @@ mutual
               (ObjectP Nothing z (mkStamp p Nothing (not (z == Just Battlefield))) Nothing Nothing)
       :: bs
   moveIntro p You z = bs
+  moveIntro p TheDefendingPlayer z = bs
+  moveIntro p TheAttackingPlayer z = bs
   moveIntro p (PlayerGroup _) z = bs
   moveIntro p They z = bs
   moveIntro p (ControllerOf n) z = nomIntro (ControllerOf n)
@@ -5682,6 +5884,8 @@ mutual
   -- counters a token counts. An emblem grantor ([CR#114.2] puts it in the
   -- command zone) would be the widening, and no supported line writes one.
   nounZone TheGrantor = Just Battlefield
+  nounZone TheDefendingPlayer = Nothing
+  nounZone TheAttackingPlayer = Nothing
   nounZone You = Nothing
   nounZone (PlayerGroup _) = Nothing
   nounZone (Each p) = phraseZone p
@@ -5739,6 +5943,8 @@ mutual
   -- already named, which for the self-reference is nothing.
   nounTy (AsMarker _ n) = nounTy n
   nounTy TheGrantor = Nothing
+  nounTy TheDefendingPlayer = Nothing
+  nounTy TheAttackingPlayer = Nothing
   nounTy You = Nothing
   nounTy (PlayerGroup _) = Nothing
   nounTy (Each p) = seedTy p
@@ -5813,6 +6019,8 @@ mutual
   nounPlur (ResolvedPermanent n) = nounPlur n
   nounPlur (AsMarker _ n) = nounPlur n
   nounPlur TheGrantor = OneOf
+  nounPlur TheDefendingPlayer = OneOf
+  nounPlur TheAttackingPlayer = OneOf
   nounPlur You = OneOf
   nounPlur (PlayerGroup _) = ManyOf
   nounPlur (Each p) = ManyOf
