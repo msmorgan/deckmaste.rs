@@ -3402,6 +3402,34 @@ mishrasFactory =
                                 (PtUp (Lit 1)) (PtUp (Lit 1)) (Just Macros.untilEndOfTurn)) ]
        Nothing
 
+||| Mutavault, whole card. Mishra's Factory's sentence with the printed
+||| SUBTYPE QUANTIFIER in the bundle -- "becomes a 2/2 creature with all
+||| creature types until end of turn. It's still a land" -- which is the
+||| `TokenChars` quality cell's carrier at the setting seat. The
+||| with-clause is a post-modifier of the one noun phrase the bundle is,
+||| so it rides `quals` rather than an `AndAlso` beside the setting; the
+||| quantifier's own row `AddsEveryType` writes the sentence spelling
+||| ("gains all creature types"), which no line of this card prints.
+||| Faceless Haven and Soulstone Sanctuary write the same cell with a
+||| keyword beside it ("with vigilance and all creature types") and
+||| Mutable Explorer's reminder-text token writes this one exactly;
+||| 4 supported lines, measured 2026-09-02.
+public export
+mutavault : Card
+mutavault =
+  Macros.card "Mutavault" Nothing [] (MkTypeLine [] [Land])
+       [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[Colorless]]) [])
+       , Macros.activated (Mana [Macros.generic 1])
+                          (Continuously
+                      (SetsType Macros.thisLand
+                                (MkTokenChars (Just (Lit 2 ** Lit 2)) []
+                                              (MkTypeLine [] [Creature])
+                                              [] Nothing
+                                              [WithEveryType CreatureSpace])
+                                (Just Land))
+                      (Just Macros.untilEndOfTurn)) ]
+       Nothing
+
 windZendikon : Card
 windZendikon =
   Macros.card "Wind Zendikon" (Just [Macros.pip Blue]) []
@@ -5977,15 +6005,35 @@ kohChooser =
 ||| position: two choices in ONE sentence, spelled as the coordination it
 ||| is, which is all the family was missing -- the two choosers already
 ||| composed and both reads already elaborated. Riptide Replicator writes
-||| the same line. Neither card lands whole and the chooser is not why:
-||| both spend the reads on a TOKEN SPEC ("a 2/2 creature token of the
-||| chosen color and type"), and `TokenChars` carries a literal colour
-||| list and a literal type line with nowhere for a read to sit.
+||| the same line.
 public export
 volrathsLaboratoryChoice : StaticEffect []
 volrathsLaboratoryChoice =
   AndAlso [ Macros.entersChoosing Macros.thisArtifact Color
           , Macros.entersChoosing Macros.thisArtifact (SubtypeQ Creature) ]
+
+||| Volrath's Laboratory, whole card: the compound chooser above and the
+||| activated line that spends BOTH reads inside one token bundle,
+||| "Create a 2/2 creature token of the chosen color and type". The
+||| postmodifier is one noun phrase's, so both reads ride the bundle's
+||| `quals` -- the colour read where a literal `List Color` cannot go,
+||| the creature-type read hosted by the bundle's own `Creature` word
+||| [CR#205.3d]. Two of the family's 3 supported lines are this card's;
+||| Riptide Replicator writes the third and is blocked elsewhere, its X
+||| standing in a body whose cost writes none.
+public export
+volrathsLaboratory : Card
+volrathsLaboratory =
+  Macros.card "Volrath's Laboratory" (Just [Macros.generic 5]) []
+       (MkTypeLine [] [Artifact])
+       [ Static volrathsLaboratoryChoice
+       , Macros.activated (Compound [Mana [Macros.generic 5], TapSymbol])
+           (Macros.create (Lit 1)
+              (MkTokenChars (Just (Lit 2 ** Lit 2)) []
+                            (MkTypeLine [] [Creature]) [] Nothing
+                            [ WithQuality (OfChosen Color)
+                            , WithQuality (OfChosen (SubtypeQ Creature)) ])) ]
+       Nothing
 
 ||| Call to Arms' first line -- "As this enchantment enters, choose a color
 ||| and an opponent." The same coordination ACROSS SORTS, a quality beside

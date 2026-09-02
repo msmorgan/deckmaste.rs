@@ -209,15 +209,75 @@ twoPartiesOk (CountedGroup q _ _) = quantExact q == Just 2
 twoPartiesOk _ = False
 
 
+||| A quality a characteristics BUNDLE states about itself that no
+||| literal type-line or colour word can carry. Two are printed, and
+||| each is the bundle-internal form of a statement that already has a
+||| row of its own outside a bundle -- so this is one payload cell
+||| generalising two existing cells, not a new operation:
+|||
+||| * "becomes a 2/2 creature WITH ALL CREATURE TYPES" (Mutavault,
+|||   Faceless Haven, Soulstone Sanctuary, and Mutable Explorer's token
+|||   in reminder text -- 4 supported lines, measured 2026-09-02) is a
+|||   type change at [CR#613.1d]'s layer 4 quantified over the whole
+|||   subtype set [CR#205.3m] names, inside the bundle, where
+|||   `AddsEveryType` states the same quantifier as a sentence of its
+|||   own.
+||| * "create a 1/1 creature token OF THE CHOSEN COLOR AND TYPE"
+|||   (Volrath's Laboratory twice, Riptide Replicator -- 3 supported
+|||   lines over 2 cards) is [CR#607.2d]'s linked read inside the
+|||   bundle, where `AddsChosenQuality` states it as a sentence.
+|||
+||| Both are printed as post-modifiers of ONE noun phrase, which is why
+||| they sit in the bundle rather than beside it: coordinating them out
+||| with `AndAlso` would spell two sentences where the card prints one.
+||| -- spelling: "with all [space] types"; "of the chosen [sort]".
+public export
+data TokenQuality : Bindings -> Type where
+  WithEveryType : (space : TypeSpace) -> TokenQuality bs
+  ||| The read is `QualityRead`'s, the same vocabulary the two ascription
+  ||| rows take, so a marked read ("the last chosen colour") and a
+  ||| your-choice read write here on the same licence.
+  WithQuality : (q : Predicate bs Object) ->
+                {auto 0 qr : QualityRead q} -> TokenQuality bs
+
+||| Whether a bundle quality names something the bundle's own type words
+||| can host. [CR#205.3d] refuses an object a subtype corresponding to
+||| none of its types, and the bundle states the types itself, so the
+||| host is read off the bundle where `HostedRead` reads it off a
+||| subject noun. A sort with no host demands nothing, exactly as there.
+public export
+tokenQualHosted : {0 bs : Bindings} -> List CardType -> TokenQuality bs -> Bool
+tokenQualHosted tys (WithEveryType space) =
+  any (\t => spaceHosted space (Just t)) tys
+tokenQualHosted tys (WithQuality q) = case qualityReadHost q of
+                                        Nothing => True
+                                        Just h => elem h tys
+
+
 mutual
+  ||| RECORDED OVERGENERATION at the colour cell: an empty `colors`
+  ||| beside a colour read is the READ's colour and not [CR#105.2c]'s
+  ||| colorless, and a literal colour written beside such a read is
+  ||| admitted though no line prints one. Nothing in the rules refuses
+  ||| an object that is both white and the chosen colour, so there is
+  ||| no gate to write here -- only the record.
   public export
   record TokenChars (bs : Bindings) where
-    constructor MkToken
+    constructor MkTokenChars
     pt : Maybe (p : Amount bs ** Amount (amtIntro p))
     colors : List Color
     line : TypeLine
     abilities : List (AbilityAt [])
     name : Maybe String
+    quals : List (TokenQuality bs)
+
+  public export
+  tokenQualsFit : {0 bs : Bindings} -> TokenChars bs -> Bool
+  tokenQualsFit t = all (tokenQualHosted t.line.tys) t.quals
+
+  public export
+  TokenQualsFit : TokenChars bs -> Type
+  TokenQualsFit {bs} t = So (tokenQualsFit t)
 
   public export
   tokenTyped : {0 bs : Bindings} -> TokenChars bs -> Bool
@@ -299,7 +359,8 @@ mutual
                    {auto 0 tp : TokenPt t} ->
                    {auto 0 sf : SubtypesFit t} ->
                    {auto 0 ta : TokenAbilities t} ->
-                   {auto 0 tc : TokenCanonical t} -> TokenSpec bs
+                   {auto 0 tc : TokenCanonical t} ->
+                   {auto 0 qf : TokenQualsFit t} -> TokenSpec bs
     ||| The anaphoric specification: the create clause reads back a
     ||| definition of characteristics an earlier clause wrote [CR#111.3],
     ||| never the objects that definition made. NOT gated on the
@@ -732,6 +793,7 @@ mutual
                     {auto 0 af : AddedFits (nounTy n) added.line} ->
                     {auto 0 tc : TokenCanonical added} ->
                     {auto 0 ta : TokenAbilities added} ->
+                    {auto 0 qf : TokenQualsFit added} ->
                     {auto 0 un : AdditionUnnamed added} -> StaticEffect bs
       AddsEveryType : (n : Noun bs Object) -> (space : TypeSpace) ->
                       {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -815,6 +877,7 @@ mutual
                  {auto 0 af : AddedFits (nounTy n) t.line} ->
                  {auto 0 ta : TokenAbilities t} ->
                  {auto 0 tc : TokenCanonical t} ->
+                 {auto 0 qf : TokenQualsFit t} ->
                  {auto 0 ro : RetentionOk t.line ret} -> StaticEffect bs
       ||| The two chosen-quality ascriptions carry NO subject-zone
       ||| demand, where the type-line rows beside them do. Decided on
@@ -2631,6 +2694,7 @@ mutual
                   {auto 0 bd : CopyBundle t} ->
                   {auto 0 tc : TokenCanonical t} ->
                   {auto 0 ta : TokenAbilities t} ->
+                  {auto 0 qf : TokenQualsFit t} ->
                   {auto 0 un : AdditionUnnamed t} -> CopyExcept bs
     ExceptAbility : (ab : AbilityAt []) ->
                     {auto 0 gr : Grantable ab} -> CopyExcept bs
@@ -5945,3 +6009,14 @@ mutual
 public export
 Ability : Type
 Ability = AbilityAt []
+
+||| The bundle as all but seven printed lines write it: five literal
+||| cells and no quality. A wrapping macro rather than a defaulted field,
+||| on the house rule that core constructors stay positional -- and it is
+||| what makes the quality cell cost nothing at the 74 construction sites
+||| that do not use it.
+public export
+MkToken : {0 bs : Bindings} ->
+          Maybe (p : Amount bs ** Amount (amtIntro p)) -> List Color ->
+          TypeLine -> List Ability -> Maybe String -> TokenChars bs
+MkToken {bs} pt cs l abs nm = MkTokenChars {bs} pt cs l abs nm []

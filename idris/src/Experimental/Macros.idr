@@ -1157,8 +1157,9 @@ create : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
          {auto 0 sf : SubtypesFit tok} ->
          {auto 0 ta : TokenAbilities tok} ->
          {auto 0 tc : TokenCanonical tok} ->
+         {auto 0 qf : TokenQualsFit tok} ->
          Effect bs
-create count tok = Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc}) []
+create count tok = Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc} {qf}) []
 
 public export
 createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count)) ->
@@ -1167,9 +1168,10 @@ createTappedAttacking : (count : Amount bs) -> (tok : TokenChars (amtIntro count
                         {auto 0 sf : SubtypesFit tok} ->
                         {auto 0 ta : TokenAbilities tok} ->
                         {auto 0 tc : TokenCanonical tok} ->
+                        {auto 0 qf : TokenQualsFit tok} ->
                         Effect bs
 createTappedAttacking count tok =
-  Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc})
+  Create You count (TokenWritten tok {tt} {tp} {sf} {ta} {tc} {qf})
          [EntersTapped, EntersAttacking]
 
 public export
@@ -1179,10 +1181,11 @@ becomesAs : (n : Noun bs Object) -> (added : TokenChars bs) ->
             {auto 0 af : AddedFits (nounTy n) added.line} ->
             {auto 0 tc : TokenCanonical added} ->
             {auto 0 ta : TokenAbilities added} ->
+            {auto 0 qf : TokenQualsFit added} ->
             {auto 0 un : AdditionUnnamed added} ->
             {auto 0 sp : SpanOk TypeAddition d} -> Effect bs
 becomesAs n added d =
-  Continuously (BecomesAlso n added {sw} {af} {tc} {ta} {un}) d {sp}
+  Continuously (BecomesAlso n added {sw} {af} {tc} {ta} {qf} {un}) d {sp}
 
 public export
 becomes : (n : Noun bs Object) -> (added : TypeLine) ->
