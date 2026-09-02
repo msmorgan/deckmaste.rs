@@ -1,5 +1,5 @@
 ---
-needs: [core-regions-discourse]
+needs: [core-regions-discourse, core-regions-test-restoration]
 ---
 **Real witness tests for the reference channel: hand-spelled semantic
 fixtures, not the corpus.** The witness cards inherited by
