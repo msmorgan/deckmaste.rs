@@ -1,5 +1,5 @@
 ---
-needs: [core-regions-substrate]
+needs: [core-regions-substrate-closeout]
 ---
 **Stage 2 of [Core is explicit regions](../../decisions/core-explicit-regions.md):
 the discourse channel becomes defs, loops and predicates become regions,
