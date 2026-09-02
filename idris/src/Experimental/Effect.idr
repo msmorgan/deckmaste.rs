@@ -768,7 +768,7 @@ mutual
                 {auto 0 dd : So (distinctDeeds deeds)} ->
                 {auto 0 kd : KnownDeeds deeds} ->
                 {auto 0 zn : ZoneFits (nounZone n) (deedsZone deeds role)} ->
-                {auto 0 dp : DeedParticipant deeds role k (nounTy n)} ->
+                {auto 0 dp : DeedParticipant deeds role k (nounHeadTys n)} ->
                 {auto 0 pt : So (deonticPatientOk n deeds role patient rider)} ->
                 {auto 0 at : So (asThoughOk c deeds asThough)} ->
                 {auto 0 rd : So (deonticRiderOk deeds role c patient
@@ -1544,7 +1544,7 @@ mutual
                   (vps : SubjectVPs k (selfSubjIntro n)) ->
                   {auto 0 ne : IsSucc k} ->
                   {auto 0 ok :
-                     So (vpsOk (nounZone n) (nounRegime n) (nounTy n) vps)} ->
+                     So (vpsOk (nounZone n) (nounRegime n) (nounHeadTys n) vps)} ->
                   StaticEffect bs
 
   ||| The modality, all four rows of it. [CR#609.4] writes the
@@ -1859,9 +1859,7 @@ mutual
                     Noun bs k -> Bool -> Bool
   counterpartFits {k} ds r m moved =
     all (\d => deedKindOk d r k) ds &&
-    (case nounTy m of
-       Just ty => all (\d => deedTypeOk d r ty) ds
-       Nothing => all (\d => deedBareOk d r) ds) &&
+    all (\d => deedHeadTysOk d r (nounHeadTys m)) ds &&
     (moved || zoneFits (nounZone m) (deedsZone ds r))
 
   ||| A creature never blocks itself and never attacks itself.
@@ -3203,10 +3201,10 @@ mutual
     ||| blocks [what]".
     BecomesBlocking : (n : Noun bs Object) ->
                       {auto 0 zn : OnBattlefield (nounZone n)} ->
-                      {auto 0 dn : DeedParticipant ["Block"] Agent Object (nounTy n)} ->
+                      {auto 0 dn : DeedParticipant ["Block"] Agent Object (nounHeadTys n)} ->
                       (what : Noun (nomIntro n) Object) ->
                       {auto 0 zw : OnBattlefield (nounZone what)} ->
-                      {auto 0 dw : DeedParticipant ["Block"] Patient Object (nounTy what)} ->
+                      {auto 0 dw : DeedParticipant ["Block"] Patient Object (nounHeadTys what)} ->
                       Effect bs
     ||| "[n] stops blocking [what]": one assignment unwritten and nothing
     ||| else. [CR#506.4] lists what removes a permanent from combat and a
@@ -3223,10 +3221,10 @@ mutual
     ||| -- spelling: "[n] stops blocking [what]"
     StopsBlocking : (n : Noun bs Object) ->
                     {auto 0 zn : OnBattlefield (nounZone n)} ->
-                    {auto 0 dn : DeedParticipant ["Block"] Agent Object (nounTy n)} ->
+                    {auto 0 dn : DeedParticipant ["Block"] Agent Object (nounHeadTys n)} ->
                     (what : Noun (nomIntro n) Object) ->
                     {auto 0 zw : OnBattlefield (nounZone what)} ->
-                    {auto 0 dw : DeedParticipant ["Block"] Patient Object (nounTy what)} ->
+                    {auto 0 dw : DeedParticipant ["Block"] Patient Object (nounHeadTys what)} ->
                     Effect bs
     ||| "[n] is attacking [whom]": the attacking twin of
     ||| `BecomesBlocking`, for a permanent already on the battlefield.
@@ -3254,7 +3252,7 @@ mutual
     ||| -- spelling: "[n] is attacking [whom]"
     BecomesAttacking : (n : Noun bs Object) ->
                        {auto 0 zn : OnBattlefield (nounZone n)} ->
-                       {auto 0 dn : DeedParticipant ["Attack"] Agent Object (nounTy n)} ->
+                       {auto 0 dn : DeedParticipant ["Attack"] Agent Object (nounHeadTys n)} ->
                        (whom : AttackDefender (nomIntro n)) -> Effect bs
     Regenerate : (n : Noun bs Object) ->
                  {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
@@ -3270,7 +3268,7 @@ mutual
              {auto 0 kd : KnownDeed deed} ->
              {auto 0 rd : So (deedRidesOk deed)} ->
              {auto 0 kk : So (deedKindOk deed Patient k)} ->
-             {auto 0 sub : DeedParticipant [deed] Patient k (nounTy what)} ->
+             {auto 0 sub : DeedParticipant [deed] Patient k (nounHeadTys what)} ->
              {auto 0 zn : ZoneFits (nounZone what) (deedZoneOf deed Patient)} ->
              Effect bs
     ||| The warrant tells the bare instruction from a keyword's expansion
@@ -6381,12 +6379,10 @@ mutual
   ||| writes the subject once, so no arm has one to ask. Same content as
   ||| `counterpartFits`, at the seat where the noun is not in hand.
   public export
-  deedSubjectFits : Maybe Zone -> Maybe CardType -> Deeds -> Role -> Bool
-  deedSubjectFits zn ty ds r =
+  deedSubjectFits : Maybe Zone -> List CardType -> Deeds -> Role -> Bool
+  deedSubjectFits zn tys ds r =
     all (\d => deedKindOk d r Object) ds &&
-    (case ty of
-       Just t => all (\d => deedTypeOk d r t) ds
-       Nothing => all (\d => deedBareOk d r) ds) &&
+    all (\d => deedHeadTysOk d r tys) ds &&
     zoneFits zn (deedsZone ds r)
 
   ||| A written span is `SpanOk`'s own demand, asked at the arm: an
@@ -6403,18 +6399,18 @@ mutual
   ||| its subject. Every arm's own span is asked `durationOk`.
   public export
   vpOk : {0 bs : Bindings} -> Maybe Zone -> Maybe StackRegime ->
-         Maybe CardType -> SubjectVP bs -> Bool
-  vpOk zn reg ty (VPGets _ _ sp) = zoneFits zn (Just Battlefield) && vpSpanOk sp
-  vpOk zn reg ty (VPGains ab sp) =
+         List CardType -> SubjectVP bs -> Bool
+  vpOk zn reg tys (VPGets _ _ sp) = zoneFits zn (Just Battlefield) && vpSpanOk sp
+  vpOk zn reg tys (VPGains ab sp) =
     grantSubjectFits zn reg ab && grantableAb ab && vpSpanOk sp
-  vpOk zn reg ty (VPDeontic _ ds r sp) =
-    not (isNil ds) && knownDeeds ds && deedSubjectFits zn ty ds r && vpSpanOk sp
+  vpOk zn reg tys (VPDeontic _ ds r sp) =
+    not (isNil ds) && knownDeeds ds && deedSubjectFits zn tys ds r && vpSpanOk sp
 
   public export
   vpsOk : {0 k : Nat} -> {0 bs : Bindings} -> Maybe Zone ->
-          Maybe StackRegime -> Maybe CardType -> SubjectVPs k bs -> Bool
-  vpsOk zn reg ty [] = True
-  vpsOk zn reg ty (vp :: rest) = vpOk zn reg ty vp && vpsOk zn reg ty rest
+          Maybe StackRegime -> List CardType -> SubjectVPs k bs -> Bool
+  vpsOk zn reg tys [] = True
+  vpsOk zn reg tys (vp :: rest) = vpOk zn reg tys vp && vpsOk zn reg tys rest
 
   namespace Paid
     public export

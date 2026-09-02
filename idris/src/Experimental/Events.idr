@@ -1003,7 +1003,11 @@ deedFacts =
   -- WRITES a type the rule excludes ("enchanted land can't block",
   -- "enchanted planeswalker can't attack"), which is `deedTypeOk`'s
   -- half of the same row, and a subject off the battlefield, which is
-  -- the zone's. The patient keeps its closed types: there the rule names
+  -- the zone's. A subject that writes SEVERAL types, one of them
+  -- excluded ("target creature or land can't block"), refuses on the
+  -- same half: `deedHeadTysOk` asks the head's disjuncts one by one, so
+  -- the bare reading below is only ever the phrase that wrote no type at
+  -- all. The patient keeps its closed types: there the rule names
   -- what may be attacked or blocked and a description is checked against
   -- that list.
   [ MkDeedFacts "Attack"
@@ -1225,6 +1229,19 @@ public export
 deedBareOk : VerbLabel -> Role -> Bool
 deedBareOk v r = roleBare (deedRoleOf v r)
 
+||| Whether the role admits every card type the phrase's head WRITES.
+||| The list is `nounHeadTys`', and asking it per DISJUNCT is what keeps a
+||| coordinated head from reading as an untyped one: "target creature or
+||| land" may denote a land, so a role that excludes lands excludes the
+||| phrase, exactly as the same role excludes "target land". The empty
+||| list is the phrase that writes no type at all ("enchanted
+||| permanent"), which is `deedBareOk`'s question and the one the
+||| agent-typing decision answers `True` at [CR#506.3]'s two deeds.
+public export
+deedHeadTysOk : VerbLabel -> Role -> List CardType -> Bool
+deedHeadTysOk v r [] = deedBareOk v r
+deedHeadTysOk v r ts = all (deedTypeOk v r) ts
+
 ||| Where the deed's rule has the role's participant be.
 public export
 deedZoneOf : VerbLabel -> Role -> Maybe Zone
@@ -1312,33 +1329,36 @@ deedsZone (d :: ds) r =
     Nothing => if null ds then deedZoneOf d r else Nothing
     Just z => if deedZoneOf d r == Just z then Just z else Nothing
 
-||| The participant gate, asked of every coordinated deed at once.
+||| The participant gate, asked of every coordinated deed at once: every
+||| deed's own rule must admit that kind in that role, and must admit
+||| every card type the phrase's head writes.
+|||
+||| ONE CONSTRUCTOR over `nounHeadTys`' LIST, where the gate once had two
+||| over `nounTy`'s `Maybe CardType` -- a typed `Participant` and a
+||| `BareParticipant` for the phrase that stated none. The split was the
+||| defect and not just its setting: `nounTy` collapses a COORDINATED
+||| head to `Nothing`, so "target creature or land can't block" reached
+||| the bare arm and passed wherever that arm is open, which after the
+||| agent-typing decision is [CR#506.3]'s two deeds. The bare reading is
+||| for a phrase that WRITES no type -- a player, an ability [CR#109.1],
+||| an object described some other way ("spells with the chosen name") --
+||| and a disjunction writes one per arm. Reading the arms is what tells
+||| the two apart, and `deedHeadTysOk`'s empty case is the honest bare
+||| reading, unreachable by a phrase that wrote anything.
+|||
+||| The agent-typing decision is unchanged by this and so are the
+||| refusals beside it: [CR#506.3] still says which objects may attack or
+||| block rather than how a sentence may describe the one it is said of,
+||| so "enchanted permanent can't attack, block, or crew Vehicles" and
+||| "this token can't block" pass on the empty list, while a subject that
+||| WRITES an excluded type refuses -- one type ("enchanted land can't
+||| block", `badCoordinatedLandHostBlocks`) or one of several
+||| (`badCantDisjunctSubject`, minted back with the read).
 public export
-data DeedParticipant : Deeds -> Role -> Kind -> Maybe CardType -> Type where
-  ||| the participant whose card type the phrase states: every deed's
-  ||| own rule must admit that kind and that type in that role.
+data DeedParticipant : Deeds -> Role -> Kind -> List CardType -> Type where
   Participant : {auto 0 kk : So (all (\d => deedKindOk d r k) ds)} ->
-                {auto 0 ok : So (all (\d => deedTypeOk d r t) ds)} ->
-                DeedParticipant ds r k (Just t)
-  ||| the participant whose card type the phrase does not state -- a
-  ||| player, an ability [CR#109.1], or an object described by
-  ||| something other than its type ("spells with the chosen name").
-  ||| Refused wherever the deed's rule names the types outright FOR THAT
-  ||| ROLE -- which after the agent-typing decision is every patient and
-  ||| no agent: [CR#506.3] says which objects may attack or block, not
-  ||| how a sentence may describe the one it is said of, and the printed
-  ||| "enchanted permanent can't attack, block, or crew Vehicles" and
-  ||| "this token can't block" name no card type at all. What the
-  ||| decision costs is one refusal: a head that names SEVERAL types, one
-  ||| of them excluded ("target creature or land can't block"), reads
-  ||| `nounTy` as `Nothing` and is no longer refused, because a
-  ||| coordinated head collapses to no type here and the disjuncts'
-  ||| types are not asked for anywhere. `badCantDisjunctSubject` retired
-  ||| with it; the typed refusals it stood beside (a land host, a
-  ||| planeswalker attacker) are unaffected.
-  BareParticipant : {auto 0 kk : So (all (\d => deedKindOk d r k) ds)} ->
-                    {auto 0 ok : So (all (\d => deedBareOk d r) ds)} ->
-                    DeedParticipant ds r k Nothing
+                {auto 0 ok : So (all (\d => deedHeadTysOk d r ts) ds)} ->
+                DeedParticipant ds r k ts
 
 public export
 data StaticKind = PtDelta | KeywordGrant | DeedRestriction | TypeAddition

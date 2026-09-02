@@ -1171,7 +1171,7 @@ dealDamageOwnReadsNoPrefix bs k src c to pm rk = DealDamageOwn src c to {pm} {rk
 public export
 ofSubjectReadsNoPrefix : (bs : Bindings) -> (k : Nat) -> (n : Noun bs Object) ->
                          (vps : SubjectVPs k (selfSubjIntro n)) -> IsSucc k ->
-                         So (vpsOk (nounZone n) (nounRegime n) (nounTy n) vps) ->
+                         So (vpsOk (nounZone n) (nounRegime n) (nounHeadTys n) vps) ->
                          StaticEffect bs
 ofSubjectReadsNoPrefix bs k n vps ne ok = OfSubject n vps {ne} {ok}
 

@@ -497,7 +497,7 @@ badActivatedSpellClass : Unspellable
   (StaticEffect [MkBinding AD (Quality CardName) OneOf QualityP]) (\ok =>
   Macros.objectCant "Activate"
     (AllOf (And [Macros.spell, Named ChosenName])) {dp = ok})
-badActivatedSpellClass BareParticipant impossible
+badActivatedSpellClass Participant impossible
 
 
 ||| "Activated abilities of artifacts can't be Nothing cast."
@@ -507,7 +507,7 @@ badCastAbilityClass : Unspellable (StaticEffect []) (\ok =>
   Macros.objectCant "Cast"
     (AllOf (And [AbilityHead AnyActivated, AbilityOf (AllOf Macros.artifact)]))
     {dp = ok})
-badCastAbilityClass BareParticipant impossible
+badCastAbilityClass Participant impossible
 
 
 ||| "You may {T} rather than pay this spell's mana cost."

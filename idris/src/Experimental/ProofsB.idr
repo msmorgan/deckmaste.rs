@@ -226,6 +226,14 @@ badCantAttackLand : Unspellable (Effect []) (\ok =>
 badCantAttackLand Participant impossible
 
 
+||| "Target creature or land can't block this turn."
+||| Only a creature can attack or block [CR#506.3], and the phrase may denote the land its own arm writes.
+public export
+badCantDisjunctSubject : Unspellable (Effect []) (\ok =>
+  Macros.cantBlock (Macros.target (Or [Macros.creature, Macros.land])) (Just Macros.thisTurn) {dp = ok})
+badCantDisjunctSubject Participant impossible
+
+
 ||| "Target creature can't be attacked this turn."
 ||| Only a player, a planeswalker, or a battle can be attacked [CR#506.3].
 public export

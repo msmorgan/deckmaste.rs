@@ -6418,6 +6418,42 @@ mutual
   nounTy (PossessorsOf _ n) = Nothing
   nounTy (Designated _ _) = Nothing
 
+  ||| `nounTy`'s per-DISJUNCT twin: every card type the phrase's head
+  ||| WRITES, as a list. `nounTy` answers the ONE type a phrase names and
+  ||| collapses to `Nothing` the moment a head coordinates several
+  ||| ("target creature or land"), which reads the same as a phrase that
+  ||| writes no type at all ("enchanted permanent"). The two are not the
+  ||| same fact, and a gate that asks whether a rule admits the phrase's
+  ||| type has to tell them apart: the coordination writes a type per
+  ||| arm and every one of them is a type the sentence may denote, so a
+  ||| rule that excludes ANY of them excludes the phrase. `[]` is the
+  ||| phrase that writes none.
+  ||| Every coordination unions its arms rather than agreeing them, which
+  ||| is where this parts from `nounTy` and from `nounTys`: those two
+  ||| project a description and a disagreeing pair names none, where this
+  ||| one collects what was written and a disagreeing pair wrote two
+  ||| things. A join-kinded pair is unioned for the same reason, though
+  ||| no deed ever sees one -- `deedKindOk` refuses a joined kind at
+  ||| every role first.
+  public export
+  nounHeadTys : {bs : Bindings} -> {k : Kind} -> Noun bs k -> List CardType
+  nounHeadTys (Each p) = headTys p
+  nounHeadTys (Indefinite _ p) = headTys p
+  nounHeadTys (Definite p) = headTys p
+  nounHeadTys (TargetGroup _ p) = headTys p
+  nounHeadTys (CountedGroup _ _ p) = headTys p
+  nounHeadTys (AllOf p) = headTys p
+  nounHeadTys (EachOf grp) = nounHeadTys grp
+  nounHeadTys (NamesAgree _ grp) = nounHeadTys grp
+  nounHeadTys (ResolvedPermanent n) = nounHeadTys n
+  nounHeadTys (AsMarker _ n) = nounHeadTys n
+  nounHeadTys (EachOfBoth p) = nounHeadTys p
+  nounHeadTys (Both l r) = nounHeadTys l ++ nounHeadTys r
+  nounHeadTys (BothOf l r) = nounHeadTys l ++ nounHeadTys r
+  nounHeadTys (EitherOf l r) = nounHeadTys l ++ nounHeadTys r
+  nounHeadTys (EitherJoined l r) = nounHeadTys l ++ nounHeadTys r
+  nounHeadTys n = optCT (nounTy n)
+
   ||| `nounTy`'s per-half twin: the head type the phrase projects onto EACH
   ||| half of its kind. A determiner over a joined head passes the head's
   ||| pair through, a mixed group takes one from each arm, and every other
