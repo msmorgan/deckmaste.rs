@@ -1,5 +1,5 @@
 ---
-needs: [english-v2-stage-5-grammar-buildout-13-10, english-v2-quoted-block-sentence-terminator, english-v2-compiler-onset-and-nested-document, english-v2-flavor-word-open-class, english-v2-frame-key-reduction, english-v2-features-not-constructions]
+needs: [english-v2-stage-5-grammar-buildout-13-10, english-v2-quoted-block-sentence-terminator, english-v2-compiler-onset-and-nested-document, english-v2-flavor-word-open-class, english-v2-frame-key-reduction, english-v2-card-type-feature]
 ---
 Long-tail closure to 100% of the normalized corpus. Scope: every remaining
 document shape and sentence family the frontier surfaces, run as the pure
@@ -26,3 +26,10 @@ inventory (88). The four `needs` added that day carry the infrastructure
 this loop cannot supply: sentence-final quoted blocks, the compiler onset
 and nested-document gaps (pawprint), the flavor-word class, and the
 declaration-side frame path for `gains "…"` (135).
+
+Loop model (2026-09-02): this umbrella is worked as coordinator-minted
+per-family tickets — each iteration, the coordinator reads the frontier
+census (largest failure bucket), mints one `english-v2-tail-<family>`
+ticket sized to one linguistic family, and the executor completes it;
+this ticket closes when the corpus is 100% selected. Never claim this
+umbrella directly.
