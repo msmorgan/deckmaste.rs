@@ -874,19 +874,21 @@ mutual
       ||| cards, "loses flying" the commonest at 32.
       ||| The payload is a LIST on `Deontic`'s ground -- the English is
       ||| n-ary ("lose hexproof, indestructible, protection, shroud, and
-      ||| ward") -- and its elements are `AbilityAt`s, which is what lets
-      ||| one row carry the bare keyword, the parameterised one
-      ||| ("protection from black", Cephalid Snitch) and the quoted
-      ||| ability ("loses 'enchant creature card in a graveyard'") that
-      ||| the corpus writes at this seat. Each element answers
-      ||| `grantableAb`: an object can be made to lose only what it could
+      ||| ward") -- and its elements are `AbilityLost`s: an ability the
+      ||| line writes down, which carries the bare keyword, the
+      ||| parameterised one ("protection from black", Cephalid Snitch)
+      ||| and the quoted ability ("loses 'enchant creature card in a
+      ||| graveyard'"); or a keyword TERM, which carries the word whose
+      ||| parameter the line leaves open ("lose ... protection ... and
+      ||| ward"). That element type's own docstring is where the split
+      ||| is argued. A written element answers `grantableAb` at its own
+      ||| constructor: an object can be made to lose only what it could
       ||| have had.
       ||| -- spelling: "[n] loses [abl]", the abilities coordinated with
       ||| "and".
-      LosesAbilities : (n : Noun bs Object) -> (abl : List (AbilityAt bs)) ->
+      LosesAbilities : (n : Noun bs Object) -> (abl : List (AbilityLost bs)) ->
                        {auto 0 zn : ZoneFits (nounZone n) (Just Battlefield)} ->
                        {auto 0 ne : NonEmpty abl} ->
-                       {auto 0 hd : So (abilitiesHoldable abl)} ->
                        StaticEffect bs
       GainsControl : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
                      {auto 0 zn : ZoneFits (nounZone what) (Just Battlefield)} -> StaticEffect bs
@@ -5018,6 +5020,40 @@ mutual
   public export
   KeywordParamFits : KeywordLabel -> Maybe (KeywordParam bs) -> Type
   KeywordParamFits {bs} k p = So (keywordParamFits k p)
+
+  ||| One element of the ability LOSS's list: an ability the line writes
+  ||| DOWN, or a keyword TERM that names a class of them.
+  |||
+  ||| The term arm exists because a loss can name a word the object may
+  ||| hold at any parameter, and the parameter is exactly what the line
+  ||| does not write. Shay Cormac's "Permanents your opponents control
+  ||| lose hexproof, indestructible, protection, shroud, and ward until
+  ||| end of turn" writes five words in one coordination, and two of
+  ||| them -- "protection" [CR#702.16a] and "ward" [CR#702.21a] -- have
+  ||| rules that write a slot after the word, so neither can be a
+  ||| `KeywordAbility`: `keywordParamFits` refuses the bare spelling, and
+  ||| refuses it correctly, since "lose ward" takes away every ward
+  ||| ability and not one written cost's. That is `AnyKeywordIn`'s own
+  ||| reading -- a quantifier over the word's parameter -- which is why
+  ||| this arm is `KeywordTerm` and not a second keyword-line seat.
+  ||| Tolaria's "Target creature loses banding and all 'bands with
+  ||| other' abilities" is the same pairing at [CR#702.22b]'s two words,
+  ||| a bare one and a quantified one in one list.
+  |||
+  ||| ONE list and not a second slot, because the English coordinates
+  ||| the two sorts in one series and the printed order is the list's:
+  ||| Shay Cormac writes a term third and fifth, between bare words.
+  |||
+  ||| 4 supported lines write a term at this seat (measured 2026-09-02):
+  ||| Shay Cormac, Tolaria, and two more that lose "all 'bands with
+  ||| other' abilities". Every other loss line writes abilities down and
+  ||| takes `LostWritten`.
+  public export
+  data AbilityLost : Bindings -> Type where
+    LostWritten : (ab : AbilityAt bs) ->
+                  {auto 0 hd : So (grantableAb ab)} -> AbilityLost bs
+    LostTerm : (t : KeywordTerm) ->
+               {auto 0 kn : KnownKeywordTerm t} -> AbilityLost bs
 
   public export
   data AbilityAt : Bindings -> Type where

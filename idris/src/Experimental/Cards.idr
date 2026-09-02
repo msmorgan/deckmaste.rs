@@ -16480,6 +16480,22 @@ public export
 landwalkAbilities : KeywordTerm
 landwalkAbilities = AnyKeywordIn (MkKeywordFamily "Landwalk" Nothing)
 
+||| "ward" written where the ability LOSS coordinates it with bare words
+||| (Shay Cormac). [CR#702.21a] writes "Ward [cost]", so the word alone
+||| names every ward ability and not one written cost's -- the same
+||| quantification `protectionAbilities` makes over a quality.
+public export
+wardAbilities : KeywordTerm
+wardAbilities = AnyKeywordIn (MkKeywordFamily "Ward" Nothing)
+
+||| "all 'bands with other' abilities" (Tolaria, Shelkin Brownie).
+||| [CR#702.22c] writes the word as "bands with other [quality]", and
+||| these two lines take away every one of them; the phrase's "all ...
+||| abilities" is the quantifier the class term already is.
+public export
+bandsWithOtherAbilities : KeywordTerm
+bandsWithOtherAbilities = AnyKeywordIn (MkKeywordFamily "BandsWithOther" Nothing)
+
 ||| "protection from any color": the same word with its quality NARROWED
 ||| to a sort rather than left open -- [CR#105.1]'s five colors, not
 ||| [CR#702.16a]'s whole "any characteristic value or information".
@@ -18214,7 +18230,7 @@ blindFury =
        [ Spell (Sequentially
                   [ Continuously
                       (LosesAbilities (AllOf Macros.creature)
-                                      [KeywordAbility "Trample" Nothing])
+                                      [LostWritten (KeywordAbility "Trample" Nothing)])
                       (Just Macros.untilEndOfTurn)
                   , Continuously
                       (Scales CombatOnly (Macros.a Macros.creature)
@@ -18235,9 +18251,77 @@ shadowspearStrip =
     (Continuously
        (LosesAbilities
           (AllOf (And [Permanent, ControlledBy (PlayerGroup YourOpponents)]))
-          [ KeywordAbility "Hexproof" Nothing
-          , KeywordAbility "Indestructible" Nothing ])
+          [ LostWritten (KeywordAbility "Hexproof" Nothing)
+          , LostWritten (KeywordAbility "Indestructible" Nothing) ])
        (Just Macros.untilEndOfTurn))
+
+||| Shay Cormac's first line -- "{1}: Permanents your opponents control
+||| lose hexproof, indestructible, protection, shroud, and ward until end
+||| of turn." Shadowspear's sentence at five words, and THE KEYWORD TERM
+||| AT THE LOSS: three of the five are bare words, and "protection"
+||| [CR#702.16a] and "ward" [CR#702.21a] are words whose rules write a
+||| parameter the line does not. Each is the class term -- every
+||| protection ability, every ward ability -- coordinated in printed
+||| order with the bare three, which is why the list is one list.
+||| The card is not whole for its other two lines: both watch a bounty
+||| counter, and the second's header ("Whenever a creature with a bounty
+||| counter on it dies") is a death read off a counter this grammar
+||| spells, while the first's is a targeting header whose SUBJECT is a
+||| creature an opponent controls and whose targeter is a spell or
+||| ability the loser controls -- one round's work, not this one's.
+public export
+shayCormacStrip : Ability
+shayCormacStrip =
+  Macros.activated (Mana [Macros.generic 1])
+    (Continuously
+       (LosesAbilities
+          (AllOf (And [Permanent, ControlledBy (PlayerGroup YourOpponents)]))
+          [ LostWritten (KeywordAbility "Hexproof" Nothing)
+          , LostWritten (KeywordAbility "Indestructible" Nothing)
+          , LostTerm protectionAbilities
+          , LostWritten (KeywordAbility "Shroud" Nothing)
+          , LostTerm wardAbilities ])
+       (Just Macros.untilEndOfTurn))
+
+||| Shelkin Brownie, whole -- "{T}: Target creature loses all 'bands with
+||| other' abilities until end of turn." The class term ALONE at the
+||| loss, and the shortest carrier of it. [CR#702.22c] writes the word
+||| with a slot -- "bands with other [quality]" -- and the line quantifies
+||| over that slot rather than filling it, which is `AnyKeywordIn`'s
+||| whole content.
+public export
+shelkinBrownie : Card
+shelkinBrownie =
+  Macros.card "Shelkin Brownie"
+       (Just [Macros.generic 1, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Ouphe"] [Creature])
+       [ Macros.activated (Compound [TapSymbol])
+           (Continuously
+              (LosesAbilities (Macros.target Macros.creature)
+                              [LostTerm bandsWithOtherAbilities])
+              (Just Macros.untilEndOfTurn)) ]
+       (Just (1, 1))
+
+||| Tolaria, whole -- "{T}: Add {U}. / {T}: Target creature loses banding
+||| and all 'bands with other' abilities until end of turn. Activate only
+||| during any upkeep step." The loss list's two sorts side by side: a
+||| bare word and a class term, in the printed order, which is
+||| [CR#702.22b] written out on a card -- "if an effect causes a
+||| permanent to lose banding, the permanent loses all 'bands with
+||| other' abilities as well".
+public export
+tolaria : Card
+tolaria =
+  Macros.card "Tolaria" Nothing [Legendary] (MkTypeLine [] [Land])
+       [ Macros.activated TapSymbol (AddMana You (Lit 1) (Runs [[OfColor Blue]]) [])
+       , Activated (Compound [TapSymbol])
+           (Continuously
+              (LosesAbilities (Macros.target Macros.creature)
+                              [ LostWritten (KeywordAbility "Banding" Nothing)
+                              , LostTerm bandsWithOtherAbilities ])
+              (Just Macros.untilEndOfTurn))
+           (Just (DuringPart Upkeep Nothing)) Nothing Nothing Nothing ]
+       Nothing
 
 ||| Blood Sun, whole card -- "When this enchantment enters, draw a card. /
 ||| All lands lose all abilities except mana abilities." The exception on
