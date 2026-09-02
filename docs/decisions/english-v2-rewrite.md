@@ -1121,3 +1121,17 @@ features consumed by constructions; topical noun categories (a
 `TemporalNoun`) are not admitted. Number remains recipe-derived. The
 compiler's single-provider assumption is removed by generalizing to the
 inventory pattern, never by admitting parallel typed noun domains.
+
+
+## Ruling: derived attachment (2026-09-02)
+
+Prerequisite for the general PP / adjunct / postmodifier constructions.
+Verb-selected prepositions attach at the frame (declared valence). Every
+other prepositional phrase or adverbial attaches to the NEAREST constituent
+that licenses it — low attachment: an NP-postmodifier reading wins when
+the nominal licenses that preposition class ("creature with flying", "card
+in your graveyard"); otherwise the phrase is a predicate adjunct. Attachment
+is derived structurally, never stored and never guarded per construction.
+Oracle style avoids genuine attachment ambiguity by design, so two
+surviving readings for the same bytes is a genuine selection tie and a
+STOP-and-report — never a preference weight or a default.
