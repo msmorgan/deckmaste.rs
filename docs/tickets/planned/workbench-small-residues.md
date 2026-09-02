@@ -25,3 +25,12 @@ Cards.idr's residue trailers):
   (the tail-aligned union) recorded in the bucket's close.
 
 Re-measure at claim; several may fall out of each other.
+
+- **Routed from mandatory-if-you-do (close, 2026-09-02):** the token
+  SUPERTYPE slot (`TypeLine` has none, so "a legendary 20/20 black Avatar
+  token" is unwritable — Dark Depths' real blocker, with Marit Lage's
+  Slumber); the player-side COUNT comparison (`PlayerStat` is life-only —
+  Cartographer's Hawk's "controls more lands than you"); Flameskull's
+  two-exile batch read; and Breath of Fury's coordinated antecedent (split
+  `EncNotOneAction` into agent-half and count-half if a second carrier
+  appears).
