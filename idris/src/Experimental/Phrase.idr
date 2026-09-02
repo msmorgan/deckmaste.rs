@@ -5845,6 +5845,11 @@ mutual
   setZone : Maybe VerbLabel -> Maybe Zone -> Binding -> Binding
   setZone p z (MkBinding det Object plur (ObjectP ty oldZn _ og sz)) =
     MkBinding det Object plur (ObjectP ty z (mkStamp p oldZn (not (oldZn == z))) og sz)
+  -- a disposal names the pile and moves its MEMBERS [CR#700.3c], so the
+  -- mention is re-zoned exactly as an object group is. No stamp is
+  -- written: `PileP` records none, for `payloadProv`'s reason.
+  setZone p z (MkBinding det Object plur (PileP _ sz)) =
+    MkBinding det Object plur (PileP z sz)
   setZone p z (MkBinding det Player plur PlayerP) = MkBinding det Player plur PlayerP
   setZone p z (MkBinding det Player plur ChosenPlayerP) =
     MkBinding det Player plur ChosenPlayerP
