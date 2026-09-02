@@ -2230,6 +2230,31 @@ mayCastFrom who what from =
               (PlayRider (Just from) Nothing Nothing False ItsOwnCost)
               {zn} {dp} {pt} {rd}
 
+||| "You may cast <what> from <zone> by paying <c> rather than paying
+||| its mana cost" -- the licence with a WRITTEN alternative cost
+||| [CR#118.9]. `mayCastFrom` with the rider's payment slot filled.
+public export
+mayCastFromPaying : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->
+                    (from : ZoneExpr (nomIntro what)) ->
+                    (c : Cost (nomIntro what)) ->
+                    {auto 0 cf : So (costOffBattlefield c)} ->
+                    {auto 0 zn : ZoneFits (nounZone who) (deedsZone ["Cast"] Agent)} ->
+                    {auto 0 dp : DeedParticipant ["Cast"] Agent Player (nounTy who)} ->
+                    {auto 0 pt : So (deonticPatientOk who ["Cast"] Agent
+                                                      (DeonticCounterpart what)
+                                                      (PlayRider (Just from) Nothing Nothing False
+                                                                 (PayingInstead c {ok = cf})))} ->
+                    {auto 0 rd : So (deonticRiderOk ["Cast"] Agent
+                                                    (Permit {bs = selfSubjIntro who})
+                                                    (DeonticCounterpart what) False
+                                                    (PlayRider (Just from) Nothing Nothing False
+                                                               (PayingInstead c {ok = cf})))} ->
+                    StaticEffect bs
+mayCastFromPaying who what from c =
+  mayPlayDeed "Cast" who what
+              (PlayRider (Just from) Nothing Nothing False (PayingInstead c {ok = cf}))
+              {zn} {dp} {pt} {rd}
+
 ||| "You may play <what> from <zone>."
 public export
 mayPlayFrom : (who : Noun bs Player) -> (what : Noun (nomIntro who) Object) ->

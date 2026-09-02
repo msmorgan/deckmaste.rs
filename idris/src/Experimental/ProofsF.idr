@@ -528,6 +528,14 @@ badAltCostLoyaltySymbol NoAltPayment impossible
 badAltCostLoyaltySymbol AltPaymentWritten impossible
 
 
+||| "You may cast this card from your graveyard by {T} rather than paying its mana cost."
+||| A licence's alternative cost is paid as the card is cast [CR#601.2f..601.2h], from the zone it is in [CR#601.2a]; [CR#107.5]'s "{T}" taps a permanent.
+public export
+badPlayPaymentTapSymbol : Unspellable (PlayPayment []) (\ok =>
+  PayingInstead TapSymbol {ok})
+badPlayPaymentTapSymbol Oh impossible
+
+
 ||| "As an additional cost to cast this spell, {T}."
 ||| [CR#118.8] pays an additional cost with the mana cost, at [CR#601.2f..601.2h], and a spell being cast is on the stack [CR#601.2b] where [CR#107.5]'s "{T}" taps a permanent.
 public export

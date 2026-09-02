@@ -903,6 +903,43 @@ skaabRuinator : Ability
 skaabRuinator =
   Static (Macros.mayCastFrom You This (Macros.graveyardOf You))
 
+||| Raffine's Guidance, whole -- the play rider's WRITTEN alternative
+||| cost [CR#118.9] at its plainest. "Enchant creature / Enchanted
+||| creature gets +1/+1. / You may cast this card from your graveyard by
+||| paying {2}{W} rather than paying its mana cost." `mayCastFrom` with
+||| `PlayPayment.PayingInstead` in the rider's payment slot; the licence
+||| and the price are one sentence, which is what makes the cost a rider
+||| rather than a statement beside it.
+public export
+raffinesGuidance : Card
+raffinesGuidance =
+  Macros.card "Raffine's Guidance" (Just [Macros.pip White]) []
+       (MkTypeLine [enchantmentType "Aura"] [Enchantment])
+       [ Macros.keywordSubject "Enchant" Macros.creature
+       , Static (Gets (AttachHost Enchanted (TypeW Creature))
+                      (PtUp (Lit 1)) (PtUp (Lit 1)))
+       , Static (Macros.mayCastFromPaying You This (Macros.graveyardOf You)
+                   (Mana [Macros.generic 2, Macros.pip White])) ]
+       Nothing
+
+||| Scourge of Nel Toth, whole -- the same rider with a COMPOUND
+||| alternative cost, mana plus an action [CR#118.1]. "Flying / You may
+||| cast this creature from your graveyard by paying {B}{B} and
+||| sacrificing two creatures rather than paying its mana cost."
+public export
+scourgeOfNelToth : Card
+scourgeOfNelToth =
+  Macros.card "Scourge of Nel Toth"
+       (Just [Macros.generic 5, Macros.pip Black, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Zombie", creatureType "Dragon"] [Creature])
+       [ Macros.keyword "Flying"
+       , Static (Macros.mayCastFromPaying You This (Macros.graveyardOf You)
+                   (Compound [ Mana [Macros.pip Black, Macros.pip Black]
+                             , Do (Macros.sacrifice You
+                                     (CountedGroup (Macros.exactly 2) Nothing
+                                                   Macros.creature)) ])) ]
+       (Just (6, 6))
+
 
 escapeToTheWilds : Effect []
 escapeToTheWilds =

@@ -537,8 +537,10 @@ mutual
       |||   graveyard BY PAYING [c] rather than paying its mana cost"
       |||   (Worldheart Phoenix, Squee, Raffine's Guidance, Bolas's
       |||   Citadel). Those are play permissions with an alternative-cost
-      |||   rider, so they are the play rider's: `PlayPayment`'s third,
-      |||   cost-carrying arm and not this row's.
+      |||   rider, so they are the play rider's, and 16 of them are
+      |||   `PlayPayment.PayingInstead`'s since that arm landed; the
+      |||   other 7 write a second sentence keyed by "this way", which
+      |||   is recorded there.
       |||
       ||| The other two the round left refused have since written with
       ||| nothing minted here, and are benched rather than counted:
@@ -1612,6 +1614,55 @@ mutual
   ||| `Predicate` or a second statement.
   ||| -- spelling: "from [from]" after the complement, then the limit,
   ||| the window, ", but not from anywhere else" and the payment.
+  ||| What a play permission says about paying for the cast it licenses.
+  ||| [CR#118.9] lets an effect license a cast "without paying its mana
+  ||| cost", which is an alternative cost of nothing, and 296 supported
+  ||| lines write that of a card the clause has NAMED -- Omniscience,
+  ||| Aetherworks Marvel, Memory Plunder -- as against the 16 that write
+  ||| it of the spell being cast, which is `AltCost Nothing`'s row and
+  ||| not this one. The two are different sentences: [CR#118.9]'s self
+  ||| line modifies what THIS object costs, where the permission prices a
+  ||| different or later card the licence has picked out.
+  |||
+  ||| THREE arms, the third being the one the fold's round recorded and
+  ||| left unminted. Re-measured 2026-09-02: 23 supported lines pair a
+  ||| play permission with a WRITTEN alternative cost, and they come in
+  ||| two shapes. 16 write it as this rider -- one sentence, the cost
+  ||| inside the permission ("you may cast this card from your graveyard
+  ||| BY PAYING {W}{U}{B}{R}{G} rather than paying its mana cost",
+  ||| Worldheart Phoenix; also Squee, Raffine's Guidance, Scourge of Nel
+  ||| Toth, Glimpse the Cosmos, The Infamous Cruelclaw, Anrakyr the
+  ||| Traveller). That is what this arm spells, and it is why the type is
+  ||| indexed by `Bindings` and lives beside the rider rather than in the
+  ||| word layer: the cost is written where the permission's own
+  ||| complement has already been announced ("paying life equal to ITS
+  ||| mana value").
+  ||| The other 7 write a SECOND SENTENCE keyed to the permission by
+  ||| "this way" -- "You may play lands and cast spells from the top of
+  ||| your library. If you cast a spell this way, pay life equal to its
+  ||| mana value rather than pay its mana cost" (Bolas's Citadel; also
+  ||| Eye of Duskmantle, Gwenom, Inside Information, Nashi, Valgavoth,
+  ||| Xander's Pact). Those are not this arm: a rider is part of the
+  ||| licensing sentence and those are a statement about a cast the
+  ||| earlier one licensed, which is the "this way" anaphor's shape and
+  ||| not the rider's. Recorded, not folded in.
+  |||
+  ||| The cost is `costOffBattlefield`'s, exactly as `AltCost`'s and
+  ||| `AddedCost`'s are: the payment is made as the licensed card is cast
+  ||| [CR#601.2f..601.2h], where [CR#107.5]'s "{T}" taps a permanent and
+  ||| [CR#606.2]'s loyalty symbol is a permanent's activation cost.
+  ||| -- spelling: nothing at `ItsOwnCost`; ", without paying its mana
+  ||| cost" / "... their mana costs" after the permission at
+  ||| `WithoutPaying`; "by paying [c] rather than paying its mana cost"
+  ||| at `PayingInstead`.
+  public export
+  data PlayPayment : Bindings -> Type where
+    ItsOwnCost : PlayPayment bs
+    WithoutPaying : PlayPayment bs
+    PayingInstead : (c : Cost bs) ->
+                    {auto 0 ok : So (costOffBattlefield c)} ->
+                    PlayPayment bs
+
   public export
   data DeonticRider : Bindings -> Type where
     NoDeonticRider : DeonticRider bs
@@ -1619,7 +1670,7 @@ mutual
                 (limit : Maybe PlayLimit) ->
                 (window : Maybe PlayWindow) ->
                 (exclusive : Bool) ->
-                (payment : PlayPayment) -> DeonticRider bs
+                (payment : PlayPayment bs) -> DeonticRider bs
 
   ||| Whether the statement carries the play rider: the one question
   ||| every other gate asks of it.
