@@ -2804,11 +2804,66 @@ mutual
                 {auto ph : Phrasal k} ->
                 {auto 0 cp : Copiable what} ->
                 Effect bs
+    ||| "Copy that card", "Copy the exiled card", "Copy that card three
+    ||| times": [CR#707.12]'s verb, and a DIFFERENT rule and a different
+    ||| row from the stack copy above. That rule copies an object "and
+    ||| not just copy a spell": the copy "is created in the same zone the
+    ||| object is in and then cast while another spell or ability is
+    ||| resolving", where [CR#707.10] puts its copy on the stack.
+    ||| 19 supported lines write the verb (re-measured 2026-09-02) and 39
+    ||| write the "you may cast the copy" readback that follows it.
+    |||
+    ||| It SHARES the stack copy's mention word and nothing else, which
+    ||| is why `CopyW` asks the origin alone: the copy clause is the only
+    ||| thing that stamps `CopyOrigin`, and the zone the stamp appears in
+    ||| is the copied object's, not the stack's.
+    ||| The gate is `isCardZone` and not `OnStack`: [CR#707.12] is about
+    ||| an object that is a card somewhere, which is exactly the set
+    ||| `CardW` reads.
+    ||| The cast permission wants NO new row -- `MayPlay`'s neighbourhood
+    ||| already carries it, `PlayPayment.WithoutPaying` being
+    ||| [CR#118.9]'s alternative cost at a permission -- so no second
+    ||| without-paying rider is minted here. [CR#707.12a] settles the
+    ||| plural's per-object choice within that permission.
+    ||| -- spelling: "[who] cop(y|ies) [what][ [times] times]".
+    CopyCard : (who : Noun bs Player) ->
+               (what : Noun (nomIntro who) Object) ->
+               (times : Amount (nomIntro what)) ->
+               {auto 0 zn : So (isCardZone (nounZone what))} -> Effect bs
     ||| "You may choose new targets for the copy": [CR#707.10c]'s
     ||| permission, kind-indexed for `CopyStack`'s reason and under the
     ||| same gate -- what may be retargeted is what may be copied.
     ChooseNewTargets : {k : Kind} -> (what : Noun bs k) ->
                        {auto 0 cp : Copiable what} -> Effect bs
+    ||| "The copy targets that token" (Frontline Heroism, [CR#707.10e]'s
+    ||| own worked example), "The copy targets Ivy", "The copy targets
+    ||| the chosen creature": the copy's SPECIFIED target. 6 supported
+    ||| lines write it (re-measured 2026-09-02).
+    |||
+    ||| A statement whose subject is the copy mention and whose predicate
+    ||| is a targeting relation no other row states. `AnyTarget` and the
+    ||| target quantities describe a phrase's OWN targeting as it is
+    ||| written, and `Targets` describes an object BY what it targets;
+    ||| neither can say that one object's targets are set to another
+    ||| after the fact, which is what [CR#707.10e] has an effect do --
+    ||| "copy a spell or ability and specify a new target for the copy".
+    ||| It is `Targets`' relation at the statement seat, on
+    ||| `BlockerOf`/`BlockedBy`'s economy: one relation decided once and
+    ||| spelled at both seats, with each seat's own gates.
+    |||
+    ||| The subject takes `Copiable` and not a copy-only gate: what may
+    ||| be given a new target is what the copy clause put on the stack,
+    ||| and the same kinds are at issue [CR#707.10]. The complement takes
+    ||| `Targetable`, [CR#115.1]'s own set.
+    ||| The permission [CR#707.10c] states is `ChooseNewTargets` and this
+    ||| is not it: that one lets the copy's controller choose, this one
+    ||| names the target outright and leaves no choice.
+    ||| -- spelling: "[copy] targets [whom]".
+    CopyTargets : {k : Kind} -> {kt : Kind} ->
+                  (copy : Noun bs k) ->
+                  (whom : Noun (nomIntro copy) kt) ->
+                  {auto 0 cp : Copiable copy} ->
+                  {auto 0 tk : Targetable kt} -> Effect bs
     ChangeLife : (who : Noun bs Player) -> (op : LifeOp (nomIntro who)) -> Effect bs
     ||| "Exchange life totals with target opponent" (Magus of the Mirror,
     ||| Mirror Universe, Mister Negative), "Two target players exchange
@@ -3553,6 +3608,8 @@ mutual
   heldUntilOk (CounterSpell _) = False
   heldUntilOk (CopyStack _ _ _ _) = False
   heldUntilOk (ChooseNewTargets _) = False
+  heldUntilOk (CopyTargets _ _) = False
+  heldUntilOk (CopyCard _ _ _) = False
   heldUntilOk (Choose _ _) = False
   heldUntilOk (Move _ _ _) = True
   heldUntilOk (ExchangeLife _) = False
@@ -3665,6 +3722,8 @@ mutual
   reflexEncloseUse (CounterSpell _) = EncAgentless
   reflexEncloseUse (CopyStack _ _ _ _) = EncAgentless
   reflexEncloseUse (ChooseNewTargets _) = EncReflexive
+  reflexEncloseUse (CopyTargets _ _) = EncAgentless
+  reflexEncloseUse (CopyCard _ _ _) = EncAgentless
   reflexEncloseUse (Create _ _ _ _) = EncReflexive -- 8
   reflexEncloseUse (GetsEmblem _ _) = EncAgentless
   reflexEncloseUse (PutCounters _ _ _) = EncReflexive    -- 8
@@ -3788,6 +3847,8 @@ mutual
   thisWayOutcomeOk (CounterSpell _) = True
   thisWayOutcomeOk (CopyStack _ _ _ _) = True
   thisWayOutcomeOk (ChooseNewTargets _) = True
+  thisWayOutcomeOk (CopyTargets _ _) = True
+  thisWayOutcomeOk (CopyCard _ _ _) = True
   thisWayOutcomeOk (Choose _ _) = True
   thisWayOutcomeOk (Move _ _ _) = True
   thisWayOutcomeOk (ExchangeLife _) = True
@@ -3909,6 +3970,8 @@ mutual
   costActionOk (CounterSpell _) = True
   costActionOk (CopyStack _ what _ _) = costNounOk what
   costActionOk (ChooseNewTargets what) = costNounOk what
+  costActionOk (CopyTargets copy _) = costNounOk copy
+  costActionOk (CopyCard _ what _) = costNounOk what
   costActionOk (Choose n _) = costNounOk n
   costActionOk (Move what _ _) = costNounOk what
   costActionOk (ExchangeLife parties) = costNounOk parties
@@ -4065,6 +4128,8 @@ mutual
   effEq (CounterSpell _) _ = False
   effEq (CopyStack _ _ _ _) _ = False
   effEq (ChooseNewTargets _) _ = False
+  effEq (CopyTargets _ _) _ = False
+  effEq (CopyCard _ _ _) _ = False
   effEq (Choose _ _) _ = False
   effEq (Move a s _) (Move b t _) = nounEqRef a b && zoneSort s == zoneSort t
   effEq (Move _ _ _) _ = False
@@ -4194,6 +4259,16 @@ mutual
               (copyPayload ph (nounTy what))
       :: amtIntro times
   effIntro (ChooseNewTargets what) = nomIntro what
+  -- the target is named and the copy was already standing, so the
+  -- statement announces what its complement introduced and nothing else.
+  effIntro (CopyTargets copy whom) = nomIntro whom
+  -- [CR#707.12] creates the copy "in the same zone the object is in",
+  -- so the mention records the copied card's zone where the stack copy
+  -- records the stack.
+  effIntro (CopyCard who what times) =
+    MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
+              (ObjectP (nounTy what) (nounZone what) Nothing (Just CopyOrigin) Nothing)
+      :: amtIntro times
   effIntro (Choose n Nothing) = chosenIntro n
   effIntro (Choose n (Just b)) = nounDelta b ++ chosenIntro n
   -- a destination that shuffles [CR#701.24c] takes the discourse with
@@ -4340,6 +4415,8 @@ mutual
   preIntro (CounterSpell what) = nomIntro what
   preIntro (CopyStack agent what times exc) = amtIntro times
   preIntro (ChooseNewTargets what) = nomIntro what
+  preIntro (CopyTargets copy whom) = nomIntro whom
+  preIntro (CopyCard who what times) = amtIntro times
   preIntro (Choose n _) = chosenIntro n
   preIntro (Move what to _) = nomIntro what
   preIntro (ExchangeLife parties) = nomIntro parties
@@ -4483,6 +4560,8 @@ mutual
   annIntro (CounterSpell what) = nomIntro what
   annIntro (CopyStack agent what times exc) = amtIntro times
   annIntro (ChooseNewTargets what) = nomIntro what
+  annIntro (CopyTargets copy whom) = nomIntro whom
+  annIntro (CopyCard who what times) = amtIntro times
   annIntro (Choose n _) = chosenIntro n
   annIntro (Move what to _) = nomIntro what
   annIntro (ExchangeLife parties) = nomIntro parties
@@ -4630,6 +4709,10 @@ mutual
     [MkBinding TheD k (outputPlur (nounPlur what) (amtPlur times))
                (copyPayload ph (nounTy what))]
   deedDelta (ChooseNewTargets _) = []
+  deedDelta (CopyTargets _ _) = []
+  deedDelta (CopyCard who what times) =
+    [MkBinding TheD Object (outputPlur (nounPlur what) (amtPlur times))
+               (ObjectP (nounTy what) (nounZone what) Nothing (Just CopyOrigin) Nothing)]
   deedDelta (Choose n _) = []
   deedDelta (Move what to _) = []
   -- [CR#701.12c] settles the exchange by having EACH player "gain or

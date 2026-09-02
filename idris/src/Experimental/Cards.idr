@@ -4066,6 +4066,60 @@ repeatedReverberation =
                      , Macros.may You (ChooseNewTargets (Those CopyJoinW)) ])) ]
        Nothing
 
+||| Frontline Heroism's second line -- "Whenever you cast a spell that
+||| targets only a single creature you control, create a 1/1 red Soldier
+||| creature token with haste, then copy that spell. The copy targets
+||| that token." [CR#707.10e]'s own worked example, and the SPECIFIED
+||| target's witness: a statement whose subject is the copy mention and
+||| whose predicate sets what the copy targets, which `AnyTarget` and the
+||| target quantities cannot say -- they describe a phrase's own printed
+||| targeting, never one object's targets being set after the fact.
+||| The copy mention and the token mention stand side by side here, each
+||| read by its own word, which is the discourse this row needs to work.
+||| 6 supported lines write it (re-measured 2026-09-02).
+||| A FRAGMENT: the card's first line is an ordinary entry trigger over
+||| the same token and buys nothing this one does not.
+public export
+frontlineHeroismCopy : Ability
+frontlineHeroismCopy =
+  Macros.triggered Whenever
+    (Casts You
+       (Macros.a (And [ Macros.spell
+                      , Targets (Macros.a (And [Macros.creature, ControlledBy You]))
+                                SoleTarget ]))
+       Nothing)
+    (Sequentially
+       [ Macros.create (Lit 1)
+           (MkToken (Just (Lit 1 ** Lit 1)) [Red]
+                    (MkTypeLine [creatureType "Soldier"] [Creature])
+                    [Macros.keyword "Haste"] Nothing)
+       , CopyStack You (That SpellW) (Lit 1) []
+       , CopyTargets (That CopyW) (That TokenW) ])
+
+||| Flawless Forgery's spell line -- "Exile target instant or sorcery
+||| card from an opponent's graveyard. Copy that card. You may cast the
+||| copy without paying its mana cost." [CR#707.12]'s verb, kept a
+||| distinct row from [CR#707.10]'s: the copy is created in the zone the
+||| CARD is in -- exile, here -- and cast from there, where the stack
+||| copy's is put on the stack. The mention word is shared and the rest
+||| is not, which is why `CopyW` asks the origin and no zone.
+||| The cast permission is `MayPlay`'s, whose `WithoutPaying` payment was
+||| already the rider: measured before designing, and no second one
+||| minted.
+||| A FRAGMENT: the card's other line is casualty, a keyword row this
+||| round did not mint.
+public export
+flawlessForgeryLine : Effect []
+flawlessForgeryLine =
+  Sequentially
+    [ Macros.exile (Macros.target (And [ Macros.instantOrSorcery
+                                       , InZone (Macros.graveyardOf
+                                                   (Macros.a Opponent)) ]))
+    , CopyCard You (That CardW) (Lit 1)
+    , Continuously (MayPlay You (That CopyW) Cast Nothing Nothing Nothing
+                            Nothing False WithoutPaying)
+                   Nothing ]
+
 public export
 twincast : Card
 twincast =

@@ -2653,8 +2653,12 @@ wordReaches TokenW (MkBinding _ _ _ LetterP) = False
 wordReaches TokenW (MkBinding _ _ _ TurnRefP) = False
 wordReaches TokenW (MkBinding _ _ _ (AbilityP _)) = False
 wordReaches TokenW (MkBinding _ _ _ (JoinP _ _)) = False
-wordReaches CopyW (MkBinding _ _ _ (ObjectP _ zn _ og _)) =
-  onStackZone zn && isCopyOrigin og
+-- The ORIGIN alone, and no zone. A copy clause is the only thing that
+-- stamps `CopyOrigin`, and [CR#707.12] creates its copy "in the same
+-- zone the object is in" rather than on the stack, so re-asking the
+-- stack here would hide the copy-a-card verb's own mention from the word
+-- that names it. A token copy carries `TokenOrigin` and is unaffected.
+wordReaches CopyW (MkBinding _ _ _ (ObjectP _ zn _ og _)) = isCopyOrigin og
 wordReaches CopyW (MkBinding _ _ _ PlayerP) = False
 wordReaches CopyW (MkBinding _ _ _ ChosenPlayerP) = False
 wordReaches CopyW (MkBinding _ _ _ QualityP) = False
