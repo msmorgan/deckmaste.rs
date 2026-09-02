@@ -8,16 +8,44 @@ impl Lower for deckmaste_semantics::Reference {
     type Target = deckmaste_core::Reference;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::This => deckmaste_core::Reference::This,
+            Self::This => crate::region::source().map_or(
+                deckmaste_core::Reference::This,
+                deckmaste_core::Reference::Reg,
+            ),
             Self::Single(f0) => deckmaste_core::Reference::Single(f0.lower()),
-            Self::You => deckmaste_core::Reference::You,
-            Self::Opponent => deckmaste_core::Reference::Opponent,
+            Self::You => crate::region::controller().map_or(
+                deckmaste_core::Reference::You,
+                deckmaste_core::Reference::Reg,
+            ),
+            Self::Opponent => crate::region::controller().map_or(
+                deckmaste_core::Reference::Opponent,
+                |controller| {
+                    deckmaste_core::Reference::OpponentOf(std::sync::Arc::new(
+                        deckmaste_core::Reference::Reg(controller),
+                    ))
+                },
+            ),
             Self::It => deckmaste_core::Reference::It,
-            Self::Target(f0) => deckmaste_core::Reference::Target(f0.lower()),
-            Self::EventObject => deckmaste_core::Reference::EventObject,
-            Self::EventPatient => deckmaste_core::Reference::EventPatient,
-            Self::EventActor => deckmaste_core::Reference::EventActor,
-            Self::DefendingPlayer => deckmaste_core::Reference::DefendingPlayer,
+            Self::Target(index) => crate::region::target(index).map_or(
+                deckmaste_core::Reference::Target(index),
+                deckmaste_core::Reference::Reg,
+            ),
+            Self::EventObject => crate::region::event_object().map_or(
+                deckmaste_core::Reference::EventObject,
+                deckmaste_core::Reference::Reg,
+            ),
+            Self::EventPatient => crate::region::event_patient().map_or(
+                deckmaste_core::Reference::EventPatient,
+                deckmaste_core::Reference::Reg,
+            ),
+            Self::EventActor => crate::region::event_actor().map_or(
+                deckmaste_core::Reference::EventActor,
+                deckmaste_core::Reference::Reg,
+            ),
+            Self::DefendingPlayer => crate::region::defending_player().map_or(
+                deckmaste_core::Reference::DefendingPlayer,
+                deckmaste_core::Reference::Reg,
+            ),
             Self::That(f0) => deckmaste_core::Reference::That(f0.lower()),
             Self::Bound(f0) => deckmaste_core::Reference::Bound(f0.lower()),
             Self::Linked(f0) => deckmaste_core::Reference::Linked(f0.lower()),
@@ -94,7 +122,7 @@ mod tests {
     fn lowers_reference_target() {
         assert_matches!(
             deckmaste_semantics::Reference::Target(0).lower(),
-            deckmaste_core::Reference::Target(0)
+            deckmaste_core::Reference::Reg(deckmaste_core::RefId(6))
         );
     }
 

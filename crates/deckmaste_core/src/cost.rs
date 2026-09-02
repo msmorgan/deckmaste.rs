@@ -157,19 +157,13 @@ fn runnable_discard_effect_is_bound(effect: &crate::OneShotEffect) -> bool {
 fn runnable_reference_is_bound(reference: &Reference) -> bool {
     match reference {
         Reference::Single(selection) => runnable_selection_is_bound(selection),
-        Reference::ControllerOf(reference)
+        Reference::OpponentOf(reference)
+        | Reference::ControllerOf(reference)
         | Reference::OwnerOf(reference)
         | Reference::AttachHostOf(reference) => runnable_reference_is_bound(reference),
         Reference::Coalesce(references) => references.iter().all(runnable_reference_is_bound),
-        Reference::This
-        | Reference::You
-        | Reference::Opponent
+        Reference::Reg(_)
         | Reference::It
-        | Reference::Target(_)
-        | Reference::EventObject
-        | Reference::EventPatient
-        | Reference::EventActor
-        | Reference::DefendingPlayer
         | Reference::That(_)
         | Reference::Bound(_)
         | Reference::Linked(_)
@@ -304,7 +298,8 @@ fn runnable_count_is_bound(count: &crate::Count) -> bool {
         // supported runnable cost magnitude until that grammar has its own
         // checked representation.
         Count::EventCount(..) | Count::EventSum(..) => false,
-        Count::X
+        Count::Reg(_)
+        | Count::X
         | Count::ThatMany
         | Count::ThatMuch
         | Count::Allotment
@@ -371,7 +366,7 @@ fn runnable_predicate_is_bound(predicate: &crate::Predicate) -> bool {
 
 fn runnable_selection_is_bound(selection: &crate::Selection) -> bool {
     match selection {
-        crate::Selection::They | crate::Selection::Them(_) => true,
+        crate::Selection::Reg(_) | crate::Selection::They | crate::Selection::Them(_) => true,
         crate::Selection::Union(selections) => selections.iter().all(runnable_selection_is_bound),
         crate::Selection::SelectAll(_)
         | crate::Selection::InChosenOrder(..)
@@ -381,7 +376,6 @@ fn runnable_selection_is_bound(selection: &crate::Selection) -> bool {
         | crate::Selection::BottomOfLibrary { .. }
         | crate::Selection::LibraryOf(_)
         | crate::Selection::TopOfGraveyard { .. }
-        | crate::Selection::Targets(_)
         | crate::Selection::ValidTargetsFor(_)
         | crate::Selection::PilesOf { .. }
         | crate::Selection::Pick { .. } => false,
@@ -457,21 +451,15 @@ fn cost_binder_producer_is_supported(action: &crate::Action) -> bool {
 fn cost_binder_reference_is_supported(reference: &Reference) -> bool {
     match reference {
         Reference::Single(selection) => cost_binder_selection_is_supported(selection),
-        Reference::ControllerOf(reference)
+        Reference::OpponentOf(reference)
+        | Reference::ControllerOf(reference)
         | Reference::OwnerOf(reference)
         | Reference::AttachHostOf(reference) => cost_binder_reference_is_supported(reference),
         Reference::Coalesce(references) => {
             references.iter().all(cost_binder_reference_is_supported)
         }
-        Reference::This
-        | Reference::You
-        | Reference::Opponent
+        Reference::Reg(_)
         | Reference::It
-        | Reference::Target(_)
-        | Reference::EventObject
-        | Reference::EventPatient
-        | Reference::EventActor
-        | Reference::DefendingPlayer
         | Reference::That(_)
         | Reference::Bound(_)
         | Reference::Linked(_)
@@ -482,6 +470,7 @@ fn cost_binder_reference_is_supported(reference: &Reference) -> bool {
 fn cost_binder_selection_is_supported(selection: &crate::Selection) -> bool {
     match selection {
         crate::Selection::Random(..) => false,
+        crate::Selection::Reg(_) | crate::Selection::They | crate::Selection::Them(_) => true,
         crate::Selection::SelectAll(filter) => runnable_predicate_is_bound(filter),
         crate::Selection::Union(selections) => {
             selections.iter().all(cost_binder_selection_is_supported)
@@ -501,7 +490,6 @@ fn cost_binder_selection_is_supported(selection: &crate::Selection) -> bool {
         crate::Selection::Pick { proj, .. } => {
             runnable_countable_is_bound(&proj.of) && runnable_count_is_bound(&proj.by)
         }
-        crate::Selection::Targets(_) | crate::Selection::They | crate::Selection::Them(_) => true,
     }
 }
 
@@ -883,7 +871,7 @@ mod tests {
         );
         assert_eq!(read("Tap"), CostComponent::Tap);
         assert_eq!(
-            read("Act(Sacrifice(You, This))"),
+            read("Act(Sacrifice(Reg(1), Reg(0)))"),
             CostComponent::do_action(crate::Action::Sacrifice(Reference::You, Reference::This)),
         );
     }
@@ -1039,7 +1027,7 @@ mod tests {
     #[test]
     fn mana_cost_of_round_trips() {
         assert_eq!(
-            read("ManaCostOf(This)"),
+            read("ManaCostOf(Reg(0))"),
             CostComponent::ManaCostOf(Reference::This),
         );
         let v = CostComponent::ManaCostOf(Reference::ControllerOf(Arc::new(Reference::This)));
@@ -1119,7 +1107,7 @@ mod tests {
     fn cost_list_round_trips() {
         // `Sacrifice` carries its agent slot explicitly now ([CR#701.21a]
         // "its controller"); in a cost, `You` is the payer.
-        let source = "[Mana([Simple(Generic(2))]),Tap,Act(Sacrifice(You, This))]";
+        let source = "[Mana([Simple(Generic(2))]),Tap,Act(Sacrifice(Reg(1), Reg(0)))]";
         let parsed: Arc<[CostComponent]> = crate::ron::options().from_str(source).unwrap();
         let written = crate::ron::options().to_string(&parsed).unwrap();
         let reparsed: Arc<[CostComponent]> = crate::ron::options().from_str(&written).unwrap();

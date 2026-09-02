@@ -4,12 +4,49 @@
 
 use crate::Lower;
 
+fn peel_targets(
+    effect: deckmaste_semantics::OneShotEffect,
+) -> (
+    std::sync::Arc<[deckmaste_semantics::TargetSpec]>,
+    deckmaste_semantics::OneShotEffect,
+) {
+    match effect {
+        deckmaste_semantics::OneShotEffect::Targeted(targeted) => (
+            targeted.targets,
+            std::sync::Arc::unwrap_or_clone(targeted.effect),
+        ),
+        deckmaste_semantics::OneShotEffect::Expanded(expanded) => peel_targets(*expanded.value),
+        deckmaste_semantics::OneShotEffect::May(mut may) => {
+            let (targets, effect) = peel_targets(std::sync::Arc::unwrap_or_clone(may.effect));
+            may.effect = std::sync::Arc::new(effect);
+            (targets, deckmaste_semantics::OneShotEffect::May(may))
+        }
+        other => (std::sync::Arc::from([]), other),
+    }
+}
+
+fn lower_region(
+    kind: crate::region::RegionKind,
+    effect: deckmaste_semantics::OneShotEffect,
+) -> (
+    std::sync::Arc<[deckmaste_core::TargetSpec]>,
+    deckmaste_core::Region,
+) {
+    let (targets, body) = peel_targets(effect);
+    let target_count = targets.len();
+    let (params, (targets, body)) =
+        crate::region::in_region(kind, target_count, || (targets.lower(), body.lower()));
+    (targets, deckmaste_core::Region::new(params, body))
+}
+
 impl Lower for deckmaste_semantics::SpellAbility {
     type Target = deckmaste_core::SpellAbility;
     fn lower(self) -> <Self as Lower>::Target {
+        let (targets, effect) = lower_region(crate::region::RegionKind::Spell, self.effect);
         deckmaste_core::SpellAbility {
             ability_word: self.ability_word.lower(),
-            effect: self.effect.lower(),
+            targets,
+            effect,
         }
     }
 }
@@ -17,6 +54,7 @@ impl Lower for deckmaste_semantics::SpellAbility {
 impl Lower for deckmaste_semantics::ActivatedAbility {
     type Target = deckmaste_core::ActivatedAbility;
     fn lower(self) -> <Self as Lower>::Target {
+        let (targets, effect) = lower_region(crate::region::RegionKind::Activated, self.effect);
         deckmaste_core::ActivatedAbility {
             ability_word: self.ability_word.lower(),
             cost: self.cost.lower(),
@@ -24,7 +62,8 @@ impl Lower for deckmaste_semantics::ActivatedAbility {
             window: self.window.lower(),
             condition: self.condition.lower(),
             limits: self.limits.lower(),
-            effect: self.effect.lower(),
+            targets,
+            effect,
         }
     }
 }
@@ -43,14 +82,21 @@ impl Lower for deckmaste_semantics::UseLimit {
 impl Lower for deckmaste_semantics::TriggeredAbility {
     type Target = deckmaste_core::TriggeredAbility;
     fn lower(self) -> <Self as Lower>::Target {
+        let (semantic_targets, body) = peel_targets(self.effect);
+        let target_count = semantic_targets.len();
+        let (params, (targets, body, where_x)) =
+            crate::region::in_region(crate::region::RegionKind::Triggered, target_count, || {
+                (semantic_targets.lower(), body.lower(), self.where_x.lower())
+            });
         deckmaste_core::TriggeredAbility {
             ability_word: self.ability_word.lower(),
             event: self.event.lower(),
             from: self.from.lower(),
             condition: self.condition.lower(),
             limits: self.limits.lower(),
-            where_x: self.where_x.lower(),
-            effect: self.effect.lower(),
+            where_x,
+            targets,
+            effect: deckmaste_core::Region::new(params, body),
         }
     }
 }
@@ -81,8 +127,10 @@ impl Lower for deckmaste_semantics::ModalCostRider {
 impl Lower for deckmaste_semantics::Mode {
     type Target = deckmaste_core::Mode;
     fn lower(self) -> <Self as Lower>::Target {
+        let (targets, effect) = lower_region(crate::region::RegionKind::Mode, self.effect);
         deckmaste_core::Mode {
-            effect: self.effect.lower(),
+            targets,
+            effect,
             cost: self.cost.lower(),
         }
     }
@@ -148,11 +196,15 @@ fn classify_activated(
         return deckmaste_core::Ability::Activated(ability);
     }
 
-    if let OneShotEffect::Modal(modal) = &ability.effect {
+    if let [OneShotEffect::Modal(modal)] = ability.effect.body.as_ref() {
         let classes: std::sync::Arc<[deckmaste_core::ManaModeClass]> = modal
             .modes
             .iter()
-            .map(|mode| effect_mana_facts(&mode.effect).mode_class())
+            .map(|mode| {
+                let mut facts = region_mana_facts(&mode.effect);
+                facts.targetless &= mode.targets.is_empty();
+                facts.mode_class()
+            })
             .collect::<Vec<_>>()
             .into();
         if classes
@@ -167,7 +219,8 @@ fn classify_activated(
         return deckmaste_core::Ability::Activated(ability);
     }
 
-    let facts = effect_mana_facts(&ability.effect);
+    let mut facts = region_mana_facts(&ability.effect);
+    facts.targetless &= ability.targets.is_empty();
     if facts.adds_mana && facts.targetless {
         deckmaste_core::Ability::Mana(ManaAbility::Activated {
             ability,
@@ -181,7 +234,8 @@ fn classify_activated(
 fn classify_triggered(
     ability: std::sync::Arc<deckmaste_core::TriggeredAbility>,
 ) -> deckmaste_core::Ability {
-    let facts = effect_mana_facts(&ability.effect);
+    let mut facts = region_mana_facts(&ability.effect);
+    facts.targetless &= ability.targets.is_empty();
     if facts.adds_mana && facts.targetless && triggered_by_mana(&ability.event) {
         deckmaste_core::Ability::Mana(deckmaste_core::ManaAbility::Triggered(ability))
     } else {
@@ -257,16 +311,20 @@ fn effect_mana_facts(effect: &deckmaste_core::OneShotEffect) -> ManaFacts {
         OneShotEffect::Noting(noting) => effect_mana_facts(&noting.effect),
         OneShotEffect::Modal(modal) => {
             modal.modes.iter().fold(ManaFacts::NEUTRAL, |facts, mode| {
-                facts.merge(effect_mana_facts(&mode.effect))
+                facts.merge(region_mana_facts(&mode.effect))
             })
-        }
-        OneShotEffect::Targeted(targeted) => {
-            let mut facts = effect_mana_facts(&targeted.effect);
-            facts.targetless &= targeted.targets.is_empty();
-            facts
         }
         OneShotEffect::Repeat(_, body) | OneShotEffect::Batch(_, body) => effect_mana_facts(body),
     }
+}
+
+fn region_mana_facts(region: &deckmaste_core::Region) -> ManaFacts {
+    region
+        .body
+        .iter()
+        .fold(ManaFacts::NEUTRAL, |facts, instruction| {
+            facts.merge(effect_mana_facts(instruction))
+        })
 }
 
 fn effect_action_facts(action: &deckmaste_core::Action) -> ManaFacts {
@@ -310,49 +368,46 @@ mod tests {
 
     #[test]
     fn lowers_spell_ability() {
+        let lowered = deckmaste_semantics::SpellAbility {
+            ability_word: None,
+            effect: minimal_one_shot_effect(),
+        }
+        .lower();
+        assert!(lowered.targets.is_empty());
         assert_matches!(
-            deckmaste_semantics::SpellAbility {
-                ability_word: None,
-                effect: minimal_one_shot_effect()
-            }
-            .lower(),
-            deckmaste_core::SpellAbility {
-                ability_word: None,
-                effect: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                    deckmaste_core::Reference::This,
-                    deckmaste_core::Count::X,
-                    deckmaste_core::Reference::This
-                ))
-            }
+            lowered.effect.body.as_ref(),
+            [deckmaste_core::OneShotEffect::Act(
+                deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                    deckmaste_core::Count::Reg(_),
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+                )
+            )]
         );
     }
 
     #[test]
     fn lowers_activated_ability() {
+        let lowered = deckmaste_semantics::ActivatedAbility {
+            ability_word: None,
+            cost: minimal_cost(),
+            from: None,
+            window: None,
+            condition: None,
+            limits: [].into(),
+            effect: minimal_one_shot_effect(),
+        }
+        .lower();
+        assert!(lowered.targets.is_empty());
         assert_matches!(
-            deckmaste_semantics::ActivatedAbility {
-                ability_word: None,
-                cost: minimal_cost(),
-                from: None,
-                window: None,
-                condition: None,
-                limits: [].into(),
-                effect: minimal_one_shot_effect()
-            }
-            .lower(),
-            deckmaste_core::ActivatedAbility {
-                ability_word: None,
-                cost: deckmaste_core::Cost(_),
-                from: None,
-                window: None,
-                condition: None,
-                limits: _,
-                effect: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                    deckmaste_core::Reference::This,
-                    deckmaste_core::Count::X,
-                    deckmaste_core::Reference::This
-                ))
-            }
+            lowered.effect.body.as_ref(),
+            [deckmaste_core::OneShotEffect::Act(
+                deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                    deckmaste_core::Count::Reg(_),
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+                )
+            )]
         );
     }
 
@@ -382,35 +437,26 @@ mod tests {
 
     #[test]
     fn lowers_triggered_ability() {
+        let lowered = deckmaste_semantics::TriggeredAbility {
+            ability_word: None,
+            event: minimal_event_filter(),
+            from: None,
+            condition: None,
+            limits: [].into(),
+            where_x: None,
+            effect: minimal_one_shot_effect(),
+        }
+        .lower();
+        assert!(lowered.targets.is_empty());
         assert_matches!(
-            deckmaste_semantics::TriggeredAbility {
-                ability_word: None,
-                event: minimal_event_filter(),
-                from: None,
-                condition: None,
-                limits: [].into(),
-                where_x: None,
-                effect: minimal_one_shot_effect()
-            }
-            .lower(),
-            deckmaste_core::TriggeredAbility {
-                ability_word: None,
-                event: deckmaste_core::EventFilter::ZoneChange {
-                    what: deckmaste_core::Predicate::Kind(deckmaste_core::ObjectKind::Ability),
-                    from: None,
-                    to: None,
-                    cause: None
-                },
-                from: None,
-                condition: None,
-                limits: _,
-                where_x: None,
-                effect: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                    deckmaste_core::Reference::This,
-                    deckmaste_core::Count::X,
-                    deckmaste_core::Reference::This
-                ))
-            }
+            lowered.effect.body.as_ref(),
+            [deckmaste_core::OneShotEffect::Act(
+                deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                    deckmaste_core::Count::Reg(_),
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+                )
+            )]
         );
     }
 
@@ -453,20 +499,159 @@ mod tests {
 
     #[test]
     fn lowers_mode() {
+        let lowered = deckmaste_semantics::Mode {
+            effect: minimal_one_shot_effect(),
+            cost: None,
+        }
+        .lower();
+        assert!(lowered.targets.is_empty());
         assert_matches!(
-            deckmaste_semantics::Mode {
-                effect: minimal_one_shot_effect(),
-                cost: None
-            }
-            .lower(),
-            deckmaste_core::Mode {
-                effect: deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
-                    deckmaste_core::Reference::This,
-                    deckmaste_core::Count::X,
-                    deckmaste_core::Reference::This
+            lowered.effect.body.as_ref(),
+            [deckmaste_core::OneShotEffect::Act(
+                deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0)),
+                    deckmaste_core::Count::Reg(_),
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(0))
+                )
+            )]
+        );
+    }
+
+    #[test]
+    fn two_same_sort_targets_lower_to_distinct_region_parameters() {
+        let effect = deckmaste_semantics::OneShotEffect::Targeted(deckmaste_semantics::Targeted {
+            targets: vec![minimal_target_spec(), minimal_target_spec()].into(),
+            effect: std::sync::Arc::new(deckmaste_semantics::OneShotEffect::Sequentially(
+                vec![
+                    deckmaste_semantics::OneShotEffect::Act(deckmaste_semantics::Action::DrawCard(
+                        deckmaste_semantics::Reference::Target(0),
+                    )),
+                    deckmaste_semantics::OneShotEffect::Act(deckmaste_semantics::Action::DrawCard(
+                        deckmaste_semantics::Reference::Target(1),
+                    )),
+                ]
+                .into(),
+            )),
+        });
+        let lowered = deckmaste_semantics::SpellAbility {
+            ability_word: None,
+            effect,
+        }
+        .lower();
+
+        assert_eq!(lowered.targets.len(), 2);
+        assert_matches!(
+            lowered.effect.body.as_ref(),
+            [
+                deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DrawCard(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(6))
                 )),
-                cost: None
-            }
+                deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DrawCard(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(7))
+                ))
+            ]
+        );
+        assert_eq!(
+            deckmaste_core::validate_telescope(&lowered.effect, &lowered.targets, None),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn trigger_event_roles_lower_to_the_fixed_region_prefix() {
+        let mut ability = minimal_triggered_ability();
+        ability.effect = deckmaste_semantics::OneShotEffect::Sequentially(
+            vec![
+                deckmaste_semantics::OneShotEffect::Act(deckmaste_semantics::Action::DealDamage(
+                    deckmaste_semantics::Reference::EventObject,
+                    deckmaste_semantics::Count::Literal(1),
+                    deckmaste_semantics::Reference::EventPatient,
+                )),
+                deckmaste_semantics::OneShotEffect::Act(deckmaste_semantics::Action::DrawCard(
+                    deckmaste_semantics::Reference::EventActor,
+                )),
+            ]
+            .into(),
+        );
+        let lowered = ability.lower();
+
+        assert_matches!(
+            lowered.effect.body.as_ref(),
+            [
+                deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DealDamage(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(2)),
+                    _,
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(3))
+                )),
+                deckmaste_core::OneShotEffect::Act(deckmaste_core::Action::DrawCard(
+                    deckmaste_core::Reference::Reg(deckmaste_core::RefId(4))
+                ))
+            ]
+        );
+        assert_eq!(
+            deckmaste_core::validate_telescope(
+                &lowered.effect,
+                &lowered.targets,
+                lowered.where_x.as_ref()
+            ),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn modal_and_delayed_regions_own_their_target_telescopes() {
+        let targeted_mode = deckmaste_semantics::Mode {
+            effect: deckmaste_semantics::OneShotEffect::Targeted(deckmaste_semantics::Targeted {
+                targets: vec![minimal_target_spec()].into(),
+                effect: std::sync::Arc::new(deckmaste_semantics::OneShotEffect::Act(
+                    deckmaste_semantics::Action::DrawCard(deckmaste_semantics::Reference::Target(
+                        0,
+                    )),
+                )),
+            }),
+            cost: None,
+        }
+        .lower();
+        assert_eq!(targeted_mode.targets.len(), 1);
+        assert_matches!(
+            targeted_mode.effect.body.as_ref(),
+            [deckmaste_core::OneShotEffect::Act(
+                deckmaste_core::Action::DrawCard(deckmaste_core::Reference::Reg(
+                    deckmaste_core::RefId(6)
+                ))
+            )]
+        );
+
+        let delayed = deckmaste_semantics::OneShotEffect::Delayed(std::sync::Arc::new(
+            minimal_triggered_ability(),
+        ));
+        let outer = deckmaste_semantics::SpellAbility {
+            ability_word: None,
+            effect: deckmaste_semantics::OneShotEffect::Targeted(deckmaste_semantics::Targeted {
+                targets: vec![minimal_target_spec()].into(),
+                effect: std::sync::Arc::new(delayed),
+            }),
+        }
+        .lower();
+        let [deckmaste_core::OneShotEffect::Delayed(inner)] = outer.effect.body.as_ref() else {
+            panic!("outer targeted spell should contain one delayed trigger")
+        };
+        assert!(inner.targets.is_empty());
+        assert_eq!(
+            inner
+                .effect
+                .params
+                .iter()
+                .filter(|param| matches!(
+                    param.provenance,
+                    deckmaste_core::Provenance::AnnouncedTarget(_)
+                ))
+                .count(),
+            0
+        );
+        assert_eq!(
+            deckmaste_core::validate_telescope(&outer.effect, &outer.targets, None),
+            Ok(())
         );
     }
 

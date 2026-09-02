@@ -36,7 +36,6 @@ use deckmaste_core::SpellAbility;
 use deckmaste_core::StatePredicate;
 use deckmaste_core::StaticEffect;
 use deckmaste_core::TargetSpec;
-use deckmaste_core::Targeted;
 use deckmaste_core::Token;
 use deckmaste_core::TriggeredAbility;
 use deckmaste_core::Type;
@@ -65,12 +64,13 @@ use deckmaste_engine::WorkItem;
 fn activated_ability(cost: Cost, effect: OneShotEffect) -> ActivatedAbility {
     ActivatedAbility {
         ability_word: None,
+        targets: [].into(),
         cost,
         from: None,
         window: None,
         condition: None,
         limits: Arc::from([]),
-        effect,
+        effect: effect.into(),
     }
 }
 
@@ -481,6 +481,7 @@ fn modal_payment_fixture_with_extras(
 ) {
     modal_payment_fixture_with_ordinary_mode(
         extras,
+        Arc::from([]),
         OneShotEffect::Sequentially(Arc::from([])),
         ManaModeClass {
             adds_mana: false,
@@ -491,6 +492,7 @@ fn modal_payment_fixture_with_extras(
 
 fn modal_payment_fixture_with_ordinary_mode(
     extras: Vec<Arc<Card>>,
+    ordinary_targets: Arc<[TargetSpec]>,
     ordinary_effect: OneShotEffect,
     ordinary_class: ManaModeClass,
 ) -> (
@@ -509,15 +511,18 @@ fn modal_payment_fixture_with_ordinary_mode(
         },
         modes: vec![
             Mode {
+                targets: [].into(),
                 effect: OneShotEffect::Act(CoreAction::AddMana(
                     Reference::You,
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
-                )),
+                ))
+                .into(),
                 cost: None,
             },
             Mode {
-                effect: ordinary_effect,
+                targets: ordinary_targets,
+                effect: ordinary_effect.into(),
                 cost: None,
             },
         ]
@@ -697,6 +702,7 @@ fn triggered_mana_fixture() -> (
         abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
             TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from: None,
                 event: EventFilter::TapForMana {
@@ -709,7 +715,8 @@ fn triggered_mana_fixture() -> (
                     Reference::You,
                     Count::Literal(1),
                     ManaSpec::ProducedByEvent.into(),
-                )),
+                ))
+                .into(),
             },
         )))],
         ..CardFace::default()
@@ -786,7 +793,8 @@ fn nested_resolution_cast_trigger_fixture() -> (
         types: vec![Type::Instant.def()],
         abilities: vec![Ability::spell(SpellAbility {
             ability_word: None,
-            effect: OneShotEffect::Sequentially(Arc::from([])),
+            targets: [].into(),
+            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
         })],
         ..CardFace::default()
     }));
@@ -801,6 +809,7 @@ fn nested_resolution_cast_trigger_fixture() -> (
         abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
             TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from: None,
                 event: EventFilter::ManaAdded {
@@ -834,7 +843,8 @@ fn nested_resolution_cast_trigger_fixture() -> (
                         )),
                     ]
                     .into(),
-                ),
+                )
+                .into(),
             },
         )))],
         ..CardFace::default()
@@ -969,12 +979,13 @@ fn causal_trigger_fixture_with_effect_limits_and_trigger(
         abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
             TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from: None,
                 event,
                 condition: None,
                 limits,
-                effect: trigger_effect,
+                effect: trigger_effect.into(),
             },
         )))],
         ..CardFace::default()
@@ -1033,6 +1044,7 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
         abilities: vec![Ability::Mana(ManaAbility::Triggered(Arc::new(
             TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from: None,
                 event: EventFilter::ManaAdded {
@@ -1045,7 +1057,8 @@ fn bare_nonmana_mana_added_fixture() -> (GameState, PlayerId, deckmaste_engine::
                     Reference::You,
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Black.into()).into(),
-                )),
+                ))
+                .into(),
             },
         )))],
         ..CardFace::default()
@@ -1905,16 +1918,15 @@ fn mixed_modal_mana_profile_rechecks_blanket_lockout_after_modes() {
 
 #[test]
 fn mixed_modal_mana_profile_rejects_an_unsatisfiable_ordinary_mode() {
-    let missing_target = OneShotEffect::Targeted(Targeted::new(
-        vec![TargetSpec::Target(
-            Quantity::one(),
-            Predicate::Characteristic(CharacteristicPredicate::Named("Missing target".into())),
-        )]
-        .into(),
-        OneShotEffect::Sequentially(Arc::from([])),
-    ));
+    let missing_targets: Arc<[TargetSpec]> = vec![TargetSpec::Target(
+        Quantity::one(),
+        Predicate::Characteristic(CharacteristicPredicate::Named("Missing target".into())),
+    )]
+    .into();
+    let missing_target = OneShotEffect::Sequentially(Arc::from([]));
     let (mut state, _payer, _parent, source) = modal_payment_fixture_with_ordinary_mode(
         Vec::new(),
+        missing_targets,
         missing_target,
         ManaModeClass {
             adds_mana: false,

@@ -20,18 +20,16 @@ pub(crate) fn frame_src(source: crate::object::ObjectId) -> Frame {
     frame_src_targets(source, Vec::new())
 }
 
-/// Like [`frame_src`] but with explicit `targets` — for effects/references
-/// that read the announced slot (`It` over a lone target, `They` over a
-/// plural slot).
+/// Like [`frame_src`] but with explicit `targets` — compatibility scaffolding
+/// for hand-built effects that read announced region registers.
 pub(crate) fn frame_src_targets(
     source: crate::object::ObjectId,
     targets: Vec<crate::object::ObjectId>,
 ) -> Frame {
     Frame {
         anaphora: crate::stack::Anaphora {
-            // Each target its own quantity-one slot — preserves the positional
-            // `Reference::Target(n)` reads while `They`/`TargetsOf` flatten
-            // across slots.
+            // Each target is its own quantity-one slot, preserving positional
+            // register reads in fixtures that bypass lowering.
             targets: targets.into_iter().map(|t| vec![t]).collect(),
             ..crate::stack::Anaphora::empty()
         },

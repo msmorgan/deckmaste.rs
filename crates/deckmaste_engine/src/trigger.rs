@@ -155,6 +155,7 @@ pub struct CreatedTrigger {
 pub struct PendingTrigger {
     /// The freshly minted stack identity ([CR#405]).
     pub id: ObjectId,
+    pub activation: crate::ActivationId,
     pub source: ObjectSource,
     pub ability: usize,
     /// `Some` for a delayed/reflexive trigger ([CR#603.7,603.12]) — carried
@@ -238,7 +239,17 @@ impl GameState {
         o: ObjectId,
         watcher: ObjectSource,
     ) -> bool {
-        crate::target::matches_with(self, o, filter, Some(watcher))
+        self.filter_matches_live_with_activation(filter, o, watcher, crate::ActivationId::NONE)
+    }
+
+    pub(crate) fn filter_matches_live_with_activation(
+        &self,
+        filter: &Predicate,
+        o: ObjectId,
+        watcher: ObjectSource,
+        activation: crate::ActivationId,
+    ) -> bool {
+        crate::target::matches_with_activation(self, o, filter, Some(watcher), activation)
     }
 
     /// The controller of the live object minted from `source`, if it is
@@ -271,18 +282,54 @@ impl GameState {
         snapshot: &LkiSnapshot,
         watcher: ObjectSource,
     ) -> bool {
+        self.filter_matches_snapshot_with_activation(
+            filter,
+            snapshot,
+            watcher,
+            crate::ActivationId::NONE,
+        )
+    }
+
+    #[allow(
+        clippy::match_same_arms,
+        reason = "separate false arms document distinct unsupported snapshot predicates"
+    )]
+    pub(crate) fn filter_matches_snapshot_with_activation(
+        &self,
+        filter: &Predicate,
+        snapshot: &LkiSnapshot,
+        watcher: ObjectSource,
+        activation: crate::ActivationId,
+    ) -> bool {
         // Combinators (`And`/`Or`/`Not`/`Expanded`/`Any`) recurse through
         // this same matcher via the shared walker; leaves fall through below.
         if let Some(result) = crate::target::walk_combinators(filter, |f| {
-            self.filter_matches_snapshot(f, snapshot, watcher)
+            self.filter_matches_snapshot_with_activation(f, snapshot, watcher, activation)
         }) {
             return result;
         }
         match filter {
-            // "this object": match only when the snapshot is the watching object
-            // ([CR#603.10a] — self-dies / self-enters).
-            Predicate::Ref(Reference::This) => snapshot.source == watcher,
-
+            Predicate::Ref(Reference::Reg(register)) => {
+                self.activation_product(activation, *register).map_or_else(
+                    || {
+                        activation == crate::ActivationId::NONE
+                            && match register.0 {
+                                0 => snapshot.source == watcher,
+                                1 => self
+                                    .controller_of_source(watcher)
+                                    .is_some_and(|controller| snapshot.controller == controller),
+                                _ => false,
+                            }
+                    },
+                    |product| {
+                        product.current == Some(snapshot.object)
+                            || product
+                                .lki
+                                .as_ref()
+                                .is_some_and(|bound| bound.object == snapshot.object)
+                    },
+                )
+            }
             // "a creature" — check the snapshot's printed card types.
             Predicate::Characteristic(CharacteristicPredicate::Type(ty)) => {
                 snapshot_has_type(self, snapshot, ty.name())
@@ -355,14 +402,23 @@ impl GameState {
 
             // The captured controller / the card owner, resolved to their LIVE
             // player proxies ([CR#108.3,109.5]); the inner filter runs live.
-            Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(f)) => {
-                self.filter_matches_live(f, self.player(snapshot.controller).object, watcher)
-            }
+            Predicate::Relation(deckmaste_core::RelationPredicate::ControlledBy(f)) => self
+                .filter_matches_live_with_activation(
+                    f,
+                    self.player(snapshot.controller).object,
+                    watcher,
+                    activation,
+                ),
             Predicate::Relation(deckmaste_core::RelationPredicate::Owner(f)) => {
                 match snapshot.source {
                     ObjectSource::Card(c) => {
                         let owner = self.cards.get(c).owner;
-                        self.filter_matches_live(f, self.player(owner).object, watcher)
+                        self.filter_matches_live_with_activation(
+                            f,
+                            self.player(owner).object,
+                            watcher,
+                            activation,
+                        )
                     }
                     ObjectSource::Player(_) => false,
                 }
@@ -379,9 +435,11 @@ impl GameState {
             // already gone) and resolves the host LIVE. The shape a departed
             // Aura's leaves-the-battlefield ability needs to read its last
             // host. Unattached reads false, never a panic.
-            Predicate::Relation(deckmaste_core::RelationPredicate::AttachedTo(inner)) => snapshot
-                .attached_to
-                .is_some_and(|host| self.filter_matches_live(inner, host, watcher)),
+            Predicate::Relation(deckmaste_core::RelationPredicate::AttachedTo(inner)) => {
+                snapshot.attached_to.is_some_and(|host| {
+                    self.filter_matches_live_with_activation(inner, host, watcher, activation)
+                })
+            }
             // The inverse: some LIVE object still points its `attached_to` at
             // this object's now-stale id — captured before the attach
             // relation is cleared, since LKI is taken before the
@@ -393,7 +451,8 @@ impl GameState {
             Predicate::Relation(deckmaste_core::RelationPredicate::Attachment(inner)) => {
                 self.objects.iter().any(|o| {
                     o.attached_to == Some(snapshot.object)
-                        && self.filter_matches_live(inner, o.id, watcher)
+                        && self
+                            .filter_matches_live_with_activation(inner, o.id, watcher, activation)
                 })
             }
 
@@ -437,6 +496,7 @@ impl GameState {
                 None => false,
                 Some((carrier, controller)) => {
                     let frame = Frame {
+                        activation,
                         anaphora: Anaphora {
                             it: Some(crate::stack::ItBinding::Object(snapshot.clone())),
                             ..Anaphora::empty()
@@ -627,6 +687,7 @@ impl GameState {
     /// gate in `scan_event`.
     fn created_gate_frame(&self, ct: &CreatedTrigger, bindings: &TriggerBindings) -> Frame {
         Frame {
+            activation: crate::ActivationId::NONE,
             source: bindings
                 .this
                 .as_ref()
@@ -933,6 +994,7 @@ impl GameState {
                 // frame carries none); it is rechecked at resolution.
                 if let Some(c) = &t.condition {
                     let frame = Frame {
+                        activation: crate::ActivationId::NONE,
                         source: this.object,
                         controller,
                         // Exophoric: the firing object's snapshot + combat defender.
@@ -1166,9 +1228,18 @@ impl GameState {
             let id = self
                 .objects
                 .mint(noted.source, noted.controller, Some(Zone::Stack));
+            let activation = self.enter_trigger_activation(
+                id,
+                noted.source,
+                noted.ability,
+                noted.created.as_deref(),
+                noted.controller,
+                &noted.bindings,
+            );
             self.stack.push(StackEntry {
                 paid_costs: Vec::new(),
                 id,
+                activation,
                 object: StackObject::Triggered {
                     source: noted.source,
                     ability: noted.ability,
@@ -1194,7 +1265,15 @@ impl GameState {
         let id = self
             .objects
             .mint(noted.source, controller, Some(Zone::Stack));
-        let _ = self.surface_target_choice(controller, specs, id);
+        let activation = self.enter_trigger_activation(
+            id,
+            noted.source,
+            noted.ability,
+            noted.created.as_deref(),
+            controller,
+            &noted.bindings,
+        );
+        let _ = self.surface_target_choice(controller, specs, id, activation);
         // [CR#603.3c]: a target spec that can't be satisfied — a slot with
         // fewer legal candidates than its minimum, or Distinct slots with no
         // distinct representatives ([CR#115.7e]) — removes the trigger from the
@@ -1214,6 +1293,7 @@ impl GameState {
         // Stage the in-flight placement; the target choice is already surfaced.
         self.placing_trigger = Some(crate::trigger::PendingTrigger {
             id,
+            activation,
             source: noted.source,
             ability: noted.ability,
             created: noted.created,
@@ -1233,15 +1313,55 @@ impl GameState {
         ability: usize,
         created: Option<&deckmaste_core::TriggeredAbility>,
     ) -> Vec<TargetSpec> {
-        // Targets live on a top-level `OneShotEffect::Targeted` wrapper ([CR#115.1]).
         if let Some(t) = created {
-            return crate::resolve::top_targets(&t.effect).to_vec();
+            return t.targets.to_vec();
         }
         let ability = &crate::derive::abilities_of_source(self, source)[ability];
         let t = ability
             .as_triggered()
             .expect("a noted trigger indexes a Triggered ability");
-        crate::resolve::top_targets(&t.effect).to_vec()
+        t.targets.to_vec()
+    }
+
+    fn enter_trigger_activation(
+        &mut self,
+        id: ObjectId,
+        source: ObjectSource,
+        ability: usize,
+        created: Option<&deckmaste_core::TriggeredAbility>,
+        controller: PlayerId,
+        bindings: &TriggerBindings,
+    ) -> crate::ActivationId {
+        let region = created.map_or_else(
+            || {
+                crate::derive::abilities_of_source(self, source)[ability]
+                    .as_triggered()
+                    .expect("trigger index")
+                    .effect
+                    .clone()
+            },
+            |trigger| trigger.effect.clone(),
+        );
+        let mut frame = crate::stack::Frame::bare(
+            bindings
+                .this
+                .as_ref()
+                .map_or(id, |snapshot| snapshot.object),
+            controller,
+        );
+        frame.this.clone_from(&bindings.this);
+        frame.defending_player = bindings.defending_player;
+        frame.anaphora.that_object.clone_from(&bindings.that_object);
+        frame.anaphora.that_player = bindings.that_player;
+        frame
+            .anaphora
+            .that_patient
+            .clone_from(&bindings.that_patient);
+        frame
+            .anaphora
+            .produced_mana
+            .clone_from(&bindings.produced_mana);
+        self.enter_region(&region, &frame)
     }
 
     /// [CR#603.3d]: a placing trigger's targets were chosen — push the
@@ -1257,9 +1377,11 @@ impl GameState {
             .placing_trigger
             .take()
             .expect("a trigger placement in flight");
+        self.activation_set_targets(staged.activation, &targets);
         self.stack.push(StackEntry {
             paid_costs: Vec::new(),
             id: staged.id,
+            activation: staged.activation,
             object: StackObject::Triggered {
                 source: staged.source,
                 ability: staged.ability,
@@ -3551,6 +3673,7 @@ mod tests {
 
         let watch = Ability::triggered(TriggeredAbility {
             ability_word: None,
+            targets: [].into(),
             where_x: None,
             from: None,
             event: EventFilter::StateBecame {
@@ -3560,7 +3683,7 @@ mod tests {
             },
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
+            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
         });
         let face = |name: &str| CardFace {
             name: name.into(),
@@ -4061,6 +4184,7 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from: None,
                 event: EventFilter::StepBegins {
@@ -4074,7 +4198,8 @@ mod tests {
                     count: Count::Literal(1),
                     token: goblin_token.into(),
                     riders: vec![].into(),
-                }),
+                })
+                .into(),
             })],
             ..CardFace::default()
         })
@@ -4215,12 +4340,13 @@ mod tests {
 
         deckmaste_core::TriggeredAbility {
             ability_word: None,
+            targets: [].into(),
             where_x: None,
             from: None,
             event,
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
+            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
         }
     }
 
@@ -4461,6 +4587,7 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from,
                 event: EventFilter::StepBegins {
@@ -4469,7 +4596,7 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
+                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
             })],
             ..CardFace::default()
         })
@@ -4745,6 +4872,7 @@ mod tests {
 
         let back_trigger = TriggeredAbility {
             ability_word: None,
+            targets: [].into(),
             where_x: None,
             from: None,
             event: EventFilter::StepBegins {
@@ -4753,7 +4881,7 @@ mod tests {
             },
             condition: None,
             limits: Vec::new().into(),
-            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
+            effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
         };
         let front = CardFace {
             name: "Front Vanilla".into(),
@@ -4877,7 +5005,8 @@ mod tests {
         assert!(
             state.agenda.iter().any(|w| matches!(
                 w,
-                WorkItem::RunEffect { effect, .. } if **effect == back_body.effect
+                WorkItem::RunEffect { effect, .. }
+                    if back_body.effect.body.iter().any(|body| body == effect.as_ref())
             )),
             "the trigger resolved with the back face's draw body, not a fizzle or \
              the front face"
@@ -5484,6 +5613,7 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from: None,
                 event: EventFilter::ZoneChange {
@@ -5497,7 +5627,8 @@ mod tests {
                 effect: OneShotEffect::Act(Action::ChangeLife(
                     Reference::You,
                     LifeOp::Up(Count::Literal(1)),
-                )),
+                ))
+                .into(),
             })],
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(2)),
@@ -5573,6 +5704,7 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from: None,
                 event: EventFilter::Damage {
@@ -5586,7 +5718,8 @@ mod tests {
                 effect: OneShotEffect::Act(Action::ChangeLife(
                     Reference::You,
                     LifeOp::Up(Count::ThatMuch),
-                )),
+                ))
+                .into(),
             })],
             power: Some(StatValue::Number(2)),
             toughness: Some(StatValue::Number(4)),
@@ -5640,6 +5773,7 @@ mod tests {
             .objects
             .mint(noted.source, noted.controller, Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             paid_costs: Vec::new(),
             id,
             object: StackObject::Triggered {

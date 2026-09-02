@@ -68,12 +68,13 @@ fn activated_card(cost: Vec<CostComponent>) -> Arc<Card> {
         name: "Payment fixture".into(),
         abilities: vec![Ability::activated(ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             cost: Cost(cost.into()),
             from: None,
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: OneShotEffect::Sequentially(Arc::from([])),
+            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
         })],
         ..CardFace::default()
     }))
@@ -186,6 +187,7 @@ fn mana_cylix_fixture() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(
                     vec![
                         CostComponent::Mana("{1}".parse::<ManaCost>().unwrap()),
@@ -201,7 +203,8 @@ fn mana_cylix_fixture() -> Arc<Card> {
                     Reference::You,
                     Count::Literal(1),
                     ManaSpec::AnyColor.into(),
-                )),
+                ))
+                .into(),
             }),
             profile: ActivatedManaProfile::Always,
         })],

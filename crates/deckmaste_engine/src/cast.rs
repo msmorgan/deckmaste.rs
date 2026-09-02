@@ -606,21 +606,22 @@ fn partition_alternative_cost(cost: &deckmaste_core::Cost) -> (ManaCost, Vec<Cos
 /// appended in choice order; a nonmodal effect contributes its ordinary
 /// top-level target wrapper.
 pub(crate) fn announced_target_specs(
-    effect: &OneShotEffect,
+    effect: &deckmaste_core::Region,
+    targets: &[TargetSpec],
     chosen_modes: &[Uint],
 ) -> Vec<TargetSpec> {
-    match effect {
-        OneShotEffect::Modal(modal) => chosen_modes
+    match effect.body.as_ref() {
+        [OneShotEffect::Modal(modal)] => chosen_modes
             .iter()
             .flat_map(|&index| {
                 let mode = modal
                     .modes
                     .get(index as usize)
                     .expect("ChooseModes validated every announced index");
-                crate::resolve::top_targets(&mode.effect).iter().cloned()
+                mode.targets.iter().cloned()
             })
             .collect(),
-        other => crate::resolve::top_targets(other).to_vec(),
+        _ => targets.to_vec(),
     }
 }
 
@@ -682,10 +683,10 @@ fn first_mode_selection_matching(
 /// mode); escalate repeats once per pick beyond the first; entwine contributes
 /// once when the all-modes alternative was chosen.
 fn announced_mode_cost_components(
-    effect: &OneShotEffect,
+    effect: &deckmaste_core::Region,
     chosen_modes: &[Uint],
 ) -> Vec<CostComponent> {
-    let OneShotEffect::Modal(modal) = effect else {
+    let [OneShotEffect::Modal(modal)] = effect.body.as_ref() else {
         return Vec::new();
     };
     let mut components = Vec::new();
@@ -720,34 +721,49 @@ fn announced_mode_cost_components(
 /// run with a frame containing only its segment. This keeps each mode's
 /// `Target(0)` local even when several modes were chosen.
 pub(crate) fn announced_effect_items(
-    effect: &OneShotEffect,
+    state: &mut GameState,
+    effect: &deckmaste_core::Region,
     frame: &Frame,
     chosen_modes: &[Uint],
     targets: &[Vec<ObjectId>],
 ) -> Vec<WorkItem> {
-    let OneShotEffect::Modal(modal) = effect else {
-        return vec![WorkItem::RunEffect {
-            effect: Arc::new(effect.clone()),
-            frame: frame.clone(),
-        }];
+    let [OneShotEffect::Modal(modal)] = effect.body.as_ref() else {
+        let mut region_frame = frame.clone();
+        if region_frame.activation == crate::ActivationId::NONE {
+            region_frame.activation = state.enter_region(effect, frame);
+        }
+        return effect
+            .body
+            .iter()
+            .cloned()
+            .map(|instruction| WorkItem::RunEffect {
+                effect: Arc::new(instruction),
+                frame: region_frame.clone(),
+            })
+            .collect();
     };
 
     let mut offset = 0;
     let items = chosen_modes
         .iter()
-        .map(|&index| {
+        .flat_map(|&index| {
             let mode = modal
                 .modes
                 .get(index as usize)
                 .expect("ChooseModes validated every announced index");
-            let count = crate::resolve::top_targets(&mode.effect).len();
+            let count = mode.targets.len();
             let mut mode_frame = frame.clone();
             mode_frame.anaphora.targets = targets[offset..offset + count].to_vec();
+            mode_frame.activation = state.enter_region(&mode.effect, &mode_frame);
             offset += count;
-            WorkItem::RunEffect {
-                effect: Arc::new(mode.effect.clone()),
-                frame: mode_frame,
-            }
+            mode.effect
+                .body
+                .iter()
+                .cloned()
+                .map(move |instruction| WorkItem::RunEffect {
+                    effect: Arc::new(instruction),
+                    frame: mode_frame.clone(),
+                })
         })
         .collect();
     debug_assert_eq!(
@@ -763,18 +779,19 @@ impl GameState {
         &self,
         source: ObjectId,
         controller: PlayerId,
-        effect: &OneShotEffect,
+        effect: &deckmaste_core::Region,
+        targets: &[TargetSpec],
     ) -> bool {
         let carrier = Some(self.objects.obj(source).source);
         let selection_satisfiable = |picks: &[Uint]| {
-            let specs = announced_target_specs(effect, picks);
+            let specs = announced_target_specs(effect, targets, picks);
             let legal: Vec<Vec<ObjectId>> = specs
                 .iter()
-                .map(|spec| self.legal_targets(spec, carrier))
+                .map(|spec| self.legal_targets(spec, carrier, crate::ActivationId::NONE))
                 .collect();
             crate::resolve::announce_satisfiable(&specs, &legal)
         };
-        let OneShotEffect::Modal(modal) = effect else {
+        let [OneShotEffect::Modal(modal)] = effect.body.as_ref() else {
             return selection_satisfiable(&[]);
         };
         let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
@@ -808,7 +825,7 @@ impl GameState {
             .expect("an announcement-time mode choice has an announce in flight");
         let view = self.layers();
         let specs = self.stack_object_target_specs(&view, &pending.object, picks);
-        let legal = self.legal_targets_for_specs(&specs, pending.id);
+        let legal = self.legal_targets_for_specs(&specs, pending.id, pending.activation);
         crate::resolve::announce_satisfiable(&specs, &legal)
     }
 
@@ -905,9 +922,12 @@ impl GameState {
         // top-level Modal, checking only `top_targets` would see no targets
         // and could offer a spell whose every mode is impossible to announce.
         let effect = self.spell_effect(object);
+        let targets = self.spell_targets(object);
         effect
             .as_ref()
-            .is_none_or(|effect| self.announcement_effect_satisfiable(object, player, effect))
+            .is_none_or(|effect| {
+                self.announcement_effect_satisfiable(object, player, effect, &targets)
+            })
             .then_some(cost)
     }
 
@@ -1114,11 +1134,16 @@ impl GameState {
         obj.zone = Some(Zone::Stack);
         // [CR#608.2g,601.2a]: the caster controls the spell it casts.
         obj.controller = controller;
+        let region = self.spell_effect(object).unwrap_or_else(|| {
+            deckmaste_core::Region::new(Arc::from([]), OneShotEffect::Sequentially(Arc::from([])))
+        });
+        let activation = self.enter_region(&region, &crate::stack::Frame::bare(object, controller));
         self.announcing = Some(PendingStackEntry {
             optional_components: Vec::new(),
             paid_costs: Vec::new(),
             // [CR#405]: a spell's stack identity is its own object id.
             id: object,
+            activation,
             object: StackObject::Spell(object),
             controller,
             origin,
@@ -1186,10 +1211,14 @@ impl GameState {
         }
         // [CR#601.2b..601.2c]: at least one complete mode/target
         // announcement must exist before offering this resolution cast.
-        if self
-            .spell_effect(object)
-            .is_some_and(|effect| !self.announcement_effect_satisfiable(object, caster, &effect))
-        {
+        if self.spell_effect(object).is_some_and(|effect| {
+            !self.announcement_effect_satisfiable(
+                object,
+                caster,
+                &effect,
+                &self.spell_targets(object),
+            )
+        }) {
             return false;
         }
         true
@@ -1288,7 +1317,7 @@ impl GameState {
             // Permanent spells need no spell-effect payload to be modal.
             return 0;
         };
-        let OneShotEffect::Modal(modal) = effect else {
+        let [OneShotEffect::Modal(modal)] = effect.body.as_ref() else {
             return 0;
         };
         let options = Uint::try_from(modal.modes.len()).expect("mode count fits Uint");
@@ -1349,7 +1378,8 @@ impl GameState {
         // identity minted when the announce opened ([CR#602.2a]) — so
         // stack-zone-keyed rows read the real object.
         let spell = pending.id;
-        self.surface_target_choice(controller, specs, spell)
+        let activation = pending.activation;
+        self.surface_target_choice(controller, specs, spell, activation)
     }
 
     /// The target specs a stack object's ability carries
@@ -1374,14 +1404,14 @@ impl GameState {
                 .abilities
                 .iter()
                 .find_map(|ability| match ability {
-                    deckmaste_core::Ability::Spell(spell) => Some(&spell.effect),
+                    deckmaste_core::Ability::Spell(spell) => Some(spell.as_ref()),
                     _ => None,
                 })
-                .map_or_else(Vec::new, |effect| {
-                    announced_target_specs(effect, chosen_modes)
+                .map_or_else(Vec::new, |spell| {
+                    announced_target_specs(&spell.effect, &spell.targets, chosen_modes)
                 }),
             StackObject::Activated { ability, .. } => {
-                announced_target_specs(&ability.effect, chosen_modes)
+                announced_target_specs(&ability.effect, &ability.targets, chosen_modes)
             }
             StackObject::Triggered {
                 source,
@@ -1390,7 +1420,7 @@ impl GameState {
                 ..
             } => {
                 if let Some(t) = created {
-                    crate::resolve::top_targets(&t.effect).to_vec()
+                    t.targets.to_vec()
                 } else {
                     let abilities = crate::derive::abilities_of_source(self, *source);
                     let other = &abilities[*ability];
@@ -1399,7 +1429,7 @@ impl GameState {
                             "a Triggered stack object indexes a Triggered ability, got {other:?}"
                         )
                     });
-                    crate::resolve::top_targets(&t.effect).to_vec()
+                    t.targets.to_vec()
                 }
             }
         }
@@ -1428,8 +1458,9 @@ impl GameState {
         player: PlayerId,
         specs: Vec<TargetSpec>,
         targeting_id: ObjectId,
+        activation: crate::ActivationId,
     ) -> Uint {
-        let legal = self.legal_targets_for_specs(&specs, targeting_id);
+        let legal = self.legal_targets_for_specs(&specs, targeting_id, activation);
         let count = Uint::try_from(specs.len()).expect("target-spec count fits in Uint");
         self.pending = Some(PendingDecision::ChooseTargets(
             crate::decide::pending::ChooseTargets {
@@ -1453,6 +1484,7 @@ impl GameState {
         &self,
         specs: &[TargetSpec],
         targeting_id: ObjectId,
+        activation: crate::ActivationId,
     ) -> Vec<Vec<ObjectId>> {
         let view = self.layers();
         let rows = crate::legal::cant_target_rows(self, &view);
@@ -1460,7 +1492,7 @@ impl GameState {
         specs
             .iter()
             .map(|s| {
-                self.legal_targets(s, carrier)
+                self.legal_targets(s, carrier, activation)
                     .into_iter()
                     .filter(|&t| {
                         // Forbidden by a Cant(Target) row ([CR#702.11b] hexproof),
@@ -2302,9 +2334,10 @@ impl GameState {
         &self,
         spec: &TargetSpec,
         carrier: Option<crate::object::ObjectSource>,
+        activation: crate::ActivationId,
     ) -> Vec<ObjectId> {
         let filter = crate::resolve::target_spec_filter(spec);
-        crate::target::candidates_with(self, filter, carrier)
+        crate::target::candidates_with_activation(self, filter, carrier, activation)
     }
 
     /// Auto-tap the in-flight `PayMana` decision ([CR#601.2g,106.6]), honoring
@@ -2719,7 +2752,6 @@ mod tests {
         use deckmaste_core::Mode;
         use deckmaste_core::Quantity;
         use deckmaste_core::SpellAbility;
-        use deckmaste_core::Targeted;
 
         let target = TargetSpec::Target(Quantity::one(), Predicate::r#type(Type::Creature));
         let card = Card::Normal(CardFace {
@@ -2728,6 +2760,7 @@ mod tests {
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
@@ -2738,22 +2771,24 @@ mod tests {
                     },
                     modes: vec![
                         deckmaste_core::Mode {
+                            targets: [].into(),
                             effect: OneShotEffect::Act(CoreAction::ChangeLife(
                                 Reference::You,
                                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
-                            )),
+                            ))
+                            .into(),
                             cost: None,
                         },
                         Mode {
-                            effect: OneShotEffect::Targeted(Targeted::new(
-                                vec![target.clone()].into(),
-                                OneShotEffect::Act(CoreAction::destroy(Reference::Target(0))),
-                            )),
+                            targets: vec![target.clone()].into(),
+                            effect: OneShotEffect::Act(CoreAction::destroy(Reference::Target(0)))
+                                .into(),
                             cost: None,
                         },
                     ]
                     .into(),
-                }),
+                })
+                .into(),
             })],
             ..CardFace::default()
         });
@@ -2802,10 +2837,12 @@ mod tests {
         use deckmaste_core::SpellAbility;
 
         let life_mode = |amount| Mode {
+            targets: [].into(),
             effect: OneShotEffect::Act(CoreAction::ChangeLife(
                 Reference::You,
                 deckmaste_core::LifeOp::Up(Count::Literal(amount)),
-            )),
+            ))
+            .into(),
             cost: None,
         };
         let card = Card::Normal(CardFace {
@@ -2814,6 +2851,7 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
@@ -2823,7 +2861,8 @@ mod tests {
                         rider: None,
                     },
                     modes: vec![life_mode(3), life_mode(5)].into(),
-                }),
+                })
+                .into(),
             })],
             ..CardFace::default()
         });
@@ -2850,19 +2889,16 @@ mod tests {
         use deckmaste_core::Mode;
         use deckmaste_core::Quantity;
         use deckmaste_core::SpellAbility;
-        use deckmaste_core::Targeted;
 
         let impossible_mode = || Mode {
-            effect: OneShotEffect::Targeted(Targeted::new(
-                vec![TargetSpec::Target(
-                    Quantity::one(),
-                    deckmaste_core::Predicate::Characteristic(CharacteristicPredicate::Named(
-                        "Missing target".into(),
-                    )),
-                )]
-                .into(),
-                OneShotEffect::Sequentially(Arc::from([])),
-            )),
+            targets: vec![TargetSpec::Target(
+                Quantity::one(),
+                deckmaste_core::Predicate::Characteristic(CharacteristicPredicate::Named(
+                    "Missing target".into(),
+                )),
+            )]
+            .into(),
+            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
             cost: None,
         };
         let card = Card::Normal(CardFace {
@@ -2871,6 +2907,7 @@ mod tests {
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
@@ -2880,7 +2917,8 @@ mod tests {
                         rider: None,
                     },
                     modes: vec![impossible_mode(), impossible_mode()].into(),
-                }),
+                })
+                .into(),
             })],
             ..CardFace::default()
         });
@@ -2897,20 +2935,18 @@ mod tests {
         use deckmaste_core::Mode;
         use deckmaste_core::Quantity;
         use deckmaste_core::SpellAbility;
-        use deckmaste_core::Targeted;
 
         let life_mode = |amount| Mode {
-            effect: OneShotEffect::Targeted(Targeted::new(
-                vec![TargetSpec::Target(
-                    Quantity::one(),
-                    Predicate::Kind(deckmaste_core::ObjectKind::Player),
-                )]
-                .into(),
-                OneShotEffect::Act(CoreAction::ChangeLife(
-                    Reference::Target(0),
-                    deckmaste_core::LifeOp::Up(Count::Literal(amount)),
-                )),
-            )),
+            targets: vec![TargetSpec::Target(
+                Quantity::one(),
+                Predicate::Kind(deckmaste_core::ObjectKind::Player),
+            )]
+            .into(),
+            effect: OneShotEffect::Act(CoreAction::ChangeLife(
+                Reference::Target(0),
+                deckmaste_core::LifeOp::Up(Count::Literal(amount)),
+            ))
+            .into(),
             cost: None,
         };
         let card = Card::Normal(CardFace {
@@ -2919,6 +2955,7 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::Range(Some(Count::Literal(2)), Some(Count::Literal(2))),
@@ -2928,7 +2965,8 @@ mod tests {
                         rider: None,
                     },
                     modes: vec![life_mode(3), life_mode(5)].into(),
-                }),
+                })
+                .into(),
             })],
             ..CardFace::default()
         });
@@ -2941,6 +2979,7 @@ mod tests {
         let p1_life = state.player(p1).life;
         let spell = put_synthetic(&mut state, card, p0, Zone::Stack);
         state.stack.push(crate::stack::StackEntry {
+            activation: crate::ActivationId::NONE,
             id: spell,
             object: StackObject::Spell(spell),
             controller: p0,
@@ -2976,10 +3015,12 @@ mod tests {
         use deckmaste_core::SpellAbility;
 
         let mode = |generic| Mode {
+            targets: [].into(),
             effect: OneShotEffect::Act(CoreAction::ChangeLife(
                 Reference::You,
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
-            )),
+            ))
+            .into(),
             cost: Some(
                 vec![CostComponent::Mana(
                     format!("{{{generic}}}").parse().unwrap(),
@@ -2993,6 +3034,7 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
@@ -3002,7 +3044,8 @@ mod tests {
                         rider: None,
                     },
                     modes: vec![mode(1), mode(2)].into(),
-                }),
+                })
+                .into(),
             })],
             ..CardFace::default()
         });
@@ -3036,10 +3079,12 @@ mod tests {
         use deckmaste_core::SpellAbility;
 
         let mode = || Mode {
+            targets: [].into(),
             effect: OneShotEffect::Act(CoreAction::ChangeLife(
                 Reference::You,
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
-            )),
+            ))
+            .into(),
             cost: None,
         };
         let card = Card::Normal(CardFace {
@@ -3048,6 +3093,7 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
@@ -3059,7 +3105,8 @@ mod tests {
                         ))),
                     },
                     modes: vec![mode(), mode()].into(),
-                }),
+                })
+                .into(),
             })],
             ..CardFace::default()
         });
@@ -3091,10 +3138,12 @@ mod tests {
         use deckmaste_core::SpellAbility;
 
         let mode = |mana: &str| Mode {
+            targets: [].into(),
             effect: OneShotEffect::Act(CoreAction::ChangeLife(
                 Reference::You,
                 deckmaste_core::LifeOp::Up(Count::Literal(1)),
-            )),
+            ))
+            .into(),
             cost: Some(vec![CostComponent::Mana(mana.parse().unwrap())].into()),
         };
         let card = || {
@@ -3104,6 +3153,7 @@ mod tests {
                 types: vec![Type::Sorcery.def()],
                 abilities: vec![Ability::spell(SpellAbility {
                     ability_word: None,
+                    targets: [].into(),
                     effect: OneShotEffect::Modal(Modal {
                         choose: ChooseSpec {
                             count: Quantity::one(),
@@ -3113,7 +3163,8 @@ mod tests {
                             rider: None,
                         },
                         modes: vec![mode("{X}"), mode("{1}")].into(),
-                    }),
+                    })
+                    .into(),
                 })],
                 ..CardFace::default()
             })
@@ -3296,6 +3347,7 @@ mod tests {
         use deckmaste_core::ManaSpec;
         let ability = Arc::new(ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             cost: Cost(vec![CostComponent::Tap].into()),
             from: None,
             window: None,
@@ -3305,7 +3357,8 @@ mod tests {
                 Reference::You,
                 Count::Literal(1),
                 ManaSpec::Specific(color).into(),
-            )),
+            ))
+            .into(),
         });
         Card::Normal(CardFace {
             name: name.into(),

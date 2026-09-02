@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn copyspec_round_trips_all_exception_kinds() {
         let spec = CopySpec {
-            source: CopySource::Object(Reference::Target(0)),
+            source: CopySource::Object(Reference::Reg(crate::RefId(6))),
             exceptions: vec![
                 CopyException::Modify(Modification::Power(NumericOp::Set(StatValue::Number(7)))),
                 CopyException::Retain(Characteristic::Colors),

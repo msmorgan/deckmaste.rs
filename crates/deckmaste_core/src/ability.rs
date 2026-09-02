@@ -6,30 +6,31 @@ use serde::Serialize;
 use crate::Condition;
 use crate::EventFilter;
 use crate::KeywordAbility;
+use crate::Region;
+use crate::TargetSpec;
 use crate::Timing;
 use crate::continuous::StaticEffect;
 use crate::cost::Cost;
 use crate::cost::CostComponent;
-use crate::effect::OneShotEffect;
 
 /// A spell ability — what an instant or sorcery does on resolution
-/// ([CR#113.3a]). Targeting, when present, lives on an
-/// `OneShotEffect::Targeted` wrapper in `effect` ([CR#115.1,601.2c]), read back
-/// by the anaphors (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth
-/// announced slot).
+/// ([CR#113.3a]). Targeting, when present, lives in `targets`; the effect reads
+/// each announced slot through its region parameter ([CR#115.1,601.2c]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct SpellAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
     /// meaning), pure render metadata: "Domain — …". NEVER a macro tier.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ability_word: Option<crate::Ident>,
-    pub effect: OneShotEffect,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub targets: Arc<[TargetSpec]>,
+    pub effect: Region,
 }
 
 /// An activated ability: paid with a cost and produces an effect
-/// ([CR#113.3b,602]). Targeting lives on an `OneShotEffect::Targeted` wrapper
-/// in `effect` ([CR#115.1,601.2c]); the `Resolvable` wrapper of the design
-/// sketch is realized as `OneShotEffect::Modal` (see `effect`).
+/// ([CR#113.3b,602]). Targeting lives in `targets` ([CR#115.1,601.2c]); the
+/// `Resolvable` wrapper of the design sketch is realized as
+/// `OneShotEffect::Modal` (see `effect`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct ActivatedAbility {
     /// The ability word printed before the em dash ([CR#207.2c] — no rules
@@ -57,7 +58,9 @@ pub struct ActivatedAbility {
     /// "Activate only once each turn." ([CR#602.5b]).
     #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
     pub limits: Arc<[UseLimit]>,
-    pub effect: OneShotEffect,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub targets: Arc<[TargetSpec]>,
+    pub effect: Region,
 }
 
 /// A limit on how often an ability may be used — a triggered ability
@@ -112,7 +115,9 @@ pub struct TriggeredAbility {
     /// number of experience counters you have").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub where_x: Option<crate::Count>,
-    pub effect: OneShotEffect,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub targets: Arc<[TargetSpec]>,
+    pub effect: Region,
 }
 
 /// A `skip_serializing_if` predicate: a `false` bool is omitted from RON.
@@ -162,12 +167,14 @@ pub enum ModalCostRider {
     Escalate(Cost),
 }
 
-/// One mode of a modal spell or ability ([CR#700.2]). A mode's targets live on
-/// an `OneShotEffect::Targeted` wrapper in its `effect` ([CR#700.2c,115.8]); it
-/// may carry a per-mode cost ([CR#700.2h]).
+/// One mode of a modal spell or ability ([CR#700.2]). A mode owns its target
+/// telescope and closed effect region ([CR#700.2c,115.8]); it may carry a
+/// per-mode cost ([CR#700.2h]).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Mode {
-    pub effect: OneShotEffect,
+    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
+    pub targets: Arc<[TargetSpec]>,
+    pub effect: Region,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cost: Option<Arc<[CostComponent]>>,
 }

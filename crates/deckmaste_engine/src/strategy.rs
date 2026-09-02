@@ -930,22 +930,18 @@ mod tests {
         use deckmaste_core::Mode;
         use deckmaste_core::OneShotEffect;
         use deckmaste_core::SpellAbility;
-        use deckmaste_core::Targeted;
 
-        let impossible = OneShotEffect::Targeted(Targeted::new(
-            vec![TargetSpec::Target(
-                Quantity::one(),
-                Predicate::Characteristic(CharacteristicPredicate::Named("Missing target".into())),
-            )]
-            .into(),
-            OneShotEffect::Sequentially(Arc::from([])),
-        ));
+        let impossible_target = TargetSpec::Target(
+            Quantity::one(),
+            Predicate::Characteristic(CharacteristicPredicate::Named("Missing target".into())),
+        );
         let card = Arc::new(Card::Normal(CardFace {
             name: "Modal strategy fixture".into(),
             mana_cost: "{0}".parse().unwrap(),
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
+                targets: [].into(),
                 effect: OneShotEffect::Modal(Modal {
                     choose: ChooseSpec {
                         count: Quantity::one(),
@@ -956,16 +952,19 @@ mod tests {
                     },
                     modes: vec![
                         Mode {
-                            effect: impossible,
+                            targets: vec![impossible_target].into(),
+                            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                             cost: None,
                         },
                         Mode {
-                            effect: OneShotEffect::Sequentially(Arc::from([])),
+                            targets: [].into(),
+                            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                             cost: None,
                         },
                     ]
                     .into(),
-                }),
+                })
+                .into(),
             })],
             ..CardFace::default()
         }));

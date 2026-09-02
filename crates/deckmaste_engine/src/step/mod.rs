@@ -532,6 +532,7 @@ impl GameState {
     ) {
         // 1. Snapshot while the object is still live in `from`.
         let snapshot = crate::lki::LkiSnapshot::capture(self, object);
+        self.activation_departed(object, &snapshot);
 
         // 2. (replace stage — other-object and destination-rewriting replacements are
         //    Stage-4 seams; AsEnters self-replacement applied below at mint.)
@@ -1958,10 +1959,11 @@ impl GameState {
         let specs =
             self.stack_object_target_specs(&view, &found.object, found.chosen_modes.as_ref());
         let current = found.targets.clone();
+        let activation = found.activation;
         if specs.is_empty() {
             return Progress::NewTargetsOpened { specs: 0 };
         }
-        let mut legal = self.legal_targets_for_specs(&specs, entry);
+        let mut legal = self.legal_targets_for_specs(&specs, entry, activation);
         // [CR#707.10c]: the union rule — every current target of a slot is a
         // keepable choice, even when it didn't make the fresh legal cut
         // (keeping the ENTIRE current set is always legal, final-set rule).
@@ -2411,6 +2413,7 @@ impl GameState {
         let pending = self.announcing.take().expect("an announce in flight");
         self.stack.push(StackEntry {
             id: pending.id,
+            activation: pending.activation,
             object: pending.object.clone(),
             controller: pending.controller,
             targets: pending.targets.clone(),
@@ -2840,6 +2843,7 @@ mod tests {
             Some(Zone::Stack),
         );
         state.announcing = Some(PendingStackEntry {
+            activation: crate::ActivationId::NONE,
             optional_components: Vec::new(),
             paid_costs: Vec::new(),
             id,
@@ -3331,17 +3335,19 @@ mod tests {
             .objects
             .mint(ability_src, PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             id: entry_id,
             object: StackObject::Activated {
                 source,
                 ability: Box::new(ActivatedAbility {
                     ability_word: None,
+                    targets: [].into(),
                     cost: Cost(vec![].into()),
                     from: None,
                     window: None,
                     condition: None,
                     limits: vec![].into(),
-                    effect: OneShotEffect::Sequentially(vec![].into()),
+                    effect: OneShotEffect::Sequentially(vec![].into()).into(),
                 }),
                 bindings: TriggerBindings::default(),
             },

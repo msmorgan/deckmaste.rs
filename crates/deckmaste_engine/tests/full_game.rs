@@ -207,9 +207,9 @@ const RON_BEARS: &str = r#"(
         (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
          prefer: Activate(what: (pick: First, by: Literal(1)))),
         (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
-         prefer: Cast(what: (pick: Min, by: StatOf(This, ManaValue)))),
+         prefer: Cast(what: (pick: Min, by: StatOf(Reg(0), ManaValue)))),
         (when: And([]), prefer: Attack(what: (pick: First, by: Literal(1)))),
-        (when: And([]), prefer: Discard(what: (pick: Min, by: StatOf(This, ManaValue)))),
+        (when: And([]), prefer: Discard(what: (pick: Min, by: StatOf(Reg(0), ManaValue)))),
         (when: And([]), prefer: Pass),
     ],
 )"#;
@@ -226,10 +226,10 @@ const RON_BOLTS: &str = r#"(
          prefer: Activate(what: (pick: First, by: Literal(1)))),
         (when: Or([DuringPhase(PrecombatMain), DuringPhase(PostcombatMain)]),
          prefer: Cast(
-            what: (pick: Min, by: StatOf(This, ManaValue)),
-            target: (pick: Max, by: StatOf(This, Power), among:
+            what: (pick: Min, by: StatOf(Reg(0), ManaValue)),
+            target: (pick: Max, by: StatOf(Reg(0), Power), among:
                 Characteristic(Type((name:"Creature",permanent:true)))))),
-        (when: And([]), prefer: Discard(what: (pick: Min, by: StatOf(This, ManaValue)))),
+        (when: And([]), prefer: Discard(what: (pick: Min, by: StatOf(Reg(0), ManaValue)))),
         (when: And([]), prefer: Pass),
     ],
 )"#;

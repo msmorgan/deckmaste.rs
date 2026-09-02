@@ -88,7 +88,9 @@ impl Lower for deckmaste_semantics::Count {
     type Target = deckmaste_core::Count;
     fn lower(self) -> <Self as Lower>::Target {
         match self {
-            Self::X => deckmaste_core::Count::X,
+            Self::X => {
+                crate::region::x().map_or(deckmaste_core::Count::X, deckmaste_core::Count::Reg)
+            }
             Self::CountOf(f0) => deckmaste_core::Count::CountOf(f0.lower()),
             Self::CountDistinct(f0, f1) => {
                 deckmaste_core::Count::CountDistinct(f0.lower(), f1.lower())

@@ -381,7 +381,8 @@ impl GameState {
         // [CR#601.2b..601.2c,602.2b]: at least one complete mode/target
         // announcement must exist. A top-level Modal itself has no target
         // wrapper, so every permitted mode must be considered here.
-        if !self.announcement_effect_satisfiable(object, player, &ability.effect) {
+        if !self.announcement_effect_satisfiable(object, player, &ability.effect, &ability.targets)
+        {
             return false;
         }
         true
@@ -679,10 +680,14 @@ impl GameState {
         // this same id into the committed entry.
         let src = self.objects.obj(object).source;
         let id = self.objects.mint(src, controller, Some(Zone::Stack));
+        let mut frame = crate::stack::Frame::bare(object, controller);
+        frame.this.clone_from(&bindings.this);
+        let activation = self.enter_region(&ability.effect, &frame);
         self.announcing = Some(PendingStackEntry {
             optional_components: Vec::new(),
             paid_costs: Vec::new(),
             id,
+            activation,
             object: StackObject::Activated {
                 source: object,
                 ability: Box::new(ability),
@@ -789,12 +794,13 @@ mod tests {
     fn activated(cost: Vec<CostComponent>, effect: OneShotEffect) -> ActivatedAbility {
         ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             window: None,
             cost: Arc::<[CostComponent]>::from(cost).into(),
             condition: None,
             limits: vec![].into(),
-            effect,
+            effect: effect.into(),
         }
     }
 
@@ -1004,12 +1010,13 @@ mod tests {
 
         let ability = ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: None,
             condition: Some(Condition::YourTurn),
             limits: vec![].into(),
-            effect: noop_effect(),
+            effect: noop_effect().into(),
         };
         let view = state.layers();
         assert!(
@@ -1026,12 +1033,13 @@ mod tests {
 
         let ability = ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![]).into(),
             condition: Some(Condition::YourTurn),
             window: None,
             limits: vec![].into(),
-            effect: noop_effect(),
+            effect: noop_effect().into(),
         };
         let view = state.layers();
         assert!(
@@ -1059,12 +1067,13 @@ mod tests {
 
         let ability = ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![]).into(),
             condition: None,
             limits: vec![UseLimit::OncePerTurn].into(),
             window: None,
-            effect: noop_effect(),
+            effect: noop_effect().into(),
         };
         let view = state.layers();
         assert!(
@@ -1103,12 +1112,13 @@ mod tests {
 
         let ability = ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![]).into(),
             condition: None,
             limits: vec![UseLimit::OncePerGame].into(),
             window: None,
-            effect: noop_effect(),
+            effect: noop_effect().into(),
         };
         let view = state.layers();
         assert!(
@@ -1144,12 +1154,13 @@ mod tests {
 
         let ability = ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: Some(Timing::DuringTurn(WhoseTurn::Your)),
             condition: None,
             limits: vec![].into(),
-            effect: noop_effect(),
+            effect: noop_effect().into(),
         };
         let view = state.layers();
         assert!(
@@ -1174,12 +1185,13 @@ mod tests {
 
         let ability = ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: Some(Timing::DuringTurn(WhoseTurn::AnOpponents)),
             condition: None,
             limits: vec![].into(),
-            effect: noop_effect(),
+            effect: noop_effect().into(),
         };
         let view = state.layers();
         assert!(
@@ -1204,12 +1216,13 @@ mod tests {
 
         let ability = ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: Some(Timing::DuringTurn(WhoseTurn::EachPlayers)),
             condition: None,
             limits: vec![].into(),
-            effect: noop_effect(),
+            effect: noop_effect().into(),
         };
         let view = state.layers();
         assert!(
@@ -1233,6 +1246,7 @@ mod tests {
 
         let ability = ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![]).into(),
             window: Some(Timing::DuringStep(
@@ -1241,7 +1255,7 @@ mod tests {
             )),
             condition: None,
             limits: vec![].into(),
-            effect: noop_effect(),
+            effect: noop_effect().into(),
         };
 
         // Wrong step: main phase.

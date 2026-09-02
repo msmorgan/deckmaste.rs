@@ -77,12 +77,13 @@ fn activation_fixture_with_extras(
         name: "Replay fixture".into(),
         abilities: vec![Ability::activated(ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             cost: Cost(cost.into()),
             from: None,
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: OneShotEffect::Sequentially(Arc::from([])),
+            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
         })],
         ..CardFace::default()
     }));
@@ -173,6 +174,7 @@ fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost,
                 from: None,
                 window: None,
@@ -182,7 +184,8 @@ fn mana_source_for(name: &str, cost: Cost, color: Color, recipient: Reference) -
                     recipient,
                     Count::Literal(1),
                     ManaSpec::Specific(color.into()).into(),
-                )),
+                ))
+                .into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -201,11 +204,13 @@ fn suspending_barred_mana_source() -> Arc<Card> {
         },
         modes: vec![
             Mode {
-                effect: OneShotEffect::Sequentially(Arc::from([])),
+                targets: [].into(),
+                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                 cost: None,
             },
             Mode {
-                effect: OneShotEffect::Sequentially(Arc::from([])),
+                targets: [].into(),
+                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                 cost: None,
             },
         ]
@@ -217,6 +222,7 @@ fn suspending_barred_mana_source() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(Arc::from([])),
                 from: None,
                 window: None,
@@ -238,7 +244,8 @@ fn suspending_barred_mana_source() -> Arc<Card> {
                         )),
                     ]
                     .into(),
-                ),
+                )
+                .into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -263,6 +270,7 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(
                     vec![CostComponent::do_action(CoreAction::Move(
                         Reference::This,
@@ -291,7 +299,8 @@ fn token_creating_barred_mana_source() -> Arc<Card> {
                         )),
                     ]
                     .into(),
-                ),
+                )
+                .into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -303,6 +312,7 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
     let token_ability = Ability::Mana(ManaAbility::Activated {
         ability: Arc::new(ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             cost: Cost(vec![CostComponent::Tap].into()),
             from: None,
             window: None,
@@ -324,7 +334,8 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
                     Count::Literal(1),
                     ManaSpec::Specific(Color::Green.into()).into(),
                 ))),
-            }),
+            })
+            .into(),
         }),
         profile: deckmaste_core::ActivatedManaProfile::Always,
     });
@@ -344,6 +355,7 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(
                     vec![CostComponent::do_action(CoreAction::Move(
                         Reference::This,
@@ -372,7 +384,8 @@ fn token_creating_source_with_a_token_mana_ability() -> Arc<Card> {
                         )),
                     ]
                     .into(),
-                ),
+                )
+                .into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -384,6 +397,7 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
     let token_ability = Ability::Mana(ManaAbility::Activated {
         ability: Arc::new(ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             cost: Cost(vec![CostComponent::Tap].into()),
             from: None,
             window: None,
@@ -393,7 +407,8 @@ fn fulfillment_created_mana_source_replacements() -> (Arc<Card>, Arc<Card>) {
                 Reference::You,
                 Count::Literal(1),
                 ManaSpec::Specific(Color::Green.into()).into(),
-            )),
+            ))
+            .into(),
         }),
         profile: deckmaste_core::ActivatedManaProfile::Always,
     });
@@ -479,6 +494,7 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(
                     vec![CostComponent::do_action(CoreAction::Move(
                         Reference::This,
@@ -521,7 +537,8 @@ fn token_creating_then_choosing_barred_mana_source() -> Arc<Card> {
                         }),
                     ]
                     .into(),
-                ),
+                )
+                .into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -546,6 +563,7 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(vec![CostComponent::Tap].into()),
                 from: None,
                 window: None,
@@ -579,7 +597,8 @@ fn token_revealing_reversible_mana_source() -> Arc<Card> {
                         )),
                     ]
                     .into(),
-                ),
+                )
+                .into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -613,6 +632,7 @@ fn krark_clan_ironworks() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(vec![sacrifice_artifact].into()),
                 from: None,
                 window: None,
@@ -622,7 +642,8 @@ fn krark_clan_ironworks() -> Arc<Card> {
                     Reference::You,
                     Count::Literal(2),
                     ManaSpec::Specific(deckmaste_core::ColorOrColorless::Colorless).into(),
-                )),
+                ))
+                .into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -701,12 +722,13 @@ fn mox_amber_fixture() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(vec![CostComponent::Tap].into()),
                 from: None,
                 window: None,
                 condition: None,
                 limits: Arc::from([]),
-                effect,
+                effect: effect.into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -722,12 +744,13 @@ fn colored_legendary_artifact() -> Arc<Card> {
         types: vec![Type::Artifact.def(), Type::Creature.def()],
         abilities: vec![Ability::activated(ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             cost: Cost(vec![CostComponent::Mana("{2}{G}".parse::<ManaCost>().unwrap())].into()),
             from: None,
             window: None,
             condition: None,
             limits: Arc::from([]),
-            effect: OneShotEffect::Sequentially(Arc::from([])),
+            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
         })],
         ..CardFace::default()
     }))
@@ -763,6 +786,7 @@ fn mana_cylix_fixture() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(
                     vec![
                         CostComponent::Mana("{1}".parse::<ManaCost>().unwrap()),
@@ -778,7 +802,8 @@ fn mana_cylix_fixture() -> Arc<Card> {
                     Reference::You,
                     Count::Literal(1),
                     ManaSpec::AnyColor.into(),
-                )),
+                ))
+                .into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -813,6 +838,7 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
         abilities: vec![Ability::Mana(ManaAbility::Activated {
             ability: Arc::new(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 cost: Cost(vec![CostComponent::Tap].into()),
                 from: None,
                 window: None,
@@ -822,7 +848,8 @@ fn bighorner_rancher_fixture() -> Arc<Card> {
                     Reference::You,
                     greatest_power,
                     ManaSpec::Specific(Color::Green.into()).into(),
-                )),
+                ))
+                .into(),
             }),
             profile: deckmaste_core::ActivatedManaProfile::Always,
         })],
@@ -1122,6 +1149,7 @@ fn replay_restores_ordinary_triggers_caused_by_a_retained_fulfillment() {
         types: vec![Type::Enchantment.def()],
         abilities: vec![Ability::triggered(TriggeredAbility {
             ability_word: None,
+            targets: [].into(),
             event: EventFilter::LifeLost {
                 who: Predicate::Ref(Reference::You),
                 amount: None,
@@ -1130,7 +1158,7 @@ fn replay_restores_ordinary_triggers_caused_by_a_retained_fulfillment() {
             condition: None,
             limits: Arc::from([]),
             where_x: None,
-            effect: OneShotEffect::Sequentially(Arc::from([])),
+            effect: OneShotEffect::Sequentially(Arc::from([])).into(),
         })],
         ..CardFace::default()
     }));
@@ -2238,11 +2266,13 @@ fn suspended_fulfillment_keeps_dependent_mana_children_separately_reversible() {
         },
         modes: vec![
             Mode {
-                effect: OneShotEffect::Sequentially(Arc::from([])),
+                targets: [].into(),
+                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                 cost: None,
             },
             Mode {
-                effect: OneShotEffect::Sequentially(Arc::from([])),
+                targets: [].into(),
+                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                 cost: None,
             },
         ]
@@ -2436,11 +2466,13 @@ fn decline_retains_a_library_move_from_an_in_flight_fulfillment() {
         },
         modes: vec![
             Mode {
-                effect: OneShotEffect::Sequentially(Arc::from([])),
+                targets: [].into(),
+                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                 cost: None,
             },
             Mode {
-                effect: OneShotEffect::Sequentially(Arc::from([])),
+                targets: [].into(),
+                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                 cost: None,
             },
         ]
@@ -2609,11 +2641,13 @@ fn decline_preserves_a_public_reveal_without_crossing_an_observation_barrier() {
         },
         modes: vec![
             Mode {
-                effect: OneShotEffect::Sequentially(Arc::from([])),
+                targets: [].into(),
+                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                 cost: None,
             },
             Mode {
-                effect: OneShotEffect::Sequentially(Arc::from([])),
+                targets: [].into(),
+                effect: OneShotEffect::Sequentially(Arc::from([])).into(),
                 cost: None,
             },
         ]

@@ -5,11 +5,8 @@ use crate::Quantity;
 
 /// One entry in an ability's announce list ([CR#601.2c,115]). A `TargetSpec`
 /// is the only place "target" lives, and the announce list is an INDEXED
-/// channel: the body names this entry BY POSITION — as
-/// [`Reference::Target(n)`](crate::Reference::Target) (singular) or
-/// [`Selection::Targets(n)`](crate::Selection::Targets) (the slot's whole
-/// group), where `n` is this spec's index. Rechecked at resolution
-/// ([CR#608.2b]).
+/// channel: lowering assigns each entry a region parameter, and the body reads
+/// that parameter by position. Rechecked at resolution ([CR#608.2b]).
 ///
 /// A target pushes NO antecedent: `It`/`That(Sort)`/`They`/`Them` resolve over
 /// the antecedent stack (loop elements, binder choices, move/create products)

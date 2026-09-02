@@ -8,7 +8,6 @@ use crate::Condition;
 use crate::Cost;
 use crate::Count;
 use crate::Mode;
-use crate::TargetSpec;
 use crate::ability::TriggeredAbility;
 use crate::action::Action;
 use crate::continuous::Duration;
@@ -29,7 +28,7 @@ use crate::reference::Reference;
 // `resolve` hot path for no lint gain. The recursive sub-effect fields are
 // already boxed (`May.effect`, …).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
-pub enum OneShotEffect {
+pub enum Instr {
     /// A single intrinsic instruction (the `Act` compartment, transparent in
     /// RON).
     Act(Action),
@@ -138,11 +137,6 @@ pub enum OneShotEffect {
     Reflexive(Arc<TriggeredAbility>),
     /// A modal effect: choose modes, then apply them ([CR#700.2]).
     Modal(Modal),
-    /// Targets scoped over an inner effect ([CR#115.1,601.2c]): the rules-
-    /// faithful home for the word "target" — declared on the effect that
-    /// consumes it, its announced slots read back by the anaphors
-    /// (`It`/`That(Sort)`/`They`, or `Target(n)` for the nth announced slot).
-    Targeted(Targeted),
     /// "[body], [count] times": resolution follows the general
     /// spell/ability resolution walk ([CR#608.2]) — there is no dedicated CR
     /// rule defining a "do N times" quantifier; this is engine-side
@@ -182,7 +176,7 @@ pub enum OneShotEffect {
     RevealUntil(RevealUntil),
 }
 
-impl OneShotEffect {
+impl Instr {
     /// "`who` mills `count`" ([CR#701.17a]) — a slice-family keyword action:
     /// [`Batch`](OneShotEffect::Batch) over the per-unit [`Action::mill_one`],
     /// so a count-doubling replacement (Bruvac, [CR#121.2a,616.1g]) bites the
@@ -205,6 +199,11 @@ impl OneShotEffect {
     }
 }
 
+/// Transitional source-compatible name for the pre-region instruction enum.
+/// New core code should say [`Instr`]; the alias keeps downstream crates
+/// compiling while their public fixtures migrate to region terminology.
+pub type OneShotEffect = Instr;
+
 /// `Continuously { effect, duration }` ([CR#611.2]). `effect` is boxed to break
 /// the `OneShotEffect` → `StaticEffect` → `Replacement` → `OneShotEffect` size
 /// cycle.
@@ -212,33 +211,6 @@ impl OneShotEffect {
 pub struct Continuously {
     pub effect: Arc<StaticEffect>,
     pub duration: Duration,
-}
-
-/// `Targeted { targets, effect }` ([CR#115.1,601.2c]) — declares the
-/// targets its inner effect consumes, scoping the announced-slot reads to this
-/// list. Targets are chosen at announcement and stored on the stack object;
-/// at resolution this node is transparent (the inner effect runs with
-/// `frame.targets` already bound), and per-instance illegal-target handling
-/// ([CR#608.2b]) reads each inner instruction's referenced targets. `effect`
-/// is boxed to break the `OneShotEffect` → `Targeted` → `OneShotEffect` size
-/// cycle (mirrors `May`).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct Targeted {
-    #[serde(default, skip_serializing_if = "crate::slice_is_empty")]
-    pub targets: Arc<[TargetSpec]>,
-    pub effect: Arc<OneShotEffect>,
-}
-
-impl Targeted {
-    /// Scopes `targets` over `effect`, boxing the inner effect. Builds the
-    /// wrapper without the caller spelling the `Arc::new` / field order.
-    #[must_use]
-    pub fn new(targets: Arc<[TargetSpec]>, effect: OneShotEffect) -> Targeted {
-        Targeted {
-            targets,
-            effect: Arc::new(effect),
-        }
-    }
 }
 
 /// `May { who, do, if_did, if_not }` — `do` is a keyword, so the field is
@@ -287,7 +259,7 @@ fn ref_you() -> Reference {
 
 /// `skip_serializing_if` predicate: the default `You` is omitted from RON.
 fn ref_is_you(r: &Reference) -> bool {
-    matches!(r, Reference::You)
+    matches!(*r, Reference::You)
 }
 
 /// `AdditionalCost { pay, body }` — "As an additional cost, [pay]; then run

@@ -16,11 +16,12 @@ use crate::Reference;
 ///
 /// Targeting is NOT here — it lives in [`crate::TargetSpec`], the announce
 /// list — because a target has legality recheck and retargeting rules the
-/// other choice forms lack ([CR#115]). [`Targets`](Selection::Targets) is the
-/// one member that touches it, and only to READ it: an announced slot is
-/// named positionally, never resolved as an anaphor.
+/// other choice forms lack ([CR#115]). Announced groups are read through
+/// region registers, never resolved as anaphors.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Selection {
+    /// The full object group stored in a region register.
+    Reg(crate::RefId),
     /// All matching objects as one set ("every creature you control") — the
     /// group a distributor ([`Each`](crate::Each) / `StaticEffect::Each`)
     /// iterates. Mirrors Idris `SelectAll : Predicate -> Selection`.
@@ -91,22 +92,6 @@ pub enum Selection {
         #[serde(default = "ref_you", skip_serializing_if = "ref_is_you")]
         of: Reference,
     },
-    /// The nth announced target SLOT read as its full GROUP ([CR#115.3,601.2c])
-    /// — the plural twin of [`Reference::Target`](crate::Reference::Target),
-    /// and the ONLY plural read of the announce list. Arc Lightning's 1–3
-    /// targets are `Targets(0)`. Order-preserved as announced; a member
-    /// that has left its announced zone is dropped (partial fizzle,
-    /// [CR#608.2b]), so a wholly-departed slot reads as the empty group and
-    /// its verb no-ops. Out-of-range degrades to the empty group
-    /// (never-crash).
-    ///
-    /// A target is an INDEXED entry in the announce list, not an anaphor over
-    /// the antecedent stack: it is read here and by `Target(n)`, and nowhere
-    /// else. `They`/`Them` never reach it.
-    ///
-    /// Kind-disambiguated from [`Predicate::Targets`](crate::Predicate) and
-    /// `Count::TargetsOf` by position — no parse ambiguity.
-    Targets(usize),
     /// Everything legal for EVERY target slot of a stack object at once —
     /// [CR#707.10d]'s same-object rule. That rule copies a spell "for each
     /// player or object it could target", requires that "each of its targets
@@ -120,8 +105,7 @@ pub enum Selection {
     /// The [`Reference`] names the stack object whose slots are read; one that
     /// is not a live stack entry reads as the empty group (never-crash).
     ///
-    /// A pure READ of targeting legality, like
-    /// [`Targets`](Selection::Targets) — it never announces or re-announces,
+    /// A pure READ of targeting legality: it never announces or re-announces,
     /// and a single-slot spell degenerates to that slot's legal set.
     ///
     /// The [CR#707.10d] for-each-could-target family is COMPOSED from this
@@ -137,9 +121,9 @@ pub enum Selection {
     /// [CR#111.2]); order preserved; iterated with [`Each`](crate::Each)
     /// (per-element [`Reference::It`]).
     ///
-    /// NOT pushed by a target slot: a plural announced slot is read
-    /// positionally as [`Targets(n)`](Selection::Targets). An anaphor names
-    /// what a clause produced or bound; a target is named by its index.
+    /// NOT pushed by a target slot: an announced slot is read positionally
+    /// through a region register. An anaphor names what a clause produced or
+    /// bound; a target is named by its index.
     They,
     /// The SORTED plural anaphor — "those tokens", "those cards": the
     /// nearest Many antecedent of this [`Sort`](crate::Sort) (R1/R2, like
@@ -163,6 +147,23 @@ pub enum Selection {
     Pick { op: AggregateOp, proj: Projection },
 }
 
+impl Selection {
+    /// Compatibility constructor for Rust fixtures; lowered core stores the
+    /// announced group in the corresponding region register.
+    #[allow(non_snake_case, reason = "compatibility spelling for Rust fixtures")]
+    #[must_use]
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` cannot be represented in the register ABI.
+    pub fn Targets(index: usize) -> Self {
+        let index = u32::try_from(index).expect("target index fits u32");
+        Self::Reg(crate::RefId(
+            6_u32.checked_add(index).expect("target index overflow"),
+        ))
+    }
+}
+
 /// serde default for [`TopOfLibrary.whose`] — the library belongs to "you"
 /// unless the text names another player.
 fn ref_you() -> Reference {
@@ -172,5 +173,5 @@ fn ref_you() -> Reference {
 /// `skip_serializing_if` predicate for [`TopOfLibrary.whose`]: the default
 /// `You` is omitted from RON.
 fn ref_is_you(r: &Reference) -> bool {
-    matches!(r, Reference::You)
+    matches!(*r, Reference::You)
 }

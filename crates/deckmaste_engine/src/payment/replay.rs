@@ -272,6 +272,8 @@ pub(crate) fn reconstruct_frame(
         next_mana_action: 0,
         payment_observations: std::collections::HashSet::new(),
         payment_logical_objects,
+        activations: std::collections::HashMap::new(),
+        next_activation: 0,
     };
 
     let mut replay_map = ReplayMap::default();
@@ -1403,6 +1405,8 @@ pub(crate) fn reconstruct_decline(
         next_mana_action: 0,
         payment_observations: std::collections::HashSet::new(),
         payment_logical_objects,
+        activations: std::collections::HashMap::new(),
+        next_activation: 0,
     };
     let mut replay_map = ReplayMap::default();
     // Root payment mana actions all precede the first fulfillment: activated

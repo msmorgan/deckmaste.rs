@@ -1031,7 +1031,7 @@ fn combat_restriction_scope(subj: &str) -> Option<(String, Vec<String>)> {
         return Some((format!("Ref(That({ty}))"), Vec::new()));
     }
     if subj.eq_ignore_ascii_case("it") {
-        return Some(("Ref(Target(0))".to_owned(), Vec::new()));
+        return Some(("Ref(It)".to_owned(), Vec::new()));
     }
     if subj == "~" {
         return Some(("Ref(This)".to_owned(), Vec::new()));
@@ -3464,13 +3464,13 @@ mod tests {
                     .to_owned()
             ))
         );
-        // Bare "It" anaphor: a later sentence in a `Sequentially` chain reading a
-        // target an earlier sentence already declared — no NEW target here.
+        // Bare "It" anaphor: a later sentence in a `Sequentially` chain reads
+        // the preceding clause's discourse product and declares no new target.
         assert_eq!(
             parsed("It can't be blocked this turn."),
             Some((
                 String::new(),
-                "Continuously(effect: Cant(Block(on: Ref(Target(0)))), \
+                "Continuously(effect: Cant(Block(on: Ref(It))), \
                  duration: FixedUntil(EndOfTurn))"
                     .to_owned()
             ))

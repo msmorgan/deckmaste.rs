@@ -35,6 +35,9 @@
 
 mod activate;
 
+mod activation;
+pub use activation::ActivationId;
+
 mod agenda;
 pub use agenda::WorkItem;
 

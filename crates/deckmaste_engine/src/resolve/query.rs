@@ -98,8 +98,8 @@ impl GameState {
         (lo.map_or(0, ev), hi.map_or(cap, ev))
     }
 
-    /// The nth announced target slot's live members, in announce order — the
-    /// group read for `Selection::Targets(n)`. Departed (illegal) targets are
+    /// The nth announced target register's live members, in announce order.
+    /// Departed (illegal) targets are
     /// excluded ([CR#608.2b] partial fizzle; mirrors `StatePredicate::Targets`
     /// ignoring a gone target), so a wholly-departed slot reads empty and its
     /// verb no-ops. An out-of-range index reads empty (never-crash).
@@ -131,7 +131,7 @@ impl GameState {
         let view = self.layers();
         let specs =
             self.stack_object_target_specs(&view, &entry.object, entry.chosen_modes.as_ref());
-        let per_slot = self.legal_targets_for_specs(&specs, entry.id);
+        let per_slot = self.legal_targets_for_specs(&specs, entry.id, entry.activation);
         let Some((first, rest)) = per_slot.split_first() else {
             return Some(Vec::new());
         };
@@ -157,12 +157,23 @@ impl GameState {
     )]
     pub(crate) fn eval_selection_set(&self, sel: &Selection, frame: &Frame) -> Vec<ObjectId> {
         match sel {
+            Selection::Reg(reference) => {
+                let values = self.activation_objects(frame.activation, *reference);
+                if values.is_empty() && reference.0 >= 6 {
+                    self.live_target_slot(frame, (reference.0 - 6) as usize)
+                } else {
+                    values
+                }
+            }
             // Thread the carrier (like `Pick`) so a carrier-relative predicate
             // resolves rather than panicking frameless: "each opponent" =
             // `SelectAll(OpponentOf(Ref(You)))` reads `Ref(You)` off the watcher.
-            Selection::SelectAll(f) => {
-                crate::target::candidates_with(self, f, Some(self.frame_watcher(frame)))
-            }
+            Selection::SelectAll(f) => crate::target::candidates_with_activation(
+                self,
+                f,
+                Some(self.frame_watcher(frame)),
+                frame.activation,
+            ),
 
             // [CR#107.1]: the extremal element(s) of a set, ranked by the
             // shared `Projection` ([`Count::Aggregate`]'s element-twin). Each
@@ -182,7 +193,12 @@ impl GameState {
                 let candidates = match &proj.of {
                     Countable::Objects(filter) => {
                         let watcher = self.frame_watcher(frame);
-                        crate::target::candidates_with(self, filter, Some(watcher))
+                        crate::target::candidates_with_activation(
+                            self,
+                            filter,
+                            Some(watcher),
+                            frame.activation,
+                        )
                     }
                     // Idris's `Pick` is pinned to `Projection b AnObject`
                     // ([CR#107.1] — no player-`Pick` consumer exists), so a
@@ -239,11 +255,6 @@ impl GameState {
             // Provenance is erased at `lower` (`deckmaste_lowering`), so no
             // loaded value reaches here wrapped. The arm survives only because
             // the variant does; `core-demacro` deletes both.
-            // The nth announced target slot, read as its whole group
-            // ([CR#115.3,601.2c]) — positional, and the only plural read of the
-            // announce list. Never resolves over the antecedent stack: a target
-            // is an indexed entry, not an anaphor.
-            Selection::Targets(n) => self.live_target_slot(frame, *n),
             // [CR#707.10d]: every object the named spell could target — the
             // per-slot legal sets INTERSECTED (the same-object rule), so a
             // multi-slot spell yields only the objects legal in every slot at
@@ -284,20 +295,20 @@ impl GameState {
             Selection::They | Selection::Them(_) => {
                 // The sort is verified by the Idris re-emit gate; the frame's
                 // bound group is the value. An announced target slot is NOT a
-                // candidate here — a plural target is read positionally as
-                // `Selection::Targets(n)`. A product-sited plural read
+                // candidate here — a plural target is read positionally from
+                // its region register. A product-sited plural read
                 // (create-two-tokens … They) is [[engine-bound-references]] work.
                 let Some(that) = frame.anaphora.that.as_ref() else {
                     // An unbound plural read — a bare `They` in a targeted body
-                    // (the pre-positional spelling of `Targets(n)`), or the
+                    // (rather than its region register), or the
                     // unbuilt product-sited read. A semantic-input error fizzles
                     // to the empty group; the Idris gate is what REFUSES the
                     // shape (`tBadTheyReadsNoTarget`), and nothing here crashes
                     // on a bad card.
                     return Self::unbound_group(
                         sel,
-                        "They/Them with no enclosing With binding (a plural target reads \
-                         Targets(n); a product-sited plural read is unbuilt)",
+                        "They/Them with no enclosing With binding (a plural target reads a \
+                         region register; a product-sited plural read is unbuilt)",
                     );
                 };
                 assert_eq!(
@@ -459,6 +470,112 @@ impl GameState {
             .map_or_else(Vec::new, |_| vec![object])
     }
 
+    /// Resolve the complete object product carried by a reference. Region
+    /// registers use the activation table; legacy binders are adapted here so
+    /// every information query has one current/LKI lookup path.
+    pub(crate) fn eval_reference_product(
+        &self,
+        reference: &Reference,
+        frame: &Frame,
+    ) -> crate::activation::ReferenceProduct {
+        if let Reference::Reg(register) = reference {
+            if let Some(product) = self.activation_product(frame.activation, *register) {
+                return product;
+            }
+            // Hand-built engine fixtures may wrap an instruction in an empty
+            // compatibility region. Loaded data is validated, so only those
+            // fixtures can reach this fixed-ABI adapter.
+            return self.legacy_register_product(*register, frame);
+        }
+
+        let current_id = self.eval_reference(reference, frame);
+        let current = self.objects.get(current_id).map(|_| current_id);
+        let lki = match reference {
+            Reference::It => match frame.anaphora.it.as_ref() {
+                Some(crate::stack::ItBinding::Object(snapshot)) => Some(snapshot.clone()),
+                Some(crate::stack::ItBinding::Player(_)) | None => None,
+            },
+            _ => None,
+        };
+        crate::activation::ReferenceProduct { current, lki }
+    }
+
+    fn legacy_register_product(
+        &self,
+        register: deckmaste_core::RefId,
+        frame: &Frame,
+    ) -> crate::activation::ReferenceProduct {
+        use crate::activation::ReferenceProduct;
+        let live = |id| self.objects.get(id).map(|_| id);
+        match register.0 {
+            0 => ReferenceProduct {
+                current: live(frame.source),
+                lki: frame.this.clone(),
+            },
+            1 => ReferenceProduct {
+                current: Some(self.player(frame.controller).object),
+                lki: None,
+            },
+            2 => frame.anaphora.that_object.clone().map_or(
+                ReferenceProduct {
+                    current: None,
+                    lki: None,
+                },
+                |snapshot| ReferenceProduct {
+                    current: live(snapshot.object),
+                    lki: Some(snapshot),
+                },
+            ),
+            3 => match frame.anaphora.that_patient.as_ref() {
+                Some(crate::trigger::EventPatient::Object(snapshot)) => ReferenceProduct {
+                    current: live(snapshot.object),
+                    lki: Some(snapshot.clone()),
+                },
+                Some(crate::trigger::EventPatient::Player(player)) => ReferenceProduct {
+                    current: Some(self.player(*player).object),
+                    lki: None,
+                },
+                None => ReferenceProduct {
+                    current: None,
+                    lki: None,
+                },
+            },
+            4 => ReferenceProduct {
+                current: frame
+                    .anaphora
+                    .that_player
+                    .map(|player| self.player(player).object),
+                lki: None,
+            },
+            5 => ReferenceProduct {
+                current: frame
+                    .defending_player
+                    .map(|player| self.player(player).object),
+                lki: None,
+            },
+            n if n == u32::MAX - 1 => ReferenceProduct {
+                current: Some(self.player(self.next_live_after(frame.controller)).object),
+                lki: None,
+            },
+            n if n >= 6 => ReferenceProduct {
+                current: frame
+                    .anaphora
+                    .targets
+                    .get((n - 6) as usize)
+                    .and_then(|slot| {
+                        slot.iter()
+                            .copied()
+                            .find(|id| self.objects.get(*id).is_some())
+                    }),
+                lki: None,
+            },
+            _ => ReferenceProduct {
+                current: None,
+                lki: None,
+            },
+        }
+    }
+
     /// Resolve a [`Reference`] to an `ObjectId`.
     ///
     /// # Panics
@@ -469,16 +586,20 @@ impl GameState {
     /// where the relation is established).
     pub(crate) fn eval_reference(&self, reference: &Reference, frame: &Frame) -> ObjectId {
         match reference {
-            // [CR#603.10a]: for a triggered ability, `~`/`This` is the firing
-            // object's last-known self (the live source may be gone); for a
-            // spell frame (no snapshot) it is the live source.
-            Reference::This => frame.this.as_ref().map_or(frame.source, |s| s.object),
-            Reference::You => self.player(frame.controller).object,
-            // [CR#102.1]: in a 2-player game the opponent is the only other
-            // live player; picks the first opponent in turn order for >2.
-            Reference::Opponent => {
-                let opp = self.next_live_after(frame.controller);
-                self.player(opp).object
+            Reference::Reg(_) => {
+                let product = self.eval_reference_product(reference, frame);
+                product
+                    .current
+                    .or_else(|| product.lki.map(|lki| lki.object))
+                    .unwrap_or_else(ObjectId::null)
+            }
+            Reference::OpponentOf(inner) => {
+                let player_object = self.eval_reference(inner, frame);
+                let Some(player) = self.players.iter().find(|p| p.object == player_object) else {
+                    return ObjectId::null();
+                };
+                let opponent = self.next_live_after(player.id);
+                self.player(opponent).object
             }
             // The current iteration / projection element — "it" ([CR#608.2]).
             // Bound per element by an enclosing `Each`/`Distribute` loop, and by
@@ -496,30 +617,9 @@ impl GameState {
                         crate::stack::ItBinding::Player(p) => self.player(*p).object,
                     };
                 }
-                // The slot-bound read: outside every loop binder, a lone
-                // announced target is `It`'s unique antecedent — the runtime
-                // twin of the Idris model's R1 resolution, sound because the
-                // R2 gate refused any second candidate. The guard on
-                // the other singular bindings keeps this from ever guessing:
-                // a frame carrying an event role or a `With` choice can't
-                // take the fallback (such a read would be ambiguous —
-                // unrepresentable in the Idris model — so it can't reach here).
-                let no_other_singular = frame.anaphora.that.is_none()
-                    && frame.anaphora.that_object.is_none()
-                    && frame.anaphora.that_patient.is_none()
-                    && frame.anaphora.that_player.is_none();
-                // The lone-target antecedent is a SINGLE target across all
-                // slots (one quantity-one slot with one member).
-                let flat: Vec<ObjectId> =
-                    frame.anaphora.targets.iter().flatten().copied().collect();
-                if no_other_singular && flat.len() == 1 {
-                    // [CR#400.7j]: "exile target creature, … return IT" — the
-                    // lone-target antecedent chases to the object it became.
-                    return self.chase_moved(flat[0]);
-                }
                 Self::unbound_ref(
                     reference,
-                    "It outside an Each/Distribute/Where/Pick element and no lone announced target",
+                    "It outside an Each/Distribute/Where/Pick element",
                 )
             }
             // The single object bound by an enclosing `OneShotEffect::With`/cost
@@ -559,59 +659,10 @@ impl GameState {
                     |&id| self.chase_moved(id),
                 )
             }
-            // The nth announced target SLOT ([CR#115.3,601.2c]) read as a
-            // single object — its first still-live member (a quantity-one slot
-            // has exactly one). A wholly departed slot is a valid partial
-            // fizzle and reads null ([CR#608.2b]); only an out-of-range index
-            // is malformed semantic input. A plural slot's full set is read
-            // via `They`.
-            Reference::Target(n) => match frame.anaphora.targets.get(*n) {
-                Some(slot) => slot
-                    .iter()
-                    .copied()
-                    .find(|&target| self.objects.get(target).is_some())
-                    .unwrap_or_else(ObjectId::null),
-                None => Self::unbound_ref(reference, "announced target index out of range"),
-            },
             Reference::Single(selection) => {
                 let values = self.eval_selection_set(selection, frame);
                 if let [only] = values.as_slice() { *only } else { ObjectId::null() }
             }
-            // [CR#603.10a,603.2e,608.2k]: the trigger's provenance-explicit
-            // roles, read from the bindings the fired trigger carried. The
-            // event OBJECT (the moved/acting object) — `EventObject`.
-            Reference::EventObject => {
-                // The OBJECT is normally the bound LKI snapshot. A replacement
-                // recipient that is a player proxy carries no snapshot
-                // ([CR#120.3]: the patient is kind-poly and a player is
-                // zoneless), so when `that_object` is unset it falls back to the
-                // patient — leaving existing snapshot-bearing reads unchanged.
-                match &frame.anaphora.that_object {
-                    Some(s) => s.object,
-                    None => match frame.anaphora.that_patient.as_ref() {
-                        Some(crate::trigger::EventPatient::Object(s)) => s.object,
-                        Some(crate::trigger::EventPatient::Player(p)) => self.player(*p).object,
-                        None => Self::unbound_ref(reference, "EventObject outside a trigger"),
-                    },
-                }
-            }
-            // The event ACTOR (the responsible player) — `EventActor`.
-            Reference::EventActor => match frame.anaphora.that_player {
-                Some(p) => self.player(p).object,
-                None => Self::unbound_ref(reference, "EventActor outside a trigger"),
-            },
-            // [CR#608.2k,120.3]: the PATIENT (the acted-upon thing) —
-            // kind-poly, an object or a player proxy.
-            Reference::EventPatient => match frame.anaphora.that_patient.as_ref() {
-                Some(crate::trigger::EventPatient::Object(s)) => s.object,
-                Some(crate::trigger::EventPatient::Player(p)) => self.player(*p).object,
-                None => Self::unbound_ref(reference, "EventPatient outside a trigger"),
-            },
-            // [CR#506.2,508.5]: the combat DEFENDING player — always a player.
-            Reference::DefendingPlayer => match frame.defending_player {
-                Some(p) => self.player(p).object,
-                None => Self::unbound_ref(reference, "DefendingPlayer outside combat"),
-            },
             // [CR#109.5]: the derived controller of a referenced object.
             Reference::ControllerOf(inner) => {
                 let id = self.eval_reference(inner, frame);
@@ -787,6 +838,56 @@ mod tests {
         );
     }
 
+    #[test]
+    fn activation_target_product_keeps_lki_after_departure() {
+        use deckmaste_core::{DefId, Kind, Param, Provenance, RefId, Region};
+
+        let (mut state, target) = bear_on_field();
+        let source = state.player(PlayerId(0)).object;
+        let provenances = [
+            Provenance::Source,
+            Provenance::Controller,
+            Provenance::EventObject,
+            Provenance::EventPatient,
+            Provenance::EventActor,
+            Provenance::DefendingPlayer,
+            Provenance::AnnouncedTarget(0),
+            Provenance::AnnouncedX,
+        ];
+        let params: Arc<[Param]> = provenances
+            .into_iter()
+            .enumerate()
+            .map(|(index, provenance)| Param {
+                def: DefId(u32::try_from(index).expect("fixture parameter index fits u32")),
+                kind: if index == 6 {
+                    Kind::Objects
+                } else if index == 7 {
+                    Kind::Number
+                } else {
+                    Kind::Object
+                },
+                provenance,
+            })
+            .collect::<Vec<_>>()
+            .into();
+        let region = Region::new(params, Arc::from([]));
+        let mut frame = frame_src_targets(source, vec![target]);
+        frame.activation = state.enter_region(&region, &frame);
+
+        let snapshot = crate::lki::LkiSnapshot::capture(&state, target);
+        state.activation_departed(target, &snapshot);
+        state.objects.remove(target);
+        let product = state.eval_reference_product(&Reference::Reg(RefId(6)), &frame);
+        assert_eq!(product.current, None);
+        assert_eq!(product.lki.as_ref().map(|lki| lki.object), Some(target));
+        assert!(
+            state
+                .eval_reference_set(&Reference::Reg(RefId(6)), &frame)
+                .is_empty(),
+            "one-shot verbs pack a departed current value as the empty set"
+        );
+    }
+
     /// [CR#608.2b]: an announced target that has left its expected zone is no
     /// longer a resolvable current object. Singular reads become null and the
     /// action-patient set becomes empty, so instructions aimed at it fizzle.
@@ -810,9 +911,9 @@ mod tests {
     }
 
     /// Bound-role reads chase the move record ([CR#400.7j]): a One `that`
-    /// binding, the `It` bindings, and the lone-target `It` fallback resolve
-    /// to the object's latest same-resolution incarnation; `Target(n)` never
-    /// chases (the announced slot stays positional).
+    /// binding and explicit `It` bindings resolve to the object's latest
+    /// same-resolution incarnation; announced target registers never chase
+    /// (the announced slot stays positional).
     #[test]
     fn bound_role_reads_chase_the_move_record() {
         let (mut state, a, b) = two_permanents_on_field();
@@ -839,10 +940,9 @@ mod tests {
         frame.anaphora.it = Some(crate::stack::ItBinding::Object(snap));
         assert_eq!(state.eval_reference(&Reference::It, &frame), b);
 
-        // The lone-target `It` fallback chases too ("exile target creature,
-        // … return IT").
+        // A lone target does not implicitly bind the iteration anaphor.
         let lone = frame_src_targets(a, vec![a]);
-        assert_eq!(state.eval_reference(&Reference::It, &lone), b);
+        assert!(state.eval_reference(&Reference::It, &lone).is_null());
     }
 
     /// A Many `that` group chases per element via `Selection::They`.
@@ -1307,7 +1407,6 @@ mod tests {
         use deckmaste_core::Quantity;
         use deckmaste_core::SpellAbility;
         use deckmaste_core::TargetSpec;
-        use deckmaste_core::Targeted;
         use deckmaste_core::Type;
 
         use crate::object::ObjectSource;
@@ -1329,24 +1428,23 @@ mod tests {
             types: vec![Type::Instant.def()],
             abilities: vec![Ability::Spell(Arc::new(SpellAbility {
                 ability_word: None,
-                effect: OneShotEffect::Targeted(Targeted::new(
-                    vec![
-                        // Slot 0: creatures only.
-                        TargetSpec::Target(Quantity::one(), Predicate::creature()),
-                        // Slot 1: anything on the battlefield — a strict superset.
-                        TargetSpec::Target(
-                            Quantity::one(),
-                            Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
-                        ),
-                    ]
-                    .into(),
-                    // The body is irrelevant to the read under test; any
-                    // slot-referencing action keeps the wrapper well-formed.
-                    OneShotEffect::Act(Action::deal_damage(
-                        Reference::Target(0),
-                        deckmaste_core::Count::Literal(1),
-                    )),
-                )),
+                targets: vec![
+                    // Slot 0: creatures only.
+                    TargetSpec::Target(Quantity::one(), Predicate::creature()),
+                    // Slot 1: anything on the battlefield — a strict superset.
+                    TargetSpec::Target(
+                        Quantity::one(),
+                        Predicate::State(StatePredicate::InZone(Zone::Battlefield)),
+                    ),
+                ]
+                .into(),
+                // The body is irrelevant to the read under test; any
+                // slot-referencing action keeps the declaration well-formed.
+                effect: OneShotEffect::Act(Action::deal_damage(
+                    Reference::Target(0),
+                    deckmaste_core::Count::Literal(1),
+                ))
+                .into(),
             }))],
             ..CardFace::default()
         };
@@ -1355,6 +1453,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             id: spell,
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
@@ -1371,7 +1470,7 @@ mod tests {
         // is legal for slot 1, so a union would demonstrably admit it.
         let view = state.layers();
         let specs = state.stack_object_target_specs(&view, &StackObject::Spell(spell), &[]);
-        let per_slot = state.legal_targets_for_specs(&specs, spell);
+        let per_slot = state.legal_targets_for_specs(&specs, spell, crate::ActivationId::NONE);
         assert_eq!(per_slot.len(), 2, "the spell announces two slots");
         assert!(
             !per_slot[0].contains(&land),

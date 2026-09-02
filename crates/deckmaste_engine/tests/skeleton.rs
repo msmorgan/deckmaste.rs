@@ -880,6 +880,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != spell);
     state.objects.obj_mut(spell).zone = Some(Zone::Stack);
     state.stack.push(StackEntry {
+        activation: deckmaste_engine::ActivationId::NONE,
         paid_costs: Vec::new(),
         id: spell,
         object: StackObject::Spell(spell),
@@ -1104,6 +1105,7 @@ fn bolt_on_stack_targeting_bear() -> (GameState, ObjectId, ObjectId) {
     state.zones.hands[PlayerId(0).index()].retain(|&o| o != bolt);
     state.objects.obj_mut(bolt).zone = Some(Zone::Stack);
     state.stack.push(StackEntry {
+        activation: deckmaste_engine::ActivationId::NONE,
         paid_costs: Vec::new(),
         id: bolt,
         object: StackObject::Spell(bolt),

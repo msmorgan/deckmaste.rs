@@ -13,7 +13,7 @@
         (when: And([]), prefer: Play(what: (pick: First, by: Literal(1)))),
         // Deploy the biggest creature the pool can already fund (never a land,
         // which can surface as a zero-cost CastSpell).
-        (when: And([]), prefer: Cast(what: (pick: Max, by: StatOf(This, ManaValue), among: Not(Characteristic(Type((name: "Land", permanent: true))))))),
+        (when: And([]), prefer: Cast(what: (pick: Max, by: StatOf(Reg(0), ManaValue), among: Not(Characteristic(Type((name: "Land", permanent: true))))))),
         // Ramp toward the next cast: tap lands first so creatures stay untapped
         // to attack; fall back to a mana dork only when lands are exhausted
         // (which still fires the nonland-tap probe when the seat floods).

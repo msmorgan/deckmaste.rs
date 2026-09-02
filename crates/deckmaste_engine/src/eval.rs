@@ -1156,7 +1156,7 @@ impl GameState {
                 let used = object.id(self);
                 match bindings.frame {
                     Some(frame) => self.eval_reference(of, frame) == used,
-                    None => match deref_reference(of) {
+                    None => match *deref_reference(of) {
                         Reference::This => self
                             .objects
                             .iter()

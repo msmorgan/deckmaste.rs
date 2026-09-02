@@ -927,6 +927,7 @@ mod tests {
             Some(Zone::Graveyard),
         );
         state.stack.push(crate::stack::StackEntry {
+            activation: crate::ActivationId::NONE,
             id: copy_obj,
             object: crate::stack::StackObject::Spell(copy_obj),
             controller: PlayerId(0),

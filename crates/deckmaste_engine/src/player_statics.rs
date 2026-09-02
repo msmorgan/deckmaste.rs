@@ -42,7 +42,7 @@ fn literal(count: &Count) -> Int {
 /// permanent's controller ([CR#611.2c]); other references need the resolve-time
 /// `Frame` and are skipped (a documented seam).
 fn resolve_player_ref(reference: &Reference, controller: PlayerId) -> Option<PlayerId> {
-    match reference {
+    match *reference {
         Reference::You => Some(controller),
         _ => None,
     }

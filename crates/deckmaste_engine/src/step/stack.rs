@@ -51,10 +51,12 @@ impl EventApply for Copied {
             }
         };
         let new = g.objects.mint(source, controller, Some(Zone::Stack));
+        let activation = g.clone_activation(entry.activation);
         // [CR#700.2g]: a copy keeps the original spell or ability's announced
         // modes; its controller cannot choose again. Targets, X, and paid
         // optional costs are the other announcement-time choices cloned here.
         let copied = StackEntry {
+            activation,
             id: new,
             object: match &entry.object {
                 StackObject::Spell(_) => StackObject::Spell(new),

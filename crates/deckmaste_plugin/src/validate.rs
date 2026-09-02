@@ -356,7 +356,7 @@ mod tests {
     #[test]
     fn core_deserialization_rejects_ineligible_action_cost() {
         let parsed: Result<CostComponent, _> =
-            deckmaste_core::ron::options().from_str("Act(DrawCard(You))");
+            deckmaste_core::ron::options().from_str("Act(DrawCard(Reg(1)))");
         assert!(
             parsed
                 .unwrap_err()

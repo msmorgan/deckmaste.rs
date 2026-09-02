@@ -2,11 +2,8 @@
 //! AST as reified agenda work. Stage 3 wires the corpus's arms; the rest are
 //! `todo!`.
 
-use std::sync::Arc;
-
 use deckmaste_core::Ability;
 use deckmaste_core::Agency;
-use deckmaste_core::OneShotEffect;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Zone;
 
@@ -139,6 +136,7 @@ impl GameState {
                 } else if self.targets_still_legal(&entry) {
                     // Instant/sorcery with all targets still legal: run its effect.
                     let frame = Frame {
+                        activation: entry.activation,
                         source: spell,
                         controller: entry.controller,
                         this: None,
@@ -171,6 +169,7 @@ impl GameState {
                         })
                     };
                     let mut items = crate::cast::announced_effect_items(
+                        self,
                         &effect,
                         &frame,
                         entry.chosen_modes.as_ref(),
@@ -241,6 +240,7 @@ impl GameState {
                     }
                 };
                 let frame = Frame {
+                    activation: entry.activation,
                     // [CR#608.2,603.10a]: `~`/`This` is the firing object's
                     // last-known self; the live source may be gone.
                     source: bindings.this.as_ref().map_or(entry.id, |s| s.object),
@@ -276,13 +276,17 @@ impl GameState {
                         GameEvent::AbilityResolved(entry.id),
                     ))]);
                 } else if self.targets_still_legal(&entry) {
-                    self.schedule_front(vec![
-                        WorkItem::RunEffect {
-                            effect: Arc::new(t.effect),
-                            frame,
-                        },
-                        WorkItem::Emit(Occurrence::single(GameEvent::AbilityResolved(entry.id))),
-                    ]);
+                    let mut items = crate::cast::announced_effect_items(
+                        self,
+                        &t.effect,
+                        &frame,
+                        entry.chosen_modes.as_ref(),
+                        &entry.targets,
+                    );
+                    items.push(WorkItem::Emit(Occurrence::single(
+                        GameEvent::AbilityResolved(entry.id),
+                    )));
+                    self.schedule_front(items);
                 } else {
                     // [CR#608.2b]: every target illegal — fizzle, vanish.
                     self.schedule_front(vec![WorkItem::Emit(Occurrence::single(
@@ -304,6 +308,7 @@ impl GameState {
                         .as_ref()
                         .expect("begin_activate captures the source snapshot unconditionally");
                     let frame = Frame {
+                        activation: entry.activation,
                         // [CR#608.2]: `~` is the source's announce-time
                         // snapshot; the live object may be gone.
                         source: this.object,
@@ -324,6 +329,7 @@ impl GameState {
                         },
                     };
                     let mut items = crate::cast::announced_effect_items(
+                        self,
                         &ability.effect,
                         &frame,
                         entry.chosen_modes.as_ref(),
@@ -406,18 +412,33 @@ impl GameState {
     /// Returns the effect of the spell's first `Ability::Spell(SpellAbility {
     /// effect, .. })`, cloned. Returns `None` if there is no Spell ability.
     #[must_use]
-    pub(crate) fn spell_effect(&self, id: ObjectId) -> Option<OneShotEffect> {
+    pub(crate) fn spell_effect(&self, id: ObjectId) -> Option<deckmaste_core::Region> {
         crate::derive::abilities(self, id)
             .iter()
             .find_map(|a| spell_ability_effect(a))
             .cloned()
     }
+
+    #[must_use]
+    pub(crate) fn spell_targets(&self, id: ObjectId) -> Vec<TargetSpec> {
+        crate::derive::abilities(self, id)
+            .iter()
+            .find_map(|ability| spell_ability(ability))
+            .map_or_else(Vec::new, |spell| spell.targets.to_vec())
+    }
 }
 
 /// Extracts the `OneShotEffect` from the first `Ability::Spell` arm.
-fn spell_ability_effect(ability: &Ability) -> Option<&OneShotEffect> {
+fn spell_ability_effect(ability: &Ability) -> Option<&deckmaste_core::Region> {
     match ability {
         Ability::Spell(s) => Some(&s.effect),
+        _ => None,
+    }
+}
+
+pub(crate) fn spell_ability(ability: &Ability) -> Option<&deckmaste_core::SpellAbility> {
+    match ability {
+        Ability::Spell(spell) => Some(spell),
         _ => None,
     }
 }
@@ -430,17 +451,6 @@ fn deref_quantity(q: &deckmaste_core::Quantity) -> &deckmaste_core::Quantity {
         // Provenance is erased at `lower` (`deckmaste_lowering`), so no
         // loaded value reaches here wrapped. The arm survives only because
         // the variant does; `core-demacro` deletes both.
-    }
-}
-
-/// The targets declared on a top-level `Targeted` wrapper, or `&[]` when the
-/// effect isn't a wrapper — the announce-list
-/// home after the migration ([CR#115.1,601.2c]). A single top-level wrapper is
-/// the only shape today; a nested wrapper would need a per-scope target stack.
-pub(crate) fn top_targets(effect: &OneShotEffect) -> &[TargetSpec] {
-    match effect {
-        OneShotEffect::Targeted(te) => &te.targets,
-        _ => &[],
     }
 }
 
@@ -466,7 +476,6 @@ mod tests {
     use deckmaste_card::CardFace;
     use deckmaste_core::Action;
     use deckmaste_core::Count;
-    use deckmaste_core::OneShotEffect;
     use deckmaste_core::Predicate;
     use deckmaste_core::Reference;
     use deckmaste_core::Type;
@@ -527,6 +536,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             id: spell,
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
@@ -545,21 +555,24 @@ mod tests {
         );
     }
 
-    /// `top_targets` reads the targets off a top-level `Targeted` and returns
-    /// empty for a non-wrapper effect ([CR#115.1,601.2c]).
+    /// Targets are structural ability data rather than an effect wrapper
+    /// ([CR#115.1,601.2c]).
     #[test]
-    fn top_targets_reads_wrapper_and_is_empty_otherwise() {
+    fn spell_targets_are_explicit() {
         let spec = deckmaste_core::TargetSpec::Target(
             deckmaste_core::Quantity::one(),
             Predicate::creature(),
         );
-        let wrapped = OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-            vec![spec.clone()].into(),
-            OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
-        ));
-        assert_eq!(super::top_targets(&wrapped), std::slice::from_ref(&spec));
-        let bare = OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(1)));
-        assert!(super::top_targets(&bare).is_empty());
+        let ability = deckmaste_core::SpellAbility {
+            ability_word: None,
+            targets: vec![spec.clone()].into(),
+            effect: deckmaste_core::Instr::Act(Action::deal_damage(
+                Reference::It,
+                Count::Literal(3),
+            ))
+            .into(),
+        };
+        assert_eq!(ability.targets.as_ref(), std::slice::from_ref(&spec));
     }
 
     /// Ticket: the iteration anaphor's KIND ([CR#120.3]) tracks the element's

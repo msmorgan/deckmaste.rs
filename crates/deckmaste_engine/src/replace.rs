@@ -229,7 +229,7 @@ fn host_quality(binder: &deckmaste_core::Binder) -> Option<&Predicate> {
 
 /// Whether a `Reference` is this object itself (`This`).
 fn is_self_reference(r: &Reference) -> bool {
-    matches!(r, Reference::This)
+    matches!(*r, Reference::This)
 }
 
 /// Whether an `also` effect is this object attaching itself on entry — the

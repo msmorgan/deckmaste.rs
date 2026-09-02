@@ -33,6 +33,9 @@ impl GameState {
     )]
     pub(crate) fn eval_count(&self, qty: &Count, frame: &Frame) -> Uint {
         match qty {
+            Count::Reg(register) => self
+                .activation_number(frame.activation, *register)
+                .unwrap_or(0),
             Count::Literal(n) => *n,
             // "For each …": the filter's live cardinality over every object
             // (card objects in all zones + player proxies) — canonical
@@ -160,11 +163,13 @@ impl GameState {
             // object's now-stale id; the live object store no longer holds it,
             // so the count comes from the trigger's last-known snapshot instead.
             Count::CounterCount(reference, kind) => {
-                let id = self.eval_reference(reference, frame);
-                match self.objects.get(id) {
+                let product = self.eval_reference_product(reference, frame);
+                match product.current.and_then(|id| self.objects.get(id)) {
                     Some(o) => o.counters.get(kind.as_str()).copied().unwrap_or(0),
-                    None => lki_counters(reference, frame)
-                        .and_then(|c| c.get(kind.as_str()).copied())
+                    None => product
+                        .lki
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.counters.get(kind.as_str()).copied())
                         .unwrap_or(0),
                 }
             }
@@ -622,35 +627,6 @@ impl GameState {
             .count();
         Uint::try_from(n).expect("ability use count fits Uint")
     }
-}
-
-/// The last-known counter map for a snapshot-bearing reference whose object is
-/// gone ([CR#603.10a]): `This`/`EventObject`/`EventPatient` read the snapshot
-/// the fired trigger carried; `It` reads the iteration/projection element's
-/// snapshot. `None` when the relevant slot is unbound, the element is a player
-/// (zoneless, no snapshot), or the reference isn't a snapshot-bearing one.
-fn lki_counters<'f>(
-    reference: &Reference,
-    frame: &'f Frame,
-) -> Option<&'f std::collections::HashMap<deckmaste_core::Ident, Uint>> {
-    // `It` reads the iteration/projection element's snapshot (a card element);
-    // a player element is zoneless and has none.
-    if let Reference::It = reference {
-        return match frame.anaphora.it.as_ref()? {
-            crate::stack::ItBinding::Object(s) => Some(&s.counters),
-            crate::stack::ItBinding::Player(_) => None,
-        };
-    }
-    let snapshot = match reference {
-        Reference::This => frame.this.as_ref(),
-        Reference::EventObject => frame.anaphora.that_object.as_ref(),
-        Reference::EventPatient => match frame.anaphora.that_patient.as_ref()? {
-            crate::trigger::EventPatient::Object(s) => Some(s),
-            crate::trigger::EventPatient::Player(_) => None,
-        },
-        _ => None,
-    }?;
-    Some(&snapshot.counters)
 }
 
 #[cfg(test)]
@@ -1556,7 +1532,10 @@ mod tests {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src_targets(bear, vec![bear]);
 
-        let power = Count::StatOf(Reference::It, deckmaste_core::Stat::Power);
+        let power = Count::StatOf(
+            Reference::Reg(deckmaste_core::RefId(6)),
+            deckmaste_core::Stat::Power,
+        );
         assert_eq!(state.eval_count(&power, &frame), 2);
         assert_eq!(
             state.eval_count(
@@ -1594,7 +1573,10 @@ mod tests {
         state.run_effect(
             OneShotEffect::Sequentially(
                 vec![
-                    OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
+                    OneShotEffect::Act(Action::deal_damage(
+                        Reference::Reg(deckmaste_core::RefId(6)),
+                        Count::Literal(3),
+                    )),
                     OneShotEffect::Act(Action::ChangeLife(
                         Reference::You,
                         LifeOp::Up(Count::ThatMuch),

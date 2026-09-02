@@ -12,29 +12,26 @@ mod tests {
 
     #[test]
     fn attach_host_of_round_trips() {
-        let v = Reference::AttachHostOf(Arc::new(Reference::This));
+        let v = Reference::AttachHostOf(Arc::new(Reference::Reg(crate::RefId(0))));
         let w = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&w), v);
     }
 
     #[test]
-    fn opponent_round_trips() {
-        let v = Reference::Opponent;
+    fn opponent_of_round_trips() {
+        let v = Reference::OpponentOf(Arc::new(Reference::Reg(crate::RefId(1))));
         let w = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&w), v);
     }
 
-    /// The event roles read as bare variant names and round-trip — the
-    /// object/patient/actor split plus the first-class defending player,
-    /// mirroring the Idris `EventObject`/`EventPatient`/`EventActor`
-    /// ([CR#603.2e,608.2k,506.2]).
+    /// Event roles are ordinary fixed-prefix register reads.
     #[test]
     fn event_roles_round_trip() {
         for (source, value) in [
-            ("EventObject", Reference::EventObject),
-            ("EventPatient", Reference::EventPatient),
-            ("EventActor", Reference::EventActor),
-            ("DefendingPlayer", Reference::DefendingPlayer),
+            ("Reg(2)", Reference::Reg(crate::RefId(2))),
+            ("Reg(3)", Reference::Reg(crate::RefId(3))),
+            ("Reg(4)", Reference::Reg(crate::RefId(4))),
+            ("Reg(5)", Reference::Reg(crate::RefId(5))),
         ] {
             assert_eq!(read(source), value, "reads bare: {source}");
             let written = crate::ron::options().to_string(&value).unwrap();
@@ -78,11 +75,11 @@ mod tests {
         );
     }
 
-    /// `Target(n)` — the nth announced target — reads and round-trips.
+    /// Announced targets serialize as their fixed-prefix register reads.
     #[test]
     fn target_index_round_trips() {
-        let v = Reference::Target(0);
-        assert_eq!(read("Target(0)"), v);
+        let v = Reference::Reg(crate::RefId(6));
+        assert_eq!(read("Reg(6)"), v);
         let written = crate::ron::options().to_string(&v).unwrap();
         assert_eq!(read(&written), v);
     }
@@ -91,8 +88,8 @@ mod tests {
     fn coalesce_round_trips() {
         let value = Reference::Coalesce(
             vec![
-                Reference::ControllerOf(Arc::new(Reference::Target(0))),
-                Reference::Target(0),
+                Reference::ControllerOf(Arc::new(Reference::Reg(crate::RefId(6)))),
+                Reference::Reg(crate::RefId(6)),
             ]
             .into(),
         );
@@ -103,7 +100,7 @@ mod tests {
     #[test]
     fn single_round_trips() {
         let value = Reference::Single(Arc::new(crate::Selection::SelectAll(
-            crate::Predicate::Ref(Reference::You),
+            crate::Predicate::Ref(Reference::Reg(crate::RefId(1))),
         )));
         let written = crate::ron::options().to_string(&value).unwrap();
         assert_eq!(read(&written), value);
@@ -114,22 +111,18 @@ mod tests {
 /// the position, or by a binder) and referenced later. References name
 /// *objects*; amounts live in [`crate::Quantity`].
 ///
-/// Players are objects — `You`, `ControllerOf`, `OwnerOf` resolve to
-/// player objects.
+/// Players are objects: the controller region parameter and the results of
+/// `ControllerOf` and `OwnerOf` resolve to player objects.
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Reference {
-    /// The object this ability is printed on / the resolving spell.
-    This,
+    /// An indexed read from the current region's activation record.
+    Reg(crate::RefId),
     /// Demote a selection to its sole element. Empty and ambiguous
     /// selections fail closed. Rust counterpart of Idris `Reference.Single`.
     Single(Arc<crate::Selection>),
-    /// The controller of this ability ([CR#109.5]).
-    You,
-    /// An opponent of `You` ([CR#102.1]); in a two-player game, the other
-    /// player. Multiplayer "an opponent" that requires a choice is a future
-    /// edge — single-opponent assumption for now.
-    Opponent,
+    /// An opponent of the player produced by the inner expression.
+    OpponentOf(Arc<Reference>),
     /// The wildcard singular anaphor — "it". Inside a binder it is the
     /// innermost bound element, deterministically: the loop variable of
     /// [`Each`](crate::Each) / [`Distribute`](crate::Distribute), a
@@ -144,65 +137,20 @@ pub enum Reference {
     /// antecedent makes it a guess (the R2 uniqueness gate; both are
     /// soundness invariants proven by the Idris re-emit gate).
     ///
-    /// NEVER an announced target: a target is not an anaphor but an indexed
-    /// entry in the announce list, read only as
-    /// [`Target(n)`](Reference::Target)
-    /// / [`Selection::Targets`](crate::Selection::Targets). Lightning Bolt is
-    /// `DealDamage(This, 3, Target(0))`. A bare `It` in a targeted body with no
-    /// loop, binder, or product antecedent is an unbound read, not a target.
+    /// NEVER an announced target: target slots are indexed region parameters.
+    /// A bare `It` in a targeted body with no loop, binder, or product
+    /// antecedent is an unbound read, not a target.
     It,
-    /// The nth announced target SLOT read as a single object
-    /// ([CR#115.3,601.2c]) — the announce list is an INDEXED channel, and this
-    /// plus [`Selection::Targets`](crate::Selection::Targets) are its only
-    /// readers. Two same-sort slots (the fight family) are `Target(0)` and
-    /// `Target(1)`; no labelling apparatus and no anaphor resolution are
-    /// involved, so no ambiguity can arise.
-    ///
-    /// Reads the slot's first still-live member (a quantity-one slot has
-    /// exactly one; a departed member is skipped — partial fizzle,
-    /// [CR#608.2b]); out-of-range degrades to the null id (never-crash).
-    ///
-    /// Does NOT chase [CR#400.7j] moves: an object this resolution moved is a
-    /// NEW object and has its own channel — the move product, read as
-    /// [`That(Sort)`](Reference::That). "Exile target creature, then return
-    /// that card" is `Target(0)` then `That(Card)`.
-    Target(usize),
-    /// The triggering event's OBJECT — the doer/source ("that card"): the
-    /// moving object of a zone change, the source of damage
-    /// ([CR#603.2e,608.2k]). Mirrors the Idris `Reference.EventObject`
-    /// (`hasObject`); distinct from the
-    /// [`EventPatient`](Reference::EventPatient) it acts upon and the
-    /// [`EventActor`](Reference::EventActor) player.
-    EventObject,
-    /// The triggering event's PATIENT — the acted-upon thing (a damage
-    /// recipient, a destroyed/countered object), kind-polymorphic: a player OR
-    /// an object, fixed by the event ([CR#120.3,608.2k]). Distinct from the
-    /// doer ([`EventObject`](Reference::EventObject)), so a two-object event
-    /// ("whenever a creature deals damage to another creature") can name source
-    /// and recipient separately. For the combat defender prefer
-    /// [`DefendingPlayer`](Reference::DefendingPlayer) (always a player).
-    EventPatient,
-    /// The triggering event's responsible player ("that player") — the event's
-    /// ACTOR ([CR#603.2e]). Mirrors the Idris `Reference.EventActor`
-    /// (`hasActor`).
-    EventActor,
-    /// The defending player of an attack/combat — ALWAYS a player, even versus
-    /// a planeswalker or battle ([CR#506.2,508.5]). Reachable today otherwise
-    /// only as a [`DeciderSpec::DefendingPlayer`](crate::DeciderSpec) — this is
-    /// the first-class reference for bodies that name "the defending player"
-    /// (landwalk, Annihilator, Afflict).
-    DefendingPlayer,
     /// The SORTED singular anaphor — "that card", "that creature", "that
     /// player": the nearest singular antecedent of this [`Sort`](crate::Sort)
     /// on the antecedent stack (R1 nearest-compatible, R2 uniqueness gate).
     /// Antecedents are pushed by producing clauses (the moved/created object,
     /// [CR#400.7]), event bodies ([CR#603.2e]), and binders ([CR#608.2d]) —
-    /// NOT by target slots, which are read positionally as
-    /// [`Target(n)`](Reference::Target). This is the read for a move's PRODUCT
-    /// ("exile target creature … return that **card**"): the returned card is
-    /// a new object [CR#400.7], so `Target(0)` cannot name it and `That(Card)`
-    /// does. Resolution is dynamic at engine eval time (over
-    /// the frame), and its soundness is proven by the Idris re-emit gate. A
+    /// NOT by target slots, which are region parameters. This is the read for
+    /// a move's PRODUCT ("exile target creature … return that **card**"): the
+    /// returned card is a new object [CR#400.7], so its original target
+    /// register cannot name it and `That(Card)` does. Resolution is dynamic at
+    /// engine eval time, and its soundness is proven by the Idris re-emit gate. A
     /// many-antecedent is read instead as
     /// [`Selection::They`](crate::Selection::They) /
     /// [`Selection::Them`](crate::Selection::Them).
@@ -224,8 +172,8 @@ pub enum Reference {
     /// enchantees, and Fortification hosts alike.
     AttachHostOf(Arc<Reference>),
     /// The sources of marked damage on the object under evaluation (the
-    /// frame's [`This`](Reference::This) — the creature an SBA rule's scope
-    /// binds) — a SET-valued binding over each source *as it was when it dealt
+    /// frame's source register — the creature an SBA rule's scope binds) — a
+    /// SET-valued binding over each source *as it was when it dealt
     /// the damage* ([CR#120.3,702.2c]): its deal-time abilities are captured
     /// with the mark, since the source may since have lost the ability or left
     /// the battlefield. Meaningful only inside [`Is(Source, …)`](
@@ -236,4 +184,56 @@ pub enum Reference {
     /// (the binding is over stored deal-time records), so it has no Idris
     /// counterpart.
     Source,
+}
+
+impl Reference {
+    #[allow(
+        non_upper_case_globals,
+        reason = "compatibility spelling for Rust fixtures"
+    )]
+    pub const This: Self = Self::Reg(crate::RefId(0));
+    #[allow(
+        non_upper_case_globals,
+        reason = "compatibility spelling for Rust fixtures"
+    )]
+    pub const You: Self = Self::Reg(crate::RefId(1));
+    #[allow(
+        non_upper_case_globals,
+        reason = "compatibility spelling for Rust fixtures"
+    )]
+    pub const Opponent: Self = Self::Reg(crate::RefId(u32::MAX - 1));
+    #[allow(
+        non_upper_case_globals,
+        reason = "compatibility spelling for Rust fixtures"
+    )]
+    pub const EventObject: Self = Self::Reg(crate::RefId(2));
+    #[allow(
+        non_upper_case_globals,
+        reason = "compatibility spelling for Rust fixtures"
+    )]
+    pub const EventPatient: Self = Self::Reg(crate::RefId(3));
+    #[allow(
+        non_upper_case_globals,
+        reason = "compatibility spelling for Rust fixtures"
+    )]
+    pub const EventActor: Self = Self::Reg(crate::RefId(4));
+    #[allow(
+        non_upper_case_globals,
+        reason = "compatibility spelling for Rust fixtures"
+    )]
+    pub const DefendingPlayer: Self = Self::Reg(crate::RefId(5));
+    /// Compatibility constructor for Rust fixtures; lowered core always
+    /// contains the resulting register directly.
+    #[allow(non_snake_case, reason = "compatibility spelling for Rust fixtures")]
+    #[must_use]
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` cannot be represented in the register ABI.
+    pub fn Target(index: usize) -> Self {
+        let index = u32::try_from(index).expect("target index fits u32");
+        Self::Reg(crate::RefId(
+            6_u32.checked_add(index).expect("target index overflow"),
+        ))
+    }
 }

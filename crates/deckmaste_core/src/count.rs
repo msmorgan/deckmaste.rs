@@ -155,6 +155,8 @@ pub struct Projection {
 /// authoring syntax.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub enum Count {
+    /// A numeric value stored in the current region's activation record.
+    Reg(crate::RefId),
     /// The value chosen for {X} as the spell or ability was put on the
     /// stack ([CR#107.3]).
     X,

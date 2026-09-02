@@ -14,13 +14,18 @@ use deckmaste_core::ActivatedAbility;
 use deckmaste_core::ActivatedManaProfile;
 use deckmaste_core::CostComponent;
 use deckmaste_core::Count;
+use deckmaste_core::DefId;
+use deckmaste_core::Kind;
 use deckmaste_core::LifeOp;
 use deckmaste_core::ManaAbility;
 use deckmaste_core::ManaCost;
 use deckmaste_core::ManaSpec;
 use deckmaste_core::ManaSymbol;
 use deckmaste_core::OneShotEffect;
+use deckmaste_core::Param;
+use deckmaste_core::Provenance;
 use deckmaste_core::Reference;
+use deckmaste_core::Region;
 use deckmaste_core::SimpleManaSymbol;
 use deckmaste_core::Subtype;
 use deckmaste_core::Token;
@@ -62,6 +67,28 @@ fn artifact_subtype(name: &str) -> Subtype {
     }
 }
 
+fn ability_region(effect: OneShotEffect) -> Region {
+    let provenances = [
+        (Kind::Object, Provenance::Source),
+        (Kind::Object, Provenance::Controller),
+        (Kind::Object, Provenance::EventObject),
+        (Kind::Object, Provenance::EventPatient),
+        (Kind::Object, Provenance::EventActor),
+        (Kind::Object, Provenance::DefendingPlayer),
+        (Kind::Number, Provenance::AnnouncedX),
+    ];
+    let params = provenances
+        .into_iter()
+        .enumerate()
+        .map(|(index, (kind, provenance))| Param {
+            def: DefId(u32::try_from(index).unwrap()),
+            kind,
+            provenance,
+        })
+        .collect();
+    Region::new(params, effect)
+}
+
 // [CR#111.10a]
 #[test]
 fn treasure_token_parses() {
@@ -76,17 +103,18 @@ fn treasure_token_parses() {
             subtypes: vec![artifact_subtype("Treasure")].into(),
             abilities: vec![mana_ability(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 from: None,
                 window: None,
                 cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap, sacrifice_this()])
                     .into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::AddMana(
+                effect: ability_region(OneShotEffect::Act(Action::AddMana(
                     Reference::You,
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
-                )),
+                ))),
             })]
             .into(),
             power: None,
@@ -109,16 +137,19 @@ fn clue_token_parses() {
             subtypes: vec![artifact_subtype("Clue")].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 from: None,
                 window: None,
                 cost: Arc::<[CostComponent]>::from(vec![mana_2(), sacrifice_this()]).into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: builtin()
-                    .macros
-                    .read_str::<deckmaste_semantics::OneShotEffect>("Draw(1)")
-                    .unwrap()
-                    .lower(),
+                effect: ability_region(
+                    builtin()
+                        .macros
+                        .read_str::<deckmaste_semantics::OneShotEffect>("Draw(1)")
+                        .unwrap()
+                        .lower(),
+                ),
             })]
             .into(),
             power: None,
@@ -141,6 +172,7 @@ fn food_token_parses() {
             subtypes: vec![artifact_subtype("Food")].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 from: None,
                 window: None,
                 cost: Arc::<[CostComponent]>::from(vec![
@@ -151,10 +183,10 @@ fn food_token_parses() {
                 .into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::ChangeLife(
+                effect: ability_region(OneShotEffect::Act(Action::ChangeLife(
                     Reference::You,
                     LifeOp::Up(Count::Literal(3))
-                )),
+                ))),
             })]
             .into(),
             power: None,
@@ -177,16 +209,17 @@ fn gold_token_parses() {
             subtypes: vec![artifact_subtype("Gold")].into(),
             abilities: vec![mana_ability(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 from: None,
                 window: None,
                 cost: Arc::<[CostComponent]>::from(vec![sacrifice_this()]).into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: OneShotEffect::Act(Action::AddMana(
+                effect: ability_region(OneShotEffect::Act(Action::AddMana(
                     Reference::You,
                     Count::Literal(1),
                     ManaSpec::AnyColor.into()
-                )),
+                ))),
             })]
             .into(),
             power: None,
@@ -221,6 +254,7 @@ fn blood_token_parses() {
             subtypes: vec![artifact_subtype("Blood")].into(),
             abilities: vec![Ability::activated(ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 from: None,
                 window: None,
                 cost: Arc::<[CostComponent]>::from(vec![
@@ -232,11 +266,13 @@ fn blood_token_parses() {
                 .into(),
                 condition: None,
                 limits: vec![].into(),
-                effect: builtin()
-                    .macros
-                    .read_str::<deckmaste_semantics::OneShotEffect>("Draw(1)")
-                    .unwrap()
-                    .lower(),
+                effect: ability_region(
+                    builtin()
+                        .macros
+                        .read_str::<deckmaste_semantics::OneShotEffect>("Draw(1)")
+                        .unwrap()
+                        .lower(),
+                ),
             })]
             .into(),
             power: None,
@@ -306,12 +342,13 @@ fn vibranium_token_parses() {
                 indestructible,
                 mana_ability(ActivatedAbility {
                     ability_word: None,
+                    targets: [].into(),
                     from: None,
                     window: None,
                     cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
                     condition: None,
                     limits: vec![].into(),
-                    effect: restricted_mana,
+                    effect: ability_region(restricted_mana),
                 }),
             ]
             .into(),

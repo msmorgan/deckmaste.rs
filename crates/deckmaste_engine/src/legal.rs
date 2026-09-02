@@ -1964,6 +1964,7 @@ mod tests {
         use deckmaste_core::OneShotEffect;
         let ability = ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
             window: None,
@@ -1973,7 +1974,8 @@ mod tests {
                 Reference::You,
                 Count::Literal(1),
                 ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Colorless)),
-            )),
+            ))
+            .into(),
         };
         Ability::Mana(deckmaste_core::ManaAbility::Activated {
             ability: Arc::new(ability),
@@ -2209,6 +2211,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(card_id), controller, Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             id,
             object: StackObject::Spell(id),
             controller,
@@ -2307,6 +2310,7 @@ mod tests {
         // fired ability's stand-in sits on the stack, e.g. a dies-trigger.
         let stand_in = state.objects.mint(source, PlayerId(1), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             id: stand_in,
             object: StackObject::Triggered {
                 source,
@@ -2856,6 +2860,7 @@ mod tests {
         use deckmaste_core::OneShotEffect;
         Ability::activated(ActivatedAbility {
             ability_word: None,
+            targets: [].into(),
             from: None,
             cost: Arc::<[deckmaste_core::CostComponent]>::from(cost).into(),
             window: None,
@@ -2864,7 +2869,8 @@ mod tests {
             effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
                 LifeOp::Up(Count::Literal(1)),
-            )),
+            ))
+            .into(),
         })
     }
 
@@ -2897,6 +2903,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(card_id), controller, Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             id,
             object: StackObject::Spell(id),
             controller,
@@ -3123,12 +3130,13 @@ mod tests {
             vec![Type::Artifact],
             vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 from: None,
                 event: EventFilter::OneOf(Vec::new().into()),
                 condition: None,
                 limits: Vec::new().into(),
                 where_x: None,
-                effect: OneShotEffect::Sequentially(Vec::new().into()),
+                effect: OneShotEffect::Sequentially(Vec::new().into()).into(),
             })],
         );
         let source = state.objects.obj(source_obj).source;

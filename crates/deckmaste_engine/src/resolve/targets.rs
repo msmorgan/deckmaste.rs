@@ -5,7 +5,6 @@ use deckmaste_core::Count;
 use deckmaste_core::TargetSpec;
 use deckmaste_core::Uint;
 
-use super::top_targets;
 use crate::object::ObjectId;
 use crate::stack::StackEntry;
 use crate::stack::StackObject;
@@ -32,14 +31,19 @@ impl GameState {
                 let effect = self
                     .spell_effect(*o)
                     .expect("a spell stack entry has a Spell ability");
-                crate::cast::announced_target_specs(&effect, entry.chosen_modes.as_ref())
+                crate::cast::announced_target_specs(
+                    &effect,
+                    &self.spell_targets(*o),
+                    entry.chosen_modes.as_ref(),
+                )
             }
             // The carried text is authoritative — never re-derive from the
-            // (possibly gone, possibly changed) source. Targets live on a
-            // top-level `OneShotEffect::Targeted` wrapper ([CR#115.1,601.2c]).
-            StackObject::Activated { ability, .. } => {
-                crate::cast::announced_target_specs(&ability.effect, entry.chosen_modes.as_ref())
-            }
+            // (possibly gone, possibly changed) source.
+            StackObject::Activated { ability, .. } => crate::cast::announced_target_specs(
+                &ability.effect,
+                &ability.targets,
+                entry.chosen_modes.as_ref(),
+            ),
             StackObject::Triggered {
                 source,
                 ability,
@@ -48,11 +52,11 @@ impl GameState {
             } => {
                 if let Some(t) = created {
                     // The delayed/reflexive body is authoritative ([CR#603.7,603.12]).
-                    top_targets(&t.effect).to_vec()
+                    t.targets.to_vec()
                 } else {
                     let abilities = crate::derive::abilities_of_source(self, *source);
                     let t = abilities[*ability].as_triggered().expect("trigger index");
-                    top_targets(&t.effect).to_vec()
+                    t.targets.to_vec()
                 }
             }
         };
@@ -85,7 +89,13 @@ impl GameState {
                 // A target that no longer exists (reminted on zone change) is
                 // trivially illegal — the filter can't be satisfied.
                 let legal = self.objects.get(chosen).is_some()
-                    && crate::target::matches_with(self, chosen, filter, carrier)
+                    && crate::target::matches_with_activation(
+                        self,
+                        chosen,
+                        filter,
+                        carrier,
+                        entry.activation,
+                    )
                     && crate::legal::target_forbidden_by(self, &rows, entry.id, chosen).is_none();
                 any_legal |= legal;
             }

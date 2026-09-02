@@ -577,6 +577,10 @@ pub struct GameState {
     /// stable replay handles. Cleared once the outer transaction closes.
     pub(crate) payment_logical_objects:
         std::collections::HashMap<crate::object::ObjectSource, crate::payment::LogicalObject>,
+    /// Activation records are resolution-local environments and deliberately
+    /// live outside transactional game images.
+    pub(crate) activations: crate::activation::ActivationTable,
+    pub(crate) next_activation: u64,
 }
 
 impl std::ops::Deref for GameState {
@@ -745,6 +749,8 @@ impl GameState {
             next_mana_action: 0,
             payment_observations: std::collections::HashSet::new(),
             payment_logical_objects: std::collections::HashMap::new(),
+            activations: std::collections::HashMap::new(),
+            next_activation: 0,
         }
     }
 
@@ -976,7 +982,9 @@ impl GameState {
             .iter()
             .position(|e| e.id == id)
             .expect("entry on stack");
+        let activation = self.stack[i].activation;
         self.stack.remove(i);
+        self.remove_activation_family(activation);
     }
 
     /// Removes `object` from the shared battlefield. Panics if absent.
@@ -1246,6 +1254,7 @@ mod tests {
         let player = PlayerId(0);
         let id = state.player(player).object;
         state.announcing = Some(PendingStackEntry {
+            activation: crate::ActivationId::NONE,
             id,
             object: StackObject::Spell(id),
             controller: player,
@@ -1264,6 +1273,7 @@ mod tests {
         }));
         state.choice = Some(ChoiceContinuation::AnnounceModes);
         state.placing_trigger = Some(PendingTrigger {
+            activation: crate::ActivationId::NONE,
             id,
             source: ObjectSource::Player(player),
             ability: 0,

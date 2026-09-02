@@ -289,7 +289,8 @@ impl PredefinedToken {
             cost: cost.into(),
             condition: None,
             limits: [].into(),
-            effect,
+            targets: [].into(),
+            effect: crate::Region::new([].into(), effect),
         }));
 
         Token {

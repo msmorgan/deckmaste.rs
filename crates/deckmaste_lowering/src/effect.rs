@@ -26,7 +26,7 @@ impl Lower for deckmaste_semantics::OneShotEffect {
             Self::Delayed(f0) => deckmaste_core::OneShotEffect::Delayed(f0.lower()),
             Self::Reflexive(f0) => deckmaste_core::OneShotEffect::Reflexive(f0.lower()),
             Self::Modal(f0) => deckmaste_core::OneShotEffect::Modal(f0.lower()),
-            Self::Targeted(f0) => deckmaste_core::OneShotEffect::Targeted(f0.lower()),
+            Self::Targeted(f0) => f0.lower(),
             Self::Repeat(f0, f1) => deckmaste_core::OneShotEffect::Repeat(f0.lower(), f1.lower()),
             Self::Batch(f0, f1) => deckmaste_core::OneShotEffect::Batch(f0.lower(), f1.lower()),
             Self::RevealUntil(f0) => deckmaste_core::OneShotEffect::RevealUntil(f0.lower()),
@@ -51,12 +51,9 @@ impl Lower for deckmaste_semantics::Continuously {
 }
 
 impl Lower for deckmaste_semantics::Targeted {
-    type Target = deckmaste_core::Targeted;
+    type Target = deckmaste_core::OneShotEffect;
     fn lower(self) -> <Self as Lower>::Target {
-        deckmaste_core::Targeted {
-            targets: self.targets.lower(),
-            effect: self.effect.lower(),
-        }
+        std::sync::Arc::unwrap_or_clone(self.effect).lower()
     }
 }
 
@@ -430,10 +427,7 @@ mod tests {
     fn lowers_one_shot_effect_targeted() {
         assert_matches!(
             deckmaste_semantics::OneShotEffect::Targeted(minimal_targeted()).lower(),
-            deckmaste_core::OneShotEffect::Targeted(deckmaste_core::Targeted {
-                targets: _,
-                effect: _
-            })
+            deckmaste_core::OneShotEffect::Act(_)
         );
     }
 
@@ -516,10 +510,7 @@ mod tests {
                 effect: std::sync::Arc::new(minimal_one_shot_effect())
             }
             .lower(),
-            deckmaste_core::Targeted {
-                targets: _,
-                effect: _
-            }
+            deckmaste_core::OneShotEffect::Act(_)
         );
     }
 

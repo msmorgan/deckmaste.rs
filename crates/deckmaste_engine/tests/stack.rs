@@ -3438,7 +3438,6 @@ fn inline_blink() -> Card {
     use deckmaste_core::Reference;
     use deckmaste_core::Sort;
     use deckmaste_core::TargetSpec;
-    use deckmaste_core::Targeted;
 
     Card::Normal(deckmaste_card::CardFace {
         name: "Blink".into(),
@@ -3447,26 +3446,25 @@ fn inline_blink() -> Card {
         abilities: vec![deckmaste_core::Ability::spell(
             deckmaste_core::SpellAbility {
                 ability_word: None,
-                effect: OneShotEffect::Targeted(Targeted::new(
-                    vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
-                    OneShotEffect::Sequentially(
-                        vec![
-                            OneShotEffect::Act(Action::Move(
-                                Reference::It,
-                                Destination::Zone(Zone::Exile),
-                                vec![].into(),
-                                None,
-                            )),
-                            OneShotEffect::Act(Action::Move(
-                                Reference::That(Sort::Card),
-                                Destination::Zone(Zone::Battlefield),
-                                vec![].into(),
-                                None,
-                            )),
-                        ]
-                        .into(),
-                    ),
-                )),
+                targets: vec![TargetSpec::Target(Quantity::one(), Predicate::creature())].into(),
+                effect: OneShotEffect::Sequentially(
+                    vec![
+                        OneShotEffect::Act(Action::Move(
+                            Reference::Reg(deckmaste_core::RefId(6)),
+                            Destination::Zone(Zone::Exile),
+                            vec![].into(),
+                            None,
+                        )),
+                        OneShotEffect::Act(Action::Move(
+                            Reference::That(Sort::Card),
+                            Destination::Zone(Zone::Battlefield),
+                            vec![].into(),
+                            None,
+                        )),
+                    ]
+                    .into(),
+                )
+                .into(),
             },
         )],
         ..deckmaste_card::CardFace::default()

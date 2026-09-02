@@ -143,16 +143,32 @@ where
 /// trigger lane's `filter_matches_live` passes `Some(watcher)`. The LKI sibling
 /// for moved/gone objects is `GameState::filter_matches_snapshot`.
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "flat per-variant Predicate dispatch")]
 pub fn matches_with(
     state: &GameState,
     id: ObjectId,
     filter: &Predicate,
     watcher: Option<ObjectSource>,
 ) -> bool {
+    matches_with_activation(state, id, filter, watcher, crate::ActivationId::NONE)
+}
+
+/// Region-aware form of [`matches_with`]. Resolution-time callers pass the
+/// active register file; structural/static callers use the compatibility
+/// wrapper above and therefore cannot observe region-local references.
+#[must_use]
+#[expect(clippy::too_many_lines, reason = "flat per-variant Predicate dispatch")]
+pub(crate) fn matches_with_activation(
+    state: &GameState,
+    id: ObjectId,
+    filter: &Predicate,
+    watcher: Option<ObjectSource>,
+    activation: crate::ActivationId,
+) -> bool {
     // Combinators (`And`/`Or`/`Not`/`Any`) recurse through this same matcher
     // via the shared walker; leaves fall through to the match.
-    if let Some(result) = walk_combinators(filter, |f| matches_with(state, id, f, watcher)) {
+    if let Some(result) = walk_combinators(filter, |f| {
+        matches_with_activation(state, id, f, watcher, activation)
+    }) {
         return result;
     }
     match filter {
@@ -177,7 +193,9 @@ pub fn matches_with(
         // [CR#113.7]) matches the inner filter.
         Predicate::FromSource(inner) => {
             object_kind(state, id) == ObjectKind::Ability
-                && source_of(state, id).is_some_and(|src| matches_with(state, src, inner, watcher))
+                && source_of(state, id).is_some_and(|src| {
+                    matches_with_activation(state, src, inner, watcher, activation)
+                })
         }
         // The candidate matches iff the condition holds with the iteration
         // anaphor `It` bound to it. `This`/`You` still anchor to the carrier, so
@@ -287,7 +305,7 @@ pub fn matches_with(
         // The general `AttachHostOf(inner)` case needs `eval_reference` and is
         // therefore left as a seam.
         Predicate::Ref(Reference::AttachHostOf(inner))
-            if matches!(inner.as_ref(), Reference::This) =>
+            if matches!(*inner.as_ref(), Reference::This) =>
         {
             match watcher {
                 Some(w) => {
@@ -349,7 +367,7 @@ pub fn matches_with(
                 && stat_satisfies_bound(
                     derived_stat(state, id, *stat),
                     *cmp,
-                    resolve_count(state, count, watcher),
+                    resolve_count(state, count, watcher, activation),
                 )
         }
 
@@ -358,7 +376,7 @@ pub fn matches_with(
         Predicate::Relation(RelationPredicate::ControlledBy(f)) => {
             let c = state.objects.obj(id).controller;
             let proxy = state.player(c).object;
-            matches_with(state, proxy, f, watcher)
+            matches_with_activation(state, proxy, f, watcher, activation)
         }
         // `id` is a player who is an opponent of a matching player
         // ([CR#102.2,102.3,810.1]): on a DIFFERENT team. Routed through
@@ -368,7 +386,8 @@ pub fn matches_with(
         Predicate::Relation(RelationPredicate::OpponentOf(f)) => {
             match state.objects.obj(id).source {
                 ObjectSource::Player(p) => state.players.iter().any(|q| {
-                    !state.same_team(p, q.id) && matches_with(state, q.object, f, watcher)
+                    !state.same_team(p, q.id)
+                        && matches_with_activation(state, q.object, f, watcher, activation)
                 }),
                 ObjectSource::Card(_) => false,
             }
@@ -382,7 +401,9 @@ pub fn matches_with(
         Predicate::Relation(RelationPredicate::TeammateOf(f)) => match state.objects.obj(id).source
         {
             ObjectSource::Player(p) => state.players.iter().any(|q| {
-                q.id != p && state.same_team(p, q.id) && matches_with(state, q.object, f, watcher)
+                q.id != p
+                    && state.same_team(p, q.id)
+                    && matches_with_activation(state, q.object, f, watcher, activation)
             }),
             ObjectSource::Card(_) => false,
         },
@@ -390,17 +411,22 @@ pub fn matches_with(
         // has no owner.
         Predicate::Relation(RelationPredicate::Owner(f)) => {
             state.objects.obj(id).card_id().is_some()
-                && matches_with(state, state.player(state.owner_of(id)).object, f, watcher)
+                && matches_with_activation(
+                    state,
+                    state.player(state.owner_of(id)).object,
+                    f,
+                    watcher,
+                    activation,
+                )
         }
         // `id` is a player who controls a matching object — the inverse of
         // `ControlledBy` ([CR#109.5]). Zone-agnostic: the inner filter carries
         // any zone restriction (proxies, zone `None`, fall out of e.g.
         // `Permanent`). A card is never a controlling player.
         Predicate::Relation(RelationPredicate::Controls(f)) => match state.objects.obj(id).source {
-            ObjectSource::Player(p) => state
-                .objects
-                .iter()
-                .any(|ob| ob.controller == p && matches_with(state, ob.id, f, watcher)),
+            ObjectSource::Player(p) => state.objects.iter().any(|ob| {
+                ob.controller == p && matches_with_activation(state, ob.id, f, watcher, activation)
+            }),
             ObjectSource::Card(_) => false,
         },
 
@@ -450,10 +476,10 @@ pub fn matches_with(
         Predicate::State(StatePredicate::Targets(f)) => {
             state.stack.iter().find(|e| e.id == id).is_some_and(|e| {
                 // Any still-live member of any slot currently matching.
-                e.targets
-                    .iter()
-                    .flatten()
-                    .any(|&t| state.objects.get(t).is_some() && matches_with(state, t, f, watcher))
+                e.targets.iter().flatten().any(|&t| {
+                    state.objects.get(t).is_some()
+                        && matches_with_activation(state, t, f, watcher, activation)
+                })
             })
         }
         // [CR#115.9a]: "with [N] target(s)" — the count of target instances
@@ -465,7 +491,7 @@ pub fn matches_with(
                 bound.satisfied_by(
                     Uint::try_from(e.targets.iter().map(Vec::len).sum::<usize>())
                         .expect("target count fits Uint"),
-                    |count| resolve_count(state, count, watcher),
+                    |count| resolve_count(state, count, watcher, activation),
                 )
             })
         }
@@ -474,18 +500,20 @@ pub fn matches_with(
         // `inner` — read the attachment→host relation (engine-attach's
         // `attached_to`), then match the host, threading the watcher so a nested
         // `Ref` resolves against the carrier.
-        Predicate::Relation(RelationPredicate::AttachedTo(inner)) => state
-            .objects
-            .obj(id)
-            .attached_to
-            .is_some_and(|host| matches_with(state, host, inner, watcher)),
+        Predicate::Relation(RelationPredicate::AttachedTo(inner)) => {
+            state.objects.obj(id).attached_to.is_some_and(|host| {
+                matches_with_activation(state, host, inner, watcher, activation)
+            })
+        }
         // The inverse ([CR#301.5,303.4]): `id` is a host with some attachment
         // matching `inner` (existential — `Attachment(Any)` = "has any
         // attachment").
-        Predicate::Relation(RelationPredicate::Attachment(inner)) => state
-            .objects
-            .iter()
-            .any(|o| o.attached_to == Some(id) && matches_with(state, o.id, inner, watcher)),
+        Predicate::Relation(RelationPredicate::Attachment(inner)) => {
+            state.objects.iter().any(|o| {
+                o.attached_to == Some(id)
+                    && matches_with_activation(state, o.id, inner, watcher, activation)
+            })
+        }
         // [CR#404.2]: the candidate is directly Above/Below `r` in the SAME
         // ordered zone (graveyard or library), nothing between. `r` resolves
         // only through the frameless matcher's `watcher` (`This`/`You` —
@@ -566,6 +594,24 @@ pub fn matches_with(
         // `resolve_count` just below for the pattern. `debug_assert!` (not
         // `todo!`) so a corpus regression trips loudly in tests while a
         // release build degrades to "no match" instead of crashing a game.
+        Predicate::Ref(Reference::Reg(reference)) => state
+            .activation_product(activation, *reference)
+            .and_then(|product| product.current)
+            .map_or_else(
+                || match (reference.0, watcher) {
+                    // Read-only castability checks run before an activation is
+                    // allocated. The fixed source/controller prefix remains
+                    // available from the targeting carrier in that phase.
+                    (0, Some(source)) => state.objects.obj(id).source == source,
+                    (1, Some(source)) => {
+                        let controller = state.controller_of_source(source);
+                        matches!(state.objects.obj(id).source,
+                            ObjectSource::Player(player) if Some(player) == controller)
+                    }
+                    _ => false,
+                },
+                |bound| bound == id,
+            ),
         Predicate::Ref(r) => {
             debug_assert!(
                 false,
@@ -589,8 +635,8 @@ fn resolve_watcher_reference(
     watcher: Option<ObjectSource>,
 ) -> Option<ObjectId> {
     match (r, watcher) {
-        (Reference::This, Some(w)) => state.objects.iter().find(|o| o.source == w).map(|o| o.id),
-        (Reference::You, Some(w)) => {
+        (&Reference::This, Some(w)) => state.objects.iter().find(|o| o.source == w).map(|o| o.id),
+        (&Reference::You, Some(w)) => {
             let controller = state.controller_of_source(w)?;
             Some(state.player(controller).object)
         }
@@ -738,6 +784,7 @@ fn resolve_count(
     state: &GameState,
     count: &deckmaste_core::Count,
     watcher: Option<ObjectSource>,
+    activation: crate::ActivationId,
 ) -> Uint {
     if let deckmaste_core::Count::Literal(n) = count {
         return *n;
@@ -745,7 +792,9 @@ fn resolve_count(
     if let Some(w) = watcher
         && let Some(carrier) = state.objects.iter().find(|o| o.source == w)
     {
-        return state.eval_count(count, &Frame::bare(carrier.id, carrier.controller));
+        let mut frame = Frame::bare(carrier.id, carrier.controller);
+        frame.activation = activation;
+        return state.eval_count(count, &frame);
     }
     const_count(count)
 }
@@ -799,6 +848,22 @@ pub fn candidates_with(
         .iter()
         .map(|o| o.id)
         .filter(|&id| matches_with(state, id, filter, watcher))
+        .collect()
+}
+
+/// Region-aware candidate enumeration used while executing an instruction.
+#[must_use]
+pub(crate) fn candidates_with_activation(
+    state: &GameState,
+    filter: &Predicate,
+    watcher: Option<ObjectSource>,
+    activation: crate::ActivationId,
+) -> Vec<ObjectId> {
+    state
+        .objects
+        .iter()
+        .map(|o| o.id)
+        .filter(|&id| matches_with_activation(state, id, filter, watcher, activation))
         .collect()
 }
 
@@ -1483,6 +1548,7 @@ mod tests {
                 .objects
                 .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             paid_costs: Vec::new(),
             id: ability_id,
             object: StackObject::Triggered {
@@ -1502,6 +1568,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             paid_costs: Vec::new(),
             id: spell_id,
             object: StackObject::Spell(spell_id),
@@ -1560,6 +1627,7 @@ mod tests {
                 .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack))
         };
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             paid_costs: Vec::new(),
             id: spell,
             object: StackObject::Spell(spell),

@@ -30,7 +30,10 @@ impl Lower for deckmaste_semantics::Selection {
                 count: count.lower(),
                 of: of.lower(),
             },
-            Self::Targets(f0) => deckmaste_core::Selection::Targets(f0.lower()),
+            Self::Targets(index) => crate::region::target(index).map_or(
+                deckmaste_core::Selection::Targets(index),
+                deckmaste_core::Selection::Reg,
+            ),
             Self::ValidTargetsFor(f0) => deckmaste_core::Selection::ValidTargetsFor(f0.lower()),
             Self::They => deckmaste_core::Selection::They,
             Self::Them(f0) => deckmaste_core::Selection::Them(f0.lower()),
@@ -171,7 +174,7 @@ mod tests {
     fn lowers_selection_targets() {
         assert_matches!(
             deckmaste_semantics::Selection::Targets(0).lower(),
-            deckmaste_core::Selection::Targets(0)
+            deckmaste_core::Selection::Reg(deckmaste_core::RefId(6))
         );
     }
 

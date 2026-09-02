@@ -393,10 +393,9 @@ impl Plugin {
     /// If the source doesn't expand to a card.
     pub fn card_from_str(&self, source: &str) -> anyhow::Result<LoadedCard> {
         let semantic: deckmaste_semantics::Card = self.macros.read_str_restricted(source)?;
-        Ok(LoadedCard {
-            core: semantic.clone().lower(),
-            semantic,
-        })
+        let core = semantic.clone().lower();
+        validate_card_regions(&core)?;
+        Ok(LoadedCard { semantic, core })
     }
 
     /// A semantic card WITHOUT identity-macro invocation provenance: the value
@@ -474,11 +473,49 @@ impl Plugin {
     /// If the source doesn't expand to a token.
     pub fn token_from_str(&self, source: &str) -> anyhow::Result<LoadedToken> {
         let semantic: deckmaste_semantics::Token = self.macros.read_str_restricted(source)?;
-        Ok(LoadedToken {
-            core: semantic.clone().lower(),
-            semantic,
-        })
+        let core = semantic.clone().lower();
+        for ability in core.abilities.iter() {
+            validate_ability_regions(ability)?;
+        }
+        Ok(LoadedToken { semantic, core })
     }
+}
+
+fn validate_card_regions(card: &deckmaste_card::Card) -> anyhow::Result<()> {
+    let faces: Vec<&deckmaste_card::CardFace> = match card {
+        deckmaste_card::Card::Normal(face) => vec![face],
+        deckmaste_card::Card::TwoFaced { front, back, .. } => vec![front, back],
+    };
+    for face in faces {
+        for ability in &face.abilities {
+            validate_ability_regions(ability)
+                .with_context(|| format!("validating regions on {}", face.name))?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_ability_regions(ability: &deckmaste_core::Ability) -> anyhow::Result<()> {
+    use deckmaste_core::Ability;
+    use deckmaste_core::ManaAbility;
+    match ability {
+        Ability::Activated(ability) | Ability::Mana(ManaAbility::Activated { ability, .. }) => {
+            deckmaste_core::validate_telescope(&ability.effect, &ability.targets, None)?;
+        }
+        Ability::Triggered(ability) | Ability::Mana(ManaAbility::Triggered(ability)) => {
+            deckmaste_core::validate_telescope(
+                &ability.effect,
+                &ability.targets,
+                ability.where_x.as_ref(),
+            )?;
+        }
+        Ability::Spell(ability) => {
+            deckmaste_core::validate_telescope(&ability.effect, &ability.targets, None)?;
+        }
+        Ability::Innate(inner) => validate_ability_regions(inner)?,
+        Ability::Static(_) | Ability::Keyword(_) => {}
+    }
+    Ok(())
 }
 
 /// The registry tables a prelude hands down to a dependent plugin's load —

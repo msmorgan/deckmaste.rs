@@ -131,7 +131,7 @@ fn ref_you() -> Reference {
 
 /// Whether a [`Reference`] is the default `You` (so it is omitted on write).
 fn ref_is_you(r: &Reference) -> bool {
-    matches!(r, Reference::You)
+    matches!(*r, Reference::You)
 }
 
 /// The default search domain — a player's library. Mirrors the Idris

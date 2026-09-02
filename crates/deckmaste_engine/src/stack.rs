@@ -82,6 +82,8 @@ pub struct StackEntry {
     /// id; for a triggered ability it is a freshly minted token (the ability
     /// has no card identity). `Resolve` keys on this.
     pub id: ObjectId,
+    /// Register file allocated when this spell or ability starts announcing.
+    pub activation: crate::ActivationId,
     pub object: StackObject,
     pub controller: PlayerId,
     /// Chosen at announce ([CR#601.2c]) or at trigger placement ([CR#603.3d]);
@@ -119,6 +121,8 @@ pub struct PendingStackEntry {
     /// stack-zone-keyed ones) evaluate against the real id, not a source
     /// stand-in.
     pub id: ObjectId,
+    /// Register file shared by announcement and the later resolution.
+    pub activation: crate::ActivationId,
     pub object: StackObject,
     pub controller: PlayerId,
     /// Where a spell was cast from — for cast-from-zone effects, not undo;
@@ -373,6 +377,8 @@ pub struct Payment {
 /// sub-scope lives in the nested [`Anaphora`] record.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
+    /// The one shared activation record for this region entry.
+    pub activation: crate::activation::ActivationId,
     pub source: ObjectId,
     pub controller: PlayerId,
     /// The firing object's last-known self (`~`/`This`/source), exophoric —
@@ -403,6 +409,7 @@ impl Frame {
     #[must_use]
     pub fn bare(source: ObjectId, controller: PlayerId) -> Self {
         Frame {
+            activation: crate::activation::ActivationId::NONE,
             source,
             controller,
             this: None,

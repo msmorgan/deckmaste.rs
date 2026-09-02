@@ -431,7 +431,7 @@ fn bake_counter_counts(
     let bake = |count: &Count| -> Count {
         match count {
             Count::CounterCount(reference, kind)
-                if matches!(&**reference, deckmaste_core::Reference::This) =>
+                if matches!(**reference, deckmaste_core::Reference::This) =>
             {
                 Count::Literal(holder.get(kind.as_str()).copied().unwrap_or(0))
             }
@@ -699,7 +699,7 @@ fn resolve_source_relative(
     use deckmaste_core::Reference;
     match reference {
         // The carrying object itself.
-        Reference::This => vec![source],
+        &Reference::This => vec![source],
         // The host an attachment is attached to ([CR#301.5,303.4]) — read the
         // attachment→host link off the resolved inner object. No host (an
         // unattached attachment) → empty, so nothing is buffed.
@@ -980,7 +980,7 @@ fn resolve_count_ref(
 ) -> Option<ObjectId> {
     use deckmaste_core::Reference;
     match reference {
-        Reference::You => Some(state.player(controller).object),
+        &Reference::You => Some(state.player(controller).object),
         Reference::ControllerOf(inner) => {
             let id = resolve_count_ref(state, working, inner, watcher, controller)?;
             let player = working.get(&id).map_or_else(
@@ -1363,7 +1363,8 @@ fn eval_count(
         // [CR#115.9a]: `TargetsOf` reads the announcing stack entry's target
         // list — announce-time context this Frame-less layer pass lacks
         // (same seam as `TimesPaid`'s paid-cost record) — defaults to 0.
-        Count::X
+        Count::Reg(_)
+        | Count::X
         | Count::ThatMany
         | Count::ThatMuch
         | Count::Allotment
@@ -1754,7 +1755,7 @@ fn resolve_new_controller(
     effect_controller: PlayerId,
 ) -> Option<PlayerId> {
     use deckmaste_core::Reference;
-    match reference {
+    match *reference {
         Reference::You => Some(effect_controller),
         // SEAM: opponent / each-player / bound references need a `Frame` to
         // resolve a specific player; not reachable by current control fixtures.
@@ -2326,6 +2327,7 @@ mod tests {
                 ManaAbility::Activated {
                     ability: Arc::new(deckmaste_core::ActivatedAbility {
                         ability_word: None,
+                        targets: [].into(),
                         cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
                         from: None,
                         window: None,
@@ -2337,7 +2339,8 @@ mod tests {
                             ManaProduction::Bare(ManaSpec::Specific(ColorOrColorless::Color(
                                 deckmaste_core::Color::Blue,
                             ))),
-                        )),
+                        ))
+                        .into(),
                     }),
                     profile: deckmaste_core::ActivatedManaProfile::Always,
                 },

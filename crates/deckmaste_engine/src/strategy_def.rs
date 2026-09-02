@@ -157,7 +157,7 @@ mod tests {
     fn selector_embeds_core_count_and_filter() {
         use deckmaste_core::Reference;
         use deckmaste_core::Stat;
-        let s: Selector = read("(pick: Max, by: StatOf(This, Power), among: Some(Any))");
+        let s: Selector = read("(pick: Max, by: StatOf(Reg(0), Power), among: Some(Any))");
         assert_eq!(s.pick, Extremum::Max);
         assert_eq!(s.by, Count::StatOf(Reference::This, Stat::Power));
         assert_eq!(s.among, Some(Predicate::Any));
@@ -180,7 +180,7 @@ mod tests {
     /// object to act on; `Cast`/`Activate` also carry an optional target.
     #[test]
     fn preference_object_picking_variants_read() {
-        let cast: Preference = read("Cast(what: (pick: Min, by: StatOf(This, ManaValue)))");
+        let cast: Preference = read("Cast(what: (pick: Min, by: StatOf(Reg(0), ManaValue)))");
         let Preference::Cast { what, target } = cast else {
             panic!("expected Cast");
         };
@@ -188,7 +188,7 @@ mod tests {
         assert_eq!(target, None);
 
         let activate: Preference = read(
-            "Activate(what: (pick: First, by: Literal(1)), target: Some((pick: Max, by: StatOf(This, Power))))",
+            "Activate(what: (pick: First, by: Literal(1)), target: Some((pick: Max, by: StatOf(Reg(0), Power))))",
         );
         let Preference::Activate { target, .. } = activate else {
             panic!("expected Activate");
@@ -200,11 +200,11 @@ mod tests {
             Preference::Play { .. }
         ));
         assert!(matches!(
-            read::<Preference>("Attack(what: (pick: Max, by: StatOf(This, Power)))"),
+            read::<Preference>("Attack(what: (pick: Max, by: StatOf(Reg(0), Power)))"),
             Preference::Attack { .. }
         ));
         assert!(matches!(
-            read::<Preference>("Discard(what: (pick: Min, by: StatOf(This, ManaValue)))"),
+            read::<Preference>("Discard(what: (pick: Min, by: StatOf(Reg(0), ManaValue)))"),
             Preference::Discard { .. }
         ));
     }
@@ -230,7 +230,7 @@ mod tests {
             r#"(
                 name: "Test Aggro",
                 rules: [
-                    (when: YourTurn, prefer: Cast(what: (pick: Min, by: StatOf(This, ManaValue)))),
+                    (when: YourTurn, prefer: Cast(what: (pick: Min, by: StatOf(Reg(0), ManaValue)))),
                     (when: And([]), prefer: Pass),
                 ],
             )"#,
@@ -252,8 +252,8 @@ mod tests {
                 name: "Round Trip",
                 rules: [
                     (when: YourTurn, prefer: Cast(
-                        what: (pick: Min, by: StatOf(This, ManaValue), among: Some(Any)),
-                        target: Some((pick: Max, by: StatOf(This, Power))),
+                        what: (pick: Min, by: StatOf(Reg(0), ManaValue), among: Some(Any)),
+                        target: Some((pick: Max, by: StatOf(Reg(0), Power))),
                     )),
                     (when: And([]), prefer: Block(BlockAll)),
                     (when: And([]), prefer: Pass),

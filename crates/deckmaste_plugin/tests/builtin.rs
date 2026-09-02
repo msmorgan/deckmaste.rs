@@ -46,6 +46,7 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
         confers: vec![Property::Ability(Arc::new(Ability::activated(
             ActivatedAbility {
                 ability_word: None,
+                targets: [].into(),
                 from: None,
                 window: None,
                 cost: Arc::<[CostComponent]>::from(vec![CostComponent::Tap]).into(),
@@ -55,7 +56,8 @@ fn basic_land_subtype(name: &str, color: Color) -> Subtype {
                     Reference::You,
                     Count::Literal(1),
                     ManaSpec::Specific(ColorOrColorless::Color(color)).into(),
-                )),
+                ))
+                .into(),
             },
         )))]
         .into(),

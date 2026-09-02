@@ -140,6 +140,12 @@ impl DecisionHandler for ChooseTargets {
             g.commit_placing_trigger(chosen);
             g.schedule_front(vec![WorkItem::CheckSbas, WorkItem::PlaceTriggers]);
         } else {
+            let activation = g
+                .announcing
+                .as_ref()
+                .expect("an announce in flight")
+                .activation;
+            g.activation_set_targets(activation, &chosen);
             g.announcing
                 .as_mut()
                 .expect("an announce in flight")
@@ -208,6 +214,9 @@ impl DecisionHandler for Retarget {
         // [CR#707.10c]: the referenced entry may have left the stack
         // between this decision surfacing and its answer (e.g.
         // countered in response) — a no-op, not a crash.
+        if let Some(activation) = g.stack.iter().find(|e| e.id == entry).map(|e| e.activation) {
+            g.activation_set_targets(activation, &chosen);
+        }
         if let Some(e) = g.stack.iter_mut().find(|e| e.id == entry) {
             e.targets = chosen;
         }
@@ -318,6 +327,12 @@ impl DecisionHandler for ChooseXValue {
         };
         let ChooseXValue { player: _ } = self;
         // [CR#601.2b]: record the announced value in the open slot.
+        let activation = g
+            .announcing
+            .as_ref()
+            .expect("an announce in flight for ChooseXValue")
+            .activation;
+        g.activation_set_x(activation, x);
         g.announcing
             .as_mut()
             .expect("an announce in flight for ChooseXValue")
@@ -403,7 +418,14 @@ impl DecisionHandler for ChooseModes {
                 let items = picks
                     .into_iter()
                     .map(|i| WorkItem::RunEffect {
-                        effect: Arc::new(modes[i as usize].effect.clone()),
+                        effect: Arc::new(
+                            modes[i as usize]
+                                .effect
+                                .body
+                                .first()
+                                .cloned()
+                                .expect("a chosen mode has an instruction"),
+                        ),
                         frame: frame.clone(),
                     })
                     .collect();

@@ -1470,8 +1470,8 @@ mod tests {
     /// game, an LKI-only snapshot id with no live twin) must fizzle to no
     /// colors — no production at all — never crash. `source` (the Chrome-Mox
     /// stand-in mana-producing permanent) stays alive throughout — only the
-    /// REFERENCED object (`imprinted`, reached via the lone-target `It`
-    /// antecedent) goes away, mirroring how an imprinted/exiled card can
+    /// REFERENCED object (`imprinted`, reached via its explicit target
+    /// register) goes away, mirroring how an imprinted/exiled card can
     /// cease independently of the producing permanent.
     #[test]
     fn among_colors_of_gone_referent_fizzles_empty() {
@@ -1975,11 +1975,11 @@ mod tests {
     // printed face here [CR#707.2]).
     // ====================================================================
 
-    /// Expand a copy-consuming keyword macro and pull out the `OneShotEffect`
+    /// Expand a copy-consuming keyword macro and pull out the region
     /// that mints the token copy — the Activated ability's effect for the
     /// graveyard keywords (Embalm/Eternalize), the ETB Triggered ability's for
     /// Offspring. Proves the macro really produces a copy `Create` at all.
-    fn keyword_copy_effect(invocation: &str) -> OneShotEffect {
+    fn keyword_copy_effect(invocation: &str) -> deckmaste_core::Region {
         use deckmaste_core::KeywordAbility;
         use deckmaste_lowering::Lower;
 
@@ -2024,6 +2024,17 @@ mod tests {
             .expect("the copy-minting effect (Activated for Embalm/Eternalize, Triggered for Offspring)")
     }
 
+    fn run_test_region(
+        state: &mut GameState,
+        region: &deckmaste_core::Region,
+        mut frame: crate::stack::Frame,
+    ) {
+        frame.activation = state.enter_region(region, &frame);
+        for instruction in region.body.iter().cloned() {
+            state.run_effect(instruction, &frame);
+        }
+    }
+
     /// The lone token minted onto the battlefield by the effect just run —
     /// its resolved printed face, for the copy-characteristic assertions.
     fn minted_copy_face<'a>(
@@ -2056,7 +2067,7 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let effect = keyword_copy_effect("Eternalize([Mana([Generic(4),Black])])");
-        state.run_effect(effect, &frame_src(src));
+        run_test_region(&mut state, &effect, frame_src(src));
         let _ = state.step(); // the TokenCreated batch applies
 
         let face = minted_copy_face(&state, &[src]);
@@ -2092,7 +2103,7 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let effect = keyword_copy_effect("Embalm([Mana([Generic(3),White])])");
-        state.run_effect(effect, &frame_src(src));
+        run_test_region(&mut state, &effect, frame_src(src));
         let _ = state.step();
 
         let face = minted_copy_face(&state, &[src]);
@@ -2124,7 +2135,7 @@ mod tests {
 
         let (mut state, src) = bear_on_field();
         let effect = keyword_copy_effect("Offspring([Mana([Generic(1)])])");
-        state.run_effect(effect, &frame_src(src));
+        run_test_region(&mut state, &effect, frame_src(src));
         let _ = state.step();
 
         let face = minted_copy_face(&state, &[src]);
@@ -2391,6 +2402,7 @@ mod tests {
             toughness: Some(StatValue::Number(4)),
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from: None,
                 event: EventFilter::ZoneChange {
@@ -2401,7 +2413,7 @@ mod tests {
                 },
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
+                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
             })],
             ..CardFace::default()
         };
@@ -3188,12 +3200,13 @@ mod tests {
             types: vec![Type::Creature.def()],
             abilities: vec![Ability::triggered(TriggeredAbility {
                 ability_word: None,
+                targets: [].into(),
                 where_x: None,
                 from: None,
                 event,
                 condition: None,
                 limits: Vec::new().into(),
-                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)),
+                effect: OneShotEffect::draw(Reference::You, Count::Literal(1)).into(),
             })],
             ..CardFace::default()
         });

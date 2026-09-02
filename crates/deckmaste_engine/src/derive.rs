@@ -365,14 +365,16 @@ pub fn tap_mana_ability(ability: &Ability) -> Option<(ColorOrColorless, Uint)> {
             ability: a,
             profile: deckmaste_core::ActivatedManaProfile::Always,
         } if **a.cost == [CostComponent::Tap] => {
-            match &a.effect {
+            match a.effect.body.as_ref() {
                 // The produced-mana effect is a bare `AddMana` in RON; the
                 // agent is irrelevant for tap-for-mana derivation.
-                OneShotEffect::Act(Action::AddMana(
-                    _,
-                    Count::Literal(n),
-                    deckmaste_core::ManaProduction::Bare(ManaSpec::Specific(m)),
-                )) => Some((*m, *n)),
+                [
+                    OneShotEffect::Act(Action::AddMana(
+                        _,
+                        Count::Literal(n),
+                        deckmaste_core::ManaProduction::Bare(ManaSpec::Specific(m)),
+                    )),
+                ] => Some((*m, *n)),
                 _ => None,
             }
         }
@@ -425,6 +427,7 @@ mod tests {
         let mut state = game();
         let trigger = TriggeredAbility {
             ability_word: None,
+            targets: [].into(),
             where_x: None,
             from: None,
             event: EventFilter::ZoneChange {
@@ -435,7 +438,7 @@ mod tests {
             },
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)),
+            effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)).into(),
         };
         let card = Card::Normal(CardFace {
             name: "Innate Triggerer".into(),
@@ -536,6 +539,7 @@ mod tests {
 
         let back_trigger = TriggeredAbility {
             ability_word: None,
+            targets: [].into(),
             where_x: None,
             from: None,
             event: EventFilter::ZoneChange {
@@ -546,7 +550,7 @@ mod tests {
             },
             condition: None,
             limits: vec![].into(),
-            effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)),
+            effect: OneShotEffect::draw(Reference::You, deckmaste_core::Count::Literal(1)).into(),
         };
         // Front: vanilla 1/1, ZERO printed abilities. Back: 3/2 with ONE
         // triggered ability the front lacks — distinct printed lengths (0 vs 1).

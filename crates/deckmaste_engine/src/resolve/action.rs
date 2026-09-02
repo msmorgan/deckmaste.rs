@@ -1164,7 +1164,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::It,
+                to: Reference::Reg(deckmaste_core::RefId(6)),
             }),
             &frame,
         );
@@ -1198,7 +1198,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::It,
+                to: Reference::Reg(deckmaste_core::RefId(6)),
             }),
             &frame,
         );
@@ -1221,7 +1221,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::It,
+                to: Reference::Reg(deckmaste_core::RefId(6)),
             }),
             &frame,
         );
@@ -1268,7 +1268,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::It,
+                to: Reference::Reg(deckmaste_core::RefId(6)),
             }),
             &frame,
         );
@@ -1943,15 +1943,17 @@ mod tests {
         );
     }
 
-    /// An explicit agent: `draw_one(It)` draws for the announced/bound player
-    /// (`It`, read off the body's `TopOfLibrary` selection), not the
-    /// controller. Targets player 1's proxy.
+    /// An explicit agent read from the first announced-target register draws
+    /// for player 1's proxy, not the controller.
     #[test]
     fn action_items_explicit_agent_draws_for_target() {
         let (state, src) = bear_on_field();
         let p1_proxy = state.players[1].object;
         let frame = frame_src_targets(src, vec![p1_proxy]);
-        let items = state.action_items(&Action::draw_one(Reference::It), &frame);
+        let items = state.action_items(
+            &Action::draw_one(Reference::Reg(deckmaste_core::RefId(6))),
+            &frame,
+        );
         assert_eq!(items.len(), 1);
         assert!(items.iter().all(|item| matches!(
             item,
@@ -2541,6 +2543,7 @@ mod tests {
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
+                    targets: [].into(),
                     where_x: None,
                     from: None,
                     event: EventFilter::Act {
@@ -2554,7 +2557,8 @@ mod tests {
                     effect: OneShotEffect::Act(Action::ChangeLife(
                         Reference::You,
                         LifeOp::Down(Count::Literal(2)),
-                    )),
+                    ))
+                    .into(),
                 })],
                 ..CardFace::default()
             }),
@@ -3171,6 +3175,7 @@ mod tests {
         let (mut state, _a) = bear_on_field();
         let trigger = Ability::triggered(TriggeredAbility {
             ability_word: None,
+            targets: [].into(),
             where_x: None,
             from: None,
             event: EventFilter::Act {
@@ -3184,7 +3189,8 @@ mod tests {
             effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
                 LifeOp::Down(Count::Literal(2)),
-            )),
+            ))
+            .into(),
         });
         state.conferral_rules = vec![ConferralRule {
             scope: Predicate::Characteristic(CharacteristicPredicate::Named("Trigger Host".into())),
@@ -3465,7 +3471,8 @@ mod tests {
                 .expect("Anje's Ravager has an attack trigger")
         };
         let frame = frame_src(anje);
-        state.run_effect(effect, &frame);
+        let items = crate::cast::announced_effect_items(&mut state, &effect, &frame, &[], &[]);
+        state.schedule_front(items);
         run_injected(&mut state);
 
         assert!(
@@ -3651,6 +3658,7 @@ mod tests {
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
+                    targets: [].into(),
                     where_x: None,
                     from: None,
                     event: EventFilter::Act {
@@ -3676,7 +3684,8 @@ mod tests {
                         Reference::EventObject,
                         deckmaste_core::CounterRef::from("P1P1Counter"),
                         Count::Literal(2),
-                    )),
+                    ))
+                    .into(),
                 })],
                 ..CardFace::default()
             }),
@@ -3828,6 +3837,7 @@ mod tests {
                 types: vec![Type::Enchantment.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
+                    targets: [].into(),
                     where_x: None,
                     from: None,
                     event: EventFilter::Act {
@@ -3841,7 +3851,8 @@ mod tests {
                     effect: OneShotEffect::Act(Action::ChangeLife(
                         Reference::You,
                         LifeOp::Down(Count::Literal(2)),
-                    )),
+                    ))
+                    .into(),
                 })],
                 ..CardFace::default()
             }),
@@ -4699,6 +4710,7 @@ mod tests {
         state.zones.hands[PlayerId(0).index()].retain(|&o| o != spell);
         state.objects.obj_mut(spell).zone = Some(Zone::Stack);
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             paid_costs: Vec::new(),
             id: spell,
             object: StackObject::Spell(spell),
@@ -4712,7 +4724,10 @@ mod tests {
 
         // The source's effect counters that spell (chosen as Target(0)).
         let frame = frame_src_targets(bear, vec![spell]);
-        state.run_effect(OneShotEffect::Act(Action::Counter(Reference::It)), &frame);
+        state.run_effect(
+            OneShotEffect::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(6)))),
+            &frame,
+        );
         // future-form ZoneChange → past-form ZoneChange.
         for _ in 0..2 {
             let _ = state.step();
@@ -4755,6 +4770,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             paid_costs: Vec::new(),
             id: spell,
             object: StackObject::Spell(spell),
@@ -4768,7 +4784,10 @@ mod tests {
 
         // The source's effect tries to counter that spell (chosen as Target(0)).
         let frame = frame_src_targets(bear, vec![spell]);
-        state.run_effect(OneShotEffect::Act(Action::Counter(Reference::It)), &frame);
+        state.run_effect(
+            OneShotEffect::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(6)))),
+            &frame,
+        );
         // Process the (empty) emit the refused counter scheduled. The refusal
         // emits no future-form ZoneChange, so — unlike the happy path — there is no
         // follow-up item; step exactly once.
@@ -4802,6 +4821,7 @@ mod tests {
         );
         let source = ObjectSource::Card(state.objects.obj(bear).card_id().unwrap());
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             paid_costs: Vec::new(),
             id: ability_id,
             object: StackObject::Triggered {
@@ -4819,7 +4839,10 @@ mod tests {
 
         // The source's effect counters that ability (chosen as Target(0)).
         let frame = frame_src_targets(bear, vec![ability_id]);
-        state.run_effect(OneShotEffect::Act(Action::Counter(Reference::It)), &frame);
+        state.run_effect(
+            OneShotEffect::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(6)))),
+            &frame,
+        );
         // AbilityResolved applies.
         let _ = state.step();
 
@@ -5001,7 +5024,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::It,
+                to: Reference::Reg(deckmaste_core::RefId(6)),
             }),
             &frame,
         );
@@ -5042,6 +5065,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             paid_costs: Vec::new(),
             id: spell,
             object: StackObject::Spell(spell),
@@ -5111,7 +5135,10 @@ mod tests {
 
         // Host dies.
         let frame = frame_src_targets(equipment, vec![host]);
-        state.run_effect(OneShotEffect::Act(Action::destroy(Reference::It)), &frame);
+        state.run_effect(
+            OneShotEffect::Act(Action::destroy(Reference::Reg(deckmaste_core::RefId(6)))),
+            &frame,
+        );
         drain(&mut state);
         for e in crate::sba::sweep(&state) {
             state.schedule_front(vec![WorkItem::Emit(Occurrence::single(e))]);
@@ -5212,7 +5239,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::It,
+                to: Reference::Reg(deckmaste_core::RefId(6)),
             }),
             &frame,
         );
@@ -5252,7 +5279,7 @@ mod tests {
         state.run_effect(
             OneShotEffect::Act(Action::Attach {
                 what: Reference::This,
-                to: Reference::It,
+                to: Reference::Reg(deckmaste_core::RefId(6)),
             }),
             &frame,
         );
@@ -5418,12 +5445,14 @@ mod tests {
     /// [Move(It, Library(FromTop 0)), Move(It, Library(FromBottom 0))]))`.
     fn scry_effect(n: Uint) -> OneShotEffect {
         let mode = |anchor| deckmaste_core::Mode {
+            targets: [].into(),
             effect: OneShotEffect::Act(Action::Move(
                 Reference::It,
                 Destination::Library(anchor),
                 vec![].into(),
                 None,
-            )),
+            ))
+            .into(),
             cost: None,
         };
         OneShotEffect::Act(Action::Composite {

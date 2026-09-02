@@ -26,7 +26,6 @@ use super::action::composite_body_whose;
 use super::action::composite_move_src;
 use super::deref_quantity;
 use super::occurrence_of;
-use super::top_targets;
 use crate::agenda::WorkItem;
 use crate::event::Act;
 use crate::event::Cause;
@@ -230,7 +229,7 @@ impl GameState {
         match binder {
             Binder::ChooseOne { filter, by } => Some((
                 self.acting_player(by, frame),
-                crate::target::candidates_with(self, filter, watcher),
+                crate::target::candidates_with_activation(self, filter, watcher, frame.activation),
                 1,
                 1,
             )),
@@ -239,7 +238,12 @@ impl GameState {
                 filter,
                 by,
             } => {
-                let candidates = crate::target::candidates_with(self, filter, watcher);
+                let candidates = crate::target::candidates_with_activation(
+                    self,
+                    filter,
+                    watcher,
+                    frame.activation,
+                );
                 let (min, max) = self.choice_bounds(quantity, candidates.len(), frame);
                 Some((self.acting_player(by, frame), candidates, min, max))
             }
@@ -319,7 +323,15 @@ impl GameState {
             .iter()
             .filter(|o| o.zone.is_some_and(|z| from.contains(&z)))
             .filter(|o| self.owner_of(o.id) == whose_player)
-            .filter(|o| crate::target::matches_with(self, o.id, filter, watcher))
+            .filter(|o| {
+                crate::target::matches_with_activation(
+                    self,
+                    o.id,
+                    filter,
+                    watcher,
+                    frame.activation,
+                )
+            })
             .map(|o| o.id)
             .collect()
     }
@@ -361,7 +373,12 @@ impl GameState {
                     recorded
                 } else {
                     let watcher = Some(self.frame_watcher(frame));
-                    let candidates = crate::target::candidates_with(self, filter, watcher);
+                    let candidates = crate::target::candidates_with_activation(
+                        self,
+                        filter,
+                        watcher,
+                        frame.activation,
+                    );
                     let (_, max) = self.choice_bounds(quantity, candidates.len(), frame);
                     let n = usize::try_from(max).expect("sample count fits usize");
                     let idx = rand::seq::index::sample(&mut self.rng, candidates.len(), n);
@@ -585,7 +602,7 @@ impl GameState {
                             // `frame.controller` path untouched.
                             let (changes, controller) = match change {
                                 Modification::SetController(value)
-                                    if !matches!(value, Reference::You) =>
+                                    if !matches!(*value, Reference::You) =>
                                 {
                                     if let Some(p) = self.eval_player_ref(value, frame) {
                                         (vec![Modification::SetController(Reference::You)], p)
@@ -1220,7 +1237,7 @@ impl GameState {
                 if modal
                     .modes
                     .iter()
-                    .any(|m| !top_targets(&m.effect).is_empty() || m.cost.is_some())
+                    .any(|m| !m.targets.is_empty() || m.cost.is_some())
                 {
                     // engine-resolve-effects seam: modal per-mode targets/costs
                     // are announce-time ([CR#601.2b,700.2c,700.2h]) — the mode
@@ -1269,14 +1286,6 @@ impl GameState {
                     modes: modal.modes.to_vec(),
                     frame: frame.clone(),
                 });
-            }
-            // [CR#115.1,601.2c]: a target-scoping wrapper. Targets were chosen
-            // at announcement and already live in `frame.anaphora.targets`;
-            // this node is otherwise transparent — descend into the inner
-            // effect, exactly like `Expanded`. The body reads announced
-            // targets by position via `Reference::Target(n)`.
-            OneShotEffect::Targeted(te) => {
-                self.run_effect(Arc::unwrap_or_clone(te.effect), frame);
             }
             // [CR#601.2f,118.8]: "As an additional cost, [pay]; then [body]." The
             // NESTED (resolution-time) form — an extra cost paid mid-resolution,
@@ -1906,7 +1915,7 @@ impl GameState {
             OneShotEffect::Modal(m) => m
                 .modes
                 .iter()
-                .any(|mode| Self::body_repositions_ordered(&mode.effect)),
+                .any(|mode| mode.effect.body.iter().any(Self::body_repositions_ordered)),
             OneShotEffect::With(w) => Self::body_repositions_ordered(&w.body),
             OneShotEffect::Each(e) => Self::body_repositions_ordered(&e.effect),
             OneShotEffect::Distribute(d) => Self::body_repositions_ordered(&d.body),
@@ -1916,7 +1925,6 @@ impl GameState {
                         .as_ref()
                         .is_some_and(|o| Self::body_repositions_ordered(o))
             }
-            OneShotEffect::Targeted(t) => Self::body_repositions_ordered(&t.effect),
             OneShotEffect::Label(l) => Self::body_repositions_ordered(&l.effect),
             _ => false,
         }
@@ -2201,21 +2209,20 @@ mod tests {
     use crate::test_support::frame_src;
     use crate::test_support::frame_src_targets;
 
-    /// A `Targeted` wrapper is transparent at resolution — the inner
-    /// instruction runs with `frame.anaphora.targets` already bound, so
-    /// `Target(0)` resolves and damage lands ([CR#115.1,608]).
+    /// Ability target declarations are outside the instruction block; the
+    /// instruction reads its already-bound target directly.
     #[test]
     fn targeted_effect_resolves_its_inner_effect() {
         let (mut state, bear) = bear_on_field();
         let frame = frame_src_targets(bear, vec![bear]);
         state.run_effect(
-            OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-                vec![].into(),
-                OneShotEffect::Act(Action::deal_damage(Reference::It, Count::Literal(3))),
+            OneShotEffect::Act(Action::deal_damage(
+                Reference::Reg(deckmaste_core::RefId(6)),
+                Count::Literal(3),
             )),
             &frame,
         );
-        // RunEffect(Targeted) → RunEffect(DealDamage) → Emit(DamageDealt).
+        // RunEffect(DealDamage) → Emit(DamageDealt).
         for _ in 0..3 {
             let _ = state.step();
         }
@@ -2865,6 +2872,7 @@ mod tests {
                 abilities: vec![deckmaste_core::Ability::triggered(
                     deckmaste_core::TriggeredAbility {
                         ability_word: None,
+                        targets: [].into(),
                         from: None,
                         condition: None,
                         limits: Vec::new().into(),
@@ -2878,7 +2886,8 @@ mod tests {
                         effect: OneShotEffect::Act(Action::ChangeLife(
                             Reference::You,
                             LifeOp::Up(Count::Literal(1)),
-                        )),
+                        ))
+                        .into(),
                     },
                 )],
                 ..deckmaste_card::CardFace::default()
@@ -3196,6 +3205,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(cid), PlayerId(0), Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             id: spell,
             object: StackObject::Spell(spell),
             controller: PlayerId(0),
@@ -4713,10 +4723,12 @@ mod tests {
         use crate::decide::PendingDecision;
 
         let gain_mode = |n| Mode {
+            targets: [].into(),
             effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
                 LifeOp::Up(Count::Literal(n)),
-            )),
+            ))
+            .into(),
             cost: None,
         };
         let modes = || vec![gain_mode(3), gain_mode(5), gain_mode(7)];
@@ -4815,7 +4827,6 @@ mod tests {
         use deckmaste_core::Predicate;
         use deckmaste_core::Quantity;
         use deckmaste_core::TargetSpec;
-        use deckmaste_core::Targeted;
 
         let p0 = PlayerId(0);
         // The verb doesn't matter — only that the mode carries a top-level
@@ -4823,20 +4834,21 @@ mod tests {
         // Resistance's "Destroy target artifact" / "target creature gains…"
         // modes. A harmless life-gain stands in for the verb.
         let destroy_target = |predicate: Predicate| Mode {
-            effect: OneShotEffect::Targeted(Targeted::new(
-                vec![TargetSpec::Target(Quantity::one(), predicate)].into(),
-                OneShotEffect::Act(Action::ChangeLife(
-                    Reference::You,
-                    LifeOp::Up(Count::Literal(0)),
-                )),
-            )),
+            targets: vec![TargetSpec::Target(Quantity::one(), predicate)].into(),
+            effect: OneShotEffect::Act(Action::ChangeLife(
+                Reference::You,
+                LifeOp::Up(Count::Literal(0)),
+            ))
+            .into(),
             cost: None,
         };
         let gain_mode = |n| Mode {
+            targets: [].into(),
             effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
                 LifeOp::Up(Count::Literal(n)),
-            )),
+            ))
+            .into(),
             cost: None,
         };
         let escalate = || {
@@ -4916,10 +4928,12 @@ mod tests {
         use crate::decide::PendingDecision;
 
         let gain_mode = |n| Mode {
+            targets: [].into(),
             effect: OneShotEffect::Act(Action::ChangeLife(
                 Reference::You,
                 LifeOp::Up(Count::Literal(n)),
-            )),
+            ))
+            .into(),
             cost: None,
         };
         let p0 = PlayerId(0);
@@ -5531,7 +5545,8 @@ mod tests {
             types: vec![Type::Sorcery.def()],
             abilities: vec![Ability::spell(SpellAbility {
                 ability_word: None,
-                effect: secrets_effect(),
+                targets: [].into(),
+                effect: secrets_effect().into(),
             })],
             ..CardFace::default()
         });
@@ -5540,6 +5555,7 @@ mod tests {
             .objects
             .mint(ObjectSource::Card(spell_card_id), p0, Some(Zone::Stack));
         state.stack.push(StackEntry {
+            activation: crate::ActivationId::NONE,
             paid_costs: Vec::new(),
             id: spell,
             object: StackObject::Spell(spell),

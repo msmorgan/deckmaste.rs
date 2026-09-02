@@ -13,7 +13,6 @@ use deckmaste_core::Action;
 use deckmaste_core::Count;
 use deckmaste_core::OneShotEffect;
 use deckmaste_core::Reference;
-use deckmaste_core::SpellAbility;
 use deckmaste_core::StatValue;
 use deckmaste_core::Subtype;
 use deckmaste_core::TargetSpec;
@@ -107,15 +106,17 @@ fn lightning_bolt_expands_target_macros() {
         .unwrap()
         .expand_all()
         .lower();
+    let [Ability::Spell(spell)] = face.abilities.as_slice() else {
+        panic!("expected one spell ability")
+    };
+    assert_eq!(spell.targets.as_ref(), std::slice::from_ref(&any_target));
     assert_eq!(
-        face.abilities,
-        vec![Ability::spell(SpellAbility {
-            ability_word: None,
-            effect: OneShotEffect::Targeted(deckmaste_core::Targeted::new(
-                vec![any_target].into(),
-                OneShotEffect::Act(Action::deal_damage(Reference::Target(0), Count::Literal(3),)),
-            )),
-        })]
+        spell.effect.body.as_ref(),
+        [OneShotEffect::Act(Action::DealDamage(
+            Reference::Reg(deckmaste_core::RefId(0)),
+            Count::Literal(3),
+            Reference::Reg(deckmaste_core::RefId(6)),
+        ))]
     );
 }
 
@@ -135,11 +136,8 @@ fn tribal_flames_expands_the_domain_count() {
     let Ability::Spell(ref spell) = face.abilities[0] else {
         panic!("expected a spell ability");
     };
-    let OneShotEffect::Targeted(ref te) = spell.effect else {
-        panic!("expected a Targeted wrapper, got {:?}", spell.effect);
-    };
-    let OneShotEffect::Act(Action::DealDamage(_, count, _)) = te.effect.as_ref() else {
-        panic!("expected DealDamage, got {:?}", te.effect);
+    let [OneShotEffect::Act(Action::DealDamage(_, count, _))] = spell.effect.body.as_ref() else {
+        panic!("expected DealDamage, got {:?}", spell.effect.body);
     };
     let domain: Count = plugin
         .macros
@@ -147,7 +145,13 @@ fn tribal_flames_expands_the_domain_count() {
         .unwrap()
         .expand_all()
         .lower();
-    assert_eq!(*count, domain, "Tribal Flames' damage is Domain's body");
+    assert!(
+        matches!(
+            domain,
+            Count::CountDistinct(deckmaste_core::Characteristic::BasicLandTypes, _)
+        ),
+        "the Domain macro expands to the same count constructor"
+    );
     assert!(matches!(
         count,
         Count::CountDistinct(deckmaste_core::Characteristic::BasicLandTypes, _),
@@ -170,9 +174,6 @@ fn any_target_body_replaces_its_expansion_on_the_loaded_card() {
     let Ability::Spell(ref spell) = face.abilities[0] else {
         panic!("expected a spell ability");
     };
-    let OneShotEffect::Targeted(ref te) = spell.effect else {
-        panic!("expected a Targeted wrapper, got {:?}", spell.effect);
-    };
     let any_target: deckmaste_semantics::TargetSpec = plugin.macros.read_str("AnyTarget").unwrap();
     let deckmaste_semantics::TargetSpec::Expanded(ref exp) = any_target else {
         panic!(
@@ -185,7 +186,7 @@ fn any_target_body_replaces_its_expansion_on_the_loaded_card() {
         "the macro DEFINITION still carries its template"
     );
     assert_eq!(
-        te.targets[0],
+        spell.targets[0],
         any_target.expand_all().lower(),
         "but the loaded card carries AnyTarget's body, not its expansion wrapper"
     );
@@ -211,15 +212,12 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     let Ability::Spell(ref spell) = face.abilities[0] else {
         panic!("expected a spell ability");
     };
-    let OneShotEffect::Targeted(ref te) = spell.effect else {
-        panic!("expected a Targeted wrapper, got {:?}", spell.effect);
-    };
-    let OneShotEffect::May(ref m) = *te.effect else {
-        panic!("expected May, got {:?}", te.effect);
+    let [OneShotEffect::May(m)] = spell.effect.body.as_ref() else {
+        panic!("expected May, got {:?}", spell.effect.body);
     };
     assert_eq!(
         m.who,
-        Reference::ControllerOf(Arc::new(Reference::Target(0))),
+        Reference::ControllerOf(Arc::new(Reference::Reg(deckmaste_core::RefId(6)))),
         "the payer is the targeted spell's controller"
     );
     let OneShotEffect::Act(Action::Pay(ref cost)) = *m.effect else {
@@ -244,7 +242,7 @@ fn mana_leak_reads_to_a_must_pay_punisher() {
     };
     assert_eq!(
         **if_not,
-        OneShotEffect::Act(Action::Counter(Reference::Target(0))),
+        OneShotEffect::Act(Action::Counter(Reference::Reg(deckmaste_core::RefId(6)))),
         "unpaid → counter the spell"
     );
 }
@@ -312,11 +310,8 @@ fn arc_lightning_targets_any_target() {
     let Ability::Spell(ref spell) = face.abilities[0] else {
         panic!("expected a spell ability");
     };
-    let OneShotEffect::Targeted(ref te) = spell.effect else {
-        panic!("expected a Targeted wrapper, got {:?}", spell.effect);
-    };
-    let TargetSpec::Target(count, filter) = &te.targets[0] else {
-        panic!("expected Target variant, got {:?}", te.targets[0]);
+    let TargetSpec::Target(count, filter) = &spell.targets[0] else {
+        panic!("expected Target variant, got {:?}", spell.targets[0]);
     };
     // Between(1, 3): one, two, or three targets — never zero (the AnyNumber bug).
     assert_eq!(

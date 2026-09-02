@@ -32,7 +32,13 @@ impl GameState {
             // frameless-targeting seam.
             Condition::Exists(filter) => {
                 let watcher = self.frame_watcher(frame);
-                !crate::target::candidates_with(self, filter, Some(watcher)).is_empty()
+                !crate::target::candidates_with_activation(
+                    self,
+                    filter,
+                    Some(watcher),
+                    frame.activation,
+                )
+                .is_empty()
             }
 
             // "if it is a [filter]" ([CR#603.4], "if it's a …"): resolve the
@@ -64,11 +70,21 @@ impl GameState {
                     });
                 }
                 let watcher = self.frame_watcher(frame);
-                let object = self.eval_reference(reference, frame);
-                if self.objects.get(object).is_some() {
-                    self.filter_matches_live(filter, object, watcher)
-                } else if let Some(snapshot) = Self::bound_snapshot(reference, frame) {
-                    self.filter_matches_snapshot(filter, snapshot, watcher)
+                let product = self.eval_reference_product(reference, frame);
+                if let Some(object) = product.current {
+                    self.filter_matches_live_with_activation(
+                        filter,
+                        object,
+                        watcher,
+                        frame.activation,
+                    )
+                } else if let Some(snapshot) = product.lki.as_ref() {
+                    self.filter_matches_snapshot_with_activation(
+                        filter,
+                        snapshot,
+                        watcher,
+                        frame.activation,
+                    )
                 } else {
                     // A gone object with no bound LKI snapshot matches no
                     // CURRENT-state filter — it is not on the battlefield, has no
@@ -194,43 +210,11 @@ impl GameState {
             Condition::TurnOf(filter) => {
                 let watcher = self.frame_watcher(frame);
                 let active = self.player(self.turn.active_player).object;
-                self.filter_matches_live(filter, active, watcher)
+                self.filter_matches_live_with_activation(filter, active, watcher, frame.activation)
             }
 
             // The current phase/step is exactly the given one.
             Condition::DuringPhase(p) => self.turn.current == *p,
-        }
-    }
-
-    /// The last-known-information snapshot a trigger bound for `reference`, if
-    /// any ([CR#603.10a]) — the fallback a `Condition::Matches` over a gone
-    /// object reads. Only the snapshot-bearing references resolve: `This` →
-    /// the firing object's self, `EventObject` → the moved object, `It` →
-    /// the iteration/projection element. Looks through an `Expanded` macro
-    /// reference, mirroring `eval_reference`.
-    fn bound_snapshot<'f>(
-        reference: &deckmaste_core::Reference,
-        frame: &'f Frame,
-    ) -> Option<&'f crate::lki::LkiSnapshot> {
-        use deckmaste_core::Reference;
-        // The iteration/projection element ([CR#608.2]): a card element carries
-        // a snapshot; a player element is zoneless and has none.
-        if let Reference::It = reference {
-            return match frame.anaphora.it.as_ref()? {
-                crate::stack::ItBinding::Object(s) => Some(s),
-                crate::stack::ItBinding::Player(_) => None,
-            };
-        }
-        match reference {
-            Reference::This => frame.this.as_ref(),
-            // The event OBJECT — the moved object's snapshot ([CR#603.2e]).
-            Reference::EventObject => frame.anaphora.that_object.as_ref(),
-            // An OBJECT patient carries a snapshot; a player patient has none.
-            Reference::EventPatient => match frame.anaphora.that_patient.as_ref()? {
-                crate::trigger::EventPatient::Object(s) => Some(s),
-                crate::trigger::EventPatient::Player(_) => None,
-            },
-            _ => None,
         }
     }
 
@@ -462,6 +446,7 @@ mod tests {
         );
         state.zones.battlefield.push(bear);
         let frame = Frame {
+            activation: crate::ActivationId::NONE,
             source: bear,
             controller: PlayerId(0),
             this: Some(LkiSnapshot::capture(&state, bear)),
@@ -489,9 +474,12 @@ mod tests {
             !state.condition_holds(&Condition::Matches(Reference::This, land), &frame),
             "the bear is not a land"
         );
-        // Is(It, …): the lone announced target is that same bear.
+        // The first announced target is that same bear.
         assert!(
-            state.condition_holds(&Condition::Matches(Reference::It, creature), &frame),
+            state.condition_holds(
+                &Condition::Matches(Reference::Reg(deckmaste_core::RefId(6)), creature),
+                &frame,
+            ),
             "the target is a creature"
         );
         // Is(This, Ref(This)): the resolved object IS the watcher, so the
@@ -542,12 +530,17 @@ mod tests {
                 types: vec![Type::Artifact.def()],
                 abilities: vec![Ability::triggered(TriggeredAbility {
                     ability_word: None,
+                    targets: [].into(),
                     where_x: None,
                     from: None,
                     event: EventFilter::OneOf(Vec::new().into()),
                     condition: Some(Condition::Exists(Predicate::r#type(Type::Creature))),
                     limits: Vec::new().into(),
-                    effect: OneShotEffect::Sequentially(Vec::new().into()),
+                    effect: OneShotEffect::Act(deckmaste_core::Action::ChangeLife(
+                        Reference::You,
+                        deckmaste_core::LifeOp::Up(deckmaste_core::Count::Literal(0)),
+                    ))
+                    .into(),
                 })],
                 ..CardFace::default()
             });
@@ -579,6 +572,7 @@ mod tests {
                     .mint(ObjectSource::Card(card_id), PlayerId(0), Some(Zone::Stack));
             let source_lki = LkiSnapshot::capture(&state, source);
             state.stack.push(StackEntry {
+                activation: crate::ActivationId::NONE,
                 paid_costs: Vec::new(),
                 id: stack_id,
                 object: StackObject::Triggered {
@@ -815,6 +809,7 @@ mod tests {
             Some(deckmaste_core::Zone::Stack),
         );
         state.announcing = Some(crate::stack::PendingStackEntry {
+            activation: crate::ActivationId::NONE,
             optional_components: Vec::new(),
             paid_costs: Vec::new(),
             id: spell,

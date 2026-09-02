@@ -472,6 +472,7 @@ impl GameState {
             .expect("begin_activate captures the source snapshot")
             .clone();
         let frame = Frame {
+            activation: crate::ActivationId::NONE,
             source: this.object,
             controller: pending.controller,
             this: Some(this),
@@ -498,6 +499,7 @@ impl GameState {
             }),
         ))];
         items.extend(crate::cast::announced_effect_items(
+            self,
             &ability.effect,
             &frame,
             pending.chosen_modes.as_ref(),
@@ -737,6 +739,7 @@ impl GameState {
             }),
         );
         let frame = Frame {
+            activation: crate::ActivationId::NONE,
             source,
             controller,
             this: bindings.this.clone(),
@@ -757,10 +760,13 @@ impl GameState {
             .is_none_or(|condition| self.condition_holds(condition, &frame));
         let mut items = Vec::new();
         if should_resolve {
-            items.push(WorkItem::RunEffect {
-                effect: Arc::new(triggered.effect.clone()),
-                frame,
-            });
+            items.extend(crate::cast::announced_effect_items(
+                self,
+                &triggered.effect,
+                &frame,
+                &[],
+                &[],
+            ));
         }
         let source_snapshot = bindings
             .this
