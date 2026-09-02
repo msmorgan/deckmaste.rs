@@ -51,3 +51,13 @@ constraints apply.
   per-preposition family count as approximately 15.
 - Coverage rose from 15,886 to 15,927 selected-and-covered identities, with
   zero unresolved ties, ownership failures, or round-trip mismatches.
+
+## Erratum (residue landing review, 2026-09-02)
+
+Baseline was 399 constructions (the record's 396 is a mid-work number).
+Corpus outcomes the ticket asked for: "gains flying" 290 -> 7 selected;
+"as though it were" 67 -> 0; "mana of any type" 56 -> 0 (probes pass; the
+remaining units fail elsewhere). The zero-routing census deleted 44
+constructions of which >=12 were general sole-realization shapes — a
+coordinator premise error in this ticket's text; restoration is
+english-v2-restore-general-constructions.
