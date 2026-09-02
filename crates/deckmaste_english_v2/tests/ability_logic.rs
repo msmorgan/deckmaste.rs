@@ -1971,7 +1971,7 @@ fn symbol_interior_and_braced_run_rejection_set_is_closed() {
     let parser = parser();
     let context = context("Context Card", false);
     for interior in [
-        "", "00", "01", "+2", "−2", "P", "H", "E", "TK", "∞", "Y", "Z", "U/W", "B/W", "B/U", "R/U",
+        "", "00", "01", "+2", "−2", "H", "E", "TK", "∞", "Y", "Z", "U/W", "B/W", "B/U", "R/U",
         "R/B", "G/B", "G/R", "W/R", "W/G", "U/G", "W/2", "U/2", "B/2", "R/2", "G/2", "W/C", "U/C",
         "B/C", "R/C", "G/C", "P/W", "P/U", "P/B", "P/R", "P/G", "U/W/P", "B/W/P", "B/U/P", "R/U/P",
         "R/B/P", "G/B/P", "G/R/P", "W/R/P", "W/G/P", "U/G/P", "W/P/U", "W/U/B", "W/W", "2/P",
@@ -2442,6 +2442,28 @@ fn assert_one_logic_candidate(parser: &Parser, context: &ParseContext<'_>, text:
         1,
         "the staged grammar materializes one semantic candidate: {text}",
     );
+    assert_eq!(selected.render(context, parser.environment()), text);
+    let ownership = analysis
+        .ownership()
+        .expect("selected logic witness has byte ownership");
+    assert!(ownership.failures().is_empty(), "{text}: {ownership:?}");
+    assert!(ownership.summary().covered(), "{text}: {ownership:?}");
+    selected.clone()
+}
+
+/// Like [`assert_one_logic_candidate`], but for surfaces whose head is ordinary
+/// sentence grammar, where a preposed clause can attach either to the head or
+/// to the enclosing trigger. Selection must still resolve to exactly one
+/// reading; only the materialized candidate count is allowed to exceed one.
+fn assert_resolved_logic_candidate(
+    parser: &Parser,
+    context: &ParseContext<'_>,
+    text: &str,
+) -> Ability {
+    let analysis = parser.analyze(text, context);
+    let selected = analysis
+        .selected()
+        .unwrap_or_else(|| panic!("logic witness must select: {text}: {analysis:?}"));
     assert_eq!(selected.render(context, parser.environment()), text);
     let ownership = analysis
         .ownership()
@@ -4019,83 +4041,59 @@ fn selected_plain_modal<'a>(ability: &'a Ability, envelope: &str) -> &'a PlainMo
     modal
 }
 
+/// Every attested dash head, written as the head clause renders it.
+const DASH_MODAL_HEADERS: [&str; 10] = [
+    "Choose one",
+    "Choose two",
+    "Choose one or both",
+    "Choose one or more",
+    "Choose up to one",
+    "An opponent chooses one",
+    "An opponent chooses two",
+    "An opponent chooses one or both",
+    "An opponent chooses one or more",
+    "An opponent chooses up to one",
+];
+
+fn continuation_header(header: &str) -> String {
+    let mut characters = header.chars();
+    characters.next().map_or_else(String::new, |first| {
+        first.to_lowercase().chain(characters).collect()
+    })
+}
+
+fn mode_marker(mode: &ModalMode) -> &ModeMarker {
+    let ModalMode::ModalMode(value) = mode;
+    value.marker.as_ref()
+}
+
+fn bullet_modes(modal: &PlainModal) -> bool {
+    modal
+        .modes()
+        .iter()
+        .all(|mode| matches!(mode_marker(mode), ModeMarker::Bullet(_)))
+}
+
 #[test]
 fn every_plain_modal_header_selects_independently_in_every_ability_envelope() {
     let parser = parser();
     let context = context("Context Card", false);
-    for (root_header, wrapped_header, chooser, bounds) in [
-        (
-            "Choose one",
-            "choose one",
-            ModalChooser::You,
-            ModalChoiceBounds::ExactlyOne,
-        ),
-        (
-            "Choose two",
-            "choose two",
-            ModalChooser::You,
-            ModalChoiceBounds::ExactlyTwo,
-        ),
-        (
-            "Choose one or both",
-            "choose one or both",
-            ModalChooser::You,
-            ModalChoiceBounds::OneToTwo,
-        ),
-        (
-            "Choose one or more",
-            "choose one or more",
-            ModalChooser::You,
-            ModalChoiceBounds::OneOrMore,
-        ),
-        (
-            "Choose up to one",
-            "choose up to one",
-            ModalChooser::You,
-            ModalChoiceBounds::ZeroToOne,
-        ),
-        (
-            "An opponent chooses one",
-            "an opponent chooses one",
-            ModalChooser::Opponent,
-            ModalChoiceBounds::ExactlyOne,
-        ),
-        (
-            "An opponent chooses two",
-            "an opponent chooses two",
-            ModalChooser::Opponent,
-            ModalChoiceBounds::ExactlyTwo,
-        ),
-        (
-            "An opponent chooses one or both",
-            "an opponent chooses one or both",
-            ModalChooser::Opponent,
-            ModalChoiceBounds::OneToTwo,
-        ),
-        (
-            "An opponent chooses one or more",
-            "an opponent chooses one or more",
-            ModalChooser::Opponent,
-            ModalChoiceBounds::OneOrMore,
-        ),
-        (
-            "An opponent chooses up to one",
-            "an opponent chooses up to one",
-            ModalChooser::Opponent,
-            ModalChoiceBounds::ZeroToOne,
-        ),
-    ] {
-        for (envelope, header) in [
-            ("root", root_header),
-            ("trigger", wrapped_header),
-            ("activation", root_header),
-        ] {
-            let text = wrapped_modal_text(envelope, header);
-            let selected = assert_one_logic_candidate(&parser, &context, &text);
+    for header in DASH_MODAL_HEADERS {
+        for envelope in ["root", "trigger", "activation"] {
+            let written = if envelope == "trigger" {
+                continuation_header(header)
+            } else {
+                header.to_owned()
+            };
+            let text = wrapped_modal_text(envelope, &written);
+            let selected = assert_resolved_logic_candidate(&parser, &context, &text);
             let modal = selected_plain_modal(&selected, envelope);
-            assert_eq!(modal.chooser, chooser, "{text}");
-            assert_eq!(modal.bounds, bounds, "{text}");
+            assert!(
+                matches!(modal.head.as_ref(), ModalHead::Dash(_)),
+                "an em-dash head is a clause plus the structural dash: {text}",
+            );
             assert_eq!(modal.modes().len(), 2, "{text}");
+            assert!(bullet_modes(modal), "{text}");
             assert_eq!(
                 selected.render(&context, parser.environment()),
                 text,
@@ -4105,68 +4103,90 @@ fn every_plain_modal_header_selects_independently_in_every_ability_envelope() {
     }
 }
 
-fn modal_header_evidence() -> [(&'static str, &'static str, ModalChooser, ModalChoiceBounds); 6] {
-    [
-        (
-            "Choose one",
-            "choose one",
-            ModalChooser::You,
-            ModalChoiceBounds::ExactlyOne,
-        ),
-        (
-            "Choose two",
-            "choose two",
-            ModalChooser::You,
-            ModalChoiceBounds::ExactlyTwo,
-        ),
-        (
-            "Choose one or both",
-            "choose one or both",
-            ModalChooser::You,
-            ModalChoiceBounds::OneToTwo,
-        ),
-        (
-            "Choose one or more",
-            "choose one or more",
-            ModalChooser::You,
-            ModalChoiceBounds::OneOrMore,
-        ),
-        (
-            "Choose up to one",
-            "choose up to one",
-            ModalChooser::You,
-            ModalChoiceBounds::ZeroToOne,
-        ),
-        (
-            "An opponent chooses one",
-            "an opponent chooses one",
-            ModalChooser::Opponent,
-            ModalChoiceBounds::ExactlyOne,
-        ),
-    ]
-}
+#[test]
+fn every_modal_head_kind_selects_with_its_own_mode_markers() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let dash = "Choose one —\n• You gain 1 life.\n• You gain 2 life.";
+    let sentence = concat!(
+        "Choose three. You may choose the same mode more than once.\n",
+        "• You gain 1 life.\n• You gain 2 life.",
+    );
+    let keyword = "Spree\n+ {1} — You gain 1 life.\n+ {2}{R} — You gain 2 life.";
+    let pawprint = "Spree\n{P} — You gain 1 life.\n{P}{P} — You gain 2 life.";
 
-fn expected_modal_body(chooser: ModalChooser, bounds: ModalChoiceBounds) -> AbilityBody {
-    AbilityBody::PlainModal(
-        PlainModal::new(
-            chooser,
-            bounds,
-            Box::new(vec![
-                modal_mode(vec![modal_sentence(gain_life_predicate(1))]),
-                modal_mode(vec![modal_sentence(gain_life_predicate(2))]),
-            ]),
-        )
-        .expect("the reviewed modal header and two nonempty modes construct"),
+    for (text, bullet) in [
+        (dash, true),
+        (sentence, true),
+        (keyword, false),
+        (pawprint, false),
+    ] {
+        let selected = assert_resolved_logic_candidate(&parser, &context, text);
+        let modal = selected_plain_modal(&selected, "root");
+        assert_eq!(modal.modes().len(), 2, "{text}");
+        assert_eq!(bullet_modes(modal), bullet, "{text}");
+        assert_eq!(
+            selected.render(&context, parser.environment()),
+            text,
+            "every head kind renders back byte for byte",
+        );
+    }
+
+    let dash_head = selected_plain_modal(
+        &assert_resolved_logic_candidate(&parser, &context, dash),
+        "root",
     )
+    .head
+    .as_ref()
+    .clone();
+    assert!(matches!(dash_head, ModalHead::Dash(_)));
+    let sentence_head = selected_plain_modal(
+        &assert_resolved_logic_candidate(&parser, &context, sentence),
+        "root",
+    )
+    .head
+    .as_ref()
+    .clone();
+    assert!(
+        matches!(sentence_head, ModalHead::Sentence(_)),
+        "a period-terminated allowance is a sentence head, not a dash head",
+    );
+    let keyword_head = selected_plain_modal(
+        &assert_resolved_logic_candidate(&parser, &context, keyword),
+        "root",
+    )
+    .head
+    .as_ref()
+    .clone();
+    assert!(
+        matches!(keyword_head, ModalHead::Keyword(_)),
+        "the spree keyword line is itself the modal head",
+    );
 }
 
-fn expected_modal_envelope(
-    envelope: &str,
-    chooser: ModalChooser,
-    bounds: ModalChoiceBounds,
-) -> Ability {
-    let body = expected_modal_body(chooser, bounds);
-    expected_modal_envelope_with_body(envelope, body)
+#[test]
+fn the_weighted_mode_marker_is_one_construction_for_spree_and_pawprint() {
+    let parser = parser();
+    let context = context("Context Card", false);
+    let selected = assert_resolved_logic_candidate(
+        &parser,
+        &context,
+        "Spree\n+ {1} — You gain 1 life.\n{P}{P} — You gain 2 life.",
+    );
+    let modal = selected_plain_modal(&selected, "root");
+    let markers = modal
+        .modes()
+        .iter()
+        .map(|mode| match mode_marker(mode) {
+            ModeMarker::Weighted(marker) => marker.additional.is_some(),
+            ModeMarker::Bullet(_) => panic!("weighted lines are not bullets"),
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        markers,
+        [true, false],
+        "the plus sign is the marker's optional additional-cost mark, not a second construction",
+    );
 }
 
 fn expected_modal_envelope_with_body(envelope: &str, body: AbilityBody) -> Ability {
@@ -4181,7 +4201,7 @@ fn expected_modal_envelope_with_body(envelope: &str, body: AbilityBody) -> Abili
             }),
             intervening_if: Box::new(Some(ConditionClause::FiniteCondition(Box::new(
                 FiniteCondition::FiniteCondition(FiniteConditionValue {
-                    clause: Box::new(Clause::Finite(Box::new(connive_clause()))),
+                    clause: connive_condition_clause(),
                 }),
             )))),
             body: Box::new(body),
@@ -4191,796 +4211,6 @@ fn expected_modal_envelope_with_body(envelope: &str, body: AbilityBody) -> Abili
                 .expect("the exact tap cost and modal body construct"),
         ),
         _ => panic!("unknown modal envelope {envelope}"),
-    }
-}
-
-#[derive(Default)]
-struct CompleteModalEnvelopeVisitor(Vec<String>);
-
-impl CompleteModalEnvelopeVisitor {
-    fn push(&mut self, value: impl Into<String>) {
-        self.0.push(value.into());
-    }
-}
-
-impl Visitor for CompleteModalEnvelopeVisitor {
-    fn visit_ability(&mut self, value: &Ability) {
-        self.push("Ability");
-        deckmaste_english_v2::visit::walk_ability(self, value);
-    }
-
-    fn visit_plain(&mut self, value: &Plain) {
-        self.push("Plain");
-        deckmaste_english_v2::visit::walk_plain(self, value);
-    }
-
-    fn visit_triggered(&mut self, value: &Triggered) {
-        self.push("Triggered");
-        deckmaste_english_v2::visit::walk_triggered(self, value);
-    }
-
-    fn visit_activated(&mut self, value: &Activated) {
-        self.push("Activated");
-        deckmaste_english_v2::visit::walk_activated(self, value);
-    }
-
-    fn visit_trigger_prefix(&mut self, value: &TriggerPrefix) {
-        self.push("TriggerPrefix");
-        deckmaste_english_v2::visit::walk_trigger_prefix(self, value);
-    }
-
-    fn visit_finite(&mut self, value: &Finite) {
-        self.push("Finite");
-        deckmaste_english_v2::visit::walk_finite(self, value);
-    }
-
-    fn visit_trigger_marker(&mut self, value: TriggerMarker) {
-        self.push(format!("TriggerMarker:{value:?}"));
-    }
-
-    fn visit_condition_clause(&mut self, value: &ConditionClause) {
-        self.push("ConditionClause");
-        deckmaste_english_v2::visit::walk_condition_clause(self, value);
-    }
-
-    fn visit_finite_condition(&mut self, value: &FiniteCondition) {
-        self.push("FiniteCondition");
-        deckmaste_english_v2::visit::walk_finite_condition(self, value);
-    }
-
-    fn visit_finite_condition_value(&mut self, value: &FiniteConditionValue) {
-        self.push("FiniteConditionValue");
-        deckmaste_english_v2::visit::walk_finite_condition_value(self, value);
-    }
-
-    fn visit_activation_cost_component(&mut self, value: &ActivationCostComponent) {
-        self.push("ActivationCostComponent");
-        deckmaste_english_v2::visit::walk_activation_cost_component(self, value);
-    }
-
-    fn visit_symbol_run(&mut self, value: &SymbolRun) {
-        self.push("SymbolRun");
-        deckmaste_english_v2::visit::walk_symbol_run(self, value);
-    }
-
-    fn visit_cost_symbol(&mut self, value: &CostSymbol) {
-        self.push("CostSymbol");
-        deckmaste_english_v2::visit::walk_cost_symbol(self, value);
-    }
-
-    fn visit_fixed_symbol(&mut self, value: &FixedSymbol) {
-        self.push("FixedSymbol");
-        deckmaste_english_v2::visit::walk_fixed_symbol(self, value);
-    }
-
-    fn visit_fixed_cost_symbol(&mut self, value: FixedCostSymbol) {
-        self.push(format!("FixedCostSymbol:{value:?}"));
-    }
-
-    fn visit_ability_body(&mut self, value: &AbilityBody) {
-        self.push("AbilityBody");
-        deckmaste_english_v2::visit::walk_ability_body(self, value);
-    }
-
-    fn visit_plain_modal(&mut self, value: &PlainModal) {
-        self.push("PlainModal");
-        deckmaste_english_v2::visit::walk_plain_modal(self, value);
-    }
-
-    fn visit_modal_chooser(&mut self, value: ModalChooser) {
-        self.push(format!("ModalChooser:{value:?}"));
-    }
-
-    fn visit_modal_choice_bounds(&mut self, value: ModalChoiceBounds) {
-        self.push(format!("ModalChoiceBounds:{value:?}"));
-    }
-
-    fn visit_modal_mode(&mut self, value: &ModalMode) {
-        self.push("ModalMode");
-        deckmaste_english_v2::visit::walk_modal_mode(self, value);
-    }
-
-    fn visit_modal_mode_value(&mut self, value: &ModalModeValue) {
-        self.push("ModalModeValue");
-        deckmaste_english_v2::visit::walk_modal_mode_value(self, value);
-    }
-
-    fn visit_sentence(&mut self, value: &Sentence) {
-        self.push("Sentence");
-        deckmaste_english_v2::visit::walk_sentence(self, value);
-    }
-
-    fn visit_declarative(&mut self, value: &Declarative) {
-        self.push("Declarative");
-        deckmaste_english_v2::visit::walk_declarative(self, value);
-    }
-
-    fn visit_clause(&mut self, value: &Clause) {
-        self.push("Clause");
-        deckmaste_english_v2::visit::walk_clause(self, value);
-    }
-
-    fn visit_finite_clause(&mut self, value: &FiniteClause) {
-        self.push("FiniteClause");
-        deckmaste_english_v2::visit::walk_finite_clause(self, value);
-    }
-
-    fn visit_subject(&mut self, value: &Subject) {
-        self.push(format!("Subject:{}", subject_identity(value)));
-    }
-
-    fn visit_predicate(&mut self, value: &Predicate) {
-        let Predicate::Atomic(value) = value else {
-            panic!("modal witness predicate is atomic: {value:?}")
-        };
-        self.push(format!("Predicate:{}", predicate_identity(value)));
-    }
-}
-
-fn expected_complete_modal_visit(
-    envelope: &str,
-    chooser: ModalChooser,
-    bounds: ModalChoiceBounds,
-) -> Vec<String> {
-    let mut expected = vec!["Ability".to_owned()];
-    match envelope {
-        "root" => expected.push("Plain".to_owned()),
-        "trigger" => expected.extend(
-            [
-                "Triggered",
-                "TriggerPrefix",
-                "Finite",
-                "TriggerMarker:Whenever",
-                "Clause",
-                "FiniteClause",
-                "Subject:player",
-                "Predicate:connive",
-                "ConditionClause",
-                "FiniteCondition",
-                "FiniteConditionValue",
-                "Clause",
-                "FiniteClause",
-                "Subject:you",
-                "Predicate:connive",
-            ]
-            .map(str::to_owned),
-        ),
-        "activation" => expected.extend(
-            [
-                "Activated",
-                "ActivationCostComponent",
-                "SymbolRun",
-                "CostSymbol",
-                "FixedSymbol",
-                "FixedCostSymbol:Tap",
-            ]
-            .map(str::to_owned),
-        ),
-        _ => panic!("unknown modal envelope {envelope}"),
-    }
-    expected.extend([
-        "AbilityBody".to_owned(),
-        "PlainModal".to_owned(),
-        format!("ModalChooser:{chooser:?}"),
-        format!("ModalChoiceBounds:{bounds:?}"),
-        "ModalMode".to_owned(),
-        "ModalModeValue".to_owned(),
-        "Sentence".to_owned(),
-        "Declarative".to_owned(),
-        "Clause".to_owned(),
-        "FiniteClause".to_owned(),
-        "Subject:you".to_owned(),
-        "Predicate:gain:1".to_owned(),
-        "ModalMode".to_owned(),
-        "ModalModeValue".to_owned(),
-        "Sentence".to_owned(),
-        "Declarative".to_owned(),
-        "Clause".to_owned(),
-        "FiniteClause".to_owned(),
-        "Subject:you".to_owned(),
-        "Predicate:gain:2".to_owned(),
-    ]);
-    expected
-}
-
-type ModalClaim = (usize, usize, &'static str);
-
-const ROOT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
-    (0, 6, "vocab:ModalChooser/You"),
-    (6, 10, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (10, 15, "form:plain_modal/plain_modal/2"),
-    (15, 19, "form:modal_mode/modal_mode/0"),
-    (19, 22, "vocab:SubjectPronoun/You"),
-    (22, 27, "core-verb:Gain"),
-    (27, 29, "codec:ScalarNumber"),
-    (29, 34, "form:life_amount/life_amount/2"),
-    (34, 35, "structural:ModalModeValue/sentences/terminator/0"),
-    (35, 36, "structural:PlainModal/modes/separator/uniform/0"),
-    (36, 40, "form:modal_mode/modal_mode/0"),
-    (40, 43, "vocab:SubjectPronoun/You"),
-    (43, 48, "core-verb:Gain"),
-    (48, 50, "codec:ScalarNumber"),
-    (50, 55, "form:life_amount/life_amount/2"),
-    (55, 56, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ROOT_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
-    (0, 6, "vocab:ModalChooser/You"),
-    (6, 10, "vocab:ModalChoiceBounds/ExactlyTwo"),
-    (10, 15, "form:plain_modal/plain_modal/2"),
-    (15, 19, "form:modal_mode/modal_mode/0"),
-    (19, 22, "vocab:SubjectPronoun/You"),
-    (22, 27, "core-verb:Gain"),
-    (27, 29, "codec:ScalarNumber"),
-    (29, 34, "form:life_amount/life_amount/2"),
-    (34, 35, "structural:ModalModeValue/sentences/terminator/0"),
-    (35, 36, "structural:PlainModal/modes/separator/uniform/0"),
-    (36, 40, "form:modal_mode/modal_mode/0"),
-    (40, 43, "vocab:SubjectPronoun/You"),
-    (43, 48, "core-verb:Gain"),
-    (48, 50, "codec:ScalarNumber"),
-    (50, 55, "form:life_amount/life_amount/2"),
-    (55, 56, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ROOT_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
-    (0, 6, "vocab:ModalChooser/You"),
-    (6, 18, "vocab:ModalChoiceBounds/OneToTwo"),
-    (18, 23, "form:plain_modal/plain_modal/2"),
-    (23, 27, "form:modal_mode/modal_mode/0"),
-    (27, 30, "vocab:SubjectPronoun/You"),
-    (30, 35, "core-verb:Gain"),
-    (35, 37, "codec:ScalarNumber"),
-    (37, 42, "form:life_amount/life_amount/2"),
-    (42, 43, "structural:ModalModeValue/sentences/terminator/0"),
-    (43, 44, "structural:PlainModal/modes/separator/uniform/0"),
-    (44, 48, "form:modal_mode/modal_mode/0"),
-    (48, 51, "vocab:SubjectPronoun/You"),
-    (51, 56, "core-verb:Gain"),
-    (56, 58, "codec:ScalarNumber"),
-    (58, 63, "form:life_amount/life_amount/2"),
-    (63, 64, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ROOT_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
-    (0, 6, "vocab:ModalChooser/You"),
-    (6, 18, "vocab:ModalChoiceBounds/OneOrMore"),
-    (18, 23, "form:plain_modal/plain_modal/2"),
-    (23, 27, "form:modal_mode/modal_mode/0"),
-    (27, 30, "vocab:SubjectPronoun/You"),
-    (30, 35, "core-verb:Gain"),
-    (35, 37, "codec:ScalarNumber"),
-    (37, 42, "form:life_amount/life_amount/2"),
-    (42, 43, "structural:ModalModeValue/sentences/terminator/0"),
-    (43, 44, "structural:PlainModal/modes/separator/uniform/0"),
-    (44, 48, "form:modal_mode/modal_mode/0"),
-    (48, 51, "vocab:SubjectPronoun/You"),
-    (51, 56, "core-verb:Gain"),
-    (56, 58, "codec:ScalarNumber"),
-    (58, 63, "form:life_amount/life_amount/2"),
-    (63, 64, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ROOT_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
-    (0, 6, "vocab:ModalChooser/You"),
-    (6, 16, "vocab:ModalChoiceBounds/ZeroToOne"),
-    (16, 21, "form:plain_modal/plain_modal/2"),
-    (21, 25, "form:modal_mode/modal_mode/0"),
-    (25, 28, "vocab:SubjectPronoun/You"),
-    (28, 33, "core-verb:Gain"),
-    (33, 35, "codec:ScalarNumber"),
-    (35, 40, "form:life_amount/life_amount/2"),
-    (40, 41, "structural:ModalModeValue/sentences/terminator/0"),
-    (41, 42, "structural:PlainModal/modes/separator/uniform/0"),
-    (42, 46, "form:modal_mode/modal_mode/0"),
-    (46, 49, "vocab:SubjectPronoun/You"),
-    (49, 54, "core-verb:Gain"),
-    (54, 56, "codec:ScalarNumber"),
-    (56, 61, "form:life_amount/life_amount/2"),
-    (61, 62, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ROOT_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
-    (0, 19, "vocab:ModalChooser/Opponent"),
-    (19, 23, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (23, 28, "form:plain_modal/plain_modal/2"),
-    (28, 32, "form:modal_mode/modal_mode/0"),
-    (32, 35, "vocab:SubjectPronoun/You"),
-    (35, 40, "core-verb:Gain"),
-    (40, 42, "codec:ScalarNumber"),
-    (42, 47, "form:life_amount/life_amount/2"),
-    (47, 48, "structural:ModalModeValue/sentences/terminator/0"),
-    (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
-    (49, 53, "form:modal_mode/modal_mode/0"),
-    (53, 56, "vocab:SubjectPronoun/You"),
-    (56, 61, "core-verb:Gain"),
-    (61, 63, "codec:ScalarNumber"),
-    (63, 68, "form:life_amount/life_amount/2"),
-    (68, 69, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const TRIGGER_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
-    (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
-    (10, 17, "lexeme:CommonNoun/Player/singular"),
-    (
-        17,
-        26,
-        "lexeme:keyword_action/Connive/third_person_singular",
-    ),
-    (26, 27, "form:triggered/triggered/1"),
-    (27, 30, "form:finite_condition/finite_condition/0"),
-    (30, 34, "vocab:SubjectPronoun/You"),
-    (34, 42, "lexeme:keyword_action/Connive/bare"),
-    (42, 43, "form:finite_condition/finite_condition/2"),
-    (43, 50, "vocab:ModalChooser/You"),
-    (50, 54, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (54, 59, "form:plain_modal/plain_modal/2"),
-    (59, 63, "form:modal_mode/modal_mode/0"),
-    (63, 66, "vocab:SubjectPronoun/You"),
-    (66, 71, "core-verb:Gain"),
-    (71, 73, "codec:ScalarNumber"),
-    (73, 78, "form:life_amount/life_amount/2"),
-    (78, 79, "structural:ModalModeValue/sentences/terminator/0"),
-    (79, 80, "structural:PlainModal/modes/separator/uniform/0"),
-    (80, 84, "form:modal_mode/modal_mode/0"),
-    (84, 87, "vocab:SubjectPronoun/You"),
-    (87, 92, "core-verb:Gain"),
-    (92, 94, "codec:ScalarNumber"),
-    (94, 99, "form:life_amount/life_amount/2"),
-    (99, 100, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const TRIGGER_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
-    (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
-    (10, 17, "lexeme:CommonNoun/Player/singular"),
-    (
-        17,
-        26,
-        "lexeme:keyword_action/Connive/third_person_singular",
-    ),
-    (26, 27, "form:triggered/triggered/1"),
-    (27, 30, "form:finite_condition/finite_condition/0"),
-    (30, 34, "vocab:SubjectPronoun/You"),
-    (34, 42, "lexeme:keyword_action/Connive/bare"),
-    (42, 43, "form:finite_condition/finite_condition/2"),
-    (43, 50, "vocab:ModalChooser/You"),
-    (50, 54, "vocab:ModalChoiceBounds/ExactlyTwo"),
-    (54, 59, "form:plain_modal/plain_modal/2"),
-    (59, 63, "form:modal_mode/modal_mode/0"),
-    (63, 66, "vocab:SubjectPronoun/You"),
-    (66, 71, "core-verb:Gain"),
-    (71, 73, "codec:ScalarNumber"),
-    (73, 78, "form:life_amount/life_amount/2"),
-    (78, 79, "structural:ModalModeValue/sentences/terminator/0"),
-    (79, 80, "structural:PlainModal/modes/separator/uniform/0"),
-    (80, 84, "form:modal_mode/modal_mode/0"),
-    (84, 87, "vocab:SubjectPronoun/You"),
-    (87, 92, "core-verb:Gain"),
-    (92, 94, "codec:ScalarNumber"),
-    (94, 99, "form:life_amount/life_amount/2"),
-    (99, 100, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const TRIGGER_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
-    (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
-    (10, 17, "lexeme:CommonNoun/Player/singular"),
-    (
-        17,
-        26,
-        "lexeme:keyword_action/Connive/third_person_singular",
-    ),
-    (26, 27, "form:triggered/triggered/1"),
-    (27, 30, "form:finite_condition/finite_condition/0"),
-    (30, 34, "vocab:SubjectPronoun/You"),
-    (34, 42, "lexeme:keyword_action/Connive/bare"),
-    (42, 43, "form:finite_condition/finite_condition/2"),
-    (43, 50, "vocab:ModalChooser/You"),
-    (50, 62, "vocab:ModalChoiceBounds/OneToTwo"),
-    (62, 67, "form:plain_modal/plain_modal/2"),
-    (67, 71, "form:modal_mode/modal_mode/0"),
-    (71, 74, "vocab:SubjectPronoun/You"),
-    (74, 79, "core-verb:Gain"),
-    (79, 81, "codec:ScalarNumber"),
-    (81, 86, "form:life_amount/life_amount/2"),
-    (86, 87, "structural:ModalModeValue/sentences/terminator/0"),
-    (87, 88, "structural:PlainModal/modes/separator/uniform/0"),
-    (88, 92, "form:modal_mode/modal_mode/0"),
-    (92, 95, "vocab:SubjectPronoun/You"),
-    (95, 100, "core-verb:Gain"),
-    (100, 102, "codec:ScalarNumber"),
-    (102, 107, "form:life_amount/life_amount/2"),
-    (107, 108, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const TRIGGER_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
-    (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
-    (10, 17, "lexeme:CommonNoun/Player/singular"),
-    (
-        17,
-        26,
-        "lexeme:keyword_action/Connive/third_person_singular",
-    ),
-    (26, 27, "form:triggered/triggered/1"),
-    (27, 30, "form:finite_condition/finite_condition/0"),
-    (30, 34, "vocab:SubjectPronoun/You"),
-    (34, 42, "lexeme:keyword_action/Connive/bare"),
-    (42, 43, "form:finite_condition/finite_condition/2"),
-    (43, 50, "vocab:ModalChooser/You"),
-    (50, 62, "vocab:ModalChoiceBounds/OneOrMore"),
-    (62, 67, "form:plain_modal/plain_modal/2"),
-    (67, 71, "form:modal_mode/modal_mode/0"),
-    (71, 74, "vocab:SubjectPronoun/You"),
-    (74, 79, "core-verb:Gain"),
-    (79, 81, "codec:ScalarNumber"),
-    (81, 86, "form:life_amount/life_amount/2"),
-    (86, 87, "structural:ModalModeValue/sentences/terminator/0"),
-    (87, 88, "structural:PlainModal/modes/separator/uniform/0"),
-    (88, 92, "form:modal_mode/modal_mode/0"),
-    (92, 95, "vocab:SubjectPronoun/You"),
-    (95, 100, "core-verb:Gain"),
-    (100, 102, "codec:ScalarNumber"),
-    (102, 107, "form:life_amount/life_amount/2"),
-    (107, 108, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const TRIGGER_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
-    (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
-    (10, 17, "lexeme:CommonNoun/Player/singular"),
-    (
-        17,
-        26,
-        "lexeme:keyword_action/Connive/third_person_singular",
-    ),
-    (26, 27, "form:triggered/triggered/1"),
-    (27, 30, "form:finite_condition/finite_condition/0"),
-    (30, 34, "vocab:SubjectPronoun/You"),
-    (34, 42, "lexeme:keyword_action/Connive/bare"),
-    (42, 43, "form:finite_condition/finite_condition/2"),
-    (43, 50, "vocab:ModalChooser/You"),
-    (50, 60, "vocab:ModalChoiceBounds/ZeroToOne"),
-    (60, 65, "form:plain_modal/plain_modal/2"),
-    (65, 69, "form:modal_mode/modal_mode/0"),
-    (69, 72, "vocab:SubjectPronoun/You"),
-    (72, 77, "core-verb:Gain"),
-    (77, 79, "codec:ScalarNumber"),
-    (79, 84, "form:life_amount/life_amount/2"),
-    (84, 85, "structural:ModalModeValue/sentences/terminator/0"),
-    (85, 86, "structural:PlainModal/modes/separator/uniform/0"),
-    (86, 90, "form:modal_mode/modal_mode/0"),
-    (90, 93, "vocab:SubjectPronoun/You"),
-    (93, 98, "core-verb:Gain"),
-    (98, 100, "codec:ScalarNumber"),
-    (100, 105, "form:life_amount/life_amount/2"),
-    (105, 106, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const TRIGGER_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
-    (0, 8, "vocab:TriggerMarker/Whenever"),
-    (8, 10, "determinative:DeterminativeHead/IndefiniteArticle"),
-    (10, 17, "lexeme:CommonNoun/Player/singular"),
-    (
-        17,
-        26,
-        "lexeme:keyword_action/Connive/third_person_singular",
-    ),
-    (26, 27, "form:triggered/triggered/1"),
-    (27, 30, "form:finite_condition/finite_condition/0"),
-    (30, 34, "vocab:SubjectPronoun/You"),
-    (34, 42, "lexeme:keyword_action/Connive/bare"),
-    (42, 43, "form:finite_condition/finite_condition/2"),
-    (43, 63, "vocab:ModalChooser/Opponent"),
-    (63, 67, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (67, 72, "form:plain_modal/plain_modal/2"),
-    (72, 76, "form:modal_mode/modal_mode/0"),
-    (76, 79, "vocab:SubjectPronoun/You"),
-    (79, 84, "core-verb:Gain"),
-    (84, 86, "codec:ScalarNumber"),
-    (86, 91, "form:life_amount/life_amount/2"),
-    (91, 92, "structural:ModalModeValue/sentences/terminator/0"),
-    (92, 93, "structural:PlainModal/modes/separator/uniform/0"),
-    (93, 97, "form:modal_mode/modal_mode/0"),
-    (97, 100, "vocab:SubjectPronoun/You"),
-    (100, 105, "core-verb:Gain"),
-    (105, 107, "codec:ScalarNumber"),
-    (107, 112, "form:life_amount/life_amount/2"),
-    (112, 113, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ACTIVATION_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
-    (0, 1, "form:symbol_run/symbol_run/0/prefix"),
-    (1, 2, "vocab:FixedCostSymbol/Tap"),
-    (2, 3, "form:symbol_run/symbol_run/0/suffix"),
-    (3, 5, "form:activated/activated/1"),
-    (5, 11, "vocab:ModalChooser/You"),
-    (11, 15, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (15, 20, "form:plain_modal/plain_modal/2"),
-    (20, 24, "form:modal_mode/modal_mode/0"),
-    (24, 27, "vocab:SubjectPronoun/You"),
-    (27, 32, "core-verb:Gain"),
-    (32, 34, "codec:ScalarNumber"),
-    (34, 39, "form:life_amount/life_amount/2"),
-    (39, 40, "structural:ModalModeValue/sentences/terminator/0"),
-    (40, 41, "structural:PlainModal/modes/separator/uniform/0"),
-    (41, 45, "form:modal_mode/modal_mode/0"),
-    (45, 48, "vocab:SubjectPronoun/You"),
-    (48, 53, "core-verb:Gain"),
-    (53, 55, "codec:ScalarNumber"),
-    (55, 60, "form:life_amount/life_amount/2"),
-    (60, 61, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ACTIVATION_EXACTLY_TWO_CLAIMS: &[ModalClaim] = &[
-    (0, 1, "form:symbol_run/symbol_run/0/prefix"),
-    (1, 2, "vocab:FixedCostSymbol/Tap"),
-    (2, 3, "form:symbol_run/symbol_run/0/suffix"),
-    (3, 5, "form:activated/activated/1"),
-    (5, 11, "vocab:ModalChooser/You"),
-    (11, 15, "vocab:ModalChoiceBounds/ExactlyTwo"),
-    (15, 20, "form:plain_modal/plain_modal/2"),
-    (20, 24, "form:modal_mode/modal_mode/0"),
-    (24, 27, "vocab:SubjectPronoun/You"),
-    (27, 32, "core-verb:Gain"),
-    (32, 34, "codec:ScalarNumber"),
-    (34, 39, "form:life_amount/life_amount/2"),
-    (39, 40, "structural:ModalModeValue/sentences/terminator/0"),
-    (40, 41, "structural:PlainModal/modes/separator/uniform/0"),
-    (41, 45, "form:modal_mode/modal_mode/0"),
-    (45, 48, "vocab:SubjectPronoun/You"),
-    (48, 53, "core-verb:Gain"),
-    (53, 55, "codec:ScalarNumber"),
-    (55, 60, "form:life_amount/life_amount/2"),
-    (60, 61, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ACTIVATION_ONE_TO_TWO_CLAIMS: &[ModalClaim] = &[
-    (0, 1, "form:symbol_run/symbol_run/0/prefix"),
-    (1, 2, "vocab:FixedCostSymbol/Tap"),
-    (2, 3, "form:symbol_run/symbol_run/0/suffix"),
-    (3, 5, "form:activated/activated/1"),
-    (5, 11, "vocab:ModalChooser/You"),
-    (11, 23, "vocab:ModalChoiceBounds/OneToTwo"),
-    (23, 28, "form:plain_modal/plain_modal/2"),
-    (28, 32, "form:modal_mode/modal_mode/0"),
-    (32, 35, "vocab:SubjectPronoun/You"),
-    (35, 40, "core-verb:Gain"),
-    (40, 42, "codec:ScalarNumber"),
-    (42, 47, "form:life_amount/life_amount/2"),
-    (47, 48, "structural:ModalModeValue/sentences/terminator/0"),
-    (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
-    (49, 53, "form:modal_mode/modal_mode/0"),
-    (53, 56, "vocab:SubjectPronoun/You"),
-    (56, 61, "core-verb:Gain"),
-    (61, 63, "codec:ScalarNumber"),
-    (63, 68, "form:life_amount/life_amount/2"),
-    (68, 69, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ACTIVATION_ONE_OR_MORE_CLAIMS: &[ModalClaim] = &[
-    (0, 1, "form:symbol_run/symbol_run/0/prefix"),
-    (1, 2, "vocab:FixedCostSymbol/Tap"),
-    (2, 3, "form:symbol_run/symbol_run/0/suffix"),
-    (3, 5, "form:activated/activated/1"),
-    (5, 11, "vocab:ModalChooser/You"),
-    (11, 23, "vocab:ModalChoiceBounds/OneOrMore"),
-    (23, 28, "form:plain_modal/plain_modal/2"),
-    (28, 32, "form:modal_mode/modal_mode/0"),
-    (32, 35, "vocab:SubjectPronoun/You"),
-    (35, 40, "core-verb:Gain"),
-    (40, 42, "codec:ScalarNumber"),
-    (42, 47, "form:life_amount/life_amount/2"),
-    (47, 48, "structural:ModalModeValue/sentences/terminator/0"),
-    (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
-    (49, 53, "form:modal_mode/modal_mode/0"),
-    (53, 56, "vocab:SubjectPronoun/You"),
-    (56, 61, "core-verb:Gain"),
-    (61, 63, "codec:ScalarNumber"),
-    (63, 68, "form:life_amount/life_amount/2"),
-    (68, 69, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ACTIVATION_ZERO_TO_ONE_CLAIMS: &[ModalClaim] = &[
-    (0, 1, "form:symbol_run/symbol_run/0/prefix"),
-    (1, 2, "vocab:FixedCostSymbol/Tap"),
-    (2, 3, "form:symbol_run/symbol_run/0/suffix"),
-    (3, 5, "form:activated/activated/1"),
-    (5, 11, "vocab:ModalChooser/You"),
-    (11, 21, "vocab:ModalChoiceBounds/ZeroToOne"),
-    (21, 26, "form:plain_modal/plain_modal/2"),
-    (26, 30, "form:modal_mode/modal_mode/0"),
-    (30, 33, "vocab:SubjectPronoun/You"),
-    (33, 38, "core-verb:Gain"),
-    (38, 40, "codec:ScalarNumber"),
-    (40, 45, "form:life_amount/life_amount/2"),
-    (45, 46, "structural:ModalModeValue/sentences/terminator/0"),
-    (46, 47, "structural:PlainModal/modes/separator/uniform/0"),
-    (47, 51, "form:modal_mode/modal_mode/0"),
-    (51, 54, "vocab:SubjectPronoun/You"),
-    (54, 59, "core-verb:Gain"),
-    (59, 61, "codec:ScalarNumber"),
-    (61, 66, "form:life_amount/life_amount/2"),
-    (66, 67, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-const ACTIVATION_OPPONENT_EXACTLY_ONE_CLAIMS: &[ModalClaim] = &[
-    (0, 1, "form:symbol_run/symbol_run/0/prefix"),
-    (1, 2, "vocab:FixedCostSymbol/Tap"),
-    (2, 3, "form:symbol_run/symbol_run/0/suffix"),
-    (3, 5, "form:activated/activated/1"),
-    (5, 24, "vocab:ModalChooser/Opponent"),
-    (24, 28, "vocab:ModalChoiceBounds/ExactlyOne"),
-    (28, 33, "form:plain_modal/plain_modal/2"),
-    (33, 37, "form:modal_mode/modal_mode/0"),
-    (37, 40, "vocab:SubjectPronoun/You"),
-    (40, 45, "core-verb:Gain"),
-    (45, 47, "codec:ScalarNumber"),
-    (47, 52, "form:life_amount/life_amount/2"),
-    (52, 53, "structural:ModalModeValue/sentences/terminator/0"),
-    (53, 54, "structural:PlainModal/modes/separator/uniform/0"),
-    (54, 58, "form:modal_mode/modal_mode/0"),
-    (58, 61, "vocab:SubjectPronoun/You"),
-    (61, 66, "core-verb:Gain"),
-    (66, 68, "codec:ScalarNumber"),
-    (68, 73, "form:life_amount/life_amount/2"),
-    (73, 74, "structural:ModalModeValue/sentences/terminator/0"),
-];
-
-fn assert_complete_modal_envelope(
-    parser: &Parser,
-    context: &ParseContext<'_>,
-    envelope: &str,
-    header: &str,
-    chooser: ModalChooser,
-    bounds: ModalChoiceBounds,
-    claims: &[ModalClaim],
-) {
-    let text = wrapped_modal_text(envelope, header);
-    let analysis = parser.analyze(&text, context);
-    let selected = analysis
-        .selected()
-        .unwrap_or_else(|| panic!("complete modal envelope must select: {analysis:?}"));
-    assert_eq!(
-        selected,
-        &expected_modal_envelope(envelope, chooser, bounds),
-        "the whole envelope AST is exact: {text}",
-    );
-    assert_eq!(
-        selected.render(context, parser.environment()),
-        text,
-        "the whole envelope renders identically",
-    );
-
-    let mut visitor = CompleteModalEnvelopeVisitor::default();
-    visitor.visit_ability(selected);
-    assert_eq!(
-        visitor.0,
-        expected_complete_modal_visit(envelope, chooser, bounds),
-        "the full visitor preorder retains wrapper and payload order: {text}",
-    );
-
-    let ownership = analysis
-        .ownership()
-        .expect("the selected whole envelope owns every byte");
-    assert!(ownership.failures().is_empty(), "{text}: {ownership:?}");
-    assert_eq!(
-        ownership
-            .parsed_claims()
-            .iter()
-            .map(|claim| {
-                (
-                    claim.span().start,
-                    claim.span().end,
-                    claim.stable_owner_id(),
-                )
-            })
-            .collect::<Vec<_>>(),
-        claims,
-        "the whole envelope has literal exact claim spans and owners: {text}",
-    );
-}
-
-#[test]
-fn every_root_modal_header_has_a_complete_ast_visit_and_literal_claim_oracle() {
-    let parser = parser();
-    let context = context("Context Card", false);
-    let claims = [
-        ROOT_EXACTLY_ONE_CLAIMS,
-        ROOT_EXACTLY_TWO_CLAIMS,
-        ROOT_ONE_TO_TWO_CLAIMS,
-        ROOT_ONE_OR_MORE_CLAIMS,
-        ROOT_ZERO_TO_ONE_CLAIMS,
-        ROOT_OPPONENT_EXACTLY_ONE_CLAIMS,
-    ];
-    for ((root_header, _, chooser, bounds), claims) in
-        modal_header_evidence().into_iter().zip(claims)
-    {
-        assert_complete_modal_envelope(
-            &parser,
-            &context,
-            "root",
-            root_header,
-            chooser,
-            bounds,
-            claims,
-        );
-    }
-}
-
-#[test]
-fn every_trigger_modal_header_has_a_complete_ast_visit_and_literal_claim_oracle() {
-    let parser = parser();
-    let context = context("Context Card", false);
-    let claims = [
-        TRIGGER_EXACTLY_ONE_CLAIMS,
-        TRIGGER_EXACTLY_TWO_CLAIMS,
-        TRIGGER_ONE_TO_TWO_CLAIMS,
-        TRIGGER_ONE_OR_MORE_CLAIMS,
-        TRIGGER_ZERO_TO_ONE_CLAIMS,
-        TRIGGER_OPPONENT_EXACTLY_ONE_CLAIMS,
-    ];
-    for ((_, wrapped_header, chooser, bounds), claims) in
-        modal_header_evidence().into_iter().zip(claims)
-    {
-        assert_complete_modal_envelope(
-            &parser,
-            &context,
-            "trigger",
-            wrapped_header,
-            chooser,
-            bounds,
-            claims,
-        );
-    }
-}
-
-#[test]
-fn every_activation_modal_header_has_a_complete_ast_visit_and_literal_claim_oracle() {
-    let parser = parser();
-    let context = context("Context Card", false);
-    let claims = [
-        ACTIVATION_EXACTLY_ONE_CLAIMS,
-        ACTIVATION_EXACTLY_TWO_CLAIMS,
-        ACTIVATION_ONE_TO_TWO_CLAIMS,
-        ACTIVATION_ONE_OR_MORE_CLAIMS,
-        ACTIVATION_ZERO_TO_ONE_CLAIMS,
-        ACTIVATION_OPPONENT_EXACTLY_ONE_CLAIMS,
-    ];
-    for ((root_header, _, chooser, bounds), claims) in
-        modal_header_evidence().into_iter().zip(claims)
-    {
-        assert_complete_modal_envelope(
-            &parser,
-            &context,
-            "activation",
-            root_header,
-            chooser,
-            bounds,
-            claims,
-        );
     }
 }
 
@@ -4995,128 +4225,51 @@ fn modal_sentence(predicate: VerbPhrase) -> Sentence {
 
 fn modal_mode(sentences: Vec<Sentence>) -> ModalMode {
     ModalMode::ModalMode(
-        ModalModeValue::new(Box::new(sentences))
-            .expect("a modal mode has a nonempty sentence sequence"),
+        ModalModeValue::new(
+            Box::new(ModeMarker::Bullet(BulletMarker {})),
+            Box::new(sentences),
+        )
+        .expect("a bulleted modal mode has a nonempty sentence sequence"),
     )
 }
 
-#[derive(Default)]
-struct ModalVisitor(Vec<String>);
-
-impl Visitor for ModalVisitor {
-    fn visit_ability(&mut self, value: &Ability) {
-        self.0.push("Ability".to_owned());
-        deckmaste_english_v2::visit::walk_ability(self, value);
-    }
-
-    fn visit_plain(&mut self, value: &Plain) {
-        self.0.push("Plain".to_owned());
-        deckmaste_english_v2::visit::walk_plain(self, value);
-    }
-
-    fn visit_ability_body(&mut self, value: &AbilityBody) {
-        self.0.push("AbilityBody".to_owned());
-        deckmaste_english_v2::visit::walk_ability_body(self, value);
-    }
-
-    fn visit_plain_modal(&mut self, value: &PlainModal) {
-        self.0.push("PlainModal".to_owned());
-        deckmaste_english_v2::visit::walk_plain_modal(self, value);
-    }
-
-    fn visit_modal_chooser(&mut self, value: ModalChooser) {
-        self.0.push(format!("ModalChooser:{value:?}"));
-    }
-
-    fn visit_modal_choice_bounds(&mut self, value: ModalChoiceBounds) {
-        self.0.push(format!("ModalChoiceBounds:{value:?}"));
-    }
-
-    fn visit_modal_mode(&mut self, value: &ModalMode) {
-        self.0.push("ModalMode".to_owned());
-        deckmaste_english_v2::visit::walk_modal_mode(self, value);
-    }
-
-    fn visit_modal_mode_value(&mut self, value: &ModalModeValue) {
-        self.0.push("ModalModeValue".to_owned());
-        deckmaste_english_v2::visit::walk_modal_mode_value(self, value);
-    }
-
-    fn visit_sentence(&mut self, value: &Sentence) {
-        self.0.push("Sentence".to_owned());
-        deckmaste_english_v2::visit::walk_sentence(self, value);
-    }
-
-    fn visit_life_amount(&mut self, value: &LifeAmount) {
-        let Amount::Number(NumberAmount {
-            number: ScalarNumber { magnitude },
-        }) = value.amount
-        else {
-            panic!("modal visitor expects a literal life amount")
-        };
-        self.0.push(format!("LifeAmount:{magnitude}"));
-    }
-
-    fn visit_intransitive_predicate(&mut self, value: &IntransitivePredicate) {
-        assert!(matches!(
-            &value.head,
-            head if head.reference() == &VerbInventoryRef::Declaration(DeclarationId::new(
-                DeclarationKind::KeywordAction,
-                "Connive",
-            ))
-        ));
-        self.0.push("Connive".to_owned());
-    }
-}
-
 #[test]
-fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
+fn plain_modal_modes_render_visitor_and_claims_are_hand_derived() {
     let parser = parser();
     let context = context("Context Card", false);
     let text = "Choose one —\n• You gain 1 life. You connive.\n• You gain 2 life.";
-    let selected = assert_one_logic_candidate(&parser, &context, text);
-    let expected = Ability::Plain(Plain {
-        body: Box::new(AbilityBody::PlainModal(
-            PlainModal::new(
-                ModalChooser::You,
-                ModalChoiceBounds::ExactlyOne,
-                Box::new(vec![
-                    modal_mode(vec![
-                        modal_sentence(gain_life_predicate(1)),
-                        modal_sentence(connive()),
-                    ]),
-                    modal_mode(vec![modal_sentence(gain_life_predicate(2))]),
-                ]),
-            )
-            .expect("two nonempty modes and a licensed header construct"),
-        )),
-    });
-    assert_eq!(selected, expected);
+    let selected = assert_resolved_logic_candidate(&parser, &context, text);
+    let modal = selected_plain_modal(&selected, "root");
+    assert_eq!(
+        modal.modes(),
+        [
+            modal_mode(vec![
+                modal_sentence(gain_life_predicate(1)),
+                modal_sentence(connive()),
+            ]),
+            modal_mode(vec![modal_sentence(gain_life_predicate(2))]),
+        ],
+        "both bulleted modes keep their exact hand-derived sentence ASTs",
+    );
     assert_eq!(selected.render(&context, parser.environment()), text);
 
-    let mut visitor = ModalVisitor::default();
-    visitor.visit_ability(&selected);
-    assert_eq!(
-        visitor.0,
-        [
-            "Ability",
-            "Plain",
-            "AbilityBody",
-            "PlainModal",
-            "ModalChooser:You",
-            "ModalChoiceBounds:ExactlyOne",
-            "ModalMode",
-            "ModalModeValue",
-            "Sentence",
-            "LifeAmount:1",
-            "Sentence",
-            "Connive",
-            "ModalMode",
-            "ModalModeValue",
-            "Sentence",
-            "LifeAmount:2",
-        ],
-        "visitor order is header semantics, then every mode and sentence in source order",
+    assert!(
+        ModalModeValue::new(
+            Box::new(ModeMarker::Bullet(BulletMarker {})),
+            Box::default(),
+        )
+        .is_none(),
+        "a mode cannot lose its last sentence",
+    );
+    assert!(
+        PlainModal::new(
+            modal.head.clone(),
+            Box::new(vec![modal_mode(vec![modal_sentence(gain_life_predicate(
+                1
+            ))])]),
+        )
+        .is_none(),
+        "a modal group cannot lose its second mode",
     );
 
     let analysis = parser.analyze(text, &context);
@@ -5134,10 +4287,11 @@ fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
             ))
             .collect::<Vec<_>>(),
         [
-            (0, 6, "vocab:ModalChooser/You"),
-            (6, 10, "vocab:ModalChoiceBounds/ExactlyOne"),
-            (10, 15, "form:plain_modal/plain_modal/2"),
-            (15, 19, "form:modal_mode/modal_mode/0"),
+            (0, 6, "core-verb:Choose"),
+            (6, 10, "codec:CardinalNumber"),
+            (10, 14, "form:dash_head/dash_head/1"),
+            (14, 15, "form:plain_modal/plain_modal/1"),
+            (15, 19, "form:bullet_marker/bullet_marker/0"),
             (19, 22, "vocab:SubjectPronoun/You"),
             (22, 27, "core-verb:Gain"),
             (27, 29, "codec:ScalarNumber"),
@@ -5152,103 +4306,14 @@ fn plain_modal_exact_ast_render_visitor_and_claims_are_hand_derived() {
             (39, 47, "lexeme:keyword_action/Connive/bare"),
             (47, 48, "structural:ModalModeValue/sentences/terminator/0"),
             (48, 49, "structural:PlainModal/modes/separator/uniform/0"),
-            (49, 53, "form:modal_mode/modal_mode/0"),
+            (49, 53, "form:bullet_marker/bullet_marker/0"),
             (53, 56, "vocab:SubjectPronoun/You"),
             (56, 61, "core-verb:Gain"),
             (61, 63, "codec:ScalarNumber"),
             (63, 68, "form:life_amount/life_amount/2"),
             (68, 69, "structural:ModalModeValue/sentences/terminator/0"),
         ],
-    );
-}
-
-#[test]
-fn modal_header_guard_selection_is_mutation_authenticated() {
-    let parser = parser();
-    let context = context("Context Card", false);
-    let modes = || {
-        vec![
-            modal_mode(vec![modal_sentence(gain_life_predicate(1))]),
-            modal_mode(vec![modal_sentence(gain_life_predicate(2))]),
-        ]
-    };
-    for (chooser, bounds, header) in [
-        (
-            ModalChooser::You,
-            ModalChoiceBounds::ExactlyOne,
-            "Choose one",
-        ),
-        (
-            ModalChooser::You,
-            ModalChoiceBounds::ExactlyTwo,
-            "Choose two",
-        ),
-        (
-            ModalChooser::You,
-            ModalChoiceBounds::OneToTwo,
-            "Choose one or both",
-        ),
-        (
-            ModalChooser::You,
-            ModalChoiceBounds::OneOrMore,
-            "Choose one or more",
-        ),
-        (
-            ModalChooser::You,
-            ModalChoiceBounds::ZeroToOne,
-            "Choose up to one",
-        ),
-        (
-            ModalChooser::Opponent,
-            ModalChoiceBounds::ExactlyOne,
-            "An opponent chooses one",
-        ),
-        (
-            ModalChooser::Opponent,
-            ModalChoiceBounds::ExactlyTwo,
-            "An opponent chooses two",
-        ),
-        (
-            ModalChooser::Opponent,
-            ModalChoiceBounds::OneToTwo,
-            "An opponent chooses one or both",
-        ),
-        (
-            ModalChooser::Opponent,
-            ModalChoiceBounds::OneOrMore,
-            "An opponent chooses one or more",
-        ),
-        (
-            ModalChooser::Opponent,
-            ModalChoiceBounds::ZeroToOne,
-            "An opponent chooses up to one",
-        ),
-    ] {
-        let modal = PlainModal::new(chooser, bounds, Box::new(modes()))
-            .expect("every admitted semantic header combination constructs");
-        let ability = Ability::Plain(Plain {
-            body: Box::new(AbilityBody::PlainModal(modal)),
-        });
-        assert_eq!(
-            ability.render(&context, parser.environment()),
-            modal_text(header),
-            "mutating semantic chooser or bounds selects its one guarded surface",
-        );
-    }
-    assert!(
-        ModalModeValue::new(Box::default()).is_none(),
-        "a mode cannot lose its last sentence",
-    );
-    assert!(
-        PlainModal::new(
-            ModalChooser::You,
-            ModalChoiceBounds::ExactlyOne,
-            Box::new(vec![modal_mode(vec![modal_sentence(gain_life_predicate(
-                1
-            ))])]),
-        )
-        .is_none(),
-        "a modal group cannot lose its second mode",
+        "the dash head and both bullet markers own disjoint structural bytes",
     );
 }
 
@@ -5415,7 +4480,7 @@ fn modal_self_reference_licensing_is_identical_in_every_envelope() {
         let legendary_text = wrapped_modal_text(envelope, legendary_header)
             .replace("You gain 1 life", "Aang gains 1 life")
             .replace("You gain 2 life", "Aang gains 2 life");
-        let selected = assert_one_logic_candidate(&parser, &legendary, &legendary_text);
+        let selected = assert_resolved_logic_candidate(&parser, &legendary, &legendary_text);
         let mut visitor = SelfReferenceVisitor::default();
         visitor.visit_ability(&selected);
         assert_eq!(
@@ -5456,7 +4521,7 @@ fn full_self_reference_subject(context: &ParseContext<'_>) -> Subject {
     })
 }
 
-fn full_self_reference_modal_body(context: &ParseContext<'_>) -> AbilityBody {
+fn full_self_reference_modes(context: &ParseContext<'_>) -> Vec<ModalMode> {
     let sentence = |magnitude| {
         Sentence::Declarative(Declarative {
             clause: Box::new(Clause::Finite(Box::new(plain_finite(
@@ -5465,17 +4530,7 @@ fn full_self_reference_modal_body(context: &ParseContext<'_>) -> AbilityBody {
             )))),
         })
     };
-    AbilityBody::PlainModal(
-        PlainModal::new(
-            ModalChooser::You,
-            ModalChoiceBounds::ExactlyOne,
-            Box::new(vec![
-                modal_mode(vec![sentence(1)]),
-                modal_mode(vec![sentence(2)]),
-            ]),
-        )
-        .expect("two full-self-reference modes construct"),
-    )
+    vec![modal_mode(vec![sentence(1)]), modal_mode(vec![sentence(2)])]
 }
 
 #[test]
@@ -5490,10 +4545,10 @@ fn nonlegendary_full_self_reference_selects_complete_modal_envelopes() {
         let text = wrapped_modal_text(envelope, header)
             .replace("You gain 1 life", "Grizzly Bears gains 1 life")
             .replace("You gain 2 life", "Grizzly Bears gains 2 life");
-        let selected = assert_one_logic_candidate(&parser, &ordinary, &text);
+        let selected = assert_resolved_logic_candidate(&parser, &ordinary, &text);
         assert_eq!(
-            selected,
-            expected_modal_envelope_with_body(envelope, full_self_reference_modal_body(&ordinary),),
+            selected_plain_modal(&selected, envelope).modes(),
+            full_self_reference_modes(&ordinary),
             "the complete {envelope} envelope retains full-only self-reference ASTs",
         );
         assert_eq!(

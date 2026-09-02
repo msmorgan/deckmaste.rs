@@ -42,6 +42,7 @@ constructions! {
     vocab TemporalBoundary { Beginning = "beginning", End = "end", }
     vocab TemporalRelation { Before = "before", After = "after", }
     vocab ComparativeQuantifier { Fewer = "fewer", More = "more", }
+    vocab FrequencyAdverb { Once = "once", Twice = "twice", }
     vocab ScalarDegree { Equal = "equal", Lesser = "lesser", Greater = "greater", }
     vocab AttributiveAdjective {
         feature ModifierLicense = Unrestricted;
@@ -49,6 +50,7 @@ constructions! {
         FaceDown = "face-down",
         Maximum = "maximum",
         Other = "other",
+        Same = "same",
         Target = "target" { feature ModifierLicense = LocalDeterminer; },
     }
     vocab ContractedPerfectSubject { Youve = "you've", Theyve = "they've", }
@@ -185,6 +187,7 @@ constructions! {
         HybridPhyrexianGreenBlue = "G/U/P",
         Tap = "T",
         Untap = "Q",
+        Pawprint = "P",
     }
     vocab ChapterNumeral {
         One = "I",
@@ -193,17 +196,6 @@ constructions! {
         Four = "IV",
         Five = "V",
         Six = "VI",
-    }
-    vocab ModalChooser {
-        You = "choose",
-        Opponent = "an opponent chooses",
-    }
-    vocab ModalChoiceBounds {
-        ExactlyOne = "one",
-        ExactlyTwo = "two",
-        OneToTwo = "one or both",
-        OneOrMore = "one or more",
-        ZeroToOne = "up to one",
     }
     vocab MonocoloredHybridColor {
         White = "W",
@@ -262,6 +254,7 @@ constructions! {
         Library = "library" {
             Plural = "libraries",
         },
+        Mode = "mode",
         Name = "name",
         Number = "number",
         Controller = "controller",
@@ -997,6 +990,7 @@ constructions! {
         StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
         Manner: MannerPredicate,
+        Frequency: FrequencyPredicate,
         RatherThanManaCost: RatherThanManaCostPredicate,
         WithoutPayingManaCost: WithoutPayingManaCostPredicate,
         CostComparison: CostComparisonPredicate,
@@ -1018,6 +1012,7 @@ constructions! {
         StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
         Manner: MannerPredicate,
+        Frequency: FrequencyPredicate,
         RatherThanManaCost: RatherThanManaCostPredicate,
         WithoutPayingManaCost: WithoutPayingManaCostPredicate,
         CostComparison: CostComparisonPredicate,
@@ -1041,6 +1036,7 @@ constructions! {
         StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
         Manner: MannerPredicate,
+        Frequency: FrequencyPredicate,
         RatherThanManaCost: RatherThanManaCostPredicate,
         WithoutPayingManaCost: WithoutPayingManaCostPredicate,
         CostComparison: CostComparisonPredicate,
@@ -1067,6 +1063,7 @@ constructions! {
         StateDuration: StateDurationPredicate,
         Instead: InsteadPredicate,
         Manner: MannerPredicate,
+        Frequency: FrequencyPredicate,
         RatherThanManaCost: RatherThanManaCostPredicate,
         WithoutPayingManaCost: WithoutPayingManaCostPredicate,
         CostComparison: CostComparisonPredicate,
@@ -1183,20 +1180,64 @@ constructions! {
     }
     construction modal_mode: ModalMode {
         element ModalModeValue {
+            marker: ModeMarker,
             sentences: seq Sentence separated by " " terminated by ".",
         }
         require len(sentences) >= 1;
-        form modal_mode = sentence_initial("• ") sentences;
+        form modal_mode = marker sentences;
+    }
+    abstract sum FrequencyReference {
+        Plain: PlainFrequency,
+        Comparative: ComparativeFrequency,
+    }
+    abstract sum ModeMarker {
+        Bullet: BulletMarker,
+        Weighted: WeightedMarker,
+    }
+    construction bullet_marker: ModeMarker {
+        element BulletMarker {}
+        form bullet_marker = sentence_initial("• ");
+    }
+    // Spree's plus sign and the pawprint symbols are the same weighted mode
+    // marker: the plus sign carries no rules meaning [CR#702.172a,702.172b]
+    // and pawprints weight a mode against the head's allowance [CR#700.2i].
+    construction additional_cost_mark: AdditionalCostMark {
+        element AdditionalCostMarkValue {}
+        form additional_cost_mark = "+";
+    }
+    construction weighted_marker: ModeMarker {
+        element WeightedMarker {
+            additional: opt AdditionalCostMark,
+            cost: ActivationCostComponent,
+        }
+        require cost is SymbolRun;
+        form weighted_marker = additional cost sentence_initial(" — ");
+    }
+    abstract sum ModalHead {
+        Dash: DashHead,
+        Sentence: SentenceHead,
+        Keyword: KeywordLine,
+    }
+    construction dash_head: DashHead {
+        element DashHeadValue { clause: Sentence, }
+        form dash_head = clause sentence_initial(" —");
+    }
+    // A sentence-headed modal states its allowance in ordinary sentences,
+    // including the licence to repeat a mode [CR#700.2d].
+    construction sentence_head: SentenceHead {
+        element SentenceHeadValue {
+            sentences: seq Sentence separated by " " terminated by ".",
+        }
+        require len(sentences) >= 1;
+        form sentence_head = sentences;
     }
     construction plain_modal: AbilityBody {
         element PlainModal {
-            chooser: lex ModalChooser,
-            bounds: lex ModalChoiceBounds,
+            head: ModalHead,
             modes: seq ModalMode separated by sentence_initial("\n"),
         }
         require len(modes) >= 2;
-        form plain_modal =
-            lex(chooser) lex(bounds) sentence_initial(" —\n") modes;
+        form plain_modal = head sentence_initial("\n") modes;
     }
     construction finite: TriggerPrefix {
         element Finite {
@@ -1925,6 +1966,27 @@ constructions! {
         derive agreement = predicate.agreement;
         form instead_predicate = predicate "instead";
     }
+    // A frequency adverbial counts occurrences of the predicate; "more than
+    // once" is the comparative form.
+    construction plain_frequency: FrequencyReference {
+        element PlainFrequency { adverb: lex FrequencyAdverb, }
+        form plain_frequency = lex(adverb);
+    }
+    construction comparative_frequency: FrequencyReference {
+        element ComparativeFrequency {
+            quantifier: lex ComparativeQuantifier,
+            adverb: lex FrequencyAdverb,
+        }
+        form comparative_frequency = lex(quantifier) "than" lex(adverb);
+    }
+    construction frequency_predicate: FrequencyPredicate {
+        element FrequencyPredicateValue {
+            predicate: BaseVerbFrame,
+            frequency: FrequencyReference,
+        }
+        derive agreement = predicate.agreement;
+        form frequency_predicate = predicate frequency;
+    }
     construction manner_predicate: MannerPredicate {
         element MannerPredicateValue {
             predicate: BaseVerbFrame,
@@ -2492,6 +2554,7 @@ constructions! {
             FaceDown => Values::Consonant,
             Maximum => Values::Consonant,
             Other => Values::Vowel,
+            Same => Values::Consonant,
             Target => Values::Consonant,
         };
         form attributive_adjective_modifier = lex(adjective);
@@ -3713,6 +3776,10 @@ constructions! {
     construction count_or_fewer: CountComparison {
         element CountOrFewer {}
         form count_or_fewer = "or" "fewer";
+    }
+    construction count_or_both: CountComparison {
+        element CountOrBoth {}
+        form count_or_both = "or" "both";
     }
     construction scalar_qualification: ScalarQualification {
         element ScalarQualificationValue {

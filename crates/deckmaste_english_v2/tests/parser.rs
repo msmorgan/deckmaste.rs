@@ -2009,6 +2009,7 @@ fn doubled_period_reports_the_first_trailing_byte() {
             },
             expectations: BTreeSet::from([
                 Expectation::Terminal(TerminalClass::EndOfInput),
+                Expectation::Literal("\n"),
                 Expectation::Literal(" "),
                 Expectation::Literal(" Then "),
             ]),
