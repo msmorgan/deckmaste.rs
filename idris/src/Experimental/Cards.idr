@@ -7419,22 +7419,35 @@ akroanSergeant =
            (Macros.renown (Lit 1)) ]
        (Just (2, 2))
 
-||| Storied's expansion body [CR#702.195a] -- "you have an enduring
-||| story for the rest of the game", which is what `StoriedW` had no
-||| witness for. 9 supported cards print the word (re-measured
+||| Storied's expansion, WHOLE [CR#702.195a] -- "Any time you control
+||| three or more permanents that are artifacts, Sagas, and/or legendary
+||| and you don't have an enduring story, you have an enduring story for
+||| the rest of the game." 9 supported cards print the word (re-measured
 ||| 2026-09-02; the audit carried 11, and the difference is Grub,
 ||| Storied Matriarch, whose "Storied" is a card NAME and not the
 ||| keyword, plus a second name-only match).
-||| A FRAGMENT, and the GATE is why: [CR#702.195a] counts "permanents
-||| that are artifacts, Sagas, and/or legendary", a disjunction mixing
-||| two head-bearing arms with an adjectival one, and
-||| `parallelDisjuncts` refuses a mixed `Or` (`hasHead (HasSupertype _)`
-||| is False against `HasType`'s and `HasSubtype`'s True). The
-||| threshold reads fine; the union it counts over is the blocker, and
-||| it is not this word's.
+||| It was a fragment for its GATE, and the mixed-arm reading is what
+||| paid for it: the union counted over puts an adjectival arm beside
+||| two head-bearing ones, which `parallelDisjuncts` refused on
+||| headedness alone until `armPresupposes` made the demand a
+||| presuppositional one. The head "legendary" borrows is the enclosing
+||| "permanents", not a sibling's -- see `armPresupposes` for the two
+||| rules that settle it. `getsCitysBlessing`'s twin still writes the
+||| body, and the count and its absence check are written here, where
+||| [CR#702.195a] states them.
 public export
 storiedEnduringStory : Effect []
-storiedEnduringStory = Macros.getsEnduringStory
+storiedEnduringStory =
+  If (AndCond
+        [ CompareAmt (CountOf (And [Permanent,
+                                    Or [Macros.artifact,
+                                        HasSubtype (enchantmentType "Saga"),
+                                        HasSupertype Legendary],
+                                    ControlledBy You]))
+                     AtLeast (Lit 3)
+        , Macros.notSo (Matches You (HasDesignation EnduringStory)) ])
+     Macros.getsEnduringStory
+     Nothing
 
 public export
 vedalkenOrrery : Card
@@ -14280,6 +14293,57 @@ communeWithTheGods =
                             Macros.handZ)
            , Macros.move TheRest Macros.graveyardZ ]) ]
        Nothing
+
+||| Tezzeret's Gatebreaker, whole -- "When this artifact enters, look at
+||| the top five cards of your library. You may reveal a blue or artifact
+||| card from among them and put it into your hand. Put the rest on the
+||| bottom of your library in a random order. / {5}{U}, {T}, Sacrifice
+||| this artifact: Creatures you control can't be blocked this turn."
+||| `communeWithTheGods`' partitive at the MIXED disjunction: a colour
+||| word standing beside a card-type one, both said of the "card" the
+||| slice already heads. The colour arm writes no head and presupposes
+||| no type, so it borrows the slice's -- `armPresupposes` is where that
+||| reading and its two rules are recorded.
+public export
+tezzeretsGatebreaker : Card
+tezzeretsGatebreaker =
+  Macros.card "Tezzeret's Gatebreaker" (Just [Macros.generic 4]) []
+       (MkTypeLine [] [Artifact])
+       [ Macros.triggered When (Enters Macros.thisArtifact Nothing)
+           (Sequentially
+              [ Macros.lookAt (Macros.topCards 5)
+              , Macros.may You
+                  (Sequentially
+                     [ Macros.revealCards
+                         (Macros.oneFromAmong (Or [ColorIs Blue, Macros.artifact]) Them)
+                     , Macros.move (That CardW) Macros.handZ ])
+              , Macros.move TheRest (Macros.onBottomIn RandomOrder) ])
+       , Macros.activated
+           (Compound [Mana [Macros.generic 5, Macros.pip Blue], TapSymbol,
+                      Do (Macros.sacrifice You Macros.thisArtifact)])
+           (Macros.cantBeBlocked (AllOf Macros.creatureYouControl)
+                                 (Just Macros.thisTurn)) ]
+       Nothing
+
+||| Soldevi Adnate, whole -- "{T}, Sacrifice a black or artifact
+||| creature: Add an amount of {B} equal to the sacrificed creature's
+||| mana value." The mixed disjunction at a COST's description, where
+||| `tezzeretsGatebreaker` writes it on a partitive slice: a colour word
+||| beside a card-type one, both said of the "creature" the phrase heads
+||| and neither of them heading it.
+public export
+soldeviAdnate : Card
+soldeviAdnate =
+  Macros.card "Soldevi Adnate" (Just [Macros.generic 1, Macros.pip Black]) []
+       (MkTypeLine [creatureType "Human", creatureType "Cleric"] [Creature])
+       [ Macros.activated
+           (Compound [TapSymbol,
+                      Do (Macros.sacrifice You
+                            (Macros.a (And [Macros.creature,
+                                            Or [ColorIs Black, Macros.artifact]])))])
+           (AddMana You (Macros.manaValueOf (Macros.itVerbed "Sacrifice"))
+                    (Runs [[OfColor Black]]) []) ]
+       (Just (1, 1))
 
 ||| Bind to Life, Vastlands Scavenger's adventure -- "Mill seven cards.
 ||| Then put a creature card from among them onto the battlefield." The
