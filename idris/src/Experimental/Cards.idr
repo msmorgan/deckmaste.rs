@@ -14492,27 +14492,66 @@ agencyOutfitterSearch =
                             Macros.yourLibrary)
          Macros.shuffle Nothing ]
 
-||| Delivery Moogle's search -- "search your library and/or graveyard for an
-||| artifact card with mana value 2 or less, reveal it, and put it into your
-||| hand. If you search your library this way, shuffle." The family's
-||| commonest arity; Ajani's Aid, Finale of Devastation and the whole
-||| planeswalker-fetch cycle write the same two zones and the same tail.
-||| The card is still not whole, and no longer for this reader's sake: its
-||| search sits inside an enters trigger, where "reveal IT" has the entering
-||| permanent to compete with and `countOnes Object` refuses the pronoun.
-||| A recency anaphor, not a zone read; Vraska's Scorn writes the same three
-||| clauses whole because its first sentence names a PLAYER.
+||| Delivery Moogle, whole -- "Flying / When this creature enters, search
+||| your library and/or graveyard for an artifact card with mana value 2
+||| or less, reveal it, and put it into your hand. If you search your
+||| library this way, shuffle."
+||| The search is the and/or family's commonest arity; Ajani's Aid,
+||| Finale of Devastation and the whole planeswalker-fetch cycle write
+||| the same two zones and the same tail.
+||| The search sits inside an ENTERS trigger, so the header announced the
+||| entering permanent beside the card the search found and the bare "it"
+||| had two candidates. The carrier is the SEARCH's own stamp
+||| (`Macros.foundCard`), which [CR#701.23e] names in as many words --
+||| "instructions to reveal the found card(s)" -- and no recency ranking
+||| was minted, which `ItPrior`'s docstring refuses on purpose.
+||| The whole and/or-search creature cycle writes this shape: Ashiok's
+||| Forerunner, Chandra's Firemaw, Domri's Nodorog, Elspeth's Devotee,
+||| Ethereal Elk, Fang-Druid Summoner, Garruk's Warsteed, Goldmane
+||| Griffin, Niambi Faithful Healer, Rowan's Stalwarts, Sorin's Guide,
+||| Teferi's Wavecaster, Tower Winder, Yanling's Harbinger -- 14 beside
+||| this one, all but Tower Winder and this card writing the search under
+||| a "you may" (re-measured 2026-09-02).
 public export
-deliveryMoogleSearch : Effect []
-deliveryMoogleSearch =
-  Sequentially
-    [ Macros.searchLibraryOrGraveyard
-        (And [Macros.artifact, Compare [CharAxis ManaValue] AtMost (Lit 2)])
-    , Macros.revealCards It
-    , Macros.move It Macros.handZ
-    , If (Macros.happenedAt (VerbedAct "Search") You Lookback.ThisWay
-                            Macros.yourLibrary)
-         Macros.shuffle Nothing ]
+deliveryMoogle : Card
+deliveryMoogle =
+  Macros.card "Delivery Moogle"
+       (Just [Macros.generic 3, Macros.pip White]) []
+       (MkTypeLine [creatureType "Moogle"] [Creature])
+       [ Macros.keyword "Flying"
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (And [Macros.artifact,
+                        Compare [CharAxis ManaValue] AtMost (Lit 2)])
+              , Macros.revealsIt
+              , Macros.move Macros.foundCard Macros.handZ
+              , If (Macros.happenedAt (VerbedAct "Search") You Lookback.ThisWay
+                                      Macros.yourLibrary)
+                   Macros.shuffle Nothing ]) ]
+       (Just (3, 2))
+
+||| Tower Winder, whole -- the same three clauses over a printed NAME
+||| rather than a described card, and the cycle's other non-optional
+||| member. Twelve of the fifteen write "you MAY search"; this card and
+||| Delivery Moogle write the search flat.
+public export
+towerWinder : Card
+towerWinder =
+  Macros.card "Tower Winder" (Just [Macros.generic 1, Macros.pip Green]) []
+       (MkTypeLine [creatureType "Snake"] [Creature])
+       [ Macros.keyword "Reach"
+       , Macros.keyword "Deathtouch"
+       , Macros.triggered When (Enters Macros.thisCreature Nothing)
+           (Sequentially
+              [ Macros.searchLibraryOrGraveyard
+                  (Named (PrintedName "Command Tower"))
+              , Macros.revealsIt
+              , Macros.move Macros.foundCard Macros.handZ
+              , If (Macros.happenedAt (VerbedAct "Search") You Lookback.ThisWay
+                                      Macros.yourLibrary)
+                   Macros.shuffle Nothing ]) ]
+       (Just (1, 1))
 
 ||| Vraska's Scorn, whole -- "Target opponent loses 4 life. You may search
 ||| your library and/or graveyard for a card named Vraska, Scheming Gorgon,

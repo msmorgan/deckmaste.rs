@@ -1452,6 +1452,38 @@ public export
 lookAtHandOf : (n : Noun bs Player) -> Effect bs
 lookAtHandOf n = Expose LookAt You (ExposedZone (handOf n))
 
+||| "…, reveal it, and put it into your hand": the pronoun over the card
+||| a SEARCH in the same effect found, narrowed by the PRODUCING verb's
+||| stamp. [CR#701.23e] is the rule that ties the two clauses together
+||| and it names the referent outright -- "if the effect that contains
+||| the search instruction doesn't also contain instructions to reveal
+||| the FOUND CARD(S), then they're not revealed" -- so the search's own
+||| stamp is what the reveal's pronoun reads, and the entering permanent
+||| an enclosing header announced is not among its candidates.
+|||
+||| NOT `itAsCard`, and the measurement rather than taste says why. A
+||| coordinated search fixes no zone for what it finds
+||| (`searchZone (SomeZones _ _) = Nothing`, a coordination naming no
+||| single zone), and `CardSlot` is a ZONE test -- so the card carrier
+||| reaches this mention at neither zone, while all 15 supported carriers
+||| write "search your library AND/OR graveyard". [CR#701.20a]'s reveal
+||| does show a card, but that fact has no zone to be spelled as here,
+||| and [CR#701.23a] states the same thing about the search's own find
+||| ("find a card that matches the given description") whatever zone was
+||| looked in.
+||| 15 supported cards write the enters-then-search-then-reveal shape
+||| (Delivery Moogle and the and/or-search creature cycle, re-measured
+||| 2026-09-02); the sorcery-voiced twins already wrote, their first
+||| sentence naming a player rather than a permanent.
+public export
+foundCard : {auto 0 ok : countVerbedIt "Search" bs = 1} -> Noun bs Object
+foundCard = ItVerbed "Search" {ok}
+
+||| "…, reveal it, …" at `foundCard`'s carrier.
+public export
+revealsIt : {auto 0 ok : countVerbedIt "Search" bs = 1} -> Effect bs
+revealsIt = revealCards (foundCard {ok})
+
 public export
 revealsTheirHand : (who : Noun bs Player) ->
                    {auto 0 ok : countOnes Player (nomIntro who) = 1} -> Effect bs
